@@ -2453,6 +2453,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
@@ -2465,6 +2466,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiOwnTokensPerDay:
+		return true
 	case AiTokensPerDay:
 		return true
 	case ApiRequestsPerMinute:
@@ -7283,7 +7286,9 @@ type QuotaStanding struct {
 	Configured *bool `json:"configured,omitempty"`
 
 	// Limit The resolved ceiling. 0 means unlimited.
-	Limit int64              `json:"limit"`
+	Limit int64 `json:"limit"`
+
+	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -7293,7 +7298,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota defines model for QuotaStanding.Quota.
+// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -8641,7 +8646,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`

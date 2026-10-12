@@ -63,9 +63,27 @@ type Resolver struct {
 // the caller's answer to all three is the same one - carry on without the suggestion. What differs
 // is the log line, which is the adapter's business.
 func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.Provider, error) {
+	provider, _, err := r.Sourced(ctx, actor)
+	return provider, err
+}
+
+// Sourced is For, saying which source answered - the one the budget counts the call against
+// (ADR-0072 §4). A provider that refuses is SourceNone, whatever was configured.
+func (r Resolver) Sourced(
+	ctx context.Context, actor appshared.ActorContext,
+) (port.Provider, port.Source, error) {
 	if r.Sources != nil {
 		return r.forSource(ctx, actor)
 	}
+	provider, err := r.forOwn(ctx, actor)
+	if _, refuses := provider.(Noop); refuses || err != nil {
+		return provider, port.SourceNone, err
+	}
+	return provider, port.SourceOwn, nil
+}
+
+// forOwn is the installation built before offered models: the workspace's own model or nothing.
+func (r Resolver) forOwn(ctx context.Context, actor appshared.ActorContext) (port.Provider, error) {
 	var (
 		configured domain.AiProvider
 		sealed     *cryptoport.Sealed
@@ -104,7 +122,9 @@ func (r Resolver) For(ctx context.Context, actor appshared.ActorContext) (port.P
 
 // forSource is For under the installation's rule: the application decides which configuration may
 // be called, and this builds the adapter for it.
-func (r Resolver) forSource(ctx context.Context, actor appshared.ActorContext) (port.Provider, error) {
+func (r Resolver) forSource(
+	ctx context.Context, actor appshared.ActorContext,
+) (port.Provider, port.Source, error) {
 	var selection port.Selection
 	err := r.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
@@ -112,25 +132,29 @@ func (r Resolver) forSource(ctx context.Context, actor appshared.ActorContext) (
 		return err
 	})
 	if err != nil {
-		return Noop{}, err
+		return Noop{}, port.SourceNone, err
 	}
 	if selection.Refusal != "" {
-		return Refused{Detail: selection.Refusal}, nil
+		return Refused{Detail: selection.Refusal}, port.SourceNone, nil
 	}
 
 	var key secret.Secret
 	if selection.Sealed != nil {
 		opened, err := r.Encryptor.Open(ctx, *selection.Sealed, selection.Purpose)
 		if err != nil {
-			return Noop{}, nil
+			return Noop{}, port.SourceNone, nil
 		}
 		key = opened
 	}
+	source := selection.Source
 	adapter := r.adapterFor(selection.Provider, key)
-	if selection.EmbeddingSpace != selection.Provider.EmbeddingModel {
-		return Spaced{Provider: adapter, Space: selection.EmbeddingSpace}, nil
+	if _, refuses := adapter.(Noop); refuses {
+		return adapter, port.SourceNone, nil
 	}
-	return adapter, nil
+	if selection.EmbeddingSpace != selection.Provider.EmbeddingModel {
+		return Spaced{Provider: adapter, Space: selection.EmbeddingSpace}, source, nil
+	}
+	return adapter, source, nil
 }
 
 // adapterFor builds the adapter for one configuration and its opened key.

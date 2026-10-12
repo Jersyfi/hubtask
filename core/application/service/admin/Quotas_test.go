@@ -37,6 +37,8 @@ func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error)
 	return s.overrides, nil
 }
 
+func (s *quotaStoreFake) TimeZone(context.Context) (string, error) { return "", nil }
+
 func (s *quotaStoreFake) SetOverrides(
 	_ context.Context, overrides quotarepo.Overrides, expectedVersion int, _ time.Time,
 ) (bool, error) {
@@ -143,6 +145,16 @@ func TestTheQuotaWriteRefusesTheUnknownAndTheNegative(t *testing.T) {
 	})
 	if !errors.As(err, &domainErr) || domainErr.DetailCode != "admin.quota_unknown" {
 		t.Errorf("answer %v, want admin.quota_unknown", err)
+	}
+
+	// The workspace's own AI budget is the workspace's alone (UC-AI-06 check 6): not a ceiling
+	// the operator sets.
+	_, err = f.handler.Execute(t.Context(), operator(), UpdateTenantQuotasCommand{
+		TenantID: lifecycleTenant,
+		Changes:  []QuotaChange{{Quota: quotaservice.AiOwnTokensPerDay, Value: hold(1)}},
+	})
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != "admin.quota_unknown" {
+		t.Errorf("the operator setting the own AI budget answered %v, want admin.quota_unknown", err)
 	}
 
 	_, err = f.handler.Execute(t.Context(), operator(), UpdateTenantQuotasCommand{

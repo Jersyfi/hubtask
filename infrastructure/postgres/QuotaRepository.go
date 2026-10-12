@@ -101,7 +101,7 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 		return repository.Overrides{}, err
 	}
 
-	raw, err := queries.TenantQuotaOverrides(ctx)
+	row, err := queries.TenantQuotaOverrides(ctx)
 	if err != nil {
 		if IsNoRows(err) {
 			return repository.Overrides{}, nil
@@ -111,14 +111,40 @@ func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, err
 			WithCause(fmt.Errorf("reading the quota overrides: %w", err))
 	}
 
+	var overrides repository.Overrides
 	var document quotasDocument
-	if err := json.Unmarshal([]byte(raw), &document); err != nil {
-		// Fail closed into the defaults rather than into an outage: a corrupt overrides key is
-		// the operator's to repair, and every request refusing until then would be the worse
-		// outcome. The write path below can only produce a valid document.
-		return repository.Overrides{}, nil
+	if err := json.Unmarshal([]byte(row.Quotas), &document); err == nil {
+		overrides = fromDocument(document)
 	}
-	return fromDocument(document), nil
+	// Otherwise fail closed into the defaults rather than into an outage: a corrupt overrides key
+	// is the operator's to repair, and every request refusing until then would be the worse
+	// outcome. The write path below can only produce a valid document.
+
+	// The workspace's own AI budget, a number or nothing; anything else reads as nothing - no
+	// budget, the default an own model has.
+	var own *int64
+	if err := json.Unmarshal([]byte(row.OwnAiBudget), &own); err == nil {
+		overrides.AiOwnTokensPerDay = own
+	}
+	return overrides, nil
+}
+
+// TimeZone answers the workspace's zone, the one its AI budget's day ends in.
+func (QuotaRepository) TimeZone(ctx context.Context) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	zone, err := queries.TenantTimeZone(ctx)
+	if err != nil {
+		if IsNoRows(err) {
+			return "", nil
+		}
+		return "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the workspace's time zone: %w", err))
+	}
+	return zone, nil
 }
 
 // fromDocument and toDocument are the two mappings, named so that a test can walk them.
@@ -224,7 +250,7 @@ func (QuotaRepository) MeteredSince(
 	return count(ctx, "summing the metered usage", func(q *sqlc.Queries) (int64, error) {
 		return q.SumTenantUsageSince(ctx, sqlc.SumTenantUsageSinceParams{
 			Metric: metric,
-			Since:  pgtype.Date{Time: since.UTC(), Valid: true},
+			Since:  pgtype.Date{Time: dayOf(since), Valid: true},
 		})
 	})
 }
@@ -237,7 +263,7 @@ func (QuotaRepository) Add(ctx context.Context, metric string, at time.Time, amo
 	}
 
 	err = queries.AddUsage(ctx, sqlc.AddUsageParams{
-		Period: pgtype.Date{Time: at.UTC(), Valid: true},
+		Period: pgtype.Date{Time: dayOf(at), Valid: true},
 		Metric: metric,
 		Amount: amount,
 	})
@@ -247,6 +273,13 @@ func (QuotaRepository) Add(ctx context.Context, metric string, at time.Time, amo
 			WithCause(fmt.Errorf("metering %s: %w", metric, err))
 	}
 	return nil
+}
+
+// dayOf is the calendar date `at` falls on in the location it carries, as the UTC midnight the
+// driver encodes a date from. The caller decides whose day it is: the workspace's for its AI
+// budget, UTC for everything else.
+func dayOf(at time.Time) time.Time {
+	return time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 // count is the shared shape of the live counters.

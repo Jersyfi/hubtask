@@ -140,7 +140,7 @@ func applyChange(overrides *quotarepo.Overrides, change QuotaChange) {
 }
 
 func knownQuota(name string) bool {
-	for _, known := range quotaservice.Names() {
+	for _, known := range quotaservice.OperatorNames() {
 		if name == known {
 			return true
 		}

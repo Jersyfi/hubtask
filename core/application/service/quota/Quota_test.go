@@ -6,6 +6,7 @@ package quota
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,7 @@ func TestTheCapacityRefusalNamesTheQuotaAndTheCeiling(t *testing.T) {
 // ---- fakes ----
 
 type storeFake struct {
+	zone      string
 	overrides repository.Overrides
 	// instance is the installation's level, left empty by the cases that measure a workspace's
 	// own against the product's defaults.
@@ -95,6 +97,8 @@ func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
 func (s *storeFake) InstanceOverrides(context.Context) (repository.Overrides, error) {
 	return s.instance, nil
 }
+
+func (s *storeFake) TimeZone(context.Context) (string, error) { return s.zone, nil }
 
 func (s *storeFake) SetOverrides(
 	_ context.Context, overrides repository.Overrides, _ int, _ time.Time,
@@ -129,13 +133,17 @@ func (u *usageFake) MeteredSince(
 	return u.metered, nil
 }
 
-type meterFake struct{ added map[string]int64 }
+type meterFake struct {
+	added map[string]int64
+	days  []time.Time
+}
 
-func (m *meterFake) Add(_ context.Context, metric string, _ time.Time, amount int64) error {
+func (m *meterFake) Add(_ context.Context, metric string, at time.Time, amount int64) error {
 	if m.added == nil {
 		m.added = map[string]int64{}
 	}
 	m.added[metric] += amount
+	m.days = append(m.days, at)
 	return nil
 }
 
@@ -366,7 +374,7 @@ func TestTheAiBudgetIsMeasuredAgainstTheDaysSpend(t *testing.T) {
 				Tenancy: env.TenancySingle,
 			}
 
-			room, err := guard.AiTokens(t.Context(), "a-tenant",
+			room, err := guard.AiTokens(t.Context(), "a-tenant", false,
 				time.Date(2026, 9, 9, 11, 0, 0, 0, time.UTC))
 			if err != nil {
 				t.Fatalf("asking the budget: %v", err)
@@ -389,29 +397,129 @@ func TestTheAiBudgetIsMeasuredAgainstTheDaysSpend(t *testing.T) {
 	}
 }
 
-// The day is a UTC calendar day, which is what the ledger is keyed on - so what the guard measures
-// and what `GET /quotas` shows are the same number.
-func TestTheAiBudgetMeasuresACalendarDay(t *testing.T) {
-	limit := int64(1000)
-	usage := &usageFake{}
-	guard := Guard{
-		Store:   &storeFake{overrides: repository.Overrides{AiTokensPerDay: &limit}},
-		Usage:   usage,
-		Tenancy: env.TenancySingle,
+// UC-AI-07 check 2: the budget's day is the workspace's calendar day, in its time zone - so what
+// the guard measures and what `GET /quotas` shows are the same number, and the budget renews at the
+// workspace's midnight. Each row names the zone the day ends in.
+func TestTheAiBudgetMeasuresTheWorkspacesDay(t *testing.T) {
+	for name, c := range map[string]struct {
+		zone string
+		at   time.Time
+		day  string // the workspace's calendar day the call falls on
+	}{
+		// East of UTC: 10:30 UTC on the 1st is 00:30 on the 2nd in Kiritimati (+14).
+		"east of UTC": {"Pacific/Kiritimati", time.Date(2026, 10, 1, 10, 30, 0, 0, time.UTC), "2026-10-02"},
+		// West of UTC: 05:00 UTC on the 2nd is still 18:00 on the 1st in Pago Pago (-11).
+		"west of UTC": {"Pacific/Pago_Pago", time.Date(2026, 10, 2, 5, 0, 0, 0, time.UTC), "2026-10-01"},
+		// The day the clocks go back in Berlin has 25 hours: 00:30 and 23:30 local are one day...
+		"DST change, early": {"Europe/Berlin", time.Date(2026, 10, 24, 22, 30, 0, 0, time.UTC), "2026-10-25"},
+		"DST change, late":  {"Europe/Berlin", time.Date(2026, 10, 25, 22, 30, 0, 0, time.UTC), "2026-10-25"},
+		// ...and 00:30 on the 26th is the next.
+		"DST change, next": {"Europe/Berlin", time.Date(2026, 10, 25, 23, 30, 0, 0, time.UTC), "2026-10-26"},
+		"UTC":              {"UTC", time.Date(2026, 9, 9, 23, 59, 0, 0, time.UTC), "2026-09-09"},
+		"unknown zone":     {"Mars/Olympus_Mons", time.Date(2026, 9, 9, 23, 59, 0, 0, time.UTC), "2026-09-09"},
+		"no zone":          {"", time.Date(2026, 9, 9, 0, 1, 0, 0, time.UTC), "2026-09-09"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			limit := int64(1000)
+			usage := &usageFake{}
+			meter := &meterFake{}
+			guard := Guard{
+				Store: &storeFake{zone: c.zone, overrides: repository.Overrides{AiTokensPerDay: &limit}},
+				Usage: usage, Meter: meter, Tenancy: env.TenancySingle,
+			}
+			if _, err := guard.AiTokens(t.Context(), "a-tenant", false, c.at); err != nil {
+				t.Fatalf("asking the budget: %v", err)
+			}
+			if got := usage.meteredSince.Format(time.DateOnly); got != c.day {
+				t.Errorf("the budget counted from the day %s, want %s", got, c.day)
+			}
+			if h, m, _ := usage.meteredSince.Clock(); h != 0 || m != 0 {
+				t.Errorf("the day does not start at the workspace's midnight: %s", usage.meteredSince)
+			}
+			if err := guard.MeterAi(t.Context(), false, c.at, 5); err != nil {
+				t.Fatal(err)
+			}
+			if got := meter.days[0].Format(time.DateOnly); got != c.day {
+				t.Errorf("the call was metered on %s, want %s", got, c.day)
+			}
+		})
+	}
+}
+
+// A workspace changing its zone in the middle of a day: the next call is dated by the day it falls
+// on in the new zone. Moving east can start a fresh day (the budget renews early, once); moving
+// back meters onto a day that may already carry spend, which is added to - never moved or split.
+func TestAZoneChangedMidDayTakesEffectFromTheNextCall(t *testing.T) {
+	meter := &meterFake{}
+	store := &storeFake{zone: "UTC"}
+	guard := Guard{Store: store, Usage: &usageFake{}, Meter: meter, Tenancy: env.TenancySingle}
+	at := time.Date(2026, 10, 1, 20, 0, 0, 0, time.UTC)
+
+	if err := guard.MeterAi(t.Context(), false, at, 10); err != nil {
+		t.Fatal(err)
+	}
+	store.zone = "Pacific/Kiritimati"
+	if err := guard.MeterAi(t.Context(), false, at.Add(time.Minute), 10); err != nil {
+		t.Fatal(err)
+	}
+	store.zone = "UTC"
+	if err := guard.MeterAi(t.Context(), false, at.Add(2*time.Minute), 10); err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, day := range meter.days {
+		got = append(got, day.Format(time.DateOnly))
+	}
+	if want := []string{"2026-10-01", "2026-10-02", "2026-10-01"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("metered on %v, want %v", got, want)
+	}
+}
+
+// UC-AI-06 check 6 and UC-AI-07 check 2: the offered model's budget and the workspace's own one are
+// two, counted apart. The installation's budget never reaches the own model, which is limited only
+// by the workspace's own optional budget.
+func TestEachSourceHasItsOwnBudget(t *testing.T) {
+	offered, own := int64(1000), int64(50)
+	store := &storeFake{zone: "UTC", instance: repository.Overrides{AiTokensPerDay: &offered},
+		overrides: repository.Overrides{AiOwnTokensPerDay: &own}}
+	usage := &usageFake{metered: 100}
+	meter := &meterFake{}
+	guard := Guard{Store: store, Usage: usage, Meter: meter, Tenancy: env.TenancyMulti}
+	at := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+
+	if room, err := guard.AiTokens(t.Context(), "a-tenant", false, at); err != nil || !room ||
+		usage.meteredMetric != AiTokensPerDay {
+		t.Errorf("the offered budget: room %v (%v), counted %q", room, err, usage.meteredMetric)
+	}
+	if room, err := guard.AiTokens(t.Context(), "a-tenant", true, at); err != nil || room ||
+		usage.meteredMetric != AiOwnTokensPerDay {
+		t.Errorf("the own budget: room %v (%v), counted %q", room, err, usage.meteredMetric)
+	}
+	if err := guard.MeterAi(t.Context(), true, at, 7); err != nil {
+		t.Fatal(err)
+	}
+	if err := guard.MeterAi(t.Context(), false, at, 3); err != nil {
+		t.Fatal(err)
+	}
+	if meter.added[AiOwnTokensPerDay] != 7 || meter.added[AiTokensPerDay] != 3 {
+		t.Errorf("metered %v", meter.added)
 	}
 
-	if _, err := guard.AiTokens(t.Context(), "a-tenant",
-		time.Date(2026, 9, 9, 23, 59, 0, 0, time.UTC)); err != nil {
-		t.Fatalf("asking the budget: %v", err)
+	// No own budget: the own model is unlimited, whatever the installation's offered budget says.
+	store.overrides = repository.Overrides{}
+	usage.meteredCalls = 0
+	if room, err := guard.AiTokens(t.Context(), "a-tenant", true, at); err != nil || !room || usage.meteredCalls != 0 {
+		t.Errorf("an own model without a budget: room %v (%v), counted %d", room, err, usage.meteredCalls)
 	}
-
-	want := time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)
-	if !usage.meteredSince.Equal(want) {
-		t.Errorf("the budget counted from %s, want the start of the UTC day %s",
-			usage.meteredSince, want)
+	for _, mode := range []env.TenancyMode{env.TenancySingle, env.TenancyMulti} {
+		if Defaults(mode).AiOwnTokensPerDay != Unlimited {
+			t.Errorf("%s defaults the own model's budget", mode)
+		}
 	}
-	if usage.meteredMetric != AiTokensPerDay {
-		t.Errorf("the budget counted %q", usage.meteredMetric)
+	// And no installation value reaches it.
+	installation := Resolve(repository.Overrides{}, repository.Overrides{AiOwnTokensPerDay: &own}, env.TenancyMulti)
+	if installation.AiOwnTokensPerDay != Unlimited {
+		t.Errorf("the installation bounded an own model: %d", installation.AiOwnTokensPerDay)
 	}
 }
 

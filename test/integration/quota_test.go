@@ -212,7 +212,7 @@ func TestOneWorkspacesAiSpendingIsNotAnothers(t *testing.T) {
 	}
 
 	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
-		room, err := guard.AiTokens(ctx, quotaTenantA.String(), now)
+		room, err := guard.AiTokens(ctx, quotaTenantA.String(), false, now)
 		if err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func TestOneWorkspacesAiSpendingIsNotAnothers(t *testing.T) {
 		return nil
 	})
 	inTenant(t, uow, quotaTenantB, func(ctx context.Context) error {
-		room, err := guard.AiTokens(ctx, quotaTenantB.String(), now)
+		room, err := guard.AiTokens(ctx, quotaTenantB.String(), false, now)
 		if err != nil {
 			return err
 		}

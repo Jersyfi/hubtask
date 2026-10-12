@@ -840,7 +840,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day"]]
     limit: Required[int]
     used: int | None
     ratio: float | None

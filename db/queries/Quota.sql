@@ -5,8 +5,15 @@
 
 -- name: TenantQuotaOverrides :one
 -- The quotas key of the settings document, whole: the adapter parses it, the application layer
--- never learns the document's shape (TenantPolicy's discipline).
-SELECT coalesce(settings->'quotas', '{}'::jsonb)::text FROM tenant WHERE id = current_tenant_id();
+-- never learns the document's shape (TenantPolicy's discipline). Beside it the workspace's own AI
+-- budget, which lives outside that key because the operator's write replaces the key whole.
+SELECT coalesce(settings->'quotas', '{}'::jsonb)::text AS quotas,
+       coalesce(settings->'ai_own_tokens_per_day', 'null'::jsonb)::text AS own_ai_budget
+FROM tenant WHERE id = current_tenant_id();
+
+-- name: TenantTimeZone :one
+-- The zone the workspace's AI budget's day ends in (UC-AI-07 check 2).
+SELECT default_time_zone FROM tenant WHERE id = current_tenant_id();
 
 -- name: SetTenantQuotas :execrows
 -- Replaces the quotas key and only it - require_admin_totp and whatever else lives beside it

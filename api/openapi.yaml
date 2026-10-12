@@ -11367,7 +11367,11 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day]
+          description: >
+            The two AI rows are counted per source and per day in the workspace's time zone:
+            `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
+            workspace's own model's, set by the workspace itself and unlimited unless it does.
         limit:
           type: integer
           format: int64
@@ -11401,8 +11405,10 @@ components:
           format: int64
           minimum: 0
           description: >
-            What the workspace may spend on AI in a day, counted in the tokens every provider
-            reports. Unlimited in single mode by default and a real number in multi, like every
+            What the workspace may spend on the AI models the installation offers in a day of its
+            own time zone, counted in the tokens every provider reports. A workspace's own model is
+            not bounded by it, only by the workspace's own optional budget. Unlimited in single mode
+            by default and a real number in multi, like every
             other quota. A workspace over its budget stops making
             suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
