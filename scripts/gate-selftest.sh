@@ -1188,5 +1188,31 @@ else
 	printf '  ok      %-44s caught by go-licenses\n' "a dependency of a refused licence type"
 fi
 
+# The brand marks, shown each refusal through the gate itself. The files are altered copies in a
+# temporary directory, handed to the check through its environment, so the tree stays as it is.
+# The message is read, not only the status: the gate goes on to go-licenses, and a red from there
+# would otherwise count as this catch.
+expect_brand_mark_failure() {
+	local name="$1" variable="$2" source="$3" expression="$4"
+	CHECKS=$((CHECKS + 1))
+	local copy out
+	copy="$(mktemp)"
+	perl -pe "$expression" "$source" >"$copy"
+	out="$(env "$variable=$copy" make --no-print-directory gate-licenses 2>&1 || true)"
+	rm -f "$copy"
+	if grep -q '^brand marks: ' <<<"$out"; then
+		printf '  ok      %-44s caught by make gate-licenses\n' "$name"
+	else
+		printf '  FAILED  %-44s make gate-licenses did not report it\n' "$name"
+		FAILURES=$((FAILURES + 1))
+	fi
+}
+expect_brand_mark_failure "a brand mark without its row" BRAND_MARKS_LICENSES \
+	THIRD-PARTY-LICENSES.md '$_ = "" if /`MICROSOFT`/'
+expect_brand_mark_failure "a row without its brand mark" BRAND_MARKS_LICENSES \
+	THIRD-PARTY-LICENSES.md '$_ .= "| Other | `SELFTEST` | x | y |\n" if /`GOOGLE`/'
+expect_brand_mark_failure "a brand mark without a preset" BRAND_MARKS_CONTRACT \
+	api/openapi.yaml 's/enum: \[GENERIC, GOOGLE, MICROSOFT\]/enum: [GENERIC, GOOGLE]/'
+
 printf '\n%d checks, %d failures, %d skipped\n' "$CHECKS" "$FAILURES" "$SKIPPED"
 test "$FAILURES" -eq 0

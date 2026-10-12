@@ -8,7 +8,8 @@
   // its owner publishes it or not at all, which is why the colours below carry a lint exemption
   // each and why they live here rather than in the design system's icon set. Which marks may ship,
   // and in which form, is a question about each owner's guidelines rather than about this file.
-  // A mark is drawn only for a preset the server can send (`IdentityProviderKind`, ADR-0069 §3).
+  // A mark is drawn only for a preset the server can send (`IdentityProviderKind`, ADR-0069 §3),
+  // and each has its row in THIRD-PARTY-LICENSES.md; `make gate-licenses` refuses either missing.
   //
   // **The button stays ours.** Google, Microsoft and Apple all publish a neutral form of their
   // sign-in button - a white surface, a hairline border, the mark at the start - and that is

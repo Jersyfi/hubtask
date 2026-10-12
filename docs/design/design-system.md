@@ -880,8 +880,12 @@ week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
 * A brand mark's colours are data with an owner, not tokens: each carries the `lint-no-literals`
   exemption with its reason; each mark is reproduced as its owner publishes it — never recoloured or
   simplified, never `currentColor` unless its guideline is monochrome; each has a
-  `THIRD-PARTY-LICENSES.md` entry naming the source, the guideline and the permitted use.
-* A mark ships only where its owner's guideline clearly permits the sign-in use. A provider without
+  `THIRD-PARTY-LICENSES.md` entry naming the source, the guideline and the permitted use, written
+  in `tools/licenses.md.tpl`. `make gate-licenses` (`scripts/check-brand-marks.sh`) refuses a mark
+  without its entry, an entry without its mark, and a mark for a kind `IdentityProviderKind` does
+  not have.
+* A mark ships only where its owner's guideline clearly permits the sign-in use, and only for a
+  provider preset. A provider without
   one gets a square tile with the first character of its name in one of the ten label colours,
   derived from the name. There is no logo upload.
 * The marks live in `apps/webapp/src/lib/signin/ProviderMark.svelte` until a second client draws
