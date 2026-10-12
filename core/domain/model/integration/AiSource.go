@@ -115,6 +115,34 @@ func AiSwitches() []AiSwitch {
 	return []AiSwitch{AiSwitchSources, AiSwitchMinJurisdiction, AiSwitchPersonOptOut}
 }
 
+// DeclarationOfAiSwitch answers a key's kind and closed set, from the loosest value to the
+// strictest, for whoever draws or reads the installation's level (UC-INS-09 check 1). A lock holds
+// a workspace to a stricter choice, never a looser one.
+func DeclarationOfAiSwitch(name AiSwitch) (identity.ValueDeclaration, bool) {
+	switch name {
+	case AiSwitchSources:
+		return identity.ValueDeclaration{
+			Kind: identity.KindChoice, May: identity.MayTighten,
+			Options: []string{
+				string(AiSourcesEither), string(AiSourcesOffered), string(AiSourcesOwn), string(AiSourcesNone),
+			},
+		}, true
+	case AiSwitchMinJurisdiction:
+		options := make([]string, 0, len(aiMinOrder))
+		for _, floor := range aiMinOrder {
+			options = append(options, string(floor))
+		}
+		return identity.ValueDeclaration{Kind: identity.KindChoice, May: identity.MayTighten, Options: options}, true
+	case AiSwitchPersonOptOut:
+		// One value: the installation holds every workspace at letting each person keep their own
+		// content out, or leaves the choice to each workspace. NOT_OFFERED is a workspace's alone.
+		return identity.ValueDeclaration{
+			Kind: identity.KindChoice, May: identity.MayTighten, Options: []string{string(AiOptOutOffered)},
+		}, true
+	}
+	return identity.ValueDeclaration{}, false
+}
+
 // AiLayer is one level's say about AI: a nil value is a key that level did not decide, and Locks
 // the keys it forbids the level below to touch. A workspace's layer carries Sources - its
 // narrowing - and its position on people keeping their content out, never a minimum: a workspace

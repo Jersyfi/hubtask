@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-10, P-12]
-state: partial
-tasks: [SI-05, SI-12, SI-17]
-checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go]
+state: built
+tasks: [SI-05, SI-12, SI-17, SC-07]
+checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md]
 ---
 
 # Decide defaults and locks for every workspace
@@ -43,10 +43,3 @@ and lands in the instance journal.
 
 * Plans, which carry the same values for a group of workspaces, are UC-INS-13.
 * Rate limits and the lockout curve stay in the environment; they are not defaults.
-
-## Today
-
-* Check 1: not met — the screen shows raw keys in text boxes, tracked in #1063.
-* Check 2: not met — a value that was not set before is sent as text and refused by the server, so most values cannot be saved from the screen, tracked in #1063.
-* Check 3: not met — one label ("A workspace may change it: Yes / No, this applies") for every kind of value, tracked in #1063.
-* Check 5: not met — the workspace's screens show neither the installation's legal links nor its language, time zone and week start, only a lock, tracked in #1063.

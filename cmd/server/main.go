@@ -1218,6 +1218,10 @@ func run() error {
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
 	}.Warnings)
+	// A provider's installation without an accessibility statement (UC-ID-18), read live too.
+	registry.AddWarningSource(adminservice.AccessibilityWarnings{
+		Tenancy: cfg.Tenancy, Settings: postgres.NewInstanceSettingRepository(), UnitOfWork: unitOfWork,
+	}.Warnings)
 	// A key the ring lacks while values still name it, by kind (UC-INS-16 check 3): the census
 	// is taken in the background, at start and hourly, and served from the last one.
 	keyHealth := &sealingservice.KeyHealth{
@@ -1376,6 +1380,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
@@ -1507,6 +1512,7 @@ func run() error {
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors),
 			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+			Instance: postgres.NewInstanceSettingRepository(),
 		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),

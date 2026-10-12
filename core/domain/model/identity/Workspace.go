@@ -5,6 +5,7 @@ package identity
 
 import (
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -63,6 +64,11 @@ type WorkspaceSettings struct {
 	// Here, in the archived settings, and not beside the choice of source: a narrowing is an
 	// administrator's restriction, and a restore must never widen what the workspace allows.
 	AiSources string
+	// WeekStart is the day this workspace's weeks start on for a member who chose none, or empty
+	// where it decided nothing and the installation's day, then the language's, applies
+	// (i18n-l10n.md §4). In the settings document rather than a column of its own, so the archive,
+	// the export and every restore carry it as they carry the rest of the document.
+	WeekStart WeekStart
 	// AiPersonOptOut is this workspace's position on people keeping their own content out of AI
 	// (data-protection.md §4.1): `NOT_OFFERED` where it made AI part of everybody's work, empty or
 	// `OFFERED` otherwise. Strings for AiSources' reason; checked where written.
@@ -125,8 +131,8 @@ func (w WorkspaceSettings) SignInLayer() PolicyLayer {
 func (w WorkspaceSettings) LegalLayer() LegalLayer { return LegalLayer{Links: w.Legal} }
 
 // WorkspaceChange is a merge-patch, typed: a nil pointer is a key the caller did not send, and
-// therefore a field that does not move. There is no "clear it" for any of the three - a workspace
-// always has a name, a locale and a zone - which is why the type has no way to express one.
+// therefore a field that does not move. A workspace always has a name, a locale and a zone, so
+// those three have no "clear it"; the week start does, and the empty string says it.
 //
 // `require_admin_totp` is not here any more. It was a second, unguarded way to set who needs a
 // second factor, and it came apart from the rule (UC-ID-12 checks 1 and 2); a write of it is now
@@ -135,6 +141,8 @@ type WorkspaceChange struct {
 	DisplayName     *string
 	DefaultLocale   *string
 	DefaultTimeZone *string
+	// DefaultWeekStart is the one field with an absent state: the empty string clears it.
+	DefaultWeekStart *string
 }
 
 // FieldChange is one field that moved, with what it moved from and to. The strings are the
@@ -189,6 +197,21 @@ func (w Workspace) With(change WorkspaceChange, form text.Normalizer) (Workspace
 			moved["default_time_zone"] = FieldChange{
 				Field: "default_time_zone", From: w.DefaultTimeZone, To: zone}
 			changed.DefaultTimeZone = zone
+		}
+	}
+
+	if change.DefaultWeekStart != nil {
+		day := WeekStart(strings.TrimSpace(*change.DefaultWeekStart))
+		if day != "" && !day.Valid() {
+			return Workspace{}, nil, shared.ErrValidation.
+				WithDetail("workspace.week_start_invalid").
+				WithParams(map[string]string{"value": string(day)}).
+				WithFields(shared.FieldError{Path: "/default_week_start", Code: "workspace.week_start_invalid"})
+		}
+		if day != w.Settings.WeekStart {
+			moved["default_week_start"] = FieldChange{
+				Field: "default_week_start", From: string(w.Settings.WeekStart), To: string(day)}
+			changed.Settings.WeekStart = day
 		}
 	}
 
