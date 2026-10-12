@@ -302,6 +302,19 @@ class Instance {
   }
 
   /**
+   * Puts an account in by its identifier: a service account chosen from the reader's own
+   * workspace, which has no address to type (UC-INS-06 check 1).
+   */
+  async addOperatorById(accountId: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', OPERATORS, { account_id: accountId }, {
+        stepUpToken,
+        invalidates: [OPERATORS, JOURNAL],
+      }),
+    );
+  }
+
+  /**
    * Takes somebody out of it.
    *
    * The last operator cannot remove themselves, and the database refuses that in the statement
