@@ -133,12 +133,12 @@ func (h AiTranslate) Execute(
 	if err != nil {
 		return Translation{}, err
 	}
-	if kept.Has(actor.AccountID) {
-		return Translation{}, integration.KeptOutOfAi()
+	if refused := kept.Refusal(actor.AccountID); refused != nil {
+		return Translation{}, refused
 	}
-	// An entry a kept-out person created, and an entry with nothing in it, get one answer, which
+	// An entry a kept-out person created or a restricted person is on, and an entry with nothing in it, get one answer, which
 	// says nothing about who wrote what.
-	if kept.Has(item.CreatedBy) || strings.TrimSpace(item.Title) == "" && strings.TrimSpace(item.Notes) == "" {
+	if kept.Excludes(item.CreatedBy, item.AssigneeID) || strings.TrimSpace(item.Title) == "" && strings.TrimSpace(item.Notes) == "" {
 		return Translation{}, integration.NothingToWorkWith()
 	}
 	item.Title, item.Notes = kept.Scrub(item.Title), kept.Scrub(item.Notes)

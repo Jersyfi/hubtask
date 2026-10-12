@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	outboxrepo "github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -121,6 +122,9 @@ type RunRule struct {
 	Jumble condition.JumbleEntries
 	Guard  Idempotency
 	Owners Owners
+	// Restrictions is whose processing is restricted (Art. 18): no run acts as or about them. The
+	// same read the AI exclusion makes. Nil restricts nobody - a build without it.
+	Restrictions privacyrepo.Restrictions
 	// Signals carries the run into the metrics. Nil skips; the composition root always wires it.
 	Signals RunSignals
 	// Jobs is where a WAIT parks its resume. The engine runs inside the queue runner's
@@ -346,6 +350,19 @@ func (h RunRule) resume(
 	}
 	values := h.values(envelope, cmd, now)
 
+	// A restriction placed while the run waited holds it back too: what it recorded so far stays.
+	code, err := h.restricted(ctx, rule, envelope, cmd, values)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	if code != "" {
+		withheld := run.Withhold(code, now)
+		if err := h.Runs.Finish(ctx, withheld); err != nil {
+			return domain.Run{}, err
+		}
+		return withheld, h.settle(ctx, rule, withheld, now)
+	}
+
 	actions, halted, pending := h.act(ctx, actor, rule, cmd, values, replay{
 		recorded: recordedByPath(run.ActionResults), resumeFrom: cmd.ResumeFrom,
 	})
@@ -446,6 +463,10 @@ func (h RunRule) decide(
 		return domain.Run{}, err
 	}
 	values := h.values(envelope, cmd, now)
+
+	if code, err := h.restricted(ctx, rule, envelope, cmd, values); err != nil || code != "" {
+		return run.Withhold(code, now), err
+	}
 
 	conditions, matched, err := h.evaluate(ctx, rule, values)
 	if err != nil {
@@ -882,9 +903,14 @@ func (w *walk) branch(
 
 // notAFailure are the answers an action gives when it had nothing to do rather than failing: an AI
 // action over material with nothing left - empty, or kept out of AI - and one asked as a person who
-// keeps their own content out. A rule must not count somebody's objection as its own failure and
-// switch itself off over it (data-protection.md §4.1), so the action is SKIPPED with the code.
-var notAFailure = map[string]bool{"ai.nothing_to_work_with": true, "ai.kept_out": true}
+// keeps their own content out or whose processing is restricted. A rule must not count somebody's
+// objection or restriction as its own failure and switch itself off over it (data-protection.md
+// §4, §4.1), so the action is SKIPPED with the code.
+var notAFailure = map[string]bool{
+	"ai.nothing_to_work_with": true, "ai.kept_out": true, "ai.processing_restricted": true,
+	// And an assignment a rule may not make: the person's processing is restricted.
+	"items.assignee_restricted": true,
+}
 
 // record writes one result, applying `on_error` to a failure.
 func (w *walk) record(result domain.ActionResult, err error) {

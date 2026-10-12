@@ -324,6 +324,8 @@
   "admin.tenant_version_moved": "Der Workspace hat sich geändert, während du ihn bearbeitet hast; lies ihn erneut.",
   "automation.check_without_tenant": "Eine Prüfung muss zu einem Workspace gehören.",
   "automation.rule_unwritable": "Die Befunde der Prüfung ließen sich nicht in einer Form schreiben, die diese Version speichert.",
+  "automation.run_as_restricted": "Diese Regel handelt als ein Konto, dessen Daten derzeit nicht automatisch verarbeitet werden dürfen, darum hat dieser Lauf nichts getan. Sie läuft wieder, sobald die Einschränkung aufgehoben ist.",
+  "automation.subject_restricted": "Dieser Lauf betraf eine Person, deren Daten derzeit nicht automatisch verarbeitet werden dürfen, darum hat er nichts getan.",
   "automation.finding.event_unknown": "Diese Installation veröffentlicht das Ereignis {event_type} nicht, also kann nichts die Regel starten.",
   "automation.finding.action_unknown": "Es gibt in dieser Version keine Aktion {kind}, also kann die Regel nicht laufen.",
   "automation.finding.parameter_unknown": "{kind} kennt keinen Parameter {parameter}; dieser Schritt würde fehlschlagen.",

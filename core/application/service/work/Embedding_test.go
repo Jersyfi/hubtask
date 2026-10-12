@@ -37,7 +37,9 @@ type embeddingWorld struct {
 	askedModel    []string
 	skipped       []shared.ID
 	forgotten     []shared.ID
-	embedErr      error
+	// What a restriction keeps out besides: the entries the restricted are on.
+	skippedAssigned, forgottenAssigned []shared.ID
+	embedErr                           error
 	// dimensions is the width the provider answers with; zero means the fixtures' three.
 	dimensions int
 	// known is what Capabilities reports as already learned; measures is what a description
@@ -82,9 +84,10 @@ func embeddingHarness(world *embeddingWorld) EmbedItems {
 	}
 }
 
-func (w *embeddingWorld) Owed(_ context.Context, model string, batch int, skip []shared.ID) ([]repository.OwedEmbedding, error) {
+func (w *embeddingWorld) Owed(_ context.Context, model string, batch int, skip, skipAssigned []shared.ID) ([]repository.OwedEmbedding, error) {
 	w.askedModel = append(w.askedModel, model)
 	w.skipped = append(w.skipped, skip...)
+	w.skippedAssigned = append(w.skippedAssigned, skipAssigned...)
 	if len(w.owed) > batch {
 		return w.owed[:batch], nil
 	}
@@ -96,6 +99,11 @@ func (w *embeddingWorld) CountMissing(context.Context, int) (int, error) { retur
 func (w *embeddingWorld) Forget(_ context.Context, creators []shared.ID) (int, error) {
 	w.forgotten = append(w.forgotten, creators...)
 	return len(creators), nil
+}
+
+func (w *embeddingWorld) ForgetAssigned(_ context.Context, assignees []shared.ID) (int, error) {
+	w.forgottenAssigned = append(w.forgottenAssigned, assignees...)
+	return len(assignees), nil
 }
 
 // Near is the neighbourhood query. The embedding pass neither reads it nor could: this

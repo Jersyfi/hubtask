@@ -76,14 +76,17 @@ type DuplicateWorkItem struct {
 	// what is assigned to them. A copy is a create, so it has to ask it too.
 	Ownership  Ownership
 	Visibility Visibility
-	Events     outbox.Events
-	Changes    changelog.ChangeLog
-	Audit      audit.Sink
-	Activity   ActivityJournal
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
-	HLC        clock.HLCSource
+	// Restrictions answers whether a rule is copying an entry onto a restricted person: the copy is
+	// made unassigned and the drop reported (data-protection.md §4). Nil restricts nobody.
+	Restrictions RestrictedAccounts
+	Events       outbox.Events
+	Changes      changelog.ChangeLog
+	Audit        audit.Sink
+	Activity     ActivityJournal
+	UnitOfWork   persistence.UnitOfWork
+	Clock        clock.Clock
+	IDs          clock.IDGenerator
+	HLC          clock.HLCSource
 	// Text is what a copied TEXT value is checked with; a value written before the form was
 	// applied is composed by the copy, exactly as its next edit would compose it.
 	Text text.Normalizer
@@ -748,6 +751,15 @@ func (h DuplicateWorkItem) assigneeFor(
 	if !permitted {
 		made.dropped = append(made.dropped, domain.DroppedAssignee(copied.ID, source.AssigneeID))
 		return noID, nil
+	}
+	if restricted, err := restrictedUnderRule(ctx, h.Restrictions, actor, source.AssigneeID); err != nil || restricted {
+		if restricted {
+			made.dropped = append(made.dropped, domain.DroppedReference{
+				ItemID: copied.ID, Kind: domain.ReferenceAssignee, ID: source.AssigneeID.String(),
+				Code: AssigneeRestrictedCode,
+			})
+		}
+		return noID, err
 	}
 	return source.AssigneeID, nil
 }

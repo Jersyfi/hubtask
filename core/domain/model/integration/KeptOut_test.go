@@ -71,3 +71,44 @@ func TestTheRefusalsAreFixedCodes(t *testing.T) {
 		t.Errorf("kept out: %v", got)
 	}
 }
+
+// A restriction keeps out what is about the person as well as what they wrote; an objection only
+// what they wrote. Each asker is told their own reason.
+func TestARestrictionKeepsOutWhatIsAssignedAndSaysSo(t *testing.T) {
+	restrictedID := shared.MustParseID("0192f000-0000-7000-8000-0000000000b3")
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000b9")
+	kept := domain.NewKeptOut([]domain.KeptPerson{
+		{AccountID: restrictedID, Reason: domain.KeptOutRestricted, Names: []string{"Rae Rest", "", ""}},
+		// Named twice: the first reason wins, which is why the restriction's source comes first.
+		{AccountID: restrictedID, Reason: domain.KeptOutObjected},
+		{AccountID: kimID, Reason: domain.KeptOutObjected, Names: []string{"Kim Keeper"}},
+	})
+	for _, testCase := range []struct {
+		name               string
+		createdBy, assigns shared.ID
+		want               bool
+	}{
+		{"created by the restricted person", restrictedID, "", true},
+		{"assigned to the restricted person", other, restrictedID, true},
+		{"created by the objector", kimID, other, true},
+		{"assigned to the objector", other, kimID, false},
+		{"nobody's", other, "", false},
+	} {
+		if got := kept.Excludes(testCase.createdBy, testCase.assigns); got != testCase.want {
+			t.Errorf("%s: %v, want %v", testCase.name, got, testCase.want)
+		}
+	}
+	if got := kept.Restricted(); len(got) != 1 || got[0] != restrictedID {
+		t.Errorf("restricted %v", got)
+	}
+	if got := shared.AsError(kept.Refusal(restrictedID)); got == nil || got.DetailCode != "ai.processing_restricted" ||
+		got.Category != shared.CategoryForbidden {
+		t.Errorf("the restricted person is told %v", got)
+	}
+	if got := shared.AsError(kept.Refusal(kimID)); got == nil || got.DetailCode != "ai.kept_out" {
+		t.Errorf("the objector is told %v", got)
+	}
+	if kept.Refusal(other) != nil {
+		t.Error("somebody else is refused")
+	}
+}

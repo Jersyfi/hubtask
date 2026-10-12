@@ -792,7 +792,9 @@ func run() error {
 	// purpose - the actor's own permission and the question about the second person are two
 	// different questions answered by the same service.
 	assignment := work.AssignmentWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		// No rule puts a person whose processing is restricted on an entry (Art. 18).
+		Accounts: accounts,
+		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
@@ -882,7 +884,8 @@ func run() error {
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
 	itemMemberWriter := work.ItemMemberWriter{
-		Items: items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
+		Accounts: accounts,
+		Items:    items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -942,7 +945,8 @@ func run() error {
 		// The authorisation service under three names: the permission, the question about the
 		// role the actor holds, and whether a second person can see the destination.
 		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
-		Events: outbox, Changes: changes,
+		Restrictions: accounts,
+		Events:       outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
@@ -1054,9 +1058,11 @@ func run() error {
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
 	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
-	// content to a model reads in the transaction it reads the material in. An objection is its
-	// first reason; a restriction is added as a second source beside it.
+	// content to a model reads in the transaction it reads the material in, over two reasons: a
+	// restriction of processing (Art. 18) and an objection.
 	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		// First: somebody both restricted and objecting is kept out as far as a restriction reaches.
+		integrationservice.RestrictionSource{Restrictions: privacyStore},
 		integrationservice.ObjectionSource{
 			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
 		},
@@ -1923,6 +1929,7 @@ func run() error {
 		privacyservice.RestrictProcessing{
 			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
@@ -1992,7 +1999,7 @@ func run() error {
 		work.InstantiateTemplate{
 			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
-			Visibility: authorizer, Events: outbox, Activity: journal,
+			Visibility: authorizer, Restrictions: accounts, Events: outbox, Activity: journal,
 		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
@@ -2855,6 +2862,7 @@ func run() error {
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
@@ -3058,6 +3066,8 @@ func run() error {
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:    metrics,
+			// No run acts as or about a person whose processing is restricted (Art. 18).
+			Restrictions: privacyStore,
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,
 				Preferences: notificationPreferences, Jobs: jobs,

@@ -162,6 +162,7 @@ func keptOutExclusion() integrationservice.Exclusion {
 		Own: postgres.NewAiProviderRepository(),
 	}
 	return integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		integrationservice.RestrictionSource{Restrictions: privacyRepo()},
 		integrationservice.ObjectionSource{
 			Rules: rules, People: postgres.NewPrivateHubRepository(), Consents: privacyRepo(),
 		},
