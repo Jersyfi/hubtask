@@ -52,6 +52,21 @@ generates the declared subset into the repository, so what ships is those shapes
 package. ISC is permissive with one obligation - keep the notice, which is this row. Lucide is
 itself a fork of Feather (MIT), and its LICENSE carries both notices.
 
+## Brand marks
+
+The sign-in buttons carry the mark of a provider a workspace can pick as a preset. A mark is not
+ours and is not licensed to us under any of the terms above: its owner's guideline permits it for
+a sign-in button, and only in the form the row names. Each is drawn inline from the bundle, in the
+neutral button every one of these guidelines allows
+([ADR-0069](./docs/adr/ADR-0069-third-party-brand-marks.md), `docs/design/design-system.md` §12).
+`make gate-licenses` refuses a mark drawn in `apps/webapp/src/lib/signin/ProviderMark.svelte`
+without a row here, a row without a mark, and a mark for a preset the server does not have.
+
+| Mark | Preset | Source and guideline | Permitted use |
+|---|---|---|---|
+| Google "G" | `GOOGLE` | [Sign in with Google branding guidelines](https://developers.google.com/identity/branding-guidelines) | The standard "G", unaltered and in its own colours, at the start of a neutral sign-in button |
+| Microsoft logo | `MICROSOFT` | [Microsoft identity platform branding guidelines](https://learn.microsoft.com/en-us/entra/identity-platform/howto-add-branding-in-apps) | The four-square logo, unaltered and in its own colours, at the start of a neutral sign-in button |
+
 
 ## Linked dependencies
 
