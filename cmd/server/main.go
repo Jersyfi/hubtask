@@ -3056,6 +3056,8 @@ func run() error {
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:    metrics,
+			// No run acts as or about a person whose processing is restricted (Art. 18).
+			Restrictions: privacyStore,
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,
 				Preferences: notificationPreferences, Jobs: jobs,

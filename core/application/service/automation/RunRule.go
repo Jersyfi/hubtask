@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	outboxrepo "github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -121,6 +122,9 @@ type RunRule struct {
 	Jumble condition.JumbleEntries
 	Guard  Idempotency
 	Owners Owners
+	// Restrictions is whose processing is restricted (Art. 18): no run acts as or about them. The
+	// same read the AI exclusion makes. Nil restricts nobody - a build without it.
+	Restrictions privacyrepo.Restrictions
 	// Signals carries the run into the metrics. Nil skips; the composition root always wires it.
 	Signals RunSignals
 	// Jobs is where a WAIT parks its resume. The engine runs inside the queue runner's
@@ -346,6 +350,19 @@ func (h RunRule) resume(
 	}
 	values := h.values(envelope, cmd, now)
 
+	// A restriction placed while the run waited holds it back too: what it recorded so far stays.
+	code, err := h.restricted(ctx, rule, envelope, cmd, values)
+	if err != nil {
+		return domain.Run{}, err
+	}
+	if code != "" {
+		withheld := run.Withhold(code, now)
+		if err := h.Runs.Finish(ctx, withheld); err != nil {
+			return domain.Run{}, err
+		}
+		return withheld, h.settle(ctx, rule, withheld, now)
+	}
+
 	actions, halted, pending := h.act(ctx, actor, rule, cmd, values, replay{
 		recorded: recordedByPath(run.ActionResults), resumeFrom: cmd.ResumeFrom,
 	})
@@ -446,6 +463,10 @@ func (h RunRule) decide(
 		return domain.Run{}, err
 	}
 	values := h.values(envelope, cmd, now)
+
+	if code, err := h.restricted(ctx, rule, envelope, cmd, values); err != nil || code != "" {
+		return run.Withhold(code, now), err
+	}
 
 	conditions, matched, err := h.evaluate(ctx, rule, values)
 	if err != nil {

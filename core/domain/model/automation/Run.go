@@ -216,6 +216,11 @@ func (r Run) Skip(results []ConditionResult, at time.Time) Run {
 	return r.end(RunSkipped, "", at)
 }
 
+// Withhold ends the run as one a restriction of processing held back before it read or did
+// anything (data-protection.md §4): SKIPPED like a run whose conditions said no, with the code that
+// says why, and never a failure - the rule did nothing wrong.
+func (r Run) Withhold(code string, at time.Time) Run { return r.end(RunSkipped, code, at) }
+
 // Fail ends the run as one that could not do what its rule says.
 func (r Run) Fail(code string, at time.Time) Run { return r.end(RunFailed, code, at) }
 
