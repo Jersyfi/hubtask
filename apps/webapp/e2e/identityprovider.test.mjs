@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, REDIRECT_URI as REDIRECT, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -23,21 +23,7 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const REDIRECT = 'https://hubtask.example/api/v1/auth/oidc/callback';
 const STAFF = '01a0e2e0-0000-7000-8000-0000000007a1';
-
-const preset = (kind, provisioning, extra = {}) => ({
-  kind, scopes: ['openid', 'email', 'profile'], addresses_verified: kind !== 'GENERIC',
-  public: kind === 'GOOGLE', provisioning, installation_provisioning: ['INVITED_ONLY'],
-  redirect_uri: REDIRECT, instructions: `identity_provider.preset.${kind.toLowerCase()}.instructions`,
-  supports_templated_issuer: kind === 'MICROSOFT', ...extra,
-});
-
-const PRESETS = [
-  preset('GOOGLE', ['INVITED_ONLY'], { directory_claim: 'hd', particular: 'identity_provider.preset.google.particular' }),
-  preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid' }),
-  preset('GENERIC', ['INVITED_ONLY', 'DOMAINS', 'ANY']),
-];
 
 const WORDS = {
   en: {
@@ -73,7 +59,6 @@ async function open(browser, locale) {
         },
       });
     }
-    if (path === '/identity-provider-presets') return route.fulfill({ json: PRESETS });
     if (path === '/identity-providers' && request.method() === 'GET') return route.fulfill({ json: [] });
     if (path === '/groups') return route.fulfill({ json: { data: [{ id: STAFF, name: 'Staff', version: 1 }] } });
     if (path === '/identity-providers' && request.method() === 'POST') {
@@ -137,8 +122,13 @@ for (const locale of ['en', 'de']) {
     }
 
     // The redirect address in full, and the copy control hands over exactly it (check 6).
-    const redirect = form.getByLabel(words.redirect);
-    assert.equal(await redirect.inputValue(), REDIRECT);
+    const redirect = form.getByRole('group', { name: words.redirect });
+    assert.equal((await redirect.locator('code').textContent())?.trim(), REDIRECT);
+    // In full at a phone's width too: the address wraps rather than being cut off by a field.
+    await page.setViewportSize({ width: 375, height: 900 });
+    const box = await redirect.locator('code').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+    assert.ok(box.scroll <= box.client, `the address overflows at 375 px: ${JSON.stringify(box)}`);
+    await page.setViewportSize({ width: 1280, height: 900 });
     await form.getByRole('button', { name: words.copy }).click();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), REDIRECT);
 
