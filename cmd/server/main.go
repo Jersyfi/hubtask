@@ -3125,6 +3125,18 @@ func run() error {
 		return err
 	}
 
+	// The first start (UC-INS-01): a process that serves the API, on an installation with no
+	// workspace and nobody in its register, prints a one-time setup code. After the instance file,
+	// so a file's level is in place before the first workspace is set up under it.
+	if cfg.HasRole(envport.RoleAPI) {
+		firstStart(ctx, identity.IssueSetupCode{
+			Codes: setupCodes, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Entropy: clockadapter.CryptoRandom{},
+		}, func(code string, params map[string]string) string {
+			return renderer.Render(cfg.Locale.DefaultLocale, code, params)
+		}, cfg.BaseURL)
+	}
+
 	registry.MarkStarted()
 
 	// hubtask_dependency_up is described as "self-diagnosis as a time series"
