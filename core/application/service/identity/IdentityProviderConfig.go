@@ -647,6 +647,18 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 	return out
 }
 
+// WorkspaceProviderOutput is the read shape a workspace is answered: ProviderOutput, without the
+// installation's client ID on a row the installation offers. That registration is the operator's;
+// a workspace sees such a provider by name, kind and admission rule only (UC-INS-11 check 2). The
+// operator's own reads keep ProviderOutput.
+func WorkspaceProviderOutput(configured domain.IdentityProvider) usecase.Output {
+	out := ProviderOutput(configured)
+	if configured.Installation() {
+		out["client_id"] = ""
+	}
+	return out
+}
+
 // providerScope is what a reader needs to tell its own choice from the one it inherited: a row of
 // the level above is offered to it and is not its to change.
 func providerScope(configured domain.IdentityProvider) string {
@@ -765,7 +777,7 @@ func (h ListIdentityProviders) invoke(
 	}
 	rows := make([]usecase.Output, 0, len(found))
 	for _, configured := range found {
-		rows = append(rows, ProviderOutput(configured))
+		rows = append(rows, WorkspaceProviderOutput(configured))
 	}
 	return usecase.Output{"data": rows}, nil
 }
