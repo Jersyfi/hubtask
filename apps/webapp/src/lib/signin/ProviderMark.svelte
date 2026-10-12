@@ -57,15 +57,17 @@
     <path d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z" fill="#EA4335" />
   </svg>
 {:else if preset === 'MICROSOFT'}
-  <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+  <!-- ms-symbollockup_mssymbol_19.svg as Microsoft publishes it (THIRD-PARTY-LICENSES.md), its
+       shapes and viewBox unchanged; only the drawn size is ours. -->
+  <svg class="mark" viewBox="0 0 21 21" aria-hidden="true">
     <!-- design-system-lint-ignore: a third-party brand mark, reproduced in its owner's colours. -->
-    <rect x="2" y="2" width="9.5" height="9.5" fill="#F25022" />
+    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
     <!-- design-system-lint-ignore: a third-party brand mark, reproduced in its owner's colours. -->
-    <rect x="12.5" y="2" width="9.5" height="9.5" fill="#7FBA00" />
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
     <!-- design-system-lint-ignore: a third-party brand mark, reproduced in its owner's colours. -->
-    <rect x="2" y="12.5" width="9.5" height="9.5" fill="#00A4EF" />
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
     <!-- design-system-lint-ignore: a third-party brand mark, reproduced in its owner's colours. -->
-    <rect x="12.5" y="12.5" width="9.5" height="9.5" fill="#FFB900" />
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
   </svg>
 {:else}
   <!-- Ours, and therefore a token: a square in one of the ten label colours with the first

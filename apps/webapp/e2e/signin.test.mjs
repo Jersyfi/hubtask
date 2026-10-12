@@ -993,7 +993,9 @@ test('a provider mark is drawn inline in its owner\'s colours, and nothing is fe
       .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill')));
 
     assert.deepEqual(await fills(/Contoso Google/, 'path'), ['#4285F4', '#34A853', '#FBBC05', '#EA4335']);
-    assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#F25022', '#7FBA00', '#00A4EF', '#FFB900']);
+    assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#f25022', '#00a4ef', '#7fba00', '#ffb900']);
+    assert.equal(await page.getByRole('button', { name: /Contoso Entra ID/ }).locator('svg').getAttribute('viewBox'), '0 0 21 21',
+      'the Microsoft symbol is not drawn on its published grid');
     const lab = page.getByRole('button', { name: /Contoso Lab/ });
     assert.equal(await lab.locator('svg').count(), 0, 'a provider without a preset drew a brand');
     assert.equal(await lab.locator('.tile').textContent(), 'C');
