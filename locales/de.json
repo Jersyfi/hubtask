@@ -1266,6 +1266,8 @@
   "app.instance.action.instance_provider_removed": "Anmeldeanbieter entfernt",
   "app.instance.action.instance_provider_withdrawn": "Anmeldeanbieter zurückgezogen",
   "app.instance.action.instance_provider_withdrawal_cancelled": "Anmeldeanbieter weiter angeboten",
+  "app.instance.action.instance_ai_provider_configured": "KI-Modell angeboten oder geändert",
+  "app.instance.action.instance_ai_provider_removed": "Angebotenes KI-Modell zurückgezogen",
   "app.instance.action.instance_session_elevated": "Sitzung auf die Installation gehoben",
   "app.step_up.title": "Beweise, dass du es bist",
   "app.step_up.why": "Das hier ist unumkehrbar, darum fragt Hubtask noch einmal, bevor es passiert. Nichts ändert sich, bis du antwortest.",

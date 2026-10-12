@@ -267,6 +267,32 @@ class AiProviderConfiguration(TypedDict, total=False):
     jurisdiction: Required["AiJurisdiction"]
     processing_allowed: bool
 
+class OfferedAiModel(TypedDict, total=False):
+    """An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`)."""
+    id: Required[str]
+    display_name: Required[str]
+    processor: Required[str]
+    kind: Required["AiProviderKind"]
+    base_url: str
+    completion_model: str
+    embedding_model: str
+    has_api_key: Required[bool]
+    jurisdiction: Required["AiJurisdiction"]
+    created_at: Required[str]
+    updated_at: str | None
+    version: Required[int]
+
+class OfferedAiModelConfiguration(TypedDict, total=False):
+    """An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act."""
+    display_name: Required[str]
+    processor: Required[str]
+    kind: Required["AiProviderKind"]
+    base_url: Required[str]
+    completion_model: str
+    embedding_model: str
+    api_key: str
+    jurisdiction: Required["AiJurisdiction"]
+
 AiProviderKind = Literal["NOOP", "OPENAI_COMPATIBLE", "OLLAMA"]
 
 AiJurisdiction = Literal["SELF_HOSTED", "EEA", "ADEQUACY", "THIRD_COUNTRY"]

@@ -1917,6 +1917,8 @@
   "app.instance.action.instance_provider_removed": "Sign-in provider removed",
   "app.instance.action.instance_provider_withdrawn": "Sign-in provider withdrawn",
   "app.instance.action.instance_provider_withdrawal_cancelled": "Sign-in provider kept on offer",
+  "app.instance.action.instance_ai_provider_configured": "AI model offered or changed",
+  "app.instance.action.instance_ai_provider_removed": "Offered AI model withdrawn",
   "app.instance.action.instance_session_elevated": "Session raised to the installation",
   "app.admin.ai": "AI",
   "app.ai.title": "AI",

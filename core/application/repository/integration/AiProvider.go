@@ -85,9 +85,10 @@ type OfferedAiProviders interface {
 // AiChoices is the workspace's choice of AI source. No method takes a tenant: the workspace is the
 // row's key, under row level security.
 type AiChoices interface {
-	// Find answers the stored choice, or the default (the workspace's own model) where none was
-	// ever made - never not found, because "never chose" is a choice with a meaning.
-	Find(ctx context.Context, tenantID shared.ID) (integration.AiChoice, error)
+	// Find answers the stored choice, or the default (the workspace's own model, version 0) where
+	// none was ever made - never not found, because "never chose" is a choice with a meaning. The
+	// default carries no workspace; the caller knows whose transaction it asked in.
+	Find(ctx context.Context) (integration.AiChoice, error)
 
 	// Save stores the choice whole and answers it as stored, with its version risen.
 	Save(ctx context.Context, choice integration.AiChoice) (integration.AiChoice, error)

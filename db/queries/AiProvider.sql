@@ -96,7 +96,7 @@ SELECT id, display_name, processor, kind, base_url, completion_model, embedding_
        jurisdiction, created_at, updated_at, version
 FROM ai_provider
 WHERE tenant_id IS NULL
-ORDER BY display_name, id;
+ORDER BY display_name COLLATE hubtask_name, id;
 
 -- name: FindOfferedAiProvider :one
 SELECT id, display_name, processor, kind, base_url, completion_model, embedding_model,

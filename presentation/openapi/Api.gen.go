@@ -6458,6 +6458,51 @@ type OauthTokenRequest struct {
 // OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
 type OauthTokenRequestGrantType string
 
+// OfferedAiModel An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`).
+type OfferedAiModel struct {
+	BaseUrl         *string   `json:"base_url,omitempty"`
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	DisplayName     string    `json:"display_name"`
+	EmbeddingModel  *string   `json:"embedding_model,omitempty"`
+
+	// HasApiKey Whether a key is stored. The key itself is answered by nothing.
+	HasApiKey bool               `json:"has_api_key"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind      AiProviderKind `json:"kind"`
+	Processor string         `json:"processor"`
+	UpdatedAt *time.Time     `json:"updated_at,omitempty"`
+	Version   int            `json:"version"`
+}
+
+// OfferedAiModelConfiguration An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act.
+type OfferedAiModelConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep the key already stored; send an empty string to clear it.
+	ApiKey          *string `json:"api_key,omitempty"`
+	BaseUrl         string  `json:"base_url"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+
+	// DisplayName The name workspaces choose it by. Unique among offered models.
+	DisplayName    string  `json:"display_name"`
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// Processor Who processes what is sent to it, as the operator declares it.
+	Processor string `json:"processor"`
+}
+
 // OidcAuthorization Where to send the browser, and the handle to finish with.
 type OidcAuthorization struct {
 	// AuthorizationUrl The provider's authorization endpoint with this flow's parameters, including the PKCE challenge. The verifier that answers it stays on the server.
@@ -9832,6 +9877,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
+type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
+// ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
+type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -10221,6 +10272,18 @@ type ServerInterface interface {
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
+	// ListInstanceAiProviders The AI models this installation offers every workspace
+	// (GET /admin/ai-providers)
+	ListInstanceAiProviders(w http.ResponseWriter, r *http.Request)
+	// CreateInstanceAiProvider Offer an AI model to every workspace
+	// (POST /admin/ai-providers)
+	CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request)
+	// RemoveInstanceAiProvider Withdraw an offered AI model
+	// (DELETE /admin/ai-providers/{providerId})
+	RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ConfigureInstanceAiProvider Change an offered AI model
+	// (PUT /admin/ai-providers/{providerId})
+	ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
 	// ReadEncryptionStatus The keyring, and what still names each key
 	// (GET /admin/encryption)
 	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
@@ -11251,6 +11314,86 @@ func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.InviteAccount(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceAiProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceAiProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceAiProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveInstanceAiProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureInstanceAiProvider(w, r, providerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21494,6 +21637,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.RemoveInstanceAiProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.ConfigureInstanceAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/identity-providers", wrapper.ListInstanceIdentityProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)

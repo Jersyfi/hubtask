@@ -6464,6 +6464,51 @@ type OauthTokenRequest struct {
 // OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
 type OauthTokenRequestGrantType string
 
+// OfferedAiModel An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`).
+type OfferedAiModel struct {
+	BaseUrl         *string   `json:"base_url,omitempty"`
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	DisplayName     string    `json:"display_name"`
+	EmbeddingModel  *string   `json:"embedding_model,omitempty"`
+
+	// HasApiKey Whether a key is stored. The key itself is answered by nothing.
+	HasApiKey bool               `json:"has_api_key"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind      AiProviderKind `json:"kind"`
+	Processor string         `json:"processor"`
+	UpdatedAt *time.Time     `json:"updated_at,omitempty"`
+	Version   int            `json:"version"`
+}
+
+// OfferedAiModelConfiguration An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act.
+type OfferedAiModelConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep the key already stored; send an empty string to clear it.
+	ApiKey          *string `json:"api_key,omitempty"`
+	BaseUrl         string  `json:"base_url"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+
+	// DisplayName The name workspaces choose it by. Unique among offered models.
+	DisplayName    string  `json:"display_name"`
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// Processor Who processes what is sent to it, as the operator declares it.
+	Processor string `json:"processor"`
+}
+
 // OidcAuthorization Where to send the browser, and the handle to finish with.
 type OidcAuthorization struct {
 	// AuthorizationUrl The provider's authorization endpoint with this flow's parameters, including the PKCE challenge. The verifier that answers it stays on the server.
@@ -9838,6 +9883,12 @@ type RestrictProcessingJSONRequestBody = ProcessingRestriction
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
+type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
+// ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
+type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -10433,6 +10484,56 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceAiProviders The AI models this installation offers every workspace
+	//
+	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+	//
+	// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+	ListInstanceAiProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceAiProviderWithBody Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceAiProvider Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProvider(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveInstanceAiProvider Withdraw an offered AI model
+	//
+	// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+	//
+	// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+	RemoveInstanceAiProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceAiProviderWithBody Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceAiProvider Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
@@ -14277,6 +14378,116 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 // Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 func (c *Client) InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewInviteAccountRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceAiProviders The AI models this installation offers every workspace
+//
+// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+//
+// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+func (c *Client) ListInstanceAiProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceAiProvidersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceAiProviderWithBody Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *Client) CreateInstanceAiProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceAiProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceAiProvider Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *Client) CreateInstanceAiProvider(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceAiProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveInstanceAiProvider Withdraw an offered AI model
+//
+// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+//
+// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+func (c *Client) RemoveInstanceAiProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveInstanceAiProviderRequest(c.Server, providerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceAiProviderWithBody Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *Client) ConfigureInstanceAiProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceAiProviderRequestWithBody(c.Server, providerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceAiProvider Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceAiProviderRequest(c.Server, providerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -22144,6 +22355,154 @@ func NewInviteAccountRequestWithBody(server string, params *InviteAccountParams,
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewListInstanceAiProvidersRequest constructs an http.Request for the ListInstanceAiProviders method
+func NewListInstanceAiProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceAiProviderRequest calls the generic CreateInstanceAiProvider builder with application/json body
+func NewCreateInstanceAiProviderRequest(server string, body CreateInstanceAiProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceAiProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceAiProviderRequestWithBody constructs an http.Request for the CreateInstanceAiProvider method, with any body, and a specified content type
+func NewCreateInstanceAiProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveInstanceAiProviderRequest constructs an http.Request for the RemoveInstanceAiProvider method
+func NewRemoveInstanceAiProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfigureInstanceAiProviderRequest calls the generic ConfigureInstanceAiProvider builder with application/json body
+func NewConfigureInstanceAiProviderRequest(server string, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureInstanceAiProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+}
+
+// NewConfigureInstanceAiProviderRequestWithBody constructs an http.Request for the ConfigureInstanceAiProvider method, with any body, and a specified content type
+func NewConfigureInstanceAiProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -35694,6 +36053,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccountWithResponse(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*InviteAccountResult, error)
 
+	// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
+	//
+	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+	ListInstanceAiProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceAiProvidersResult, error)
+
+	// CreateInstanceAiProviderWithBodyWithResponse Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error)
+
+	// CreateInstanceAiProviderWithResponse Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithResponse(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error)
+
+	// RemoveInstanceAiProviderWithResponse Withdraw an offered AI model
+	//
+	// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+	RemoveInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceAiProviderResult, error)
+
+	// ConfigureInstanceAiProviderWithBodyWithResponse Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error)
+
+	// ConfigureInstanceAiProviderWithResponse Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error)
+
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -39991,6 +40404,191 @@ func (r InviteAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r InviteAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceAiProvidersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceAiProvidersResult) GetJSON200() *[]OfferedAiModel {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListInstanceAiProvidersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceAiProvidersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceAiProvidersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceAiProvidersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceAiProvidersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceAiProviderResult) GetJSON201() *OfferedAiModel {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveInstanceAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfigureInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureInstanceAiProviderResult) GetJSON200() *OfferedAiModel {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureInstanceAiProviderResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -53787,6 +54385,96 @@ func (c *ClientWithResponses) InviteAccountWithResponse(ctx context.Context, par
 	return ParseInviteAccountResult(rsp)
 }
 
+// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
+//
+// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+func (c *ClientWithResponses) ListInstanceAiProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceAiProvidersResult, error) {
+	rsp, err := c.ListInstanceAiProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceAiProvidersResult(rsp)
+}
+
+// CreateInstanceAiProviderWithBodyWithResponse Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceAiProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error) {
+	rsp, err := c.CreateInstanceAiProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceAiProviderResult(rsp)
+}
+
+// CreateInstanceAiProviderWithResponse Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceAiProviderWithResponse(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error) {
+	rsp, err := c.CreateInstanceAiProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceAiProviderResult(rsp)
+}
+
+// RemoveInstanceAiProviderWithResponse Withdraw an offered AI model
+//
+// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+func (c *ClientWithResponses) RemoveInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceAiProviderResult, error) {
+	rsp, err := c.RemoveInstanceAiProvider(ctx, providerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveInstanceAiProviderResult(rsp)
+}
+
+// ConfigureInstanceAiProviderWithBodyWithResponse Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceAiProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error) {
+	rsp, err := c.ConfigureInstanceAiProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceAiProviderResult(rsp)
+}
+
+// ConfigureInstanceAiProviderWithResponse Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error) {
+	rsp, err := c.ConfigureInstanceAiProvider(ctx, providerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceAiProviderResult(rsp)
+}
+
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -60353,6 +61041,134 @@ func ParseInviteAccountResult(rsp *http.Response) (*InviteAccountResult, error) 
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceAiProvidersResult parses an HTTP response from a ListInstanceAiProvidersWithResponse call
+func ParseListInstanceAiProvidersResult(rsp *http.Response) (*ListInstanceAiProvidersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceAiProvidersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceAiProviderResult parses an HTTP response from a CreateInstanceAiProviderWithResponse call
+func ParseCreateInstanceAiProviderResult(rsp *http.Response) (*CreateInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveInstanceAiProviderResult parses an HTTP response from a RemoveInstanceAiProviderWithResponse call
+func ParseRemoveInstanceAiProviderResult(rsp *http.Response) (*RemoveInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfigureInstanceAiProviderResult parses an HTTP response from a ConfigureInstanceAiProviderWithResponse call
+func ParseConfigureInstanceAiProviderResult(rsp *http.Response) (*ConfigureInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

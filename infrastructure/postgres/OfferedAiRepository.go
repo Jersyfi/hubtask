@@ -243,7 +243,7 @@ func NewAiChoiceRepository() AiChoiceRepository { return AiChoiceRepository{} }
 
 var _ repository.AiChoices = AiChoiceRepository{}
 
-func (AiChoiceRepository) Find(ctx context.Context, tenantID shared.ID) (integration.AiChoice, error) {
+func (AiChoiceRepository) Find(ctx context.Context) (integration.AiChoice, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return integration.AiChoice{}, err
@@ -251,7 +251,7 @@ func (AiChoiceRepository) Find(ctx context.Context, tenantID shared.ID) (integra
 	row, err := queries.FindAiSource(ctx)
 	if err != nil {
 		if IsNoRows(err) {
-			return integration.DefaultAiChoice(tenantID), nil
+			return integration.DefaultAiChoice(""), nil
 		}
 		return integration.AiChoice{}, readFailed(err)
 	}

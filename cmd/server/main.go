@@ -1173,6 +1173,14 @@ func run() error {
 		Configure: identityProviderWriter,
 	}
 
+	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the
+	// installation's own journal, and the third-country confirmation a workspace's own model is
+	// held to as well.
+	instanceAiWriter := adminservice.InstanceAiWriter{
+		Instance: instanceWriter, Offered: postgres.NewOfferedAiRepository(),
+		Encryptor: encryptor, ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
+	}
+
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
 	// nil on a plain installation: the operator's file comes with the instance layer, and nothing
@@ -1390,6 +1398,9 @@ func run() error {
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.ListInstanceAiProviders{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

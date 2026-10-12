@@ -159,7 +159,7 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 	})
 
 	inTenant(t, uow, offeredRepoTenantA, func(ctx context.Context) error {
-		before, err := choices.Find(ctx, offeredRepoTenantA)
+		before, err := choices.Find(ctx)
 		if err != nil || before.Source != domain.AiSourceOwn || before.Version != 0 {
 			t.Errorf("a workspace that never chose answered %+v (%v), want OWN", before, err)
 		}
@@ -172,7 +172,7 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 	})
 
 	inTenant(t, uow, offeredRepoTenantB, func(ctx context.Context) error {
-		next, err := choices.Find(ctx, offeredRepoTenantB)
+		next, err := choices.Find(ctx)
 		if err != nil || next.Source != domain.AiSourceOwn {
 			t.Errorf("A's choice is visible next door: %+v (%v)", next, err)
 		}
@@ -188,7 +188,7 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 	})
 
 	inTenantRolledBack(t, uow, offeredRepoTenantA, func(ctx context.Context) {
-		after, err := choices.Find(ctx, offeredRepoTenantA)
+		after, err := choices.Find(ctx)
 		if err != nil || after.Source != domain.AiSourceOffered || !after.OfferedProviderID.IsZero() {
 			t.Errorf("after the withdrawal the choice is %+v (%v), want OFFERED pointing at nothing", after, err)
 		}
