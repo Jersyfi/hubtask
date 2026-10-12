@@ -806,6 +806,11 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:resume", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Call off a workspace's pending deletion */
+  cancelTenantDeletion(tenantId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/admin/tenants/{tenantId}:cancel-deletion", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Request a workspace's deletion */
   requestTenantDeletion(tenantId: string, body: NonNullable<operations["requestTenantDeletion"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["requestTenantDeletion"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:delete", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);

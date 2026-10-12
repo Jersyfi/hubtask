@@ -96,7 +96,12 @@ class Manifest {
     return this.#setupOpen;
   }
 
-  /** Whether workspaces are told apart by their short name, which the setup then asks for. */
+  /**
+   * Whether this installation runs more than one workspace: they are told apart by their short
+   * name, which the setup then asks for, and only then are workspaces created, suspended and
+   * deleted from the installation level - in single mode the one workspace is the installation,
+   * and the server refuses all three. `false` until the manifest says `multi`.
+   */
   get isMultiTenant(): boolean {
     return this.value?.tenancy_mode === 'multi';
   }

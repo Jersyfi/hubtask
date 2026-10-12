@@ -690,6 +690,7 @@ class AdminTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
 
 class PasswordOpening(TypedDict, total=False):
@@ -760,6 +761,7 @@ class ProvisionedTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
     owner_redemption_token: Required[str]

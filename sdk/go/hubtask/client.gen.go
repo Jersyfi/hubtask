@@ -3947,9 +3947,12 @@ type AdminTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
-	Slug       string            `json:"slug"`
-	Status     AdminTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
+	Slug           string            `json:"slug"`
+	Status         AdminTenantStatus `json:"status"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -6874,9 +6877,12 @@ type ProvisionedTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
-	Slug       string                  `json:"slug"`
-	Status     ProvisionedTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
+	Slug           string                  `json:"slug"`
+	Status         ProvisionedTenantStatus `json:"status"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -10796,6 +10802,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CancelTenantDeletion Call off a workspace's pending deletion
+	//
+	// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+	CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CloseTenantPassword Close an operator's opening of the password early
 	//
 	// Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -10805,7 +10818,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletionWithBody Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10814,7 +10827,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletion Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10886,7 +10899,7 @@ type ClientInterface interface {
 
 	// SuspendTenant Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -14997,6 +15010,23 @@ func (c *Client) UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx con
 	return c.Client.Do(req)
 }
 
+// CancelTenantDeletion Call off a workspace's pending deletion
+//
+// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+func (c *Client) CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCancelTenantDeletionRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CloseTenantPassword Close an operator's opening of the password early
 //
 // Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -15016,7 +15046,7 @@ func (c *Client) CloseTenantPassword(ctx context.Context, tenantId AdminTenantId
 
 // RequestTenantDeletionWithBody Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15035,7 +15065,7 @@ func (c *Client) RequestTenantDeletionWithBody(ctx context.Context, tenantId Adm
 
 // RequestTenantDeletion Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15187,7 +15217,7 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 
 // SuspendTenant Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -23230,6 +23260,40 @@ func NewUpdateTenantQuotasRequestWithBody(server string, tenantId AdminTenantId,
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCancelTenantDeletionRequest constructs an http.Request for the CancelTenantDeletion method
+func NewCancelTenantDeletionRequest(server string, tenantId AdminTenantId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:cancel-deletion", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -36369,6 +36433,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTenantQuotasResult, error)
 
+	// CancelTenantDeletionWithResponse Call off a workspace's pending deletion
+	//
+	// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+	CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error)
+
 	// CloseTenantPasswordWithResponse Close an operator's opening of the password early
 	//
 	// Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -36380,7 +36453,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36389,7 +36462,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36463,7 +36536,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuspendTenantWithResponse Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -41338,6 +41411,47 @@ func (r UpdateTenantQuotasResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateTenantQuotasResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CancelTenantDeletionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CancelTenantDeletionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CancelTenantDeletionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CancelTenantDeletionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CancelTenantDeletionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CancelTenantDeletionResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -54805,6 +54919,21 @@ func (c *ClientWithResponses) UpdateTenantQuotasWithApplicationMergePatchPlusJSO
 	return ParseUpdateTenantQuotasResult(rsp)
 }
 
+// CancelTenantDeletionWithResponse Call off a workspace's pending deletion
+//
+// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+func (c *ClientWithResponses) CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error) {
+	rsp, err := c.CancelTenantDeletion(ctx, tenantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCancelTenantDeletionResult(rsp)
+}
+
 // CloseTenantPasswordWithResponse Close an operator's opening of the password early
 //
 // Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -54822,7 +54951,7 @@ func (c *ClientWithResponses) CloseTenantPasswordWithResponse(ctx context.Contex
 
 // RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54837,7 +54966,7 @@ func (c *ClientWithResponses) RequestTenantDeletionWithBodyWithResponse(ctx cont
 
 // RequestTenantDeletionWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54959,7 +55088,7 @@ func (c *ClientWithResponses) ResumeTenantWithResponse(ctx context.Context, tena
 
 // SuspendTenantWithResponse Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -61629,6 +61758,35 @@ func ParseUpdateTenantQuotasResult(rsp *http.Response) (*UpdateTenantQuotasResul
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCancelTenantDeletionResult parses an HTTP response from a CancelTenantDeletionWithResponse call
+func ParseCancelTenantDeletionResult(rsp *http.Response) (*CancelTenantDeletionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CancelTenantDeletionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

@@ -191,6 +191,20 @@ type Schedules interface {
 	SetNextRun(ctx context.Context, id shared.ID, at time.Time) error
 }
 
+// Paused is the rules a workspace's deletion request switched off (multi-tenancy.md §5), which a
+// cancel of that request switches back on.
+//
+// Its own interface for Schedules' reason: the cancel writes no definition, and a mark it never set
+// is not one it may clear. The tenant is the transaction's.
+type Paused interface {
+	// List answers this tenant's rules the deletion request switched off, oldest first.
+	List(ctx context.Context) ([]domain.Rule, error)
+
+	// Resume switches one of them back on with its next moment (the zero time stores none) and takes
+	// the mark off. False means it was not marked - already resumed, or gone.
+	Resume(ctx context.Context, id shared.ID, next, at time.Time) (bool, error)
+}
+
 // Occurrences is what a RELATIVE_DATE rule owes its entries (automation.md §1.1).
 //
 // The tenant is the transaction's throughout, like every other repository here.

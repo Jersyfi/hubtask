@@ -86,6 +86,10 @@ func (tenants) RequestDeletion(context.Context, time.Time, time.Time) (bool, err
 	return false, nil
 }
 
+func (tenants) CancelDeletion(context.Context, time.Time) (identity.TenantStatus, bool, error) {
+	return "", false, nil
+}
+
 func (tenants) OpenPassword(context.Context, identity.PasswordOpening, time.Time) (bool, error) {
 	return false, nil
 }

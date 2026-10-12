@@ -4066,6 +4066,8 @@ paths:
         Flips the middleware: every API call of the tenant's own people answers
         `403 tenant_suspended` on their very next request. The data remains, and the read
         export still works - the suspended are exactly who needs it.
+        Refused with `admin.multi_mode_required` in single mode, where the one workspace is
+        the installation.
       responses:
         "204":
           description: Suspended
@@ -4086,6 +4088,27 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:cancel-deletion:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: cancelTenantDeletion
+      summary: Call off a workspace's pending deletion
+      description: >
+        Returns a workspace pending deletion to where it stood when the deletion was requested -
+        active or suspended; suspended where that is not known - and clears the deadline. The
+        automation rules the request switched off are switched back on, a schedule from now on,
+        without the occurrences it missed. Possible until the hard delete begins, also past the
+        deadline while a legal hold keeps the workspace; refused with
+        `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing).
+        Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+      responses:
+        "204":
+          description: The deletion is called off
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:delete:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -4097,8 +4120,10 @@ paths:
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
         step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
-        typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
-        automations disabled, the export still answering. The hard delete runs after the
+        typed - the restore precedent. Refused with `admin.multi_mode_required` in single
+        mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked,
+        automations disabled, the export still answering. Until the hard delete begins,
+        `:cancel-deletion` calls it off. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
         media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
         because the tenant's own trail dies with it.
@@ -10748,6 +10773,12 @@ components:
             Whether a legal hold is in force in the workspace. While one is, a deletion request is
             refused, and a workspace already pending deletion stays pending until the last hold is
             lifted. Only the state: which hold, on what and why stay the workspace's.
+        purge_started_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Set once the hard delete has begun removing the workspace. From then on its deletion
+            can no longer be called off.
         password_opening:
           description: >
             The operator's opening of the password while it is in force, null
