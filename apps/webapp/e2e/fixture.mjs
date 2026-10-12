@@ -7,6 +7,8 @@
 // collection can be and still show every control the inventory names.
 export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', display_name: 'Jérôme Winkel', email: 'j@example.invalid', status: 'ACTIVE', locale: 'en', onboarding_completed_at: '2026-09-01T00:00:00Z' };
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
+/** Somebody invited who has not arrived yet: the row an invitation is renewed from (UC-ID-14 check 5). */
+export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER', display_name: 'Bert', email: 'bert@example.invalid', status: 'INVITED' };
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
@@ -172,6 +174,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
+  if (path.endsWith(`/api/v1/accounts/${INVITED.id}`)) return route.fulfill({ json: INVITED });
   // `include_archived` is honoured, because it is the whole of what the archive screen asks and a
   // stub that ignored it would prove the screen works by handing it rows the product hides.
   if (path.endsWith('/api/v1/containers')) {

@@ -370,6 +370,11 @@ type MailConfig struct {
 	Timeout  time.Duration
 }
 
+// Configured reports whether this installation sends mail at all. The one reading of it: the
+// manifest's `features.mail` and the invitation's choice between a mail and a link both ask here,
+// so a screen that says "no mail goes out" and a server that hands out a link cannot disagree.
+func (m MailConfig) Configured() bool { return m.Host != "" }
+
 // AIConfig is the installation's own say over the AI surface.
 //
 // What it deliberately does *not* carry is a provider: which provider a workspace uses, under which

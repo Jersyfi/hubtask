@@ -170,11 +170,12 @@ func inviteHandler(accounts *accountStore, auth *authorizer, sink *auditSink, qu
 func TestAnInvitationCreatesAnAccountThatCannotYetAct(t *testing.T) {
 	accounts, auth, sink, queued := newAccounts(), &authorizer{}, &auditSink{}, &notifier{}
 
-	account, err := inviteHandler(accounts, auth, sink, queued).
+	invitation, err := inviteHandler(accounts, auth, sink, queued).
 		Execute(t.Context(), admin(), InviteAccountCommand{Email: "Bert@Example.ORG"})
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
+	account := invitation.Account
 
 	if account.Status != domain.AccountInvited {
 		t.Errorf("status %q, want INVITED", account.Status)
@@ -240,26 +241,51 @@ func TestTheTrailRecordsTheInvitationWithoutTheAddress(t *testing.T) {
 }
 
 // Inviting somebody who is already here is the common mistake, and it gets a clear answer rather
-// than a unique constraint surfacing from the depths.
+// than a unique constraint surfacing from the depths - and nothing goes out: no second account, no
+// mail, no link (UC-ID-14 check 6). An invitation still waiting is named as one, so the inviter's
+// next step is a new link for it rather than a second account.
 func TestInvitingSomebodyWhoIsAlreadyHereIsAConflict(t *testing.T) {
-	existing, err := domain.Invite(shared.ID("01936f2a-7c1e-7000-8000-0000000000a9"),
-		tenant, "bert@example.org", "Bert", nil, nil)
-	if err != nil {
-		t.Fatalf("preparing: %v", err)
+	cases := []struct {
+		name   string
+		status domain.AccountStatus
+		links  bool
+		want   string
+	}{
+		{"a person here, with mail", domain.AccountActive, false, "accounts.email_taken"},
+		{"a person here, without mail", domain.AccountActive, true, "accounts.email_taken"},
+		{"a disabled person, with mail", domain.AccountDisabled, false, "accounts.email_taken"},
+		{"an invitation waiting, with mail", domain.AccountInvited, false, "accounts.already_invited"},
+		{"an invitation waiting, without mail", domain.AccountInvited, true, "accounts.already_invited"},
 	}
-	accounts := newAccounts(existing)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			existing, err := domain.Invite(shared.ID("01936f2a-7c1e-7000-8000-0000000000a9"),
+				tenant, "bert@example.org", "Bert", nil, nil)
+			if err != nil {
+				t.Fatalf("preparing: %v", err)
+			}
+			existing.Status = c.status
+			accounts, queued, minter := newAccounts(existing), &notifier{}, &linkMinter{}
+			handler := inviteHandler(accounts, &authorizer{}, &auditSink{}, queued)
+			if c.links {
+				handler.Links = InvitationLinks{Minter: minter, BaseURL: "https://home.example"}
+			}
 
-	_, err = inviteHandler(accounts, &authorizer{}, &auditSink{}, &notifier{}).
-		Execute(t.Context(), admin(), InviteAccountCommand{Email: "BERT@example.org"})
+			_, err = handler.Execute(t.Context(), admin(), InviteAccountCommand{Email: "BERT@example.org"})
 
-	if err == nil || shared.AsError(err).DetailCode != "accounts.email_taken" {
-		t.Fatalf("error %v, want a conflict naming the address", err)
-	}
-	if !errors.Is(err, shared.ErrConflict) {
-		t.Errorf("category %v, want a conflict", err)
-	}
-	if len(accounts.inserted) != 0 {
-		t.Error("a second account was written for one address")
+			if got := detailOf(err); got != c.want {
+				t.Fatalf("answered %q (%v), want %s", got, err, c.want)
+			}
+			if !errors.Is(err, shared.ErrConflict) {
+				t.Errorf("category %v, want a conflict", err)
+			}
+			if shared.AsError(err).Params["account_id"] != existing.ID.String() {
+				t.Errorf("params %v, want the account that holds the address", shared.AsError(err).Params)
+			}
+			if len(accounts.inserted) != 0 || len(queued.requests) != 0 || len(minter.minted) != 0 {
+				t.Error("something went out for an address that is already here")
+			}
+		})
 	}
 }
 

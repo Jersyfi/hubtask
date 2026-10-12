@@ -581,6 +581,11 @@ export class HubtaskClient {
     return this.call("POST", "/accounts:invite", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Give an invitation not yet accepted a new link */
+  renewInvitation(accountId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["renewInvitation"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/{accountId}:renew-invitation", { "accountId": accountId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Give somebody an account without a mail address */
   createManagedAccount(body: NonNullable<operations["createManagedAccount"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["createManagedAccount"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/accounts:create-managed", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);

@@ -342,6 +342,14 @@ safeguard belongs to connecting, not to the provider kind.
 
 * `POST /accounts:invite` creates an `INVITED` account and queues the mail. The token (`hbt_inv_…`)
   is hashed under a purpose label, shown once, lives fourteen days, redeemed once.
+* **Without mail** (`features.mail` false, no `HUBTASK_SMTP_HOST`) nothing is queued: the token is
+  minted in the invitation's transaction and the answer carries `invitation_link`, the link the
+  mail would carry, shown once (no-store, no idempotency replay body). Never both: the mail's
+  delivery mints a token of its own on every attempt and would kill a handed-over link. A rule's run
+  is refused there (`accounts.invitation_needs_a_person`).
+* `POST /accounts/{id}:renew-invitation` gives an invitation not yet accepted a new way to arrive -
+  the mail again, or a new link shown once; the earlier link dies. An address already invited is
+  `accounts.already_invited`, one already here `accounts.email_taken`.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
   the account.
@@ -350,7 +358,7 @@ safeguard belongs to connecting, not to the provider kind.
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
   link admits even a non-authoritative provider, for that account and the invited address only.
 * Unknown, expired, accepted and foreign invitations are one refusal.
-* Not built: §21 I-5.
+* Not built: §21 I-5 (terms at the invitation).
 
 ---
 
@@ -592,12 +600,18 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 * Writing the workspace's rule takes a step-up (§16.3) and is audited with before and after.
 * Locking the installation's methods with the password among them opens the password in **every**
   workspace while locked; for one workspace the lever is §17.2.
-* Locking the installation's methods to providers turns on, in **every** workspace, each offered
-  provider admitted as *Only people invited here*: it creates no accounts, only another way in for
-  people already there, and connecting it asks the account's own proof (§4.1). A provider admitted
-  by domain or to anyone stays each workspace's switch — the installation would otherwise admit
-  people into a workspace that did not decide it (P-07). The installation's screen says which
-  applies. Decided, not built: I-9.
+* Locking the installation's methods with providers among them — `[OIDC]` or `[PASSWORD, OIDC]` —
+  turns on, in **every** workspace, each offered provider admitted as *Only people invited here*:
+  it creates no accounts, only another way in for people already there, and connecting it asks the
+  account's own proof (§4.1). A provider admitted by domain or to anyone stays each workspace's
+  switch — the installation would otherwise admit people into a workspace that did not decide it
+  (P-07). Each row says which applies (`installation_lock`), on the installation's screen and the
+  workspace's, where the mandated provider's switch is shown on and cannot be turned off
+  (`identity_provider.mandated`). The mandate is read, never written into a workspace's switches:
+  lifting the lock returns every workspace to its own choice at once, and where that leaves no way
+  in the fallback opens (§17.1). While the mandated provider's offer stands it is a way in, so the
+  fallback stays shut; the operator's opening (§17.2) still overrides it. The installation's count
+  of a mandated provider is every live workspace, so its removal waits for the withdrawal.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
@@ -645,9 +659,8 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
-| I-5 | Invitations without mail, providers on the invitation card, terms of use with a `TERMS` step ([UC-ID-14](../usecases/identity/UC-ID-14-invite-people-with-a-role.md), [UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
+| I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
-| I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |

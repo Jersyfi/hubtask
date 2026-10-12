@@ -3775,7 +3775,7 @@
         ],
         "operationId": "inviteAccount",
         "summary": "Invite a person into this workspace",
-        "description": "Creates an account in `INVITED` status. Permissions can be granted to it immediately;\nit cannot act until the invitation is accepted.\nThe notification is queued as a job — this call does not wait for an email.\n",
+        "description": "Creates an account in `INVITED` status. Permissions can be granted to it immediately;\nit cannot act until the invitation is accepted.\n\n**Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the\ninvitation mail is queued as a job - this call does not wait for it - and the answer\ncarries no link.\n\n**Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the\nsame link the mail would have carried, **shown here and never again**, to be handed over by\nany other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a\nrepeat with the same `Idempotency-Key` answers the status without the body. A lost link is\nreplaced with `POST /accounts/{accountId}:renew-invitation`.\n\nAn address that already has an account here is `409 accounts.email_taken`; one whose\ninvitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or\nsent for either. Without mail, an act an automation rule runs is refused with\n`accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -3797,7 +3797,42 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Account"
+                  "$ref": "#/components/schemas/InvitedAccount"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}:renew-invitation": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "renewInvitation",
+        "summary": "Give an invitation not yet accepted a new link",
+        "description": "For an invitation whose link was lost, or ran out. The account must still be `INVITED`;\nany other is `409 accounts.not_invited`.\n\n**Where this installation sends mail**, the invitation mail is queued again and the answer\ncarries no link; the earlier link stops working when the new mail goes out. **Where it sends\nno mail**, the answer carries a new `invitation_link`, shown here and never again, and the\nearlier link stops working at once. Without mail, an act an automation rule runs is refused\nwith `accounts.invitation_needs_a_person`.\n\nAsks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Renewed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitedAccount"
                 }
               }
             }
@@ -6416,7 +6451,7 @@
           }
         ],
         "summary": "Switch a provider on or off as a way in here",
-        "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n",
+        "description": "One verb for two stores, because it is one question: **is this a way into this workspace**.\nFor the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.\n**An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.\nThe last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.\n**A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -11922,6 +11957,23 @@
           }
         }
       },
+      "InvitedAccount": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Account"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "invitation_link": {
+                "type": "string",
+                "format": "uri",
+                "description": "Present only where this installation sends no mail: the link that accepts the invitation, the same one a mail would carry. Shown here and never again - only its hash is kept. It works once, for fourteen days.\n"
+              }
+            }
+          }
+        ]
+      },
       "AccountInvite": {
         "type": "object",
         "required": [
@@ -13796,7 +13848,17 @@
           "offered_here": {
             "type": "boolean",
             "readOnly": true,
-            "description": "Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.\n"
+            "description": "Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.\n"
+          },
+          "installation_lock": {
+            "type": "string",
+            "enum": [
+              "TURNS_ON",
+              "LEAVES_TO_WORKSPACE",
+              "NONE"
+            ],
+            "readOnly": true,
+            "description": "For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.\n"
           },
           "withdraw_at": {
             "type": [
@@ -13814,7 +13876,7 @@
             ],
             "minimum": 0,
             "readOnly": true,
-            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.\n"
+            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.\n"
           },
           "allowed_email_domains": {
             "type": "array",

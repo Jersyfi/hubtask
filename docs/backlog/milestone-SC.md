@@ -268,7 +268,7 @@ provider and an installation AI model present.
 
 ---
 
-## SC-13 — Invitations that reach people without mail
+## SC-13 — Invitations that reach people without mail · built
 
 *Depends on: nothing.*
 
@@ -637,7 +637,7 @@ notices; it overrides the workspace's switch and a lock; it can be closed early.
 
 ---
 
-## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere · built
 
 *Depends on: SC-31.* · issue #1194 · Decision 10
 

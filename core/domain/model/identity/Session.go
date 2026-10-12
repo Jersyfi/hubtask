@@ -5,6 +5,7 @@ package identity
 
 import (
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -60,6 +61,21 @@ func NewRefreshToken(tenantID shared.ID, secret []byte) (Token, error) {
 
 func NewRedemptionToken(tenantID shared.ID, secret []byte) (Token, error) {
 	return newPrefixed(RedemptionTokenPrefix, tenantID, secret)
+}
+
+// InvitationLink is the link that accepts an invitation, whichever way it travels - in the mail,
+// or answered once where no mail goes out. One composition, so the two are the same link.
+//
+// The token rides in the fragment rather than the query: a fragment is never sent to a server,
+// so no proxy, access log or Referer between the reader and the interface sees it
+// (identity.md §14.4). An empty base composes nothing, because a relative link handed over in a
+// message is a dead one.
+func InvitationLink(base, token string) string {
+	base = strings.TrimSuffix(base, "/")
+	if base == "" || token == "" {
+		return ""
+	}
+	return base + "/redeem#token=" + url.PathEscape(token)
 }
 
 // MaxUserAgentLength bounds what a session records about its client. A user agent is a label for

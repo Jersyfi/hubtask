@@ -471,9 +471,13 @@ class Client:
         """Forget one of your devices"""
         return self._call("DELETE", "/sync/devices/{deviceId}", {"deviceId": device_id}, None, {}, None, "none", None, "void")
 
-    def invite_account(self, body: "AccountInvite", *, idempotency_key: str | None = None) -> "Account":
+    def invite_account(self, body: "AccountInvite", *, idempotency_key: str | None = None) -> "InvitedAccount":
         """Invite a person into this workspace"""
         return self._call("POST", "/accounts:invite", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def renew_invitation(self, account_id: str, *, idempotency_key: str | None = None) -> "InvitedAccount":
+        """Give an invitation not yet accepted a new link"""
+        return self._call("POST", "/accounts/{accountId}:renew-invitation", {"accountId": account_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
     def create_managed_account(self, body: "ManagedAccountCreate", *, step_up: str | None = None) -> "ManagedAccountCreated":
         """Give somebody an account without a mail address"""
