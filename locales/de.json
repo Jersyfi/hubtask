@@ -1062,6 +1062,7 @@
   "app.instance.workspaces_pending_deletion": "Werden gelöscht",
   "app.instance.accounts_active": "Leute",
   "app.instance.accounts_total": "Konten insgesamt",
+  "app.instance.workspaces_service_only": "{count, plural, one {# weiterer Arbeitsbereich enthält nur Dienstkonten und wird nicht mitgezählt.} other {# weitere Arbeitsbereiche enthalten nur Dienstkonten und werden nicht mitgezählt.}}",
   "app.instance.health": "Zustand",
   "app.instance.health_ok": "Alles, worauf diese Installation angewiesen ist, antwortet.",
   "app.instance.health_degraded": "Etwas, worauf diese Installation angewiesen ist, antwortet nicht. Was noch geht, geht.",

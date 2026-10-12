@@ -1702,6 +1702,7 @@
   "app.instance.workspaces_pending_deletion": "Being deleted",
   "app.instance.accounts_active": "People",
   "app.instance.accounts_total": "Accounts in all",
+  "app.instance.workspaces_service_only": "{count, plural, one {# more workspace holds only service accounts and is not counted.} other {# more workspaces hold only service accounts and are not counted.}}",
   "app.instance.health": "Health",
   "app.instance.health_ok": "Everything this installation depends on is answering.",
   "app.instance.health_degraded": "Something this installation depends on is not answering. What still works, works.",

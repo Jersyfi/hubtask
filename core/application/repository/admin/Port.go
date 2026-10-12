@@ -130,6 +130,9 @@ type Census struct {
 	WorkspacesPendingDeletion int64
 	AccountsActive            int64
 	AccountsTotal             int64
+	// WorkspacesServiceOnly are workspaces holding no person, only service accounts: not customers,
+	// so the three workspace counts above leave them out (UC-INS-12 check 5).
+	WorkspacesServiceOnly int64
 }
 
 // Installation answers the census.
