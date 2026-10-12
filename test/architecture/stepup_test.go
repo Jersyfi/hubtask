@@ -25,6 +25,7 @@ var privilegedUseCases = map[string]string{
 	"StartRestore":                             "the destructive restore modes replace data (backup-restore.md §8.3)",
 	"GrantMembership":                          "granting OWNER is changing the OWNER role",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
+	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",
 	"CreateAccessToken":                        "an admin-scoped token reaches the control plane",
 	"RequestTenantDeletion":                    "it is the request that ends a workspace (multi-tenancy.md §5)",

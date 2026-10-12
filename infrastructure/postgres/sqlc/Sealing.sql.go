@@ -9,58 +9,106 @@ import (
 	"context"
 )
 
-const countSealedValuesByKey = `-- name: CountSealedValuesByKey :many
-
-SELECT sealed.key_id::text AS key_id, count(*)::bigint AS sealed_values
+const countInstallationSealedValuesByStoreAndKey = `-- name: CountInstallationSealedValuesByStoreAndKey :many
+SELECT sealed.store::text AS store, sealed.key_id::text AS key_id, count(*)::bigint AS sealed_values
 FROM (
-  SELECT secret_key_id AS key_id FROM account_mfa
+  SELECT 'identity_provider' AS store, client_secret_key_id AS key_id FROM identity_provider
+  WHERE tenant_id IS NULL
   UNION ALL
-  SELECT replacement_secret_key_id FROM account_mfa WHERE replacement_secret_key_id IS NOT NULL
+  SELECT 'ai_provider', api_key_key_id FROM ai_provider
+  WHERE tenant_id IS NULL AND api_key_key_id IS NOT NULL
+) AS sealed
+GROUP BY sealed.store, sealed.key_id
+ORDER BY sealed.store, sealed.key_id
+`
+
+type CountInstallationSealedValuesByStoreAndKeyRow struct {
+	Store        string
+	KeyID        string
+	SealedValues int64
+}
+
+// The installation's own level, read once in the installation's scope: the sign-in providers it
+// offers and the AI models it offers. These are the only stores that hold rows of no workspace -
+// a backup target cannot, its policy admits none.
+func (q *Queries) CountInstallationSealedValuesByStoreAndKey(ctx context.Context) ([]CountInstallationSealedValuesByStoreAndKeyRow, error) {
+	rows, err := q.db.Query(ctx, countInstallationSealedValuesByStoreAndKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountInstallationSealedValuesByStoreAndKeyRow{}
+	for rows.Next() {
+		var i CountInstallationSealedValuesByStoreAndKeyRow
+		if err := rows.Scan(&i.Store, &i.KeyID, &i.SealedValues); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countSealedValuesByStoreAndKey = `-- name: CountSealedValuesByStoreAndKey :many
+
+SELECT sealed.store::text AS store, sealed.key_id::text AS key_id, count(*)::bigint AS sealed_values
+FROM (
+  SELECT 'account_mfa' AS store, secret_key_id AS key_id FROM account_mfa
   UNION ALL
-  SELECT client_secret_key_id FROM identity_provider
+  SELECT 'account_mfa', replacement_secret_key_id FROM account_mfa
+  WHERE replacement_secret_key_id IS NOT NULL
   UNION ALL
-  SELECT secret_key_id FROM webhook_subscription WHERE secret_key_id IS NOT NULL
+  SELECT 'identity_provider', client_secret_key_id FROM identity_provider
+  WHERE tenant_id = current_tenant_id()
   UNION ALL
-  SELECT previous_secret_key_id FROM webhook_subscription WHERE previous_secret_key_id IS NOT NULL
+  SELECT 'webhook_subscription', secret_key_id FROM webhook_subscription
+  WHERE secret_key_id IS NOT NULL
   UNION ALL
-  SELECT credential_key_id FROM backup_target WHERE credential_key_id IS NOT NULL
+  SELECT 'webhook_subscription', previous_secret_key_id FROM webhook_subscription
+  WHERE previous_secret_key_id IS NOT NULL
   UNION ALL
-  -- A workspace's own key only: an offered model's row is visible to every workspace and belongs
-  -- to none, so counting it here would count it once per workspace.
-  SELECT api_key_key_id FROM ai_provider
+  SELECT 'backup_target', credential_key_id FROM backup_target WHERE credential_key_id IS NOT NULL
+  UNION ALL
+  SELECT 'ai_provider', api_key_key_id FROM ai_provider
   WHERE api_key_key_id IS NOT NULL AND tenant_id = current_tenant_id()
   UNION ALL
-  SELECT named #>> '{}'
+  SELECT 'automation_rule', named #>> '{}'
   FROM automation_rule,
        LATERAL jsonb_path_query(actions, '$.**.secret_header_sealed.key_id') AS named
   WHERE deleted_at IS NULL
 ) AS sealed
-GROUP BY sealed.key_id
-ORDER BY sealed.key_id
+GROUP BY sealed.store, sealed.key_id
+ORDER BY sealed.store, sealed.key_id
 `
 
-type CountSealedValuesByKeyRow struct {
+type CountSealedValuesByStoreAndKeyRow struct {
+	Store        string
 	KeyID        string
 	SealedValues int64
 }
 
 // The census a rotation ends on (ADR-0045, security.md §8.1): how many stored values still name
-// each master key. Seven places hold a sealed value - the seventh an authenticator's replacement
-// waiting to be confirmed - and a rotation is only finished when none of
-// them names the key that is about to leave the ring.
+// each master key, by the kind of value. Seven places hold a sealed value - the seventh an
+// authenticator's replacement waiting to be confirmed - and a rotation is only finished when none
+// of them names the key that is about to leave the ring.
 //
 // Per tenant, like everything else: row level security bounds every branch of the union to the
 // transaction's workspace, and the control plane sums the answers over the tenants it may see.
-func (q *Queries) CountSealedValuesByKey(ctx context.Context) ([]CountSealedValuesByKeyRow, error) {
-	rows, err := q.db.Query(ctx, countSealedValuesByKey)
+// The two stores whose read policy also admits the installation's rows name the workspace
+// explicitly: those rows are visible to every workspace and belong to none, so counting them here
+// would count each once per workspace.
+func (q *Queries) CountSealedValuesByStoreAndKey(ctx context.Context) ([]CountSealedValuesByStoreAndKeyRow, error) {
+	rows, err := q.db.Query(ctx, countSealedValuesByStoreAndKey)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []CountSealedValuesByKeyRow{}
+	items := []CountSealedValuesByStoreAndKeyRow{}
 	for rows.Next() {
-		var i CountSealedValuesByKeyRow
-		if err := rows.Scan(&i.KeyID, &i.SealedValues); err != nil {
+		var i CountSealedValuesByStoreAndKeyRow
+		if err := rows.Scan(&i.Store, &i.KeyID, &i.SealedValues); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -26,6 +26,7 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -35,8 +36,13 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { signInRules } from '../lib/data/signinrules.svelte.ts';
 
   const account = $derived(actor.account);
+
+  // Whether the password is a way in here decides whether an address may be added (identity.md
+  // §13); the sign-in rules say it, fallback included.
+  $effect(() => signInRules.read());
   const accountId = $derived(account?.id);
 
   const locales = $derived(localesOf(manifest.value));
@@ -152,6 +158,22 @@
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
          where there is nothing to choose (UC-PRV-05 check 8). -->
     <AiObjectionSection />
+    {#if account.sign_in_name && !account.email && signInRules.isSettled}
+      <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
+           server would take it - a sign-in name and no address, in a workspace whose password is a
+           way in. Where it is not, the form is absent and the reason stands in its place. -->
+      <Stack gap="150">
+        <h2 class="section">{t('app.profile.address_title')}</h2>
+        {#if signInRules.hasPassword}
+          <p class="quiet">{t('app.profile.address_intro', { name: account.sign_in_name })}</p>
+          <div class="panel measured">
+            <AddressForm accountId={account.id} hint={t('app.people.address_hint_own')} />
+          </div>
+        {:else}
+          <p class="quiet">{t('app.profile.address_needs_password', { name: account.sign_in_name })}</p>
+        {/if}
+      </Stack>
+    {/if}
   </Stack>
 {/if}
 
@@ -173,6 +195,11 @@
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+
+  /* The form's own measure, as the panel above carries it. */
+  .measured { max-inline-size: 52ch; }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>

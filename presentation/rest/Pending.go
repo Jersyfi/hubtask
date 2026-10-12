@@ -1261,6 +1261,21 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 
 func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// IssueStartPassword is overridden by RestController, for the reason given at CreateContainer.
+func (pending) IssueStartPassword(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.IssueStartPasswordParams,
+) {
+	notAvailable(w, r)
+}
+
+// RequestAddress is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RequestAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+// ConfirmAddress is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ConfirmAddress(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The AI models the installation offers. RestController serves all four; these stand behind them.
 func (pending) ListInstanceAiProviders(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
@@ -1284,6 +1299,10 @@ func (pending) ReadAiSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 

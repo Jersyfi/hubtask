@@ -147,7 +147,7 @@ func TestTheRotationSeesAReplacementsWrapping(t *testing.T) {
 
 	// The census a rotation ends on counts it.
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
-		counts, err := postgres.NewSealingRepository().CountByKey(ctx)
+		counts, err := byKey(postgres.NewSealingRepository().Count(ctx))
 		if err != nil {
 			return err
 		}

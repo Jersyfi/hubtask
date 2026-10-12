@@ -10,11 +10,12 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
-// OperatorRepository is the register of ADR-0070 §1, reached through its four narrow functions.
+// OperatorRepository is the register of ADR-0070 §1, reached through its narrow functions.
 //
 // Not through the table: `operator` carries no row-level policy and no grant to this role, for the
 // reason migration 0101 gives. The functions are `resolve_tenant`'s discipline applied to a table -
@@ -46,14 +47,18 @@ func (OperatorRepository) Holds(ctx context.Context, accountID shared.ID) (bool,
 	return held, nil
 }
 
-// List answers the whole register.
-func (OperatorRepository) List(ctx context.Context) ([]repository.Operator, error) {
+// Roster answers the register with names, and nothing to a caller the register does not name.
+func (OperatorRepository) Roster(ctx context.Context, caller shared.ID) ([]repository.Operator, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
+	callerID, err := uuidOf(caller)
+	if err != nil {
+		return nil, err
+	}
 
-	rows, err := queries.OperatorRegister(ctx)
+	rows, err := queries.OperatorRoster(ctx, callerID)
 	if err != nil {
 		return nil, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -72,6 +77,10 @@ func (OperatorRepository) List(ctx context.Context) ([]repository.Operator, erro
 		}
 		operator := repository.Operator{
 			TenantID: tenantID, AccountID: accountID, AddedAt: timeFrom(row.AddedAt),
+			DisplayName: row.DisplayName, Email: row.Email, SignInName: row.SignInName,
+			Kind:          identity.AccountKind(row.Kind),
+			WorkspaceSlug: row.WorkspaceSlug, WorkspaceName: row.WorkspaceName,
+			AddedByName: row.AddedByName,
 		}
 		if row.AddedBy.Valid {
 			if operator.AddedBy, err = idFrom(row.AddedBy); err != nil {
@@ -105,53 +114,57 @@ func (OperatorRepository) Resolve(ctx context.Context, slug, email string) (shar
 	return idFrom(found)
 }
 
-// Add puts an account in.
-func (OperatorRepository) Add(ctx context.Context, accountID, by shared.ID) (bool, error) {
+// Enlist puts an active account in, and the adder too where the register was empty.
+func (OperatorRepository) Enlist(
+	ctx context.Context, accountID, by shared.ID,
+) (repository.EnlistOutcome, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	account, err := uuidOf(accountID)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	adder := pgtype.UUID{}
 	if !by.IsZero() {
 		if adder, err = uuidOf(by); err != nil {
-			return false, err
+			return "", err
 		}
 	}
 
-	added, err := queries.AddOperator(ctx, sqlc.AddOperatorParams{
+	outcome, err := queries.EnlistOperator(ctx, sqlc.EnlistOperatorParams{
 		AccountID: account, AddedBy: adder,
 	})
 	if err != nil {
-		return false, shared.ErrUnavailable.
+		return "", shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("adding an operator: %w", err))
 	}
-	return added, nil
+	return repository.EnlistOutcome(outcome), nil
 }
 
-// Remove takes one out, unless it is the last.
-func (OperatorRepository) Remove(ctx context.Context, accountID shared.ID) (bool, error) {
+// Dismiss takes one out, unless it is the last.
+func (OperatorRepository) Dismiss(
+	ctx context.Context, accountID shared.ID,
+) (repository.DismissOutcome, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	account, err := uuidOf(accountID)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	removed, err := queries.DropOperator(ctx, account)
+	outcome, err := queries.DismissOperator(ctx, account)
 	if err != nil {
-		return false, shared.ErrUnavailable.
+		return "", shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing an operator: %w", err))
 	}
-	return removed, nil
+	return repository.DismissOutcome(outcome), nil
 }
 
 // ResolveSingle answers the account an address names in a single-mode installation's one

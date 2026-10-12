@@ -71,6 +71,27 @@ func (r PasswordRuleID) PasswordRuleCode() string { return "auth.password_rule."
 type PasswordViolation struct {
 	Rule   PasswordRuleID
 	Params map[string]string
+	// Sentence is the catalogue code where one rule has two sentences; empty is the rule's own.
+	Sentence string
+}
+
+// Code is the catalogue code a refusal carries for this violation.
+func (v PasswordViolation) Code() string {
+	if v.Sentence != "" {
+		return v.Sentence
+	}
+	return v.Rule.PasswordRuleCode()
+}
+
+// contextWordsViolation names the words a person actually has: somebody without an address is
+// told about their sign-in name, never about an email address they do not have (UC-ID-20). The
+// rule id stays one, because the check route answers ids and a client picks the sentence itself.
+func contextWordsViolation(context PasswordContext) PasswordViolation {
+	violation := PasswordViolation{Rule: RuleContextWords}
+	if context.SignInName != "" && context.Email == "" {
+		violation.Sentence = RuleContextWords.PasswordRuleCode() + "_name"
+	}
+	return violation
 }
 
 // PasswordContext is who is setting the password and where, for the rules that are about them
@@ -258,7 +279,7 @@ func LocalPasswordViolations(
 		})
 	}
 	if policy.ContextWords && CarriesContextWord(form, normalised, context) {
-		violations = append(violations, PasswordViolation{Rule: RuleContextWords})
+		violations = append(violations, contextWordsViolation(context))
 	}
 	return violations
 }
@@ -284,7 +305,7 @@ func PasswordRefused(violations []PasswordViolation) error {
 	for _, violation := range violations {
 		fields = append(fields, shared.FieldError{
 			Path:   "/password",
-			Code:   violation.Rule.PasswordRuleCode(),
+			Code:   violation.Code(),
 			Params: violation.Params,
 		})
 	}

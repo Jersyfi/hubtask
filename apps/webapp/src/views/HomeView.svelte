@@ -80,10 +80,17 @@
   <PageHeader
     title={t('app.nav.overview')}
     isTitleInBar={viewport.isCompact}
-    primary={{ label: t('app.workspace.create_hub'), icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
+    primary={actor.hasNoAccess
+      ? undefined
+      : { label: t('app.workspace.create_hub'), icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
   />
 
-  {#if containers.hasNoHubs && containers.hubsState.status === 'ready'}
+  {#if actor.hasNoAccess}
+    <!-- Nobody gave this person anything yet: said in a sentence rather than an empty workspace
+         without explanation (UC-ID-08 check 2), and without *Create hub*, which the server refuses
+         to an account holding no role anywhere - a private hub of one's own included. -->
+    <EmptyState kind="unused" title={t('app.workspace.no_access')} description={t('app.workspace.no_access_detail')} icon="hub" />
+  {:else if containers.hasNoHubs && containers.hubsState.status === 'ready'}
     <!-- A workspace with nothing in it has one thing to say and one thing to do. Not a panel of
          three empty sentences, which is what the rest of this screen would be. -->
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">

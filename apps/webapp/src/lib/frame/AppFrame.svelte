@@ -47,7 +47,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, primary } from '../navigation.ts';
+  import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
@@ -153,7 +153,17 @@
    */
   const section = $derived(
     route.area === 'administration'
-      ? { label: t('app.admin.nav'), groups: administration({ hasPrivateHubs: privateHubs.hasAny }) }
+      ? {
+          label: t('app.admin.nav'),
+          groups: administration({
+            hasPrivateHubs: privateHubs.hasAny,
+            withInstallation: installationPlace({
+              isInstanceReachable: manifest.isInstanceReachable,
+              isAdministrationReachable: quotas.isReachable === true,
+              isSingleWorkspace: manifest.isSingleTenant,
+            }) === 'administration',
+          }),
+        }
       : route.area === 'instance'
         ? { label: t('app.instance.nav'), groups: INSTANCE }
         : route.area === 'profile'
@@ -170,6 +180,7 @@
       // The manifest's answer about this caller, and nothing compiled in. False until it
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
+      isSingleWorkspace: manifest.isSingleTenant,
     }),
   );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */

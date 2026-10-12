@@ -66,6 +66,7 @@ class Account(TypedDict, total=False):
     recovery_codes_remaining: int
     second_factor_required: bool
     has_password: bool
+    has_access: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -79,6 +80,7 @@ class AccountSummary(TypedDict, total=False):
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
     has_address: bool
+    managed: bool
 
 class ManagedAccountCreate(TypedDict, total=False):
     display_name: Required[str]
@@ -91,6 +93,19 @@ class ManagedAccountCreated(TypedDict, total=False):
     account: Required["Account"]
     membership: Required["Membership"]
     start_password: Required[str]
+
+class StartPasswordIssued(TypedDict, total=False):
+    account: Required["Account"]
+    start_password: Required[str]
+
+class AddressRequest(TypedDict, total=False):
+    email: Required[str]
+
+class AddressRequested(TypedDict, total=False):
+    expires_at: Required[str]
+
+class AddressConfirm(TypedDict, total=False):
+    token: Required[str]
 
 class InvitedAccount(TypedDict, total=False):
     id: Required[str]
@@ -108,6 +123,7 @@ class InvitedAccount(TypedDict, total=False):
     recovery_codes_remaining: int
     second_factor_required: bool
     has_password: bool
+    has_access: bool
     invitation_link: str
 
 class AccountInvite(TypedDict, total=False):
@@ -381,6 +397,9 @@ class OfferedAiModelSummary(TypedDict, total=False):
     processor: Required[str]
     jurisdiction: Required["AiJurisdiction"]
 
+class OwnAiBudget(TypedDict, total=False):
+    own_tokens_per_day: Required[int | None]
+
 class AiSourceChoice(TypedDict, total=False):
     source: Required["AiSourceKind"]
     offered_model_id: str
@@ -552,6 +571,8 @@ class IdentityProvider(TypedDict, total=False):
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
     allowed_directories: Required[list[str]]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -575,6 +596,8 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
     allowed_directories: list[str]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
 
 class ProviderWithdrawal(TypedDict, total=False):
     """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""
@@ -676,6 +699,13 @@ class Operator(TypedDict, total=False):
     account_id: Required[str]
     added_at: Required[str]
     added_by: str | None
+    display_name: str
+    email: str | None
+    sign_in_name: str | None
+    kind: Literal["USER", "SERVICE_ACCOUNT"]
+    workspace_slug: str
+    workspace_name: str
+    added_by_name: str | None
 
 class OperatorAdd(TypedDict, total=False):
     """One account, named either way."""
@@ -833,6 +863,11 @@ class EncryptionKeyUsage(TypedDict, total=False):
     active: Required[bool]
     in_ring: Required[bool]
     sealed_values: Required[int]
+    stores: Required[list["EncryptionStoreCount"]]
+
+class EncryptionStoreCount(TypedDict, total=False):
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule"]]
+    sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
@@ -870,7 +905,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day"]]
     limit: Required[int]
     used: int | None
     ratio: float | None

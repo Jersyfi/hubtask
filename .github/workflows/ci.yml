@@ -14,9 +14,13 @@ on:
 permissions:
   contents: read
 
+# On a pull request a newer push makes the older run worthless, so it is cancelled. On `main` every
+# commit gets its own complete run: pull requests merge without catching up (ADR-0083), and a run
+# cancelled by the next merge would leave unknown which commit turned `main` red. A group shared by
+# all of `main` would not do even without cancelling - it cancels a pending run when a third arrives.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GO_VERSION: "1.27.2"
@@ -505,9 +509,13 @@ jobs:
       # client on the same budget would make both flaky.
       - run: make gate-engine-conformance
 
+  # Beside `quick` rather than after it, on the same filters: at about six minutes it is the longest
+  # Go job, and behind `quick`'s three it set the whole pipeline's wall clock (ADR-0083). It needs
+  # nothing `quick` produces - it lints its own deliberate violations.
   selftest:
     name: The gates catch their own violations
-    needs: quick
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.db == 'true' || needs.changes.outputs.deploy == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -648,6 +656,36 @@ jobs:
       # checkdocs is a program in this repository, not an installed tool, so `make tools` is not
       # needed - which is what keeps a documentation-only pull request cheap.
       - run: make gate-docs
+
+  # Pull requests merge without catching up with main (ADR-0083), so two that each add migration
+  # 0140 are both green alone and collide only on main. On a pull request this compares the numbers
+  # it adds with every other open pull request's, and holds the merge with main to one file per
+  # number; on main it holds the tree. Behind no filter: a number is taken in db/ or docs/adr/.
+  numbers:
+    name: Migration and ADR numbers
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # The merge commit and its parents: the first parent is the base, so what the branch adds is
+      # the diff from it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: make gate-numbers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          PR: ${{ github.event.pull_request.number }}
+          OPEN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
 
   pr-description:
     name: Pull request description
@@ -960,6 +998,7 @@ jobs:
       - security
       - data
       - docs
+      - numbers
       - pr-description
       - node
       - engines
@@ -967,6 +1006,11 @@ jobs:
       - api-client-drift
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The guard below reads main's runs and the pull request's title and description.
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     steps:
       - name: Every job that ran must have passed
         run: |
@@ -982,3 +1026,18 @@ jobs:
             esac
           done
           echo "every job either passed or had nothing to do"
+      # Pull requests merge without catching up (ADR-0083): while main's newest run is red, a pull
+      # request that is not the fix waits. Last, because auto-merge acts seconds after this check
+      # turns green. Never on the push to main itself, or main could never turn green again. The
+      # script is run directly: this job has no Go, and make reads go.mod (`make gate-main-green`
+      # runs the same locally).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        with:
+          sparse-checkout: scripts/ci
+      - name: Main is green, or this is its fix
+        if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: scripts/ci/main-green.sh

@@ -499,9 +499,9 @@ func TestTheProviderUseCasesGoThroughTheRegistry(t *testing.T) {
 	}
 }
 
-// A public provider may only be INVITED_ONLY, and the refusal arrives from the use case rather than
-// from the store: nothing is written and the provider is never asked to prove it exists.
-func TestAPublicProviderIsHeldToInvitedOnly(t *testing.T) {
+// A public provider is never ANY, and the refusal arrives from the use case rather than from the
+// store: nothing is written and the provider is never asked to prove it exists.
+func TestAPublicProviderIsNeverAny(t *testing.T) {
 	f := newProviderFixture(time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC))
 
 	cmd := configureCommand()

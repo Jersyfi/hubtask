@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin, PE-child, PE-member]
 deployments: [D2, D3, D4, D5, D6]
 serves: [P-02, P-05, P-09, P-10, P-11]
-state: partial
+state: verified
 tasks: [PH-06, PH-07]
-checked_by: [core/domain/model/identity/ManagedAccount_test.go, core/application/service/identity/CreateManagedAccount_test.go, core/application/service/identity/SignInName_test.go, core/application/service/identity/OwedChange_test.go, core/application/service/identity/ManagedAccountsSwitch_test.go, core/application/service/identity/SignInNamesRule_test.go, core/application/service/admin/ManagedAccountsLevel_test.go, cmd/hubctl/LoginPasswordChange_test.go, test/integration/managed_account_test.go, test/integration/managed_sign_in_test.go, test/integration/managed_presence_test.go, test/integration/managed_card_test.go, apps/webapp/e2e/managed.test.mjs, apps/webapp/e2e/signinnames.test.mjs, apps/webapp/e2e/managedmailbox.test.mjs]
+checked_by: [core/domain/model/identity/ManagedAccount_test.go, core/application/service/identity/CreateManagedAccount_test.go, core/application/service/identity/SignInName_test.go, core/application/service/identity/OwedChange_test.go, core/application/service/identity/ManagedAccountsSwitch_test.go, core/application/service/identity/SignInNamesRule_test.go, core/application/service/admin/ManagedAccountsLevel_test.go, cmd/hubctl/LoginPasswordChange_test.go, test/integration/managed_account_test.go, test/integration/managed_sign_in_test.go, test/integration/managed_presence_test.go, test/integration/managed_card_test.go, apps/webapp/e2e/managed.test.mjs, apps/webapp/e2e/signinnames.test.mjs, apps/webapp/e2e/managedmailbox.test.mjs, core/application/service/identity/IssueStartPassword_test.go, core/application/service/identity/RequestAddress_test.go, core/application/service/identity/ConfirmAddress_test.go, core/application/service/notification/SendAddressConfirmation_test.go, test/integration/managed_renewal_test.go, test/integration/managed_address_test.go, apps/webapp/e2e/managedrenewal.test.mjs, apps/webapp/e2e/managedaddress.test.mjs, docs/evidence/PH-06-2026-10-11.md, docs/evidence/PH-07-2026-10-12.md]
 ---
 
 # Give a family member an account without their own mail address
@@ -55,8 +55,3 @@ her account is an ordinary one.
 * No sign-in names for accounts that have an address, other than the one kept after an upgrade.
 * No password an administrator chooses or knows ([NG-weaker-recovery](../../vision/non-goals.md)
   names this exception and no other).
-
-## Today
-
-* Check 5: not met — there is no new start password for a managed account, tracked in #1092.
-* Check 7: not met — a managed account cannot add an address, tracked in #1092.

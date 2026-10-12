@@ -34,14 +34,33 @@ const (
 	//
 	//nolint:gosec // G101: a quota's name, not a credential - "token" here is a model's unit of text
 	AiTokensPerDay = "ai_tokens_per_day"
+	// AiOwnTokensPerDay is the same day's spend on the workspace's **own** model (ADR-0072 §4):
+	// limited only by the workspace's own optional budget, off by default, and never by the
+	// installation (UC-AI-06 check 6). AiTokensPerDay bounds the offered source alone.
+	//
+	//nolint:gosec // G101: a quota's name, not a credential
+	AiOwnTokensPerDay = "ai_own_tokens_per_day"
 )
 
 // Names is the vocabulary in the contract's order.
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
-		AiTokensPerDay,
+		AiTokensPerDay, AiOwnTokensPerDay,
 	}
+}
+
+// OperatorNames is the vocabulary an operator writes - per workspace and as the installation's
+// defaults: every quota but the workspace's own AI budget, which is the workspace's alone
+// (UC-AI-06 check 6).
+func OperatorNames() []string {
+	names := make([]string, 0, len(Names()))
+	for _, name := range Names() {
+		if name != AiOwnTokensPerDay {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // Unlimited is the ceiling that never engages. It is a documented value, not an absence: a
@@ -57,6 +76,7 @@ type Limits struct {
 	WebhookTargets        int64
 	ExportJobs            int64
 	AiTokensPerDay        int64
+	AiOwnTokensPerDay     int64
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
@@ -128,6 +148,9 @@ func Resolve(overrides repository.Overrides, instance repository.Overrides, mode
 	apply(&limits.WebhookTargets, overrides.WebhookTargets)
 	apply(&limits.ExportJobs, overrides.ExportJobs)
 	apply(&limits.AiTokensPerDay, overrides.AiTokensPerDay)
+	// The own model's budget is the workspace's alone: no product default and no installation
+	// value reaches it, whatever an instance level holds.
+	apply(&limits.AiOwnTokensPerDay, overrides.AiOwnTokensPerDay)
 	return limits
 }
 
@@ -148,6 +171,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.ExportJobs
 	case AiTokensPerDay:
 		return l.AiTokensPerDay
+	case AiOwnTokensPerDay:
+		return l.AiOwnTokensPerDay
 	default:
 		return Unlimited
 	}

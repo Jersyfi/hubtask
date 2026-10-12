@@ -122,3 +122,20 @@ test('the elevation survives a reload, and a new session is not the old one\'s h
   signedIn.clear();
   assert.equal(tokenStore(storage).readElevatedUntil(), undefined);
 });
+
+test('a refresh keeps the elevation, because it is the same session\'s next pair', () => {
+  // The engine exchanges the pair every quarter of an hour; a refresh that dropped the hour would
+  // have the next reload ask for a second proof while the first still stands at the server
+  // (UC-INS-04 check 3).
+  const storage = fakeStorage();
+  const store = tokenStore(storage);
+  store.write({ access: 'access-1', refresh: 'refresh-1' });
+  store.rememberElevatedUntil('2026-10-12T10:00:00Z');
+
+  store.rotate({ access: 'access-2', refresh: 'refresh-2' });
+
+  const reloaded = tokenStore(storage);
+  assert.equal(reloaded.read(), 'access-2', 'the rotated pair was not kept');
+  assert.equal(reloaded.readRefresh(), 'refresh-2');
+  assert.equal(reloaded.readElevatedUntil(), '2026-10-12T10:00:00Z', 'a refresh dropped the hour');
+});

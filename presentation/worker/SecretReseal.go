@@ -9,7 +9,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/sealing"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
@@ -17,21 +16,29 @@ import (
 // operator's request seeded, translated into one call on the application layer inside the
 // transaction the runner opened for the tenant. Not detached - every write is a row of the
 // tenant's, and a round that fails halfway rolls back whole and runs again.
+//
+// A job without a tenant is the installation's own round (UC-INS-16 check 2): the runner opened it
+// under the scope with none, and it moves the secrets that belong to no workspace.
 type SecretReseal struct {
-	Round sealing.RunReseal
+	Round        sealing.RunReseal
+	Installation sealing.RunInstallationReseal
 }
 
 var _ queue.Handler = SecretReseal{}
 
 // Run does the round for the tenant the job names.
 func (h SecretReseal) Run(ctx context.Context, job queue.Job) (queue.Result, error) {
+	var (
+		outcome sealing.Outcome
+		err     error
+	)
 	if job.TenantID.IsZero() {
-		return queue.Result{}, shared.ErrInternal.WithDetail("sealing.reseal_without_tenant")
+		outcome, err = h.Installation.Execute(ctx)
+	} else {
+		// The system acting for a tenant, at an operator's request: the audit entry says which.
+		outcome, err = h.Round.Execute(ctx,
+			appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: job.TenantID})
 	}
-
-	// The system acting for a tenant, at an operator's request: the audit entry says which.
-	actor := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: job.TenantID}
-	outcome, err := h.Round.Execute(ctx, actor)
 	if err != nil {
 		return queue.Result{}, err
 	}

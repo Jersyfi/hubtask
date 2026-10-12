@@ -121,6 +121,7 @@ export type {
   ConsentRegisterEntry,
   AiSourceKind,
   AiSources,
+  OwnAiBudget,
   AiMinJurisdiction,
   OfferedAiModel,
   OfferedAiModelConfiguration,

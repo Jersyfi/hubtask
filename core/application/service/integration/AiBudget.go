@@ -19,12 +19,18 @@ type AiProviderResolver interface {
 	For(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, error)
 }
 
-// AiBudget is the slice of the quota guard this needs (multi-tenancy.md §4).
+// SourcedResolver answers the provider and which source it is - the adapter's Resolver.
+type SourcedResolver interface {
+	Sourced(ctx context.Context, actor appshared.ActorContext) (aiprovider.Provider, aiprovider.Source, error)
+}
+
+// AiBudget is the slice of the quota guard this needs (multi-tenancy.md §4): one budget per
+// source, the offered model's and the workspace's own (ADR-0072 §4).
 type AiBudget interface {
-	// AiTokens reports whether the workspace's daily budget still has room.
-	AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error)
-	// MeterAi records what a call cost, after the provider answered.
-	MeterAi(ctx context.Context, at time.Time, tokens int64) error
+	// AiTokens reports whether the source's daily budget still has room.
+	AiTokens(ctx context.Context, tenant string, own bool, now time.Time) (bool, error)
+	// MeterAi records what a call to the source cost, after the provider answered.
+	MeterAi(ctx context.Context, own bool, at time.Time, tokens int64) error
 }
 
 // Budgeted is the provider resolver with `ai-first.md` §2's per-tenant budget counter around it.
@@ -41,7 +47,7 @@ type AiBudget interface {
 // suggestion is not made. A budget with a refusal shape of its own would have been a second way for
 // each of them to degrade (ADR-0049 decision: one refusal, `ai.unavailable`).
 type Budgeted struct {
-	Providers  AiProviderResolver
+	Providers  SourcedResolver
 	Budget     AiBudget
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -53,16 +59,18 @@ var _ AiProviderResolver = Budgeted{}
 func (b Budgeted) For(
 	ctx context.Context, actor appshared.ActorContext,
 ) (aiprovider.Provider, error) {
-	provider, err := b.Providers.For(ctx, actor)
-	if err != nil || b.Budget == nil {
+	provider, source, err := b.Providers.Sourced(ctx, actor)
+	if err != nil || b.Budget == nil || source == aiprovider.SourceNone {
+		// Nothing to call is nothing to count: a refusal keeps its own answer.
 		return provider, err
 	}
+	own := source == aiprovider.SourceOwn
 
 	var room bool
 	if err := b.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			var err error
-			room, err = b.Budget.AiTokens(ctx, actor.TenantID.String(), b.Clock.Now())
+			room, err = b.Budget.AiTokens(ctx, actor.TenantID.String(), own, b.Clock.Now())
 			return err
 		}); err != nil {
 		return nil, err
@@ -71,7 +79,7 @@ func (b Budgeted) For(
 		return exhausted{}, nil
 	}
 	return metered{provider: provider, budget: b.Budget, uow: b.UnitOfWork,
-		scope: actor.PersistenceScope(), clock: b.Clock}, nil
+		scope: actor.PersistenceScope(), clock: b.Clock, own: own}, nil
 }
 
 // exhausted is a workspace that has spent its day's budget.
@@ -112,6 +120,9 @@ type metered struct {
 	uow      persistence.UnitOfWork
 	scope    persistence.Scope
 	clock    clock.Clock
+	// own is which budget the call counts against: the workspace's own model's, or the offered
+	// one's.
+	own bool
 }
 
 func (m metered) Capabilities() aiprovider.ProviderCapabilities {
@@ -161,6 +172,6 @@ func (m metered) meter(ctx context.Context, usage aiprovider.Usage) error {
 		return nil
 	}
 	return m.uow.Within(ctx, m.scope, func(ctx context.Context) error {
-		return m.budget.MeterAi(ctx, m.clock.Now(), tokens)
+		return m.budget.MeterAi(ctx, m.own, m.clock.Now(), tokens)
 	})
 }

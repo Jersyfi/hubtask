@@ -22,6 +22,7 @@ GitHub-specific; the pipeline may.
 |---|---|---|
 | `ci.yml` | A pull request once it is ready (opened ready, leaving draft, or pushed to while ready); a push to `main` | The pull request gates (§3) |
 | `codeql.yml` | A ready pull request, a push to `main`, weekly | Static security analysis. Not part of `CI required`; a red CodeQL is a finding to fix, not to suppress |
+| `after-ci.yml` | A `ci.yml` run ends; every 15 minutes; manual dispatch | A failed run is re-run once; a red `main` opens the issue "CI: main is red" and holds the green pull requests; a green `main` closes it and re-runs the pull requests that waited (§3.5) |
 | `pr-description-rerun.yml` | A pull request's description or title is edited | If the head commit's latest `ci.yml` run failed, re-runs its description job and `CI required` (§3.1) |
 | `nightly.yml` | Schedule (overnight) | Long runs (§9): `deep` (fuzzing, load, resilience), the `matrix-*` cells, the PITR drill (`make gate-pitr`), the image scan, the action pins; the arm64 cell also runs `make gate-privacy-full` and `make gate-selftest`. A failure files an issue |
 | `release.yml` | Tag `v*` | After the `production` environment's approval: the gates again, image, SBOM, signature, provenance, chart, GitHub release ([deployment.md](./deployment.md) §7) |
@@ -58,15 +59,17 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `security` | `make gate-security` (`govulncheck`, `test/security`: cross-tenant, RLS, SSRF, uploads, authorisation, redaction) and `make gate-privacy` (PG-1, PG-3…PG-6, PG-8) |
 | `data` | `make gate-data` (RE-1…RE-9, BK-1 for every target, SY-1…SY-12, audit) and `make gate-privacy-full` (PG-2, PG-7) |
 | `docs` | `make gate-docs` (§3.1) |
+| `numbers` | `make gate-numbers`: one file per migration and ADR number in the tree; on a pull request, no number it adds that another open pull request adds (§3.5) |
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
 | `engines` | The built web app in Chromium, Firefox and WebKit through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table; the one job that runs a browser |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change |
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
-| `ci-required` | The one required check (§3.2) |
+| `ci-required` | The one required check (§3.2); on a pull request its last step waits for a green `main` (§3.5) |
 
-`quick` is the prerequisite of every Go job; a skipped `quick` skips them all. The Go jobs after it
-run in parallel.
+`quick` is the prerequisite of every Go job but `selftest`; a skipped `quick` skips them all. The Go
+jobs after it run in parallel. `selftest` starts beside `quick`, on the same filters: it is the
+longest Go job, and behind `quick` it set the pipeline's wall clock ([ADR-0083](../adr/ADR-0083-a-merge-without-catching-up.md)).
 
 **Contract gate.** In CI, `make gate-contract` runs in one place, the last step of
 `integration`; there is no separate `contract` job. It needs no database and runs in seconds, so
@@ -114,13 +117,14 @@ Every job decides from the `changes` outputs whether it has work.
 | `webapp`, `website`, `design_system`, `api_client`, `sync_engine`, `n8n_node`, `zapier_app`, `sdk_typescript` | The `node` job for the affected packages and their consumers |
 | `webapp`, `design_system`, `api_client`, `go`, `openapi`, `db`, `deploy` | The container build (`compose`), because the image contains both halves ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | `ci` (`.github/**`, `.gitleaks.toml`) | Everything |
-| documentation only | The four jobs behind no filter — `secrets`, `dependencies`, `licences`, `docs` — and the description check |
+| documentation only | The five jobs behind no filter — `secrets`, `dependencies`, `licences`, `docs`, `numbers` — and the description check |
 | anything, on a draft | Nothing. Every job is skipped and `ci-required` reports as `CI not run (draft)` (§3.4) |
 
 On a push to `main` every filter output is `true`: the branch that gets released is never filtered.
 
-**Four jobs are behind no filter.** A key or a copyleft dependency gets in through any path, so
-`secrets`, `dependencies` and `licences` never filter. `docs` takes seconds and reads files every
+**Five jobs are behind no filter.** A key or a copyleft dependency gets in through any path, so
+`secrets`, `dependencies` and `licences` never filter; a number is taken in `db/` as in `docs/adr/`,
+so `numbers` does not either. `docs` takes seconds and reads files every
 filter could skip: `checkdocs` reconciles the Go version across `go.mod`, the workflows, the
 Dockerfile, the support matrix and the README; reconciles the support matrix with the nightly's
 jobs; resolves ADR citations in every kind of source file and document; checks links and anchors;
@@ -199,7 +203,7 @@ The rule of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md):
   pipeline would run for the branch's diff against `origin/main`, selected through `tools/cilocal`
   (the `changes` filters and a table of the jobs, which `test/architecture` holds to `ci.yml`).
   Three jobs are CI only: `secrets`, `dependencies`, and the description, which `verify-pr` checks
-  with `make gate-pr` itself.
+  with `make gate-pr` itself. `numbers` asks GitHub through `gh`, as the description check does.
 * **The container gates take turns** under a lock in the common git directory, because their
   projects and host ports are fixed and every worktree shares one Docker daemon. When Docker does
   not answer, they are reported as not run, and CI runs them after *Ready*.
@@ -208,6 +212,48 @@ The rule of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md):
   `HEAD` and pushed, and refuses `gh pr create` without `--draft`.
 
 For a change that touches everything, `make verify-pr` takes about fifteen minutes on a laptop.
+
+**Once per pull request.** `make verify-pr` passes, the commit is pushed, `gh pr ready`, and the pull
+request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
+It is not brought up to date with `main` to merge. Only a conflict GitHub reports, or a base that
+was squash-merged, needs `main` merged in; that stays on the ready pull request (AGENTS.md), runs
+`make generate` and `make gate-quick` for what the merge touched, and leaves the rest to its CI run —
+`make verify-pr` is not run again for it.
+
+### 3.5 Merging without catching up
+
+The rule of [ADR-0083](../adr/ADR-0083-a-merge-without-catching-up.md). Branch protection does not
+require a branch to be up to date (§4). A pull request's run checks the merge of its head with
+`main` as `main` stood when the run's event made the merge commit — a re-run repeats that commit —
+so what merged meanwhile is first checked by `main`'s own run. Four things keep that safe:
+
+* **Every commit on `main` runs to the end.** `ci.yml`'s concurrency group is the commit on `main`
+  and the ref on a pull request; only a pull request's older run is cancelled. The first red commit
+  is therefore always known.
+* **`CI required` waits for a green `main`.** Its last step, on a pull request only
+  (`scripts/ci/main-green.sh`, locally `make gate-main-green`), reads `ci.yml`'s runs of pushes to
+  `main`, newest commit first: a finished `success` is green; `failure`, `timed_out` or
+  `startup_failure` is red; a re-run still going is red, a first attempt still going and a cancelled
+  run are passed over. While `main` is red it fails, unless the pull request is a revert (`revert:
+  …`, `Revert "…"`) or its description has a line `Mends main: <sha>` — editing the description
+  re-runs it (`pr-description-rerun.yml`). A failing API call fails it.
+* **`after-ci.yml` acts after every run** (`scripts/ci/after-ci.sh`): a failed run is re-run once,
+  known-traps.md's rule for flakes — not a pull request's run that failed only at the guard; a red
+  `main` opens the issue "CI: main is red" (`finding`) with the commit, its pull request, the failed
+  jobs and the revert, and re-runs `CI required` alone on every green ready pull request so that the
+  guard holds it; a green `main` closes the issue and re-runs the failed jobs of every pull request
+  that failed only at the guard. GitHub starts no workflow for what its own token caused, a re-run's
+  end included, so the same workflow sweeps every 15 minutes and on dispatch. A write GitHub refuses
+  (a Dependabot run's read-only token, a run already re-running) is a warning.
+* **No number twice.** The `numbers` job fails a pull request that adds a migration or ADR number
+  another open pull request adds, drafts included, under another file name, and any tree with two
+  files of one number. Each run looks after its own push, so of two such pull requests the second
+  to look is always told; the first may already be green. The one told renumbers — a migration only
+  if it was never applied anywhere.
+
+Generated and shared files keep no counts (the event matrix, the coverage report): two clean merges
+would add up wrong. Integration deploys every push to `main` while `main`'s run is still going, so it
+may run an untested combination for those minutes ([deployment.md](./deployment.md) §3).
 
 ---
 
@@ -228,13 +274,19 @@ permissions:
   step that waits on something outside the runner (apt in `engines`) gets a shorter limit of its
   own, so the log names it. A job that hits its limit is re-run once, like a flake.
 * Repository setting "Allow select actions" with an allowlist.
+* `after-ci.yml` runs on `workflow_run`, which has write rights for a fork's run too: it checks out
+  the default branch only and takes the run's values through the environment, never into `run:`
+  (`test/architecture`).
 * Secret scanning with push protection, and Dependabot alerts.
 * No `pull_request_target`; contributions from forks run without secrets.
 * Publishing only through the GitHub **environment** `production`, which has an approval rule.
 * `cosign` keyless through the workflow's OIDC token — no private key in the repository.
   `id-token: write` only in the jobs that sign (`release.yml`, `deploy.yml`).
-* Branch protection on `main`: linear history, mandatory review, **`CI required` as the only
-  required status check** (§3.2), signed commits recommended.
+* Branch protection on `main`: **`CI required` as the only required status check** (§3.2), and
+  a branch need not be up to date with `main` (§3.5); conversations resolved before a merge; no
+  force push, no deletion. No approving review is required (the owner's word to merge is the
+  review), merges are squash merges only (a repository setting, so the history is linear without
+  the rule), and administrators are not held to the protection.
 
 ---
 
@@ -303,7 +355,7 @@ regression guard, and the capacity ramp runs per release on the integration serv
 
 | # | Point | Needed by |
 |---|---|---|
-| CI-2 | Whether to enable the merge queue (worthwhile once several contributors work in parallel) | As needed |
+| CI-2 | Whether to enable the merge queue, which GitHub offers only to an organisation's repository; until then §3.5 | When the repository moves to an organisation |
 | CI-7 | `scorecard.yml` (§2) | Open |
 
 ---

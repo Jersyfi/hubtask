@@ -21,10 +21,11 @@ func names(steps []step) string {
 	return strings.Join(out, ", ")
 }
 
-func TestADocumentationChangeRunsVerifyAlone(t *testing.T) {
+// The numbers check runs whatever changed: an ADR is documentation, and takes a number.
+func TestADocumentationChangeRunsVerifyAndTheNumbersAlone(t *testing.T) {
 	steps, notes := selectSteps(map[string]bool{"docs": true})
-	if got := names(steps); got != "tools, make verify" {
-		t.Errorf("a documentation change runs %q, want make verify alone", got)
+	if got := names(steps); got != "tools, make verify, gate-numbers" {
+		t.Errorf("a documentation change runs %q, want make verify and the numbers alone", got)
 	}
 	if len(notes) != 3 {
 		t.Errorf("notes = %v, want the three jobs that run on every pull request and only in CI", notes)

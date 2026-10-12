@@ -97,9 +97,12 @@ longer allows, an own model below the minimum or a withdrawn offered model answe
 under `offered:<id>/<model>`, so an own model of the same name is another space; a source switch or
 a changed own embedding model seeds the embedding pass in the same transaction, an operator's change
 to an offered model is picked up by each workspace's repeating pass, and `/ai-source` answers
-`search_rebuilding` while another model's vectors remain. Budgets will count per source (milestone
-SC's next task): `ai_tokens_per_day` (offered), optional `ai_own_tokens_per_day` (own). With no
-offered model, none of this is visible.
+`search_rebuilding` while another model's vectors remain. Budgets count per source, each on the
+workspace's own day: `ai_tokens_per_day` (offered, the installation's), optional
+`ai_own_tokens_per_day` (own, the workspace's) — the resolver says which source answered and the
+budget wrapper checks and meters that one ([multi-tenancy.md](./multi-tenancy.md) §4). An offered
+model's key is re-sealed by the installation's own round of a key rotation
+([security.md](./security.md) §8.1). With no offered model, none of this is visible.
 
 **Whose content stays out** ([data-protection.md](./data-protection.md) §4.1; UC-PRV-05). One
 exclusion, read in the same transaction as the material, decides it for every path that hands

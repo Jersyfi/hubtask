@@ -115,3 +115,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0080](./ADR-0080-hubtask-is-apache-2-0.md) | Hubtask is Apache-2.0 | accepted | Legal, product, process |
 | [0081](./ADR-0081-how-work-is-organised.md) | How work on Hubtask is organised | accepted | Process |
 | [0082](./ADR-0082-integration-in-production-shape.md) | The integration environment runs its database in production's shape | accepted | Operations |
+| [0083](./ADR-0083-a-merge-without-catching-up.md) | A pull request merges without catching up with `main` | accepted | CI, process |

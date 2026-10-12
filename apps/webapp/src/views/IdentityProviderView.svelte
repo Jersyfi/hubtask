@@ -20,7 +20,12 @@
   // **The modes a preset permits come from the server.** Which of the three a provider may use is a
   // rule about the provider (a public issuer may only sign in people who were invited first), and the
   // presets answer it — so the select offers what would be accepted rather than three of which two
-  // are refused. A client that decided this itself would be a second copy of the rule.
+  // are refused. A client that decided this itself would be a second copy of the rule. Each is said
+  // in the use case's own words (UC-ID-11 check 1); the contract's values never reach the screen.
+  //
+  // **What newcomers get is asked only where somebody new arrives**: under the two modes that create
+  // accounts (UC-ID-11 check 5). The roles come from the manifest and never include OWNER, which the
+  // server refuses for newcomers; the groups are the workspace's own.
   //
   // **Removal costs something, and it is stated before the button.** The accounts provisioned through
   // the provider keep their rows and their live sessions; what they lose is the way back in. For an
@@ -33,7 +38,10 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
+  import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { groups } from '../lib/data/groups.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -49,6 +57,8 @@
   let provisioning = $state('DOMAINS');
   let domains = $state('');
   let directories = $state('');
+  /** What newcomers get: empty is nothing, `role:<ROLE>` or `group:<id>` one of the two. */
+  let newcomers = $state('');
   /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
       orders them by adding them, and a control for it would be a control for a list of two. */
   let position = $state(0);
@@ -61,6 +71,12 @@
     // `untrack` for the reason every store here records: the read writes the store and writing it
     // reads it, so an effect that tracked that read would re-run on its own first answer.
     const stop = untrack(() => identityProvider.open());
+    return stop;
+  });
+
+  $effect(() => {
+    // The groups a newcomer may be put in; read once for the form, like the presets.
+    const stop = untrack(() => groups.open());
     return stop;
   });
 
@@ -97,14 +113,31 @@
   const provisioningOptions = $derived(
     (preset?.provisioning ?? []).map((mode) => ({
       value: mode,
-      // `DOMAINS` reads the directories for a preset that has them (ADR-0071 §2), so the sentence
-      // beside the choice has to be the one the server will act on.
-      label:
-        mode === 'DOMAINS' && preset?.directory_claim
-          ? t(`app.identity_provider.provisioning.directories_${preset.directory_claim}`)
-          : t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
+      label: t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
     })),
   );
+
+  /** Whether the mode chosen creates accounts, and so has newcomers to give anything to. */
+  const createsAccounts = $derived(provisioning === 'DOMAINS' || provisioning === 'ANY');
+
+  /**
+   * What a newcomer may be given: nothing, a role of the manifest other than OWNER (the server
+   * refuses that for newcomers), or one of the workspace's groups.
+   */
+  const newcomerOptions = $derived([
+    { value: '', label: t('app.identity_provider.newcomers_nothing') },
+    ...(manifest.value?.roles ?? [])
+      .map((description) => description.role)
+      .filter((role): role is NonNullable<typeof role> => role !== undefined && role !== 'OWNER')
+      .map((role) => ({
+        value: `role:${role}`,
+        label: t('app.identity_provider.newcomers_role', { role: t(`app.people.role.${role.toLowerCase()}`) }),
+      })),
+    ...groups.all.map((group) => ({
+      value: `group:${group.id}`,
+      label: t('app.identity_provider.newcomers_group', { group: group.name }),
+    })),
+  ]);
 
   /** Opens the form on a new provider. */
   function add(): void {
@@ -117,6 +150,7 @@
     provisioning = 'DOMAINS';
     domains = '';
     directories = '';
+    newcomers = '';
     position = identityProvider.own.length;
     failure = undefined;
     saved = false;
@@ -133,6 +167,11 @@
     provisioning = provider.provisioning;
     domains = (provider.allowed_email_domains ?? []).join('\n');
     directories = (provider.allowed_directories ?? []).join('\n');
+    newcomers = provider.newcomer_role
+      ? `role:${provider.newcomer_role}`
+      : provider.newcomer_group_id
+        ? `group:${provider.newcomer_group_id}`
+        : '';
     position = provider.position;
     failure = undefined;
     saved = false;
@@ -161,6 +200,13 @@
       allowed_email_domains: readDomains(domains),
       allowed_directories: readDomains(directories),
     };
+    // Sent only where somebody new arrives: the server refuses a newcomer setting under a mode that
+    // creates nobody, and the configuration is set whole, so leaving it out is "nothing".
+    if (createsAccounts && newcomers.startsWith('role:')) {
+      body.newcomer_role = newcomers.slice('role:'.length) as NonNullable<IdentityProviderConfiguration['newcomer_role']>;
+    } else if (createsAccounts && newcomers.startsWith('group:')) {
+      body.newcomer_group_id = newcomers.slice('group:'.length);
+    }
     // Sent only when it was typed. An empty string and an absent field are two different requests:
     // absent keeps the sealed one, and that is the contract's promise rather than this screen's rule.
     if (clientSecret !== '') body.client_secret = clientSecret;
@@ -373,6 +419,7 @@
                   {' '}{messages.t(preset.particular, {})}
                 {/if}
               </Banner>
+              <RedirectAddress address={preset.redirect_uri} />
             {/if}
             <Input
               label={t('app.identity_provider.issuer_label')}
@@ -414,6 +461,17 @@
               options={provisioningOptions}
               bind:value={provisioning}
             />
+            {#if provisioning === 'INVITED_ONLY' && preset?.directory_claim}
+              <!-- Optional here: a list narrows who of the invited may come in (ADR-0071 §4), and an
+                   empty one narrows nothing. -->
+              <Textarea
+                label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
+                hint={t('app.identity_provider.directories_narrow_hint')}
+                bind:value={directories}
+                rows={3}
+                spellcheck={false}
+              />
+            {/if}
             {#if provisioning === 'DOMAINS'}
               <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which
                    it is comes from the preset's `directory_claim`: a provider that names
@@ -436,6 +494,14 @@
                   spellcheck={false}
                 />
               {/if}
+            {/if}
+            {#if createsAccounts}
+              <Select
+                label={t('app.identity_provider.newcomers_label')}
+                hint={t('app.identity_provider.newcomers_hint')}
+                options={newcomerOptions}
+                bind:value={newcomers}
+              />
             {/if}
             {#if preset?.supports_templated_issuer}
               <!-- Said where the issuer is typed rather than after a refusal: the shared endpoints

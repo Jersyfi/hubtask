@@ -13,8 +13,11 @@
   // later save keeps the sealed key - the contract's own rule - and the field's hint says so rather
   // than a row of dots standing in for a value nobody can see.
   //
-  // **The budget is a quota, and it lives with the quotas.** `ai_tokens_per_day` is read from
-  // `/quotas` like every other limit; this screen says today's use and the cap, and links to the row.
+  // **The budget is a quota per source, and it lives with the quotas** (ADR-0072 §4). The offered
+  // model's (`ai_tokens_per_day`) is the installation's to set; the own model's
+  // (`ai_own_tokens_per_day`) is this workspace's, set here and nowhere else. Both are read from
+  // `/quotas`; the screen says each one's use and cap side by side, only for a source the rule
+  // allows (P-05).
   //
   // **Which AI answers is the installation's to allow and the workspace's to choose** (ADR-0072).
   // `/ai-source` says which sources the rule in force allows, and the screen offers exactly those
@@ -66,7 +69,36 @@
   const choosing = $derived(allowsOwn && allowsOffered);
   /** The narrowing is offered only where something is offered at all and nothing is locked. */
   const narrowable = $derived(source !== undefined && offered.length > 0 && !source.sources_lock);
-  const budget = $derived(quotas.standings.find((each) => each.quota === 'ai_tokens_per_day'));
+  const offeredBudget = $derived(quotas.standings.find((each) => each.quota === 'ai_tokens_per_day'));
+  const ownBudget = $derived(quotas.standings.find((each) => each.quota === 'ai_own_tokens_per_day'));
+  let ownBudgetDraft = $state('');
+  let ownBudgetWorking = $state(false);
+  let ownBudgetSaved = $state(false);
+  /** The draft follows the stored budget until somebody types. */
+  let ownBudgetTouched = false;
+  $effect(() => {
+    const current = ownBudget;
+    if (!current || ownBudgetTouched) return;
+    ownBudgetDraft = current.configured && current.limit > 0 ? String(current.limit) : '';
+  });
+
+  /** Saves the own model's budget; an empty field is no budget. */
+  async function saveOwnBudget(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    ownBudgetWorking = true;
+    ownBudgetSaved = false;
+    failure = undefined;
+    const typed = ownBudgetDraft.trim();
+    try {
+      await aiProvider.setOwnBudget({ own_tokens_per_day: typed === '' ? null : Number(typed) });
+      ownBudgetTouched = false;
+      ownBudgetSaved = true;
+    } catch (cause) {
+      failure = problemOf(cause);
+    } finally {
+      ownBudgetWorking = false;
+    }
+  }
   let choosingWorking = $state<string | undefined>(undefined);
 
   const reading = $derived(aiProvider.state);
@@ -395,15 +427,50 @@
 
       <Stack gap="100">
         <h2 class="section">{t('app.ai.budget_title')}</h2>
-        {#if budget}
+        {#if offeredBudget && allowsOffered}
           <p>
-            {budget.limit === 0
-              ? t('app.ai.budget_unlimited', { used: budget.used ?? 0 })
-              : t('app.ai.budget_use', { used: budget.used ?? 0, limit: budget.limit })}
+            {offeredBudget.limit === 0
+              ? t('app.ai.budget_offered_unlimited', { used: offeredBudget.used ?? 0 })
+              : t('app.ai.budget_offered_use', { used: offeredBudget.used ?? 0, limit: offeredBudget.limit })}
           </p>
         {/if}
-        <!-- Linked, not drawn twice: the budget is the quota row it is. -->
-        <p class="quiet">{t('app.ai.budget_hint')} <a href="/administration/quotas">{t('app.ai.budget_link')}</a></p>
+        {#if ownBudget && allowsOwn}
+          <p>
+            {ownBudget.limit === 0
+              ? t('app.ai.budget_own_unlimited', { used: ownBudget.used ?? 0 })
+              : t('app.ai.budget_own_use', { used: ownBudget.used ?? 0, limit: ownBudget.limit })}
+          </p>
+        {/if}
+        <p class="quiet">{t('app.ai.budget_day')}</p>
+        {#if allowsOwn}
+          <form class="budget" onsubmit={saveOwnBudget}>
+            <Stack gap="100">
+              <Input
+                label={t('app.ai.budget_own_label')}
+                hint={t('app.ai.budget_own_hint')}
+                type="number"
+                inputmode="numeric"
+                min="1"
+                value={ownBudgetDraft}
+                oninput={(event) => {
+                  ownBudgetTouched = true;
+                  ownBudgetSaved = false;
+                  ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
+                }}
+              />
+              <div>
+                <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
+                  {t('app.ai.budget_own_save')}
+                </Button>
+              </div>
+              {#if ownBudgetSaved}<p class="quiet" role="status">{t('app.ai.budget_own_saved')}</p>{/if}
+            </Stack>
+          </form>
+        {/if}
+        {#if allowsOffered}
+          <!-- Linked, not drawn twice: the offered model's budget is the installation's quota row. -->
+          <p class="quiet">{t('app.ai.budget_hint')} <a href="/administration/quotas">{t('app.ai.budget_link')}</a></p>
+        {/if}
       </Stack>
 
       {#if provider && allowsOwn}
@@ -452,4 +519,5 @@
   .quiet { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .name { margin: 0; font-weight: var(--fw-semibold); }
+  .budget { margin: 0; max-inline-size: 52ch; }
 </style>

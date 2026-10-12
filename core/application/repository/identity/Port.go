@@ -212,6 +212,73 @@ type ManagedAccounts interface {
 	HasManaged(ctx context.Context) (bool, error)
 }
 
+// StartPasswords renews a managed account's way in (ADR-0074 §4): the one place an administrator
+// replaces somebody else's password.
+type StartPasswords interface {
+	// IssueStartPassword replaces the password with a start password's hash and marks it as one,
+	// for an account that is still managed - a sign-in name, no address, not erased. False is "not
+	// managed (any more)": nothing changed. The check is the writing statement's, so an address
+	// confirmed a moment earlier wins.
+	IssueStartPassword(ctx context.Context, accountID shared.ID, passwordHash string, at time.Time) (bool, error)
+
+	// SpendPending spends every unfinished sign-in step of the account, whatever its purpose, and
+	// answers how many: a change-step credential won with the old password sets nothing after.
+	SpendPending(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+}
+
+// AddressMail is what the confirmation mail needs: where it goes and in whose language.
+type AddressMail struct {
+	Address string
+	Locale  string
+	// DisplayName is whose account the address is for, so the mailbox's holder knows what they
+	// confirm.
+	DisplayName string
+}
+
+// AddressLookup is a presented confirmation link: the request, the address it confirms, and the
+// states that decide whether it may still land.
+type AddressLookup struct {
+	Credential    identity.PendingCredential
+	Address       string
+	AccountStatus identity.AccountStatus
+	TenantStatus  identity.TenantStatus
+}
+
+// AddressRequests keeps the addresses waiting for their mailbox (ADR-0074 §6). The tenant is the
+// transaction's throughout.
+type AddressRequests interface {
+	// LockAccount answers the account and holds its row for the transaction, so two requests for
+	// one account are read and written one after the other; an error wrapping shared.ErrNotFound
+	// where there is none.
+	LockAccount(ctx context.Context, accountID shared.ID) (identity.Account, error)
+
+	// LatestRequest answers when the newest request for the account was written, spent or not; the
+	// zero time where there was none.
+	LatestRequest(ctx context.Context, accountID shared.ID) (time.Time, error)
+
+	// Supersede spends the account's unspent requests: the newest link is the only one that works.
+	Supersede(ctx context.Context, accountID shared.ID, at time.Time) error
+
+	// Insert writes a request holding the address and no token yet.
+	Insert(ctx context.Context, request identity.PendingCredential, address string) error
+
+	// Mint stores the hash of the token the mail carries, for a request neither spent nor expired,
+	// and answers where the mail goes; an error wrapping shared.ErrNotFound otherwise.
+	Mint(ctx context.Context, requestID shared.ID, presented identity.Token, now time.Time) (AddressMail, error)
+
+	// FindByToken answers the request a presented link names, or an error wrapping
+	// shared.ErrNotFound.
+	FindByToken(ctx context.Context, token identity.Token) (AddressLookup, error)
+
+	// Consume spends the request, atomically: false means somebody was here first.
+	Consume(ctx context.Context, requestID shared.ID, at time.Time) (bool, error)
+
+	// Confirm makes the address the account's while it is still managed and can act. False is
+	// "not any more": nothing changed. An address another account holds is a conflict
+	// (`accounts.address_taken`), decided by the database.
+	Confirm(ctx context.Context, accountID shared.ID, address string, at time.Time) (bool, error)
+}
+
 // Groups is the store of named sets of accounts.
 // GroupPage is one page of the workspace's groups, by name.
 type GroupPage struct {

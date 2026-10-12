@@ -257,9 +257,11 @@ func TestTheQuotaStandingReadsUnlimitedRatherThanNought(t *testing.T) {
 // The rotation's census (ADR-0045): the ring first, then a key nothing holds but rows still name.
 func TestTheEncryptionCensusNamesWhatStillHoldsEachKey(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `{"active_key_id":"k2","keys":[
-	  {"key_id":"k2","active":true,"in_ring":true,"sealed_values":12},
-	  {"key_id":"k1","active":false,"in_ring":true,"sealed_values":0},
-	  {"key_id":"lost","active":false,"in_ring":false,"sealed_values":1}]}`)
+	  {"key_id":"k2","active":true,"in_ring":true,"sealed_values":12,
+	   "stores":[{"store":"webhook_subscription","sealed_values":12}]},
+	  {"key_id":"k1","active":false,"in_ring":true,"sealed_values":0,"stores":[]},
+	  {"key_id":"lost","active":false,"in_ring":false,"sealed_values":1,
+	   "stores":[{"store":"identity_provider","sealed_values":1}]}]}`)
 
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "encryption", "show")
 	if code != exitOK {
@@ -270,6 +272,10 @@ func TestTheEncryptionCensusNamesWhatStillHoldsEachKey(t *testing.T) {
 	}
 	if !strings.Contains(out, "active") || !strings.Contains(out, "NOT IN RING") {
 		t.Errorf("the census is not the table: %q", out)
+	}
+	// The kind a missing key still seals is what the operator has to know before removing it.
+	if !strings.Contains(out, "identity_provider=1") {
+		t.Errorf("the census does not say what the missing key still seals: %q", out)
 	}
 }
 

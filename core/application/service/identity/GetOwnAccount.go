@@ -57,6 +57,17 @@ type GetOwnAccount struct {
 	// control the server cannot honour. Nil answers true, the shape of every account before
 	// providers existed.
 	Password PasswordHolder
+	// Access answers whether the account holds a role anywhere - what a person a provider brought in
+	// with nothing lacks, and what a private hub of one's own needs (UC-ID-08 check 2, ADR-0073 §2):
+	// one reading for both, so a screen that hides *Create hub* hides it exactly where the server
+	// would refuse it. Nil answers true, the shape before it was asked.
+	Access AccessHolder
+}
+
+// AccessHolder answers whether an account holds a role anywhere in the workspace, directly or
+// through a group.
+type AccessHolder interface {
+	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
 // FactorRule is the one reading of "does this workspace demand a second factor of me".
@@ -99,6 +110,9 @@ type OwnAccount struct {
 	// HasPassword is whether the account holds a password, so that nothing offers to change one or
 	// asks for one as a proof where there is none.
 	HasPassword bool
+	// HasAccess is whether the account holds a role anywhere - false is somebody an administrator
+	// still has to give access to.
+	HasAccess bool
 	// RecoveryCodesRemaining is -1 where there is nothing to count: an installation wired without
 	// the second factor, or an account that holds none. Its codes are not "zero left", they are a
 	// thing that does not exist yet, and a screen told zero sends somebody to make codes the server
@@ -166,7 +180,17 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 		return OwnAccount{}, err
 	}
 
-	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1, HasPassword: true}
+	answer := OwnAccount{Account: account, RecoveryCodesRemaining: -1, HasPassword: true, HasAccess: true}
+	if h.Access != nil {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			held, err := h.Access.HoldsAny(ctx, actor.AccountID)
+			answer.HasAccess = held
+			return err
+		})
+		if err != nil {
+			return OwnAccount{}, err
+		}
+	}
 	if h.Factor != nil {
 		required, err := h.Factor.DemandsFactorOf(ctx, actor)
 		if err != nil {
@@ -222,6 +246,7 @@ func (h GetOwnAccount) invoke(
 	out["has_second_factor"] = own.HasSecondFactor
 	out["second_factor_required"] = own.SecondFactorRequired
 	out["has_password"] = own.HasPassword
+	out["has_access"] = own.HasAccess
 	if own.RecoveryCodesRemaining >= 0 {
 		out["recovery_codes_remaining"] = own.RecoveryCodesRemaining
 	}

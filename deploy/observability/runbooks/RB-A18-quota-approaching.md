@@ -8,11 +8,13 @@ the point of being told now.
 
 A workspace stands above 90% of one of its §4 ceilings (multi-tenancy.md). The `quota` label
 says which wall: `items`, `media_bytes`, `webhook_targets`, `export_jobs`,
-`automation_runs_per_hour`, `api_requests_per_minute`, or `ai_tokens_per_day`. When it reaches
+`automation_runs_per_hour`, `api_requests_per_minute`, `ai_tokens_per_day` (the offered models)
+or `ai_own_tokens_per_day` (the workspace's own model, only where the workspace set a budget for
+it — a ceiling it chose itself, not one to raise from here). When it reaches
 the wall, the refusal is `capacity.<quota>` (422) for capacity rows and `429` for the rate —
 visible to the workspace's own people, with the ceiling in the answer.
 
-`ai_tokens_per_day` is the one that refuses differently, and deliberately. A workspace over
+The two AI rows are the ones that refuse differently, and deliberately. A workspace over
 its AI budget is not shown a problem document: suggestions stop being offered and everything else
 keeps working, exactly as when no provider is configured. So this alert is the *only* place the
 approach is visible before somebody notices the feature has gone quiet — which is why it fires at

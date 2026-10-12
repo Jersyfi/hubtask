@@ -26,7 +26,7 @@ const MaxAllowedEmailDomains = 10
 //
 //   - INVITED_ONLY - only somebody who was invited here first. A verified address must meet an
 //     account that already exists; anything else is refused and nothing is created. The mode a
-//     public provider is held to.
+//     public provider is held to. A directory list, where there is one, narrows it.
 //   - DOMAINS - only inside `AllowedEmailDomains`. A verified address in the list comes in - linked
 //     to the account that already holds it, or provisioned where there is none. An address outside
 //     the list is **refused**, which is what makes this different from ANY.
@@ -110,6 +110,18 @@ type IdentityProvider struct {
 	// row, as InstallationLockAt answers it where the row is read. Not a column: the lock lives in
 	// the installation's settings. Empty on a workspace's own row.
 	InstallationLock InstallationLock
+	// NewcomerRole and NewcomerGroupID are what somebody this provider brings in new gets
+	// (UC-ID-11 check 5): a role on the whole workspace, or membership of one of its groups, or -
+	// both empty - nothing until an administrator gives it. At most one is set, only on a
+	// workspace's own row, and only under a mode that creates accounts.
+	NewcomerRole    Role
+	NewcomerGroupID shared.ID
+}
+
+// GivesNewcomers reports whether somebody this provider creates an account for gets anything with
+// it. False is the default, and what such a person is told.
+func (p IdentityProvider) GivesNewcomers() bool {
+	return p.NewcomerRole != "" || !p.NewcomerGroupID.IsZero()
 }
 
 // InstallationLock is what the installation's lock on the ways in does to one of its rows
@@ -220,6 +232,9 @@ type NewIdentityProviderInput struct {
 	AllowedDirectories []string
 	Enabled            bool
 	Now                time.Time
+	// NewcomerRole and NewcomerGroupID are what a newcomer gets; empty is nothing.
+	NewcomerRole    string
+	NewcomerGroupID shared.ID
 }
 
 // NewIdentityProvider validates a configuration and normalises what has a normal form.
@@ -291,12 +306,67 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, err
 	}
 
+	newcomerRole, err := newcomers(in, provisioning)
+	if err != nil {
+		return IdentityProvider{}, err
+	}
+
 	return IdentityProvider{
 		ID: in.ID, TenantID: in.TenantID, Issuer: issuer, ClientID: clientID,
 		DisplayName: displayName, Kind: kind, Provisioning: provisioning, Position: in.Position,
 		AllowedEmailDomains: domains, AllowedDirectories: directories, Enabled: in.Enabled,
 		CreatedAt: in.Now.UTC(), Version: 1,
+		NewcomerRole: newcomerRole, NewcomerGroupID: in.NewcomerGroupID,
 	}, nil
+}
+
+// newcomers holds what a newcomer gets to where it means something.
+//
+// Refused rather than dropped wherever nothing would read it - under INVITED_ONLY, which creates
+// nobody, and on the installation's own row, where a group is no workspace's and an operator does
+// not decide a workspace's access - for the reason a directory list on a preset that cannot read
+// one is refused: a setting nothing consults is worse than none, because somebody set it believing
+// it did something. OWNER is never a newcomer's: it is handed to one named person with a fresh
+// proof of its own (identity.md §16.3), not to whoever a provider brings in.
+func newcomers(in NewIdentityProviderInput, provisioning Provisioning) (Role, error) {
+	stated := strings.ToUpper(strings.TrimSpace(in.NewcomerRole))
+	if stated == "" && in.NewcomerGroupID.IsZero() {
+		return "", nil
+	}
+	if stated != "" && !in.NewcomerGroupID.IsZero() {
+		return "", newcomersRefused("identity_provider.newcomers_one")
+	}
+	if in.TenantID.IsZero() {
+		return "", newcomersRefused("identity_provider.newcomers_installation")
+	}
+	if provisioning == ProvisionInvitedOnly {
+		return "", newcomersRefused("identity_provider.newcomers_not_created")
+	}
+	if stated == "" {
+		return "", nil
+	}
+	role := Role(stated)
+	if !role.Valid() {
+		return "", shared.ErrValidation.
+			WithDetail("identity_provider.newcomer_role_invalid").
+			WithParams(map[string]string{"role": strings.TrimSpace(in.NewcomerRole)}).
+			WithFields(shared.FieldError{Path: "/newcomer_role", Code: "identity_provider.newcomer_role_invalid"})
+	}
+	if role == RoleOwner {
+		return "", NewcomersOwnerRefused()
+	}
+	return role, nil
+}
+
+// NewcomersOwnerRefused is the refusal of OWNER for newcomers, directly or through a group that
+// holds it - the second is asked where the group's grants can be read.
+func NewcomersOwnerRefused() error {
+	return newcomersRefused("identity_provider.newcomers_owner")
+}
+
+func newcomersRefused(code string) error {
+	return shared.ErrValidation.WithDetail(code).
+		WithFields(shared.FieldError{Path: "/newcomer_role", Code: code})
 }
 
 // MaxProviderDisplayName bounds the name on the button.
@@ -414,8 +484,10 @@ func multiDirectoryIssuer(issuer string) bool {
 
 // resolvedProvisioning reads the mode and holds it to what the preset permits.
 //
-// One refusal: a **public** issuer may only be INVITED_ONLY. Anything else means every person who
-// holds an account at that provider - which is everybody - is provisioned one here.
+// One refusal: a **public** issuer is never ANY, which would provision everybody who holds an
+// account at that provider - which is everybody. DOMAINS is bounded by the directory claim a
+// personal account does not carry, so a personal account comes in only by invitation
+// (milestone SC, decision 12).
 //
 // There is deliberately no second - "a preset whose addresses this installation cannot vouch for
 // may not be INVITED_ONLY, because that mode gives an existing account away on the strength of an
@@ -440,7 +512,7 @@ func resolvedProvisioning(stated string, preset ProviderPreset, installation boo
 	if err != nil {
 		return "", err
 	}
-	if preset.Public && mode != ProvisionInvitedOnly {
+	if preset.Public && mode == ProvisionAny {
 		return "", shared.ErrValidation.
 			WithDetail("identity_provider.provisioning_public").
 			WithParams(map[string]string{"kind": string(preset.Kind)})
@@ -548,7 +620,12 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 		// Claiming an account that already exists is done on the strength of an address, so the
 		// address has to be one the provider owns the domain of. A personal account with a
 		// verified address at somebody else's domain is precisely the case this refuses.
-		return arriving.AddressAuthoritative
+		//
+		// A directory list narrows the mode (ADR-0071 §4): a platform that offers one provider to
+		// everybody may still refuse one directory. An empty list does not narrow - the bound of
+		// this mode is the accounts that already exist, not a list.
+		return arriving.AddressAuthoritative &&
+			(len(p.AllowedDirectories) == 0 || containsFold(p.AllowedDirectories, arriving.Directory))
 	case ProvisionAny:
 		return true
 	case ProvisionDomains:

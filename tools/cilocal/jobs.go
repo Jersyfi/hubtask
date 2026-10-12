@@ -49,6 +49,11 @@ var Jobs = []Job{
 	{ID: "api-compat", Filters: goPipeline, Steps: []Step{
 		{Name: "gate-api-compat", Command: `make gate-api-compat API_BASE="$(git merge-base origin/main HEAD)"`},
 	}},
+	// It asks GitHub for the open pull requests through gh, which verify-pr needs for the description
+	// anyway; the branch's own pull request is found by gh and left out.
+	{ID: "numbers", Steps: []Step{
+		{Name: "gate-numbers", Command: "make gate-numbers BASE=origin/main"},
+	}},
 	{ID: "build", Filters: goPipeline, Steps: []Step{
 		{Name: "build (linux/amd64)", Command: "GOOS=linux GOARCH=amd64 make build"},
 		{Name: "build (linux/arm64)", Command: "GOOS=linux GOARCH=arm64 make build"},

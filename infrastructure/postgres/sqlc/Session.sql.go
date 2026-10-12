@@ -296,6 +296,7 @@ const elevateSession = `-- name: ElevateSession :execrows
 UPDATE session SET elevated_until = $1
 WHERE id = $2 AND account_id = $3
   AND revoked_at IS NULL AND expires_at > $4
+  AND (elevated_until IS NULL OR elevated_until <= $4)
 `
 
 type ElevateSessionParams struct {
@@ -307,7 +308,9 @@ type ElevateSessionParams struct {
 
 // Raises one live session of the account to the control plane's scope for a bounded while
 // (ADR-0070 §4). Bounded to the owner in the same statement that writes, RevokeSession's discipline:
-// a session that is not the caller's matches nothing rather than being refused after a read.
+// a session that is not the caller's matches nothing rather than being refused after a read. A
+// running hour matches nothing either: it is not replaced or extended (UC-INS-04 check 4), and two
+// raises at once leave one hour.
 func (q *Queries) ElevateSession(ctx context.Context, arg ElevateSessionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, elevateSession,
 		arg.ElevatedUntil,
@@ -1340,6 +1343,26 @@ func (q *Queries) SealedMfaReplacementsNotUnder(ctx context.Context, keyID *stri
 		return nil, err
 	}
 	return items, nil
+}
+
+const sessionElevatedUntil = `-- name: SessionElevatedUntil :one
+SELECT elevated_until FROM session
+WHERE id = $1 AND account_id = $2 AND revoked_at IS NULL
+`
+
+type SessionElevatedUntilParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// When the caller's live session stops carrying the control plane's scope; NULL where it never
+// did. Read before a raise, so a client that lost its copy of a running hour learns the end
+// instead of spending a proof on a refusal.
+func (q *Queries) SessionElevatedUntil(ctx context.Context, arg SessionElevatedUntilParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, sessionElevatedUntil, arg.ID, arg.AccountID)
+	var elevated_until pgtype.Timestamptz
+	err := row.Scan(&elevated_until)
+	return elevated_until, err
 }
 
 const sessionsForAccount = `-- name: SessionsForAccount :many

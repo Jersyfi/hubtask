@@ -88,3 +88,46 @@ func TestASubscriptionUnderAForeignKeyIsCountedAndLeftAlone(t *testing.T) {
 		t.Error("a subscription with nothing to move was written")
 	}
 }
+
+type offeredSealings struct {
+	rows      []repository.SealedOfferedKey
+	rewrapped []string
+}
+
+func (o *offeredSealings) ListSealed(context.Context) ([]repository.SealedOfferedKey, error) {
+	return o.rows, nil
+}
+
+func (o *offeredSealings) RewrapKey(_ context.Context, id shared.ID, sealed crypto.Sealed, expected string) (bool, error) {
+	o.rewrapped = append(o.rewrapped, id.String()+":"+expected+"->"+sealed.KeyID)
+	return true, nil
+}
+
+// Each offered key moves under its own row's purpose; one already under the current key is left
+// alone, and one under a key the ring lacks is counted rather than failed on.
+func TestEachOfferedModelsKeyMovesUnderItsOwnPurpose(t *testing.T) {
+	first := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000e1")
+	second := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000e2")
+	current := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000e3")
+	lost := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000e4")
+	store := &offeredSealings{rows: []repository.SealedOfferedKey{
+		{ProviderID: first, Sealed: crypto.Sealed{KeyID: "k1"}},
+		{ProviderID: second, Sealed: crypto.Sealed{KeyID: "k1"}},
+		{ProviderID: current, Sealed: crypto.Sealed{KeyID: "k2"}},
+		{ProviderID: lost, Sealed: crypto.Sealed{KeyID: "gone"}},
+	}}
+	ring := &rotatingRing{}
+
+	outcome, err := OfferedAiProviderResealer{Providers: store, Encryptor: ring}.Reseal(t.Context(), shared.ID(""))
+	if err != nil || outcome.Rewrapped != 2 || outcome.Skipped != 1 {
+		t.Fatalf("outcome %+v, %v", outcome, err)
+	}
+	want := []string{first.String() + ":k1->k2", second.String() + ":k1->k2"}
+	if len(store.rewrapped) != 2 || store.rewrapped[0] != want[0] || store.rewrapped[1] != want[1] {
+		t.Errorf("rewrapped %v, want %v", store.rewrapped, want)
+	}
+	if len(ring.purposes) != 3 || ring.purposes[0] != OfferedAiKeyPurpose(first) ||
+		ring.purposes[1] != OfferedAiKeyPurpose(second) {
+		t.Errorf("purposes %v", ring.purposes)
+	}
+}

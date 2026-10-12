@@ -1596,6 +1596,36 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EncryptionStoreCountStore.
+const (
+	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
+	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
+	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
+	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
+)
+
+// Valid indicates whether the value is a known member of the EncryptionStoreCountStore enum.
+func (e EncryptionStoreCountStore) Valid() bool {
+	switch e {
+	case EncryptionStoreCountStoreAccountMfa:
+		return true
+	case EncryptionStoreCountStoreAiProvider:
+		return true
+	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreIdentityProvider:
+		return true
+	case EncryptionStoreCountStoreWebhookSubscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2475,6 +2505,24 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -2615,6 +2663,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
@@ -2627,6 +2676,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiOwnTokensPerDay:
+		return true
 	case AiTokensPerDay:
 		return true
 	case ApiRequestsPerMinute:
@@ -4173,6 +4224,9 @@ type Account struct {
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
 
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
@@ -4249,10 +4303,13 @@ type AccountSummary struct {
 	DisplayName string `json:"display_name"`
 
 	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
-	HasAddress *bool                `json:"has_address,omitempty"`
-	Id         openapi_types.UUID   `json:"id"`
-	Kind       AccountSummaryKind   `json:"kind"`
-	Status     AccountSummaryStatus `json:"status"`
+	HasAddress *bool              `json:"has_address,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       AccountSummaryKind `json:"kind"`
+
+	// Managed True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.
+	Managed *bool                `json:"managed,omitempty"`
+	Status  AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -4303,6 +4360,23 @@ type Actor struct {
 
 // ActorType defines model for Actor.Type.
 type ActorType string
+
+// AddressConfirm defines model for AddressConfirm.
+type AddressConfirm struct {
+	// Token The token from the confirmation mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// AddressRequest defines model for AddressRequest.
+type AddressRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// AddressRequested defines model for AddressRequested.
+type AddressRequested struct {
+	// ExpiresAt Until when the link in the mail confirms the address.
+	ExpiresAt time.Time `json:"expires_at"`
+}
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
@@ -5796,8 +5870,11 @@ type EncryptionKeyUsage struct {
 	InRing bool   `json:"in_ring"`
 	KeyId  string `json:"key_id"`
 
-	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	// SealedValues How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.
 	SealedValues int64 `json:"sealed_values"`
+
+	// Stores The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.
+	Stores []EncryptionStoreCount `json:"stores"`
 }
 
 // EncryptionStatus defines model for EncryptionStatus.
@@ -5808,6 +5885,17 @@ type EncryptionStatus struct {
 	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
+
+// EncryptionStoreCount defines model for EncryptionStoreCount.
+type EncryptionStoreCount struct {
+	SealedValues int64 `json:"sealed_values"`
+
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+	Store EncryptionStoreCountStore `json:"store"`
+}
+
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
@@ -6023,6 +6111,7 @@ type HubPrivacy struct {
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
 	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
+	// Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.
 	AllowedDirectories []string `json:"allowed_directories"`
 
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
@@ -6047,6 +6136,12 @@ type IdentityProvider struct {
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
 
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
@@ -6101,8 +6196,14 @@ type IdentityProviderConfiguration struct {
 	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
-	Kind     *IdentityProviderKind `json:"kind,omitempty"`
-	Position *int                  `json:"position,omitempty"`
+	Kind *IdentityProviderKind `json:"kind,omitempty"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+	Position     *int            `json:"position,omitempty"`
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
@@ -6134,7 +6235,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
@@ -6337,6 +6438,9 @@ type InvitedAccount struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
 
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
@@ -7202,9 +7306,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
@@ -7218,6 +7346,12 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
 }
 
 // OwnAiPosition defines model for OwnAiPosition.
@@ -7588,7 +7722,9 @@ type QuotaStanding struct {
 	Configured *bool `json:"configured,omitempty"`
 
 	// Limit The resolved ceiling. 0 means unlimited.
-	Limit int64              `json:"limit"`
+	Limit int64 `json:"limit"`
+
+	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -7598,7 +7734,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota defines model for QuotaStanding.Quota.
+// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -8519,6 +8655,14 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// StartPasswordIssued defines model for StartPasswordIssued.
+type StartPasswordIssued struct {
+	Account Account `json:"account"`
+
+	// StartPassword Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
+}
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -8946,7 +9090,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -9526,6 +9670,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// IssueStartPasswordParams defines parameters for IssueStartPassword.
+type IssueStartPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // RenewInvitationParams defines parameters for RenewInvitation.
 type RenewInvitationParams struct {
@@ -10590,6 +10740,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -10638,6 +10791,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // SetAiPersonOptOutJSONRequestBody defines body for SetAiPersonOptOut for application/json ContentType.
 type SetAiPersonOptOutJSONRequestBody = AiPersonOptOutChoice
 
@@ -10655,6 +10811,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
+
+// ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
+type ConfirmAddressJSONRequestBody = AddressConfirm
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -11165,6 +11324,76 @@ type ClientInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RequestAddressWithBody Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestAddress Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// IssueStartPassword Give a managed account a new start password
+	//
+	// For a person without a mail address who forgot their password: there is no mailbox a reset
+	// could reach, so an owner or administrator helps them back in. **The one exception to "an
+	// administrator does not recover an account"**, and it exists only for managed accounts - an
+	// account with an address is refused with `409 accounts.not_managed`, and recovers through
+	// its mailbox.
+	//
+	// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+	// and nothing can read it again. Every session of the account ends and every unfinished
+	// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+	// second factor where the account has one - the factor and the recovery codes stay. Personal
+	// access tokens stay, as a password change leaves them.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). An act an automation rule runs is refused with
+	// `accounts.managed_needs_a_person`: a run reads no answer.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it.
+	//
+	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+	IssueStartPassword(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RenewInvitation Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -11364,7 +11593,7 @@ type ClientInterface interface {
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 	ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11372,7 +11601,7 @@ type ClientInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11467,6 +11696,7 @@ type ClientInterface interface {
 	// ListOperators Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
 	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11474,7 +11704,8 @@ type ClientInterface interface {
 	// AddOperatorWithBody Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11484,7 +11715,8 @@ type ClientInterface interface {
 	// AddOperator Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11494,7 +11726,7 @@ type ClientInterface interface {
 	// RemoveOperator Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11684,6 +11916,24 @@ type ClientInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
 	//
 	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -11863,6 +12113,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAddressWithBody Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAddress Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
 	//
@@ -12220,7 +12488,7 @@ type ClientInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -15260,6 +15528,106 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 	return c.Client.Do(req)
 }
 
+// RequestAddressWithBody Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequestWithBody(c.Server, accountId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestAddress Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequest(c.Server, accountId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// IssueStartPassword Give a managed account a new start password
+//
+// For a person without a mail address who forgot their password: there is no mailbox a reset
+// could reach, so an owner or administrator helps them back in. **The one exception to "an
+// administrator does not recover an account"**, and it exists only for managed accounts - an
+// account with an address is refused with `409 accounts.not_managed`, and recovers through
+// its mailbox.
+//
+// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+// and nothing can read it again. Every session of the account ends and every unfinished
+// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+// second factor where the account has one - the factor and the recovery codes stay. Personal
+// access tokens stay, as a password change leaves them.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). An act an automation rule runs is refused with
+// `accounts.managed_needs_a_person`: a run reads no answer.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it.
+//
+// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIssueStartPasswordRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RenewInvitation Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -15589,7 +15957,7 @@ func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId Pro
 // ReadEncryptionStatus The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15607,7 +15975,7 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // ResealSecrets Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15812,6 +16180,7 @@ func (c *Client) ListInstanceJournal(ctx context.Context, params *ListInstanceJo
 // ListOperators Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Corresponds with GET /admin/operators (the `ListOperators` operationId).
 func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15829,7 +16198,8 @@ func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorF
 // AddOperatorWithBody Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15849,7 +16219,8 @@ func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, bo
 // AddOperator Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15869,7 +16240,7 @@ func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBod
 // RemoveOperator Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -16279,6 +16650,44 @@ func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqE
 	return c.Client.Do(req)
 }
 
+// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
 //
 // `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -16609,6 +17018,44 @@ func (c *Client) VerifyAuditChainWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 func (c *Client) VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyAuditChainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmAddressWithBody Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *Client) ConfirmAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAddressRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmAddress Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *Client) ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAddressRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -17315,7 +17762,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -23609,6 +24056,102 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	return req, nil
 }
 
+// NewRequestAddressRequest calls the generic RequestAddress builder with application/json body
+func NewRequestAddressRequest(server string, accountId AccountId, body RequestAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRequestAddressRequestWithBody(server, accountId, "application/json", bodyReader)
+}
+
+// NewRequestAddressRequestWithBody constructs an http.Request for the RequestAddress method, with any body, and a specified content type
+func NewRequestAddressRequestWithBody(server string, accountId AccountId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:add-address", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewIssueStartPasswordRequest constructs an http.Request for the IssueStartPassword method
+func NewIssueStartPasswordRequest(server string, accountId AccountId, params *IssueStartPasswordParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:issue-start-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRenewInvitationRequest constructs an http.Request for the RenewInvitation method
 func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams) (*http.Request, error) {
 	var err error
@@ -25065,6 +25608,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	return req, nil
 }
 
+// NewSetOwnAiBudgetRequest calls the generic SetOwnAiBudget builder with application/json body
+func NewSetOwnAiBudgetRequest(server string, body SetOwnAiBudgetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOwnAiBudgetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetOwnAiBudgetRequestWithBody constructs an http.Request for the SetOwnAiBudget method, with any body, and a specified content type
+func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-budget")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSetAiPersonOptOutRequest calls the generic SetAiPersonOptOut builder with application/json body
 func NewSetAiPersonOptOutRequest(server string, body SetAiPersonOptOutJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -25517,6 +26100,46 @@ func NewVerifyAuditChainRequestWithBody(server string, contentType string, body 
 	}
 
 	operationPath := fmt.Sprintf("/audit:verify")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewConfirmAddressRequest calls the generic ConfirmAddress builder with application/json body
+func NewConfirmAddressRequest(server string, body ConfirmAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmAddressRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfirmAddressRequestWithBody constructs an http.Request for the ConfirmAddress method, with any body, and a specified content type
+func NewConfirmAddressRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/address:confirm")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -37786,6 +38409,78 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
+	// RequestAddressWithBodyWithResponse Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
+
+	// RequestAddressWithResponse Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
+
+	// IssueStartPasswordWithResponse Give a managed account a new start password
+	//
+	// For a person without a mail address who forgot their password: there is no mailbox a reset
+	// could reach, so an owner or administrator helps them back in. **The one exception to "an
+	// administrator does not recover an account"**, and it exists only for managed accounts - an
+	// account with an address is refused with `409 accounts.not_managed`, and recovers through
+	// its mailbox.
+	//
+	// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+	// and nothing can read it again. Every session of the account ends and every unfinished
+	// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+	// second factor where the account has one - the factor and the recovery codes stay. Personal
+	// access tokens stay, as a password change leaves them.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). An act an automation rule runs is refused with
+	// `accounts.managed_needs_a_person`: a run reads no answer.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+	IssueStartPasswordWithResponse(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*IssueStartPasswordResult, error)
+
 	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -37991,7 +38686,7 @@ type ClientWithResponsesInterface interface {
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38001,7 +38696,7 @@ type ClientWithResponsesInterface interface {
 	// ResealSecretsWithResponse Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38106,6 +38801,7 @@ type ClientWithResponsesInterface interface {
 	// ListOperatorsWithResponse Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38115,7 +38811,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithBodyWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38125,7 +38822,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38135,7 +38833,7 @@ type ClientWithResponsesInterface interface {
 	// RemoveOperatorWithResponse Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38341,6 +39039,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
 
+	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
+	// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
 	// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
 	//
 	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -38528,6 +39244,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChainWithResponse(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyAuditChainResult, error)
+
+	// ConfirmAddressWithBodyWithResponse Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
+
+	// ConfirmAddressWithResponse Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
 
 	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 	//
@@ -38897,7 +39631,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -42339,6 +43073,102 @@ func (r UpdateAccountPreferencesResult) ContentType() string {
 	return ""
 }
 
+type RequestAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *AddressRequested
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r RequestAddressResult) GetJSON202() *AddressRequested {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RequestAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RequestAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequestAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type IssueStartPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StartPasswordIssued
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r IssueStartPasswordResult) GetJSON200() *StartPasswordIssued {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r IssueStartPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r IssueStartPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r IssueStartPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IssueStartPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IssueStartPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RenewInvitationResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -43922,6 +44752,54 @@ func (r SuspendTenantResult) ContentType() string {
 	return ""
 }
 
+type SetOwnAiBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]QuotaStanding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOwnAiBudgetResult) GetJSON200() *[]QuotaStanding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetOwnAiBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOwnAiBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOwnAiBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOwnAiBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOwnAiBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type SetAiPersonOptOutResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -44467,6 +45345,47 @@ func (r VerifyAuditChainResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyAuditChainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56870,6 +57789,96 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
+// RequestAddressWithBodyWithResponse Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddressWithBody(ctx, accountId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAddressResult(rsp)
+}
+
+// RequestAddressWithResponse Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddress(ctx, accountId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAddressResult(rsp)
+}
+
+// IssueStartPasswordWithResponse Give a managed account a new start password
+//
+// For a person without a mail address who forgot their password: there is no mailbox a reset
+// could reach, so an owner or administrator helps them back in. **The one exception to "an
+// administrator does not recover an account"**, and it exists only for managed accounts - an
+// account with an address is refused with `409 accounts.not_managed`, and recovers through
+// its mailbox.
+//
+// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+// and nothing can read it again. Every session of the account ends and every unfinished
+// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+// second factor where the account has one - the factor and the recovery codes stay. Personal
+// access tokens stay, as a password change leaves them.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). An act an automation rule runs is refused with
+// `accounts.managed_needs_a_person`: a run reads no answer.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*IssueStartPasswordResult, error) {
+	rsp, err := c.IssueStartPassword(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIssueStartPasswordResult(rsp)
+}
+
 // RenewInvitationWithResponse Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -57153,7 +58162,7 @@ func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx contex
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57169,7 +58178,7 @@ func (c *ClientWithResponses) ReadEncryptionStatusWithResponse(ctx context.Conte
 // ResealSecretsWithResponse Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57340,6 +58349,7 @@ func (c *ClientWithResponses) ListInstanceJournalWithResponse(ctx context.Contex
 // ListOperatorsWithResponse Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57355,7 +58365,8 @@ func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, req
 // AddOperatorWithBodyWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57371,7 +58382,8 @@ func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Contex
 // AddOperatorWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57387,7 +58399,7 @@ func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body 
 // RemoveOperatorWithResponse Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57725,6 +58737,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 	return ParseSuspendTenantResult(rsp)
 }
 
+// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudgetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
+// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudget(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
 // SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
 //
 // `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -58007,6 +59049,36 @@ func (c *ClientWithResponses) VerifyAuditChainWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseVerifyAuditChainResult(rsp)
+}
+
+// ConfirmAddressWithBodyWithResponse Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *ClientWithResponses) ConfirmAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error) {
+	rsp, err := c.ConfirmAddressWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAddressResult(rsp)
+}
+
+// ConfirmAddressWithResponse Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *ClientWithResponses) ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error) {
+	rsp, err := c.ConfirmAddress(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAddressResult(rsp)
 }
 
 // SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
@@ -58581,7 +59653,7 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -63885,6 +64957,72 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 	return response, nil
 }
 
+// ParseRequestAddressResult parses an HTTP response from a RequestAddressWithResponse call
+func ParseRequestAddressResult(rsp *http.Response) (*RequestAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest AddressRequested
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseIssueStartPasswordResult parses an HTTP response from a IssueStartPasswordWithResponse call
+func ParseIssueStartPasswordResult(rsp *http.Response) (*IssueStartPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IssueStartPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StartPasswordIssued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRenewInvitationResult parses an HTTP response from a RenewInvitationWithResponse call
 func ParseRenewInvitationResult(rsp *http.Response) (*RenewInvitationResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -64979,6 +66117,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	return response, nil
 }
 
+// ParseSetOwnAiBudgetResult parses an HTTP response from a SetOwnAiBudgetWithResponse call
+func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOwnAiBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseSetAiPersonOptOutResult parses an HTTP response from a SetAiPersonOptOutWithResponse call
 func ParseSetAiPersonOptOutResult(rsp *http.Response) (*SetAiPersonOptOutResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -65345,6 +66516,35 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmAddressResult parses an HTTP response from a ConfirmAddressWithResponse call
+func ParseConfirmAddressResult(rsp *http.Response) (*ConfirmAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

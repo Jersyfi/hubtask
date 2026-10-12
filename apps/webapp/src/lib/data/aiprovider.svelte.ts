@@ -29,6 +29,7 @@ import type {
   AiProviderConfiguration,
   AiSource,
   AiSourceChoice,
+  OwnAiBudget,
   ResourceState,
 } from '@hubtask/sync-engine';
 
@@ -36,6 +37,8 @@ import { engine } from './engine.ts';
 
 const PATH = '/ai-provider';
 const SOURCE = '/ai-source';
+const BUDGET = '/ai-budget';
+const QUOTAS = '/quotas';
 
 /**
  * What a change to the provider makes stale: the read itself, and the manifest - `ai_suggestions`
@@ -87,6 +90,14 @@ class AiProviderStore {
    */
   async choose(body: AiSourceChoice): Promise<AiSource> {
     return engine.mutate<AiSource>('PUT', SOURCE, body, { invalidates: TOUCHES });
+  }
+
+  /**
+   * Sets how many tokens a day the workspace's own model may spend; null is no budget. What it
+   * changes is the AI rows of the quota standing, which every reader of this screen reads.
+   */
+  async setOwnBudget(body: OwnAiBudget): Promise<void> {
+    await engine.mutate('PUT', BUDGET, body, { invalidates: [QUOTAS] });
   }
 
   /**
