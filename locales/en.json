@@ -2399,6 +2399,7 @@
   "app.quotas.percent": "{percent} % of the ceiling",
   "app.quotas.workspace": "This workspace",
   "app.quotas.installation": "The installation's default",
+  "app.quotas.locked_installation": "Set by the installation",
   "app.quotas.raising": "Raising a limit is the operator of this installation's to do, not this workspace's. Ask whoever runs it.",
   "app.private_hubs.title": "Private hubs",
   "app.private_hubs.intro": "Hubs only their own members can open. You see whose they are and how much they hold — never their names or anything in them.",

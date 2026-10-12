@@ -896,6 +896,7 @@
   "app.quotas.percent": "{percent} % der Obergrenze",
   "app.quotas.workspace": "Dieser Arbeitsbereich",
   "app.quotas.installation": "Die Vorgabe der Installation",
+  "app.quotas.locked_installation": "Von der Installation festgelegt",
   "app.quotas.raising": "Eine Grenze anzuheben ist Sache dessen, der diese Installation betreibt, nicht dieses Arbeitsbereichs. Frag, wer sie betreibt.",
   "app.private_hubs.title": "Private Hubs",
   "app.private_hubs.intro": "Hubs, die nur ihre eigenen Mitglieder öffnen können. Du siehst, wem sie gehören und wie viel sie enthalten – nie ihre Namen oder etwas darin.",

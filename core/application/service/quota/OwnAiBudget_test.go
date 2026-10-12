@@ -6,6 +6,7 @@ package quota
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
@@ -110,7 +111,7 @@ func TestTheOwnBudgetRefusesNoughtAndTheUnpermitted(t *testing.T) {
 	if _, err := handler.Execute(t.Context(), administrator(), &tokens); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a member answered %v", err)
 	}
-	if store.overrides != (repository.Overrides{}) {
+	if !reflect.DeepEqual(store.overrides, repository.Overrides{}) {
 		t.Errorf("a refused request wrote %+v", store.overrides)
 	}
 }

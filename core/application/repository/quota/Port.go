@@ -28,6 +28,9 @@ type Overrides struct {
 	// never by the operator's quota write, and stored apart from the quotas key so that write cannot
 	// drop it (SetOwnAiBudget).
 	AiOwnTokensPerDay *int64
+	// Locked names the quotas a level above locked, by their contract name. Only the installation's
+	// answer carries it; a workspace's own document has no locks.
+	Locked map[string]bool
 }
 
 // Store reads and writes the overrides in the tenant's own settings document

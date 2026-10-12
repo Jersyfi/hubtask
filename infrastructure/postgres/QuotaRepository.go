@@ -73,12 +73,16 @@ func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overri
 	// case: an adapter that called into the application layer would be the one thing
 	// `project-structure.md` §2 forbids, and this knowledge is the adapter's anyway.
 	fields := make(map[string]json.RawMessage, len(rows))
+	locked := map[string]bool{}
 	for _, row := range rows {
 		suffix, isQuota := strings.CutPrefix(row.Key, quotaSettingPrefix)
 		if !isQuota {
 			continue
 		}
 		fields[suffix] = row.Value
+		if row.LockOrigin != "OPEN" {
+			locked[suffix] = true
+		}
 	}
 	encoded, err := json.Marshal(fields)
 	if err != nil {
@@ -91,7 +95,9 @@ func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overri
 		// reasoning exactly: a value this build cannot read is the operator's to repair.
 		return repository.Overrides{}, nil
 	}
-	return fromDocument(document), nil
+	overrides := fromDocument(document)
+	overrides.Locked = locked
+	return overrides, nil
 }
 
 // Overrides answers what the transaction's tenant configured.

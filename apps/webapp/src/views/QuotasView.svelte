@@ -149,7 +149,7 @@
               {/if}
             </td>
             <td>
-              {standing.configured ? t('app.quotas.workspace') : t('app.quotas.installation')}
+              {standing.configured ? t('app.quotas.workspace') : standing.locked ? t('app.quotas.locked_installation') : t('app.quotas.installation')}
             </td>
           </tr>
         {/each}

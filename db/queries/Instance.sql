@@ -110,4 +110,4 @@ SELECT claim_setup_code(sqlc.arg('code_hash'), sqlc.arg('now'))::text;
 --
 -- `instance_setting` carries no row level security — that is its documented exception — so this
 -- read works inside a tenant's own transaction, where the quota guard runs.
-SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%';
+SELECT key, value, lock_origin FROM instance_setting WHERE key LIKE 'quota.%';
