@@ -122,6 +122,10 @@ type Memberships interface {
 	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
 
+	// HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access
+	// to at `now` (ADR-0073 §4): asked only once a private hub is on a path.
+	HubsOpenedFor(ctx context.Context, accountID shared.ID, hubIDs []shared.ID, now time.Time) ([]shared.ID, error)
+
 	// HoldsAny answers whether the account holds a role anywhere in the workspace, directly or
 	// through a group: what a person needs to make a private hub of their own (ADR-0073 §2).
 	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)

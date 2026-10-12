@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -29,6 +30,11 @@ func (m *heldRoles) SharedItemsIn(context.Context, shared.ID, shared.ID) ([]shar
 }
 
 func (m *heldRoles) Administrators(context.Context, []identity.Scope) ([]shared.ID, error) {
+	return nil, nil
+}
+
+// HubsOpenedFor: no emergency access is running here.
+func (m *heldRoles) HubsOpenedFor(context.Context, shared.ID, []shared.ID, time.Time) ([]shared.ID, error) {
 	return nil, nil
 }
 

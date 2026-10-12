@@ -239,6 +239,11 @@ func (m membershipsFake) Administrators(context.Context, []domain.Scope) ([]shar
 	return nil, nil
 }
 
+// HubsOpenedFor: no emergency access is running here.
+func (m membershipsFake) HubsOpenedFor(context.Context, shared.ID, []shared.ID, time.Time) ([]shared.ID, error) {
+	return nil, nil
+}
+
 func (m membershipsFake) HubsOf(context.Context, []shared.ID) (map[shared.ID]repository.Hub, error) {
 	return nil, nil
 }

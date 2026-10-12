@@ -6,6 +6,7 @@ package access
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -58,10 +59,23 @@ type memberships struct {
 	asked [][]shared.ID
 	// holdsNothing makes HoldsAny answer no.
 	holdsNothing bool
+	// opened is the hubs the account holds a running emergency access to.
+	opened []shared.ID
 }
 
 func (m *memberships) HoldsAny(context.Context, shared.ID) (bool, error) {
 	return !m.holdsNothing, m.err
+}
+
+// HubsOpenedFor answers the hubs named in opened: the running emergency accesses of the test.
+func (m *memberships) HubsOpenedFor(_ context.Context, _ shared.ID, ids []shared.ID, _ time.Time) ([]shared.ID, error) {
+	var out []shared.ID
+	for _, id := range ids {
+		if slices.Contains(m.opened, id) {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }
 
 func (m *memberships) HubsOf(_ context.Context, ids []shared.ID) (map[shared.ID]identityrepository.Hub, error) {

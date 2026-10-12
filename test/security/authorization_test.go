@@ -275,6 +275,11 @@ func (m *memberships) Administrators(context.Context, []identity.Scope) ([]share
 	return nil, nil
 }
 
+// HubsOpenedFor: no emergency access is running here.
+func (m *memberships) HubsOpenedFor(context.Context, shared.ID, []shared.ID, time.Time) ([]shared.ID, error) {
+	return nil, nil
+}
+
 func (m *memberships) HubsOf(context.Context, []shared.ID) (map[shared.ID]identityrepository.Hub, error) {
 	return nil, nil
 }

@@ -68,7 +68,7 @@ func (s Service) Hidden(
 	if len(path) == 0 {
 		return false, nil
 	}
-	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path)
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID, path, false)
 	if err != nil {
 		return false, err
 	}
