@@ -134,6 +134,9 @@ test('chromium: a company chooses between the offered model and its own', async 
   assert.ok(await own.isChecked(), 'the own model in use is not shown as chosen');
   await page.getByLabel(/^Provider/).waitFor();
   assert.match(await page.locator('main').textContent() ?? '', /must process content in the EEA: set for every workspace on this installation/);
+  // A declaration the minimum refuses is not offered (P-05).
+  const offeredWhere = await page.getByLabel(/^Where the provider processes/).locator('option').allTextContents();
+  assert.ok(!offeredWhere.some((each) => /adequacy|third country/i.test(each)), offeredWhere.join(' | '));
   await page.getByLabel('This workspace may use').waitFor();
 
   await page.getByRole('switch', { name: 'Use Large (EU)' }).check();

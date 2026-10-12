@@ -97,7 +97,7 @@
     { value: 'OLLAMA', label: t('app.ai.kind_ollama') },
     { value: 'NOOP', label: t('app.ai.kind_noop') },
   ];
-  const jurisdictions: { value: AiJurisdiction; label: string }[] = [
+  const allJurisdictions: { value: AiJurisdiction; label: string }[] = [
     { value: 'SELF_HOSTED', label: t('app.ai.jurisdiction_self_hosted') },
     { value: 'EEA', label: t('app.ai.jurisdiction_eea') },
     { value: 'ADEQUACY', label: t('app.ai.jurisdiction_adequacy') },
@@ -165,6 +165,20 @@
       ? t('app.ai.consent_label_named', { host, where: jurisdiction })
       : t('app.ai.consent_label');
   });
+
+  /**
+   * The declarations the installation's minimum admits (UC-AI-06 check 4). A looser one is not
+   * offered, because the server refuses it (P-05); the sentence beside the field says why the list
+   * is shorter. A stored declaration below the minimum stays in the list, so the form can show it.
+   */
+  const RANK: Record<AiJurisdiction, number> = { THIRD_COUNTRY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
+  const MINIMUM_RANK: Record<string, number> = { ANY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
+  const jurisdictions = $derived(
+    allJurisdictions.filter(
+      (each) =>
+        RANK[each.value] >= (MINIMUM_RANK[source?.min_jurisdiction ?? 'ANY'] ?? 0) || each.value === provider?.jurisdiction,
+    ),
+  );
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
