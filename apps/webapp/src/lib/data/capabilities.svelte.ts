@@ -106,6 +106,14 @@ class Manifest {
     return this.value?.tenancy_mode === 'multi';
   }
 
+  /**
+   * Whether this installation runs exactly one workspace by design (`single`). `false` until the
+   * manifest says so, so nothing is moved on a guess.
+   */
+  get isSingleTenant(): boolean {
+    return this.value?.tenancy_mode === 'single';
+  }
+
   get isInstanceReachable(): boolean {
     return this.value?.instance?.reachable === true;
   }

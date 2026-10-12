@@ -663,6 +663,13 @@ class Operator(TypedDict, total=False):
     account_id: Required[str]
     added_at: Required[str]
     added_by: str | None
+    display_name: str
+    email: str | None
+    sign_in_name: str | None
+    kind: Literal["USER", "SERVICE_ACCOUNT"]
+    workspace_slug: str
+    workspace_name: str
+    added_by_name: str | None
 
 class OperatorAdd(TypedDict, total=False):
     """One account, named either way."""

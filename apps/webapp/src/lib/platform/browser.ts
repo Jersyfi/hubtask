@@ -51,6 +51,8 @@ export const platform: Platform = {
 
   holdSession: (pair) => store.write(pair),
 
+  renewSession: (pair) => store.rotate(pair),
+
   releaseBearer: () => store.clear(),
 
   // A navigation rather than a new window: the target answers `Content-Disposition: attachment`,

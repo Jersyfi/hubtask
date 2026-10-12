@@ -4585,7 +4585,7 @@
         ],
         "operationId": "elevateSession",
         "summary": "Raise this session to the control plane for an hour",
-        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
+        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -5542,7 +5542,7 @@
         ],
         "operationId": "listOperators",
         "summary": "Who operates this installation",
-        "description": "The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\n",
+        "description": "The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\nEach row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.\n",
         "responses": {
           "200": {
             "description": "The register",
@@ -5568,7 +5568,7 @@
         ],
         "operationId": "addOperator",
         "summary": "Put an account in the register",
-        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are.\n",
+        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).\n**Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -5601,7 +5601,7 @@
         ],
         "operationId": "removeOperator",
         "summary": "Take an account out of the register",
-        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.\n",
+        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).\n",
         "responses": {
           "204": {
             "description": "Out of the register"
@@ -14455,6 +14455,48 @@
             ],
             "format": "uuid",
             "description": "Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.\n"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The account's name, as its workspace shows it."
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "description": "The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.\n"
+          },
+          "sign_in_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name an account without an address signs in with."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "SERVICE_ACCOUNT"
+            ],
+            "description": "A person, or a machine's account."
+          },
+          "workspace_slug": {
+            "type": "string",
+            "description": "The short name of the workspace the account is in."
+          },
+          "workspace_name": {
+            "type": "string",
+            "description": "The name of the workspace the account is in."
+          },
+          "added_by_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name of who put them there, where that account still exists."
           }
         }
       },

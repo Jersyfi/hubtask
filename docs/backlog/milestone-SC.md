@@ -58,6 +58,14 @@ What deliberately is **not** in this milestone:
     safe only in the first release after the one that contains SC-26, and no release has been cut
     since SC-26 merged; SC-30 carries no unmet check. Its task text stays on issue #1134 without a
     milestone, for the cut after that release.
+12. **"Public" names a provider's personal accounts** (the owner, 2026-10-12, #1284): Google may be
+    *Only people invited here* or *Anyone from these organisations* (Workspace domains from a
+    verified `hd`), never *Anyone this provider knows*; a personal account is admitted only by
+    invitation — UC-ID-09 check 1, UC-ID-11 check 2, ADR-0071 §2. Built by SC-02.
+13. **The Google and Microsoft marks are reproduced from their published files** (the owner,
+    2026-10-12, #1292): each file downloaded once from its owner's branding guidelines, its paths
+    copied unchanged, the file itself not committed; THIRD-PARTY-LICENSES names the file and the
+    guideline — ADR-0069 §2, UC-ID-09 check 4. Built by SC-14.
 
 ---
 
@@ -140,7 +148,7 @@ three doors; the integration environment's recovery documented with the new comm
 
 ---
 
-## SC-05 — Operators and machines
+## SC-05 — Operators and machines · built
 
 *Depends on: SC-04.*
 

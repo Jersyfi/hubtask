@@ -307,6 +307,27 @@ test('an expired access token is exchanged once and the request is retried', asy
   assert.equal(transport.calls.length, 2, 'the refused call and its retry');
 });
 
+test('the retry after an exchange presents the new access token, not the one refused', async () => {
+  // The exchange replaced the bearer; a retry that carried the refused one would be refused again,
+  // and a second refusal ends the session - a reader signed out by the refresh meant to keep them in.
+  const refused = new TransportError('problem', { status: 401, code: 'unauthenticated' });
+  const transport = new FakeTransport().failOnce('/accounts/me', refused).answer('/accounts/me', { id: 'a' });
+  let bearer = 'access-1';
+  const engine = new SyncEngine({
+    transport,
+    token: () => bearer,
+    onRefresh: async () => {
+      bearer = 'access-2';
+      return true;
+    },
+  });
+
+  const state = await engine.refresh<{ id: string }>(ME);
+
+  assert.equal(state.status, 'ready');
+  assert.deepEqual(transport.calls.map((call) => call.options.token), ['access-1', 'access-2']);
+});
+
 test('ten concurrent refusals share one exchange', async () => {
   // Presenting a retired refresh token is theft as far as the server is concerned and costs the
   // whole family (security.md §5). Ten requests meeting one expired token must not present it ten

@@ -99,10 +99,20 @@ UPDATE session SET last_seen_at = $2 WHERE id = $1;
 -- name: ElevateSession :execrows
 -- Raises one live session of the account to the control plane's scope for a bounded while
 -- (ADR-0070 §4). Bounded to the owner in the same statement that writes, RevokeSession's discipline:
--- a session that is not the caller's matches nothing rather than being refused after a read.
+-- a session that is not the caller's matches nothing rather than being refused after a read. A
+-- running hour matches nothing either: it is not replaced or extended (UC-INS-04 check 4), and two
+-- raises at once leave one hour.
 UPDATE session SET elevated_until = sqlc.arg('elevated_until')
 WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
-  AND revoked_at IS NULL AND expires_at > sqlc.arg('now');
+  AND revoked_at IS NULL AND expires_at > sqlc.arg('now')
+  AND (elevated_until IS NULL OR elevated_until <= sqlc.arg('now'));
+
+-- name: SessionElevatedUntil :one
+-- When the caller's live session stops carrying the control plane's scope; NULL where it never
+-- did. Read before a raise, so a client that lost its copy of a running hour learns the end
+-- instead of spending a proof on a refusal.
+SELECT elevated_until FROM session
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id') AND revoked_at IS NULL;
 
 -- name: ExtendSession :exec
 -- Rotation slides the horizon: the session lives as long as its newest refresh token could.

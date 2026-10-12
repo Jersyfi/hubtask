@@ -65,7 +65,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written only by the tenant lifecycle use cases; no API reads it |
 | `item_capability_profile` | Has RLS but **no `FORCE`**: the system rows are the owner's to seed, and `FORCE` would bind the owner too ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)) | The policy binds every non-owner role in full, `hubtask_app` included |
 | `restore_drill_marker` | The restore drill's marker rows; no tenant column | No grant to the application role |
-| `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through four `SECURITY DEFINER` functions |
+| `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through narrow `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
@@ -77,7 +77,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
 | `instance_census()` | Five counts, no rows | The instance overview |
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
-| `is_operator`, `operator_register`, `add_operator`, `drop_operator` | The operator register | The control plane (§4.1) |
+| `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
 
 **Nothing enumerates tenants.** No job, scheduler or worker lists the tenants. Every per-tenant duty
@@ -214,7 +214,8 @@ Automation uses a personal access token minted for the purpose.
 
 **Who an operator is.** A register (`operator`), checked when `admin:tenants` is minted and when it
 is exercised. An empty register counts only for an active `OWNER` on an installation with exactly
-one workspace ([identity.md](./identity.md) §19). A service account may be an operator. Three ways
+one workspace ([identity.md](./identity.md) §19), so adding the first entry adds the person adding it
+as well; only an active account is added. A service account may be an operator. Three ways
 put somebody in besides the control plane itself: the first start's setup (its owner), the
 environment (`HUBTASK_OPERATORS`), and the machine (`hubtask operator add`) when nobody is left
 ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md),

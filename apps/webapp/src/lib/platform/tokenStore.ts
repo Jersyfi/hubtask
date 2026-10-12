@@ -60,7 +60,14 @@ export interface TokenStore {
   read(): string | undefined;
   /** The credential the exchange presents, or `undefined` when there is none to present. */
   readRefresh(): string | undefined;
+  /** A new session's pair: what a sign-in answered. Drops the previous session's elevation. */
   write(pair: SessionPair): void;
+  /**
+   * The same session's next pair: what a refresh answered. Keeps the elevation, which belongs to
+   * the session rather than to a pair - a refresh that dropped it would have the next reload ask
+   * for a proof while the hour still stands at the server (UC-INS-04 check 3).
+   */
+  rotate(pair: SessionPair): void;
   /**
    * When this session's elevation to the control plane ends, or `undefined` where it carries none
    * (ADR-0070 §4).
@@ -157,6 +164,13 @@ export function tokenStore(storage: TokenStorage | undefined): TokenStore {
     rememberElevatedUntil(until: string): void {
       elevatedUntil = until;
       put(ELEVATED_UNTIL_KEY, until);
+    },
+
+    rotate(pair: SessionPair): void {
+      access = pair.access;
+      refresh = pair.refresh;
+      put(TOKEN_KEY, pair.access);
+      put(REFRESH_KEY, pair.refresh);
     },
 
     write(pair: SessionPair): void {

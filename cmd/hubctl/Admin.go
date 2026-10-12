@@ -66,6 +66,12 @@ func adminGroup() group {
 				run:     adminProvider,
 			},
 			{
+				name:    "elevate",
+				usage:   "",
+				summary: "raise this signed-in session to the installation for an hour, after proving it is you",
+				run:     adminElevate,
+			},
+			{
 				name:    "ai",
 				usage:   "ls|add|set|rm …",
 				summary: "the AI models this installation offers every workspace",

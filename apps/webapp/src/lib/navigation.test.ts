@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, installationPlace, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -193,4 +193,28 @@ test('the private hubs row is drawn only where a private hub exists (UC-ID-16 ch
   assert.ok(rowsOf(administration({ hasPrivateHubs: true })).includes('private-hubs'));
   assert.ok(!rowsOf(administration({ hasPrivateHubs: false })).includes('private-hubs'));
   assert.equal(rowsOf(administration({ hasPrivateHubs: false })).length, rowsOf(ADMINISTRATION).length - 1, 'nothing else goes');
+});
+
+test('on a single-workspace installation the installation is the administration\'s last group', () => {
+  // UC-INS-04's story: on a private installation the one workspace is the installation, so its
+  // owner finds the level above it at the end of Administration rather than in the menu - and an
+  // operator who cannot reach the administration keeps the menu row, so it never disappears.
+  const place = (single: boolean, admin: boolean, operator: boolean) =>
+    installationPlace({ isSingleWorkspace: single, isAdministrationReachable: admin, isInstanceReachable: operator });
+  assert.equal(place(true, true, true), 'administration');
+  assert.equal(place(true, false, true), 'menu');
+  assert.equal(place(false, true, true), 'menu');
+  assert.equal(place(true, true, false), 'none');
+  assert.equal(place(false, false, false), 'none');
+
+  const menu = (single: boolean) =>
+    account({ isAdministrationReachable: true, isInstanceReachable: true, isSingleWorkspace: single })
+      .map((destination) => destination.id);
+  assert.ok(!menu(true).includes('instance'), 'the menu row stayed beside the administration\'s group');
+  assert.ok(menu(false).includes('instance'));
+
+  const groups = administration({ hasPrivateHubs: true, withInstallation: true });
+  assert.equal(groups.at(-1)?.id, 'installation', 'the installation is not the last group');
+  assert.deepEqual(groups.at(-1)?.rows.map((row) => row.path), ['/instance']);
+  assert.ok(!administration({ hasPrivateHubs: true }).some((group) => group.id === 'installation'));
 });
