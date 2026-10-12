@@ -65,6 +65,12 @@ func adminGroup() group {
 				run:     adminProvider,
 			},
 			{
+				name:    "elevate",
+				usage:   "",
+				summary: "raise this signed-in session to the installation for an hour, after proving it is you",
+				run:     adminElevate,
+			},
+			{
 				name:    "encryption",
 				usage:   "show|reseal",
 				summary: "the master keyring's census, and the re-seal that lets a key retire",

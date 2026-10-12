@@ -136,8 +136,13 @@ func tokenCreate(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
+	// An administrative scope demands a fresh proof (UC-ID-17 check 3); the shared retry asks for
+	// it where the server says so, and a scope that needs none costs no extra round trip.
 	var minted openapi.AccessTokenSecret
-	if err := client.Post(ctx, tokensPath, body, &minted); err != nil {
+	err = cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, tokensPath, body, stepUpProof(stepUp), &minted)
+	})
+	if err != nil {
 		return err
 	}
 
