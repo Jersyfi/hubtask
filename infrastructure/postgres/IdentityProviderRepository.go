@@ -393,13 +393,16 @@ func (r OidcFlowRepository) Insert(
 		SessionID:        session,
 		InvitedAccountID: invited,
 		PendingID:        pending,
-		ID:               id,
-		ProviderID:       provider,
-		StateHash:        r.stateHasher.Hash(presented.Secret()),
-		CodeVerifier:     flow.Verifier,
-		Nonce:            flow.Nonce,
-		CreatedAt:        pgtype.Timestamptz{Time: flow.CreatedAt, Valid: true},
-		ExpiresAt:        pgtype.Timestamptz{Time: flow.ExpiresAt, Valid: true},
+		// The agreement given on the invitation card (migration 0140).
+		TermsUrl:     nullableString(flow.Terms.URL),
+		TermsVersion: nullableString(flow.Terms.Version),
+		ID:           id,
+		ProviderID:   provider,
+		StateHash:    r.stateHasher.Hash(presented.Secret()),
+		CodeVerifier: flow.Verifier,
+		Nonce:        flow.Nonce,
+		CreatedAt:    pgtype.Timestamptz{Time: flow.CreatedAt, Valid: true},
+		ExpiresAt:    pgtype.Timestamptz{Time: flow.ExpiresAt, Valid: true},
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -457,6 +460,7 @@ func (r OidcFlowRepository) Consume(
 		// When the flow left for the provider: a connection by mail counts only a sign-in made
 		// after it (ADR-0078 §1).
 		PendingID: pendingID, CreatedAt: timeFrom(row.CreatedAt),
+		Terms: identity.TermsAgreement{URL: stringFrom(row.TermsUrl), Version: stringFrom(row.TermsVersion)},
 	}, true, nil
 }
 

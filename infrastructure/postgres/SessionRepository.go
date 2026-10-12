@@ -587,6 +587,7 @@ var (
 	_ repository.SignInAccounts  = SignInRepository{}
 	_ repository.AuthAttempts    = SignInRepository{}
 	_ repository.TenantDirectory = SignInRepository{}
+	_ repository.TermsAgreements = SignInRepository{}
 )
 
 func (r SignInRepository) FindForSignIn(
@@ -718,6 +719,59 @@ func (r SignInRepository) Redeem(
 		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("redeeming the invitation: %w", err))
+	}
+	return changed > 0, nil
+}
+
+// TermsAgreementOf answers the account's latest agreement to the terms of use (UC-ID-19).
+func (r SignInRepository) TermsAgreementOf(
+	ctx context.Context, accountID shared.ID,
+) (identity.TermsAgreement, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.TermsAgreement{}, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return identity.TermsAgreement{}, err
+	}
+	row, err := queries.FindTermsAgreement(ctx, id)
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.TermsAgreement{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+		}
+		return identity.TermsAgreement{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the terms agreement: %w", err))
+	}
+	return identity.TermsAgreement{
+		URL: stringFrom(row.TermsUrl), Version: stringFrom(row.TermsVersion),
+		AgreedAt: timeFrom(row.TermsAgreedAt),
+	}, nil
+}
+
+// RecordTermsAgreement replaces the account's agreement to the terms of use.
+func (r SignInRepository) RecordTermsAgreement(
+	ctx context.Context, accountID shared.ID, agreement identity.TermsAgreement,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RecordTermsAgreement(ctx, sqlc.RecordTermsAgreementParams{
+		TermsUrl:     &agreement.URL,
+		TermsVersion: nullableString(agreement.Version),
+		At:           pgtype.Timestamptz{Time: agreement.AgreedAt, Valid: true},
+		ID:           id,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording the terms agreement: %w", err))
 	}
 	return changed > 0, nil
 }

@@ -355,6 +355,9 @@ type Account struct {
 	PasswordSetAt         pgtype.Timestamptz
 	SignInName            *string
 	StartPasswordAt       pgtype.Timestamptz
+	TermsUrl              *string
+	TermsVersion          *string
+	TermsAgreedAt         pgtype.Timestamptz
 }
 
 type AccountGroup struct {
@@ -587,6 +590,8 @@ type AuthPending struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SessionMethod      *string
+	SessionVia         pgtype.UUID
 }
 
 type AutoAssignPolicy struct {
@@ -1161,6 +1166,8 @@ type OidcFlow struct {
 	SessionID        pgtype.UUID
 	InvitedAccountID pgtype.UUID
 	PendingID        pgtype.UUID
+	TermsUrl         *string
+	TermsVersion     *string
 }
 
 type Operator struct {

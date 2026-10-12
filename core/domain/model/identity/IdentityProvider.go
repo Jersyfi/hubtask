@@ -733,6 +733,10 @@ type OidcFlow struct {
 	// password off (ADR-0078 §1): the mailbox half of the account's proof. Zero is every other
 	// sign-in. Checked when the flow opened, and spent only by an arrival that connects.
 	PendingID shared.ID
+	// Terms is the agreement to the terms of use the person gave on the invitation card before
+	// choosing the provider (UC-ID-19 check 1): its link and version, no time - the arrival that
+	// activates the invited account stores it with its own. Empty beside every other flow.
+	Terms TermsAgreement
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -752,6 +756,8 @@ type NewOidcFlowInput struct {
 	// a session or an invitation - an invited account holds no link to connect, and a step-up
 	// belongs to somebody already signed in.
 	PendingID shared.ID
+	// Terms is the agreement given on the invitation card; only beside an invitation.
+	Terms TermsAgreement
 }
 
 // NewOidcFlow opens one.
@@ -763,13 +769,15 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 	if in.ID.IsZero() || in.TenantID.IsZero() || in.ProviderID.IsZero() || in.Now.IsZero() ||
 		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 ||
 		(!in.SessionID.IsZero() && !in.InvitedAccountID.IsZero()) ||
-		(!in.PendingID.IsZero() && (!in.SessionID.IsZero() || !in.InvitedAccountID.IsZero())) {
+		(!in.PendingID.IsZero() && (!in.SessionID.IsZero() || !in.InvitedAccountID.IsZero())) ||
+		(in.Terms.URL != "" && in.InvitedAccountID.IsZero()) {
 		return OidcFlow{}, shared.ErrInternal.WithDetail("identity_provider.flow_incomplete")
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
 		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
 		InvitedAccountID: in.InvitedAccountID, PendingID: in.PendingID,
+		Terms:     TermsAgreement{URL: in.Terms.URL, Version: in.Terms.Version},
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil
 }

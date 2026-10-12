@@ -177,6 +177,11 @@ const (
 	// one wins - and it does one thing only: stand in for the password at the provider's first
 	// arrival. It is never a session and never replaces the second factor.
 	PendingConnect PendingPurpose = "CONNECT"
+	// PendingTerms is the step a sign-in ends in while the account has not agreed to the terms of
+	// use in force (UC-ID-19): after every proof, so it never stands in for one. It completes by
+	// agreeing, and then opens the session the sign-in would have opened - which is why it carries
+	// SessionMethod and SessionVia.
+	PendingTerms PendingPurpose = "TERMS"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.
@@ -205,6 +210,10 @@ type PendingCredential struct {
 	// the password the sign-in began with no longer meets the rule, or is a start password. The
 	// factor comes first; the change follows it rather than being forgotten (identity.md §4.2).
 	PasswordChangeOwed bool
+	// SessionMethod and SessionVia are the session a TERMS credential opens once agreed: how the
+	// sign-in proved the account, and the provider that did (zero for none).
+	SessionMethod string
+	SessionVia    shared.ID
 }
 
 // LinkIntent is a provider identity waiting for the account's own proof: which provider, and the

@@ -405,13 +405,13 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed)
+   link_provider_id, link_subject, link_proof, password_change_owed, session_method, session_via)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
   sqlc.arg('created_at'), sqlc.arg('expires_at'),
   sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof'),
-  sqlc.arg('password_change_owed')
+  sqlc.arg('password_change_owed'), sqlc.narg('session_method'), sqlc.narg('session_via')
 );
 
 -- name: FindPendingByHash :one
@@ -419,7 +419,7 @@ VALUES (
 -- FindSessionForAuth's shape.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -439,7 +439,7 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 -- transaction is bound to.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -451,6 +451,21 @@ FROM auth_pending p
 JOIN account a ON a.id = p.account_id
 JOIN tenant  n ON n.id = p.tenant_id
 WHERE p.id = sqlc.arg('id') AND a.deleted_at IS NULL;
+
+-- name: FindTermsAgreement :one
+-- The account's latest agreement to the terms of use (UC-ID-19). Row level security keeps it to the
+-- workspace the transaction is bound to.
+SELECT terms_url, terms_version, terms_agreed_at FROM account
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND deleted_at IS NULL;
+
+-- name: RecordTermsAgreement :execrows
+-- The latest agreement replaces the one before; the trail keeps each of them.
+UPDATE account SET
+  terms_url       = sqlc.arg('terms_url'),
+  terms_version   = sqlc.narg('terms_version'),
+  terms_agreed_at = sqlc.arg('at'),
+  updated_at      = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND deleted_at IS NULL;
 
 -- name: ConsumePendingCredential :execrows
 -- Single use, atomically: only the first completion writes, and a lost race answers exactly as

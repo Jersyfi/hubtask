@@ -521,7 +521,7 @@ func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -548,6 +548,8 @@ type FindPendingByHashRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SessionMethod      *string
+	SessionVia         pgtype.UUID
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -577,6 +579,8 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SessionMethod,
+		&i.SessionVia,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -593,7 +597,7 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 const findPendingByID = `-- name: FindPendingByID :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -620,6 +624,8 @@ type FindPendingByIDRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SessionMethod      *string
+	SessionVia         pgtype.UUID
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -651,6 +657,8 @@ func (q *Queries) FindPendingByID(ctx context.Context, id pgtype.UUID) (FindPend
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SessionMethod,
+		&i.SessionVia,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -855,17 +863,37 @@ func (q *Queries) FindStepUpMethod(ctx context.Context, arg FindStepUpMethodPara
 	return step_up_method, err
 }
 
+const findTermsAgreement = `-- name: FindTermsAgreement :one
+SELECT terms_url, terms_version, terms_agreed_at FROM account
+WHERE id = $1 AND tenant_id = current_tenant_id() AND deleted_at IS NULL
+`
+
+type FindTermsAgreementRow struct {
+	TermsUrl      *string
+	TermsVersion  *string
+	TermsAgreedAt pgtype.Timestamptz
+}
+
+// The account's latest agreement to the terms of use (UC-ID-19). Row level security keeps it to the
+// workspace the transaction is bound to.
+func (q *Queries) FindTermsAgreement(ctx context.Context, id pgtype.UUID) (FindTermsAgreementRow, error) {
+	row := q.db.QueryRow(ctx, findTermsAgreement, id)
+	var i FindTermsAgreementRow
+	err := row.Scan(&i.TermsUrl, &i.TermsVersion, &i.TermsAgreedAt)
+	return i, err
+}
+
 const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed)
+   link_provider_id, link_subject, link_proof, password_change_owed, session_method, session_via)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
   $9, $10, $11,
-  $12
+  $12, $13, $14
 )
 `
 
@@ -882,6 +910,8 @@ type InsertPendingCredentialParams struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SessionMethod      *string
+	SessionVia         pgtype.UUID
 }
 
 // ====================== The pending credential ======================
@@ -899,6 +929,8 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.LinkSubject,
 		arg.LinkProof,
 		arg.PasswordChangeOwed,
+		arg.SessionMethod,
+		arg.SessionVia,
 	)
 	return err
 }
@@ -1065,6 +1097,36 @@ func (q *Queries) RecordStepUp(ctx context.Context, arg RecordStepUpParams) (int
 		arg.Method,
 		arg.ID,
 		arg.AccountID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const recordTermsAgreement = `-- name: RecordTermsAgreement :execrows
+UPDATE account SET
+  terms_url       = $1,
+  terms_version   = $2,
+  terms_agreed_at = $3,
+  updated_at      = $3
+WHERE id = $4 AND tenant_id = current_tenant_id() AND deleted_at IS NULL
+`
+
+type RecordTermsAgreementParams struct {
+	TermsUrl     *string
+	TermsVersion *string
+	At           pgtype.Timestamptz
+	ID           pgtype.UUID
+}
+
+// The latest agreement replaces the one before; the trail keeps each of them.
+func (q *Queries) RecordTermsAgreement(ctx context.Context, arg RecordTermsAgreementParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordTermsAgreement,
+		arg.TermsUrl,
+		arg.TermsVersion,
+		arg.At,
+		arg.ID,
 	)
 	if err != nil {
 		return 0, err

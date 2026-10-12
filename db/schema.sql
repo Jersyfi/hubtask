@@ -194,6 +194,11 @@ CREATE TABLE account (
                     CHECK (char_length(sign_in_name) BETWEEN 3 AND 32 AND position('@' IN sign_in_name) = 0),
   -- When Hubtask drew the password the account holds; NULL once the person chose their own.
   start_password_at timestamptz,
+  -- The latest agreement to the terms of use: the link and the version in force then, and when
+  -- (UC-ID-19, migration 0140). Current while both equal the terms in force.
+  terms_url         text CONSTRAINT account_terms_url_check CHECK (char_length(terms_url) <= 2000),
+  terms_version     text CONSTRAINT account_terms_version_check CHECK (char_length(terms_version) <= 64),
+  terms_agreed_at   timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -415,7 +420,8 @@ CREATE TABLE auth_pending (
   -- enforcement route, RESET is the token a reset mail carries, PASSWORD is the credential
   -- the PASSWORD_CHANGE step hands out (migration 0098), LINK is a provider arrival waiting
   -- for the account's own proof (migration 0110), and CONNECT is the link a workspace without
-  -- the password mails to connect its provider (migration 0117).
+  -- the password mails to connect its provider (migration 0117), and TERMS is the step a sign-in
+  -- ends in while the account has not agreed to the terms of use in force (migration 0140).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -432,10 +438,14 @@ CREATE TABLE auth_pending (
   -- A password change still owed once this step completes: a password the rule refused, or a
   -- start password, met after a factor step (migration 0127).
   password_change_owed boolean NOT NULL DEFAULT false,
+  -- The session a TERMS step opens once agreed: how the sign-in proved the account, and the
+  -- provider that did (migration 0140).
+  session_method text CONSTRAINT auth_pending_session_method_check CHECK (char_length(session_method) <= 32),
+  session_via    uuid,
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'TERMS')),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
 );
@@ -661,6 +671,10 @@ CREATE TABLE oidc_flow (
   -- The CONNECT link a sign-in started from, in a workspace without the password (ADR-0078 §1,
   -- migration 0117). NULL is every other sign-in.
   pending_id    uuid,
+  -- The terms of use agreed to on the invitation card before the provider was chosen (UC-ID-19,
+  -- migration 0140); the arrival that activates the invited account stores them.
+  terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),
+  terms_version text CONSTRAINT oidc_flow_terms_version_check CHECK (char_length(terms_version) <= 64),
   CONSTRAINT oidc_flow_session_fkey FOREIGN KEY (tenant_id, session_id)
     REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT oidc_flow_invited_account_fkey FOREIGN KEY (tenant_id, invited_account_id)
