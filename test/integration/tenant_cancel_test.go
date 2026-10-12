@@ -282,3 +282,71 @@ func TestTheRulesTheRequestSwitchedOffAreTheOnesFound(t *testing.T) {
 		t.Errorf("the resumed rule reads enabled %v, marked %v, next %v", enabled, marked, nextRun)
 	}
 }
+
+// The two writers at once, on two connections: whichever holds the row first wins, and the other
+// waits for its commit and then finds its own condition gone.
+func TestTheMarkAndACancelWaitForEachOther(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	tenants := postgres.NewAdminTenantRepository()
+	purge := postgres.NewTenantPurge()
+	mark := func(ctx context.Context) (bool, error) { return purge.MarkStarted(ctx, time.Now().UTC()) }
+	cancel := func(ctx context.Context) (bool, error) {
+		_, cancelled, err := tenants.CancelDeletion(ctx, time.Now().UTC())
+		return cancelled, err
+	}
+
+	cases := []struct {
+		name          string
+		first, second func(context.Context) (bool, error)
+	}{
+		{"the mark holds the row", mark, cancel},
+		{"the cancel holds the row", cancel, mark},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			tenant, _ := cancellableWorkspace(ctx, t, identity.TenantActive)
+			requestDeletion(ctx, t, uow, tenant, time.Now().Add(-time.Minute).UTC())
+
+			answered := make(chan bool, 1)
+			failed := make(chan error, 1)
+			var waited bool
+			within(ctx, t, uow, tenant, func(ctx context.Context) error {
+				if first, err := c.first(ctx); err != nil || !first {
+					t.Fatalf("the first writer answered (%v, %v)", first, err)
+				}
+				//nolint:contextcheck // a second transaction: the context handed in carries this one
+				go func() {
+					err := write(context.Background(), t, tenant, func(ctx context.Context) error {
+						second, err := c.second(ctx)
+						answered <- second
+						return err
+					})
+					if err != nil {
+						failed <- err
+					}
+				}()
+				select {
+				case <-answered:
+					t.Error("the second writer did not wait for the row")
+				case <-time.After(500 * time.Millisecond):
+					waited = true
+				}
+				return nil
+			})
+			if !waited {
+				return
+			}
+			select {
+			case second := <-answered:
+				if second {
+					t.Error("the second writer also took the row")
+				}
+			case err := <-failed:
+				t.Fatalf("the second transaction: %v", err)
+			case <-time.After(10 * time.Second):
+				t.Fatal("the second writer never ran")
+			}
+		})
+	}
+}

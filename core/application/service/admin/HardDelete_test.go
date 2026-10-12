@@ -32,10 +32,14 @@ type purgeFake struct {
 	sequence     []string
 	// markRefused is a cancel that came first: the mark's statement finds the row not pending.
 	markRefused bool
+	onMark      func()
 }
 
 func (p *purgeFake) MarkStarted(context.Context, time.Time) (bool, error) {
 	p.sequence = append(p.sequence, "mark")
+	if p.onMark != nil {
+		p.onMark()
+	}
 	return !p.markRefused, nil
 }
 
@@ -177,8 +181,49 @@ func TestTheHardDeleteFellsEveryStoreAndLeavesTheEvidence(t *testing.T) {
 	// The trail falls after the evidence is written and before the row: an order in which no
 	// committed state has a deletion without evidence.
 	sequence := f.purge.sequence
-	if sequence[len(sequence)-1] != "tenant_row" || sequence[0] != "structure" {
+	if sequence[len(sequence)-1] != "tenant_row" || sequence[0] != "mark" || sequence[1] != "structure" {
 		t.Errorf("sequence %v", sequence)
+	}
+}
+
+// The mark goes into the row before the first byte, so that no cancel can return a workspace whose
+// media the purge already took; a cancel that came first leaves the mark nothing to write, and the
+// pass removes nothing.
+func TestThePurgeIsMarkedBeforeTheFirstByte(t *testing.T) {
+	f := newHardDeleteFixture(domain.TenantPendingDeletion, now.Add(-time.Hour))
+	bytesAtMark := -1
+	f.purge.onMark = func() { bytesAtMark = len(f.store.deleted) }
+
+	if _, err := f.handler.Execute(t.Context(), lifecycleTenant, purgeJobID); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	if bytesAtMark != 0 {
+		t.Errorf("%d objects were gone when the purge was marked, want 0", bytesAtMark)
+	}
+
+	cancelled := newHardDeleteFixture(domain.TenantPendingDeletion, now.Add(-time.Hour))
+	cancelled.purge.markRefused = true
+	outcome, err := cancelled.handler.Execute(t.Context(), lifecycleTenant, purgeJobID)
+	if err != nil || outcome.Deleted || outcome.RunAgainIn != 0 {
+		t.Errorf("the pass after a cancel answered (%+v, %v)", outcome, err)
+	}
+	if len(cancelled.store.deleted) != 0 || cancelled.purge.structure || len(cancelled.journal.entries) != 0 {
+		t.Error("something fell after a cancel won the row")
+	}
+}
+
+// A held workspace is not marked: it removes nothing, and its cancel must stay possible.
+func TestAHeldWorkspaceIsNotMarked(t *testing.T) {
+	f := newHardDeleteFixture(domain.TenantPendingDeletion, now.Add(-time.Hour))
+	f.handler.Holds = &holdsDouble{inForce: anItemHold()}
+
+	if _, err := f.handler.Execute(t.Context(), lifecycleTenant, purgeJobID); err != nil {
+		t.Fatalf("the held pass: %v", err)
+	}
+	for _, step := range f.purge.sequence {
+		if step == "mark" {
+			t.Fatal("a held workspace was marked")
+		}
 	}
 }
 
