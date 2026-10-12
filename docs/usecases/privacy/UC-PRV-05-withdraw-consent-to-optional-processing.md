@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-person, PE-member, PE-admin]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-14]
-state: partial
+state: built
 tasks: [E-10, F4-20, PH-03]
-checked_by: [core/application/service/privacy/Consent_test.go, core/domain/model/privacy/Consent_test.go]
+checked_by: [core/application/service/privacy/Consent_test.go, core/domain/model/privacy/Consent_test.go, core/application/service/privacy/GiveConsent_test.go, core/application/service/privacy/Register_test.go, core/application/service/integration/AiObjection_test.go, core/application/service/integration/AiPersonOptOut_test.go, core/domain/model/integration/AiPersonOptOut_test.go, core/domain/model/integration/KeptOut_test.go, test/integration/ai_kept_out_test.go, test/integration/ai_kept_out_embedding_test.go, test/contract/ai_objection_test.go, apps/webapp/e2e/aiobjection.test.mjs, apps/webapp/e2e/personoptout.test.mjs]
 ---
 
 # Object to an optional use of my data
@@ -64,13 +64,3 @@ the objection case.
   only where the workspace offers that — decided 2026-09-30
   ([data-protection.md](../../architecture/data-protection.md) §4.1).
 * Hubtask does not judge whether the named legal basis holds; it records it and shows it.
-
-## Today
-
-* Check 4: not met — the only withdrawal form is on the administrator's *Data subject requests* screen; a person has no place of their own for it, tracked in #1088.
-* Check 5: not met — nothing reads a consent record, so a withdrawal is recorded and changes nothing, tracked in #1088.
-* Check 7: not met — there is no *Keep my content out of AI*, tracked in #1088.
-* Check 8: not met — there is no such switch to show or hide, tracked in #1088.
-* Check 9: not met — a workspace cannot make AI part of the work for everybody with a legal basis, tracked in #1088.
-* Check 11: not met — neither the installation nor a plan can lock the workspace's AI choice, tracked in #1088.
-* Check 12: not met — the consent register does not show who keeps their content out, tracked in #1088.

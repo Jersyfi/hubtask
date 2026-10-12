@@ -100,8 +100,8 @@ practice. Rules:
 [`UC-PRV-01`](../usecases/privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md),
 [`UC-PRV-03`](../usecases/privacy/UC-PRV-03-erase-a-person-on-request.md),
 [`UC-PRV-05`](../usecases/privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)); the
-extension and the legal hold's reach are built; what a restriction keeps the kept data out of
-(below) and the AI position not yet.
+extension, the legal hold's reach and the AI position are built; what a restriction keeps the kept
+data out of (below) not yet.
 
 * **A deadline is extended once (Art. 12(3)).** An open case before its original deadline may be
   extended once, to at most three months after receipt, naming the reason (`COMPLEXITY` or
@@ -155,7 +155,8 @@ extension and the legal hold's reach are built; what a restriction keeps the kep
     retention pass seeds every remainder nothing seeded - a release by an older binary, a restore
     that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
     rest, not at the move.
-  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227).
+  * **Not yet built:** keeping what a hold keeps out of automation and AI (#1227) - for AI, as a
+    second source of the exclusion the objection already uses ([ai-first.md](./ai-first.md) §2).
 * **AI: the workspace decides whether a person may keep their own content out.** Consent to AI
   processing stays the workspace's ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md));
   beside it the workspace takes one of two positions:
@@ -172,6 +173,26 @@ extension and the legal hold's reach are built; what a restriction keeps the kep
   everybody*, because only the controller can name a legal basis ([P-07](../vision/principles.md#p-07-the-stricter-level-wins-and-says-who-decided),
   [P-14](../vision/principles.md#p-14-ai-is-optional-and-nobody-consents-in-anothers-place)).
   Administrators see who objected in the consent register, and nowhere else.
+  * **The key and the position.** `ai.person_opt_out` is the third key of the instance level's
+    `ai` area: `OFFERED` with or without a lock, `NOT_OFFERED` refused there
+    (`ai.opt_out_workspace_only`). The workspace's position, its basis (`EMPLOYMENT_CONTRACT`,
+    `WORKS_AGREEMENT`, `LEGAL_OBLIGATION`), whom to ask and since when live in its archived
+    settings; a `NOT_OFFERED` stored before a lock was placed does not stand.
+  * **The objection is the consent record.** *Keep my content out of AI* records a withdrawal of
+    `ai_processing`; switching it off records the person agreeing again (`dsr.consent_given`), their
+    own act only. The newest record decides. Alone in a workspace, or with AI off, nothing is shown
+    and a withdrawal keeps nothing out.
+  * **What "authored" means.** The entries a person created (title and notes), their comments,
+    what they mailed into the inbox and the words they asked a template with. Structure the
+    workspace named - collections, labels, columns - is the workspace's. How the exclusion is
+    applied is [ai-first.md](./ai-first.md) §2.
+  * **Nothing names who objected.** A question whose material is entirely kept out is answered as
+    one with nothing to work with; a mixed one goes ahead with what remains and says nothing about
+    who was left out. The person themselves is offered no AI action.
+  * **Told once.** When the position becomes `NOT_OFFERED`, each person whose withdrawal stood sees
+    a notice on their next visit, until they acknowledge it on the server
+    (`ai_objection_notice`); a second switch tells them again. In the web app rather than by mail,
+    so that an account without an address is told as surely as one with.
 
 ---
 
