@@ -3424,7 +3424,9 @@ paths:
         outcome the strict rule produces in practice, and which is worse.
 
         It does not slide: activity extends a session's own horizon and never this, and a second hour
-        needs a second proof. The register is read again on every request, so an operator removed
+        needs a second proof. A running hour is neither replaced nor extended: raising a session that
+        is raised already is `auth.session_already_elevated` (409), before any proof is asked, with
+        the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed
         while a raised session is open loses the scope on their next call rather than at the end of
         the hour.
 
@@ -4336,6 +4338,10 @@ paths:
         The operator register. **An empty one is the private installation**: nothing was
         configured, one workspace, and its owner is the operator exactly as they were before the
         register existed.
+
+        Each row names its account - a name, the address or sign-in name, the kind and the
+        workspace - so that nobody has to read an identifier. Only accounts in the register are ever
+        named; a workspace's other accounts are not listed anywhere at this level.
       responses:
         "200":
           description: The register
@@ -4357,7 +4363,11 @@ paths:
         the day that becomes true.
 
         An account that is already an operator is not an error - the caller asked for somebody to be
-        one, and they are.
+        one, and they are. Only an active account can be added (`admin.operator_not_active`).
+
+        **Adding the first entry adds the caller too.** On an empty register the only workspace's
+        owner is the operator, and the first row ends that; so where the register was empty, the
+        caller is entered in the same statement, and both entries are in the journal.
       requestBody:
         required: true
         content:
@@ -4384,7 +4394,8 @@ paths:
 
         The account alone identifies the row - an identifier is unique across the installation, and a
         caller that had to name the workspace too would have to read the register to find out which
-        one it is.
+        one it is. An account that is not in the register is `admin.operator_not_registered` (404);
+        the last one is `admin.operator_last` (409).
       responses:
         "204":
           description: Out of the register
@@ -10421,6 +10432,31 @@ components:
           description: >
             Who put them there. Absent for a row the installation seeded at its first start, which
             had nobody to name.
+        display_name:
+          type: string
+          description: The account's name, as its workspace shows it.
+        email:
+          type: [string, "null"]
+          format: email
+          description: >
+            The address the account signs in with. Absent for a service account, which signs in
+            nowhere, and for an account that signs in with a name instead.
+        sign_in_name:
+          type: [string, "null"]
+          description: The name an account without an address signs in with.
+        kind:
+          type: string
+          enum: [USER, SERVICE_ACCOUNT]
+          description: A person, or a machine's account.
+        workspace_slug:
+          type: string
+          description: The short name of the workspace the account is in.
+        workspace_name:
+          type: string
+          description: The name of the workspace the account is in.
+        added_by_name:
+          type: [string, "null"]
+          description: The name of who put them there, where that account still exists.
 
     OperatorAdd:
       type: object

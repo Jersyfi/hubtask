@@ -2103,6 +2103,24 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -6570,9 +6588,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
@@ -10687,6 +10729,7 @@ type ClientInterface interface {
 	// ListOperators Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
 	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10694,7 +10737,8 @@ type ClientInterface interface {
 	// AddOperatorWithBody Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10704,7 +10748,8 @@ type ClientInterface interface {
 	// AddOperator Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10714,7 +10759,7 @@ type ClientInterface interface {
 	// RemoveOperator Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11397,7 +11442,7 @@ type ClientInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -14765,6 +14810,7 @@ func (c *Client) ListInstanceJournal(ctx context.Context, params *ListInstanceJo
 // ListOperators Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Corresponds with GET /admin/operators (the `ListOperators` operationId).
 func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14782,7 +14828,8 @@ func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorF
 // AddOperatorWithBody Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14802,7 +14849,8 @@ func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, bo
 // AddOperator Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -14822,7 +14870,7 @@ func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBod
 // RemoveOperator Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -16175,7 +16223,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -36308,6 +36356,7 @@ type ClientWithResponsesInterface interface {
 	// ListOperatorsWithResponse Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -36317,7 +36366,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithBodyWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36327,7 +36377,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36337,7 +36388,7 @@ type ClientWithResponsesInterface interface {
 	// RemoveOperatorWithResponse Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37054,7 +37105,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -54716,6 +54767,7 @@ func (c *ClientWithResponses) ListInstanceJournalWithResponse(ctx context.Contex
 // ListOperatorsWithResponse Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -54731,7 +54783,8 @@ func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, req
 // AddOperatorWithBodyWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54747,7 +54800,8 @@ func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Contex
 // AddOperatorWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54763,7 +54817,7 @@ func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body 
 // RemoveOperatorWithResponse Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -55882,7 +55936,7 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Returns a wrapper object for the known response body format(s).
