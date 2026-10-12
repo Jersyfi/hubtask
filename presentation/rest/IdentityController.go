@@ -463,6 +463,7 @@ func accountSummaryResponse(out usecase.Output) openapi.AccountSummary {
 		DisplayName: out.String("display_name"),
 		Status:      openapi.AccountSummaryStatus(out.String("status")),
 		HasAddress:  boolPointer(out["has_address"]),
+		Managed:     boolPointer(out["managed"]),
 	}
 }
 

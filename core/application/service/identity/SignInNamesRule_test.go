@@ -53,3 +53,22 @@ func TestASummarySaysWhetherMailReachesThePerson(t *testing.T) {
 		t.Error("the sign-in name travels to another member")
 	}
 }
+
+// `managed` is the full condition of the two actions only a managed account has: a sign-in name
+// and no address. An erased account has no address either, and an upgraded one keeps its name.
+func TestASummarySaysWhetherTheAccountIsManaged(t *testing.T) {
+	for name, c := range map[string]struct {
+		account domain.Account
+		want    bool
+	}{
+		"managed":    {domain.Account{SignInName: "lena", Status: domain.AccountActive}, true},
+		"upgraded":   {domain.Account{SignInName: "lena", Email: "lena@example.org", Status: domain.AccountActive}, false},
+		"an address": {domain.Account{Email: "anna@example.org", Status: domain.AccountActive}, false},
+		"erased":     {domain.Account{DisplayName: "Former user", Status: domain.AccountAnonymized}, false},
+		"a machine":  {domain.Account{Kind: domain.AccountServiceAccount, Status: domain.AccountActive}, false},
+	} {
+		if got := accountSummaryOutput(c.account)["managed"]; got != c.want {
+			t.Errorf("%s: managed = %v, want %v", name, got, c.want)
+		}
+	}
+}

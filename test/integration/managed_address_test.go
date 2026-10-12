@@ -311,6 +311,41 @@ func TestOneAddressIsConfirmedForOneAccountOnly(t *testing.T) {
 	}
 }
 
+// What a member's summary calls managed is read from the rows as they are: a managed account, the
+// same account once its address is confirmed, and an erased one.
+func TestTheSummaryReadsManagedFromTheRow(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	managed := managedIn(t, tenantA, freshSignInName(t))
+	upgraded := managedIn(t, tenantA, freshSignInName(t))
+	erased := managedIn(t, tenantA, freshSignInName(t))
+	token := mailedTo(ctx, t, tenantA, upgraded.ID, freshSignInName(t)+"@example.org")
+	if err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: token}); err != nil {
+		t.Fatalf("confirming: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := privacyRepo().Anonymise(ctx, erased.ID, "Former user", time.Now())
+		return err
+	}); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
+
+	reader := identityservice.GetAccount{
+		Accounts: postgres.NewAccountRepository(), UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
+	}
+	actor := administratorOf(tenantA)
+	actor.Scopes = []string{"accounts:read"}
+	for id, want := range map[shared.ID]bool{managed.ID: true, upgraded.ID: false, erased.ID: false} {
+		account, err := reader.Execute(ctx, actor, id)
+		if err != nil {
+			t.Fatalf("reading %s: %v", id, err)
+		}
+		if account.OnlyThePasswordReaches() != want {
+			t.Errorf("%s (%+v) reads managed %v, want %v", id, account, !want, want)
+		}
+	}
+}
+
 // A renewal and a confirmation at once: whichever lands first decides, in the writing statements.
 func TestAConfirmedAddressWinsOverALaterRenewal(t *testing.T) {
 	ctx := context.Background()
