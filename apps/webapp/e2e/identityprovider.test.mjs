@@ -1,0 +1,168 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// A workspace's sign-in provider, configured as an administrator meets it (UC-ID-11 checks 1, 2,
+// 4, 5, 6): the three admission answers in plain words - in English and in German - and never the
+// contract's values; the list the server reads and nothing else; *New people get* only where
+// somebody new arrives, defaulting to nothing; the redirect address in full, copied whole.
+//
+// Against a stubbed API: what is asserted is what the screen shows and what it sends. Chromium only.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import { chromium } from 'playwright';
+
+import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
+import { serve } from './serve.mjs';
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+
+const served = await serve(DIST);
+test.after(() => served.close());
+
+const REDIRECT = 'https://hubtask.example/api/v1/auth/oidc/callback';
+const STAFF = '01a0e2e0-0000-7000-8000-0000000007a1';
+
+const preset = (kind, provisioning, extra = {}) => ({
+  kind, scopes: ['openid', 'email', 'profile'], addresses_verified: kind !== 'GENERIC',
+  public: kind === 'GOOGLE', provisioning, installation_provisioning: ['INVITED_ONLY'],
+  redirect_uri: REDIRECT, instructions: `identity_provider.preset.${kind.toLowerCase()}.instructions`,
+  supports_templated_issuer: kind === 'MICROSOFT', ...extra,
+});
+
+const PRESETS = [
+  preset('GOOGLE', ['INVITED_ONLY'], { directory_claim: 'hd', particular: 'identity_provider.preset.google.particular' }),
+  preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid' }),
+  preset('GENERIC', ['INVITED_ONLY', 'DOMAINS', 'ANY']),
+];
+
+const WORDS = {
+  en: {
+    add: 'Add a provider', kind: 'Which provider', save: 'Save the provider',
+    modes: ['Only people invited here', 'Anyone from these organisations', 'Anyone this provider knows'],
+    newcomers: 'New people get', nothing: 'No access until an administrator gives it',
+    group: 'Membership of the group Staff', redirect: 'Redirect address', copy: 'Copy the address',
+    issuer: 'Issuer', client: 'Client id', secret: 'Client secret',
+  },
+  de: {
+    add: 'Anbieter hinzufügen', kind: 'Welcher Anbieter', save: 'Anbieter speichern',
+    modes: ['Nur hier eingeladene Personen', 'Alle aus diesen Organisationen', 'Alle, die dieser Anbieter kennt'],
+    newcomers: 'Neue Personen bekommen',
+    nothing: 'Keinen Zugang, bis eine Administratorin oder ein Administrator ihn gibt',
+    group: 'Mitgliedschaft in der Gruppe Staff', redirect: 'Weiterleitungsadresse', copy: 'Adresse kopieren',
+    issuer: 'Aussteller', client: 'Client-ID', secret: 'Client-Geheimnis',
+  },
+};
+
+async function open(browser, locale) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: served.origin });
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
+    if (path === '/meta/capabilities') {
+      return route.fulfill({
+        json: {
+          ...MANIFEST,
+          roles: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'].map((role) => ({ role, permissions: ['READ'] })),
+        },
+      });
+    }
+    if (path === '/identity-provider-presets') return route.fulfill({ json: PRESETS });
+    if (path === '/identity-providers' && request.method() === 'GET') return route.fulfill({ json: [] });
+    if (path === '/groups') return route.fulfill({ json: { data: [{ id: STAFF, name: 'Staff', version: 1 }] } });
+    if (path === '/identity-providers' && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      sent.push(body);
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: '01a0e2e0-0000-7000-8000-0000000007b1', scope: 'workspace', issuer: body.issuer,
+          client_id: body.client_id, display_name: body.issuer, kind: body.kind,
+          provisioning: body.provisioning, position: 0, enabled: false, offered_here: false,
+          allowed_email_domains: body.allowed_email_domains ?? [], allowed_directories: [],
+          created_at: '2026-10-12T09:00:00Z', version: 1, ...(body.newcomer_group_id ? { newcomer_group_id: body.newcomer_group_id } : {}),
+        },
+      });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  return { page, sent, close: () => context.close() };
+}
+
+/** The labels of a select's options, in order. */
+async function optionsOf(select) {
+  return select.locator('option').allTextContents().then((all) => all.map((one) => one.trim()));
+}
+
+for (const locale of ['en', 'de']) {
+  const words = WORDS[locale];
+
+  test(`chromium, ${locale}: the three answers in plain words, newcomers where they arrive, the address copied whole`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, sent, close } = await open(browser, locale);
+    t.after(close);
+
+    await page.goto(`${served.origin}/administration/identity-provider`);
+    await page.getByRole('button', { name: words.add }).click();
+    const form = page.locator('form.panel');
+    await form.waitFor();
+    const kind = form.getByLabel(words.kind);
+    const admission = form.getByRole('combobox').nth(1);
+
+    // Another provider: all three answers, in the use case's words (check 1, check 3).
+    await kind.selectOption('GENERIC');
+    assert.deepEqual(await optionsOf(admission), words.modes);
+
+    // Google: only what the preset permits today (check 2).
+    await kind.selectOption('GOOGLE');
+    assert.deepEqual(await optionsOf(admission), [words.modes[0]]);
+
+    // The contract's values are never on screen, in any preset's form.
+    for (const each of ['GENERIC', 'MICROSOFT', 'GOOGLE']) {
+      await kind.selectOption(each);
+      const text = await form.innerText();
+      assert.doesNotMatch(text, /\bINVITED_ONLY\b|\bDOMAINS\b|\bANY\b/, `${each}: ${text}`);
+    }
+
+    // The redirect address in full, and the copy control hands over exactly it (check 6).
+    const redirect = form.getByLabel(words.redirect);
+    assert.equal(await redirect.inputValue(), REDIRECT);
+    await form.getByRole('button', { name: words.copy }).click();
+    assert.equal(await page.evaluate(() => navigator.clipboard.readText()), REDIRECT);
+
+    // New people get: absent where nobody new arrives, nothing by default where they do (check 5).
+    await kind.selectOption('GENERIC');
+    await admission.selectOption('INVITED_ONLY');
+    assert.equal(await form.getByLabel(words.newcomers).count(), 0);
+    await admission.selectOption('ANY');
+    const newcomers = form.getByLabel(words.newcomers);
+    const offered = await optionsOf(newcomers);
+    assert.equal(offered[0], words.nothing);
+    assert.equal(await newcomers.inputValue(), '');
+    assert.ok(offered.includes(words.group), offered.join(' | '));
+    assert.ok(!offered.some((one) => /OWNER|Owner|Eigentümer/.test(one)), `OWNER offered: ${offered.join(' | ')}`);
+
+    await newcomers.selectOption({ label: words.group });
+    await form.getByLabel(new RegExp(`^${words.issuer}`)).fill('https://login.example.org');
+    await form.getByLabel(new RegExp(`^${words.client}`)).fill('hubtask');
+    await form.getByLabel(new RegExp(`^${words.secret}`)).fill('s3cr3t');
+    await form.getByRole('button', { name: words.save }).click();
+    await form.waitFor({ state: 'detached' });
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].provisioning, 'ANY');
+    assert.equal(sent[0].newcomer_group_id, STAFF);
+    assert.equal(sent[0].newcomer_role, undefined);
+  });
+}
