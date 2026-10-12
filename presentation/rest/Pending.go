@@ -1240,14 +1240,14 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 
 func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// The managed account's later steps (ADR-0074 §4, §6): a new start password, an address, and its
-// confirmation.
+// IssueStartPassword is overridden by RestController, for the reason given at CreateContainer.
 func (pending) IssueStartPassword(
 	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.IssueStartPasswordParams,
 ) {
 	notAvailable(w, r)
 }
 
+// A managed account's address and its confirmation (ADR-0074 §6).
 func (pending) AddAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }

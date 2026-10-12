@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**270 use cases, 231 distinct action codes, 193 of them recorded on every call.** A use case that
+**271 use cases, 232 distinct action codes, 194 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -45,6 +45,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
+| `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
 
 ## Ai
 

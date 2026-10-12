@@ -22,6 +22,7 @@ import (
 const (
 	inviteAccountUseCase               = "InviteAccount"
 	createManagedAccountUseCase        = "CreateManagedAccount"
+	issueStartPasswordUseCase          = "IssueStartPassword"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
@@ -87,6 +88,30 @@ func (c *RestController) CreateManagedAccount(
 		w.Header().Set(ShownOnceHeader, "start_password")
 		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
 		writeJSON(w, r, http.StatusCreated, created)
+	})
+}
+
+// IssueStartPassword answers POST /accounts/{accountId}:issue-start-password.
+//
+// The answer carries the new start password once, marked as the creation's is, so neither a cache
+// nor an idempotency record keeps it.
+func (c *RestController) IssueStartPassword(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, params openapi.IssueStartPasswordParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), issueStartPasswordUseCase, actor, usecase.Input{
+			"account_id":    accountID.String(),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(out usecase.Output) {
+		account, _ := out["account"].(usecase.Output)
+		issued := openapi.StartPasswordIssued{
+			Account:       accountResponse(account),
+			StartPassword: out.String("start_password"),
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, "start_password")
+		writeJSON(w, r, http.StatusOK, issued)
 	})
 }
 

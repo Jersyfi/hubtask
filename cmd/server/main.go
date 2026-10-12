@@ -1292,6 +1292,12 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Text: forms,
 		}.Descriptor(),
+		identity.IssueStartPassword{
+			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},

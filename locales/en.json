@@ -491,6 +491,7 @@
   "accounts.start_password_unmintable": "This installation could not draw a start password. Try again.",
   "accounts.managed_accounts_off": "This workspace does not allow accounts without a mail address.",
   "accounts.managed_needs_a_person": "An account without a mail address is created by a person, who is shown its start password. An automation rule cannot do it.",
+  "accounts.not_managed": "Only an account without a mail address gets a new start password or an address this way. An account with an address uses its mailbox.",
   "groups.name_empty": "A group needs a name.",
   "groups.name_too_long": "The name may be at most {maximum} characters long.",
   "groups.name_malformed": "The name has to fit on one line.",

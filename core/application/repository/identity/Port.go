@@ -212,6 +212,20 @@ type ManagedAccounts interface {
 	HasManaged(ctx context.Context) (bool, error)
 }
 
+// StartPasswords renews a managed account's way in (ADR-0074 §4): the one place an administrator
+// replaces somebody else's password.
+type StartPasswords interface {
+	// IssueStartPassword replaces the password with a start password's hash and marks it as one,
+	// for an account that is still managed - a sign-in name, no address, not erased. False is "not
+	// managed (any more)": nothing changed. The check is the writing statement's, so an address
+	// confirmed a moment earlier wins.
+	IssueStartPassword(ctx context.Context, accountID shared.ID, passwordHash string, at time.Time) (bool, error)
+
+	// SpendPending spends every unfinished sign-in step of the account, whatever its purpose, and
+	// answers how many: a change-step credential won with the old password sets nothing after.
+	SpendPending(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
+}
+
 // Groups is the store of named sets of accounts.
 // GroupPage is one page of the workspace's groups, by name.
 type GroupPage struct {
