@@ -1483,6 +1483,7 @@
   "app.signin_settings.source_plan": "Set by your plan.",
   "app.signin_settings.source_default": "Hubtask's default.",
   "app.signin_settings.required_above": "The installation requires this, so it stays on here.",
+  "app.signin_settings.required_default": "Hubtask requires this of every workspace, so it stays on here.",
   "app.signin_settings.on": "on",
   "app.signin_settings.off": "off",
   "app.signin_settings.link_inherited": "Empty here, so the installation's applies: {value}.",
