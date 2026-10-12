@@ -202,8 +202,10 @@ reasoning is backup-restore.md §8.4):
 * **Live plumbing**: the outbox and event consumptions, notification rows, webhook deliveries,
   rule runs and occurrences, idempotency keys, the synchronisation's change log, operation log,
   field clocks and tombstones, usage records.
-* **AI machinery**: the AI provider configuration (with its sealed key), suggestions, pending AI
-  requests, and embedding vectors (derived from content that is in the export).
+* **AI machinery**: the AI provider configuration (with its sealed key), the workspace's choice of AI
+  source (choosing an offered model is a consent a restore must not resume), suggestions, pending AI
+  requests, and embedding vectors (derived from content that is in the export). The workspace's own
+  narrowing of which sources it may use is a restriction, and travels with the workspace's settings.
 * **The compliance machinery's own state**: data subject requests, privacy incidents, the deletion
   journal, audit anchors and pseudonyms, backup targets and schedules, backup/restore/import/
   retention run bookkeeping, retention rules. Cases and attestations belong to the installation
