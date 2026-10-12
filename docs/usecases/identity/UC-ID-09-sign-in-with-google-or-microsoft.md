@@ -42,4 +42,4 @@ account is told they were not invited here.
 
 ## Today
 
-* Check 4: not met — the Google and Microsoft marks are redraws, not the files their owners publish; tracked in #1292.
+* Check 4: not met — the Google mark is a redraw, not the file Google publishes; tracked in #1070.
