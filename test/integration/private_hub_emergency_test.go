@@ -1,0 +1,226 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+//go:build integration
+
+package integration
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	notificationrepo "github.com/Jersyfi/hubtask/core/application/repository/notification"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
+	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+)
+
+// freshProof stands in for the step-up, which is not what these tests are about: one token
+// proves, any other is refused.
+type freshProof struct{}
+
+func (freshProof) Available() bool { return true }
+func (freshProof) Methods(context.Context, shared.ID, shared.ID) ([]stepup.Method, error) {
+	return []stepup.Method{stepup.MethodPassword}, nil
+}
+func (freshProof) Satisfied(_ context.Context, _ shared.ID, token string) (bool, error) {
+	return token == "hbt_sup_fresh", nil
+}
+
+// failingNotices is the notification table refusing a write: the opening must open nothing.
+type failingNotices struct{ notificationrepo.Notifications }
+
+func (failingNotices) Insert(context.Context, domain.Notification) (bool, error) {
+	return false, shared.ErrUnavailable.WithDetail("postgres.query_failed")
+}
+
+// openingRegistry is OpenPrivateHub the way main.go builds it, at the fixed moment `created`.
+func openingRegistry(ctx context.Context, t *testing.T, notifications notificationrepo.Notifications) *usecase.Registry {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	ids := clockadapter.NewUUIDv7(portclock.Fixed(created))
+	registry, err := usecase.NewRegistry(nil, work.OpenPrivateHub{
+		Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
+		Notices: notification.RecordEmergencyAccess{
+			Notifications: notifications, Accounts: postgres.NewAccountRepository(),
+			Preferences: postgres.NewNotificationPreferenceRepository(),
+			Jobs:        jobQueue(t), Clock: portclock.Fixed(created), IDs: ids,
+		},
+		Authorizer: realAuthoriser(ctx, t), StepUp: freshProof{},
+		Audit: postgres.NewAuditSink(ids), UnitOfWork: unitOfWork, Clock: portclock.Fixed(created), IDs: ids,
+	}.Descriptor())
+	if err != nil {
+		t.Fatalf("building the catalogue: %v", err)
+	}
+	return registry
+}
+
+// present is the owner as a request through the API carries them.
+func present(tenant, account shared.ID) appshared.ActorContext {
+	actor := administrator(tenant, account)
+	actor.Present = true
+	return actor
+}
+
+// readsTheHub answers whether the authoriser, at the moment, lets the actor read the private hub's
+// entry - the question every reader of the hub asks.
+func readsTheHub(ctx context.Context, t *testing.T, w privateWorld, actor appshared.ActorContext, at time.Time) bool {
+	t.Helper()
+	authoriser := realAuthoriser(ctx, t)
+	authoriser.Clock = portclock.Fixed(at)
+	err := authoriser.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionRead, Action: "item.read",
+		Path: []identity.Scope{identity.TenantScope(), identity.HubScope(w.hub), identity.CollectionScope(w.collection)},
+		On:   access.ItemSubject{Does: service.ItemRead, ID: w.item},
+	})
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, shared.ErrNotFound):
+		return false
+	default:
+		t.Fatalf("reading the hub: %v", err)
+		return false
+	}
+}
+
+// The task's acceptance: the access notifies before it answers any read. Before the opening the
+// owner reads nothing; an opening whose members cannot be told opens nothing; a successful one has
+// every member's record, the mail's job and the trail's entry committed before the first read is
+// answered - the managed member without a mailbox included, with a record the app shows them.
+func TestTheEmergencyAccessNotifiesBeforeItAnswersAnyRead(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	admin := adminPool(ctx, t)
+	maria := freshID(t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO account (id, tenant_id, display_name, email) VALUES ($1, $2, 'Maria Parent', $3)`,
+			[]any{maria.String(), w.tenant.String(), "maria-" + maria.String() + "@example.org"}},
+		{`INSERT INTO membership (id, tenant_id, account_id, scope_type, scope_id, role)
+		  VALUES ($1, $2, $3, 'COLLECTION', $4, 'MEMBER')`,
+			[]any{freshID(t).String(), w.tenant.String(), maria.String(), w.collection.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	owner := present(w.tenant, w.administrator)
+	input := usecase.Input{"hub_id": w.hub.String(), "reason": "Maria is in hospital", "step_up_token": "hbt_sup_fresh"}
+
+	if readsTheHub(ctx, t, w, owner, created) {
+		t.Fatal("the owner read the private hub before opening it")
+	}
+
+	// The members cannot be told: nothing opens.
+	_, err := openingRegistry(ctx, t, failingNotices{postgres.NewNotificationRepository()}).
+		Invoke(ctx, work.OpenPrivateHubName, owner, input)
+	if !errors.Is(err, shared.ErrUnavailable) {
+		t.Fatalf("an opening nobody could be told of answered %v", err)
+	}
+	if n := countIn(ctx, t, `SELECT count(*) FROM private_hub_access WHERE hub_id = $1`, w.hub.String()); n != 0 {
+		t.Fatalf("%d accesses after the failed opening", n)
+	}
+	if readsTheHub(ctx, t, w, owner, created) {
+		t.Fatal("the owner read the hub although its members were never told")
+	}
+
+	out, err := openingRegistry(ctx, t, postgres.NewNotificationRepository()).
+		Invoke(ctx, work.OpenPrivateHubName, owner, input)
+	if err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	accessID := out.String("id")
+
+	// Committed with the access, before any read: a record per member, a job for the one with an
+	// address, the managed member's suppressed for no address, the trail's entry.
+	records := func(state, reason string) int {
+		return countIn(ctx, t, `SELECT count(*) FROM notification WHERE private_hub_access_id = $1
+			AND category = 'EMERGENCY_ACCESS' AND state = $2 AND coalesce(reason, '') = $3`,
+			accessID, state, reason)
+	}
+	if records("PENDING", "") != 1 || records("SUPPRESSED", domain.ReasonNoAddress) != 1 {
+		t.Errorf("records: %d pending, %d suppressed for no address; want one each",
+			records("PENDING", ""), records("SUPPRESSED", domain.ReasonNoAddress))
+	}
+	if jobs := countIn(ctx, t, `SELECT count(*) FROM job WHERE tenant_id = $1 AND kind = 'notification.emergency_access'
+		AND max_attempts = 20`, w.tenant.String()); jobs != 1 {
+		t.Errorf("%d delivery jobs of the access's own kind, want one", jobs)
+	}
+	if entries := countIn(ctx, t, `SELECT count(*) FROM audit_log WHERE tenant_id = $1
+		AND action = 'container.emergency_access_opened' AND target_id = $2
+		AND NOT (changes::text LIKE '%hospital%')`, w.tenant.String(), w.hub.String()); entries != 1 {
+		t.Errorf("%d trail entries with the reason masked, want one", entries)
+	}
+
+	// Only now is a read answered - for the owner, present, during the hour.
+	if !readsTheHub(ctx, t, w, owner, created.Add(30*time.Minute)) {
+		t.Error("the owner cannot read the hub they opened")
+	}
+	if readsTheHub(ctx, t, w, administrator(w.tenant, w.administrator), created.Add(30*time.Minute)) {
+		t.Error("the access counted for something that is not the person present")
+	}
+	if readsTheHub(ctx, t, w, owner, created.Add(time.Hour)) {
+		t.Error("the access outlived its hour")
+	}
+
+	// Not renewable while it runs.
+	_, err = openingRegistry(ctx, t, postgres.NewNotificationRepository()).
+		Invoke(ctx, work.OpenPrivateHubName, owner, input)
+	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "containers.emergency_running" {
+		t.Errorf("a second access answered %v", err)
+	}
+}
+
+// Somebody other than the owner is refused before anything is looked up; another workspace sees
+// neither the access nor the hub.
+func TestOnlyTheOwnerOpensAndNoOtherWorkspaceSeesIt(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	registry := openingRegistry(ctx, t, postgres.NewNotificationRepository())
+	input := usecase.Input{"hub_id": w.hub.String(), "reason": "curiosity", "step_up_token": "hbt_sup_fresh"}
+
+	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(w.tenant, w.member), input); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("a member who is not the owner: %v, want forbidden", err)
+	}
+	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(tenantB, authorB), input); err == nil {
+		t.Error("another workspace's owner opened the hub")
+	}
+
+	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(w.tenant, w.administrator),
+		usecase.Input{"hub_id": w.hub.String(), "reason": "the insurance papers", "step_up_token": "hbt_sup_fresh"}); err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	var seen []shared.ID
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		accesses, err := postgres.NewEmergencyAccessRepository().List(ctx, w.hub, 10)
+		for _, each := range accesses {
+			seen = append(seen, each.ID)
+		}
+		if err != nil {
+			return err
+		}
+		opened, err := postgres.NewMembershipRepository().HubsOpenedFor(ctx, w.administrator, []shared.ID{w.hub}, created)
+		seen = append(seen, opened...)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 0 {
+		t.Errorf("another workspace sees %v", seen)
+	}
+}

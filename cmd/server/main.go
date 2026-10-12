@@ -1691,6 +1691,16 @@ func run() error {
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.OpenPrivateHub{
+			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
+			// Every member told in the transaction that opens the hub (ADR-0073 §4).
+			Notices: notification.RecordEmergencyAccess{
+				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		}.Descriptor(),
 		work.SetHubPrivacy{
 			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
 			PrivateHubs: signInPolicyResolver,
