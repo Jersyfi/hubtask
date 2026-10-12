@@ -76,7 +76,10 @@ way to appoint one.)
 *Not true in practice, found 2026-09-30.* An installation can still end up with nobody able to run
 it — the integration environment did, and needed SQL that day — and the way back migration 0108
 names, `hubctl` against the database, does not exist: `hubctl` is an API client. The way back is
-SC-04's, a command in the server binary ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
+a command in the server binary, `hubtask operator add --workspace --email`, run where the server
+runs ([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md),
+[identity.md](../architecture/identity.md) §19); the merged migration keeps its sentence, because a
+migration never changes.
 
 **A service account may be an operator.** A purchase platform that provisions workspaces needs a
 credential that does not belong to a person who may leave, and the first day of a platform is the
@@ -251,8 +254,11 @@ register answers *yes* to `is_operator`, so the first `POST /admin/operators` on
 installation is made by whoever can already mint the scope, and from that row onwards the register
 is the bound. One mechanism instead of two, and no address parsed at start-up. An environment
 variable can still be added later for an installation that wants the register present before its
-first request; nothing here forecloses it. *SC-04 adds it (2026-09-30), beside the first start's
-setup code ([UC-INS-02](../usecases/admin/UC-INS-02-bring-an-installation-up-from-a-file.md)).*
+first request; nothing here forecloses it. *Since SC-04 `HUBTASK_OPERATORS` exists
+([UC-INS-02](../usecases/admin/UC-INS-02-bring-an-installation-up-from-a-file.md)), beside the
+first start's setup code, which puts the first workspace's owner into the register
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); identity.md §19 holds
+both.*
 
 ## What the implementation settled
 
