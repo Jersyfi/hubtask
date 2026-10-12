@@ -941,6 +941,7 @@ class QuotaStanding(TypedDict, total=False):
     used: int | None
     ratio: float | None
     configured: bool
+    locked: bool
 
 class TenantQuotas(TypedDict, total=False):
     """Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing."""

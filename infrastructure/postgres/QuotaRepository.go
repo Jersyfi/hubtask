@@ -94,6 +94,27 @@ func (QuotaRepository) InstanceOverrides(ctx context.Context) (repository.Overri
 	return fromDocument(document), nil
 }
 
+// InstanceLocks answers the quotas the installation locked, from the same rows' lock origin.
+func (QuotaRepository) InstanceLocks(ctx context.Context) (map[string]bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.InstanceQuotaDefaults(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the installation's quota locks: %w", err))
+	}
+	locked := map[string]bool{}
+	for _, row := range rows {
+		if suffix, isQuota := strings.CutPrefix(row.Key, quotaSettingPrefix); isQuota && row.LockOrigin != "OPEN" {
+			locked[suffix] = true
+		}
+	}
+	return locked, nil
+}
+
 // Overrides answers what the transaction's tenant configured.
 func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, error) {
 	queries, err := queriesFrom(ctx)

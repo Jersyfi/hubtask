@@ -306,3 +306,41 @@ func TestTheOwnAiBudgetIsTheWorkspacesAndOutlivesTheOperatorsWrite(t *testing.T)
 		return nil
 	})
 }
+
+// UC-INS-09 check 5: the installation's lock on a ceiling reaches the workspace's read, from the
+// row's lock origin, and an open ceiling reads as open.
+func TestTheInstallationsLockOnACeilingReachesTheWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedQuotaTenants(ctx, t)
+	store := postgres.NewQuotaRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	admin := adminPool(ctx, t)
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.WithoutCancel(ctx),
+			`DELETE FROM instance_setting WHERE key IN ('quota.export_jobs', 'quota.webhook_targets')`)
+	})
+	if _, err := admin.Exec(ctx, `
+		INSERT INTO instance_setting (key, value, lock_origin) VALUES
+		  ('quota.export_jobs', '3'::jsonb, 'INSTANCE'), ('quota.webhook_targets', '5'::jsonb, 'OPEN')
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, lock_origin = EXCLUDED.lock_origin`); err != nil {
+		t.Fatalf("seeding the installation's ceilings: %v", err)
+	}
+
+	inTenant(t, uow, quotaTenantA, func(ctx context.Context) error {
+		instance, err := store.InstanceOverrides(ctx)
+		if err != nil {
+			return err
+		}
+		locks, err := store.InstanceLocks(ctx)
+		if err != nil {
+			return err
+		}
+		if instance.ExportJobs == nil || *instance.ExportJobs != 3 || !locks["export_jobs"] {
+			t.Errorf("the locked ceiling reads %v, locked %v", instance.ExportJobs, locks)
+		}
+		if locks["webhook_targets"] {
+			t.Error("an open ceiling reads as locked")
+		}
+		return nil
+	})
+}

@@ -7879,6 +7879,9 @@ type QuotaStanding struct {
 	// Limit The resolved ceiling. 0 means unlimited.
 	Limit int64 `json:"limit"`
 
+	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
+	Locked *bool `json:"locked,omitempty"`
+
 	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 

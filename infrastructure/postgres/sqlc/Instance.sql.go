@@ -130,12 +130,13 @@ func (q *Queries) InstanceCensus(ctx context.Context) (InstanceCensusRow, error)
 }
 
 const instanceQuotaDefaults = `-- name: InstanceQuotaDefaults :many
-SELECT key, value FROM instance_setting WHERE key LIKE 'quota.%'
+SELECT key, value, lock_origin FROM instance_setting WHERE key LIKE 'quota.%'
 `
 
 type InstanceQuotaDefaultsRow struct {
-	Key   string
-	Value []byte
+	Key        string
+	Value      []byte
+	LockOrigin string
 }
 
 // What the installation set as the default ceiling for each quota, which every workspace that set
@@ -152,7 +153,7 @@ func (q *Queries) InstanceQuotaDefaults(ctx context.Context) ([]InstanceQuotaDef
 	items := []InstanceQuotaDefaultsRow{}
 	for rows.Next() {
 		var i InstanceQuotaDefaultsRow
-		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+		if err := rows.Scan(&i.Key, &i.Value, &i.LockOrigin); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

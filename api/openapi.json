@@ -16228,6 +16228,10 @@
           "configured": {
             "type": "boolean",
             "description": "True when the workspace carries its own ceiling rather than the mode's default."
+          },
+          "locked": {
+            "type": "boolean",
+            "description": "True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.\n"
           }
         }
       },

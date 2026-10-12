@@ -49,6 +49,11 @@ type Store interface {
 	// An installation that set nothing answers the zero value, not an error.
 	InstanceOverrides(ctx context.Context) (Overrides, error)
 
+	// InstanceLocks names the quotas the installation locked, by their contract name: a workspace's
+	// screen says "set by the installation" there (UC-INS-09 check 5). Beside the overrides rather
+	// than in them, because an override is a ceiling a level may leave unset and a lock is not.
+	InstanceLocks(ctx context.Context) (map[string]bool, error)
+
 	// SetOverrides replaces the quotas key of the settings document, guarded on the row
 	// version. False means the version moved under the caller. AiOwnTokensPerDay is not written:
 	// it is not the operator's.
