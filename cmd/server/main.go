@@ -246,6 +246,13 @@ func run() error {
 		defer backgroundPool.Close()
 	}
 
+	// Every loop started below runs under this context, and it ends on any return - before the
+	// pools' Close above, which waits for every connection to come back. A start refused after the
+	// loops began (an instance file whose value is refused) otherwise never returned: the listeners
+	// held their connections, Close waited for them, and the process served on, never ready.
+	ctx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
 
