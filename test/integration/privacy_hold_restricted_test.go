@@ -16,14 +16,18 @@ import (
 
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
+	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	automationdomain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	suggestiondomain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	cryptoadapter "github.com/Jersyfi/hubtask/infrastructure/crypto"
@@ -258,8 +262,8 @@ func TestWhatAHoldKeepsStaysOutOfAiAndAutomation(t *testing.T) {
 	}
 }
 
-// Decision 7: the kept data stays in the workspace export and in the person's own Art. 15 copy -
-// a restriction allows storage, and no export is filtered.
+// Decision 7: the kept data stays in backups, the workspace export and the person's own Art. 15
+// copy - a restriction allows storage, and no export is filtered.
 func TestWhatAHoldKeepsStaysInTheExports(t *testing.T) {
 	for _, testCase := range keptScopes {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -335,5 +339,35 @@ func keptInTheExports(ctx context.Context, t *testing.T, s person) {
 	})
 	if !strings.Contains(own, "KEPTSAYS") {
 		t.Error("the person's own copy left out what the hold keeps")
+	}
+
+	// A backup taken after the erasure is the backup run's own path, not the workspace export's
+	// archivist: the two share only the row source.
+	backup := written(func(store backupstorage.LocalStore) {
+		target, err := backupdomain.NewTarget(backupdomain.NewTargetInput{
+			ID: freshID(t), TenantID: s.tenant, Name: "Nightly", Kind: backupdomain.KindS3,
+			Config:         backupdomain.TargetConfig{"bucket": "hubtask-backups", "region": "eu-central-1"},
+			EncryptionMode: backupdomain.EncryptionNone, InsecureAcknowledged: true,
+			CreatedBy: s.account, Now: created, Text: text.Composing{},
+		})
+		if err != nil {
+			t.Fatalf("building the target: %v", err)
+		}
+		insertTarget(ctx, t, s.tenant, target, crypto.Sealed{})
+		performer := backupservice.Performer{
+			Runs: runRepo(), Targets: targetRepo(), Export: postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
+			Opener: foreignTarget{store: store}, Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}),
+			Objects: exportObjects{key: "none"}, Snapshot: unitOfWork, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, IDs: generator{t}, SchemaVersion: "test", ProductVersion: "test",
+		}
+		if _, err := performer.Perform(ctx, backupservice.PerformInput{
+			RunID: freshID(t), TargetID: target.ID, TenantID: s.tenant,
+			Mode: backupdomain.ModeFull, Trigger: backupdomain.TriggerManual,
+		}); err != nil {
+			t.Fatalf("taking the backup: %v", err)
+		}
+	})
+	if !strings.Contains(backup, "KEPTSAYS") {
+		t.Error("the backup left out what the hold keeps")
 	}
 }
