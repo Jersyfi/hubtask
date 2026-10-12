@@ -356,6 +356,20 @@ func TestOnlyAnActiveAccountCanBeAdded(t *testing.T) {
 	}
 }
 
+// Removing an account that is not in the register is not "the last operator": a stale row on a
+// screen must not be told the installation would be left with nobody.
+func TestRemovingAnAccountNotInTheRegisterSaysSo(t *testing.T) {
+	writer, _, journal := newInstanceWriter(newRegister(operatorID, secondOperator))
+
+	err := (RemoveOperator{Writer: writer}).Execute(t.Context(), operator(), unknownAccount)
+	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "admin.operator_not_registered" {
+		t.Fatalf("removing an account not in the register answered %v", err)
+	}
+	if len(journal.entries) != 0 {
+		t.Error("a refused removal was journalled")
+	}
+}
+
 // The listing is what a screen draws.
 func TestTheRegisterIsListed(t *testing.T) {
 	writer, _, _ := newInstanceWriter(newRegister(operatorID, secondOperator))

@@ -367,11 +367,11 @@ func (h RemoveOperator) Execute(
 		}
 		switch outcome {
 		case identityrepo.DismissRemoved:
-		case identityrepo.DismissLast, identityrepo.DismissAbsent:
-			// Either it was not there, or it is the last one. The second is the interesting case
-			// and the one worth a sentence: an installation with no operators is an installation
-			// nobody can operate.
+		case identityrepo.DismissLast:
+			// An installation with no operators is an installation nobody can operate.
 			return shared.ErrConflict.WithDetail("admin.operator_last")
+		case identityrepo.DismissAbsent:
+			return shared.ErrNotFound.WithDetail("admin.operator_not_registered")
 		default:
 			return shared.ErrInternal.WithDetail("admin.operator_outcome_unknown")
 		}
