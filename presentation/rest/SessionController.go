@@ -188,6 +188,8 @@ func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"terms_url":     optionalStringField(body.TermsUrl),
+		"terms_version": optionalStringField(body.TermsVersion),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

@@ -231,6 +231,54 @@ func termsChanged(terms domain.TermsInForce) error {
 		WithParams(map[string]string{"url": terms.URL, "version": terms.Version})
 }
 
+// termsNotAgreed is the refusal of an invitation accepted without the agreement the terms in force
+// ask for.
+func termsNotAgreed() error {
+	return shared.ErrValidation.
+		WithDetail("auth.terms_not_agreed").
+		WithFields(shared.FieldError{Path: "/terms_url", Code: "auth.terms_not_agreed"})
+}
+
+// termsToAgree checks the agreement an invitation card sent against the terms in force: none in
+// force needs none (and one sent is ignored), otherwise it must be to exactly these. It answers the
+// terms to record.
+func (w SessionWriter) termsToAgree(
+	ctx context.Context, tenantID shared.ID, url, version string,
+) (domain.TermsInForce, error) {
+	if w.TermsIn == nil || w.Terms == nil {
+		return domain.TermsInForce{}, nil
+	}
+	terms, err := w.TermsIn.TermsInForce(ctx, tenantID)
+	if err != nil || !terms.IsSet() {
+		return domain.TermsInForce{}, err
+	}
+	if url == "" {
+		return domain.TermsInForce{}, termsNotAgreed()
+	}
+	if !terms.Matches(url, version) {
+		return domain.TermsInForce{}, termsChanged(terms)
+	}
+	return terms, nil
+}
+
+// agreedOnTheCard records the agreement a provider invitation carried on its flow, once the arrival
+// activated the invited account (UC-ID-19 check 1). Terms that changed since the card are not
+// recorded: the TERMS step that follows asks for the ones in force.
+func (w SessionWriter) agreedOnTheCard(
+	ctx context.Context, scope persistence.Scope, account domain.Account, carried domain.TermsAgreement,
+) error {
+	if w.TermsIn == nil || w.Terms == nil || carried.URL == "" {
+		return nil
+	}
+	terms, err := w.TermsIn.TermsInForce(ctx, scope.TenantID)
+	if err != nil || !terms.IsSet() || !terms.Matches(carried.URL, carried.Version) {
+		return err
+	}
+	return w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		return w.recordTermsAgreement(ctx, scope.TenantID, account, terms, w.Clock.Now())
+	})
+}
+
 // AgreeToTermsCommand carries the TERMS step: the credential, and the terms as they were shown.
 type AgreeToTermsCommand struct {
 	PendingToken secret.Secret

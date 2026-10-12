@@ -491,6 +491,12 @@ func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	if body.ConnectToken != nil && *body.ConnectToken != "" {
 		in["connect_token"] = *body.ConnectToken
 	}
+	if body.TermsUrl != nil && *body.TermsUrl != "" {
+		in["terms_url"] = *body.TermsUrl
+	}
+	if body.TermsVersion != nil && *body.TermsVersion != "" {
+		in["terms_version"] = *body.TermsVersion
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), startOidcSignInUseCase, actorOf(r), in)
 	if err != nil {
