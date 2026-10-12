@@ -33,6 +33,13 @@ type KeptOutReason string
 // the workspace offers keeping one's content out, and more than one person works here.
 const KeptOutObjected KeptOutReason = "OBJECTED"
 
+// KeptOutRestricted is a restriction of processing (Art. 18, data-protection.md §4): an account in
+// the RESTRICTED state, or an anonymised one a legal hold still keeps contributions of. Unlike an
+// objection it holds wherever, whatever the workspace's position and however many work here, and
+// it reaches further: an objection keeps out what a person authored, a restriction also what is
+// about them - an entry assigned to them (UC-PRV-04 check 5).
+const KeptOutRestricted KeptOutReason = "RESTRICTED"
+
 // KeptPerson is one person kept out, with every spelling of them a text might carry.
 type KeptPerson struct {
 	AccountID shared.ID
@@ -89,6 +96,35 @@ func (k KeptOut) HasAddress(address string) bool {
 // ReasonOf answers why an account is kept out, empty where it is not.
 func (k KeptOut) ReasonOf(accountID shared.ID) KeptOutReason {
 	return k.people[accountID].Reason
+}
+
+// Excludes reports whether an entry is not material: its creator is kept out, for any reason, or
+// it is assigned to somebody whose processing is restricted.
+func (k KeptOut) Excludes(createdBy, assignee shared.ID) bool {
+	return k.Has(createdBy) || k.ReasonOf(assignee) == KeptOutRestricted && k.Has(assignee)
+}
+
+// Restricted answers everybody kept out by a restriction, whose assigned entries are kept out too.
+func (k KeptOut) Restricted() []shared.ID {
+	accounts := make([]shared.ID, 0, len(k.people))
+	for id, person := range k.people {
+		if person.Reason == KeptOutRestricted {
+			accounts = append(accounts, id)
+		}
+	}
+	return accounts
+}
+
+// Refusal is the answer to a kept-out person asking for an AI action, naming their own reason -
+// they learn their own state and nobody else's. Nil for anybody else.
+func (k KeptOut) Refusal(accountID shared.ID) error {
+	if !k.Has(accountID) {
+		return nil
+	}
+	if k.ReasonOf(accountID) == KeptOutRestricted {
+		return ProcessingRestricted()
+	}
+	return KeptOutOfAi()
 }
 
 // Accounts answers everybody kept out, in no particular order.
@@ -205,4 +241,10 @@ func NothingToWorkWith() error {
 // action: no AI action is offered to them (UC-PRV-05 check 7). They know their own choice.
 func KeptOutOfAi() error {
 	return shared.ErrForbidden.WithDetail("ai.kept_out")
+}
+
+// ProcessingRestricted is the answer to a person whose processing is restricted and who asks for
+// an AI action: no model is shown anything of theirs, their question included.
+func ProcessingRestricted() error {
+	return shared.ErrForbidden.WithDetail("ai.processing_restricted")
 }

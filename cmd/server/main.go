@@ -1054,9 +1054,11 @@ func run() error {
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
 	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
-	// content to a model reads in the transaction it reads the material in. An objection is its
-	// first reason; a restriction is added as a second source beside it.
+	// content to a model reads in the transaction it reads the material in, over two reasons: a
+	// restriction of processing (Art. 18) and an objection.
 	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		// First: somebody both restricted and objecting is kept out as far as a restriction reaches.
+		integrationservice.RestrictionSource{Restrictions: privacyStore},
 		integrationservice.ObjectionSource{
 			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
 		},

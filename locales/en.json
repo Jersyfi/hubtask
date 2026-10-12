@@ -1042,6 +1042,7 @@
   "ai.jurisdiction_below_minimum": "This installation requires a workspace's own model to process content {minimum, select, ADEQUACY {in the EEA or a country with an adequacy decision} EEA {in the EEA} SELF_HOSTED {on this installation's own machine} other {where its rules allow}}, {origin, select, PLAN {set by your plan} other {set by the operator for every workspace}}. Choose a provider that does.",
   "ai.nothing_to_work_with": "AI has nothing to work with here.",
   "ai.kept_out": "You keep your own content out of AI, so AI actions are not offered to you. You can change that under Your settings.",
+  "ai.processing_restricted": "The processing of your data is restricted in this workspace, so AI actions are not offered to you. An administrator of this workspace can tell you more.",
   "ai.opt_out_workspace_only": "Only a workspace can make AI part of everybody's work, because only it can name the legal basis. The installation can hold workspaces at letting each person keep their own content out.",
   "ai.opt_out_basis_required": "Name the legal basis that makes AI part of everybody's work here.",
   "ai.opt_out_basis_unknown": "That is not one of the legal bases Hubtask can name: an employment contract, a works agreement or a legal obligation.",

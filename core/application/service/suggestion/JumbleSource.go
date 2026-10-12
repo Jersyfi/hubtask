@@ -153,8 +153,8 @@ func (s CatalogueSources) item(
 	}
 	title, notes := out.String("title"), out.String("notes")
 	digest := domain.Digest(title, notes)
-	if keptAuthor(kept, out.String("created_by")) {
-		// An entry a kept-out person created is not material: the answer is the one an empty
+	if keptEntry(kept, out) {
+		// An entry a kept-out person created, or a restricted person is on, is not material: the answer is the one an empty
 		// entry gets, and it says nothing about why.
 		return Material{Digest: digest}, nil
 	}
@@ -246,8 +246,8 @@ func (s CatalogueSources) thread(
 		return Material{}, err
 	}
 	digest := domain.Digest(entry.String("title"), entry.String("notes"))
-	if keptAuthor(kept, entry.String("created_by")) {
-		// A summary is accepted into the entry's notes: a kept-out person's entry is not asked
+	if keptEntry(kept, entry) {
+		// A summary is accepted into the entry's notes: a kept-out person's entry, or a restricted person's, is not asked
 		// about at all, whoever commented on it.
 		return Material{Digest: digest}, nil
 	}
@@ -318,8 +318,8 @@ func (s CatalogueSources) collection(
 	listed, _ := out["data"].([]usecase.Output)
 	entries := make([]usecase.Output, 0, len(listed))
 	for _, entry := range listed {
-		// A kept-out person's entries are left out, as if they were not in the collection.
-		if !keptAuthor(kept, entry.String("created_by")) {
+		// A kept-out person's entries, and those a restricted person is on, are left out, as if they were not in the collection.
+		if !keptEntry(kept, entry) {
 			entries = append(entries, entry)
 		}
 	}
@@ -558,6 +558,20 @@ func (s CatalogueSources) board(
 		})
 	}
 	return Choices{Key: bucketKey, Label: "Board columns", Options: options}, nil
+}
+
+// keptEntry reports whether an entry, as a use case answered it, is not material: its creator is
+// kept out of AI, or it is assigned to somebody whose processing is restricted.
+func keptEntry(kept integration.KeptOut, entry usecase.Output) bool {
+	return kept.Excludes(idIn(entry.String("created_by")), idIn(entry.String("assignee_id")))
+}
+
+func idIn(raw string) shared.ID {
+	id, err := shared.ParseID(raw)
+	if err != nil {
+		return ""
+	}
+	return id
 }
 
 // keptAuthor reports whether the account a listing names as an author is kept out of AI.

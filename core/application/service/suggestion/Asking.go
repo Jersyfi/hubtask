@@ -260,8 +260,8 @@ func (c Cases) workable(
 	if err != nil {
 		return err
 	}
-	if material.Kept.Has(actor.AccountID) {
-		return integration.KeptOutOfAi()
+	if refused := material.Kept.Refusal(actor.AccountID); refused != nil {
+		return refused
 	}
 	if text == "" && strings.TrimSpace(material.Content) == "" {
 		return integration.NothingToWorkWith()
