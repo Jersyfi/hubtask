@@ -533,3 +533,32 @@ func TestADisabledAccountGetsNoLinkAndTheSameAnswer(t *testing.T) {
 		t.Error("a link was queued for a disabled account")
 	}
 }
+
+// UC-ID-04 check 1: an account that signs in only through a provider answers the same silence as
+// one with a password, one without an account and a disabled one. Behind it the job is queued as for
+// any held address - the mail it sends is what differs, never the answer.
+func TestForgettingAnswersTheSameForAProviderOnlyAccount(t *testing.T) {
+	fixture := newPasswordFixture(now)
+	held := fixture.accounts.byEmail["bert@example.org"]
+	held.PasswordHash = secret.Secret{}
+	fixture.accounts.byEmail["bert@example.org"] = held
+	notifier := &notifierFake{}
+	handler := ForgetPassword{
+		Writer: fixture.writer, Notifier: notifier,
+		Tenants: tenantDirectory{single: tenant}, Multi: true,
+	}
+
+	providerOnly := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "bert@example.org", TenantSlug: "acme",
+	})
+	unheld := handler.Execute(t.Context(), ForgetPasswordCommand{
+		Email: "nobody@example.org", TenantSlug: "acme",
+	})
+
+	if providerOnly != nil || unheld != nil {
+		t.Fatalf("the answers were %v and %v, want both nil", providerOnly, unheld)
+	}
+	if len(notifier.queued) != 1 || notifier.queued[0].Payload["account_id"] != account.String() {
+		t.Errorf("queued %v, want the provider-only account's one job", notifier.queued)
+	}
+}
