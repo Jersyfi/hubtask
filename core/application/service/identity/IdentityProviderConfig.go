@@ -161,6 +161,7 @@ func (w IdentityProviderWriter) withOffers(
 	answered := make([]domain.IdentityProvider, 0, len(rows))
 	for _, row := range rows {
 		row.OfferedHere = offeredHere(row, here, now)
+		row.InstallationLock = row.InstallationLockAt(here.providersLockedIn, now)
 		answered = append(answered, row)
 	}
 	return answered, nil
@@ -567,6 +568,9 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 	}
 	if !configured.UpdatedAt.IsZero() {
 		out["updated_at"] = configured.UpdatedAt
+	}
+	if configured.InstallationLock != "" {
+		out["installation_lock"] = string(configured.InstallationLock)
 	}
 	return out
 }

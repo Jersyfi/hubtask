@@ -77,10 +77,23 @@ func (h OfferIdentityProvider) Execute(
 			return err
 		}
 
+		now := w.Session.Clock.Now()
+		here, err := readWaysHere(ctx, h.Workspaces, w.Instance)
+		if err != nil {
+			return err
+		}
+		// A provider the installation's lock turns on is not this workspace's to switch off
+		// (identity.md §18). Read in this transaction, so a lock set since the screen was drawn is
+		// what refuses. Switching it on is the workspace's own choice and is kept for when the lock
+		// lifts.
+		mandatory := mandatedHere(found, here, now)
+		if !offered && mandatory {
+			return mandated(here.lockOrigin)
+		}
+
 		// The last way in cannot be switched off. Counted rather than assumed: a workspace whose
 		// only method is a provider and who switches it off is a workspace nobody can reach, and
 		// the refusal belongs here rather than in a screen that might not be the one asking.
-		now := w.Session.Clock.Now()
 		if !offered && !anotherWayIn(ctx, w.Providers, h.Workspaces, w.Instance, found.ID, now) {
 			return lastWayIn()
 		}
@@ -92,6 +105,8 @@ func (h OfferIdentityProvider) Execute(
 
 		if found.Installation() {
 			switched, err = h.offerInstallationRow(ctx, found, offered)
+			switched.OfferedHere = offered || mandatory
+			switched.InstallationLock = switched.InstallationLockAt(here.providersLockedIn, now)
 		} else {
 			switched, err = h.switchOwnRow(ctx, found, offered)
 		}
@@ -187,6 +202,8 @@ func anotherWayIn(
 type waysHere struct {
 	workspace         domain.Workspace
 	providersLockedIn bool
+	// lockOrigin is who locked the ways in, for a refusal to name.
+	lockOrigin domain.LockOrigin
 }
 
 // readWaysHere reads both, in the ambient transaction: `instance_setting` carries no row policy, so
@@ -210,15 +227,26 @@ func readWaysHere(
 		if err != nil {
 			return waysHere{}, err
 		}
-		here.providersLockedIn = providersLockedIn(level)
+		// The workspace's layer cannot move a locked switch, so the level above alone decides it.
+		above := domain.Effective(level.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
+		here.providersLockedIn = above.ProvidersLockedIn()
+		here.lockOrigin = above.LockOf(domain.SwitchMethods)
 	}
 	return here, nil
 }
 
-// providersLockedIn answers the installation's lock from its own level: the workspace's layer cannot
-// move a locked switch, so the level above alone decides it.
-func providersLockedIn(level repository.InstanceLevel) bool {
-	return domain.Effective(level.Policy, domain.PolicyLayer{}, domain.PolicyLayer{}).ProvidersLockedIn()
+// mandatedHere answers whether the installation's lock turns this row on here while its offer
+// stands: the one switch a workspace may not turn off.
+func mandatedHere(configured domain.IdentityProvider, here waysHere, now time.Time) bool {
+	return configured.OfferedAt(now) && configured.MandatedHere(here.providersLockedIn)
+}
+
+// mandated is the refusal of switching off a provider the installation's lock turns on, naming who
+// locked it, as a locked rule does.
+func mandated(origin domain.LockOrigin) error {
+	return shared.ErrValidation.
+		WithDetail("identity_provider.mandated").
+		WithParams(map[string]string{"origin": string(origin)})
 }
 
 // providerOnHere answers whether any provider other than the one named is a way into this workspace.

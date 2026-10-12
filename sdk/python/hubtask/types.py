@@ -444,6 +444,7 @@ class IdentityProvider(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     offered_here: bool
+    installation_lock: Literal["TURNS_ON", "LEAVES_TO_WORKSPACE", "NONE"]
     withdraw_at: str | None
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
