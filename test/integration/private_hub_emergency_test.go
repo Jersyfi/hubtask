@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	workdomain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
@@ -248,6 +249,61 @@ func TestTheEmergencyAccessNotifiesBeforeItAnswersAnyRead(t *testing.T) {
 		Invoke(ctx, work.OpenPrivateHubName, owner, input)
 	if !errors.Is(err, shared.ErrConflict) || shared.AsError(err).DetailCode != "containers.emergency_running" {
 		t.Errorf("a second access answered %v", err)
+	}
+}
+
+// The archive carries the members' record of who opened their hub, and a restore writes it back
+// whole; an access whose hub the restore did not bring back is skipped rather than refused.
+func TestTheArchiveCarriesTheEmergencyAccesses(t *testing.T) {
+	ctx := context.Background()
+	hub := privateHub(ctx, t, tenantA, authorA)
+	opening := workdomain.EmergencyAccess{
+		ID: freshID(t), TenantID: tenantA, HubID: hub, OpenedBy: authorA,
+		Reason: "the insurance papers", OpenedAt: created, EndsAt: created.Add(time.Hour),
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewEmergencyAccessRepository().Insert(ctx, opening)
+	}); err != nil {
+		t.Fatalf("writing the access: %v", err)
+	}
+
+	row := exportedRowOf(ctx, t, tenantA, "private_hub_access", opening.ID)
+	if row["reason"] != "the insurance papers" || row["hub_id"] != hub.String() {
+		t.Fatalf("the export carries %v", row)
+	}
+	remove := func() {
+		if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM private_hub_access WHERE id = $1`, opening.ID.String()); err != nil {
+			t.Fatalf("removing the access: %v", err)
+		}
+	}
+	remove()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "private_hub_access", row, false)
+		return err
+	}); err != nil {
+		t.Fatalf("restoring the access: %v", err)
+	}
+	restored := exportedRowOf(ctx, t, tenantA, "private_hub_access", opening.ID)
+	for column, before := range row {
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
+	}
+
+	remove()
+	orphan := make(map[string]any, len(row))
+	for key, value := range row {
+		orphan[key] = value
+	}
+	orphan["hub_id"] = freshID(t).String()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "private_hub_access", orphan, false)
+		return err
+	}); err != nil {
+		t.Fatalf("an access without its hub was refused: %v", err)
+	}
+	if n := countIn(ctx, t, `SELECT count(*) FROM private_hub_access WHERE id = $1`, opening.ID.String()); n != 0 {
+		t.Errorf("an access without its hub was written")
 	}
 }
 
