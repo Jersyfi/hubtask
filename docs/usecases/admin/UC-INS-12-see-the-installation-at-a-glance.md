@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-01, P-11, P-12]
-state: partial
-tasks: [SI-17, SC-04]
-checked_by: [core/application/service/admin/InstanceOverview_test.go, test/integration/first_start_test.go, apps/webapp/e2e/instanceoverview.test.mjs]
+state: built
+tasks: [SI-17, SC-04, SC-07]
+checked_by: [core/application/service/admin/InstanceOverview_test.go, test/integration/first_start_test.go, apps/webapp/e2e/instanceoverview.test.mjs, core/application/service/admin/InstanceJournal_test.go]
 ---
 
 # See the installation at a glance and read what happened
@@ -38,7 +38,3 @@ was provisioned, suspended, changed and by whom, newest first.
 ## Where it ends
 
 * No per-workspace activity statistics; usage for billing is UC-INS-14.
-
-## Today
-
-* Check 2: not met — with an empty register the overview says "0 accounts may run this installation" to the person who runs it, without a plural form, tracked in #1063.

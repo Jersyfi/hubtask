@@ -1,0 +1,12 @@
+$ hubctl admin settings set sign_in.min_length twelve
+hubctl: That is not a value this setting takes.
+$ hubctl admin settings set sign_in.min_length 3.5
+hubctl: That is not a value this setting takes.
+$ hubctl admin settings set localisation.week_start WEDNESDAY
+hubctl: That is not a value this setting takes.
+$ hubctl admin settings set localisation.time_zone Mars/Olympus_Mons
+hubctl: The default time zone is not an IANA name: Mars/Olympus_Mons.
+$ hubctl admin settings set legal.accessibility_url ftp://provider.example/a11y
+hubctl: A link here has to start with https:// or http://.
+$ hubctl admin settings set quotas.items lots
+hubctl: That is not a value this setting takes.
