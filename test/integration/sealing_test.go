@@ -15,6 +15,7 @@ import (
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	sealingrepo "github.com/Jersyfi/hubtask/core/application/repository/sealing"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	automation "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -356,7 +357,7 @@ func TestARuleIsReSealedOnlyFromItsOwnTenant(t *testing.T) {
 	}
 }
 
-// Gate SG-3: Census.CountByKey - the census is the transaction's tenant's and nobody else's.
+// Gate SG-3: Census.Count - the census is the transaction's tenant's and nobody else's.
 func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -365,7 +366,7 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 	census := postgres.NewSealingRepository()
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -377,7 +378,7 @@ func TestTheCensusCountsOneTenantsValuesOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -425,7 +426,7 @@ func TestAWorkspacesCensusLeavesTheInstallationsProviderOut(t *testing.T) {
 
 	for _, tenant := range []shared.ID{idpTenantA, idpTenantB} {
 		inTenant(t, uow, tenant, func(ctx context.Context) error {
-			counts, err := census.CountByKey(ctx)
+			counts, err := byKey(census.Count(ctx))
 			if err != nil {
 				t.Fatalf("%s's census: %v", tenant, err)
 			}
@@ -435,4 +436,9 @@ func TestAWorkspacesCensusLeavesTheInstallationsProviderOut(t *testing.T) {
 			return nil
 		})
 	}
+}
+
+// byKey is a census's totals per key, for the tests that ask only about one key.
+func byKey(counted sealingrepo.Counts, err error) (map[string]int64, error) {
+	return counted.ByKey(), err
 }

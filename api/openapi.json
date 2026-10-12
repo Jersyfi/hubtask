@@ -5971,7 +5971,7 @@
         ],
         "operationId": "readEncryptionStatus",
         "summary": "The keyring, and what still names each key",
-        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.\n",
+        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.\n",
         "responses": {
           "200": {
             "description": "The keyring",
@@ -15120,7 +15120,8 @@
           "key_id",
           "active",
           "in_ring",
-          "sealed_values"
+          "sealed_values",
+          "stores"
         ],
         "properties": {
           "key_id": {
@@ -15138,7 +15139,40 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "description": "How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+            "description": "How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+          },
+          "stores": {
+            "type": "array",
+            "description": "The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.\n",
+            "items": {
+              "$ref": "#/components/schemas/EncryptionStoreCount"
+            }
+          }
+        }
+      },
+      "EncryptionStoreCount": {
+        "type": "object",
+        "required": [
+          "store",
+          "sealed_values"
+        ],
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "account_mfa",
+              "identity_provider",
+              "webhook_subscription",
+              "backup_target",
+              "ai_provider",
+              "automation_rule"
+            ],
+            "description": "The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.\n"
+          },
+          "sealed_values": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           }
         }
       },

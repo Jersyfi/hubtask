@@ -798,6 +798,11 @@ class EncryptionKeyUsage(TypedDict, total=False):
     active: Required[bool]
     in_ring: Required[bool]
     sealed_values: Required[int]
+    stores: Required[list["EncryptionStoreCount"]]
+
+class EncryptionStoreCount(TypedDict, total=False):
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule"]]
+    sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]

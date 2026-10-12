@@ -1488,6 +1488,36 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EncryptionStoreCountStore.
+const (
+	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
+	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
+	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
+	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
+)
+
+// Valid indicates whether the value is a known member of the EncryptionStoreCountStore enum.
+func (e EncryptionStoreCountStore) Valid() bool {
+	switch e {
+	case EncryptionStoreCountStoreAccountMfa:
+		return true
+	case EncryptionStoreCountStoreAiProvider:
+		return true
+	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreIdentityProvider:
+		return true
+	case EncryptionStoreCountStoreWebhookSubscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -5531,8 +5561,11 @@ type EncryptionKeyUsage struct {
 	InRing bool   `json:"in_ring"`
 	KeyId  string `json:"key_id"`
 
-	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	// SealedValues How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.
 	SealedValues int64 `json:"sealed_values"`
+
+	// Stores The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.
+	Stores []EncryptionStoreCount `json:"stores"`
 }
 
 // EncryptionStatus defines model for EncryptionStatus.
@@ -5543,6 +5576,17 @@ type EncryptionStatus struct {
 	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
+
+// EncryptionStoreCount defines model for EncryptionStoreCount.
+type EncryptionStoreCount struct {
+	SealedValues int64 `json:"sealed_values"`
+
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+	Store EncryptionStoreCountStore `json:"store"`
+}
+
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
