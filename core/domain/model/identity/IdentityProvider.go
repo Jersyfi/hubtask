@@ -157,6 +157,17 @@ func (p IdentityProvider) RemovableAt(now time.Time) error {
 // Installation reports whether this row belongs to no workspace.
 func (p IdentityProvider) Installation() bool { return p.TenantID.IsZero() }
 
+// MandatedHere reports whether the installation's lock turns this row on in every workspace, the
+// workspace's own switch notwithstanding (identity.md §18): an installation row admitted as *Only
+// people invited here*, under ways in locked with providers among them
+// (EffectivePolicy.ProvidersLockedIn). Such a provider creates no account; it is another way in for
+// people already there, connected with their own proof (§11). One admitted by domain or to anyone
+// stays each workspace's switch - otherwise the installation would let people into a workspace that
+// did not decide it (P-07). Whether the offer still stands is OfferedAt's question, not this one's.
+func (p IdentityProvider) MandatedHere(providersLockedIn bool) bool {
+	return providersLockedIn && p.Installation() && p.Provisioning == ProvisionInvitedOnly
+}
+
 // NewIdentityProviderInput is what configuring one needs.
 type NewIdentityProviderInput struct {
 	ID shared.ID
