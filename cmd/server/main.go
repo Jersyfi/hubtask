@@ -131,6 +131,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(selfCheck())
 	}
+	// The way back into an installation nobody can run (UC-INS-03), from the machine itself.
+	if len(os.Args) > 1 && os.Args[1] == "operator" {
+		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).

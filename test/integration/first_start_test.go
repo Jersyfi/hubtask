@@ -413,3 +413,47 @@ func TestTheEnvironmentsOperatorsReachTheRealRegister(t *testing.T) {
 		t.Errorf("two workspaces and an empty register: %v", codes)
 	}
 }
+
+// UC-INS-03 checks 2 and 3 against the real register, on an installation with two workspaces and
+// nobody to run it: the machine's door adds the account and journals it as the machine's; a pair
+// that matches nothing - in this workspace or any other - is one refusal and adds nobody.
+func TestTheMachineRestoresAnOperatorOnALockedInstallation(t *testing.T) {
+	ctx := context.Background()
+	admin, app := emptyInstallation(ctx, t, "hubtask_first_start_restore")
+	for _, statement := range []string{
+		`INSERT INTO tenant (id, slug, display_name) VALUES
+		   ('019364de-0000-7000-8000-00000005e781', 'demo', 'Demo'),
+		   ('019364de-0000-7000-8000-00000005e782', 'other', 'Other')`,
+		`INSERT INTO account (id, tenant_id, kind, email, display_name, status) VALUES
+		   ('019364de-0000-7000-8000-00000005e791', '019364de-0000-7000-8000-00000005e781', 'USER', 'jerome@example.eu', 'Jérôme', 'ACTIVE'),
+		   ('019364de-0000-7000-8000-00000005e792', '019364de-0000-7000-8000-00000005e782', 'USER', 'olga@example.eu', 'Olga', 'ACTIVE')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	restore := adminservice.RestoreOperator{Writer: adminservice.InstanceWriter{
+		Operators: postgres.NewOperatorRepository(), Journal: postgres.NewInstanceJournal(pageCursors()),
+		UnitOfWork: postgres.NewUnitOfWork(app), Clock: clockadapter.System{},
+		IDs: clockadapter.NewUUIDv7(clockadapter.System{}),
+	}}
+
+	// Olga exists - in the other workspace. Named in this one she is nobody.
+	if _, err := restore.Execute(ctx, "demo", "olga@example.eu"); shared.AsError(err).DetailCode != "admin.operator_unknown_account" {
+		t.Errorf("an address from another workspace answered %v", err)
+	}
+	restored, err := restore.Execute(ctx, "demo", "Jerome@Example.eu")
+	if err != nil || !restored.Added {
+		t.Fatalf("restoring answered %+v, %v", restored, err)
+	}
+
+	var operators, byMachine int
+	if err := admin.QueryRow(ctx, `SELECT (SELECT count(*) FROM operator),
+		(SELECT count(*) FROM instance_event WHERE action = 'instance.operator_added' AND actor_label = 'machine')`).
+		Scan(&operators, &byMachine); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if operators != 1 || byMachine != 1 {
+		t.Errorf("operators %d, journalled from the machine %d; want 1, 1", operators, byMachine)
+	}
+}
