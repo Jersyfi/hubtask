@@ -657,6 +657,36 @@ jobs:
       # needed - which is what keeps a documentation-only pull request cheap.
       - run: make gate-docs
 
+  # Pull requests merge without catching up with main (ADR-0083), so two that each add migration
+  # 0140 are both green alone and collide only on main. On a pull request this compares the numbers
+  # it adds with every other open pull request's, and holds the merge with main to one file per
+  # number; on main it holds the tree. Behind no filter: a number is taken in db/ or docs/adr/.
+  numbers:
+    name: Migration and ADR numbers
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # The merge commit and its parents: the first parent is the base, so what the branch adds is
+      # the diff from it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: make gate-numbers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+          PR: ${{ github.event.pull_request.number }}
+          OPEN: ${{ github.event_name == 'pull_request' && '1' || '0' }}
+
   pr-description:
     name: Pull request description
     # The description against the template: every section present and filled, n/a where one does
@@ -968,6 +998,7 @@ jobs:
       - security
       - data
       - docs
+      - numbers
       - pr-description
       - node
       - engines
