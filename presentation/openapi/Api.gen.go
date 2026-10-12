@@ -6295,6 +6295,9 @@ type InstanceSetting struct {
 	// Options For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the strictest. Absent for the other kinds.
 	Options *[]interface{} `json:"options,omitempty"`
 
+	// Position The key's place within its area, from 0: the order a screen draws the keys in, which an object's own key order does not carry.
+	Position *int `json:"position,omitempty"`
+
 	// Set Whether the installation decided this one. False means each workspace decides it, and `value` is then absent — not zero, not empty, absent, because a zero is a decision.
 	Set bool `json:"set"`
 

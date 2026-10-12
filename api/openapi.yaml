@@ -10805,6 +10805,12 @@ components:
           type: integer
           readOnly: true
           description: For `COUNT`, the most the product applies. Absent where there is no bound.
+        position:
+          type: integer
+          readOnly: true
+          description: >
+            The key's place within its area, from 0: the order a screen draws the keys in, which an
+            object's own key order does not carry.
         workspace_may:
           type: string
           readOnly: true

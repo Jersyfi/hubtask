@@ -42,10 +42,10 @@ test('what was decided is sent in its kind, and what was not is left out', () =>
   assert.deepEqual(document.legal, {});
 });
 
-test('the areas are drawn in the screen order, each key the server answered', () => {
+test('the areas are drawn in the screen order, each key in its declared position', () => {
   const rows = rowsOf({
     ai: { sources: { set: false, locked: false, kind: 'CHOICE', options: ['EITHER'] } },
-    sign_in: { min_length: count() },
+    sign_in: { min_digits: count({ position: 3 }), min_length: count({ position: 0 }) },
   });
-  assert.deepEqual(rows.map((row) => `${row.area}.${row.key}`), ['sign_in.min_length', 'ai.sources']);
+  assert.deepEqual(rows.map((row) => `${row.area}.${row.key}`), ['sign_in.min_length', 'sign_in.min_digits', 'ai.sources']);
 });

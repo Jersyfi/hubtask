@@ -151,8 +151,13 @@ func TestEveryKeyOfEveryAreaIsDeclared(t *testing.T) {
 		if len(entries) == 0 {
 			t.Errorf("%s answers no keys", area)
 		}
+		places := map[any]string{}
 		for name, raw := range entries {
 			entry, _ := raw.(usecase.Output)
+			if position, _ := entry["position"].(int); position < 0 || position >= len(entries) || places[position] != "" {
+				t.Errorf("%s.%s is at %v, which is no place of its own", area, name, entry["position"])
+			}
+			places[entry["position"]] = name
 			kind, _ := entry["kind"].(string)
 			if !slices.Contains([]string{"COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "LOCALE", "TIME_ZONE"}, kind) {
 				t.Errorf("%s.%s has no kind: %v", area, name, entry)

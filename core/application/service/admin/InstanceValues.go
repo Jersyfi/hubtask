@@ -46,26 +46,26 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 			continue
 		}
 		value, decided := switchValueOf(level.Policy.Patch, name)
-		signIn[string(name)] = entryOf(declaration, decided, value, level.Policy.Locks[name])
+		place(signIn, string(name), entryOf(declaration, decided, value, level.Policy.Locks[name]))
 	}
 
 	legal := usecase.Output{}
 	for _, link := range identity.LegalLinkNames() {
 		value := level.Legal.Links.Of(link)
-		legal[string(link)] = entryOf(identity.DeclarationOfLink(link), value != "", value, level.Legal.Locks[link])
+		place(legal, string(link), entryOf(identity.DeclarationOfLink(link), value != "", value, level.Legal.Locks[link]))
 	}
 
 	localisation := usecase.Output{}
 	for _, name := range identity.LocalisationKeys() {
 		declaration, _ := identity.DeclarationOfLocalisation(name)
 		value := localisationValueOf(level.Localisation, name)
-		localisation[name] = entryOf(declaration, value != "", value, false)
+		place(localisation, name, entryOf(declaration, value != "", value, false))
 	}
 
 	quotas := usecase.Output{}
 	for _, name := range quota.OperatorNames() {
 		ceiling, decided := level.Quotas.Of(name)
-		quotas[name] = entryOf(quota.Declaration(), decided, ceiling, level.Quotas.Locked(name))
+		place(quotas, name, entryOf(quota.Declaration(), decided, ceiling, level.Quotas.Locked(name)))
 	}
 
 	ai := usecase.Output{}
@@ -75,7 +75,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 			continue
 		}
 		value := aiValueOf(level.Ai, name)
-		ai[string(name)] = entryOf(declaration, value != "", value, level.Ai.Locks[name])
+		place(ai, string(name), entryOf(declaration, value != "", value, level.Ai.Locks[name]))
 	}
 
 	out := usecase.Output{
@@ -91,6 +91,13 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		out["blocklist_file"] = level.BlocklistFile
 	}
 	return out
+}
+
+// place puts an entry into its area with its position there: a JSON object has no order, and a
+// screen draws the keys in the domain's order - the order the workspace's own screen uses.
+func place(area usecase.Output, key string, entry usecase.Output) {
+	entry["position"] = len(area)
+	area[key] = entry
 }
 
 // entryOf is one key: decided or not, its value only where it was, its lock, and its declaration.

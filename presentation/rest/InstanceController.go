@@ -250,6 +250,9 @@ func instanceSettingsOf(value any) map[string]openapi.InstanceSetting {
 		if maximum, held := entry["maximum"].(int); held {
 			setting.Maximum = &maximum
 		}
+		if position, held := entry["position"].(int); held {
+			setting.Position = &position
+		}
 		if may := entry.String("workspace_may"); may != "" {
 			declared := openapi.InstanceSettingWorkspaceMay(may)
 			setting.WorkspaceMay = &declared

@@ -658,6 +658,7 @@ class InstanceSetting(TypedDict, total=False):
     options: list[Any]
     minimum: int
     maximum: int
+    position: int
     workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE"]
 
 class InstanceSettings(TypedDict, total=False):

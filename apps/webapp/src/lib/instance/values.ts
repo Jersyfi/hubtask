@@ -24,11 +24,14 @@ export interface Row {
   readonly setting: InstanceSetting;
 }
 
-/** Every key of every area the server answered, area by area, in the order it answered them. */
+/** Every key of every area the server answered, area by area, each in its declared position. */
 export function rowsOf(settings: InstanceSettings | undefined): Row[] {
   if (!settings) return [];
   return AREAS.flatMap((area) =>
-    Object.entries(settings[area] ?? {}).map(([key, setting]) => ({ area, key, setting })),
+    Object.entries(settings[area] ?? {})
+      .map(([key, setting]) => ({ area, key, setting }))
+      // The domain's order where the server says it; a JSON object's own order is not one.
+      .sort((a, b) => (a.setting.position ?? 0) - (b.setting.position ?? 0)),
   );
 }
 
