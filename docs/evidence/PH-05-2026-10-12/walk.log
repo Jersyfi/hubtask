@@ -7,7 +7,7 @@
   screenshot 3-owner-step-up-desktop.png
   on the hub: You opened this hub through the emergency access. It closes at Oct 12, 2026, 9:15 PM; its members have been told.
   screenshot 4-owner-opened-hub-desktop.png
-  access stored: 01a13153-c36a-74c0-851e-52cb66bcc153 21:15
+  row stored: 01a13153-c36a-74c0-851e-52cb66bcc153 21:15
   notification records: Lena Kind EMERGENCY_ACCESS SUPPRESSED notifications.no_address
   trail: container.emergency_access_opened target 01a13153-06a1-7d8c-9650-22c3047244e2 reason in clear: false
   screenshot 5-owner-list-while-open-desktop.png
@@ -27,7 +27,7 @@
   screenshot 3-owner-step-up-375.png
   on the hub: You opened this hub through the emergency access. It closes at Oct 12, 2026, 9:15 PM; its members have been told.
   screenshot 4-owner-opened-hub-375.png
-  access stored: 01a13153-d822-73a9-a355-8b7e3002d69c 21:15
+  row stored: 01a13153-d822-73a9-a355-8b7e3002d69c 21:15
   notification records: Mara Parent EMERGENCY_ACCESS SUPPRESSED notifications.no_address
   trail: container.emergency_access_opened target 01a13153-06b7-7438-8586-9582c442c1ff reason in clear: false
   screenshot 5-owner-list-while-open-375.png
