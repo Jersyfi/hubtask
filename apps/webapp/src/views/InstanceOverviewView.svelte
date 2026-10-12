@@ -67,6 +67,17 @@
   /** The installation's providers, by name, as the overview prints them. */
   const offered = $derived(instance.providers.map((provider) => provider.display_name));
 
+  /**
+   * Who may run the installation, as one line (UC-INS-12 check 2). An empty register is not "nobody":
+   * this reader reached the overview because the installation has one workspace and they own it,
+   * which is said as such. Nothing is said while the register is still being read.
+   */
+  const operatorsLine = $derived.by(() => {
+    if (instance.operatorsState.status !== 'ready') return '';
+    const count = instance.operators.length;
+    return count === 0 ? t('app.instance.digest_operators_sole') : t('app.instance.digest_operators', { count });
+  });
+
   /** The newest journal entry, as the overview's one line of "what happened". */
   const latest = $derived(instance.journal[0]);
 
@@ -174,7 +185,7 @@
           <div class="entry">
             <dt>{t('app.instance.operators')}</dt>
             <dd>
-              <span>{t('app.instance.digest_operators', { count: instance.operators.length })}</span>
+              <span>{operatorsLine}</span>
               <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/operators')}>
                 {t('app.instance.digest_manage')}
               </Button>
@@ -229,6 +240,15 @@
                 {/each}
               </ul>
             {/if}
+            <!-- What the installation is missing without anything having failed - an empty register,
+                 a statement nobody set - in the catalogue's words, which the operator acts on. -->
+            {#if report.warnings && report.warnings.length > 0}
+              <ul class="warnings" data-warnings>
+                {#each report.warnings as warning (warning.code + JSON.stringify(warning.params ?? {}))}
+                  <li>{t(warning.code, (warning.params ?? {}) as Record<string, string>)}</li>
+                {/each}
+              </ul>
+            {/if}
           </Stack>
         {/if}
       {/if}
@@ -262,6 +282,7 @@
   .count dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-500); font-weight: var(--fw-semibold); }
 
   .features { margin: 0; padding-inline-start: var(--sp-200); color: var(--text-secondary); font-size: var(--fs-100); }
+  .warnings { margin: 0; padding-inline-start: var(--sp-200); display: grid; gap: var(--sp-050); max-inline-size: 60ch; }
 
   /* Five rows of "what this says, and the way to it". A list, so it takes the region rather than a
      measure (ADR-0065 decision 2). */
