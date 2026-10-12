@@ -135,6 +135,9 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 		CreatedAt:   timeValue(row["created_at"]),
 		PurgeAfter:  optionalTimeField(row["purge_after"]),
 	}
+	if held, answered := row["legal_hold"].(bool); answered {
+		tenant.LegalHold = &held
+	}
 	if locale := row.String("default_locale"); locale != "" {
 		tenant.DefaultLocale = &locale
 	}
