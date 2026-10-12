@@ -238,13 +238,6 @@ the path in the refusal.
 
 **Not built, and each its own task.** Nothing of §5 remains.
 
-**Since SC-05** the register reads as people: `operator_roster` names each operator for operators
-only, `enlist_operator` adds the person adding the first entry and only active accounts,
-`dismiss_operator` tells "not registered" from "the last one". The hour is not replaced by a second
-raise, survives a token refresh in the web app, and `hubctl admin elevate` raises a terminal
-session; on a single-workspace installation the area is the administration's last group
-([identity.md](../architecture/identity.md) §19).
-
 **And one gap the plural providers opened.** The installation's own provider holds a sealed client
 secret, and the re-seal's driver runs the resealers per tenant (`RunReseal` takes the actor's
 workspace). `ListIdentityProviderSecrets` compares the tenant with `IS NOT DISTINCT FROM`, so a pass
