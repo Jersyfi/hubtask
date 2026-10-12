@@ -234,7 +234,7 @@ label, absent when unset. A terminology pass: "second factor" everywhere, no fie
 
 ---
 
-## SC-10 — Terms of use, agreed and re-agreed
+## SC-10 — Terms of use, agreed and re-agreed · built
 
 *Depends on: SC-03.*
 

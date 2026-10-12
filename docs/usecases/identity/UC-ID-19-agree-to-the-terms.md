@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-operator, PE-owner]
 deployments: [D4, D5, D6]
 serves: [P-02, P-11, P-12]
-state: specified
+state: built
 tasks: [SC-10]
-checked_by: []
+checked_by: [core/domain/model/identity/Terms_test.go, core/application/service/identity/TermsStep_test.go, core/application/service/identity/TermsSites_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/TermsSettings_test.go, test/integration/terms_flow_test.go, test/integration/terms_agreement_test.go, apps/webapp/e2e/terms.test.mjs, cmd/hubctl/LoginTerms_test.go]
 ---
 
 # Agree to the terms, and again when they change
@@ -41,11 +41,3 @@ whom to contact.
 
 * Hubtask does not host the terms' text; the link points to wherever the provider keeps it.
 * No per-clause consent, no marketing opt-ins.
-
-## Today
-
-* Check 1: not met — there is no terms agreement when an invitation is accepted, and nothing stores a version or a time, tracked in #1066.
-* Check 2: not met — there is no agreement step on the sign-in card when the terms' version changes, tracked in #1066.
-* Check 3: not met — there is no step to decline, tracked in #1066.
-* Check 4: not met — the trail records no agreement, tracked in #1066.
-* Check 6: not met — there is no step for provider sign-ins, tracked in #1066.
