@@ -1055,6 +1055,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/ai-provider", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Which AI answers this workspace, and what it may use */
+  readAiSource(options: CallOptions = {}): Promise<operations["readAiSource"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ai-source", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Choose which AI answers this workspace */
+  chooseAiSource(body: NonNullable<operations["chooseAiSource"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["chooseAiSource"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's registered third-party apps */
   listOauthClients(options: CallOptions = {}): Promise<operations["listOauthClients"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/oauth/clients", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

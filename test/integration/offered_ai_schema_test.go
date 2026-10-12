@@ -19,8 +19,8 @@ import (
 // the one policy they knew - send nothing while one exists.
 
 var (
-	offeredSchemaTenant = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb01")
-	offeredSchemaModel  = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb11")
+	offeredSchemaTenant = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000a1b01")
+	offeredSchemaModel  = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000a1b11")
 )
 
 func seedOfferedSchema(ctx context.Context, t *testing.T) {

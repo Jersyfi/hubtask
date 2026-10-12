@@ -1021,6 +1021,19 @@ func run() error {
 		ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
+	// Which AI source answers a workspace (ADR-0072 §2): the installation's level, the
+	// workspace's narrowing, the offered models and the workspace's choice, read in one
+	// transaction by every reader of the rule - the source's own use cases, the resolver and the
+	// own model's configuration.
+	aiRules := integrationservice.AiRules{
+		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
+	}
+	aiSourceWriter := integrationservice.AiSourceWriter{
+		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{},
+	}
+
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
 	// no one adapter to wire: this answers "which provider does this workspace use" and produces
 	// NoopAi for the three cases that are not "configured and consented".
@@ -1402,6 +1415,8 @@ func run() error {
 		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),

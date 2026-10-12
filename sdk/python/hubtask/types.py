@@ -293,6 +293,39 @@ class OfferedAiModelConfiguration(TypedDict, total=False):
     api_key: str
     jurisdiction: Required["AiJurisdiction"]
 
+AiSources = Literal["NONE", "OFFERED", "OWN", "EITHER"]
+
+AiSourceKind = Literal["OWN", "OFFERED", "NONE"]
+
+AiMinJurisdiction = Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]
+
+class AiSource(TypedDict, total=False):
+    source: Required["AiSourceKind"]
+    offered_model_id: str
+    sources: Required["AiSources"]
+    installation_sources: Required["AiSources"]
+    narrowing: "AiSources"
+    sources_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    sources_lock: Literal["INSTANCE", "PLAN"]
+    min_jurisdiction: Required["AiMinJurisdiction"]
+    min_jurisdiction_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    min_jurisdiction_lock: Literal["INSTANCE", "PLAN"]
+    offered: Required[list["OfferedAiModelSummary"]]
+    search_rebuilding: bool
+    updated_at: str
+    version: Required[int]
+
+class OfferedAiModelSummary(TypedDict, total=False):
+    id: Required[str]
+    display_name: Required[str]
+    processor: Required[str]
+    jurisdiction: Required["AiJurisdiction"]
+
+class AiSourceChoice(TypedDict, total=False):
+    source: Required["AiSourceKind"]
+    offered_model_id: str
+    sources: Literal["NONE", "OFFERED", "OWN", "EITHER", "INHERIT"]
+
 AiProviderKind = Literal["NOOP", "OPENAI_COMPATIBLE", "OLLAMA"]
 
 AiJurisdiction = Literal["SELF_HOSTED", "EEA", "ADEQUACY", "THIRD_COUNTRY"]

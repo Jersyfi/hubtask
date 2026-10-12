@@ -64,6 +64,7 @@ var privateHubExemptions = map[string]string{
 	"ListPrivateHubs":              "ADR-0073 §3's list: owners and sizes, never a name or content",
 	"PollTriggerEvents":            filteredPoll,
 	"ReadAiProvider":               noHub,
+	"ReadAiSource":                 noHub,
 	"CheckPassword":                noHub,
 	"CountAccountsWithoutProvider": noHub,
 	"GetAccount":                   noHub,

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/archive"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -24,9 +25,9 @@ import (
 // a workspace's choice invisible next door.
 
 var (
-	offeredRepoTenantA = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc01")
-	offeredRepoTenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc02")
-	offeredRepoModel   = shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fc11")
+	offeredRepoTenantA = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000a1a01")
+	offeredRepoTenantB = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000a1a02")
+	offeredRepoModel   = shared.MustParseID("01936f2a-7c1e-7000-8000-0000000a1a11")
 )
 
 func seedOfferedRepoTenants(ctx context.Context, t *testing.T) {
@@ -249,4 +250,52 @@ func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
 	if cleared := read(); cleared.Ai.Sources != nil || cleared.Ai.MinJurisdiction != nil {
 		t.Errorf("a write that no longer decides the area left it: %+v", cleared.Ai)
 	}
+}
+
+// D3 of the record: a workspace's narrowing is an administrator's restriction and travels through
+// the archive with the workspace's settings, which every restore mode writes through the tenant's
+// import; the choice of source carries consent and is not in the archive at all.
+func TestARestoreKeepsTheNarrowingAndNotTheChoice(t *testing.T) {
+	ctx := context.Background()
+	seedOfferedRepoTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`UPDATE tenant SET settings = settings || '{"ai_sources": "OWN"}'::jsonb WHERE id = $1`,
+		offeredRepoTenantA.String()); err != nil {
+		t.Fatalf("narrowing: %v", err)
+	}
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO ai_source (tenant_id, source, updated_at) VALUES ($1, 'NONE', now())
+		 ON CONFLICT (tenant_id) DO UPDATE SET source = 'NONE'`, offeredRepoTenantA.String()); err != nil {
+		t.Fatalf("choosing: %v", err)
+	}
+
+	if _, excluded := archive.ExcludedTables()["ai_source"]; !excluded {
+		t.Fatal("the choice of source is in the archive")
+	}
+	row := exportedRowOf(ctx, t, offeredRepoTenantA, "tenant", offeredRepoTenantA)
+
+	// The narrowing is lost on the live row, then put back from what the archive holds.
+	if _, err := admin.Exec(ctx,
+		`UPDATE tenant SET settings = settings - 'ai_sources' WHERE id = $1`, offeredRepoTenantA.String()); err != nil {
+		t.Fatalf("clearing: %v", err)
+	}
+	if err := write(ctx, t, offeredRepoTenantA, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "tenant", row, true)
+		return err
+	}); err != nil {
+		t.Fatalf("restoring the tenant row: %v", err)
+	}
+
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	inTenant(t, uow, offeredRepoTenantA, func(ctx context.Context) error {
+		workspace, err := postgres.NewWorkspaceSettingsRepository().Find(ctx)
+		if err != nil {
+			return err
+		}
+		if workspace.Settings.AiSources != "OWN" {
+			t.Errorf("the restored narrowing is %q, want OWN", workspace.Settings.AiSources)
+		}
+		return nil
+	})
 }

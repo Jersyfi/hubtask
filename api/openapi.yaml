@@ -5455,6 +5455,53 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /ai-source:
+    get:
+      tags: [ai]
+      operationId: readAiSource
+      summary: Which AI answers this workspace, and what it may use
+      description: >
+        The workspace's own model, a model the installation offers, or none - with what the
+        installation allows, whether that is locked and by whom, and the least a workspace's own
+        model must declare. An offered model is answered by its name, its processor and its
+        jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and
+        `offered` is empty: the workspace's own model, as always.
+      responses:
+        "200":
+          description: The workspace's AI source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [ai]
+      operationId: chooseAiSource
+      summary: Choose which AI answers this workspace
+      description: >
+        Choosing an offered model is this workspace's consent to send its content to it, and
+        choosing its own model or none withdraws that consent. `NONE` is always allowed; a source
+        the installation does not allow is refused with `403`, `ai.source_not_allowed`. A
+        narrowing wider than the installation allows is refused with `auth.policy_loosens`, one
+        under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own
+        always. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSourceChoice"
+      responses:
+        "200":
+          description: Chosen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /oauth/clients:
     get:
       tags: [oauth]
@@ -9390,6 +9437,102 @@ components:
             the key already stored; send an empty string to clear it.
         jurisdiction:
           $ref: "#/components/schemas/AiJurisdiction"
+
+    AiSources:
+      type: string
+      enum: [NONE, OFFERED, OWN, EITHER]
+      description: >
+        Which sources a workspace may use: none, only a model the installation offers, only its
+        own (the default), or either.
+
+    AiSourceKind:
+      type: string
+      enum: [OWN, OFFERED, NONE]
+      description: Which source answers a workspace.
+
+    AiMinJurisdiction:
+      type: string
+      enum: [ANY, ADEQUACY, EEA, SELF_HOSTED]
+      description: >
+        The least a workspace's own model must declare about where it processes content, further
+        right being stricter.
+
+    AiSource:
+      type: object
+      required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
+        min_jurisdiction_origin, offered, version]
+      properties:
+        source:
+          $ref: "#/components/schemas/AiSourceKind"
+        offered_model_id:
+          type: string
+          format: uuid
+          description: >
+            The offered model chosen. Absent with any other source - and absent while the source
+            is `OFFERED` once the installation withdrew the model chosen: then nothing answers
+            until the workspace chooses again.
+        sources:
+          $ref: "#/components/schemas/AiSources"
+        installation_sources:
+          $ref: "#/components/schemas/AiSources"
+        narrowing:
+          $ref: "#/components/schemas/AiSources"
+        sources_origin:
+          type: string
+          enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+        sources_lock:
+          type: string
+          enum: [INSTANCE, PLAN]
+          description: Present where a level above locked what the workspace may use.
+        min_jurisdiction:
+          $ref: "#/components/schemas/AiMinJurisdiction"
+        min_jurisdiction_origin:
+          type: string
+          enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+        min_jurisdiction_lock:
+          type: string
+          enum: [INSTANCE, PLAN]
+        offered:
+          type: array
+          description: >
+            The models the installation offers, where it allows them at all: name, processor and
+            jurisdiction, never an address, a model name or a key.
+          items:
+            $ref: "#/components/schemas/OfferedAiModelSummary"
+        search_rebuilding:
+          type: boolean
+          description: >
+            True while search by meaning is being rebuilt for the model now in use. Search by
+            words keeps working meanwhile.
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    OfferedAiModelSummary:
+      type: object
+      required: [id, display_name, processor, jurisdiction]
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        processor: { type: string }
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+
+    AiSourceChoice:
+      type: object
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/AiSourceKind"
+        offered_model_id:
+          type: string
+          format: uuid
+          description: The offered model, with `OFFERED` only.
+        sources:
+          type: string
+          enum: [NONE, OFFERED, OWN, EITHER, INHERIT]
+          description: >
+            This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes
+            what the installation allows, absent keeps it.
 
     AiProviderKind:
       type: string

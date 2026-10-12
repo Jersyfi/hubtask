@@ -1250,3 +1250,12 @@ func (pending) ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Reques
 func (pending) RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request, _ openapi.ProviderId) {
 	notAvailable(w, r)
 }
+
+// The workspace's AI source. RestController serves both; these stand behind them.
+func (pending) ReadAiSource(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

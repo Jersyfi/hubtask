@@ -843,6 +843,14 @@ class Client:
         """Remove the workspace's AI provider"""
         return self._call("DELETE", "/ai-provider", {}, None, {}, None, "none", None, "void")
 
+    def read_ai_source(self) -> "AiSource":
+        """Which AI answers this workspace, and what it may use"""
+        return self._call("GET", "/ai-source", {}, None, {}, None, "none", None, "json")
+
+    def choose_ai_source(self, body: "AiSourceChoice") -> "AiSource":
+        """Choose which AI answers this workspace"""
+        return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
+
     def list_oauth_clients(self) -> dict[str, Any]:
         """The workspace's registered third-party apps"""
         return self._call("GET", "/oauth/clients", {}, None, {}, None, "none", None, "json")
