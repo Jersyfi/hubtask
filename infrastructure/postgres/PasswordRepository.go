@@ -55,8 +55,9 @@ func (PasswordRepository) FindForPassword(
 	}
 
 	return passwordAccountFrom(
-		row.ID, row.TenantID, row.Kind, row.Email, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart, row.PasswordHash, row.PasswordSetAt)
+		row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+		row.Locale, row.TimeZone, row.WeekStart, row.PasswordHash, row.PasswordSetAt,
+		row.StartPasswordAt)
 }
 
 // FindByEmailForPassword answers the account an address names.
@@ -79,19 +80,20 @@ func (PasswordRepository) FindByEmailForPassword(
 	}
 
 	return passwordAccountFrom(
-		row.ID, row.TenantID, row.Kind, row.Email, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart, row.PasswordHash, row.PasswordSetAt)
+		row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+		row.Locale, row.TimeZone, row.WeekStart, row.PasswordHash, row.PasswordSetAt,
+		row.StartPasswordAt)
 }
 
 // passwordAccountFrom rebuilds the account. The tenant is carried deliberately: a mapper that drops
 // it answers a row nothing can write back, and three of them once did.
 func passwordAccountFrom(
-	id, tenantID pgtype.UUID, kind sqlc.AccountKind, email *string, displayName string,
+	id, tenantID pgtype.UUID, kind sqlc.AccountKind, email, signInName *string, displayName string,
 	status sqlc.AccountStatus, locale, timeZone, weekStart *string,
-	passwordHash *string, passwordSetAt pgtype.Timestamptz,
+	passwordHash *string, passwordSetAt, startPasswordAt pgtype.Timestamptz,
 ) (repository.PasswordAccount, error) {
 	account, err := accountFrom(
-		id, kind, email, displayName, status, locale, timeZone, weekStart, nil,
+		id, kind, email, signInName, displayName, status, locale, timeZone, weekStart, nil,
 		pgtype.Timestamptz{})
 	if err != nil {
 		return repository.PasswordAccount{}, err
@@ -108,6 +110,9 @@ func passwordAccountFrom(
 	}
 	if passwordSetAt.Valid {
 		held.PasswordSetAt = timeFrom(passwordSetAt)
+	}
+	if startPasswordAt.Valid {
+		held.StartPasswordAt = timeFrom(startPasswordAt)
 	}
 	return held, nil
 }

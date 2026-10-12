@@ -183,6 +183,12 @@ CREATE TABLE account (
   -- When the password in password_hash was set (ADR-0068 §3, migration 0098). What max_age_days
   -- and rotation_from are compared against. NULL for an account that has no password.
   password_set_at   timestamptz,
+  -- What a managed account signs in with instead of an address (ADR-0074, migration 0127): folded,
+  -- unique in the workspace, never containing `@`.
+  sign_in_name      text CONSTRAINT account_sign_in_name_check
+                    CHECK (char_length(sign_in_name) BETWEEN 3 AND 32 AND position('@' IN sign_in_name) = 0),
+  -- When Hubtask drew the password the account holds; NULL once the person chose their own.
+  start_password_at timestamptz,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -191,6 +197,8 @@ CREATE TABLE account (
 CREATE UNIQUE INDEX account_tenant_id_uq ON account (tenant_id, id);
 CREATE UNIQUE INDEX account_email_uq ON account (tenant_id, lower(email))
   WHERE email IS NOT NULL AND deleted_at IS NULL;
+CREATE UNIQUE INDEX account_sign_in_name_uq ON account (tenant_id, sign_in_name)
+  WHERE sign_in_name IS NOT NULL AND deleted_at IS NULL;
 CREATE UNIQUE INDEX account_subject_uq ON account (tenant_id, external_subject)
   WHERE external_subject IS NOT NULL;
 -- The lookup the public redemption route makes: the hash covers the whole presented string,
@@ -416,6 +424,9 @@ CREATE TABLE auth_pending (
   -- What proved the account when the link is connected: the password at the LINK step, or the
   -- mailbox with a fresh sign-in at the provider (migration 0117). NULL reads as the password.
   link_proof       text CHECK (link_proof IN ('PASSWORD', 'MAILBOX')),
+  -- A password change still owed once this step completes: a password the rule refused, or a
+  -- start password, met after a factor step (migration 0127).
+  password_change_owed boolean NOT NULL DEFAULT false,
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check

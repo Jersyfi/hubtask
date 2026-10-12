@@ -193,6 +193,25 @@ type Accounts interface {
 	Restricted(ctx context.Context, accountIDs []shared.ID) (map[shared.ID]bool, error)
 }
 
+// ManagedAccounts is the side of the account table a managed account needs (ADR-0074): found by its
+// sign-in name, and written with the start password Hubtask drew. Its own port rather than three
+// more methods on Accounts, whose other users never meet a sign-in name.
+type ManagedAccounts interface {
+	// FindBySignInName answers the account a folded name names, or an error wrapping
+	// shared.ErrNotFound. The tenant is the transaction's.
+	FindBySignInName(ctx context.Context, signInName string) (identity.Account, error)
+
+	// InsertManaged writes an active account with its sign-in name, the start password's hash and
+	// the moment it was drawn. A name taken in the meantime is a conflict
+	// (`accounts.sign_in_name_taken`): the uniqueness is the database's, and of two administrators
+	// taking one name at once only one may win.
+	InsertManaged(ctx context.Context, account identity.Account, passwordHash string, at time.Time) error
+
+	// HasManaged answers whether the workspace has a managed account that can still sign in - what
+	// the public sign-in card's first field asks for. A boolean, never a count or a name.
+	HasManaged(ctx context.Context) (bool, error)
+}
+
 // Groups is the store of named sets of accounts.
 // GroupPage is one page of the workspace's groups, by name.
 type GroupPage struct {

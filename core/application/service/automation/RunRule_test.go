@@ -331,6 +331,11 @@ func TestEveryActionIsPerformedAsTheRulesAccount(t *testing.T) {
 		if len(call.actor.Scopes) != 1 || call.actor.Scopes[0] != wanted[call.kind] {
 			t.Errorf("%s was granted %v, want just %q", call.kind, call.actor.Scopes, wanted[call.kind])
 		}
+		// The rule it runs for is named, so a use case whose answer nobody would read can refuse
+		// an act no caller reads (a managed account's start password).
+		if call.actor.RunsForRule != rule.ID {
+			t.Errorf("%s ran for the rule %q, want %q", call.kind, call.actor.RunsForRule, rule.ID)
+		}
 		// The label is read where the trail is written, not carried here - a rule that cached one
 		// would record a name a release out of date.
 		if call.actor.AccountName != "" {

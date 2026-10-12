@@ -6,6 +6,8 @@ package rest
 import (
 	"net/http"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -43,8 +45,9 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), signInUseCase, actorOf(r), usecase.Input{
-		"email":    string(body.Email),
-		"password": body.Password,
+		"identifier": optionalStringField(body.Identifier),
+		"email":      emailOf(body.Email),
+		"password":   body.Password,
 		// The client hints and the tenant sources are the request's, and only this adapter has
 		// the request - which is why they travel as declared inputs rather than being re-derived
 		// somewhere that never saw the connection.
@@ -243,4 +246,13 @@ func optionalTextField(value any) *string {
 		return nil
 	}
 	return &text
+}
+
+// emailOf reads the optional address of a sign-in body: absent is the empty string, which the use
+// case meets as an identifier nobody holds.
+func emailOf(email *openapi_types.Email) string {
+	if email == nil {
+		return ""
+	}
+	return string(*email)
 }

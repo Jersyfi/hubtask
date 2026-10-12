@@ -48,6 +48,11 @@ func (c *RestController) CompleteSignIn(w http.ResponseWriter, r *http.Request) 
 		WriteProblem(w, err, requestID)
 		return
 	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// The code was right and the password still owes the change step.
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
 
@@ -150,6 +155,11 @@ func (c *RestController) ConfirmTotp(w http.ResponseWriter, r *http.Request) {
 	if tokens, ok := out["tokens"].(usecase.Output); ok {
 		pair := sessionTokensResponse(tokens)
 		confirmed.Tokens = &pair
+	}
+	if challenge, ok := out["challenge"].(usecase.Output); ok {
+		// The change step the sign-in still owes, standing where the pair would.
+		owed := mfaChallengeResponse(challenge)
+		confirmed.Challenge = &owed
 	}
 	writeJSON(w, r, http.StatusOK, confirmed)
 }

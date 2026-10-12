@@ -19,6 +19,7 @@ import {
   localRulesHold,
   longestRun,
   unmetCount,
+  type PasswordContext,
   type PasswordRules,
 } from './signinrules.ts';
 
@@ -119,4 +120,16 @@ test('localRulesHold is what decides whether the server is asked', () => {
 test('the count the live region announces is the number of lines still open', () => {
   const lines = evaluate(rules(), 'a-long-enough-one', nobody, { violations: ['common'], isAnswered: true });
   assert.equal(unmetCount(lines), 1);
+});
+
+test('a person signing in with a name is told the name is compared, not an address they lack', () => {
+  const on = rules({ context_words: true });
+  const line = (password: string, context: PasswordContext) =>
+    evaluate(on, password, context).find((each) => each.id === 'context_words');
+
+  assert.equal(line('lanterns', { signInName: 'oma.erika' })?.code, 'auth.password_rule.context_words_name');
+  assert.equal(line('oma.erika-lanterns', { signInName: 'oma.erika' })?.state, 'unmet');
+  assert.equal(line('lanterns', { email: 'anna@contoso.example' })?.code, 'auth.password_rule.context_words');
+  // Nothing known about the person at all: the line everybody has always read.
+  assert.equal(line('lanterns', nobody)?.code, 'auth.password_rule.context_words');
 });

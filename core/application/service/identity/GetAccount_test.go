@@ -47,13 +47,16 @@ func TestTheProjectionCarriesNoEmailAndNoPreferences(t *testing.T) {
 	}
 	// Named rather than counted, so that adding a field is a decision somebody makes here rather
 	// than one inherited from the wider projection beside it.
-	for _, field := range []string{"id", "kind", "display_name", "status"} {
+	//
+	// `has_address` is the fifth (ADR-0074 §5): whether mail reaches this person, so a reminder's
+	// screen can say it does not - the address itself stays the holder's own.
+	for _, field := range []string{"id", "kind", "display_name", "status", "has_address"} {
 		if _, present := out[field]; !present {
 			t.Errorf("%q is missing, and a reader needs it", field)
 		}
 	}
-	if len(out) != 4 {
-		t.Errorf("the projection carries %d fields, want 4", len(out))
+	if len(out) != 5 {
+		t.Errorf("the projection carries %d fields, want 5", len(out))
 	}
 	// `status` travels for a reason worth stating: an erasure writes its marker into the row where
 	// the name was, and `ANONYMIZED` beside it is what tells a reader that the blank is deliberate

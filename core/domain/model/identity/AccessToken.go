@@ -241,6 +241,9 @@ type Account struct {
 	// Email is how a person is invited and how they are found again. Unique per tenant, and
 	// stored lower case because two spellings of one address are two accounts for one person.
 	Email string
+	// SignInName is what a managed account signs in with instead of an address (ADR-0074): folded,
+	// unique per tenant, never holding `@`. Empty on an account that signs in with its address.
+	SignInName string
 	// DisplayName is what the audit trail records alongside the identifier. Denormalised into
 	// every entry it appears in, because an entry that only points at a foreign key becomes
 	// unreadable once the account is deleted, and a trail that loses its meaning through a
