@@ -5,10 +5,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	openapitypes "github.com/oapi-codegen/runtime/types"
@@ -18,10 +20,10 @@ import (
 
 // The instance level at the terminal — the second of ADR-0070 §5's three doors.
 //
-// "Die API ist das Produkt; hubctl und das Dashboard sind zwei Clients davon … Ein Betreiber wählt
-// seine Tür, nicht seinen Funktionsumfang." So every verb the dashboard has is here: the values and
-// their locks, the legal links, the operator register, and the providers the installation offers
-// every workspace.
+// The API is the product, and hubctl and the dashboard are two clients of it: an operator chooses a
+// door, not a set of features. So every verb the dashboard has is here: the values and their
+// locks, the legal links, the operator register, the providers the installation offers every
+// workspace, and the hour a person raises their own session for.
 //
 // **One switch at a time, and the read is whole.** `settings set` changes one key and sends the
 // rest back untouched, because `PUT` replaces the level and a terminal that made somebody retype
@@ -31,7 +33,58 @@ const (
 	adminSettingsPath  = "/admin/settings"
 	adminOperatorsPath = "/admin/operators"
 	adminProvidersPath = "/admin/identity-providers"
+	elevatePath        = "/auth/sessions:elevate"
 )
+
+// alreadyElevated is the refusal of a raise while the session's hour still runs; it names the end.
+const alreadyElevated = "auth.session_already_elevated"
+
+// adminElevate raises this profile's session to the control plane for an hour (UC-INS-04 check 6).
+//
+// A session's act, like every step-up: a personal access token cannot prove a person afresh, and a
+// machine holds a token with the scope instead. Nothing new is stored in the profile - the hour is
+// the session row's, and the profile's own refresh rotates the same session, so every later
+// `hubctl admin` command on this profile reaches the control plane until the hour ends.
+func adminElevate(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "admin", "elevate", "")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if cli.Profile.Session.IsEmpty() {
+		message, _ := cli.Catalogue.Message("auth.step_up_session_required", nil)
+		return errorString(message + "\n  Sign in as a person first - `hubctl login` - and raise that session.")
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var raised openapi.SessionElevation
+	err = cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, elevatePath, nil, stepUpProof(stepUp), &raised)
+	})
+	var refusal APIError
+	if errors.As(err, &refusal) && refusal.DetailCode == alreadyElevated {
+		// The hour runs already: it is not extended and not started again, and its end is the
+		// answer the person was after.
+		until, parsed := time.Parse(time.RFC3339, refusal.Params["until"])
+		if parsed != nil {
+			return err
+		}
+		raised = openapi.SessionElevation{ElevatedUntil: until, RemainingSeconds: int(time.Until(until).Seconds())}
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+	return cli.Emit(raised, Table{
+		Columns: []string{"elevated until", "minutes left"},
+		Rows: [][]string{{
+			raised.ElevatedUntil.Local().Format("2006-01-02 15:04"),
+			strconv.Itoa((raised.RemainingSeconds + 59) / 60),
+		}},
+	})
+}
 
 func adminSettings(ctx context.Context, cli *CLI, args []string) error {
 	const verbs = "show, set, clear"
@@ -238,16 +291,40 @@ func adminOperatorList(ctx context.Context, cli *CLI, args []string) error {
 	if err := client.Get(ctx, adminOperatorsPath, nil, &register); err != nil {
 		return err
 	}
+	return cli.Emit(register, operatorTable(register))
+}
+
+// operatorTable names each operator the way the screen does: a name, what they sign in with, and
+// their workspace - and the identifier last, because `admin operator rm` takes it.
+func operatorTable(register []openapi.Operator) Table {
 	rows := make([][]string, 0, len(register))
 	for _, operator := range register {
 		rows = append(rows, []string{
-			operator.AccountId.String(), operator.TenantId.String(),
-			operator.AddedAt.Format("2006-01-02"),
+			valueOr(operator.DisplayName, "-"), operatorAddress(operator),
+			valueOr(operator.WorkspaceSlug, operator.TenantId.String()),
+			operator.AddedAt.Format("2006-01-02"), operator.AccountId.String(),
 		})
 	}
-	return cli.Emit(register, Table{
-		Columns: []string{"account", "workspace", "added"}, Rows: rows,
-	})
+	return Table{Columns: []string{"name", "signs in with", "workspace", "added", "account"}, Rows: rows}
+}
+
+func operatorAddress(operator openapi.Operator) string {
+	switch {
+	case operator.Email != nil && *operator.Email != "":
+		return string(*operator.Email)
+	case operator.SignInName != nil && *operator.SignInName != "":
+		return *operator.SignInName
+	case operator.Kind != nil && *operator.Kind == openapi.OperatorKindSERVICEACCOUNT:
+		return "service account"
+	}
+	return "-"
+}
+
+func valueOr(value *string, fallback string) string {
+	if value == nil || *value == "" {
+		return fallback
+	}
+	return *value
 }
 
 // adminOperatorAdd names the account the way a person can: the workspace, and the address.
@@ -256,16 +333,30 @@ func adminOperatorList(ctx context.Context, cli *CLI, args []string) error {
 // terminal usually has is the other pair, because no screen and no command may list accounts across
 // workspaces — `account` is behind row level security, so there is nothing to search.
 func adminOperatorAdd(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "admin operator", "add", "--workspace <slug> --email <address>")
+	flags := commandFlags(cli, "admin operator", "add",
+		"(--workspace <slug> --email <address> | --service-account <name> | --account <id>)")
 	workspace := flags.String("workspace", "", "the workspace the account is in")
 	email := flags.String("email", "", "the address the account signs in with")
+	machine := flags.String("service-account", "",
+		"a service account of the workspace you are signed in to, by its name")
 	account := flags.String("account", "", "the account's identifier, where a caller has one")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
 
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+
 	body := openapi.OperatorAdd{}
 	switch {
+	case *machine != "":
+		found, err := serviceAccountNamed(ctx, client, *machine)
+		if err != nil {
+			return err
+		}
+		body.AccountId = &found
 	case *account != "":
 		parsed, err := uuid.Parse(*account)
 		if err != nil {
@@ -277,17 +368,36 @@ func adminOperatorAdd(ctx context.Context, cli *CLI, args []string) error {
 		address := openapitypes.Email(*email)
 		body.Email = &address
 	default:
-		return usagef("admin operator add needs --workspace and --email, or --account")
+		return usagef("admin operator add needs --workspace and --email, --service-account, or --account")
 	}
 
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
 	if err := client.Post(ctx, adminOperatorsPath, body, nil); err != nil {
 		return err
 	}
 	return adminOperatorList(ctx, cli, nil)
+}
+
+// serviceAccountNamed finds a service account of the caller's own workspace by its name (UC-INS-06
+// check 1). The workspace's own list, read with the permission that manages its members - never
+// another workspace's accounts, which no door at this level lists.
+func serviceAccountNamed(ctx context.Context, client *Client, name string) (uuid.UUID, error) {
+	var accounts []openapi.Account
+	if err := client.Get(ctx, serviceAccountPath, nil, &accounts); err != nil {
+		return uuid.UUID{}, err
+	}
+	var matches []openapi.Account
+	for _, each := range accounts {
+		if strings.EqualFold(strings.TrimSpace(each.DisplayName), strings.TrimSpace(name)) {
+			matches = append(matches, each)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return uuid.UUID{}, usagef("no service account of this workspace is called %q - `hubctl service-account ls` lists them", name)
+	case 1:
+		return matches[0].Id, nil
+	}
+	return uuid.UUID{}, usagef("%d service accounts are called %q - name one by --account <id> from `hubctl service-account ls`", len(matches), name)
 }
 
 func adminOperatorRemove(ctx context.Context, cli *CLI, args []string) error {

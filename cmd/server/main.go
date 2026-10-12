@@ -1192,6 +1192,14 @@ func run() error {
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
 	}.Warnings)
+	// A key the ring lacks while values still name it, by kind (UC-INS-16 check 3): the census
+	// is taken in the background, at start and hourly, and served from the last one.
+	keyHealth := &sealingservice.KeyHealth{
+		Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
+		Encryptor: encryptor, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+	keyHealth.Refresh(ctx)
+	registry.AddWarningSource(keyHealth.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -2086,6 +2094,13 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
+		// The workspace's own budget for its own AI model (UC-AI-06 check 6): the workspace's to
+		// set, never the operator's.
+		quotaservice.SetOwnAiBudget{
+			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.UpdateTenantQuotas{
 			Tenants: postgres.NewAdminTenantRepository(),
 			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
@@ -2102,7 +2117,7 @@ func run() error {
 		// transaction of its own.
 		sealingservice.ReadEncryptionStatus{
 			Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
-			Encryptor: encryptor, UnitOfWork: unitOfWork,
+			Encryptor: encryptor, UnitOfWork: unitOfWork, Observer: keyHealth,
 		}.Descriptor(),
 		sealingservice.ResealSecrets{
 			Tenants: postgres.NewAdminTenantRepository(), Jobs: jobs, Encryptor: encryptor,
@@ -3101,25 +3116,40 @@ func run() error {
 		},
 		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value
 		// moves its own rows, and the round composes them inside the tenant's transaction.
-		queueport.KindSecretReseal: worker.SecretReseal{Round: sealingservice.RunReseal{
-			Resealers: []sealingservice.Resealer{
-				identity.MfaResealer{Enrollments: mfaStore, Encryptor: encryptor},
-				identity.IdentityProviderResealer{
-					Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+		queueport.KindSecretReseal: worker.SecretReseal{
+			Round: sealingservice.RunReseal{
+				Resealers: []sealingservice.Resealer{
+					identity.MfaResealer{Enrollments: mfaStore, Encryptor: encryptor},
+					identity.IdentityProviderResealer{
+						Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+					},
+					integrationservice.WebhookResealer{
+						Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
+					},
+					backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
+					integrationservice.AiProviderResealer{
+						Providers: postgres.NewAiProviderRepository(), Encryptor: encryptor,
+					},
+					automationservice.RuleResealer{
+						Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
+					},
 				},
-				integrationservice.WebhookResealer{
-					Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
-				},
-				backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
-				integrationservice.AiProviderResealer{
-					Providers: postgres.NewAiProviderRepository(), Encryptor: encryptor,
-				},
-				automationservice.RuleResealer{
-					Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
-				},
+				Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 			},
-			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
-		}},
+			// The installation's own round: the secrets of no workspace, in the scope with none.
+			Installation: sealingservice.RunInstallationReseal{
+				Resealers: []sealingservice.Resealer{
+					identity.IdentityProviderResealer{
+						Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+					},
+					integrationservice.OfferedAiProviderResealer{
+						Providers: postgres.NewOfferedAiRepository(), Encryptor: encryptor,
+					},
+				},
+				Encryptor: encryptor, Journal: postgres.NewInstanceJournal(cursors),
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+		},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 		queueport.KindPrivacyErasureRemainder: worker.PrivacyErasureRemainder{
 			Resume: privacyservice.ResumeErasure{

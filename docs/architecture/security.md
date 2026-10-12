@@ -178,20 +178,27 @@ value, a rotation is a configuration change. The procedure is drilled
 2. **Put it first, keep the rest**: `HUBTASK_ENCRYPTION_KEYS=k2,k1` with both keys' material. New
    values seal under `k2`, `k1` values still open; dropping `k1` here is an outage.
 3. **Re-seal**: `POST /admin/encryption:reseal` (`hubctl admin encryption reseal`) queues one round
-   per workspace, rewrapping each value's data key under `k2`, never decrypting the value. Asking
-   again before a round ran queues nothing.
+   per workspace and one for the installation's own secrets, rewrapping each value's data key under
+   `k2`, never decrypting the value. Asking again before a round ran queues nothing.
 4. **Read the census, then retire the old key**: `GET /admin/encryption` (`hubctl admin encryption
-   show`) counts the stored values naming each key. Remove `k1` only at zero; earlier, its rows
-   answer `crypto.unknown_key` and the census shows it `in_ring: false` until it is put back and
-   re-sealed.
+   show`) counts the stored values naming each key, across every workspace and the installation's
+   own level - each installation secret once - and by kind, never by workspace. Remove `k1` only at
+   zero; earlier, its rows answer `crypto.unknown_key`, the census shows it `in_ring: false` with
+   the kinds it still seals, and the operator's health report warns `crypto.key_missing` per kind
+   (counted in the background at start, hourly and on every census read, and saying when) until it
+   is put back and re-sealed. A direct HTTP call still retrying holds its header secret in its job,
+   which neither the census nor a round reaches (finding #1296): wait for the outbound ladder before
+   removing a key.
 
 **What a round touches.** The six sealed places — the second factor, an identity provider's client
 secret, the AI provider's key, a webhook's current and previous signing secret, a backup target's
 credential, a rule's HTTP header secret at any depth — each re-sealed by its owning service under its
-purpose. An installation provider's client secret is not re-sealed yet; the census reports it (S-6).
-No version or `updated_at` moves. A value naming a key outside the ring is skipped and counted.
-Counts land in `hubtask_secret_reseals_total` by store and outcome, and as `encryption.resealed` in
-the workspace's trail when anything moved.
+purpose. The installation's own round - a job without a tenant, run in the scope whose writes the
+installation policies admit - re-seals its sign-in providers' client secrets and its offered AI
+models' keys, each under the purpose it was sealed for. No version or `updated_at` moves. A value
+naming a key outside the ring is skipped and counted. Counts land in `hubtask_secret_reseals_total`
+by store and outcome, as `encryption.resealed` in the workspace's trail when anything moved, and as
+`instance.secrets_resealed` in the installation's journal for its own round.
 
 ---
 
@@ -315,4 +322,3 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | S-1 | An external penetration test / code audit before the first commercial operation | Before `1.0.0` |
 | S-4 | A threat row for the web client itself; today the interface's policy (§9) and the client's credential rules ([identity.md](./identity.md) §14.4) cover it | — |
 | S-5 | Bug bounty yes/no, and its framing | After `1.0.0` |
-| S-6 | Re-seal the installation's own sealed values on a key rotation (§8.1) | Before a multi-tenant installation rotates its keys |

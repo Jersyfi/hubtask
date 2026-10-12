@@ -47,3 +47,19 @@ func TestTheMachineRestoresAnOperatorByAddress(t *testing.T) {
 		t.Errorf("a missing workspace answered %v", err)
 	}
 }
+
+// The machine restores only an active account: a disabled one could not sign in to use it.
+func TestTheMachineRefusesAnAccountThatIsNotActive(t *testing.T) {
+	register := newRegister()
+	register.addresses = map[string]shared.ID{"demo\x00jerome@example.eu": adaAccount}
+	register.inactive[adaAccount] = true
+	writer, _, journal := newInstanceWriter(register)
+
+	_, err := RestoreOperator{Writer: writer}.Execute(t.Context(), "demo", "jerome@example.eu")
+	if shared.AsError(err).DetailCode != "admin.operator_not_active" {
+		t.Errorf("an account that is not active answered %v", err)
+	}
+	if register.accounts[adaAccount] || len(journal.entries) != 0 {
+		t.Error("a refused restore changed the register")
+	}
+}

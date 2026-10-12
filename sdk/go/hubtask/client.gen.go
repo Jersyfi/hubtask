@@ -1494,6 +1494,36 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EncryptionStoreCountStore.
+const (
+	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
+	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
+	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
+	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
+)
+
+// Valid indicates whether the value is a known member of the EncryptionStoreCountStore enum.
+func (e EncryptionStoreCountStore) Valid() bool {
+	switch e {
+	case EncryptionStoreCountStoreAccountMfa:
+		return true
+	case EncryptionStoreCountStoreAiProvider:
+		return true
+	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreIdentityProvider:
+		return true
+	case EncryptionStoreCountStoreWebhookSubscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2373,6 +2403,24 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -2513,6 +2561,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
@@ -2525,6 +2574,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiOwnTokensPerDay:
+		return true
 	case AiTokensPerDay:
 		return true
 	case ApiRequestsPerMinute:
@@ -5647,8 +5698,11 @@ type EncryptionKeyUsage struct {
 	InRing bool   `json:"in_ring"`
 	KeyId  string `json:"key_id"`
 
-	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	// SealedValues How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.
 	SealedValues int64 `json:"sealed_values"`
+
+	// Stores The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.
+	Stores []EncryptionStoreCount `json:"stores"`
 }
 
 // EncryptionStatus defines model for EncryptionStatus.
@@ -5659,6 +5713,17 @@ type EncryptionStatus struct {
 	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
+
+// EncryptionStoreCount defines model for EncryptionStoreCount.
+type EncryptionStoreCount struct {
+	SealedValues int64 `json:"sealed_values"`
+
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+	Store EncryptionStoreCountStore `json:"store"`
+}
+
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
@@ -7053,9 +7118,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
@@ -7069,6 +7158,12 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -7411,7 +7506,9 @@ type QuotaStanding struct {
 	Configured *bool `json:"configured,omitempty"`
 
 	// Limit The resolved ceiling. 0 means unlimited.
-	Limit int64              `json:"limit"`
+	Limit int64 `json:"limit"`
+
+	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -7421,7 +7518,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota defines model for QuotaStanding.Quota.
+// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -8777,7 +8874,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -10473,6 +10570,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -11266,7 +11366,7 @@ type ClientInterface interface {
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 	ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11274,7 +11374,7 @@ type ClientInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11369,6 +11469,7 @@ type ClientInterface interface {
 	// ListOperators Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
 	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11376,7 +11477,8 @@ type ClientInterface interface {
 	// AddOperatorWithBody Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -11386,7 +11488,8 @@ type ClientInterface interface {
 	// AddOperator Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -11396,7 +11499,7 @@ type ClientInterface interface {
 	// RemoveOperator Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11585,6 +11688,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveAiProvider Remove the workspace's AI provider
 	//
@@ -12122,7 +12243,7 @@ type ClientInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -15533,7 +15654,7 @@ func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId Pro
 // ReadEncryptionStatus The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15551,7 +15672,7 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // ResealSecrets Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15756,6 +15877,7 @@ func (c *Client) ListInstanceJournal(ctx context.Context, params *ListInstanceJo
 // ListOperators Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Corresponds with GET /admin/operators (the `ListOperators` operationId).
 func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15773,7 +15895,8 @@ func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorF
 // AddOperatorWithBody Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15793,7 +15916,8 @@ func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, bo
 // AddOperator Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15813,7 +15937,7 @@ func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBod
 // RemoveOperator Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -16213,6 +16337,44 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuspendTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -17259,7 +17421,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -24993,6 +25155,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetOwnAiBudgetRequest calls the generic SetOwnAiBudget builder with application/json body
+func NewSetOwnAiBudgetRequest(server string, body SetOwnAiBudgetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOwnAiBudgetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetOwnAiBudgetRequestWithBody constructs an http.Request for the SetOwnAiBudget method, with any body, and a specified content type
+func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-budget")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -37851,7 +38053,7 @@ type ClientWithResponsesInterface interface {
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37861,7 +38063,7 @@ type ClientWithResponsesInterface interface {
 	// ResealSecretsWithResponse Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37966,6 +38168,7 @@ type ClientWithResponsesInterface interface {
 	// ListOperatorsWithResponse Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37975,7 +38178,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithBodyWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -37985,7 +38189,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -37995,7 +38200,7 @@ type ClientWithResponsesInterface interface {
 	// RemoveOperatorWithResponse Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -38200,6 +38405,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
+
+	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
+	// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
 
 	// RemoveAiProviderWithResponse Remove the workspace's AI provider
 	//
@@ -38757,7 +38980,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -43808,6 +44031,54 @@ func (r SuspendTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SuspendTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetOwnAiBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]QuotaStanding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOwnAiBudgetResult) GetJSON200() *[]QuotaStanding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetOwnAiBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOwnAiBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOwnAiBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOwnAiBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOwnAiBudgetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56932,7 +57203,7 @@ func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx contex
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -56948,7 +57219,7 @@ func (c *ClientWithResponses) ReadEncryptionStatusWithResponse(ctx context.Conte
 // ResealSecretsWithResponse Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57119,6 +57390,7 @@ func (c *ClientWithResponses) ListInstanceJournalWithResponse(ctx context.Contex
 // ListOperatorsWithResponse Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57134,7 +57406,8 @@ func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, req
 // AddOperatorWithBodyWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57150,7 +57423,8 @@ func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Contex
 // AddOperatorWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57166,7 +57440,7 @@ func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body 
 // RemoveOperatorWithResponse Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -57502,6 +57776,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 		return nil, err
 	}
 	return ParseSuspendTenantResult(rsp)
+}
+
+// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudgetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
+// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudget(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
 }
 
 // RemoveAiProviderWithResponse Remove the workspace's AI provider
@@ -58360,7 +58664,7 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -64717,6 +65021,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetOwnAiBudgetResult parses an HTTP response from a SetOwnAiBudgetWithResponse call
+func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOwnAiBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

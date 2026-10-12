@@ -17,8 +17,8 @@ import (
 // operator cannot move, and this is the test that turns red first.
 func TestTheOverridesNameEveryConfigurableRow(t *testing.T) {
 	want := []string{
-		"APIRequestsPerMinute", "AiTokensPerDay", "AutomationRunsPerHour", "ExportJobs",
-		"Items", "MediaBytes", "WebhookTargets",
+		"APIRequestsPerMinute", "AiOwnTokensPerDay", "AiTokensPerDay", "AutomationRunsPerHour",
+		"ExportJobs", "Items", "MediaBytes", "WebhookTargets",
 	}
 
 	shape := reflect.TypeOf(quota.Overrides{})

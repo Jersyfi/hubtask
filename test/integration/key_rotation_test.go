@@ -296,7 +296,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		if err := rules.Insert(ctx, rule); err != nil {
 			t.Fatalf("storing the rule: %v", err)
 		}
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil || counts[oldKey.ID] != 5 {
 			t.Fatalf("the census before the rotation: %v (%v)", counts, err)
 		}
@@ -338,7 +338,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 
 	// The census is what step 4 reads: the old key names nothing, and the round is idempotent.
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
-		counts, err := census.CountByKey(ctx)
+		counts, err := byKey(census.Count(ctx))
 		if err != nil {
 			t.Fatal(err)
 		}

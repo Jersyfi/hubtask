@@ -1496,8 +1496,19 @@ operator_setup="$(curl -sS -X POST "$MULTI/api/v1/auth/installation:set-up" -H '
 	-d "{\"code\":\"$MULTI_CODE\",\"display_name\":\"Operations\",\"slug\":\"operations\",\"owner_email\":\"ops@example.org\",\"password\":\"$SETUP_PASSWORD\"}")"
 OPERATOR_ACCESS="$(answer_field access_token <<< "$operator_setup")"
 [ -n "$OPERATOR_ACCESS" ] || { echo "FAILED: the multi-mode setup answered $operator_setup"; exit 1; }
-read -r _ ADMIN_TOKEN < <(mint_on "$MULTI" "$OPERATOR_ACCESS" "$SETUP_PASSWORD" 'the control plane' '["admin:tenants"]')
-[ -n "$ADMIN_TOKEN" ] || { echo "FAILED: the operator could not mint the control plane's credential"; exit 1; }
+# The operator at a terminal, as a person (UC-INS-04 check 6, UC-ID-17 check 3): signed in with a
+# password, the session raised for an hour behind a step-up, and the control plane's token minted
+# with `hubctl token create` behind another - nothing here talks to the API but hubctl.
+OPERATOR_PROFILE="$WORK_DIR/operator-session.json"
+operator() { HUBTASK_PROFILE="$OPERATOR_PROFILE" HUBTASK_PASSWORD="$SETUP_PASSWORD" "$WORK_DIR/hubctl" "$@"; }
+OPERATIONS_ID="$(multi_psql "SELECT id FROM tenant WHERE slug = 'operations'" | tr -d '[:space:]')"
+operator login --url "$MULTI" --email 'ops@example.org' --tenant "$OPERATIONS_ID" >/dev/null
+raised="$(operator --json admin elevate)"
+expect_contains "admin elevate" "$raised" '"elevated_until"'
+expect_contains "the raised session reaches the control plane" "$(operator --json admin tenant ls)" '"operations"'
+minted="$(operator --json token create --name 'the control plane' --scope admin:tenants --days 1)"
+ADMIN_TOKEN="$(json_field token "$minted")"
+[ -n "$ADMIN_TOKEN" ] || { echo "FAILED: the operator could not mint the control plane's credential: $minted"; exit 1; }
 
 # Two identities, two profiles. The operator holds a token and the owner holds a session, and the
 # whole point of the act is that they are different credentials with different powers - so they

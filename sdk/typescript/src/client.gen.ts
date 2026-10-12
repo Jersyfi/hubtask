@@ -1102,6 +1102,11 @@ export class HubtaskClient {
     return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Set the daily budget of this workspace's own AI model */
+  setOwnAiBudget(body: NonNullable<operations["setOwnAiBudget"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAiBudget"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-budget", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's registered third-party apps */
   listOauthClients(options: CallOptions = {}): Promise<operations["listOauthClients"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/oauth/clients", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

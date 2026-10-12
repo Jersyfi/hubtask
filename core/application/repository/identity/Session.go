@@ -133,7 +133,13 @@ type Sessions interface {
 	// Elevate raises one live session of the account to the control plane's scope until the given
 	// moment (ADR-0070 §4). False means the session is not the account's, or not live - which is
 	// the same indistinguishable answer Revoke gives, for the same reason.
+	// A running hour is not replaced: a session raised until a moment after `now` is not written
+	// either, so two raises at once leave one hour (UC-INS-04 check 4).
 	Elevate(ctx context.Context, sessionID, accountID shared.ID, until, now time.Time) (bool, error)
+
+	// ElevatedUntil answers when the account's live session stops carrying the control plane's
+	// scope, and the zero time where it never did or is not the account's.
+	ElevatedUntil(ctx context.Context, sessionID, accountID shared.ID) (time.Time, error)
 }
 
 // RefreshTokens maintains the rotating chain. The presented token is passed whole rather than

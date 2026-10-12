@@ -69,6 +69,7 @@
     'webhook_targets',
     'export_jobs',
     'ai_tokens_per_day',
+    'ai_own_tokens_per_day',
   ]);
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);

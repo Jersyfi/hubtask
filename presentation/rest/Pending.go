@@ -1291,3 +1291,7 @@ func (pending) ReadAiSource(w http.ResponseWriter, r *http.Request) {
 func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
