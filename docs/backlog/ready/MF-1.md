@@ -82,8 +82,11 @@ after a pipe"; "a test's scratch repository inherits `GIT_DIR`".
 
 ## 3. Decisions
 
-- [x] D1 Turn `strict` off, with the safeguards below in `main` first — decided by: owner, request
-  of 2026-10-12; the setting changes after the merge, by the coordinator, § 4
+- [x] D1 Turn `strict` off, with the safeguards below in `main` first — decided by: owner,
+  2026-10-12: the merge-flow concept and this pull request accepted ("das merge flow concept
+  akzeptiere ich ... direkt umsetzen"), so ADR-0083 is accepted and `strict` goes off after the
+  merge, by the coordinator, in the order of § 4; a review of the flow after two weeks, filed as an
+  issue by the coordinator
 - [x] D2 Every commit on `main` gets its own complete run: the concurrency group is the commit on
   `main`, the ref on a pull request — decided by: worker; without it the first red commit is not
   known. Cost: about 25 jobs per merge that were cancelled before; the runner queue was ~0 over 5,721
