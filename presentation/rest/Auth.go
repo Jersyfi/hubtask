@@ -47,6 +47,10 @@ var PublicRoutes = map[string]bool{
 	// authenticates the second call, exactly as the redemption token is for an invitation.
 	http.MethodPost + " " + APIBasePath + "/auth/password:forgot": true,
 	http.MethodPost + " " + APIBasePath + "/auth/password:reset":  true,
+	// Confirming an address is public for the reset's reason (ADR-0074 §6): whoever holds the
+	// mailbox may follow the link from any device, signed in or not, and the token in the body is
+	// the whole of what authenticates the call. It signs nobody in.
+	http.MethodPost + " " + APIBasePath + "/auth/address:confirm": true,
 	// The check is public because three of the four proofs it accepts are the tokens of a flow
 	// that has no bearer yet: an invitation, a reset, and the pending credential of a sign-in the
 	// change step interrupted (ADR-0068 §7). A proof is still demanded - the route refuses without

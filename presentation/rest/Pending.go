@@ -1239,3 +1239,17 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 }
 
 func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The managed account's later steps (ADR-0074 §4, §6): a new start password, an address, and its
+// confirmation.
+func (pending) IssueStartPassword(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.IssueStartPasswordParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) AddAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmAddress(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

@@ -79,6 +79,7 @@ class AccountSummary(TypedDict, total=False):
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
     has_address: bool
+    managed: bool
 
 class ManagedAccountCreate(TypedDict, total=False):
     display_name: Required[str]
@@ -91,6 +92,19 @@ class ManagedAccountCreated(TypedDict, total=False):
     account: Required["Account"]
     membership: Required["Membership"]
     start_password: Required[str]
+
+class StartPasswordIssued(TypedDict, total=False):
+    account: Required["Account"]
+    start_password: Required[str]
+
+class AddressRequest(TypedDict, total=False):
+    email: Required[str]
+
+class AddressRequested(TypedDict, total=False):
+    expires_at: Required[str]
+
+class AddressConfirm(TypedDict, total=False):
+    token: Required[str]
 
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
