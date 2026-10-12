@@ -1937,6 +1937,7 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -1948,6 +1949,7 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back
 		// on through the automation package, which owns how a schedule's next moment is found.

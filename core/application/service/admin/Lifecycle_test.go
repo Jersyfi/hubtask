@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 )
@@ -41,6 +42,7 @@ func newShiftFixture(status domain.TenantStatus) *shiftFixture {
 	f.shift = LifecycleShift{
 		Tenants: f.tenants, Journal: f.journal, Audit: f.audit,
 		UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &sequentialIDs{},
+		Tenancy: env.TenancyMulti,
 	}
 	return f
 }
