@@ -364,8 +364,17 @@ func (c *RestController) ReadEncryptionStatus(w http.ResponseWriter, r *http.Req
 		active, _ := row["active"].(bool)
 		inRing, _ := row["in_ring"].(bool)
 		count, _ := row["sealed_values"].(int64)
+		listed, _ := row["stores"].([]usecase.Output)
+		stores := make([]openapi.EncryptionStoreCount, 0, len(listed))
+		for _, store := range listed {
+			n, _ := store["sealed_values"].(int64)
+			stores = append(stores, openapi.EncryptionStoreCount{
+				Store: openapi.EncryptionStoreCountStore(store.String("store")), SealedValues: n,
+			})
+		}
 		keys = append(keys, openapi.EncryptionKeyUsage{
 			KeyId: row.String("key_id"), Active: active, InRing: inRing, SealedValues: count,
+			Stores: stores,
 		})
 	}
 	writeJSON(w, r, http.StatusOK, openapi.EncryptionStatus{

@@ -1494,6 +1494,36 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EncryptionStoreCountStore.
+const (
+	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
+	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
+	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
+	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
+)
+
+// Valid indicates whether the value is a known member of the EncryptionStoreCountStore enum.
+func (e EncryptionStoreCountStore) Valid() bool {
+	switch e {
+	case EncryptionStoreCountStoreAccountMfa:
+		return true
+	case EncryptionStoreCountStoreAiProvider:
+		return true
+	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreIdentityProvider:
+		return true
+	case EncryptionStoreCountStoreWebhookSubscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2531,6 +2561,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
@@ -2543,6 +2574,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiOwnTokensPerDay:
+		return true
 	case AiTokensPerDay:
 		return true
 	case ApiRequestsPerMinute:
@@ -5645,8 +5678,11 @@ type EncryptionKeyUsage struct {
 	InRing bool   `json:"in_ring"`
 	KeyId  string `json:"key_id"`
 
-	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	// SealedValues How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.
 	SealedValues int64 `json:"sealed_values"`
+
+	// Stores The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.
+	Stores []EncryptionStoreCount `json:"stores"`
 }
 
 // EncryptionStatus defines model for EncryptionStatus.
@@ -5657,6 +5693,17 @@ type EncryptionStatus struct {
 	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
+
+// EncryptionStoreCount defines model for EncryptionStoreCount.
+type EncryptionStoreCount struct {
+	SealedValues int64 `json:"sealed_values"`
+
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+	Store EncryptionStoreCountStore `json:"store"`
+}
+
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
@@ -7093,6 +7140,12 @@ type OperatorAdd struct {
 	Workspace *string `json:"workspace,omitempty"`
 }
 
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -7433,7 +7486,9 @@ type QuotaStanding struct {
 	Configured *bool `json:"configured,omitempty"`
 
 	// Limit The resolved ceiling. 0 means unlimited.
-	Limit int64              `json:"limit"`
+	Limit int64 `json:"limit"`
+
+	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -7443,7 +7498,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota defines model for QuotaStanding.Quota.
+// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -8791,7 +8846,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -10478,6 +10533,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -11198,7 +11256,7 @@ type ClientInterface interface {
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 	ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11206,7 +11264,7 @@ type ClientInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -11520,6 +11578,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveAiProvider Remove the workspace's AI provider
 	//
@@ -15350,7 +15426,7 @@ func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId Pro
 // ReadEncryptionStatus The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Corresponds with GET /admin/encryption (the `ReadEncryptionStatus` operationId).
 func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15368,7 +15444,7 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // ResealSecrets Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -16033,6 +16109,44 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuspendTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -24679,6 +24793,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetOwnAiBudgetRequest calls the generic SetOwnAiBudget builder with application/json body
+func NewSetOwnAiBudgetRequest(server string, body SetOwnAiBudgetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOwnAiBudgetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetOwnAiBudgetRequestWithBody constructs an http.Request for the SetOwnAiBudget method, with any body, and a specified content type
+func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-budget")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -37425,7 +37579,7 @@ type ClientWithResponsesInterface interface {
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+	// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37435,7 +37589,7 @@ type ClientWithResponsesInterface interface {
 	// ResealSecretsWithResponse Re-seal what older keys still hold
 	//
 	// Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+	// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -37777,6 +37931,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
+
+	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
+
+	// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+	//
+	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
 
 	// RemoveAiProviderWithResponse Remove the workspace's AI provider
 	//
@@ -43271,6 +43443,54 @@ func (r SuspendTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SuspendTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetOwnAiBudgetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]QuotaStanding
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOwnAiBudgetResult) GetJSON200() *[]QuotaStanding {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetOwnAiBudgetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOwnAiBudgetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOwnAiBudgetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOwnAiBudgetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOwnAiBudgetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56264,7 +56484,7 @@ func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx contex
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
-// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.
+// Installation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -56280,7 +56500,7 @@ func (c *ClientWithResponses) ReadEncryptionStatusWithResponse(ctx context.Conte
 // ResealSecretsWithResponse Re-seal what older keys still hold
 //
 // Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.
-// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
+// One job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -56837,6 +57057,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 		return nil, err
 	}
 	return ParseSuspendTenantResult(rsp)
+}
+
+// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudgetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
+}
+
+// SetOwnAiBudgetWithResponse Set the daily budget of this workspace's own AI model
+//
+// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
+func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error) {
+	rsp, err := c.SetOwnAiBudget(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAiBudgetResult(rsp)
 }
 
 // RemoveAiProviderWithResponse Remove the workspace's AI provider
@@ -63956,6 +64206,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetOwnAiBudgetResult parses an HTTP response from a SetOwnAiBudgetWithResponse call
+func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOwnAiBudgetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

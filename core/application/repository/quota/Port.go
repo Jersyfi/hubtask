@@ -24,6 +24,10 @@ type Overrides struct {
 	WebhookTargets        *int64
 	ExportJobs            *int64
 	AiTokensPerDay        *int64
+	// AiOwnTokensPerDay is the workspace's own budget for its own model. Written by the workspace,
+	// never by the operator's quota write, and stored apart from the quotas key so that write cannot
+	// drop it (SetOwnAiBudget).
+	AiOwnTokensPerDay *int64
 }
 
 // Store reads and writes the overrides in the tenant's own settings document
@@ -46,8 +50,16 @@ type Store interface {
 	InstanceOverrides(ctx context.Context) (Overrides, error)
 
 	// SetOverrides replaces the quotas key of the settings document, guarded on the row
-	// version. False means the version moved under the caller.
+	// version. False means the version moved under the caller. AiOwnTokensPerDay is not written:
+	// it is not the operator's.
 	SetOverrides(ctx context.Context, overrides Overrides, expectedVersion int, now time.Time) (bool, error)
+
+	// SetOwnAiBudget writes the workspace's own budget for its own AI model; nil removes it.
+	SetOwnAiBudget(ctx context.Context, tokens *int64, now time.Time) error
+
+	// TimeZone answers the workspace's time zone, the one its AI budget's day ends in. An empty
+	// answer is UTC.
+	TimeZone(ctx context.Context) (string, error)
 }
 
 // Usage answers the live counts the capacity quotas are measured against. Each is one bounded
@@ -84,6 +96,7 @@ type Usage interface {
 	// Generic in the metric, like `Meter.Add` beside it: the vocabulary is the application
 	// layer's - `quota.Names()` - and an adapter that spelled one of those names would be a second
 	// place the spelling lives.
+	// `since` names a calendar day by its date in the location it carries, as `Meter.Add` does.
 	MeteredSince(ctx context.Context, metric string, since time.Time) (int64, error)
 }
 
@@ -91,7 +104,7 @@ type Usage interface {
 // planning and the dashboards, never the enforcement's source: the enforcement counts live,
 // because a ledger row can lag and a limit that lags is a limit that lies.
 type Meter interface {
-	// Add increases one metric's tally for the period holding `at`, creating the row on first
-	// use.
+	// Add increases one metric's tally for the calendar day `at` falls on **in the location it
+	// carries** - the caller decides whose day it is - creating the row on first use.
 	Add(ctx context.Context, metric string, at time.Time, amount int64) error
 }

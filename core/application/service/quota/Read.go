@@ -107,6 +107,11 @@ func Standings(
 		return nil, err
 	}
 	limits := Resolve(overrides, instance, mode)
+	zone, err := store.TimeZone(ctx)
+	if err != nil {
+		return nil, err
+	}
+	day := StartOfDay(now, zone)
 
 	configured := map[string]bool{
 		APIRequestsPerMinute:  overrides.APIRequestsPerMinute != nil,
@@ -116,6 +121,7 @@ func Standings(
 		WebhookTargets:        overrides.WebhookTargets != nil,
 		ExportJobs:            overrides.ExportJobs != nil,
 		AiTokensPerDay:        overrides.AiTokensPerDay != nil,
+		AiOwnTokensPerDay:     overrides.AiOwnTokensPerDay != nil,
 	}
 	counters := map[string]func(context.Context) (int64, error){
 		Items:          usage.Items,
@@ -125,11 +131,14 @@ func Standings(
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},
-		// The day's spend so far, from the ledger - which is the only record of it, because a
-		// token has no row. The same instant the guard measures against, so what an
-		// operator reads here is what the wall is comparing.
+		// The day's spend so far per source, from the ledger - which is the only record of it,
+		// because a token has no row. The same workspace day the guard measures against, so what
+		// an operator reads here is what the wall is comparing.
 		AiTokensPerDay: func(ctx context.Context) (int64, error) {
-			return usage.MeteredSince(ctx, AiTokensPerDay, startOfDay(now))
+			return usage.MeteredSince(ctx, AiTokensPerDay, day)
+		},
+		AiOwnTokensPerDay: func(ctx context.Context) (int64, error) {
+			return usage.MeteredSince(ctx, AiOwnTokensPerDay, day)
 		},
 	}
 

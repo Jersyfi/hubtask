@@ -276,6 +276,41 @@ func (q *Queries) InsertOfferedAiProvider(ctx context.Context, arg InsertOffered
 	return i, err
 }
 
+const listOfferedAiProviderSecrets = `-- name: ListOfferedAiProviderSecrets :many
+SELECT id, api_key_enc, api_key_key_id
+FROM ai_provider
+WHERE tenant_id IS NULL AND api_key_enc IS NOT NULL
+ORDER BY id
+`
+
+type ListOfferedAiProviderSecretsRow struct {
+	ID          pgtype.UUID
+	ApiKeyEnc   []byte
+	ApiKeyKeyID *string
+}
+
+// The installation round's read (ADR-0045): every offered model that holds a key, with the key it
+// names, so the round can move each one under the purpose of its own row.
+func (q *Queries) ListOfferedAiProviderSecrets(ctx context.Context) ([]ListOfferedAiProviderSecretsRow, error) {
+	rows, err := q.db.Query(ctx, listOfferedAiProviderSecrets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOfferedAiProviderSecretsRow{}
+	for rows.Next() {
+		var i ListOfferedAiProviderSecretsRow
+		if err := rows.Scan(&i.ID, &i.ApiKeyEnc, &i.ApiKeyKeyID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOfferedAiProviders = `-- name: ListOfferedAiProviders :many
 SELECT id, display_name, processor, kind, base_url, completion_model, embedding_model,
        (api_key_enc IS NOT NULL)::boolean AS has_api_key,
@@ -352,6 +387,35 @@ type RewrapAiProviderKeyParams struct {
 // an operator rotating the installation's keys has not changed anybody's provider.
 func (q *Queries) RewrapAiProviderKey(ctx context.Context, arg RewrapAiProviderKeyParams) (int64, error) {
 	result, err := q.db.Exec(ctx, rewrapAiProviderKey, arg.ApiKeyEnc, arg.ApiKeyKeyID, arg.ExpectedKeyID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const rewrapOfferedAiProviderKey = `-- name: RewrapOfferedAiProviderKey :execrows
+UPDATE ai_provider
+SET api_key_enc = $1, api_key_key_id = $2
+WHERE tenant_id IS NULL AND id = $3 AND api_key_key_id = $4
+`
+
+type RewrapOfferedAiProviderKeyParams struct {
+	ApiKeyEnc     []byte
+	ApiKeyKeyID   *string
+	ID            pgtype.UUID
+	ExpectedKeyID *string
+}
+
+// A re-seal of one offered model's key: the wrapping moves, the configuration and its version do
+// not. Guarded on the key the row named when it was read, so an operator's change of the key in
+// between wins. Only the installation's own scope writes it - the installation_write policy.
+func (q *Queries) RewrapOfferedAiProviderKey(ctx context.Context, arg RewrapOfferedAiProviderKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapOfferedAiProviderKey,
+		arg.ApiKeyEnc,
+		arg.ApiKeyKeyID,
+		arg.ID,
+		arg.ExpectedKeyID,
+	)
 	if err != nil {
 		return 0, err
 	}

@@ -160,3 +160,19 @@ RETURNING id, display_name, processor, kind, base_url, completion_model, embeddi
 -- Every workspace that chose it keeps its choice pointing at nothing (ON DELETE SET NULL), and
 -- gets no answer until it chooses again.
 DELETE FROM ai_provider WHERE tenant_id IS NULL AND id = sqlc.arg('id');
+
+-- name: ListOfferedAiProviderSecrets :many
+-- The installation round's read (ADR-0045): every offered model that holds a key, with the key it
+-- names, so the round can move each one under the purpose of its own row.
+SELECT id, api_key_enc, api_key_key_id
+FROM ai_provider
+WHERE tenant_id IS NULL AND api_key_enc IS NOT NULL
+ORDER BY id;
+
+-- name: RewrapOfferedAiProviderKey :execrows
+-- A re-seal of one offered model's key: the wrapping moves, the configuration and its version do
+-- not. Guarded on the key the row named when it was read, so an operator's change of the key in
+-- between wins. Only the installation's own scope writes it - the installation_write policy.
+UPDATE ai_provider
+SET api_key_enc = sqlc.arg('api_key_enc'), api_key_key_id = sqlc.arg('api_key_key_id')
+WHERE tenant_id IS NULL AND id = sqlc.arg('id') AND api_key_key_id = sqlc.arg('expected_key_id');
