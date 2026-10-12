@@ -1,0 +1,437 @@
+[1 setup 375] url=http://hubtask.localhost:18540/ labels=["Setup code*","Name of the workspace*","Short name*","Your name","Email address*","Your password*"]
+[1 setup desktop] url=http://hubtask.localhost:18540/ labels=["Setup code*","Name of the workspace*","Short name*","Your name","Email address*","Your password*"]
+[1 setup desktop] focus before press: field-e7qck47
+[1 setup desktop] after Create: url=http://hubtask.localhost:18540/
+[1 subdomain] url=http://ops.hubtask.localhost:18540/ h1=["Sign in"]
+
+## UC-AI-06 check 1 - hubctl admin ai (the key comes from HUBTASK_AI_API_KEY in the shell, a made-up value; the stub accepts any)
+$ hubctl admin ai add --name Alder EU --processor Stub Models (walk machine) --kind OPENAI_COMPATIBLE --base-url http://127.0.0.1:18541/v1 --jurisdiction EEA --completion-model stub-chat-small --embedding-model text-embedding-3-small
+ID                                     NAME       PROCESSOR                    JURISDICTION   KIND                COMPLETION        EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-small   text-embedding-3-small   yes
+(exit 0)
+$ hubctl admin ai add --name Birch EU --processor Stub Models (walk machine) --kind OPENAI_COMPATIBLE --base-url http://127.0.0.1:18541/v1 --jurisdiction EEA --completion-model stub-chat-large --embedding-model text-embedding-3-small
+ID                                     NAME       PROCESSOR                    JURISDICTION   KIND                COMPLETION        EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-small   text-embedding-3-small   yes
+01a13233-3d0c-7181-8678-7f60b07e4b4e   Birch EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-large   text-embedding-3-small   yes
+(exit 0)
+$ hubctl admin ai add --name Cedar trial --processor Stub Models (walk machine) --kind OPENAI_COMPATIBLE --base-url http://127.0.0.1:18541/v1 --jurisdiction ADEQUACY --completion-model stub-chat-trial
+ID                                     NAME          PROCESSOR                    JURISDICTION   KIND                COMPLETION        EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU      Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-small   text-embedding-3-small   yes
+01a13233-3d0c-7181-8678-7f60b07e4b4e   Birch EU      Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-large   text-embedding-3-small   yes
+01a13233-3d28-77ca-b26a-037b40e57ae1   Cedar trial   Stub Models (walk machine)   ADEQUACY       OPENAI_COMPATIBLE   stub-chat-trial   -                        yes
+(exit 0)
+(HUBTASK_AI_API_KEY unset for the change: the stored key is kept)
+$ hubctl admin ai set 01a13233-3d0c-7181-8678-7f60b07e4b4e --name Birch EU --processor Stub Models (walk machine), Frankfurt --kind OPENAI_COMPATIBLE --base-url http://127.0.0.1:18541/v1 --jurisdiction EEA --completion-model stub-chat-large-2 --embedding-model text-embedding-3-small
+hubctl: admin ai set needs --name, --processor, --kind, --base-url and --jurisdiction
+[the full usage text followed, about 230 lines]
+(exit 2)
+[FOUND: the usage line says `admin ai set <id> --name ...`; with the id first, Go's flag parser stops at it and no flag is read]
+$ hubctl admin ai rm 01a13233-3d28-77ca-b26a-037b40e57ae1
+ID                                     NAME       PROCESSOR                    JURISDICTION   KIND                COMPLETION        EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-small   text-embedding-3-small   yes
+01a13233-3d0c-7181-8678-7f60b07e4b4e   Birch EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-large   text-embedding-3-small   yes
+(exit 0)
+$ hubctl admin ai ls
+ID                                     NAME       PROCESSOR                    JURISDICTION   KIND                COMPLETION        EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-small   text-embedding-3-small   yes
+01a13233-3d0c-7181-8678-7f60b07e4b4e   Birch EU   Stub Models (walk machine)   EEA            OPENAI_COMPATIBLE   stub-chat-large   text-embedding-3-small   yes
+(exit 0)
+$ hubctl admin ai set --name Birch EU --processor Stub Models (walk machine), Frankfurt --kind OPENAI_COMPATIBLE --base-url http://127.0.0.1:18541/v1 --jurisdiction EEA --completion-model stub-chat-large-2 --embedding-model text-embedding-3-small 01a13233-3d0c-7181-8678-7f60b07e4b4e
+ID                                     NAME       PROCESSOR                               JURISDICTION   KIND                COMPLETION          EMBEDDING                KEY
+01a13233-3ced-72e0-aeba-a28f1f648daa   Alder EU   Stub Models (walk machine)              EEA            OPENAI_COMPATIBLE   stub-chat-small     text-embedding-3-small   yes
+01a13233-3d0c-7181-8678-7f60b07e4b4e   Birch EU   Stub Models (walk machine), Frankfurt   EEA            OPENAI_COMPATIBLE   stub-chat-large-2   text-embedding-3-small   yes
+(exit 0)
+-- the database (owner role) after the three doors: the keys are sealed, nothing in clear
+Alder EU|a|111|f
+Birch EU|a|111|f
+-- the stub's log so far (offering a model sends nothing): 0 lines
+
+## The ai area: only the offered model, locked
+$ hubctl admin settings set --locked ai.sources OFFERED
+KEY                               VALUE     WORKSPACE
+sign_in.breach_check              -         open
+sign_in.common_passwords          -         open
+sign_in.context_words             -         open
+sign_in.history_count             -         open
+sign_in.managed_accounts          -         open
+sign_in.max_age_days              -         open
+sign_in.max_repeat                -         open
+sign_in.methods                   -         open
+sign_in.mfa_required_for          -         open
+sign_in.min_age_hours             -         open
+sign_in.min_classes               -         open
+sign_in.min_digits                -         open
+sign_in.min_length                -         open
+sign_in.min_lowercase             -         open
+sign_in.min_symbols               -         open
+sign_in.min_uppercase             -         open
+sign_in.session_idle_minutes      -         open
+sign_in.session_max_days          -         open
+legal.accessibility_url           -         open
+legal.imprint_url                 -         open
+legal.privacy_url                 -         open
+legal.terms_url                   -         open
+localisation.locale               -         open
+localisation.time_zone            -         open
+localisation.week_start           -         open
+quotas.ai_tokens_per_day          -         open
+quotas.api_requests_per_minute    -         open
+quotas.automation_runs_per_hour   -         open
+quotas.export_jobs                -         open
+quotas.items                      -         open
+quotas.media_bytes                -         open
+quotas.webhook_targets            -         open
+ai.min_jurisdiction               -         open
+ai.person_opt_out                 -         open
+ai.sources                        OFFERED   LOCKED
+(exit 0)
+
+## Two consumer workspaces, provisioned through the product (scripts/dev-workspace.sh with the operator token minted behind a step-up)
+Provisioning 'anna' at http://hubtask.localhost:18540 …
+Setting the owner's password …
+
+Done. Sign in as anna@consumer.example at:
+
+  http://anna.hubtask.localhost:18540/
+
+
+Provisioning 'anna-club' at http://hubtask.localhost:18540 …
+Setting the owner's password …
+
+Done. Sign in as anna@consumer.example at:
+
+  http://anna-club.hubtask.localhost:18540/
+
+
+
+## UC-AI-05 check 2 (before) - Anna, in her workspace `anna`, before any switch is on (hubctl with her session token; her entries are throwaway: "water the plants on the balcony before the weekend", "buy compost and two pots", "repot the basil")
+$ hubctl ai source show
+                     
+source               OWN
+may use              OFFERED, LOCKED (INSTANCE)
+own model at least   ANY
+offered              Alder EU - Stub Models (walk machine), EEA
+offered              Birch EU - Stub Models (walk machine), Frankfurt, EEA
+(exit 0)
+$ hubctl suggestion ask --target 01a13234-c629-79b1-8073-ee7626f98155
+hubctl: AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.
+(exit 1)
+$ hubctl search plants --mode AUTO
+ID                                     TYPE   TITLE                                                DONE   ASSIGNEE   VERSION
+01a13234-c629-79b1-8073-ee7626f98155   TASK   water the plants on the balcony before the weekend   no     -          1
+(exit 0)
+$ curl -X POST /api/v1/items/{water the plants}:suggest-fields  (Host anna.hubtask.localhost)
+{"type":"https://docs.hubtask.dev/errors/dependency_unavailable","title":"dependency_unavailable","status":503,"code":"dependency_unavailable","detail_code":"ai.unavailable","request_id":"f4a19d9a966a97ebbfc90e0c39b61a57","docs":"https://docs.hubtask.dev/errors/dependency_unavailable"}
+
+(HTTP 503)
+$ curl -X POST /api/v1/items/{water the plants}:duplicates
+
+(HTTP 204)
+
+
+## UC-AI-05 in the browser - Anna at http://anna.hubtask.localhost:18540/
+[ai screen, nothing on] url=http://anna.hubtask.localhost:18540/administration/ai
+  switches: ["Use Alder EU=false","Use Birch EU=false"]
+  text inputs on the screen: 0
+  screen text:
+    Administration
+    AI
+    AI
+    Which provider this workspace asks, under which models, and whether its content may be sent there at all. Choosing a provider and consenting to use it are two decisions, and both are made here.
+    AI from your provider
+    Use AI from Alder EU
+    Your content is sent to Stub Models (walk machine) in the EEA when somebody asks for a suggestion, a summary or a search by meaning - and only then.
+    Use Alder EU
+    Use AI from Birch EU
+    Your content is sent to Stub Models (walk machine), Frankfurt in the EEA when somebody asks for a suggestion, a summary or a search by meaning - and only then.
+    Use Birch EU
+    Only the model your provider offers may be used here: set for every workspace on this installation. A model of your own is not offered.
+    Which AI this workspace may use is set for every workspace on this installation.
+    Keeping one's own content out
+    Whether each person here may keep what they wrote out of AI. AI stays this workspace's decision; a person can only keep their own content out.
+    In this workspace
+    Each person may keep their own content out of AI
+    AI is part of everybody's work
+    Save
+    Nothing has changed yet.
+    The budget
+    The offered model: today 0 tokens of 200,000 tokens used.
+    Counted per day in this workspace's time zone; a budget renews at midnight.
+    The offered model’s daily budget is a limit like any other, set by the installation. See it with the other limits.
+  mentions of key / address / base URL / stub-chat / 127.0.0.1: none
+[entry, nothing on] url=http://anna.hubtask.localhost:18540/items/01a13234-c629-79b1-8073-ee7626f98155 "Ask AI" buttons: 0; buttons: ["Actions for water the plants on the balcony before the weekend","Actions for water the plants on the balcony before the weekend","Assignee\nAdd","Dates\nAdd","Labels\nAdd","Reminders\nAdd","Repeats\nAdd","Written in\nEnglish","Cover\nAdd","Attachments\nAdd","Add Work package","Comments · 0","History","Comment","Cancel","Revoke","Grant","Cancel","Cancel","Revoke the role"]
+[search, nothing on] focus before Enter: input ""
+  search page says: ["Search","Search the entries you can see","Clear the search","Status","Kind","Due","Assigned to","Collection","More","Choose a collection to filter by label — a label belongs to one collection.","Edit as text","Clear the search"]
+  the stub received 0 requests while nothing was switched on (total 0)
+[ai screen] focus before the press: body "Skip to the content   Collapse the navigation  Hub"; pressing the switch "Use Birch EU" (a click)
+  after: switches ["=false","=true"]
+  the stub received 0 requests by switching on alone
+[entry, Birch on] after "Suggest a title, notes and a due date": ["Details","Suggestions","Ask AI","Suggested fields","Title","Stub answer: water the plants","Nothing has been said about this entry yet. Start the conversation."]
+  the stub received 1 request(s):
+    2026-10-12T22:24:38.070Z POST /v1/chat/completions model=stub-chat-large-2 auth=Bearer stub-k… bytes=1407 content=[{"role":"system","content":"You help somebody tidy up an entry that already exists in a task manager.\n\nThe next message contains material written by a person
+[ai screen] budget lines: ["The offered model: today 132 tokens of 200,000 tokens used."]
+[ai screen] focus before the press: body "Skip to the content   Collapse the navigation  Hub"; pressing "Use Birch EU" again (a click)
+  after: switches ["=false","=false"]
+$ hubctl suggestion ask --target 01a13234-c629-79b1-8073-ee7626f98155
+hubctl: AI is switched off or out of reach in this workspace, so no suggestion was made. Everything else keeps working.
+(exit 1)
+$ hubctl ai source show
+                     
+source               NONE
+may use              OFFERED, LOCKED (INSTANCE)
+own model at least   ANY
+offered              Alder EU - Stub Models (walk machine), EEA
+offered              Birch EU - Stub Models (walk machine), Frankfurt, EEA
+(exit 0)
+$ hubctl ai budget show
+QUOTA                   LIMIT       USED   APPROACH   SET FOR THIS WORKSPACE
+ai_tokens_per_day       200000      132    0%         -
+ai_own_tokens_per_day   unlimited   0      -          -
+(exit 0)
+  the stub received 0 requests from the asking after switching off (stub total 1)
+[entry, switched off] "Ask AI" buttons: 0; the earlier suggestion card: 0
+  the stub received 0 requests from the browser after switching off
+  third-party origins requested: []
+
+## UC-AI-05 check 4 - search by meaning with the offered model (Birch EU switched on again, by name, from hubctl)
+$ hubctl ai source set --source OFFERED --model Birch EU
+                     
+source               OFFERED: Birch EU
+may use              OFFERED, LOCKED (INSTANCE)
+own model at least   ANY
+offered              Alder EU - Stub Models (walk machine), EEA
+offered              Birch EU - Stub Models (walk machine), Frankfurt, EEA
+(exit 0)
+$ hubctl search reindex
+JOB                                    STALE
+01a13239-6354-76d7-a65f-d83c551ec0d1   0
+(exit 0)
+$ hubctl search looking after green things at home --mode AUTO
+ID   TYPE   TITLE   DONE   ASSIGNEE   VERSION
+(exit 0)
+  the stub received:
+    2026-10-12T22:26:44.256Z POST /v1/embeddings model=text-embedding-3-small auth=Bearer stub-k… bytes=81 content=["looking after green things at home"]
+$ hubctl ai source set --source NONE
+                     
+source               NONE
+may use              OFFERED, LOCKED (INSTANCE)
+own model at least   ANY
+offered              Alder EU - Stub Models (walk machine), EEA
+offered              Birch EU - Stub Models (walk machine), Frankfurt, EEA
+(exit 0)
+$ hubctl search looking after green things at home --mode AUTO
+ID   TYPE   TITLE   DONE   ASSIGNEE   VERSION
+(exit 0)
+$ hubctl ai budget show
+QUOTA                   LIMIT       USED   APPROACH   SET FOR THIS WORKSPACE
+ai_tokens_per_day       200000      164    0%         -
+ai_own_tokens_per_day   unlimited   0      -          -
+(exit 0)
+  the stub received 0 requests after NONE
+  requests in the stub log whose content came from anna-club: none possible - that workspace never switched anything on; stub total 3
+
+## UC-INS-11 checks 1 and 3 - Olga offers two providers on /instance/providers (after the proof)
+[Google] issuer prefilled: ""; admission options: ["Only people invited here","Anyone from these organisations"]
+[Google] admission chosen: "Only people invited here"
+[Google] after "Save the provider": ["Connected","The request contains invalid values.\n\nReference 7da3e644b2f078f65241bcaa3360b6b2","This installation offers no provider of its own. Every workspace configures its own, or none.","One issuer serves every Google account there is, private ones included. Hubtask therefore never lets in everybody with a Google account: only people invited here, or people from the Google Workspace domains you list. A personal Google account belongs to no domain and comes in only by invitation."," The request contains invalid values. Reference 7da3e644b2f078f65241bcaa3360b6b2  "," Workspaces using it: 0 Until the day you choose it keeps working, and every workspace that uses it tells its administrators on their sign-in settings when it ends. You can keep offering it at any time, after the day too: nobody's connection to it is removed.  ","  Removing deletes the provider and every connection between a person and it; offering it again does not restore them. The accounts keep their work and the session they are in right now; a workspace left with no other way falls back to the password for the accounts that hold one.  ","Now showing changes as they happen."]
+[FOUND: the Google preset leaves Issuer empty although it is required; Save sent the form and the answer was the generic "The request contains invalid values." - nothing was stored. Second attempt with the issuer typed in:]
+[Google] issuer prefilled: ""; admission options: ["Only people invited here","Anyone from these organisations"]
+[Google] admission chosen: "Only people invited here"
+[Google] focus before the press: input ""; pressing "Save the provider" (a click)
+  a proof was asked: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer."
+  POST /api/v1/admin/identity-providers -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD"},"request_id":"07b4eea252ec4d47830daf4b416269b0","docs":"https://do
+  POST /api/v1/admin/identity-providers -> 500 {"type":"https://docs.hubtask.dev/errors/internal","title":"internal","status":500,"code":"internal","request_id":"b2541aff9368bcc77bbd3be9a5c3267c","docs":"https://docs.hubtask.dev/errors/internal"}
+
+[Google] after "Save the provider": ["Connected","Something went wrong on our side. Reference: b2541aff9368bcc77bbd3be9a5c3267c","This installation offers no provider of its own. Every workspace configures its own, or none.","One issuer serves every Google account there is, private ones included. Hubtask therefore never lets in everybody with a Google account: only people invited here, or people from the Google Workspace domains you list. A personal Google account belongs to no domain and comes in only by invitation."," Something went wrong on our side. Reference: b2541aff9368bcc77bbd3be9a5c3267c   "," Workspaces using it: 0 Until the day you choose it keeps working, and every workspace that uses it tells its administrators on their sign-in settings when it ends. You can keep offering it at any time, after the day too: nobody's connection to it is removed.  ","  Removing deletes the provider and every connection between a person and it; offering it again does not restore them. The accounts keep their work and the session they are in right now; a workspace left with no other way falls back to the password for the accounts that hold one.  ","Now showing changes as they happen."]
+[FOUND: the second press answered 500 "Something went wrong on our side". Server log: use_case=ConfigureInstanceIdentityProvider error="INTERNAL: internal (audit.entry_incomplete)" request_id=b2541aff9368bcc77bbd3be9a5c3267c. Nothing was stored (identity_provider has 0 rows).]
+
+## The same through hubctl, as Olga signed in at ops.hubtask.localhost (hubctl login, admin elevate, step-up; HUBTASK_PASSWORD in the shell)
+$ hubctl admin provider add --kind GOOGLE --issuer https://accounts.google.com --client-id walk-d5-made-up-client.apps.example --client-secret walk-d5-made-up-google-secret --admits INVITED_ONLY
+hubctl: Something went wrong on our side. Reference: 9f7d39e366e3620f523a3791a5ce8bfe
+(exit 1)
+$ hubctl admin provider add --kind GENERIC --name Consumer ID --issuer http://127.0.0.1:18542 --client-id walk-d5-made-up-generic-client --client-secret walk-d5-made-up-generic-secret --admits INVITED_ONLY
+hubctl: That is not an issuer address. It has to be an https URL with no query string and no fragment.
+(exit 1)
+$ hubctl admin provider add --kind GENERIC --name Consumer ID --issuer https://gitlab.com --client-id walk-d5-made-up-generic-client --client-secret walk-d5-made-up-generic-secret --admits ANY
+hubctl: GENERIC has no directory to bound who it admits, so offered to every workspace on this installation it may only let in people each workspace invited. A workspace may still configure it for itself with a wider rule.
+(exit 1)
+$ hubctl admin provider add --kind GENERIC --name Consumer ID --issuer https://gitlab.com --client-id walk-d5-made-up-generic-client --client-secret walk-d5-made-up-generic-secret --admits INVITED_ONLY
+hubctl: Something went wrong on our side. Reference: 33b9fd571ffdfa10ad60e2e99c977188
+(exit 1)
+$ hubctl admin provider ls
+ID   NAME   ADMITS   LISTED   LOCK
+(exit 0)
+  server log: ConfigureInstanceIdentityProvider INTERNAL: internal (audit.entry_incomplete) 9f7d39e366e3620f523a3791a5ce8bfe
+  server log: ConfigureInstanceIdentityProvider INTERNAL: internal (audit.entry_incomplete) 33b9fd571ffdfa10ad60e2e99c977188
+
+## The screen again: Google saved once more (to see the answer on screen), then the Another-provider form, not saved
+[Google] issuer prefilled: ""; admission options: ["Only people invited here","Anyone from these organisations"]
+[Google] admission chosen: "Only people invited here"
+[Google] focus before the press: input ""; pressing "Save the provider" (a click)
+  a proof was asked: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer."
+  POST /api/v1/admin/identity-providers -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD"},"request_id":"93f3e4fa8c4995e4eabd4d665ef67f11","docs":"https://do
+  POST /api/v1/admin/identity-providers -> 500 {"type":"https://docs.hubtask.dev/errors/internal","title":"internal","status":500,"code":"internal","request_id":"4f450f8b2540008a1fa15503cd9a2178","docs":"https://docs.hubtask.dev/errors/internal"}
+
+[Google] after "Save the provider": ["Connected","Something went wrong on our side. Reference: 4f450f8b2540008a1fa15503cd9a2178","This installation offers no provider of its own. Every workspace configures its own, or none.","One issuer serves every Google account there is, private ones included. Hubtask therefore never lets in everybody with a Google account: only people invited here, or people from the Google Workspace domains you list. A personal Google account belongs to no domain and comes in only by invitation."," Something went wrong on our side. Reference: 4f450f8b2540008a1fa15503cd9a2178   "," Workspaces using it: 0 Until the day you choose it keeps working, and every workspace that uses it tells its administrators on their sign-in settings when it ends. You can keep offering it at any time, after the day too: nobody's connection to it is removed.  ","  Removing deletes the provider and every connection between a person and it; offering it again does not restore them. The accounts keep their work and the session they are in right now; a workspace left with no other way falls back to the password for the accounts that hold one.  ","Now showing changes as they happen."]
+[Another provider] admission options: ["Only people invited here"]; banner: "Offered to every workspace, a provider without a directory lets in only the people each workspace invited. Anyone else it knows is turned away."
+[list] ["Sign-in providers","You are working on the installation. 60 minutes left.","The ways in this installation offers every workspace on it. Offered is not on: each workspace's owner decides whether to take one - except where the installation's ways to sign in are locked with providers among them, which turns on every provider that admits only invited people. Each row says which applies.","Offer a provider","This installation offers no provider of its own. Every workspace configures its own, or none.","Offer a provider","Cancel","Hubtask fetches the issuer's metadata before storing anything, so an address that cannot be reached is refused here rather than by the first person who tries to sign in.","Which provider","Google","Microsoft","Another provider","Offered to every workspace, a provider without a directory lets in only the people each workspace invited. Anyone else it knows is turned away.","Register Hubtask as a confidential client that supports the authorization code flow with PKCE, and add the redirect address below as its redirect URI. Hubtask asks for the openid, email and profile scopes and reads the issuer's discovery document, so anything that publishes one works - Keycloak, Authentik, Okta, Zitadel, Auth0, GitLab, a directory of your own. Where to look, by name: Keycloak calls it Clients, with Client authentication on and Standard flow enabled, and the issuer is your realm's address. Authentik calls it Providers, OAuth2/OpenID, Confidential. Okta calls it Applications, Web Application. Zitadel calls it Applications, Web, Code with PKCE. Auth0 calls it Applications, Regular Web Application. Two things that are not obvious. The issuer is the address whose discovery document names itself - not the sign-in page, and usually not the address you registered at; paste it and Hubtask fetches it before saving, so a wrong one is refused here rather than by the first person who tries. And Hubtask cannot tell whether this provider verifies the addresses it hands out, so an account that already exists here is connected to it only after that account's own password. Invited people accept their invitation through this provider from their invitation's own link - choosing the provider on the sign-in page instead is refused, because Hubtask cannot tell whether this provider runs their mailbox.","Redirect address","http://hubtask.localhost:18540/auth/callback","Enter it at the provider exactly as shown.","Copy the address","Issuer*","The https address the provider identifies itself by. Every token must name it exactly.","Client id*","Client secret","Sealed when it is saved and never answered again.","Name on the button","Left empty it is the issuer's host, which is where the button sends people anyway.","Who this provider may admit","Only people invited here","Only what this provider is allowed to do is offered here. What a preset forbids is not a choice somebody can make and then have refused.","Position","The order the buttons are drawn in, lowest first.","Cancel","Save the provider"]
+
+## UC-ID-18 checks 4 and 5 - the installation imprint and privacy links, locked (hubctl, the operator token)
+$ hubctl admin settings set --locked legal.imprint_url https://provider.example/legal/imprint
+legal.accessibility_url           -                                        open
+legal.imprint_url                 https://provider.example/legal/imprint   LOCKED
+legal.privacy_url                 -                                        open
+legal.terms_url                   -                                        open
+(exit 0)
+$ hubctl admin settings set --locked legal.privacy_url https://provider.example/legal/privacy-notice
+legal.accessibility_url           -                                               open
+legal.imprint_url                 https://provider.example/legal/imprint          LOCKED
+legal.privacy_url                 https://provider.example/legal/privacy-notice   LOCKED
+legal.terms_url                   -                                               open
+(exit 0)
+
+
+## UC-ID-18 checks 4 and 5 in the browser - Anna, signed out and signed in
+[sign-in card desktop] url=http://anna.hubtask.localhost:18540/ footer links: ["Imprint -> https://provider.example/legal/imprint target=_blank rel=noopener","Privacy -> https://provider.example/legal/privacy-notice target=_blank rel=noopener"]
+  provider buttons on the card: ["Show password","Forgot your password?","Sign in"]
+  third-party origins requested by the card: []
+  document scrollWidth 1280 at viewport 1280
+[sign-in settings desktop] the legal part: ["Empty means an idle session is not ended.","Hubtask's default.","Legal links","Shown in the footer of the sign-in screen. Leave one empty to use the installation's.","Imprint","Set by the installation for every workspace.","Set by the installation for every workspace.","Privacy","Set by the installation for every workspace.","Set by the installation for every workspace.","Terms","Empty here and at the installation, so the sign-in screen shows none.","Accessibility","Empty here and at the installation, so the sign-in screen shows none.","Save","Require a new password from everyone"]
+  the rest mentions a provider offered by the installation: ["Add or change a provider"]
+[sign-in card 375] url=http://anna.hubtask.localhost:18540/ footer links: ["Imprint -> https://provider.example/legal/imprint target=_blank rel=noopener","Privacy -> https://provider.example/legal/privacy-notice target=_blank rel=noopener"]
+  provider buttons on the card: ["Show password","Forgot your password?","Sign in"]
+  third-party origins requested by the card: []
+  document scrollWidth 375 at viewport 375
+[sign-in settings 375] the legal part: ["Empty means an idle session is not ended.","Hubtask's default.","Legal links","Shown in the footer of the sign-in screen. Leave one empty to use the installation's.","Imprint","Set by the installation for every workspace.","Set by the installation for every workspace.","Privacy","Set by the installation for every workspace.","Set by the installation for every workspace.","Terms","Empty here and at the installation, so the sign-in screen shows none.","Accessibility","Empty here and at the installation, so the sign-in screen shows none.","Save","Require a new password from everyone"]
+  the rest mentions a provider offered by the installation: ["Add or change a provider"]
+[ai screen 375] scrollWidth 375; switches ["=false","=false"]
+
+## UC-INS-11 check 2 as far as it can go - what Anna's workspace reads (the installation offer above was never stored)
+$ curl GET /api/v1/identity-providers (Host anna.hubtask.localhost, Anna's session)
+[]
+
+[own provider form] labels: ["Which provider","Issuer*","Name on the button","Client id*","Client secret*","Who may sign in through it?","Email domains this provider admits","New people get"]
+[own provider form] issuer prefilled: ""
+[own provider form] focus before the press: input ""
+  a proof was asked: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer."
+  POST /api/v1/identity-providers -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD"},"request_id":"4c56157cda360e1c1dd7baf0c83a19d9","docs":"https://do
+  POST /api/v1/identity-providers -> 201 {"allowed_directories":[],"allowed_email_domains":[],"client_id":"walk-d5-anna-made-up-client.apps.example","created_at":"2026-10-13T00:38:44.73892+02:00","display_name":"accounts.google.com","enabled":false,"id":"01a13244-b002-731a-958f-dc
+[own provider] after: ["Administration","Sign-in providers","Sign-in providers","Your organisation's own providers can sign people in here. Password sign-in keeps working alongside them, which is what keeps this workspace reachable when a provider is not.","A provider is switched on or off for this workspace under Sign-in, in the list of ways to sign in. A new one is saved off.","Ways to sign in","Saved. The provider answered its metadata.","This workspace's providers","accounts.google.com","https://accounts.google.com","Anyone from these organisations","Switched off","Change","Remove"]
+[sign-in settings] ways to sign in: ["Administration","Sign-in","Sign-in","How people in this workspace prove who they are. What the installation has already decided is shown beside each rule, and a lock means it decided for every workspace.","Passwords","Minimum length","Hubtask's default.","At least this many of each kind","Length protects more than kinds do. A script without upper and lower case can never meet the first two.","Lowercase","Hubtask's default.","Uppercase","Hubtask's default.","Digits","Hubtask's default.","Other","Hubtask's default.","At least this many of the four kinds","Hubtask's default.","Most of the same character in a row","Empty means no limit.","Hubtask's default.","Refuse commonly used passwords","The installation requires this, so it stays on here.","Adds a line to every password screen."]
+  switches: ["=true","=true","=false","=true","=false","=true"]
+  checkboxes: []
+
+## UC-ID-09 check 4 - with Google configured by Anna for her own workspace (the installation offer could not be stored)
+[sign-in settings] the Google switch: count=1 checked=false; focus before the press: body "Skip to the content   Collapse the navigation  Hub"
+  a proof was asked: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer."
+  POST /api/v1/identity-providers/01a13244-b002-731a-958f-dc8905bbeafe:offer -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD"},"request_id":"123981c0ad4a3aaaaa32710722dc7255","docs":"https://do
+  POST /api/v1/identity-providers/01a13244-b002-731a-958f-dc8905bbeafe:offer -> 200 {"allowed_directories":[],"allowed_email_domains":[],"client_id":"walk-d5-anna-made-up-client.apps.example","created_at":"2026-10-13T00:38:44.73892+02:00","display_name":"accounts.google.com","enabled":true,"id":"01a13244-b002-731a-958f-dc8
+  after: checked=true
+[sign-in card desktop] the provider button: "Sign in with accounts.google.com"; the mark: inline <svg> with 3 paths, fills ["#E94FFF","#3186FF","#FF4641","#FF5B8B"]
+  every origin the card requested: ["http://anna.hubtask.localhost:18540"]
+  focus before the press: body "Hubtask to anna.hubtask.localhost:18540   Sign in "; pressing the Google button (a click)
+  the browser was sent to Google (the request was stopped there, nothing reached Google):
+    https://accounts.google.com/o/oauth2/v2/auth
+      client_id = walk-d5-anna-made-up-client.apps.example
+      code_challenge = <43 chars>
+      code_challenge_method = S256
+      nonce = <43 chars>
+      redirect_uri = http://hubtask.localhost:18540/auth/callback
+      response_type = code
+      scope = openid profile email
+      state = <84 chars>
+[sign-in card 375] the provider button: "Sign in with accounts.google.com"; the mark: inline <svg> with 3 paths, fills ["#E94FFF","#3186FF","#FF4641","#FF5B8B"]
+  every origin the card requested: ["http://anna.hubtask.localhost:18540"]
+
+## UC-INS-05 check 2 - hubctl admin operator add (the operator token; Paul Platform was invited into `ops` and set his password beforehand)
+$ hubctl admin operator ls
+NAME            SIGNS IN WITH           WORKSPACE   ADDED        ACCOUNT
+Olga Operator   olga@provider.example   ops         2026-10-12   01a13231-0784-7e53-842a-24d059acdb81
+(exit 0)
+$ hubctl admin operator add --workspace ops --email nobody@provider.example
+hubctl: There is no such account on this installation.
+(exit 1)
+$ hubctl admin operator add --workspace ops --email paul@provider.example
+NAME            SIGNS IN WITH           WORKSPACE   ADDED        ACCOUNT
+Olga Operator   olga@provider.example   ops         2026-10-12   01a13231-0784-7e53-842a-24d059acdb81
+Paul Platform   paul@provider.example   ops         2026-10-12   01a13246-0d6e-7d1d-9087-6265add2fca1
+(exit 0)
+$ hubctl admin operator ls
+NAME            SIGNS IN WITH           WORKSPACE   ADDED        ACCOUNT
+Olga Operator   olga@provider.example   ops         2026-10-12   01a13231-0784-7e53-842a-24d059acdb81
+Paul Platform   paul@provider.example   ops         2026-10-12   01a13246-0d6e-7d1d-9087-6265add2fca1
+(exit 0)
+(an address that exists, but in another workspace than the one named:)
+$ hubctl admin operator add --workspace ops --email anna@consumer.example
+hubctl: There is no such account on this installation.
+(exit 1)
+22:20:28|tenant.provisioned|Olga Operator
+22:29:01|instance.session_elevated|Olga Operator
+22:29:11|instance.session_elevated|Olga Operator
+22:29:53|instance.session_elevated|Olga Operator
+22:31:01|instance.session_elevated|Olga Operator
+22:32:04|instance.session_elevated|Olga Operator
+22:33:03|instance.session_elevated|Olga Operator
+22:34:39|instance.session_elevated|Olga Operator
+22:36:04|instance.session_elevated|Olga Operator
+22:36:46|instance.settings_changed|Olga Operator
+22:36:46|instance.settings_changed|Olga Operator
+22:40:22|instance.operator_added|Olga Operator
+
+## UC-INS-06 checks 1 and 2 - the sign-up platform, as Olga in the web app
+[service accounts] focus before the press: input ""; pressing "Create it"
+  POST /api/v1/auth/service-accounts -> 201 {"display_name":"Sign-up platform","id":"01a13246-b0ce-79d6-9dc1-83d5e745c377","kind":"SERVICE_ACCOUNT","status":"ACTIVE"}
+
+  after: ["Administration","Service accounts","Service accounts","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Sign-up platform","Its tokens","This account holds no role, so its tokens will be accepted and then refused by everything. Give it a role under People.","New service account","Name*","Name it after what it does — “the nightly export”, not “svc1”. It is what a reader of the audit trail sees.","Create it","A new service account holds nothing. Give it a role under People, then mint it a token here."]
+[operators] service accounts offered: ["Pick a service account","Sign-up platform"]
+  POST /api/v1/admin/operators -> 204 
+  operators now: ["Olga Operator you\tolga@provider.example\tProvider operations (ops)\tOct 13, 2026, 12:17 AM\t","Paul Platform\tpaul@provider.example\tProvider operations (ops)\tOct 13, 2026, 12:40 AM","by Olga Operator","Sign-up platform\tA service account - it signs in nowhere\tProvider operations (ops)\tOct 13, 2026, 12:41 AM","by Olga Operator","Make a service account an operator","The service accounts of the workspace you are signed in to. A platform that creates workspaces uses one, so that it keeps working when the person who set it up leaves.","This workspace has no service account that is not an operator already. Create one under Administration, Service accounts."]
+[service account tokens] expires field: INPUT 
+  focus before the press: input ""; pressing "Create the token"
+  a proof was asked: "Prove it is you / Not now / This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer."
+  POST /api/v1/auth/tokens -> 403 {"type":"https://docs.hubtask.dev/errors/forbidden","title":"forbidden","status":403,"code":"forbidden","detail_code":"auth.step_up_required","params":{"methods":"PASSWORD"},"request_id":"328d6cefd03ad8c24256793cc96c2a08","docs":"https://do
+  POST /api/v1/auth/tokens -> 201 {"account_id":"01a13246-b0ce-79d6-9dc1-83d5e745c377","created_at":"2026-10-12T22:41:39.805497Z","expires_at":"2026-12-31T23:59:59Z","id":"01a13247-5bdd-71d0-af5a-e48e9b0079ce","name":"Provisioning consumer workspaces","scopes":["admin:tenan
+  the screen after: ["Administration","An account that is nobody: no address, no sign-in, tokens as its only credential. It is what an integration or an automation rule should run as, so that neither stops working when the person who set it up leaves.","Hide its tokens","This account holds no role, so its tokens will be accepted and then refused by everything. Give it a role under People.","Your new token","Shown once. Nothing can show it again — what is kept is a hash, and no calculation turns that back into this. If you lose it, withdraw it and make another.","Show the token","Copy","I have saved the token","Save the token first. It cannot be shown again."]
+$ hubctl admin tenant ls   (HUBTASK_TOKEN = the service account's new token)
+ID                                     SLUG        NAME                  STATUS   LOCALE   CREATED            
+01a13231-0784-7a82-82a3-c24f3863d51d   ops         Provider operations   ACTIVE   en       2026-10-13 00:17   
+01a13233-f23c-72d2-a70b-267321dbd621   anna        Anna's tasks          ACTIVE   en       2026-10-13 00:20   
+01a13233-f2e4-7983-a38a-65d27edcae56   anna-club   Anna's book club      ACTIVE   en       2026-10-13 00:20   
+(exit 0)
+
+## UC-INS-08 check 1 - Olga on /instance/workspaces
+[desktop] the own row reads: ["Provider operations","ops","Your workspace","Active","Oct 13, 2026, 12:17 AM","Suspend","Limits","Export","Open the password","Delete"]
+[desktop] Suspend on the own workspace opens: ["Suspend Provider operations?","Cancel","Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was.","This is your own workspace. Your session ends at once, and only an operator from another workspace can resume it.","Keep it running","Suspend it"]
+  focus in the dialog: button "Cancel"; pressing Cancel (a click) - not confirmed
+
+## Suspend and resume Anna's second workspace (anna-club)
+[desktop] Suspend on anna-club opens: ["Suspend Anna's book club?","Cancel","Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was.","Keep it running","Suspend it"]
+  focus: button "Cancel"; pressing "Suspend it"
+  POST /api/v1/admin/tenants/01a13233-f2e4-7983-a38a-65d27edcae56:suspend -> 204 
+  the row now: ["Anna's book club","anna-club","Suspended","Oct 13, 2026, 12:20 AM","Resume","Limits","Export","Delete"]
+[Anna at anna-club while suspended] the page says: ["Hubtask","to anna-club.hubtask.localhost:18540","This workspace is suspended. Its data remains; ask the operator.","b0575efb8e1d230cf287d784ce9ac6c2","Sign in","Email address*","Password*","Show password"]
+  the row now: ["Anna's book club","anna-club","Active","Oct 13, 2026, 12:20 AM","Suspend","Limits","Export","Open the password","Delete"]
+[375] the own row reads: ["Provider operations","ops","Your workspace","Active","Oct 13, 2026, 12:17 AM","Suspend","Limits","Export","Open the password","Delete"]
+[375] Suspend on the own workspace opens: ["Suspend Provider operations?","Cancel","Its people can no longer work in it from their next step on, and are told it is paused. Nothing in it is lost, its export still works, and Resume brings it back as it was.","This is your own workspace. Your session ends at once, and only an operator from another workspace can resume it.","Keep it running","Suspend it"]
+  focus in the dialog: button "Cancel"; pressing Cancel (a click) - not confirmed
+-- the instance journal (owner role), the last entries:
+22:20:28|tenant.provisioned|Olga Operator
+22:20:28|tenant.provisioned|Olga Operator
+22:36:46|instance.settings_changed|Olga Operator
+22:36:46|instance.settings_changed|Olga Operator
+22:40:22|instance.operator_added|Olga Operator
+22:41:04|instance.operator_added|Olga Operator
+22:42:44|tenant.suspended|Olga Operator
+22:42:50|tenant.resumed|Olga Operator
+-- the workspace trail of anna-club, tenant.* entries:
+22:20:28|tenant.provisioned|SUCCESS
+22:42:44|tenant.suspended|SUCCESS
+22:42:50|tenant.resumed|SUCCESS
+
+## The instance journal for the AI offers (owner role)
+22:19:41|instance.ai_provider_configured|Olga Operator
+22:19:41|instance.ai_provider_configured|Olga Operator
+22:19:41|instance.ai_provider_configured|Olga Operator
+22:19:50|instance.ai_provider_removed|Olga Operator
+22:20:04|instance.ai_provider_configured|Olga Operator
+22:20:21|instance.settings_changed|Olga Operator
