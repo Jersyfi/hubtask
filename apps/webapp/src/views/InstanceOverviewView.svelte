@@ -77,7 +77,6 @@
    * apart from a thing nobody thought of (P-11).
    */
   const later = [
-    { id: 'ai', code: 'app.instance.later_ai' },
     { id: 'retention', code: 'app.instance.later_retention' },
     { id: 'backup', code: 'app.instance.later_backup' },
     { id: 'plans', code: 'app.instance.later_plans' },

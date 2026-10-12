@@ -2093,7 +2093,6 @@
   "app.instance.digest_journal": "Last: {action}, {at}",
   "app.instance.later_title": "What this level will hold",
   "app.instance.later_badge": "Later",
-  "app.instance.later_ai": "An AI provider of the installation's own, with the jurisdiction it declares - so a workspace can use one without holding a key.",
   "app.instance.later_retention": "Default retention rules with a lock, and how long the audit trail is kept.",
   "app.instance.later_backup": "Backup targets the installation offers, and whether a workspace may name its own.",
   "app.instance.later_plans": "Plans: the limits and features each one opens, which is the level between this one and a workspace.",

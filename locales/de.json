@@ -1456,7 +1456,6 @@
   "app.instance.digest_journal": "Zuletzt: {action}, {at}",
   "app.instance.later_title": "Was diese Ebene noch bekommt",
   "app.instance.later_badge": "Später",
-  "app.instance.later_ai": "Ein eigener KI-Anbieter der Installation, mit der Jurisdiktion, die er erklärt – damit ein Arbeitsbereich KI nutzen kann, ohne selbst einen Schlüssel zu halten.",
   "app.instance.later_retention": "Voreingestellte Aufbewahrungsregeln mit Schloss, und wie lange der Audit-Trail bleibt.",
   "app.instance.later_backup": "Sicherungsziele, die die Installation anbietet, und ob ein Arbeitsbereich eigene nennen darf.",
   "app.instance.later_plans": "Tarife: welche Grenzen und Funktionen jeder öffnet – die Ebene zwischen dieser und einem Arbeitsbereich.",
