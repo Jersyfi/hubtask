@@ -11,24 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const addOperator = `-- name: AddOperator :one
-SELECT add_operator($1, $2)
-`
-
-type AddOperatorParams struct {
-	AccountID pgtype.UUID
-	AddedBy   pgtype.UUID
-}
-
-// The workspace comes from the account rather than from the caller: false is "no such account", and
-// a pair that could disagree would be a pair somebody eventually gets wrong.
-func (q *Queries) AddOperator(ctx context.Context, arg AddOperatorParams) (bool, error) {
-	row := q.db.QueryRow(ctx, addOperator, arg.AccountID, arg.AddedBy)
-	var add_operator bool
-	err := row.Scan(&add_operator)
-	return add_operator, err
-}
-
 const claimSetupCode = `-- name: ClaimSetupCode :one
 SELECT claim_setup_code($1, $2)::text
 `
@@ -77,18 +59,6 @@ func (q *Queries) DismissOperator(ctx context.Context, accountID pgtype.UUID) (s
 	var column_1 string
 	err := row.Scan(&column_1)
 	return column_1, err
-}
-
-const dropOperator = `-- name: DropOperator :one
-SELECT drop_operator($1)
-`
-
-// False where the register would have been emptied: the last operator cannot remove themselves.
-func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, dropOperator, accountID)
-	var drop_operator bool
-	err := row.Scan(&drop_operator)
-	return drop_operator, err
 }
 
 const enlistOperator = `-- name: EnlistOperator :one
@@ -229,36 +199,6 @@ func (q *Queries) IssueSetupCode(ctx context.Context, arg IssueSetupCodeParams) 
 	var issue_setup_code bool
 	err := row.Scan(&issue_setup_code)
 	return issue_setup_code, err
-}
-
-const operatorRegister = `-- name: OperatorRegister :many
-SELECT tenant_id, account_id, added_at, added_by FROM operator_register()
-`
-
-// The listing, for the control plane's own screen.
-func (q *Queries) OperatorRegister(ctx context.Context) ([]Operator, error) {
-	rows, err := q.db.Query(ctx, operatorRegister)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Operator{}
-	for rows.Next() {
-		var i Operator
-		if err := rows.Scan(
-			&i.TenantID,
-			&i.AccountID,
-			&i.AddedAt,
-			&i.AddedBy,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const operatorRegisterState = `-- name: OperatorRegisterState :one

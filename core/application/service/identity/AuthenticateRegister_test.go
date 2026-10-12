@@ -98,3 +98,31 @@ func TestAScopeNeverAskedForIsTheOrdinaryRefusal(t *testing.T) {
 		t.Fatalf("refusal = %v, want access.insufficient_scope", err)
 	}
 }
+
+// UC-INS-06 check 5: a platform's token belongs to its service account, and the register is asked
+// about that account - not about the person who set it up. Removing the person leaves the platform
+// provisioning.
+func TestAServiceAccountsTokenOutlivesThePersonWhoSetItUp(t *testing.T) {
+	const person = shared.ID("01936f2a-7c1e-7000-8000-0000000000aa")
+	raw, credential := mintCredential(t)
+	credential.Token.Scopes = []string{"admin:tenants"}
+	credential.Account.Kind = "SERVICE_ACCOUNT"
+	register := &operatorRegister{accounts: map[shared.ID]bool{account: true, person: true}}
+	handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+	handler.Operators = register
+
+	// The person who made the service account an operator and minted its token leaves.
+	if outcome, err := register.Dismiss(t.Context(), person); err != nil || outcome != "REMOVED" {
+		t.Fatalf("removing the person answered %q, %v", outcome, err)
+	}
+
+	actor, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+		Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC",
+	})
+	if err != nil {
+		t.Fatalf("authentication failed: %v", err)
+	}
+	if err := actor.RequireScope("admin:tenants"); err != nil {
+		t.Errorf("the platform lost the control plane when the person left: %v", err)
+	}
+}

@@ -174,8 +174,13 @@ func (h SetUpInstallation) Execute(
 
 		// No adder: the entry was made by the installation's own first start, which the
 		// contract's `Operator.added_by` describes as absent.
-		if _, err := h.Operators.Add(ctx, owner.ID, shared.ID("")); err != nil {
+		enlisted, err := h.Operators.Enlist(ctx, owner.ID, shared.ID(""))
+		if err != nil {
 			return err
+		}
+		if enlisted != repository.EnlistAdded && enlisted != repository.EnlistPresent {
+			// The owner was activated a moment ago in this very transaction.
+			return shared.ErrInternal.WithDetail("setup.owner_not_activated")
 		}
 
 		if err := w.Audit.Append(ctx, audit.Entry{

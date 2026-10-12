@@ -39,7 +39,7 @@ func (r *operatorRegister) Holds(_ context.Context, accountID shared.ID) (bool, 
 	return r.accounts[accountID], nil
 }
 
-func (r *operatorRegister) List(context.Context) ([]repository.Operator, error) {
+func (r *operatorRegister) Roster(_ context.Context, _ shared.ID) ([]repository.Operator, error) {
 	register := make([]repository.Operator, 0, len(r.accounts))
 	for id, held := range r.accounts {
 		if held {
@@ -49,20 +49,23 @@ func (r *operatorRegister) List(context.Context) ([]repository.Operator, error) 
 	return register, nil
 }
 
-func (r *operatorRegister) Add(_ context.Context, accountID, _ shared.ID) (bool, error) {
+func (r *operatorRegister) Enlist(_ context.Context, accountID, _ shared.ID) (repository.EnlistOutcome, error) {
 	if r.accounts[accountID] {
-		return false, nil
+		return repository.EnlistPresent, nil
 	}
 	r.accounts[accountID] = true
-	return true, nil
+	return repository.EnlistAdded, nil
 }
 
-func (r *operatorRegister) Remove(_ context.Context, accountID shared.ID) (bool, error) {
+func (r *operatorRegister) Dismiss(_ context.Context, accountID shared.ID) (repository.DismissOutcome, error) {
+	if !r.accounts[accountID] {
+		return repository.DismissAbsent, nil
+	}
 	if len(r.accounts) <= 1 {
-		return false, nil
+		return repository.DismissLast, nil
 	}
 	delete(r.accounts, accountID)
-	return true, nil
+	return repository.DismissRemoved, nil
 }
 
 func newElevationFixture(t *testing.T) (*sessionFixture, *operatorRegister) {
