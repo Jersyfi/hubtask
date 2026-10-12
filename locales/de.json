@@ -120,6 +120,7 @@
   "auth.mfa_enrollment_pending": "Die Einrichtung ist noch nicht bestätigt. Bestätige sie mit einem Code aus deiner Authenticator-App.",
   "auth.policy_locked": "Das ist für jeden Arbeitsbereich dieser Installation festgelegt und kann hier nicht geändert werden.",
   "auth.policy_loosens": "Ein Arbeitsbereich kann das strenger machen als die Einstellung der Installation, nie lockerer.",
+  "auth.policy_out_of_bounds": "Das liegt außerhalb dessen, was Hubtask für diese Regel erlaubt. Ein Wert darüber hinaus würde Menschen aussperren, statt sie zu schützen.",
   "auth.policy_unavailable": "Die Anmelderegeln können auf dieser Installation nicht geändert werden.",
   "auth.policy_value_invalid": "Diesen Wert nimmt diese Einstellung nicht an.",
   "auth.legal_url_invalid": "Das ist keine Webadresse. Gib die ganze Adresse an, beginnend mit https://.",

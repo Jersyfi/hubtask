@@ -586,6 +586,27 @@ func bounded(policy SignInPolicy) SignInPolicy {
 	return policy
 }
 
+// withinBounds refuses a switch whose proposed value the product's own bounds would change. Without
+// it the value was stored as sent and `bounded` enforced the bound at the next sign-in instead: a
+// minimum of 2000 characters read "saved" on the screen and demanded 128 of everybody, nobody told
+// (UC-ID-12 check 8). The ways in are left out: their order is not a bound, and boundedMethods
+// only orders and de-duplicates them.
+func withinBounds(name PolicySwitch, proposed SignInPolicy) error {
+	if name == SwitchMethods {
+		return nil
+	}
+	if SwitchText(bounded(proposed), name) == SwitchText(proposed, name) {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("auth.policy_out_of_bounds").
+		WithParams(map[string]string{"switch": string(name)}).
+		WithFields(shared.FieldError{
+			Path: "/sign_in_policy/" + string(name),
+			Code: "auth.policy_out_of_bounds",
+		})
+}
+
 // boundedMethods keeps the list to the ways in that exist, in the contract's order, without
 // duplicates - and never empty, because a workspace nobody can sign in to is a support call and
 // not a policy.
@@ -754,6 +775,9 @@ func (e EffectivePolicy) Tightened(above SignInPolicy, patch PolicyPatch) (SignI
 				})
 		}
 		if err := Tighten(name, above, patch); err != nil {
+			return SignInPolicy{}, nil, err
+		}
+		if err := withinBounds(name, next); err != nil {
 			return SignInPolicy{}, nil, err
 		}
 		result = next

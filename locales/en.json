@@ -231,6 +231,7 @@
   "auth.recovery_regenerated": "New recovery codes. The old ten no longer work.",
   "auth.policy_locked": "This is set for every workspace on this installation and cannot be changed here.",
   "auth.policy_loosens": "A workspace can make this stricter than the installation's setting, never looser.",
+  "auth.policy_out_of_bounds": "That is outside what Hubtask allows for this rule. A value past it would lock people out rather than protect them.",
   "auth.policy_unavailable": "The sign-in settings cannot be changed on this installation.",
   "auth.policy_value_invalid": "That is not a value this setting takes.",
   "auth.legal_url_invalid": "That is not a web address. Use the whole address, starting with https://.",
