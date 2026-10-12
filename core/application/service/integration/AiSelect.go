@@ -56,6 +56,7 @@ func (r AiRules) Select(ctx context.Context, tenantID shared.ID) (AiSelection, e
 		return AiSelection{
 			Provider: offered, Sealed: sealed, Purpose: OfferedAiKeyPurpose(offered.ID),
 			EmbeddingSpace: domain.OfferedEmbeddingSpace(offered.ID, offered.EmbeddingModel),
+			Source:         portai.SourceOffered,
 		}, nil
 	default:
 		if !state.Rule.Permits(domain.AiSourceOwn) {
@@ -80,7 +81,7 @@ func (r AiRules) Select(ctx context.Context, tenantID shared.ID) (AiSelection, e
 		}
 		return AiSelection{
 			Provider: configured, Sealed: sealed, Purpose: AiKeyPurpose(tenantID),
-			EmbeddingSpace: configured.EmbeddingModel,
+			EmbeddingSpace: configured.EmbeddingModel, Source: portai.SourceOwn,
 		}, nil
 	}
 }

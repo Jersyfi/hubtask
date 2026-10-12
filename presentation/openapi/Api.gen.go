@@ -1488,6 +1488,36 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EncryptionStoreCountStore.
+const (
+	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
+	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
+	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
+	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
+	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
+)
+
+// Valid indicates whether the value is a known member of the EncryptionStoreCountStore enum.
+func (e EncryptionStoreCountStore) Valid() bool {
+	switch e {
+	case EncryptionStoreCountStoreAccountMfa:
+		return true
+	case EncryptionStoreCountStoreAiProvider:
+		return true
+	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupTarget:
+		return true
+	case EncryptionStoreCountStoreIdentityProvider:
+		return true
+	case EncryptionStoreCountStoreWebhookSubscription:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErasureKeptHoldScopeKind.
 const (
 	ErasureKeptHoldScopeKindACCOUNT   ErasureKeptHoldScopeKind = "ACCOUNT"
@@ -2367,6 +2397,24 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -2507,6 +2555,7 @@ func (e QueryFieldKind) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
 	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
@@ -2519,6 +2568,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case AiOwnTokensPerDay:
+		return true
 	case AiTokensPerDay:
 		return true
 	case ApiRequestsPerMinute:
@@ -4144,10 +4195,13 @@ type AccountSummary struct {
 	DisplayName string `json:"display_name"`
 
 	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
-	HasAddress *bool                `json:"has_address,omitempty"`
-	Id         openapi_types.UUID   `json:"id"`
-	Kind       AccountSummaryKind   `json:"kind"`
-	Status     AccountSummaryStatus `json:"status"`
+	HasAddress *bool              `json:"has_address,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       AccountSummaryKind `json:"kind"`
+
+	// Managed True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.
+	Managed *bool                `json:"managed,omitempty"`
+	Status  AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -4198,6 +4252,23 @@ type Actor struct {
 
 // ActorType defines model for Actor.Type.
 type ActorType string
+
+// AddressConfirm defines model for AddressConfirm.
+type AddressConfirm struct {
+	// Token The token from the confirmation mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// AddressRequest defines model for AddressRequest.
+type AddressRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// AddressRequested defines model for AddressRequested.
+type AddressRequested struct {
+	// ExpiresAt Until when the link in the mail confirms the address.
+	ExpiresAt time.Time `json:"expires_at"`
+}
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
@@ -5624,8 +5695,11 @@ type EncryptionKeyUsage struct {
 	InRing bool   `json:"in_ring"`
 	KeyId  string `json:"key_id"`
 
-	// SealedValues How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.
+	// SealedValues How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.
 	SealedValues int64 `json:"sealed_values"`
+
+	// Stores The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.
+	Stores []EncryptionStoreCount `json:"stores"`
 }
 
 // EncryptionStatus defines model for EncryptionStatus.
@@ -5636,6 +5710,17 @@ type EncryptionStatus struct {
 	// Keys Every key the ring holds, the active one first and then its predecessors - followed by any key a stored value still names although the ring no longer holds it, which is the state an operator has to repair by putting the key back.
 	Keys []EncryptionKeyUsage `json:"keys"`
 }
+
+// EncryptionStoreCount defines model for EncryptionStoreCount.
+type EncryptionStoreCount struct {
+	SealedValues int64 `json:"sealed_values"`
+
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+	Store EncryptionStoreCountStore `json:"store"`
+}
+
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.
+type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
@@ -7046,9 +7131,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
@@ -7062,6 +7171,12 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAiBudget defines model for OwnAiBudget.
+type OwnAiBudget struct {
+	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
+	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -7404,7 +7519,9 @@ type QuotaStanding struct {
 	Configured *bool `json:"configured,omitempty"`
 
 	// Limit The resolved ceiling. 0 means unlimited.
-	Limit int64              `json:"limit"`
+	Limit int64 `json:"limit"`
+
+	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -7414,7 +7531,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota defines model for QuotaStanding.Quota.
+// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -8335,6 +8452,14 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// StartPasswordIssued defines model for StartPasswordIssued.
+type StartPasswordIssued struct {
+	Account Account `json:"account"`
+
+	// StartPassword Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
+}
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -8762,7 +8887,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -9342,6 +9467,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// IssueStartPasswordParams defines parameters for IssueStartPassword.
+type IssueStartPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // RenewInvitationParams defines parameters for RenewInvitation.
 type RenewInvitationParams struct {
@@ -10401,6 +10532,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -10449,6 +10583,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
+type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10463,6 +10600,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
+
+// ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
+type ConfirmAddressJSONRequestBody = AddressConfirm
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -10805,6 +10945,12 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// RequestAddress Give a managed account a mail address
+	// (POST /accounts/{accountId}:add-address)
+	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// IssueStartPassword Give a managed account a new start password
+	// (POST /accounts/{accountId}:issue-start-password)
+	IssueStartPassword(w http.ResponseWriter, r *http.Request, accountId AccountId, params IssueStartPasswordParams)
 	// RenewInvitation Give an invitation not yet accepted a new link
 	// (POST /accounts/{accountId}:renew-invitation)
 	RenewInvitation(w http.ResponseWriter, r *http.Request, accountId AccountId, params RenewInvitationParams)
@@ -10907,6 +11053,9 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
+	// (PUT /ai-budget)
+	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
 	// RemoveAiProvider Remove the workspace's AI provider
 	// (DELETE /ai-provider)
 	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
@@ -10934,6 +11083,9 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// ConfirmAddress Confirm a mail address with the link that was sent to it
+	// (POST /auth/address:confirm)
+	ConfirmAddress(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -11804,6 +11956,82 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestAddress operation middleware
+func (siw *ServerInterfaceWrapper) RequestAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestAddress(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueStartPassword operation middleware
+func (siw *ServerInterfaceWrapper) IssueStartPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params IssueStartPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueStartPassword(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -12813,6 +13041,20 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// SetOwnAiBudget operation middleware
+func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetOwnAiBudget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveAiProvider operation middleware
 func (siw *ServerInterfaceWrapper) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -13053,6 +13295,20 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmAddress operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAddress(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22305,6 +22561,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
@@ -22321,6 +22579,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/address:confirm", wrapper.ConfirmAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)
@@ -22399,6 +22658,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)

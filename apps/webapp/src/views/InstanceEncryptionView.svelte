@@ -76,7 +76,17 @@
       {:else if status}
         {#if stranded.length > 0}
           <Banner tone="danger" title={t('app.instance.encryption_stranded_title')}>
-            {t('app.instance.encryption_stranded', { keys: stranded.map((key) => key.key_id).join(', ') })}
+            <p class="banner-line">
+              {t('app.instance.encryption_stranded', { keys: stranded.map((key) => key.key_id).join(', ') })}
+            </p>
+            <!-- What would stay unreadable, by kind: the count is the installation's, never a workspace's. -->
+            <ul class="kinds">
+              {#each stranded as key (key.key_id)}
+                {#each key.stores as kind (kind.store)}
+                  <li>{t('app.instance.encryption_stranded_kind', { key: key.key_id, count: kind.sealed_values, store: kind.store })}</li>
+                {/each}
+              {/each}
+            </ul>
           </Banner>
         {/if}
 
@@ -117,4 +127,6 @@
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
   .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
   .numeric { font-variant-numeric: tabular-nums; }
+  .banner-line { margin: 0; }
+  .kinds { margin: 0; padding-inline-start: var(--sp-300); }
 </style>

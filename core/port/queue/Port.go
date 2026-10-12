@@ -66,6 +66,12 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindAddressConfirmationEmail carries the link that confirms a managed account's new address
+	// (ADR-0074 §6). Queued in the request's transaction, so the waiting address and its mail exist
+	// together; not a notification record, for KindPasswordResetEmail's reason - a credential on its
+	// way to a mailbox, with no preference to consult.
+	KindAddressConfirmationEmail Kind = "notification.address_confirmation"
+
 	// KindNotificationDeliver sends one notification. One job per record rather than one per
 	// tenant, because the retry belongs to the message: an address the server refuses must not hold
 	// up everybody else's mail, and the queue's own attempt budget and dead letter are exactly the

@@ -84,3 +84,11 @@ test('and the twelve verbs the history renders are all in the catalogue', () => 
     assert.ok(!sentence.includes('{'), `${code} left a placeholder in: ${sentence}`);
   }
 });
+
+test('the installation\'s clock counts in the plural form', () => {
+  // The band reads "1 minute left" in its last minutes, not "1 minutes".
+  const messages = createMessages({ locale: 'en' });
+  assert.equal(messages.t('app.instance.remaining_minutes', { minutes: 1 }), '1 minute');
+  assert.equal(messages.t('app.instance.remaining_minutes', { minutes: 2 }), '2 minutes');
+  assert.equal(messages.t('app.instance.remaining_seconds', { seconds: 1 }), '1 second');
+});

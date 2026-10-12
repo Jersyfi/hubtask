@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-platform]
 deployments: [D5, D6]
 serves: [P-08, P-15]
-state: partial
+state: built
 tasks: [SI-05, SC-05]
-checked_by: []
+checked_by: [apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminElevate_test.go, core/application/service/identity/AuthenticateRegister_test.go, docs/evidence/SC-05-2026-10-12.md]
 ---
 
 # Let a purchase platform provision workspaces with its own credential
@@ -42,8 +42,3 @@ purchase; a webhook arriving twice creates one workspace.
 
 * No prices, contracts or payment state in Hubtask ([NG-billing](../../vision/non-goals.md)).
 * Telling the platform what happened is UC-INS-14; plans are UC-INS-13.
-
-## Today
-
-* Check 1: not met — the *Operators* screen adds operators only by address, which a service account does not have, tracked in #1061.
-* Check 2: not met in `hubctl` — `hubctl token create` never sends a step-up, so an administrative token cannot be created from the terminal, tracked in #1061.

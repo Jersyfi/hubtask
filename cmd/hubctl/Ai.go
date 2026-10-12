@@ -50,6 +50,12 @@ func aiGroup() group {
 				summary: "which AI answers this workspace: its own model, one the installation offers, or none",
 				run:     aiSource,
 			},
+			{
+				name:    "budget",
+				usage:   "[show] | set <tokens a day> | clear",
+				summary: "the AI budgets: the offered model's, and the one this workspace sets for its own",
+				run:     aiBudget,
+			},
 		},
 	}
 }

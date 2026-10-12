@@ -19,6 +19,7 @@ import (
 const (
 	readAiSourceUseCase   = "ReadAiSource"
 	chooseAiSourceUseCase = "ChooseAiSource"
+	setOwnAiBudgetUseCase = "SetOwnAiBudget"
 )
 
 // ReadAiSource answers GET /ai-source.
@@ -61,6 +62,31 @@ func (c *RestController) ChooseAiSource(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
+}
+
+// SetOwnAiBudget answers PUT /ai-budget: the workspace's own budget for its own model, and the two
+// AI standings after it. A null leaves the field out of the input, which is "no budget".
+func (c *RestController) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.OwnAiBudget
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{}
+	if body.OwnTokensPerDay != nil {
+		in["own_tokens_per_day"] = *body.OwnTokensPerDay
+	}
+	out, err := c.UseCases.Invoke(r.Context(), setOwnAiBudgetUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, quotaStandingsResponse(out))
 }
 
 // aiSourceResponse maps the use case's answer. An offered model carries what the use case gives

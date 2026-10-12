@@ -82,6 +82,22 @@ type OfferedAiProviders interface {
 	Delete(ctx context.Context, id shared.ID) (bool, error)
 }
 
+// SealedOfferedKey is one offered model's wrapped key, as the installation's re-seal reads it.
+type SealedOfferedKey struct {
+	ProviderID shared.ID
+	Sealed     crypto.Sealed
+}
+
+// OfferedAiSealings is the slice of the offered models the installation's re-seal uses (ADR-0045):
+// the read of every wrapped key and the one write that puts a moved one back. The write succeeds
+// only in the installation's own scope.
+type OfferedAiSealings interface {
+	ListSealed(ctx context.Context) ([]SealedOfferedKey, error)
+	// RewrapKey stores a moved key where the row still names expectedKeyID. False is a row whose
+	// key changed in between, or none at all.
+	RewrapKey(ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
+}
+
 // AiChoices is the workspace's choice of AI source. No method takes a tenant: the workspace is the
 // row's key, under row level security.
 type AiChoices interface {

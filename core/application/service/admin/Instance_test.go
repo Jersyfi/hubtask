@@ -53,10 +53,12 @@ type registerStore struct {
 	order    []shared.ID
 	// addresses is what the register's narrow door answers: "slug\x00email" to an account.
 	addresses map[string]shared.ID
+	// inactive are accounts that exist and are not active: invited, disabled.
+	inactive map[shared.ID]bool
 }
 
 func newRegister(held ...shared.ID) *registerStore {
-	store := &registerStore{accounts: map[shared.ID]bool{}}
+	store := &registerStore{accounts: map[shared.ID]bool{}, inactive: map[shared.ID]bool{}}
 	for _, id := range held {
 		store.accounts[id] = true
 		store.order = append(store.order, id)
@@ -75,37 +77,57 @@ func (s *registerStore) Holds(_ context.Context, accountID shared.ID) (bool, err
 	return s.accounts[accountID], nil
 }
 
-func (s *registerStore) List(context.Context) ([]identityrepo.Operator, error) {
+// Roster answers nothing to a caller the register does not name, as the function does.
+func (s *registerStore) Roster(ctx context.Context, caller shared.ID) ([]identityrepo.Operator, error) {
+	if held, _ := s.Holds(ctx, caller); !held {
+		return []identityrepo.Operator{}, nil
+	}
 	register := make([]identityrepo.Operator, 0, len(s.order))
 	for _, id := range s.order {
 		if s.accounts[id] {
 			register = append(register, identityrepo.Operator{
 				TenantID: operatorHome, AccountID: id, AddedAt: fixed,
+				DisplayName: "Operator " + string(id[len(id)-4:]), Email: "op@example.eu",
+				Kind: identity.AccountUser, WorkspaceSlug: "acme", WorkspaceName: "Acme",
 			})
 		}
 	}
 	return register, nil
 }
 
-func (s *registerStore) Add(_ context.Context, accountID, _ shared.ID) (bool, error) {
-	if accountID == unknownAccount {
-		// What the statement answers for an account nobody holds: nothing was inserted.
-		return false, nil
-	}
-	if s.accounts[accountID] {
-		return false, nil
-	}
+func (s *registerStore) add(accountID shared.ID) {
 	s.accounts[accountID] = true
 	s.order = append(s.order, accountID)
-	return true, nil
 }
 
-func (s *registerStore) Remove(_ context.Context, accountID shared.ID) (bool, error) {
-	if len(s.accounts) <= 1 || !s.accounts[accountID] {
-		return false, nil
+func (s *registerStore) Enlist(_ context.Context, accountID, by shared.ID) (identityrepo.EnlistOutcome, error) {
+	if accountID == unknownAccount {
+		return identityrepo.EnlistUnknown, nil
+	}
+	if s.inactive[accountID] {
+		return identityrepo.EnlistNotActive, nil
+	}
+	if s.accounts[accountID] {
+		return identityrepo.EnlistPresent, nil
+	}
+	wasEmpty := len(s.accounts) == 0
+	s.add(accountID)
+	if wasEmpty && !by.IsZero() && by != accountID {
+		s.add(by)
+		return identityrepo.EnlistAddedWithCaller, nil
+	}
+	return identityrepo.EnlistAdded, nil
+}
+
+func (s *registerStore) Dismiss(_ context.Context, accountID shared.ID) (identityrepo.DismissOutcome, error) {
+	if !s.accounts[accountID] {
+		return identityrepo.DismissAbsent, nil
+	}
+	if len(s.accounts) <= 1 {
+		return identityrepo.DismissLast, nil
 	}
 	delete(s.accounts, accountID)
-	return true, nil
+	return identityrepo.DismissRemoved, nil
 }
 
 const (
@@ -281,6 +303,73 @@ func TestTheLastOperatorCannotBeRemoved(t *testing.T) {
 	}
 }
 
+// Adding a colleague to an empty register would end the owner's own access on their next request:
+// the owner of the only workspace is an operator only while the register is empty. So the first
+// addition puts the person adding in as well, and both are in the journal (UC-INS-05 check 3).
+func TestTheFirstAdditionAddsThePersonAddingIt(t *testing.T) {
+	register := newRegister()
+	writer, _, journal := newInstanceWriter(register)
+
+	if err := (AddOperator{Writer: writer}).Execute(t.Context(), operator(), secondOperator); err != nil {
+		t.Fatalf("adding the first operator: %v", err)
+	}
+	if !register.accounts[secondOperator] || !register.accounts[operatorID] {
+		t.Fatalf("the register holds %v, want the colleague and the person adding them", register.order)
+	}
+	if held, _ := register.Holds(t.Context(), operatorID); !held {
+		t.Error("the owner locked themselves out by adding a colleague")
+	}
+	if len(journal.entries) != 2 {
+		t.Fatalf("%d journal entries, want one per row added", len(journal.entries))
+	}
+	named := map[string]bool{}
+	for _, entry := range journal.entries {
+		named[entry.Details["account_id"].(string)] = true
+	}
+	if !named[operatorID.String()] || !named[secondOperator.String()] {
+		t.Errorf("the journal names %v", named)
+	}
+
+	// From the second addition on, only the account named is added.
+	third := shared.ID("01936f2a-7c1e-7000-8000-00000000beef")
+	if err := (AddOperator{Writer: writer}).Execute(t.Context(), operator(), third); err != nil {
+		t.Fatalf("adding a third: %v", err)
+	}
+	if len(journal.entries) != 3 {
+		t.Errorf("%d journal entries after a second addition, want three", len(journal.entries))
+	}
+}
+
+// Only an active account can be an operator: an invited one has never signed in, a disabled one
+// may not (UC-INS-05 check 4).
+func TestOnlyAnActiveAccountCanBeAdded(t *testing.T) {
+	register := newRegister(operatorID)
+	register.inactive[secondOperator] = true
+	writer, _, journal := newInstanceWriter(register)
+
+	err := (AddOperator{Writer: writer}).Execute(t.Context(), operator(), secondOperator)
+	if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != "admin.operator_not_active" {
+		t.Fatalf("an account that is not active answered %v", err)
+	}
+	if register.accounts[secondOperator] || len(journal.entries) != 0 {
+		t.Error("a refused addition left a row or a journal entry")
+	}
+}
+
+// Removing an account that is not in the register is not "the last operator": a stale row on a
+// screen must not be told the installation would be left with nobody.
+func TestRemovingAnAccountNotInTheRegisterSaysSo(t *testing.T) {
+	writer, _, journal := newInstanceWriter(newRegister(operatorID, secondOperator))
+
+	err := (RemoveOperator{Writer: writer}).Execute(t.Context(), operator(), unknownAccount)
+	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "admin.operator_not_registered" {
+		t.Fatalf("removing an account not in the register answered %v", err)
+	}
+	if len(journal.entries) != 0 {
+		t.Error("a refused removal was journalled")
+	}
+}
+
 // The listing is what a screen draws.
 func TestTheRegisterIsListed(t *testing.T) {
 	writer, _, _ := newInstanceWriter(newRegister(operatorID, secondOperator))
@@ -292,8 +381,25 @@ func TestTheRegisterIsListed(t *testing.T) {
 	if len(register) != 2 {
 		t.Fatalf("%d operators", len(register))
 	}
-	if out := operatorOutput(register[0]); out.String("account_id") != operatorID.String() {
+	out := operatorOutput(register[0])
+	if out.String("account_id") != operatorID.String() {
 		t.Errorf("the projection reads %v", out)
+	}
+	// A person reads names, never only identifiers (UC-INS-05 check 1).
+	for _, field := range []string{"display_name", "email", "kind", "workspace_slug", "workspace_name"} {
+		if out.String(field) == "" {
+			t.Errorf("the projection has no %s: %v", field, out)
+		}
+	}
+}
+
+// The roster answers nothing to an account the register does not name, whatever else it holds.
+func TestTheRegisterIsNotListedToSomebodyItDoesNotName(t *testing.T) {
+	writer, _, _ := newInstanceWriter(newRegister(secondOperator))
+
+	register, err := ListOperators{Writer: writer}.Execute(t.Context(), operator())
+	if !errors.Is(err, shared.ErrForbidden) || len(register) != 0 {
+		t.Errorf("an account outside the register read %d rows (%v)", len(register), err)
 	}
 }
 

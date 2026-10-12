@@ -71,11 +71,17 @@ func (o OperatorsFromEnvironment) Apply(ctx context.Context) ([]env.OperatorEntr
 				waiting = append(waiting, entry)
 				continue
 			}
-			added, err := o.Operators.Add(ctx, accountID, shared.ID(""))
+			outcome, err := o.Operators.Enlist(ctx, accountID, shared.ID(""))
 			if err != nil {
 				return err
 			}
-			if !added {
+			if outcome == identityrepo.EnlistNotActive || outcome == identityrepo.EnlistUnknown {
+				// Invited and not yet signed in, or disabled: the entry waits, as one whose account
+				// does not exist yet does, and lands the day the account is active.
+				waiting = append(waiting, entry)
+				continue
+			}
+			if outcome != identityrepo.EnlistAdded {
 				continue
 			}
 			if err := o.Journal.Record(ctx, adminrepo.InstanceEvent{

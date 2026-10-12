@@ -137,5 +137,8 @@ func accountSummaryOutput(account domain.Account) usecase.Output {
 		"status":       string(account.Status),
 		// Whether mail reaches this person - not the address, which stays the holder's own.
 		"has_address": account.Email != "",
+		// Whether a new start password and an address are offered for this person (ADR-0074 §4,
+		// §6): the full condition, so a screen never offers what the server refuses.
+		"managed": account.OnlyThePasswordReaches(),
 	}
 }

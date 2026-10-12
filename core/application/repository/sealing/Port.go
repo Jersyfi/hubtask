@@ -2,33 +2,94 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package sealing is the census a rotation ends on (ADR-0045, security.md §8.1): how many stored
-// values still name each master key.
+// values still name each master key, and in which kind of value.
 //
-// Five tables hold a sealed value, and each of their repositories knows how to re-seal its own
+// Six stores hold a sealed value, and each of their repositories knows how to re-seal its own
 // rows; what none of them can answer alone is whether a key may leave the ring. That is one
-// question over all five, so it is one port, answered per tenant like everything else and summed
-// by the control plane over the tenants it may see.
+// question over all of them, so it is one port, answered per tenant like everything else, once
+// more for the installation's own rows, and summed by the control plane over the levels it may
+// see.
 package sealing
 
-import "context"
+import (
+	"context"
+	"sort"
+)
 
-// Census counts the sealed values of the current tenant by the key they name.
-type Census interface {
-	// CountByKey answers, for every key any stored value names, how many name it. A key the ring
-	// holds but nothing names is absent from the answer - the caller knows the ring, this does
-	// not.
-	CountByKey(ctx context.Context) (map[string]int64, error)
+// The stores, a closed set: the census's labels, the contract's enum and the metric's `store`.
+const (
+	StoreAccountMfa          = "account_mfa"
+	StoreIdentityProvider    = "identity_provider"
+	StoreWebhookSubscription = "webhook_subscription"
+	StoreBackupTarget        = "backup_target"
+	StoreAiProvider          = "ai_provider"
+	StoreAutomationRule      = "automation_rule"
+)
+
+// Counts is a census: for every key a stored value names, how many values of each store name it.
+// A key the ring holds but nothing names is absent - the caller knows the ring, this does not.
+type Counts map[string]map[string]int64
+
+// Add records n values of one store under one key.
+func (c Counts) Add(keyID, store string, n int64) {
+	if n == 0 {
+		return
+	}
+	if c[keyID] == nil {
+		c[keyID] = map[string]int64{}
+	}
+	c[keyID][store] += n
 }
 
-// Sum adds up the censuses of several workspaces into the installation's. The control plane reads
+// ByKey answers the total per key, over every store.
+func (c Counts) ByKey() map[string]int64 {
+	totals := make(map[string]int64, len(c))
+	for keyID, stores := range c {
+		for _, n := range stores {
+			totals[keyID] += n
+		}
+	}
+	return totals
+}
+
+// StoreCount is one store's share of a key.
+type StoreCount struct {
+	Store string
+	Count int64
+}
+
+// Stores answers one key's stores in a stable order, the ones with nothing left out.
+func (c Counts) Stores(keyID string) []StoreCount {
+	stores := make([]StoreCount, 0, len(c[keyID]))
+	for store, n := range c[keyID] {
+		if n > 0 {
+			stores = append(stores, StoreCount{Store: store, Count: n})
+		}
+	}
+	sort.Slice(stores, func(i, j int) bool { return stores[i].Store < stores[j].Store })
+	return stores
+}
+
+// Census counts sealed values by key and store, at the level of the transaction's scope.
+type Census interface {
+	// Count answers the current tenant's own values. A row of the installation's that the read
+	// policy shows the workspace is not the workspace's, and is not in the answer.
+	Count(ctx context.Context) (Counts, error)
+	// CountInstallation answers the installation's own values - the sign-in providers and AI
+	// models it offers - read in the installation's scope.
+	CountInstallation(ctx context.Context) (Counts, error)
+}
+
+// Sum adds up the censuses of several levels into the installation's. The control plane reads
 // each workspace in a bounded transaction of its own and never all of them in one, so what it
-// holds is a census per tenant, and this is the one place the arithmetic across them is written.
-// A key any workspace names is in the answer; a workspace that names none of a key adds nothing.
-func Sum(censuses ...map[string]int64) map[string]int64 {
-	total := map[string]int64{}
+// holds is a census per level, and this is the one place the arithmetic across them is written.
+func Sum(censuses ...Counts) Counts {
+	total := Counts{}
 	for _, census := range censuses {
-		for keyID, count := range census {
-			total[keyID] += count
+		for keyID, stores := range census {
+			for store, n := range stores {
+				total.Add(keyID, store, n)
+			}
 		}
 	}
 	return total

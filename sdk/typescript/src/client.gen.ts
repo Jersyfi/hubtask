@@ -601,6 +601,16 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Give a managed account a new start password */
+  issueStartPassword(accountId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["issueStartPassword"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/{accountId}:issue-start-password", { "accountId": accountId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Give a managed account a mail address */
+  requestAddress(accountId: string, body: NonNullable<operations["requestAddress"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["requestAddress"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/accounts/{accountId}:add-address", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set how the product speaks to an account */
   updateAccountPreferences(accountId: string, body: NonNullable<operations["updateAccountPreferences"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["updateAccountPreferences"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/accounts/{accountId}/preferences", { "accountId": accountId }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
@@ -687,6 +697,12 @@ export class HubtaskClient {
    * Public: sent without a bearer where the client holds none. */
   resetPassword(body: NonNullable<operations["resetPassword"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["resetPassword"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/password:reset", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Confirm a mail address with the link that was sent to it
+   * Public: sent without a bearer where the client holds none. */
+  confirmAddress(body: NonNullable<operations["confirmAddress"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/auth/address:confirm", {  }, undefined, {  }, body, "json", "application/json", "void", options.signal);
   }
 
   /** Ask what only the server knows about a candidate password
@@ -1084,6 +1100,11 @@ export class HubtaskClient {
   /** Choose which AI answers this workspace */
   chooseAiSource(body: NonNullable<operations["chooseAiSource"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["chooseAiSource"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set the daily budget of this workspace's own AI model */
+  setOwnAiBudget(body: NonNullable<operations["setOwnAiBudget"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAiBudget"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-budget", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The workspace's registered third-party apps */

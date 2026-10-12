@@ -3938,6 +3938,81 @@
         }
       }
     },
+    "/accounts/{accountId}:issue-start-password": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "issueStartPassword",
+        "summary": "Give a managed account a new start password",
+        "description": "For a person without a mail address who forgot their password: there is no mailbox a reset\ncould reach, so an owner or administrator helps them back in. **The one exception to \"an\nadministrator does not recover an account\"**, and it exists only for managed accounts - an\naccount with an address is refused with `409 accounts.not_managed`, and recovers through\nits mailbox.\n\nHubtask draws a new start password and answers it once, as at creation; nobody chooses it\nand nothing can read it again. Every session of the account ends and every unfinished\nsign-in step is spent. The next sign-in leads into choosing a new password, after the\nsecond factor where the account has one - the factor and the recovery codes stay. Personal\naccess tokens stay, as a password change leaves them.\n\nAsks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`\notherwise). An act an automation rule runs is refused with\n`accounts.managed_needs_a_person`: a run reads no answer.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new start password, shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartPasswordIssued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}:add-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "requestAddress",
+        "summary": "Give a managed account a mail address",
+        "description": "Sends a confirmation link to the address. Nothing on the account changes until somebody\nholding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an\nordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second\nidentifier.\n\nThe person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.\nOnly a managed account - a sign-in name and no address - takes one: any other is refused\nwith `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,\nan address would take the person's one way in, and the request is refused with\n`409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten\nminutes of the last is `429 accounts.address_requested_recently` with\n`retry_after_seconds`.\n\nWhether the address already belongs to somebody here is not said: the confirmation answers\nthat, to whoever holds the mailbox.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The confirmation is on its way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressRequested"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/{accountId}/preferences": {
       "parameters": [
         {
@@ -4501,6 +4576,35 @@
         }
       }
     },
+    "/auth/address:confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "confirmAddress",
+        "security": [],
+        "summary": "Confirm a mail address with the link that was sent to it",
+        "description": "The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The address is the account's"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/password:check": {
       "post": {
         "tags": [
@@ -4585,7 +4689,7 @@
         ],
         "operationId": "elevateSession",
         "summary": "Raise this session to the control plane for an hour",
-        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
+        "description": "A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.\nThis deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.\nIt does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.\nThe personal access token stays exactly as it is, for automation.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -5542,7 +5646,7 @@
         ],
         "operationId": "listOperators",
         "summary": "Who operates this installation",
-        "description": "The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\n",
+        "description": "The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.\nEach row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.\n",
         "responses": {
           "200": {
             "description": "The register",
@@ -5568,7 +5672,7 @@
         ],
         "operationId": "addOperator",
         "summary": "Put an account in the register",
-        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are.\n",
+        "description": "A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.\nAn account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).\n**Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -5601,7 +5705,7 @@
         ],
         "operationId": "removeOperator",
         "summary": "Take an account out of the register",
-        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.\n",
+        "description": "The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read \"there are two\".\nThe account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).\n",
         "responses": {
           "204": {
             "description": "Out of the register"
@@ -6006,7 +6110,7 @@
         ],
         "operationId": "readEncryptionStatus",
         "summary": "The keyring, and what still names each key",
-        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.\n",
+        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.\n",
         "responses": {
           "200": {
             "description": "The keyring",
@@ -6031,7 +6135,7 @@
         ],
         "operationId": "resealSecrets",
         "summary": "Re-seal what older keys still hold",
-        "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
+        "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
         "responses": {
           "202": {
             "description": "The re-sealing was queued",
@@ -7044,6 +7148,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ai-budget": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setOwnAiBudget",
+        "summary": "Set the daily budget of this workspace's own AI model",
+        "description": "How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAiBudget"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The two AI standings after the write",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuotaStanding"
+                  }
                 }
               }
             }
@@ -11866,6 +12008,10 @@
           "has_address": {
             "type": "boolean",
             "description": "False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.\n"
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.\n"
           }
         }
       },
@@ -11920,6 +12066,60 @@
           "start_password": {
             "type": "string",
             "description": "Shown here and never again. The person types it once, with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "StartPasswordIssued": {
+        "type": "object",
+        "required": [
+          "account",
+          "start_password"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "start_password": {
+            "type": "string",
+            "description": "Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "AddressRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "AddressRequested": {
+        "type": "object",
+        "required": [
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Until when the link in the mail confirms the address."
+          }
+        }
+      },
+      "AddressConfirm": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token from the confirmation mail. It dies on use."
           }
         }
       },
@@ -13074,6 +13274,23 @@
           },
           "jurisdiction": {
             "$ref": "#/components/schemas/AiJurisdiction"
+          }
+        }
+      },
+      "OwnAiBudget": {
+        "type": "object",
+        "required": [
+          "own_tokens_per_day"
+        ],
+        "properties": {
+          "own_tokens_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 1,
+            "description": "Tokens a day for the workspace's own model; null for no budget."
           }
         }
       },
@@ -14442,6 +14659,48 @@
             ],
             "format": "uuid",
             "description": "Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.\n"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The account's name, as its workspace shows it."
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email",
+            "description": "The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.\n"
+          },
+          "sign_in_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name an account without an address signs in with."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "SERVICE_ACCOUNT"
+            ],
+            "description": "A person, or a machine's account."
+          },
+          "workspace_slug": {
+            "type": "string",
+            "description": "The short name of the workspace the account is in."
+          },
+          "workspace_name": {
+            "type": "string",
+            "description": "The name of the workspace the account is in."
+          },
+          "added_by_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name of who put them there, where that account still exists."
           }
         }
       },
@@ -15224,7 +15483,8 @@
           "key_id",
           "active",
           "in_ring",
-          "sealed_values"
+          "sealed_values",
+          "stores"
         ],
         "properties": {
           "key_id": {
@@ -15242,7 +15502,40 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "description": "How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+            "description": "How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+          },
+          "stores": {
+            "type": "array",
+            "description": "The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.\n",
+            "items": {
+              "$ref": "#/components/schemas/EncryptionStoreCount"
+            }
+          }
+        }
+      },
+      "EncryptionStoreCount": {
+        "type": "object",
+        "required": [
+          "store",
+          "sealed_values"
+        ],
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "account_mfa",
+              "identity_provider",
+              "webhook_subscription",
+              "backup_target",
+              "ai_provider",
+              "automation_rule"
+            ],
+            "description": "The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.\n"
+          },
+          "sealed_values": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           }
         }
       },
@@ -15382,8 +15675,10 @@
               "automation_runs_per_hour",
               "webhook_targets",
               "export_jobs",
-              "ai_tokens_per_day"
-            ]
+              "ai_tokens_per_day",
+              "ai_own_tokens_per_day"
+            ],
+            "description": "The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.\n"
           },
           "limit": {
             "type": "integer",
@@ -15470,7 +15765,7 @@
             ],
             "format": "int64",
             "minimum": 0,
-            "description": "What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
+            "description": "What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
           }
         }
       },

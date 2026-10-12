@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -50,14 +51,20 @@ func (h RestoreOperator) Execute(ctx context.Context, slug, email string) (Resto
 			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
 		}
 		restored.AccountID = found
-		added, err := w.Operators.Add(ctx, found, shared.ID(""))
+		outcome, err := w.Operators.Enlist(ctx, found, shared.ID(""))
 		if err != nil {
 			return err
 		}
-		restored.Added = added
-		if !added {
+		switch outcome {
+		case identityrepo.EnlistAdded:
+			restored.Added = true
+		case identityrepo.EnlistPresent:
 			// Already an operator: nothing changed, and nothing is recorded as if it had.
 			return nil
+		case identityrepo.EnlistNotActive:
+			return shared.ErrValidation.WithDetail("admin.operator_not_active")
+		default:
+			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
 		}
 		return w.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorAdded,

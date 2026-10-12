@@ -209,7 +209,7 @@ the password's shape), one place the history is written.
 | No password; its provider lets it in | — | "Use your organisation's provider" |
 | No password; no connected provider lets it in | Password open (way in, fallback, operator's opening) | A link to **set** a first password |
 | A password but no provider switched on here (or only an ended offer), or no credential at all | Password switched off | A link to **connect** the workspace's provider (§11) |
-| A managed account without an address | Any | None; the screen says so (§13) |
+| A managed account without an address | Any | None; the screen says so, and an administrator issues a new start password (§13) |
 
 ---
 
@@ -373,8 +373,8 @@ safeguard belongs to connecting, not to the provider kind.
 ## 13. Managed accounts
 
 *Decided ([ADR-0074](../adr/ADR-0074-managed-accounts.md));
-[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md). The new start
-password and an address added later are decided, not built.*
+[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md).*
+A **managed account** is one with a sign-in name and no address (`AccountSummary.managed`).
 
 * An owner or administrator creates a `USER` account with a **sign-in name** instead of an address
   (`POST /accounts:create-managed`), and places it at a scope in the same step, through the grant's
@@ -390,14 +390,30 @@ password and an address added later are decided, not built.*
   where the workspace has a managed account (`sign_in_names` on the sign-in rules), elsewhere
   "Email address". Where the methods leave the password out, a sign-in name keeps its password
   (§4.1): the card draws the providers and, after them, a *Sign-in name* form.
-* **The one exception to "an administrator does not recover an account":** an owner or
-  administrator may issue a new start password — step-up, recorded, every session ended, next
-  sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
-* What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
-  ordinary account, the sign-in name kept.
+* **The one exception to "an administrator does not recover an account":** whoever holds
+  `MANAGE_MEMBERS` at the workspace may issue a managed account a new start password
+  (`POST /accounts/{id}:issue-start-password`) — after a step-up, answered once as at creation,
+  recorded (`account.start_password_issued`), every session and unfinished sign-in step of the
+  account ended, the next sign-in into `PASSWORD_CHANGE` after an armed factor. Personal access
+  tokens, the factor and the recovery codes stay; the attempt ledger is not cleared. Refused for
+  every account that is not managed (`409 accounts.not_managed`) before the step-up is spent, and
+  for an automation rule's act.
+* What needs a mailbox says "not possible without a mailbox".
+* **An address later:** the person, or whoever holds `MANAGE_MEMBERS` at the workspace, names one
+  (`POST /accounts/{id}:add-address`). It waits on a pending credential of purpose `ADDRESS` for a
+  day, the account unchanged; a newer request replaces it, at most one every ten minutes per account
+  (`429 accounts.address_requested_recently`); the mail's token is minted at delivery. Whether the
+  address is somebody else's here is not said at the request. Following the link
+  (`POST /auth/address:confirm`, public, signing nobody in) makes the address the account's while it
+  is still managed — an ordinary account from then on, reset by mail, the sign-in name kept as a
+  second identifier; an address taken meanwhile is `409 accounts.address_taken`, every other
+  unusable link `401 auth.address_link_invalid`. An erasure deletes the waiting address with the
+  account's other pending steps.
 * An address is added only where the password is a way in: where the workspace's methods leave the
   password out, the account would lose its one way in once it held an address (§4.1), so the action
-  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282). The refusal is
+  `409 accounts.address_needs_password`; the profile and *People* say why in the action's place,
+  read from the sign-in rules (`methods`, the fallback included).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.
@@ -526,9 +542,9 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER`, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19
-and [backup-restore.md](./backup-restore.md) §8's destructive modes. Decided, not built: §13's new
-start password and a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
+member of `PATCH /tenant` that asks), §13's new start password, and every write of §6 (bearer
+door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes.
+Decided, not built: a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
 
 ---
 
@@ -636,15 +652,16 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | Rule | Detail |
 |---|---|
 | The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` is minted **and** exercised. |
-| Four functions | `is_operator`, `operator_register`, `add_operator`, `drop_operator`, narrow `SECURITY DEFINER`s; the table has no row policy and no grant to the application role. |
-| The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. |
+| Narrow functions | `is_operator`; `operator_roster(caller)`, the register with each account's name, address or sign-in name, kind and workspace, answering nothing to a caller the register does not name and never naming another account; `enlist_operator` and `dismiss_operator`, the writes. All `SECURITY DEFINER`; the table has no row policy and no grant to the application role. |
+| The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. Adding the first entry therefore adds the person adding it as well, in the same statement and under a lock, both journalled. |
 | The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
 | The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
 | The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). |
 | The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
-| The last operator | Cannot be removed: `drop_operator` deletes only while more than one remains. |
-| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A machine holds a personal access token with `admin:tenants`. |
-| The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
+| Who can be added | Only an active account (`admin.operator_not_active`), named by workspace and address or, for a service account, chosen from the caller's own workspace and sent by identifier. |
+| The last operator | Cannot be removed: `dismiss_operator` deletes only while more than one remains (`admin.operator_last`); an account not in the register is `admin.operator_not_registered`. |
+| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`, or `hubctl admin elevate` on a `hubctl login` session): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A running hour is not replaced: a second raise is `auth.session_already_elevated` (409) before any proof, naming the end. A token refresh rotates the same session and keeps the hour. A machine holds a personal access token with `admin:tenants`, minted with a step-up from the web app or `hubctl token create`. |
+| The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); on a single-workspace installation it is the last group of the administration for an operator who reaches the administration, and the account menu's row otherwise; it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
 | Three doors, one API | The area, `hubctl admin` and `HUBTASK_INSTANCE_FILE` share the use cases and refusals; under `enforce` the file refuses the writing routes, naming the path. |
 
 ---
@@ -668,10 +685,8 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 |---|---|
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
-| I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
 | I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
-| I-9 | The installation's provider secret is not re-sealed by a key rotation ([security.md](./security.md) §16, S-6). |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
 

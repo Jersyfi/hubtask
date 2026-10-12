@@ -411,6 +411,9 @@ func run() error {
 		security.NewPendingTokenHasher(cfg.SecretKey),
 		security.NewRecoveryCodeHasher(cfg.SecretKey))
 	sessions := postgres.NewSessionRepository()
+	// A managed account's address waiting for its mailbox: an ADDRESS row of the pending
+	// credentials, its token hashed under their label (ADR-0074 §6).
+	addressRequests := postgres.NewAddressRepository(security.NewPendingTokenHasher(cfg.SecretKey))
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
@@ -1195,6 +1198,14 @@ func run() error {
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
 	}.Warnings)
+	// A key the ring lacks while values still name it, by kind (UC-INS-16 check 3): the census
+	// is taken in the background, at start and hourly, and served from the last one.
+	keyHealth := &sealingservice.KeyHealth{
+		Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
+		Encryptor: encryptor, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+	keyHealth.Refresh(ctx)
+	registry.AddWarningSource(keyHealth.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -1380,6 +1391,17 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Text: forms,
 		}.Descriptor(),
+		identity.IssueStartPassword{
+			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.RequestAddress{
+			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Door: passwordWriter,
+		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -1429,6 +1451,9 @@ func run() error {
 			Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ConfirmAddress{
+			Requests: addressRequests, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{
@@ -2077,6 +2102,13 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 		}.Descriptor(),
+		// The workspace's own budget for its own AI model (UC-AI-06 check 6): the workspace's to
+		// set, never the operator's.
+		quotaservice.SetOwnAiBudget{
+			Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
+			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.UpdateTenantQuotas{
 			Tenants: postgres.NewAdminTenantRepository(),
 			Store:   postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
@@ -2093,7 +2125,7 @@ func run() error {
 		// transaction of its own.
 		sealingservice.ReadEncryptionStatus{
 			Tenants: postgres.NewAdminTenantRepository(), Census: postgres.NewSealingRepository(),
-			Encryptor: encryptor, UnitOfWork: unitOfWork,
+			Encryptor: encryptor, UnitOfWork: unitOfWork, Observer: keyHealth,
 		}.Descriptor(),
 		sealingservice.ResealSecrets{
 			Tenants: postgres.NewAdminTenantRepository(), Jobs: jobs, Encryptor: encryptor,
@@ -2669,6 +2701,21 @@ func run() error {
 			BaseURL:        cfg.BaseURL,
 		},
 	}
+	// The link that confirms a managed account's new address, minted at delivery.
+	addressConfirmationMessage := worker.AddressConfirmationMessage{
+		Send: notification.SendAddressConfirmation{
+			Links: addressMinterAdapter{mint: identity.MintAddressLink{
+				Requests: addressRequests, Entropy: clockadapter.CryptoRandom{}, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			}},
+			Mail:           mailSender,
+			Renderer:       renderer,
+			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork:     unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale,
+			BaseURL:        cfg.BaseURL,
+		},
+	}
 	// An operator's opening of the password: its notices to the administrators, and the job
 	// that records its end once the time has passed.
 	passwordOpeningMessage := worker.PasswordOpeningMessage{
@@ -2986,16 +3033,17 @@ func run() error {
 	}
 
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:          reminderFiring,
-		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
-		queueport.KindOutboxDispatch:        dispatcher,
-		queueport.KindRetentionSweep:        retention,
-		queueport.KindMediaReconcile:        mediaReconciliation,
-		queueport.KindInvitationEmail:       invitationMessage,
-		queueport.KindPasswordResetEmail:    passwordResetMessage,
-		queueport.KindPasswordOpeningEmail:  passwordOpeningMessage,
-		queueport.KindPasswordOpeningEnd:    passwordOpeningEnd,
-		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindReminderFire:             reminderFiring,
+		queueport.KindRecurrenceMaterialize:    recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:           dispatcher,
+		queueport.KindRetentionSweep:           retention,
+		queueport.KindMediaReconcile:           mediaReconciliation,
+		queueport.KindInvitationEmail:          invitationMessage,
+		queueport.KindPasswordResetEmail:       passwordResetMessage,
+		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
+		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
+		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
@@ -3076,25 +3124,40 @@ func run() error {
 		},
 		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value
 		// moves its own rows, and the round composes them inside the tenant's transaction.
-		queueport.KindSecretReseal: worker.SecretReseal{Round: sealingservice.RunReseal{
-			Resealers: []sealingservice.Resealer{
-				identity.MfaResealer{Enrollments: mfaStore, Encryptor: encryptor},
-				identity.IdentityProviderResealer{
-					Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+		queueport.KindSecretReseal: worker.SecretReseal{
+			Round: sealingservice.RunReseal{
+				Resealers: []sealingservice.Resealer{
+					identity.MfaResealer{Enrollments: mfaStore, Encryptor: encryptor},
+					identity.IdentityProviderResealer{
+						Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+					},
+					integrationservice.WebhookResealer{
+						Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
+					},
+					backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
+					integrationservice.AiProviderResealer{
+						Providers: postgres.NewAiProviderRepository(), Encryptor: encryptor,
+					},
+					automationservice.RuleResealer{
+						Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
+					},
 				},
-				integrationservice.WebhookResealer{
-					Subscriptions: postgres.NewWebhookSubscriptionRepository(), Encryptor: encryptor,
-				},
-				backupservice.TargetResealer{Targets: backupTargets, Encryptor: encryptor},
-				integrationservice.AiProviderResealer{
-					Providers: postgres.NewAiProviderRepository(), Encryptor: encryptor,
-				},
-				automationservice.RuleResealer{
-					Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
-				},
+				Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 			},
-			Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
-		}},
+			// The installation's own round: the secrets of no workspace, in the scope with none.
+			Installation: sealingservice.RunInstallationReseal{
+				Resealers: []sealingservice.Resealer{
+					identity.IdentityProviderResealer{
+						Providers: postgres.NewIdentityProviderRepository(), Encryptor: encryptor,
+					},
+					integrationservice.OfferedAiProviderResealer{
+						Providers: postgres.NewOfferedAiRepository(), Encryptor: encryptor,
+					},
+				},
+				Encryptor: encryptor, Journal: postgres.NewInstanceJournal(cursors),
+				Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+		},
 		queueport.KindPrivacyRequest: worker.PrivacyRequest{Performer: privacyPerformer},
 		queueport.KindPrivacyErasureRemainder: worker.PrivacyErasureRemainder{
 			Resume: privacyservice.ResumeErasure{
@@ -3579,6 +3642,20 @@ func (a resetMinterAdapter) MintResetToken(
 		Connect:     link.Connect,
 		Address:     link.Address,
 		Locale:      link.Locale,
+	}, nil
+}
+
+type addressMinterAdapter struct{ mint identity.MintAddressLink }
+
+func (a addressMinterAdapter) MintAddressLink(
+	ctx context.Context, tenantID, requestID shared.ID,
+) (notification.AddressLink, error) {
+	link, err := a.mint.MintAddressLink(ctx, tenantID, requestID)
+	if err != nil {
+		return notification.AddressLink{}, err
+	}
+	return notification.AddressLink{
+		Token: link.Token, Address: link.Address, Locale: link.Locale, DisplayName: link.DisplayName,
 	}, nil
 }
 
