@@ -3974,6 +3974,8 @@ paths:
         Flips the middleware: every API call of the tenant's own people answers
         `403 tenant_suspended` on their very next request. The data remains, and the read
         export still works - the suspended are exactly who needs it.
+        Refused with `admin.multi_mode_required` in single mode, where the one workspace is
+        the installation.
       responses:
         "204":
           description: Suspended
@@ -4026,8 +4028,10 @@ paths:
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
         step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
-        typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
-        automations disabled, the export still answering. The hard delete runs after the
+        typed - the restore precedent. Refused with `admin.multi_mode_required` in single
+        mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked,
+        automations disabled, the export still answering. Until the hard delete begins,
+        `:cancel-deletion` calls it off. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
         media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
         because the tenant's own trail dies with it.

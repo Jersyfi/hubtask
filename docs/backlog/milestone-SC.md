@@ -195,7 +195,7 @@ the file refuse the same values; the health hint on a multi-tenant installation 
 
 ---
 
-## SC-08 — The workspace lifecycle keeps its promises
+## SC-08 — The workspace lifecycle keeps its promises · built
 
 *Depends on: nothing.*
 

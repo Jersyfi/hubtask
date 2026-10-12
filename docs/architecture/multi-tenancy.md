@@ -233,6 +233,8 @@ stateDiagram-v2
   Suspended --> Active: reactivation
   Active --> PendingDeletion: deletion request
   Suspended --> PendingDeletion: deletion request
+  PendingDeletion --> Active: cancel (requested while active)
+  PendingDeletion --> Suspended: cancel (requested while suspended, or not known)
   PendingDeletion --> [*]: hard delete after the grace period (30 days)
 ```
 
@@ -242,9 +244,13 @@ stateDiagram-v2
 | Active | Normal operation; metering only if enabled |
 | Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
 | PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5); its grace job comes back daily and removes nothing while one stands, and no hold can be placed here |
+| Cancel | The operator calls a pending deletion off until the hard delete begins - also past the deadline while a legal hold keeps the workspace pending, whose holds stay. The workspace returns to the status the request found it in (kept in `status_before_deletion`; `SUSPENDED` where it was not kept), the deadline is cleared, and the automation rules the request switched off (`paused_for_deletion`) come back on, a schedule from now without the occurrences it missed. No step-up and no typed name: it removes nothing. The grace job marks the row (`purge_started_at`) before its first byte goes, and a cancel is refused `admin.tenant_deletion_underway` from then on; both write the same row, so one waits for the other |
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
-Deleting a tenant demands a step-up and the typed tenant name. The hard delete removes the workspace
+Deleting a tenant demands a step-up and the typed tenant name. In single mode the one workspace is
+the installation and holds every operator: suspending it and requesting its deletion are refused
+(`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
+and cancelling stay open in every mode. The hard delete removes the workspace
 from the primary system at once and from the operator's system backups **35 days** later
 ([data-protection.md](./data-protection.md) §5).
 
