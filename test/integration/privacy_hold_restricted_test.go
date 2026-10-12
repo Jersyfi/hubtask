@@ -137,29 +137,65 @@ func ruleAbout(ctx context.Context, t *testing.T, s person) automationdomain.Run
 	return run
 }
 
-func TestWhatAHoldKeepsStaysOutOfAiAndAutomation(t *testing.T) {
-	for _, testCase := range []struct {
-		name  string
-		scope string
-		mode  domain.ErasureMode
+// keptScopes are the holds UC-PRV-03 check 10 names, each placed so that it covers the colleague's
+// entry the erased person commented on. Under every hold but the workspace's the erasure is a full
+// deletion, which would take the comment were the hold not there.
+var keptScopes = []struct {
+	name  string
+	scope string
+	at    func(person, keptColleague) shared.ID
+	mode  domain.ErasureMode
+}{
+	{"a hold on the workspace", "TENANT", func(person, keptColleague) shared.ID { return "" }, domain.ModeAnonymize},
+	{"a hold on the hub", "CONTAINER", func(s person, _ keptColleague) shared.ID { return s.hub }, domain.ModeFullDelete},
+	{"a hold on the collection", "CONTAINER", func(s person, _ keptColleague) shared.ID { return s.collection }, domain.ModeFullDelete},
+	{"a hold on the entry", "ITEM", func(_ person, c keptColleague) shared.ID { return c.entry }, domain.ModeFullDelete},
+	{"a hold on the account", "ACCOUNT", func(s person, _ keptColleague) shared.ID { return s.account }, domain.ModeFullDelete},
+}
+
+const lostSays = "LOSTSAYS the old hub is closed"
+
+// seedUncovered gives the person a comment in a hub of its own, which only a hold on the workspace
+// or on the account covers.
+func seedUncovered(ctx context.Context, t *testing.T, s person) shared.ID {
+	t.Helper()
+	hub, collection, entry, comment := freshID(t), freshID(t), freshID(t), freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
 	}{
-		{"a hold on the workspace keeps the account restricted", "TENANT", domain.ModeAnonymize},
-		{"a hold on the hub keeps the comment of a former user", "CONTAINER", domain.ModeFullDelete},
+		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by) VALUES ($1, $2, 'HUB', 'Old', 'a5', $3)`,
+			[]any{hub.String(), s.tenant.String(), s.account.String()}},
+		{`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+		  VALUES ($1, $2, 'COLLECTION', $3, 'Archive', 'a0', $4)`,
+			[]any{collection.String(), s.tenant.String(), hub.String(), s.account.String()}},
+		{`INSERT INTO work_item (id, tenant_id, collection_id, type, title, path, depth, order_key, created_by)
+		  VALUES ($1, $2, $3, 'TASK', 'Close the old hub', $4, 1, 'a0', $5)`,
+			[]any{entry.String(), s.tenant.String(), collection.String(), entry.String(), s.account.String()}},
+		{`INSERT INTO comment (id, tenant_id, item_id, author_id, body) VALUES ($1, $2, $3, $4, $5)`,
+			[]any{comment.String(), s.tenant.String(), entry.String(), s.account.String(), lostSays}},
 	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding outside the hold: %v\n%s", err, statement.sql)
+		}
+	}
+	return comment
+}
+
+func TestWhatAHoldKeepsStaysOutOfAiAndAutomation(t *testing.T) {
+	for _, testCase := range keptScopes {
 		t.Run(testCase.name, func(t *testing.T) {
 			r := newRemainderRig(t)
 			ctx, s := r.ctx, r.subject
 			c := seedColleagueOf(ctx, t, s)
+			uncovered := seedUncovered(ctx, t, s)
 			h := newKeptHarness(ctx, t)
 			if sent := askAboutThread(ctx, t, h, s, c); !strings.Contains(sent, "KEPTSAYS") {
 				t.Fatalf("before the erasure the comment did not reach the adapter, so the test proves nothing:\n%s", sent)
 			}
 
-			var scopeID shared.ID
-			if testCase.scope == "CONTAINER" {
-				scopeID = s.hub
-			}
-			hold := holdOn(ctx, t, s.tenant, testCase.scope, scopeID)
+			hold := holdOn(ctx, t, s.tenant, testCase.scope, testCase.at(s, c))
 			request := erasureRequest(ctx, t, s, testCase.mode)
 			if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{
 				RequestID: request.ID, TenantID: s.tenant,
@@ -170,18 +206,39 @@ func TestWhatAHoldKeepsStaysOutOfAiAndAutomation(t *testing.T) {
 				t.Fatal("the hold did not keep the comment")
 			}
 
+			// What no hold covers is erased as usual.
+			if countIn(ctx, t, `SELECT count(*) FROM access_token WHERE id = $1`, s.token.String()) != 0 {
+				t.Error("the token outlived the erasure")
+			}
+			widest := testCase.scope == "TENANT" || testCase.scope == "ACCOUNT"
+			if left := countIn(ctx, t, `SELECT count(*) FROM comment WHERE id = $1`, uncovered.String()); (left == 1) != widest {
+				t.Errorf("the comment outside the hold: %d left, want kept %v", left, widest)
+			}
+
 			// Out of AI.
 			sent := askAboutThread(ctx, t, h, s, c)
 			if strings.Contains(sent, "KEPTSAYS") || !strings.Contains(sent, "OLGASAYS") {
 				t.Errorf("after the erasure the adapter received:\n%s", sent)
 			}
-			// Out of automation: a rule on an event about the kept entry does nothing.
+			// Out of automation: a rule on an event about the person's entry does nothing.
 			if run := ruleAbout(ctx, t, s); run.Status != automationdomain.RunSkipped ||
 				run.ErrorCode != automationservice.CodeSubjectRestricted {
-				t.Errorf("a rule about the kept entry ended %s / %q", run.Status, run.ErrorCode)
+				t.Errorf("a rule about the person's entry ended %s / %q", run.Status, run.ErrorCode)
+			}
+			// No rule puts the person on an entry: assigning under a rule and the automatic draw ask
+			// this port first. Asked directly, because the visibility check in front of it already
+			// refuses a person whose memberships the erasure took.
+			if err := read(ctx, t, s.tenant, func(ctx context.Context) error {
+				restricted, err := postgres.NewAccountRepository().Restricted(ctx, []shared.ID{s.account})
+				if err == nil && !restricted[s.account] {
+					t.Error("a rule may still assign the person")
+				}
+				return err
+			}); err != nil {
+				t.Fatalf("reading: %v", err)
 			}
 
-			if testCase.scope != "CONTAINER" {
+			if testCase.scope != "CONTAINER" || testCase.at(s, c) != s.hub {
 				return
 			}
 			// The hold is lifted and the rest erased: what anonymised stays is the workspace's again.
