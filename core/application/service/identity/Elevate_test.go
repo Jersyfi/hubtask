@@ -39,7 +39,7 @@ func (r *operatorRegister) Holds(_ context.Context, accountID shared.ID) (bool, 
 	return r.accounts[accountID], nil
 }
 
-func (r *operatorRegister) List(context.Context) ([]repository.Operator, error) {
+func (r *operatorRegister) Roster(_ context.Context, _ shared.ID) ([]repository.Operator, error) {
 	register := make([]repository.Operator, 0, len(r.accounts))
 	for id, held := range r.accounts {
 		if held {
@@ -49,20 +49,23 @@ func (r *operatorRegister) List(context.Context) ([]repository.Operator, error) 
 	return register, nil
 }
 
-func (r *operatorRegister) Add(_ context.Context, accountID, _ shared.ID) (bool, error) {
+func (r *operatorRegister) Enlist(_ context.Context, accountID, _ shared.ID) (repository.EnlistOutcome, error) {
 	if r.accounts[accountID] {
-		return false, nil
+		return repository.EnlistPresent, nil
 	}
 	r.accounts[accountID] = true
-	return true, nil
+	return repository.EnlistAdded, nil
 }
 
-func (r *operatorRegister) Remove(_ context.Context, accountID shared.ID) (bool, error) {
+func (r *operatorRegister) Dismiss(_ context.Context, accountID shared.ID) (repository.DismissOutcome, error) {
+	if !r.accounts[accountID] {
+		return repository.DismissAbsent, nil
+	}
 	if len(r.accounts) <= 1 {
-		return false, nil
+		return repository.DismissLast, nil
 	}
 	delete(r.accounts, accountID)
-	return true, nil
+	return repository.DismissRemoved, nil
 }
 
 func newElevationFixture(t *testing.T) (*sessionFixture, *operatorRegister) {
@@ -130,6 +133,40 @@ func TestRaisingASessionDemandsAFreshProof(t *testing.T) {
 
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("an elevation without a proof answered %v", err)
+	}
+}
+
+// A running hour is neither replaced nor extended (UC-INS-04 check 4). Raising a session that is
+// raised already is refused before any proof is asked, and the refusal names the running end - a
+// client that lost its copy of the hour learns it rather than starting a second one.
+func TestARunningHourIsNotReplaced(t *testing.T) {
+	fixture, register := newElevationFixture(t)
+	running := now.Add(20 * time.Minute)
+	fixture.sessions.elevatedUntil = running
+
+	_, err := ElevateSession{
+		Writer: fixture.writer, Operators: register,
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &idSequence{},
+	}.Execute(t.Context(), recoveryActor(), "")
+
+	refusal := shared.AsError(err)
+	if !errors.Is(err, shared.ErrConflict) || refusal.DetailCode != "auth.session_already_elevated" {
+		t.Fatalf("raising a raised session answered %v", err)
+	}
+	if refusal.Params["until"] != running.UTC().Format(time.RFC3339) {
+		t.Errorf("the refusal names %q, want the running end", refusal.Params["until"])
+	}
+	if len(fixture.sessions.elevated) != 0 || len(fixture.audit.entries) != 0 {
+		t.Error("a running hour was written over")
+	}
+
+	// Once it has run out, a second hour takes a second proof, as before.
+	fixture.sessions.elevatedUntil = now.Add(-time.Second)
+	if _, err := (ElevateSession{
+		Writer: fixture.writer, Operators: register,
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &idSequence{},
+	}).Execute(t.Context(), recoveryActor(), fixture.proof); err != nil {
+		t.Errorf("a new hour after the first ended was refused: %v", err)
 	}
 }
 

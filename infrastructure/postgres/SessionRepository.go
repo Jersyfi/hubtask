@@ -5,9 +5,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -292,6 +294,35 @@ func (r SessionRepository) Elevate(
 			WithCause(fmt.Errorf("elevating the session: %w", err))
 	}
 	return rows > 0, nil
+}
+
+// ElevatedUntil answers when the account's live session stops carrying the control plane's scope.
+func (r SessionRepository) ElevatedUntil(
+	ctx context.Context, sessionID, accountID shared.ID,
+) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	id, err := uuidOf(sessionID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	until, err := queries.SessionElevatedUntil(ctx, sqlc.SessionElevatedUntilParams{ID: id, AccountID: account})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, nil
+	}
+	if err != nil {
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the session's elevation: %w", err))
+	}
+	return timeFrom(until), nil
 }
 
 func (r SessionRepository) TouchLastSeen(ctx context.Context, sessionID shared.ID, at time.Time) error {

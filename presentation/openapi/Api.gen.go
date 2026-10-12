@@ -2367,6 +2367,24 @@ func (e OauthTokenRequestGrantType) Valid() bool {
 	}
 }
 
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -7027,9 +7045,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.

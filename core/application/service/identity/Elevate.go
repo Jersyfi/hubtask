@@ -88,11 +88,17 @@ func (h ElevateSession) Execute(
 		return Elevation{}, shared.ErrForbidden.WithDetail("admin.operator_required")
 	}
 
+	// A running hour before the proof: a client that lost its copy of the hour learns the end
+	// instead of spending a password on starting a second one, which "it does not slide" forbids.
+	now := h.Clock.Now()
+	if err := h.refuseRunning(ctx, actor, now); err != nil {
+		return Elevation{}, err
+	}
+
 	if err := w.requireStepUp(ctx, actor, stepUpToken); err != nil {
 		return Elevation{}, err
 	}
 
-	now := h.Clock.Now()
 	until := now.Add(domain.ElevationLifetime).UTC()
 
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -101,7 +107,15 @@ func (h ElevateSession) Execute(
 			return err
 		}
 		if !raised {
-			// Not the caller's session, or not live any more. Revoke's indistinguishable answer.
+			// Another raise won between the read above and this write, or the session is not the
+			// caller's or not live any more - Revoke's indistinguishable answer for the latter.
+			running, err := w.Sessions.ElevatedUntil(ctx, actor.TokenID, actor.AccountID)
+			if err != nil {
+				return err
+			}
+			if running.After(now) {
+				return alreadyElevated(running)
+			}
 			return shared.ErrForbidden.WithDetail("auth.step_up_session_required")
 		}
 		if err := w.Audit.Append(ctx, audit.Entry{
@@ -128,6 +142,31 @@ func (h ElevateSession) Execute(
 		return Elevation{}, err
 	}
 	return Elevation{Until: until, Remaining: until.Sub(now)}, nil
+}
+
+// refuseRunning refuses a raise while the session's hour still runs (UC-INS-04 check 4).
+func (h ElevateSession) refuseRunning(
+	ctx context.Context, actor appshared.ActorContext, now time.Time,
+) error {
+	var running time.Time
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		read, err := h.Writer.Sessions.ElevatedUntil(ctx, actor.TokenID, actor.AccountID)
+		running = read
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if running.After(now) {
+		return alreadyElevated(running)
+	}
+	return nil
+}
+
+func alreadyElevated(running time.Time) error {
+	return shared.ErrConflict.
+		WithDetail("auth.session_already_elevated").
+		WithParams(map[string]string{"until": running.UTC().Format(time.RFC3339)})
 }
 
 // record writes the installation's own entry. Both ends of an elevation are in it: this one names

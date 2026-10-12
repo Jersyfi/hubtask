@@ -329,7 +329,7 @@ func (h ListOperators) Execute(
 	var register []identityrepo.Operator
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
 		func(ctx context.Context) error {
-			read, err := w.Operators.List(ctx)
+			read, err := w.Operators.Roster(ctx, actor.AccountID)
 			register = read
 			return err
 		})
@@ -400,30 +400,39 @@ func (h AddOperator) execute(
 	// the caller: a pair that could disagree is a pair somebody eventually gets wrong, and only
 	// that function can read the account row across the tenant boundary at all.
 	return w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
-		added, err := w.Operators.Add(ctx, accountID, actor.AccountID)
+		outcome, err := w.Operators.Enlist(ctx, accountID, actor.AccountID)
 		if err != nil {
 			return err
 		}
-		if !added {
-			// Already there, or no such account. Which of the two is answered by reading the
-			// register, and the caller's question - "make this account an operator" - is answered
-			// either way only when it now is.
-			register, err := w.Operators.List(ctx)
-			if err != nil {
+		switch outcome {
+		case identityrepo.EnlistPresent:
+			// The caller asked for somebody to be an operator, and they are.
+			return nil
+		case identityrepo.EnlistNotActive:
+			return shared.ErrValidation.WithDetail("admin.operator_not_active")
+		case identityrepo.EnlistUnknown:
+			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+		case identityrepo.EnlistAddedWithCaller:
+			// The register was empty, so the caller was an operator only because it was; the
+			// statement put them in too, and that is as much an addition as the one asked for.
+			if err := w.recordAdded(ctx, actor, actor.AccountID); err != nil {
 				return err
 			}
-			for _, operator := range register {
-				if operator.AccountID == accountID {
-					return nil
-				}
-			}
-			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+		case identityrepo.EnlistAdded:
+		default:
+			return shared.ErrInternal.WithDetail("admin.operator_outcome_unknown")
 		}
-		return w.Journal.Record(ctx, adminrepo.InstanceEvent{
-			ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorAdded,
-			ActorLabel: actor.AccountName,
-			Details:    map[string]any{"account_id": accountID.String()},
-		})
+		return w.recordAdded(ctx, actor, accountID)
+	})
+}
+
+func (w InstanceWriter) recordAdded(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
+) error {
+	return w.Journal.Record(ctx, adminrepo.InstanceEvent{
+		ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorAdded,
+		ActorLabel: actor.AccountName,
+		Details:    map[string]any{"account_id": accountID.String()},
 	})
 }
 
@@ -440,15 +449,19 @@ func (h RemoveOperator) Execute(
 	}
 
 	return w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
-		removed, err := w.Operators.Remove(ctx, accountID)
+		outcome, err := w.Operators.Dismiss(ctx, accountID)
 		if err != nil {
 			return err
 		}
-		if !removed {
-			// Either it was not there, or it is the last one. The second is the interesting case
-			// and the one worth a sentence: an installation with no operators is an installation
-			// nobody can operate.
+		switch outcome {
+		case identityrepo.DismissRemoved:
+		case identityrepo.DismissLast:
+			// An installation with no operators is an installation nobody can operate.
 			return shared.ErrConflict.WithDetail("admin.operator_last")
+		case identityrepo.DismissAbsent:
+			return shared.ErrNotFound.WithDetail("admin.operator_not_registered")
+		default:
+			return shared.ErrInternal.WithDetail("admin.operator_outcome_unknown")
 		}
 		return w.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorRemoved,
@@ -852,12 +865,25 @@ func refusedInstanceValue(name string) error {
 
 func operatorOutput(operator identityrepo.Operator) usecase.Output {
 	out := usecase.Output{
-		"tenant_id":  operator.TenantID.String(),
-		"account_id": operator.AccountID.String(),
-		"added_at":   operator.AddedAt.UTC(),
+		"tenant_id":      operator.TenantID.String(),
+		"account_id":     operator.AccountID.String(),
+		"added_at":       operator.AddedAt.UTC(),
+		"display_name":   operator.DisplayName,
+		"kind":           string(operator.Kind),
+		"workspace_slug": operator.WorkspaceSlug,
+		"workspace_name": operator.WorkspaceName,
 	}
 	if !operator.AddedBy.IsZero() {
 		out["added_by"] = operator.AddedBy.String()
+	}
+	if operator.Email != "" {
+		out["email"] = operator.Email
+	}
+	if operator.SignInName != "" {
+		out["sign_in_name"] = operator.SignInName
+	}
+	if operator.AddedByName != "" {
+		out["added_by_name"] = operator.AddedByName
 	}
 	return out
 }

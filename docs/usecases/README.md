@@ -172,16 +172,16 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-14](./identity/UC-ID-14-invite-people-with-a-role.md) | Invite people and give them a role | identity | partial |
 | [UC-ID-15](./identity/UC-ID-15-limit-a-person-to-part-of-the-workspace.md) | Let a person see only part of the workspace | identity | partial |
 | [UC-ID-16](./identity/UC-ID-16-keep-a-hub-private.md) | Keep a hub private, even from another administrator | identity | partial |
-| [UC-ID-17](./identity/UC-ID-17-give-a-machine-its-own-credential.md) | Give a script, an app or a platform its own credential | identity | partial |
+| [UC-ID-17](./identity/UC-ID-17-give-a-machine-its-own-credential.md) | Give a script, an app or a platform its own credential | identity | built |
 | [UC-ID-18](./identity/UC-ID-18-show-the-legal-information-before-sign-in.md) | Show the legal information people are owed before they sign in | identity | partial |
 | [UC-ID-19](./identity/UC-ID-19-agree-to-the-terms.md) | Agree to the terms, and again when they change | identity | specified |
 | [UC-ID-20](./identity/UC-ID-20-give-someone-an-account-without-an-address.md) | Give a family member an account without their own mail address | identity | partial |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin | verified |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin | built |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |
-| [UC-INS-04](./admin/UC-INS-04-work-on-the-installation-for-an-hour.md) | Work on the installation for an hour after proving it is me | admin | partial |
-| [UC-INS-05](./admin/UC-INS-05-appoint-and-remove-operators.md) | Appoint and remove the people who run the installation | admin | partial |
-| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | partial |
+| [UC-INS-04](./admin/UC-INS-04-work-on-the-installation-for-an-hour.md) | Work on the installation for an hour after proving it is me | admin | verified |
+| [UC-INS-05](./admin/UC-INS-05-appoint-and-remove-operators.md) | Appoint and remove the people who run the installation | admin | verified |
+| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | built |
 | [UC-INS-07](./admin/UC-INS-07-provision-a-workspace.md) | Create a workspace for a customer | admin | built |
 | [UC-INS-08](./admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md) | Suspend, resume and delete a workspace | admin | built |
 | [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | partial |

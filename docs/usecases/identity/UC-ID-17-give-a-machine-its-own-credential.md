@@ -5,9 +5,9 @@ context: identity
 actors: [PE-admin, PE-integrator, PE-scripter, PE-platform]
 deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-02, P-08]
-state: partial
-tasks: [H-03, H-05]
-checked_by: [core/application/service/identity/AccessToken_test.go]
+state: built
+tasks: [H-03, H-05, SC-05]
+checked_by: [core/application/service/identity/AccessToken_test.go, cmd/hubctl/AdminElevate_test.go]
 ---
 
 # Give a script, an app or a platform its own credential
@@ -41,7 +41,3 @@ token. Every token is listed with its last use and can be revoked.
 * No tokens without an expiry beyond what the installation allows.
 * A service account's role is an ordinary workspace role; making it an operator of the
   installation is UC-INS-06.
-
-## Today
-
-* Check 3: not met in `hubctl` — `hubctl token create` never sends a step-up, so creating a token with an administrative scope from the terminal always fails, tracked in #1061.
