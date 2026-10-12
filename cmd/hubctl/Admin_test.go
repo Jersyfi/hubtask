@@ -47,6 +47,23 @@ func TestListingWorkspacesShowsTheirStatusAndTheGraceWhereOneRuns(t *testing.T) 
 	}
 }
 
+// The moment the removal began is the moment a deletion can no longer be called off; the table says
+// it, and a dash where it has not begun.
+func TestListingWorkspacesSaysWhereTheRemovalBegan(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `[
+  {"id":"`+othersID+`","slug":"others","display_name":"Others","status":"PENDING_DELETION",
+   "created_at":"2026-09-02T09:00:00Z","purge_after":"2026-10-02T09:00:00Z",
+   "purge_started_at":"2026-10-02T09:05:00Z"}]`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "ls")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "REMOVAL BEGAN") || !strings.Contains(out, ":05") {
+		t.Errorf("the table does not say when the removal began: %q", out)
+	}
+}
+
 // A workspace under a legal hold is marked, and one pending deletion under a hold says that its
 // deletion waits (data-protection.md §5) - what the operator's screen says, through this door too.
 func TestListingWorkspacesMarksALegalHold(t *testing.T) {
@@ -105,7 +122,7 @@ func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) 
 }
 
 func TestSuspendingAndResumingAreOneWriteEach(t *testing.T) {
-	for _, verb := range []string{"suspend", "resume"} {
+	for _, verb := range []string{"suspend", "resume", "cancel-deletion"} {
 		t.Run(verb, func(t *testing.T) {
 			stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)

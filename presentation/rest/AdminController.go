@@ -5,6 +5,7 @@ package rest
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -19,6 +20,7 @@ const (
 	provisionTenantUseCase       = "ProvisionTenant"
 	suspendTenantUseCase         = "SuspendTenant"
 	resumeTenantUseCase          = "ResumeTenant"
+	cancelTenantDeletionUseCase  = "CancelTenantDeletion"
 	requestTenantDeletionUseCase = "RequestTenantDeletion"
 	exportTenantUseCase          = "ExportTenant"
 	openTenantPasswordUseCase    = "OpenTenantPassword"
@@ -107,6 +109,13 @@ func (c *RestController) ResumeTenant(
 	c.lifecycleShift(w, r, resumeTenantUseCase, tenantID)
 }
 
+// CancelTenantDeletion answers POST /admin/tenants/{tenantId}:cancel-deletion.
+func (c *RestController) CancelTenantDeletion(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId,
+) {
+	c.lifecycleShift(w, r, cancelTenantDeletionUseCase, tenantID)
+}
+
 func (c *RestController) lifecycleShift(
 	w http.ResponseWriter, r *http.Request, useCase string, tenantID openapi.AdminTenantId,
 ) {
@@ -134,6 +143,12 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 		Status:      openapi.AdminTenantStatus(row.String("status")),
 		CreatedAt:   timeValue(row["created_at"]),
 		PurgeAfter:  optionalTimeField(row["purge_after"]),
+	}
+	if started, begun := row["purge_started_at"].(time.Time); begun {
+		tenant.PurgeStartedAt = &started
+	}
+	if held, answered := row["legal_hold"].(bool); answered {
+		tenant.LegalHold = &held
 	}
 	if locale := row.String("default_locale"); locale != "" {
 		tenant.DefaultLocale = &locale

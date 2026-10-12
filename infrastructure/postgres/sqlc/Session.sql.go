@@ -11,6 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateFirstOwner = `-- name: ActivateFirstOwner :execrows
+UPDATE account SET
+  password_hash   = $1,
+  password_set_at = $2,
+  status          = 'ACTIVE',
+  updated_at      = $2,
+  version         = version + 1
+WHERE id = $3
+  AND status = 'INVITED'
+  AND redemption_token_hash IS NULL
+  AND deleted_at IS NULL
+`
+
+type ActivateFirstOwnerParams struct {
+	PasswordHash *string
+	Now          pgtype.Timestamptz
+	ID           pgtype.UUID
+}
+
+// The first start's setup (UC-INS-01): the owner it wrote a moment ago in the same transaction gets
+// the password and becomes ACTIVE. No redemption token - the setup code was the proof - so it matches
+// only an invited account that was never sent one.
+func (q *Queries) ActivateFirstOwner(ctx context.Context, arg ActivateFirstOwnerParams) (int64, error) {
+	result, err := q.db.Exec(ctx, activateFirstOwner, arg.PasswordHash, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const burnRecoveryCode = `-- name: BurnRecoveryCode :execrows
 UPDATE account_recovery_code SET used_at = $1
 WHERE account_id = $2

@@ -60,3 +60,17 @@ func NewJumbleIntakeHasher(installationSecret secret.Secret) InboundTokenHasher 
 	mac.Write([]byte(jumbleIntakePepperInfo))
 	return InboundTokenHasher{pepper: mac.Sum(nil)}
 }
+
+// setupCodePepperInfo separates the first start's setup codes from every other secret the
+// installation key protects.
+const setupCodePepperInfo = "hubtask/setup-code/v1"
+
+// NewSetupCodeHasher is the same construction under the setup code's own purpose label. A code
+// has sixty bits rather than 256, which is why it lives thirty minutes, is spent on its first use
+// and is guessed against a rate limit (security.md, T-24); the pepper keeps a stolen row from
+// being checked offline.
+func NewSetupCodeHasher(installationSecret secret.Secret) InboundTokenHasher {
+	mac := hmac.New(sha256.New, []byte(installationSecret.Reveal()))
+	mac.Write([]byte(setupCodePepperInfo))
+	return InboundTokenHasher{pepper: mac.Sum(nil)}
+}

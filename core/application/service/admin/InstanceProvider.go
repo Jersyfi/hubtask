@@ -78,8 +78,27 @@ func (h ListInstanceIdentityProviders) Execute(
 	err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
 		func(ctx context.Context) error {
 			read, err := w.Providers.List(ctx)
+			if err != nil {
+				return err
+			}
+			// What the installation's lock on the ways in does to each row (identity.md §18), so the
+			// screen says which applies without deriving the rule itself.
+			lockedIn := false
+			if w.Instance.Settings != nil {
+				level, err := w.Instance.Settings.Read(ctx)
+				if err != nil {
+					return err
+				}
+				lockedIn = domainidentity.Effective(
+					level.Policy, domainidentity.PolicyLayer{}, domainidentity.PolicyLayer{},
+				).ProvidersLockedIn()
+			}
+			now := w.Instance.Clock.Now()
+			for i := range read {
+				read[i].InstallationLock = read[i].InstallationLockAt(lockedIn, now)
+			}
 			found = read
-			return err
+			return nil
 		})
 	if err != nil {
 		return nil, err

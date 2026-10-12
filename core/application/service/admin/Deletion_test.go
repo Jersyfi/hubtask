@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
@@ -83,6 +84,7 @@ func newDeletionFixture(status domain.TenantStatus) *deletionFixture {
 		Tenants: f.tenants, Journal: f.journal, Automations: f.automations,
 		Jobs: f.jobs, StepUp: f.stepUp, Audit: f.audit, Holds: &holdsDouble{},
 		UnitOfWork: f.work, Clock: clock.Fixed(now), IDs: &sequentialIDs{},
+		Tenancy: env.TenancyMulti,
 	}
 	return f
 }

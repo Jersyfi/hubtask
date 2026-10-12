@@ -21,7 +21,8 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        -- function's text columns may be NULL, and a NULL scanned into a string is an error.
        coalesce(password_opened_requester, '')::text AS password_opened_requester,
        coalesce(password_opened_reason, '')::text AS password_opened_reason,
-       legal_hold::boolean AS legal_hold
+       legal_hold::boolean AS legal_hold,
+       purge_started_at::timestamptz AS purge_started_at
 FROM admin_tenants()
 `
 
@@ -38,6 +39,7 @@ type AdminTenantsRow struct {
 	PasswordOpenedRequester string
 	PasswordOpenedReason    string
 	LegalHold               bool
+	PurgeStartedAt          pgtype.Timestamptz
 }
 
 // The control plane (multi-tenancy.md §5): provisioning, suspension, the deletion request
@@ -71,6 +73,7 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 			&i.PasswordOpenedRequester,
 			&i.PasswordOpenedReason,
 			&i.LegalHold,
+			&i.PurgeStartedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -80,6 +83,28 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const cancelTenantDeletion = `-- name: CancelTenantDeletion :one
+UPDATE tenant
+SET status = coalesce(status_before_deletion, 'SUSPENDED'), purge_after = NULL,
+    status_before_deletion = NULL,
+    updated_at = $1, version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'PENDING_DELETION' AND purge_started_at IS NULL
+RETURNING status
+`
+
+// The edge back (§5): the status the request came from, or SUSPENDED where none was kept - nobody
+// regains access the operator did not choose. Guarded on the purge's mark in the same statement:
+// the grace job writes that mark in this row before it removes a byte, so the two writes wait for
+// each other and exactly one condition holds afterwards. No row is a workspace not pending, or one
+// whose purge has begun.
+func (q *Queries) CancelTenantDeletion(ctx context.Context, now pgtype.Timestamptz) (TenantStatus, error) {
+	row := q.db.QueryRow(ctx, cancelTenantDeletion, now)
+	var status TenantStatus
+	err := row.Scan(&status)
+	return status, err
 }
 
 const closeTenantPassword = `-- name: CloseTenantPassword :execrows
@@ -291,12 +316,14 @@ func (q *Queries) DeleteTenantRetentionRules(ctx context.Context) (int64, error)
 
 const disableAllAutomationRules = `-- name: DisableAllAutomationRules :execrows
 UPDATE automation_rule
-SET enabled = false, updated_at = $1, version = version + 1
+SET enabled = false, paused_for_deletion = true,
+    updated_at = $1, version = version + 1
 WHERE deleted_at IS NULL AND enabled = true
 `
 
 // The deletion request switches the tenant's automations off in one stroke (§5), visibly: the
-// rows keep existing with enabled = false, the way DisableFailingRule leaves them.
+// rows keep existing with enabled = false, the way DisableFailingRule leaves them - and marked, so
+// that a cancel switches back on exactly these and none somebody had switched off before.
 func (q *Queries) DisableAllAutomationRules(ctx context.Context, now pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, disableAllAutomationRules, now)
 	if err != nil {
@@ -308,7 +335,8 @@ func (q *Queries) DisableAllAutomationRules(ctx context.Context, now pgtype.Time
 const findTenantForAdmin = `-- name: FindTenantForAdmin :one
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
        created_at, purge_after, version,
-       password_opened_until, password_opened_requester, password_opened_reason
+       password_opened_until, password_opened_requester, password_opened_reason,
+       status_before_deletion, purge_started_at
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL
 `
@@ -326,6 +354,8 @@ type FindTenantForAdminRow struct {
 	PasswordOpenedUntil     pgtype.Timestamptz
 	PasswordOpenedRequester *string
 	PasswordOpenedReason    *string
+	StatusBeforeDeletion    *TenantStatus
+	PurgeStartedAt          pgtype.Timestamptz
 }
 
 func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow, error) {
@@ -344,6 +374,8 @@ func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow
 		&i.PasswordOpenedUntil,
 		&i.PasswordOpenedRequester,
 		&i.PasswordOpenedReason,
+		&i.StatusBeforeDeletion,
+		&i.PurgeStartedAt,
 	)
 	return i, err
 }
@@ -501,6 +533,25 @@ func (q *Queries) ListTenantStorageKeys(ctx context.Context, arg ListTenantStora
 	return items, nil
 }
 
+const markTenantPurgeStarted = `-- name: MarkTenantPurgeStarted :execrows
+UPDATE tenant
+SET purge_started_at = coalesce(purge_started_at, $1)
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'PENDING_DELETION'
+  AND purge_after IS NOT NULL AND purge_after <= $1
+`
+
+// The grace job's mark, before the first byte goes. The first mark stands on a second pass, which
+// is the same purge going on. The version is left alone: nobody read the row to configure it. No
+// row is a workspace no longer pending - a cancel came first - or one whose deadline lies ahead.
+func (q *Queries) MarkTenantPurgeStarted(ctx context.Context, now pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, markTenantPurgeStarted, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const openTenantPassword = `-- name: OpenTenantPassword :execrows
 UPDATE tenant
 SET password_opened_until = $1,
@@ -602,6 +653,7 @@ func (q *Queries) PurgeTenantTrail(ctx context.Context) (int64, error) {
 const requestTenantDeletion = `-- name: RequestTenantDeletion :execrows
 UPDATE tenant
 SET status = 'PENDING_DELETION', purge_after = $1,
+    status_before_deletion = status, purge_started_at = NULL,
     updated_at = $2, version = version + 1
 WHERE id = current_tenant_id() AND deleted_at IS NULL
   AND status IN ('ACTIVE', 'SUSPENDED')
@@ -612,7 +664,8 @@ type RequestTenantDeletionParams struct {
 	Now        pgtype.Timestamptz
 }
 
-// The one edge with two origins (§5: Active and Suspended both lead to PendingDeletion).
+// The one edge with two origins (§5: Active and Suspended both lead to PendingDeletion). Where it
+// came from is kept, so that a cancel returns it there; the right-hand side reads the row as it was.
 func (q *Queries) RequestTenantDeletion(ctx context.Context, arg RequestTenantDeletionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, requestTenantDeletion, arg.PurgeAfter, arg.Now)
 	if err != nil {

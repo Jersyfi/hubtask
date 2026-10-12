@@ -12,11 +12,25 @@ import (
 )
 
 const deleteAiProvider = `-- name: DeleteAiProvider :execrows
-DELETE FROM ai_provider
+DELETE FROM ai_provider WHERE tenant_id = current_tenant_id()
 `
 
 func (q *Queries) DeleteAiProvider(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteAiProvider)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteOfferedAiProvider = `-- name: DeleteOfferedAiProvider :execrows
+DELETE FROM ai_provider WHERE tenant_id IS NULL AND id = $1
+`
+
+// Every workspace that chose it keeps its choice pointing at nothing (ON DELETE SET NULL), and
+// gets no answer until it chooses again.
+func (q *Queries) DeleteOfferedAiProvider(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOfferedAiProvider, id)
 	if err != nil {
 		return 0, err
 	}
@@ -28,6 +42,7 @@ SELECT kind, base_url, completion_model, embedding_model,
        (api_key_enc IS NOT NULL)::boolean AS has_api_key,
        jurisdiction, processing_allowed, created_at, updated_at, version
 FROM ai_provider
+WHERE tenant_id = current_tenant_id()
 `
 
 type FindAiProviderRow struct {
@@ -68,6 +83,7 @@ const findAiProviderKey = `-- name: FindAiProviderKey :one
 SELECT kind, base_url, completion_model, embedding_model,
        api_key_enc, api_key_key_id, jurisdiction, processing_allowed
 FROM ai_provider
+WHERE tenant_id = current_tenant_id()
 `
 
 type FindAiProviderKeyRow struct {
@@ -99,10 +115,231 @@ func (q *Queries) FindAiProviderKey(ctx context.Context) (FindAiProviderKeyRow, 
 	return i, err
 }
 
+const findOfferedAiProvider = `-- name: FindOfferedAiProvider :one
+SELECT id, display_name, processor, kind, base_url, completion_model, embedding_model,
+       (api_key_enc IS NOT NULL)::boolean AS has_api_key,
+       jurisdiction, created_at, updated_at, version
+FROM ai_provider
+WHERE tenant_id IS NULL AND id = $1
+`
+
+type FindOfferedAiProviderRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	HasApiKey       bool
+	Jurisdiction    string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+func (q *Queries) FindOfferedAiProvider(ctx context.Context, id pgtype.UUID) (FindOfferedAiProviderRow, error) {
+	row := q.db.QueryRow(ctx, findOfferedAiProvider, id)
+	var i FindOfferedAiProviderRow
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Processor,
+		&i.Kind,
+		&i.BaseUrl,
+		&i.CompletionModel,
+		&i.EmbeddingModel,
+		&i.HasApiKey,
+		&i.Jurisdiction,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const findOfferedAiProviderKey = `-- name: FindOfferedAiProviderKey :one
+SELECT id, display_name, processor, kind, base_url, completion_model, embedding_model,
+       api_key_enc, api_key_key_id, jurisdiction
+FROM ai_provider
+WHERE tenant_id IS NULL AND id = $1
+`
+
+type FindOfferedAiProviderKeyRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	ApiKeyEnc       []byte
+	ApiKeyKeyID     *string
+	Jurisdiction    string
+}
+
+// The adapter's read of an offered model a workspace chose, inside that workspace's transaction:
+// the read policy admits the row, and the key is opened only by the caller that makes the call.
+func (q *Queries) FindOfferedAiProviderKey(ctx context.Context, id pgtype.UUID) (FindOfferedAiProviderKeyRow, error) {
+	row := q.db.QueryRow(ctx, findOfferedAiProviderKey, id)
+	var i FindOfferedAiProviderKeyRow
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Processor,
+		&i.Kind,
+		&i.BaseUrl,
+		&i.CompletionModel,
+		&i.EmbeddingModel,
+		&i.ApiKeyEnc,
+		&i.ApiKeyKeyID,
+		&i.Jurisdiction,
+	)
+	return i, err
+}
+
+const insertOfferedAiProvider = `-- name: InsertOfferedAiProvider :one
+INSERT INTO ai_provider
+  (id, tenant_id, display_name, processor, kind, base_url, completion_model, embedding_model,
+   api_key_enc, api_key_key_id, jurisdiction, processing_allowed, created_at)
+VALUES (
+  $1, NULL, $2, $3, $4,
+  $5, $6, $7,
+  $8, $9, $10, false,
+  $11
+)
+RETURNING id, display_name, processor, kind, base_url, completion_model, embedding_model,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
+          jurisdiction, created_at, updated_at, version
+`
+
+type InsertOfferedAiProviderParams struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	ApiKeyEnc       []byte
+	ApiKeyKeyID     *string
+	Jurisdiction    string
+	Now             pgtype.Timestamptz
+}
+
+type InsertOfferedAiProviderRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	HasApiKey       bool
+	Jurisdiction    string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// Written only in the installation's own scope, where `current_tenant_id()` is NULL and the
+// installation_write policy is the one that admits it.
+func (q *Queries) InsertOfferedAiProvider(ctx context.Context, arg InsertOfferedAiProviderParams) (InsertOfferedAiProviderRow, error) {
+	row := q.db.QueryRow(ctx, insertOfferedAiProvider,
+		arg.ID,
+		arg.DisplayName,
+		arg.Processor,
+		arg.Kind,
+		arg.BaseUrl,
+		arg.CompletionModel,
+		arg.EmbeddingModel,
+		arg.ApiKeyEnc,
+		arg.ApiKeyKeyID,
+		arg.Jurisdiction,
+		arg.Now,
+	)
+	var i InsertOfferedAiProviderRow
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Processor,
+		&i.Kind,
+		&i.BaseUrl,
+		&i.CompletionModel,
+		&i.EmbeddingModel,
+		&i.HasApiKey,
+		&i.Jurisdiction,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const listOfferedAiProviders = `-- name: ListOfferedAiProviders :many
+SELECT id, display_name, processor, kind, base_url, completion_model, embedding_model,
+       (api_key_enc IS NOT NULL)::boolean AS has_api_key,
+       jurisdiction, created_at, updated_at, version
+FROM ai_provider
+WHERE tenant_id IS NULL
+ORDER BY display_name COLLATE hubtask_name, id
+`
+
+type ListOfferedAiProvidersRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	HasApiKey       bool
+	Jurisdiction    string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// The models the installation offers, never with the key. Read by the operator and, through the
+// read policy, by a workspace choosing one - which is answered only name, processor and
+// jurisdiction of it by the application.
+func (q *Queries) ListOfferedAiProviders(ctx context.Context) ([]ListOfferedAiProvidersRow, error) {
+	rows, err := q.db.Query(ctx, listOfferedAiProviders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOfferedAiProvidersRow{}
+	for rows.Next() {
+		var i ListOfferedAiProvidersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.Processor,
+			&i.Kind,
+			&i.BaseUrl,
+			&i.CompletionModel,
+			&i.EmbeddingModel,
+			&i.HasApiKey,
+			&i.Jurisdiction,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rewrapAiProviderKey = `-- name: RewrapAiProviderKey :execrows
 UPDATE ai_provider
 SET api_key_enc = $1, api_key_key_id = $2
-WHERE api_key_key_id = $3
+WHERE tenant_id = current_tenant_id() AND api_key_key_id = $3
 `
 
 type RewrapAiProviderKeyParams struct {
@@ -119,6 +356,152 @@ func (q *Queries) RewrapAiProviderKey(ctx context.Context, arg RewrapAiProviderK
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const updateOfferedAiProvider = `-- name: UpdateOfferedAiProvider :one
+UPDATE ai_provider SET
+  display_name = $1, processor = $2,
+  kind = $3, base_url = $4,
+  completion_model = $5, embedding_model = $6,
+  api_key_enc = $7, api_key_key_id = $8,
+  jurisdiction = $9,
+  updated_at = $10, version = version + 1
+WHERE tenant_id IS NULL AND id = $11
+RETURNING id, display_name, processor, kind, base_url, completion_model, embedding_model,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
+          jurisdiction, created_at, updated_at, version
+`
+
+type UpdateOfferedAiProviderParams struct {
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	ApiKeyEnc       []byte
+	ApiKeyKeyID     *string
+	Jurisdiction    string
+	Now             pgtype.Timestamptz
+	ID              pgtype.UUID
+}
+
+type UpdateOfferedAiProviderRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	HasApiKey       bool
+	Jurisdiction    string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+// Set whole, as the workspace's own row is, with the key replaced (NULL clears it).
+func (q *Queries) UpdateOfferedAiProvider(ctx context.Context, arg UpdateOfferedAiProviderParams) (UpdateOfferedAiProviderRow, error) {
+	row := q.db.QueryRow(ctx, updateOfferedAiProvider,
+		arg.DisplayName,
+		arg.Processor,
+		arg.Kind,
+		arg.BaseUrl,
+		arg.CompletionModel,
+		arg.EmbeddingModel,
+		arg.ApiKeyEnc,
+		arg.ApiKeyKeyID,
+		arg.Jurisdiction,
+		arg.Now,
+		arg.ID,
+	)
+	var i UpdateOfferedAiProviderRow
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Processor,
+		&i.Kind,
+		&i.BaseUrl,
+		&i.CompletionModel,
+		&i.EmbeddingModel,
+		&i.HasApiKey,
+		&i.Jurisdiction,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}
+
+const updateOfferedAiProviderKeepingKey = `-- name: UpdateOfferedAiProviderKeepingKey :one
+UPDATE ai_provider SET
+  display_name = $1, processor = $2,
+  kind = $3, base_url = $4,
+  completion_model = $5, embedding_model = $6,
+  jurisdiction = $7,
+  updated_at = $8, version = version + 1
+WHERE tenant_id IS NULL AND id = $9
+RETURNING id, display_name, processor, kind, base_url, completion_model, embedding_model,
+          (api_key_enc IS NOT NULL)::boolean AS has_api_key,
+          jurisdiction, created_at, updated_at, version
+`
+
+type UpdateOfferedAiProviderKeepingKeyParams struct {
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	Jurisdiction    string
+	Now             pgtype.Timestamptz
+	ID              pgtype.UUID
+}
+
+type UpdateOfferedAiProviderKeepingKeyRow struct {
+	ID              pgtype.UUID
+	DisplayName     string
+	Processor       string
+	Kind            string
+	BaseUrl         string
+	CompletionModel string
+	EmbeddingModel  string
+	HasApiKey       bool
+	Jurisdiction    string
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
+func (q *Queries) UpdateOfferedAiProviderKeepingKey(ctx context.Context, arg UpdateOfferedAiProviderKeepingKeyParams) (UpdateOfferedAiProviderKeepingKeyRow, error) {
+	row := q.db.QueryRow(ctx, updateOfferedAiProviderKeepingKey,
+		arg.DisplayName,
+		arg.Processor,
+		arg.Kind,
+		arg.BaseUrl,
+		arg.CompletionModel,
+		arg.EmbeddingModel,
+		arg.Jurisdiction,
+		arg.Now,
+		arg.ID,
+	)
+	var i UpdateOfferedAiProviderKeepingKeyRow
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.Processor,
+		&i.Kind,
+		&i.BaseUrl,
+		&i.CompletionModel,
+		&i.EmbeddingModel,
+		&i.HasApiKey,
+		&i.Jurisdiction,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
 }
 
 const upsertAiProvider = `-- name: UpsertAiProvider :one
@@ -172,11 +555,15 @@ type UpsertAiProviderRow struct {
 	Version           int32
 }
 
-// The workspace's AI provider.
+// The workspace's AI provider, and the models the installation offers (ADR-0072).
 //
 // Every statement here runs inside the transaction wrapper that sets `app.tenant_id`, so the
 // policy underneath answers "which workspace" - `current_tenant_id()` is written on insert rather
 // than passed in, the way every tenant-scoped insert in this schema is.
+//
+// The read policy also admits the installation's offered rows (migration 0129), so every statement
+// about the workspace's own row names it: `tenant_id = current_tenant_id()`. Without that, a read
+// answering one row could answer an offered one, and a delete could reach for it.
 // Set whole, not patched: a provider half-changed is one nobody can reason about, and the
 // endpoint, the models and the key have to agree with each other. The version rises on every
 // write, so a concurrent second configuration is visible as a conflict.

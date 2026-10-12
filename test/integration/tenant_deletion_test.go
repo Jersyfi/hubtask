@@ -14,6 +14,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -81,7 +82,7 @@ func TestAnOperatorRequestsTheDeletionOfAnotherWorkspace(t *testing.T) {
 		Holds:  postgres.NewLifecycleRepository(),
 		StepUp: identityservice.StepUpVerifier{Writer: writer},
 		Audit:  postgres.NewAuditSink(generator{t}), UnitOfWork: uow,
-		Clock: clockadapter.System{}, IDs: writer.IDs,
+		Clock: clockadapter.System{}, IDs: writer.IDs, Tenancy: env.TenancyMulti,
 	}
 
 	// A mistyped name is refused before the proof is judged, so the operator keeps it.

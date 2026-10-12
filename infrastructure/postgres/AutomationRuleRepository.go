@@ -46,6 +46,64 @@ var (
 	_ repository.Schedules = AutomationRuleRepository{}
 )
 
+// PausedAutomationRules is the rules a workspace's deletion request switched off, for the cancel
+// that switches them back on (multi-tenancy.md §5).
+type PausedAutomationRules struct{}
+
+func NewPausedAutomationRules() PausedAutomationRules { return PausedAutomationRules{} }
+
+var _ repository.Paused = PausedAutomationRules{}
+
+// List answers the marked rules; the tenant is the transaction's.
+func (PausedAutomationRules) List(ctx context.Context) ([]domain.Rule, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListPausedAutomationRules(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the paused automation rules: %w", err))
+	}
+
+	rules := make([]domain.Rule, 0, len(rows))
+	for _, row := range rows {
+		rule, err := automationRuleFrom(sqlc.ListAutomationRulesRow(row))
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, nil
+}
+
+// Resume switches one marked rule back on with its next moment.
+func (PausedAutomationRules) Resume(
+	ctx context.Context, id shared.ID, next, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	key, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+
+	resumed, err := queries.ResumePausedAutomationRule(ctx, sqlc.ResumePausedAutomationRuleParams{
+		ID: key, NextRunAt: scheduleMoment(next), At: timestampOf(at),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("resuming automation rule %s: %w", id, err))
+	}
+	return resumed > 0, nil
+}
+
 func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

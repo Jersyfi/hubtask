@@ -31,7 +31,10 @@ type Registry struct {
 	version  string
 	roles    []string
 	warnings []port.Warning
-	signals  SignalSink
+	// sources answer warnings read live, per report - facts of the installation rather than of
+	// the environment, which the static list above cannot know at start (UC-INS-03 check 4).
+	sources []func(context.Context) []port.Warning
+	signals SignalSink
 	// degradedSeen remembers which features have ever been reported as degraded, so that
 	// recovery can be published as a zero. A gauge that is only ever set to 1 never comes back
 	// down, and the dashboard keeps showing an outage that ended hours ago.
@@ -60,6 +63,14 @@ func (r *Registry) SetWarnings(w []port.Warning) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.warnings = w
+}
+
+// AddWarningSource registers warnings that are read for every report. A source answers under its
+// own deadline and turns a failed read into a warning of its own; it never fails the report.
+func (r *Registry) AddWarningSource(source func(context.Context) []port.Warning) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sources = append(r.sources, source)
 }
 
 func (r *Registry) MarkStarted() { r.mu.Lock(); r.started = true; r.mu.Unlock() }
@@ -104,8 +115,14 @@ func (r *Registry) Ready(ctx context.Context) (bool, string) {
 func (r *Registry) Report(ctx context.Context) port.Report {
 	r.mu.RLock()
 	probes := append([]port.Probe(nil), r.probes...)
-	rep := port.Report{Version: r.version, Roles: r.roles, Warnings: r.warnings}
+	rep := port.Report{Version: r.version, Roles: r.roles}
+	rep.Warnings = append([]port.Warning(nil), r.warnings...)
+	sources := append([]func(context.Context) []port.Warning(nil), r.sources...)
 	r.mu.RUnlock()
+
+	for _, source := range sources {
+		rep.Warnings = append(rep.Warnings, source(ctx)...)
+	}
 
 	rep.Status = port.StatusOK
 	for _, p := range probes {

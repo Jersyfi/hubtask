@@ -26,6 +26,13 @@ import (
 func TestTheCensusCountsAcrossWorkspacesAndAnswersOnlyNumbers(t *testing.T) {
 	ctx := context.Background()
 	seedIdentityProviderTenants(ctx, t)
+	// A person in the second workspace too: a workspace that holds nobody but a service account is
+	// not a customer, and the census leaves it out (migration 0128).
+	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO account (id, tenant_id, kind, email, display_name, status)
+		VALUES ('019364de-0000-7000-8000-0000000c0b01', $1, 'USER', 'bea@example.org', 'Bea', 'ACTIVE')
+		ON CONFLICT (id) DO NOTHING`, idpTenantB.String()); err != nil {
+		t.Fatalf("seeding a person in the second workspace: %v", err)
+	}
 
 	installation := postgres.NewInstallationRepository()
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))

@@ -168,52 +168,75 @@ if ! curl -fsS "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities" | grep -q 
 	failures=$((failures + 1))
 fi
 
+# The first start (UC-INS-01), as a self-hoster meets it: the server printed a one-time setup code
+# on its console, and the route the *Set up Hubtask* card uses spends it on the first workspace and
+# its owner, who is then signed in. No database shell is involved - what this proves is that a
+# fresh stack reaches a signed-in owner without one.
+#
+# The code is read from the container's output, where an operator reads it: the banner goes to
+# standard error, beside the log lines, and `compose logs` shows both.
+json_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
+setup_code() {
+	local logs
+	logs="$($COMPOSE --env-file "$1" -p "$2" logs app 2>&1)"
+	# Anchored on the banner's own words: an identifier in a log line can look like a code.
+	grep -o 'setup code [0-9A-Z]\{4\}-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' <<< "$logs" | tail -1 | cut -d' ' -f3
+}
+OWNER_PASSWORD="seven blue lanterns above the harbour"
+api_single() { curl -sS "http://127.0.0.1:$HTTP_PORT/api/v1$1" "${@:2}"; }
+
+if ! curl -fsS "http://127.0.0.1:$HTTP_PORT/api/v1/meta/capabilities" | grep -q '"setup_open":true'; then
+	echo "FAILED: a fresh installation does not offer its setup"
+	failures=$((failures + 1))
+fi
+CODE="$(setup_code "$ENV_FILE" "$PROJECT")"
+if [ -z "$CODE" ]; then
+	echo "FAILED: the first start printed no setup code"
+	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" logs app --tail 50
+	exit 1
+fi
+set_up="$(api_single /auth/installation:set-up -X POST -H 'Content-Type: application/json' \
+	-d "{\"code\":\"$CODE\",\"display_name\":\"Smoke\",\"owner_email\":\"smoke@example.org\",\"password\":\"$OWNER_PASSWORD\"}")"
+SMOKE_ACCESS="$(json_field access_token <<< "$set_up")"
+if [ -z "$SMOKE_ACCESS" ]; then
+	echo "FAILED: the setup answered '$set_up'"
+	exit 1
+fi
+again="$(api_single /auth/installation:set-up -X POST -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+	-d "{\"code\":\"$CODE\",\"display_name\":\"Again\",\"owner_email\":\"again@example.org\",\"password\":\"$OWNER_PASSWORD\"}")"
+if [ "$again" != "409" ]; then
+	echo "FAILED: a second setup answered $again, want 409"
+	failures=$((failures + 1))
+fi
+echo "first start: set up through the printed code, the owner signed in"
+
 # The first timed duty, against the real image. Nothing else in this repository proves that
 # a stored future timestamp becomes work in a running installation: the unit tests fire the pass by
 # calling it, and the integration suite drives it inside a transaction of its own. Here nobody
-# calls anything - a row says a moment, and the scheduler and the worker in the container do the
-# rest.
-#
-# The fixture is written with SQL rather than through hubctl. What it writes is
-# exactly what the API write writes: the reminder, and the wake-up job the writer seeds beside it.
+# calls anything - a reminder says a moment, and the scheduler and the worker in the container do
+# the rest. The fixture is written by the owner the setup signed in, through the API; the database
+# is read only to watch the duty happen.
 psql_run() {
 	$COMPOSE --env-file "$ENV_FILE" -p "$PROJECT" exec -T db psql -U hubtask -d hubtask -tA -c "$1"
 }
-
-SMOKE_TENANT="01936f2a-7c1e-7000-8000-0000000000d0"
-SMOKE_ITEM="01936f2a-7c1e-7000-8000-0000000000d4"
-# Far enough ahead that the fixture is committed before the moment arrives, near enough that the
+bearer=(-H "Authorization: Bearer $SMOKE_ACCESS")
+fresh_key() { python3 -c 'import uuid; print(uuid.uuid4())'; }
+OWNER_ID="$(api_single /accounts/me "${bearer[@]}" | json_field id)"
+SMOKE_HUB="$(api_single /containers "${bearer[@]}" | python3 -c "import json,sys; print(json.load(sys.stdin)['data'][0]['id'])")"
+SMOKE_COLLECTION="$(api_single "/containers?parent_id=$SMOKE_HUB" "${bearer[@]}" | python3 -c "import json,sys; print(json.load(sys.stdin)['data'][0]['id'])")"
+# Far enough ahead that the fixture is written before the moment arrives, near enough that the
 # check does not become a wait.
-FIRE_AT="$(psql_run "SELECT (now() + interval '5 seconds')::text")"
-
-psql_run "
-BEGIN;
-INSERT INTO tenant (id, slug, display_name)
-  VALUES ('$SMOKE_TENANT', 'smoke', 'Smoke') ON CONFLICT (id) DO NOTHING;
-INSERT INTO account (id, tenant_id, display_name, email)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000d1', '$SMOKE_TENANT', 'Smoke', 'smoke@example.org')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000d2', '$SMOKE_TENANT', 'HUB', 'Smoke hub', 'a0',
-          '01936f2a-7c1e-7000-8000-0000000000d1');
-INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000d3', '$SMOKE_TENANT', 'COLLECTION',
-          '01936f2a-7c1e-7000-8000-0000000000d2', 'Smoke collection', 'a0',
-          '01936f2a-7c1e-7000-8000-0000000000d1');
-INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key,
-                       assignee_id, due_at, created_by)
-  VALUES ('$SMOKE_ITEM', '$SMOKE_TENANT', '01936f2a-7c1e-7000-8000-0000000000d3', 'TASK',
-          '/$SMOKE_ITEM/', 1, 'A deadline that reminds', 'a0',
-          '01936f2a-7c1e-7000-8000-0000000000d1', '$FIRE_AT'::timestamptz + interval '1 hour',
-          '01936f2a-7c1e-7000-8000-0000000000d1');
-INSERT INTO reminder (id, tenant_id, item_id, offset_spec, fire_at)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000d5', '$SMOKE_TENANT', '$SMOKE_ITEM',
-          'ABS:' || to_char('$FIRE_AT'::timestamptz at time zone 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SSZ'),
-          '$FIRE_AT');
-INSERT INTO job (id, tenant_id, kind, payload, dedupe_key, run_at)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000d6', '$SMOKE_TENANT', 'reminder.fire', '{}'::jsonb,
-          '$SMOKE_TENANT', '$FIRE_AT');
-COMMIT;" > /dev/null
+FIRE_AT="$(python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(seconds=8)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+DUE_AT="$(python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=1, seconds=8)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+SMOKE_ITEM="$(api_single /items -X POST "${bearer[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $(fresh_key)" \
+	-d "{\"type\":\"TASK\",\"collection_id\":\"$SMOKE_COLLECTION\",\"title\":\"A deadline that reminds\",\"due_at\":\"$DUE_AT\",\"assignee_id\":\"$OWNER_ID\"}" | json_field id)"
+SMOKE_REMINDER="$(api_single "/items/$SMOKE_ITEM/reminders" -X POST "${bearer[@]}" -H 'Content-Type: application/json' -H "Idempotency-Key: $(fresh_key)" \
+	-d "{\"offset_spec\":\"ABS:$FIRE_AT\"}" | json_field id)"
+if [ -z "$SMOKE_ITEM" ] || [ -z "$SMOKE_REMINDER" ]; then
+	echo "FAILED: the owner could not write the reminder fixture (item '$SMOKE_ITEM', reminder '$SMOKE_REMINDER')"
+	exit 1
+fi
+SMOKE_TENANT="$(psql_run "SELECT tenant_id FROM work_item WHERE id = '$SMOKE_ITEM'")"
 
 # SLO-5 asks for 99% of reminders within 60 seconds of their moment. The budget here is twice that,
 # because a smoke check on a cold container is not a measurement - what is being proved is that the
@@ -221,7 +244,7 @@ COMMIT;" > /dev/null
 fired=""
 reminder_started=$SECONDS
 while [ $((SECONDS - reminder_started)) -lt 120 ]; do
-	if [ "$(psql_run "SELECT state FROM reminder WHERE id = '01936f2a-7c1e-7000-8000-0000000000d5'")" = "SENT" ]; then
+	if [ "$(psql_run "SELECT state FROM reminder WHERE id = '$SMOKE_REMINDER'")" = "SENT" ]; then
 		fired="yes"
 		break
 	fi
@@ -385,35 +408,34 @@ multi_psql() {
 	$COMPOSE --env-file "$MULTI_ENV_FILE" -p "$MULTI_PROJECT" exec -T db \
 		psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -tA -c "$1"
 }
-# One JSON field, without adding a dependency the script does not otherwise have.
-json_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
-
-# The operator's own workspace and the deliberately minted credential the admin surface demands:
-# a PAT carrying admin:tenants - the scope no session carries (api-guidelines.md §7).
-OPERATOR_TENANT="01936f2a-7c1e-7000-8000-0000000000e0"
-read -r ADMIN_TOKEN ADMIN_HASH < <(cd ../.. && \
-	HUBTASK_SECRET_KEY="$MULTI_SECRET" go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
-multi_psql "
-BEGIN;
-INSERT INTO tenant (id, slug, display_name)
-  VALUES ('$OPERATOR_TENANT', 'operator', 'Operator');
-INSERT INTO account (id, tenant_id, kind, display_name, status)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000e1', '$OPERATOR_TENANT', 'USER', 'Operator', 'ACTIVE');
-INSERT INTO access_token (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('01936f2a-7c1e-7000-8000-0000000000e2', '$OPERATOR_TENANT',
-          '01936f2a-7c1e-7000-8000-0000000000e1', 'the control plane bootstrap',
-          decode('$ADMIN_HASH', 'hex'), 'hbt_pat_', ARRAY['admin:tenants'],
-          now() + interval '15 minutes');
--- And into the register (ADR-0070 §1). The scope alone is not enough: it is
--- checked again where it is exercised, and the empty-register fallback is the *single-workspace*
--- installation's — which this is not, the moment it provisions the second. An installation that
--- hosts workspaces registers whoever runs it, and seeding that row is what these scripts are
--- standing in for.
-INSERT INTO operator (tenant_id, account_id)
-  VALUES ('$OPERATOR_TENANT', '01936f2a-7c1e-7000-8000-0000000000e1');
-COMMIT;" > /dev/null
-
 api() { curl -sS "http://127.0.0.1:$MULTI_HTTP_PORT/api/v1$1" "${@:2}"; }
+
+# The first start in multi mode: the setup asks for the short name, creates the operator's own
+# workspace, and makes its owner the installation's operator. That owner then mints the control
+# plane's credential the only way anybody can - through a step-up - instead of a row written by SQL.
+echo "--- multi mode: the first start sets up the operator's workspace ---"
+MULTI_CODE="$(setup_code "$MULTI_ENV_FILE" "$MULTI_PROJECT")"
+if [ -z "$MULTI_CODE" ]; then
+	echo "FAILED: the multi-mode first start printed no setup code"
+	exit 1
+fi
+operator_setup="$(api /auth/installation:set-up -X POST -H 'Content-Type: application/json' \
+	-d "{\"code\":\"$MULTI_CODE\",\"display_name\":\"Operations\",\"slug\":\"operations\",\"owner_email\":\"ops@example.org\",\"password\":\"$OWNER_PASSWORD\"}")"
+OPERATOR_ACCESS="$(json_field access_token <<< "$operator_setup")"
+if [ -z "$OPERATOR_ACCESS" ]; then
+	echo "FAILED: the multi-mode setup answered '$operator_setup'"
+	exit 1
+fi
+STEP_UP="$(api /auth/step-up -X POST -H "Authorization: Bearer $OPERATOR_ACCESS" -H 'Content-Type: application/json' \
+	-d "{\"password\":\"$OWNER_PASSWORD\"}" | json_field step_up_token)"
+TOKEN_EXPIRES="$(python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=15)).strftime('%Y-%m-%dT%H:%M:%SZ'))")"
+ADMIN_TOKEN="$(api /auth/tokens -X POST -H "Authorization: Bearer $OPERATOR_ACCESS" -H "X-Hubtask-Step-Up: $STEP_UP" \
+	-H 'Content-Type: application/json' \
+	-d "{\"name\":\"the smoke check\",\"scopes\":[\"admin:tenants\"],\"expires_at\":\"$TOKEN_EXPIRES\"}" | json_field token)"
+if [ -z "$ADMIN_TOKEN" ]; then
+	echo "FAILED: the operator could not mint the control plane's credential"
+	exit 1
+fi
 
 echo "--- multi mode: provisioning a workspace ---"
 IDEMPOTENCY_KEY="01936f2a-7c1e-7000-8000-0000000000e9"

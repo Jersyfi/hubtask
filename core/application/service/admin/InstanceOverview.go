@@ -145,6 +145,7 @@ func (h ReadInstanceOverview) invoke(
 		"workspaces_pending_deletion": census.WorkspacesPendingDeletion,
 		"accounts_active":             census.AccountsActive,
 		"accounts_total":              census.AccountsTotal,
+		"workspaces_service_only":     census.WorkspacesServiceOnly,
 	}, nil
 }
 

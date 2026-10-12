@@ -27,12 +27,13 @@ func (s *censusStore) Census(context.Context) (adminrepo.Census, error) {
 }
 
 // The overview is counts and states, and nothing that could carry a workspace's content: what the
-// use case answers is exactly the five numbers the census holds (ADR-0070 §5).
+// use case answers is exactly the six numbers the census holds (ADR-0070 §5), the workspaces that
+// hold only service accounts among them (UC-INS-12 check 5).
 func TestTheOverviewIsCountsAndNothingElse(t *testing.T) {
 	writer, _, _ := newInstanceWriter(newRegister(operatorID))
 	census := &censusStore{census: adminrepo.Census{
 		WorkspacesActive: 12, WorkspacesSuspended: 2, WorkspacesPendingDeletion: 1,
-		AccountsActive: 340, AccountsTotal: 361,
+		AccountsActive: 340, AccountsTotal: 361, WorkspacesServiceOnly: 1,
 	}}
 
 	out, err := ReadInstanceOverview{Writer: writer, Installation: census}.
@@ -46,10 +47,10 @@ func TestTheOverviewIsCountsAndNothingElse(t *testing.T) {
 
 	want := map[string]int64{
 		"workspaces_active": 12, "workspaces_suspended": 2, "workspaces_pending_deletion": 1,
-		"accounts_active": 340, "accounts_total": 361,
+		"accounts_active": 340, "accounts_total": 361, "workspaces_service_only": 1,
 	}
 	if len(out) != len(want) {
-		t.Errorf("the overview answers %d fields, want the five counts: %v", len(out), out)
+		t.Errorf("the overview answers %d fields, want the six counts: %v", len(out), out)
 	}
 	for field, value := range want {
 		if out[field] != value {

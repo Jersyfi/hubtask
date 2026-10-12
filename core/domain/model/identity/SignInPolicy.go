@@ -4,6 +4,7 @@
 package identity
 
 import (
+	"slices"
 	"sort"
 	"time"
 
@@ -448,6 +449,19 @@ func (e EffectivePolicy) SourceOf(name PolicySwitch) PolicySource {
 
 // IsLocked is LockOf as the question a writer asks.
 func (e EffectivePolicy) IsLocked(name PolicySwitch) bool { return e.Locks[name] != LockNone }
+
+// ProvidersLockedIn reports whether a level above the workspace locked the ways in with providers
+// among them (identity.md §18). Under such a lock every provider the installation offers as *Only
+// people invited here* is a way into every workspace (IdentityProvider.MandatedHere).
+//
+// Any locked value that holds OIDC - `[OIDC]` and `[PASSWORD, OIDC]` alike - and not only one that
+// leaves the password out: the mandate adds a way in for people already there and takes none, so a
+// lock that keeps the password open has no reason to withhold it. A lock without a value pins the
+// product's default, which holds OIDC. `count_provider_offers` (migration 0133) asks the same of the
+// stored row, so the operator's count agrees with what every workspace reads.
+func (e EffectivePolicy) ProvidersLockedIn() bool {
+	return e.IsLocked(SwitchMethods) && slices.Contains(e.Policy.Methods, MethodOidc)
+}
 
 // Effective resolves the three levels above the product's default into one rule.
 //

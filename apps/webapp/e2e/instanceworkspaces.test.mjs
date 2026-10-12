@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub } from './fixture.mjs';
+import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -24,6 +24,9 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 const TENANT = '01936f2a-7c1e-7000-8000-0000000034a1';
+
+/** The manifest of an installation that runs several workspaces; the fixture's is single mode. */
+const MULTI = { ...MANIFEST, tenancy_mode: 'multi' };
 
 /** The workspace as the control plane lists it, with an opening where one is given. */
 const workspace = (opening = null) => ({
@@ -42,6 +45,7 @@ async function open(browser) {
     if (path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
+    if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [row] });
     if (path === `/admin/tenants/${TENANT}:open-password`) {
       const body = request.postDataJSON() ?? {};
@@ -141,6 +145,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
     if (path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
+    if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
     if (path === '/admin/tenants' && route.request().method() === 'GET') return route.fulfill({ json: rows });
     return stub(route);
   });
@@ -159,8 +164,143 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
 
   const leaving = page.getByRole('row').filter({ hasText: 'Leaving' });
   assert.match(await leaving.textContent() ?? '', /the deletion waits until every hold is released/);
+  // Nobody can release a hold while the workspace is being deleted: the row names the way out.
+  assert.match(await leaving.textContent() ?? '', /cancel the deletion first/);
 
   const free = page.getByRole('row').filter({ hasText: 'Free' });
   assert.doesNotMatch(await free.textContent() ?? '', /Legal hold/);
   assert.equal(await free.getByRole('button', { name: 'Delete' }).count(), 1);
+});
+
+/**
+ * The installation's console against a stubbed control plane: the manifest in the mode given, the
+ * rows given, and every lifecycle write recorded and answered as the server does.
+ */
+async function operatorConsole(browser, { mode, rows, width = 1280 }) {
+  const context = await browser.newContext({ viewport: { width, height: 900 } });
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: mode } });
+    if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: rows });
+    const shift = /^\/admin\/tenants\/([^/:]+):(suspend|resume|cancel-deletion)$/.exec(path);
+    if (shift) {
+      sent.push(`${shift[1]}:${shift[2]}`);
+      const row = rows.find((each) => each.id === shift[1]);
+      if (row && shift[2] === 'suspend') row.status = 'SUSPENDED';
+      if (row && shift[2] === 'cancel-deletion') Object.assign(row, { status: 'ACTIVE', purge_after: null });
+      return route.fulfill({ status: 204 });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/instance/workspaces`);
+  return { page, sent, close: () => context.close() };
+}
+
+/** The operator's own workspace (the fixture's `GET /tenant`) and a customer's, both active. */
+const lifecycleRows = () => [
+  { ...workspace(), id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name },
+  { ...workspace(), display_name: 'Acme' },
+];
+
+// UC-INS-08 check 1: *Suspend* asks first and names the workspace; nothing is sent until the
+// second press. The operator's own workspace is marked, and its dialogs say that the operator's
+// own session ends - the deletion's too.
+test('chromium: suspending asks first, and the own workspace is marked and warned about', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await operatorConsole(browser, { mode: 'multi', rows: lifecycleRows() });
+  t.after(close);
+
+  const own = page.getByRole('row').filter({ hasText: WORKSPACE.slug });
+  const customer = page.getByRole('row').filter({ hasText: 'Acme' });
+  await own.getByText('Your workspace', { exact: true }).waitFor();
+  assert.equal(await customer.getByText('Your workspace', { exact: true }).count(), 0);
+
+  // A customer's workspace: the dialog names it, says what it does, and keeping it sends nothing.
+  await customer.getByRole('button', { name: 'Suspend' }).click();
+  let dialog = page.getByRole('dialog', { name: 'Suspend Acme?' });
+  await dialog.waitFor();
+  assert.match(await dialog.textContent() ?? '', /Nothing in it is lost/);
+  assert.doesNotMatch(await dialog.textContent() ?? '', /your own workspace/i);
+  await dialog.getByRole('button', { name: 'Keep it running' }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(sent, []);
+
+  await customer.getByRole('button', { name: 'Suspend' }).click();
+  await dialog.getByRole('button', { name: 'Suspend it' }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(sent, [`${TENANT}:suspend`]);
+
+  // The own workspace: the same dialog, and the warning that the session ends.
+  await own.getByRole('button', { name: 'Suspend' }).click();
+  dialog = page.getByRole('dialog', { name: `Suspend ${WORKSPACE.display_name}?` });
+  await dialog.waitFor();
+  assert.match(await dialog.textContent() ?? '', /This is your own workspace. Your session ends at once/);
+  await dialog.getByRole('button', { name: 'Keep it running' }).click();
+  await dialog.waitFor({ state: 'hidden' });
+
+  await own.getByRole('button', { name: 'Delete' }).click();
+  dialog = page.getByRole('dialog', { name: 'Delete this workspace' });
+  await dialog.waitFor();
+  assert.match(await dialog.textContent() ?? '', /only an operator from another workspace can cancel the deletion/);
+  assert.equal(sent.length, 1, 'opening the dialogs sent something');
+});
+
+// UC-INS-08 check 5: a workspace pending deletion offers *Cancel deletion*, also under a hold past
+// its deadline; one press calls it off. Once the removal has begun the row says so and offers
+// nothing, which the server would refuse.
+test('chromium: a pending deletion is called off with one press, until the removal begins', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const rows = [
+    { ...workspace(), display_name: 'Leaving', status: 'PENDING_DELETION', purge_after: '2026-09-20T00:00:00Z', legal_hold: true },
+    { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a4', slug: 'going', display_name: 'Going',
+      status: 'PENDING_DELETION', purge_after: '2026-09-20T00:00:00Z', purge_started_at: '2026-09-20T00:05:00Z' },
+  ];
+  const { page, sent, close } = await operatorConsole(browser, { mode: 'multi', rows });
+  t.after(close);
+
+  const going = page.getByRole('row').filter({ hasText: 'Going' });
+  await going.waitFor();
+  assert.match(await going.textContent() ?? '', /the deletion can no longer be called off/);
+  assert.equal(await going.getByRole('button', { name: 'Cancel deletion' }).count(), 0);
+
+  const leaving = page.getByRole('row').filter({ hasText: 'Leaving' });
+  await leaving.getByRole('button', { name: 'Cancel deletion' }).click();
+  await leaving.getByRole('button', { name: 'Suspend' }).waitFor();
+  assert.deepEqual(sent, [`${TENANT}:cancel-deletion`]);
+  assert.match(await leaving.textContent() ?? '', /Active/);
+});
+
+// UC-INS-07 check 4: in single mode the one workspace is the installation - no *New workspace*,
+// and no *Suspend* or *Delete* either, which the server refuses there. In multi mode all three are
+// there; *Resume* and *Cancel deletion* are the way back in both.
+test('chromium: single mode offers no new workspace, no suspension and no deletion', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const suspended = { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a5', slug: 'paused', display_name: 'Paused', status: 'SUSPENDED' };
+
+  const single = await operatorConsole(browser, { mode: 'single', rows: [workspace(), suspended] });
+  t.after(single.close);
+  await single.page.getByRole('row').filter({ hasText: 'acme' }).waitFor();
+  assert.equal(await single.page.getByRole('button', { name: 'New workspace' }).count(), 0);
+  assert.equal(await single.page.getByRole('button', { name: 'Suspend' }).count(), 0);
+  assert.equal(await single.page.getByRole('button', { name: 'Delete' }).count(), 0);
+  assert.equal(await single.page.getByRole('button', { name: 'Resume' }).count(), 1);
+
+  const multi = await operatorConsole(browser, { mode: 'multi', rows: [workspace(), suspended] });
+  t.after(multi.close);
+  await multi.page.getByRole('button', { name: 'New workspace' }).waitFor();
+  assert.equal(await multi.page.getByRole('button', { name: 'Suspend' }).count(), 1);
+  assert.equal(await multi.page.getByRole('button', { name: 'Delete' }).count(), 2);
 });

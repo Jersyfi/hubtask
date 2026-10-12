@@ -600,12 +600,18 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 * Writing the workspace's rule takes a step-up (§16.3) and is audited with before and after.
 * Locking the installation's methods with the password among them opens the password in **every**
   workspace while locked; for one workspace the lever is §17.2.
-* Locking the installation's methods to providers turns on, in **every** workspace, each offered
-  provider admitted as *Only people invited here*: it creates no accounts, only another way in for
-  people already there, and connecting it asks the account's own proof (§4.1). A provider admitted
-  by domain or to anyone stays each workspace's switch — the installation would otherwise admit
-  people into a workspace that did not decide it (P-07). The installation's screen says which
-  applies. Decided, not built: I-9.
+* Locking the installation's methods with providers among them — `[OIDC]` or `[PASSWORD, OIDC]` —
+  turns on, in **every** workspace, each offered provider admitted as *Only people invited here*:
+  it creates no accounts, only another way in for people already there, and connecting it asks the
+  account's own proof (§4.1). A provider admitted by domain or to anyone stays each workspace's
+  switch — the installation would otherwise admit people into a workspace that did not decide it
+  (P-07). Each row says which applies (`installation_lock`), on the installation's screen and the
+  workspace's, where the mandated provider's switch is shown on and cannot be turned off
+  (`identity_provider.mandated`). The mandate is read, never written into a workspace's switches:
+  lifting the lock returns every workspace to its own choice at once, and where that leaves no way
+  in the fallback opens (§17.1). While the mandated provider's offer stands it is a way in, so the
+  fallback stays shut; the operator's opening (§17.2) still overrides it. The installation's count
+  of a mandated provider is every live workspace, so its removal waits for the withdrawal.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
@@ -621,6 +627,10 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` is minted **and** exercised. |
 | Four functions | `is_operator`, `operator_register`, `add_operator`, `drop_operator`, narrow `SECURITY DEFINER`s; the table has no row policy and no grant to the application role. |
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. |
+| The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
+| The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
+| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). |
+| The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | The last operator | Cannot be removed: `drop_operator` deletes only while more than one remains. |
 | Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A machine holds a personal access token with `admin:tenants`. |
 | The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
@@ -651,7 +661,6 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
 | I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
-| I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-9 | The installation's provider secret is not re-sealed by a key rotation ([security.md](./security.md) §16, S-6). |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |

@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-owner, PE-admin]
 deployments: [D1, D3, D4, D6]
 serves: [P-06, P-09, P-14]
-state: partial
-tasks: [J-01, J-02]
-checked_by: [core/application/service/integration/AiProviderConfig_test.go]
+state: built
+tasks: [J-01, J-02, SC-11]
+checked_by: [core/application/service/integration/AiProviderConfig_test.go, core/application/service/integration/AiSource_test.go, apps/webapp/e2e/aisettings.test.mjs]
 ---
 
 # Connect our workspace's own AI model
@@ -38,7 +38,3 @@ stored.
 
 * Hubtask does not verify the declaration; it records it ([ADR-0018](../../adr/ADR-0018-privacy-by-design.md)).
 * No vendor-specific SDKs ([ADR-0049](../../adr/ADR-0049-ai-provider-surface.md)).
-
-## Today
-
-* Check 5: not met — nothing lets the installation or a plan allow only the provided model (UC-AI-06), so every workspace's screen offers its own provider, tracked in #1067.

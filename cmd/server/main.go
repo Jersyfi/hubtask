@@ -75,6 +75,7 @@ import (
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	secretvalue "github.com/Jersyfi/hubtask/core/shared/secret"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
@@ -130,6 +131,10 @@ func main() {
 	// distroless image.
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(selfCheck())
+	}
+	// The way back into an installation nobody can run (UC-INS-03), from the machine itself.
+	if len(os.Args) > 1 && os.Args[1] == "operator" {
+		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
@@ -442,6 +447,7 @@ func run() error {
 			Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			External:    postgres.NewExternalAccountRepository(),
 			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+			Instance:    postgres.NewInstanceSettingRepository(),
 			Relying:     relyingParty,
 			RedirectURL: oidcRedirectURL,
 		},
@@ -1003,6 +1009,7 @@ func run() error {
 		// Which of the installation's providers this workspace took: a flow through one it did not
 		// take, or one whose withdrawal has come, is refused at the start and at the return.
 		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+		Instance:    postgres.NewInstanceSettingRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1020,6 +1027,30 @@ func run() error {
 		Encryptor: encryptor, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock:                 clockadapter.System{},
 		ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
+	}
+
+	// Which AI source answers a workspace (ADR-0072 §2): the installation's level, the
+	// workspace's narrowing, the offered models and the workspace's choice, read in one
+	// transaction by every reader of the rule - the source's own use cases, the resolver and the
+	// own model's configuration.
+	aiRules := integrationservice.AiRules{
+		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
+		Own: postgres.NewAiProviderRepository(),
+	}
+	// The own model's configuration asks the same rule: a source the installation does not allow
+	// is not configured, and an own model below the minimum is refused naming it.
+	aiProviderWriter.Rules = &aiRules
+	// A change of the model behind search seeds its rebuild in the same transaction, with the
+	// delay the entries' own writes use (ADR-0072 §6).
+	embeddingSeeder := integrationservice.EmbeddingSeeder{
+		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
+	}
+	aiProviderWriter.Reindex = embeddingSeeder
+	aiSourceWriter := integrationservice.AiSourceWriter{
+		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
+		Spaces: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
@@ -1053,6 +1084,7 @@ func run() error {
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
 		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
+		Sources: aiRules,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside
@@ -1130,6 +1162,9 @@ func run() error {
 		// Which of the installation's providers this workspace took: the switch lives in
 		// the workspace's settings, because the row is the installation's.
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The installation's lock on the ways in, which turns its invite-only rows on everywhere
+		// (identity.md §18).
+		Instance: postgres.NewInstanceSettingRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
@@ -1141,6 +1176,19 @@ func run() error {
 	// because the register is also what bounds the control-plane scope at both of its ends - the
 	// mint and the exercise - and both of those are wired above.
 	operators := postgres.NewOperatorRepository()
+
+	// HUBTASK_OPERATORS (UC-INS-02): applied below at start and again on the scheduler's ticks,
+	// and read by the health report for the entries still waiting for their account.
+	operatorsFromEnvironment := adminservice.OperatorsFromEnvironment{
+		Entries: cfg.Operators, Operators: operators, Single: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// Who runs the installation, in the health report, read live for each report (UC-INS-03
+	// check 4).
+	registry.AddWarningSource(adminservice.RegisterWarnings{
+		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
+	}.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
@@ -1174,6 +1222,14 @@ func run() error {
 		Configure: identityProviderWriter,
 	}
 
+	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the
+	// installation's own journal, and the third-country confirmation a workspace's own model is
+	// held to as well.
+	instanceAiWriter := adminservice.InstanceAiWriter{
+		Instance: instanceWriter, Offered: postgres.NewOfferedAiRepository(),
+		Encryptor: encryptor, ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
+	}
+
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
 	// nil on a plain installation: the operator's file comes with the instance layer, and nothing
@@ -1192,6 +1248,7 @@ func run() error {
 		WaysIn: identity.WaysIn{
 			Providers:  postgres.NewIdentityProviderRepository(),
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Instance:   postgres.NewInstanceSettingRepository(),
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		},
 		Text:       forms,
@@ -1267,6 +1324,24 @@ func run() error {
 		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
+
+	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
+	// began (UC-INS-01).
+	provisioning := adminservice.ProvisionTenant{
+		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Accounts: accounts, Redemption: signInStore, Grants: grants,
+		Containers: containers, Buckets: buckets, Labels: labels,
+		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+		Domains: domains, Text: forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		// The one host the new workspace answers at. The installation's own host comes
+		// from the configured base URL and never from a request.
+		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+	}
+	// The first start's codes, hashed under their own purpose label (security.md, T-24).
+	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
 
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
@@ -1374,6 +1449,12 @@ func run() error {
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
+		identity.SetUpInstallation{
+			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
+			Seeder: provisioning, Owners: signInStore, Operators: operators,
+			Journal: postgres.NewInstanceJournal(cursors),
+			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
@@ -1409,7 +1490,12 @@ func run() error {
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.ListInstanceAiProviders{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1936,19 +2022,7 @@ func run() error {
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
-		adminservice.ProvisionTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
-			Accounts: accounts, Redemption: signInStore, Grants: grants,
-			Containers: containers, Buckets: buckets, Labels: labels,
-			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
-			Domains: domains, Text: forms,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
-			// The one host the new workspace answers at. The installation's own host comes
-			// from the configured base URL and never from a request.
-			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
-			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
-		}.Descriptor(),
+		provisioning.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{},
@@ -1956,6 +2030,7 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -1967,6 +2042,16 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		// The edge back from a pending deletion: the rules the request switched off come back
+		// on through the automation package, which owns how a schedule's next moment is found.
+		adminservice.CancelTenantDeletion{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+			Automations: automationservice.PausedRules{
+				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
+			},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -2165,7 +2250,10 @@ func run() error {
 			Legal: signInPolicyResolver,
 			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
-			Operators:  operators,
+			Operators: operators,
+			// Whether the first start's setup is offered: the same function the setup's claim
+			// reads, so the card is drawn exactly where the route would accept it.
+			Setup:      setupCodes,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope
@@ -3080,6 +3168,13 @@ func run() error {
 		// The leader holds one connection of the background pool for as long as it leads, which is
 		// why that pool is never sized at one.
 		scheduler := worker.Scheduler{
+			// HUBTASK_OPERATORS again on the first tick of every minute, for the entries whose
+			// account has come to exist since (UC-INS-02 check 4).
+			Operators: func() adminservice.OperatorsFromEnvironment {
+				onBackground := operatorsFromEnvironment
+				onBackground.UnitOfWork = backgroundWork
+				return onBackground
+			}(),
 			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
 			Queue:        jobs,
 			Backlog:      jobs,
@@ -3124,9 +3219,27 @@ func run() error {
 		path: cfg.InstanceFile, mode: instanceFileMode,
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
+		ai:         instanceAiWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
+	}
+
+	// The operators the environment names (UC-INS-02 check 4), before the first request: an
+	// installation brought up from a file has them from its first minute. A failure is logged and
+	// the scheduler tries again.
+	applyOperatorsFromEnvironment(ctx, operatorsFromEnvironment)
+
+	// The first start (UC-INS-01): a process that serves the API, on an installation with no
+	// workspace and nobody in its register, prints a one-time setup code. After the instance file,
+	// so a file's level is in place before the first workspace is set up under it.
+	if cfg.HasRole(envport.RoleAPI) {
+		firstStart(ctx, identity.IssueSetupCode{
+			Codes: setupCodes, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Entropy: clockadapter.CryptoRandom{},
+		}, func(code string, params map[string]string) string {
+			return renderer.Render(cfg.Locale.DefaultLocale, code, params)
+		}, cfg.BaseURL)
 	}
 
 	registry.MarkStarted()
@@ -3760,8 +3873,11 @@ type applyingInstanceFile struct {
 	mode instancefile.Mode
 	// settings is the plain repository, used to ask whether the level is already there. `seed`
 	// turns on that question and nothing else.
-	settings   identityrepository.InstanceSettings
-	write      adminservice.WriteInstanceSettings
+	settings identityrepository.InstanceSettings
+	write    adminservice.WriteInstanceSettings
+	// ai offers the models the file names, through the operator's writer without its
+	// authorisation: the file is the operator's own configuration.
+	ai         adminservice.InstanceAiWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -3772,6 +3888,34 @@ type applyingInstanceFile struct {
 // API's refusal honest rather than an inconvenience: the file really is the source.
 //
 // No file configured is the ordinary case and does nothing at all.
+// applyAiModels offers the models the file names (ADR-0072 §1). The keys come from the variables
+// the file names, never from the file itself.
+func applyAiModels(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	models, present, err := instancefile.AiModels(document, os.LookupEnv, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	commands := make([]adminservice.ConfigureInstanceAiCommand, 0, len(models))
+	for _, model := range models {
+		cmd := adminservice.ConfigureInstanceAiCommand{
+			DisplayName: model.DisplayName, Processor: model.Processor,
+			Kind: integrationmodel.AiProviderKind(model.Kind), BaseURL: model.BaseURL,
+			CompletionModel: model.CompletionModel, EmbeddingModel: model.EmbeddingModel,
+			Jurisdiction: integrationmodel.AiJurisdiction(model.Jurisdiction),
+		}
+		if model.HasKey {
+			cmd.APIKey, cmd.APIKeyPresent = secretvalue.New(model.APIKey), true
+		}
+		commands = append(commands, cmd)
+	}
+	if err := applying.ai.ApplyFile(ctx, commands, applying.mode == instancefile.ModeEnforce, applying.path); err != nil {
+		return err
+	}
+	slog.Info("the offered AI models were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "models", len(commands))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -3789,6 +3933,12 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 		return nil
 	}
 
+	// The offered AI models first, and on their own terms: they are rows rather than values of the
+	// level, so `seed` asks whether any is offered rather than whether the level is set.
+	if err := applyAiModels(ctx, applying, document); err != nil {
+		return err
+	}
+
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
@@ -3798,7 +3948,7 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 					return err
 				}
 				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
-					!level.Localisation.IsZero() || !level.Quotas.IsZero()
+					!level.Localisation.IsZero() || !level.Quotas.IsZero() || !level.Ai.IsZero()
 				return nil
 			}); err != nil {
 			return err

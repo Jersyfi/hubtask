@@ -51,6 +51,11 @@ interface CheckAnswer {
 
 /** The proof a password change carries, whichever of the four doors it came through. */
 export type PasswordProof =
+  /**
+   * No proof to present yet: the first start's setup, before any account exists. The server's own
+   * rules are then judged when the form is sent, and the lines say so rather than "checking".
+   */
+  | { readonly kind: 'none' }
   | { readonly kind: 'bearer'; readonly stepUpToken?: string }
   | { readonly kind: 'pending'; readonly token: string }
   | { readonly kind: 'invitation'; readonly token: string }
@@ -58,6 +63,8 @@ export type PasswordProof =
 
 function proofBody(proof: PasswordProof): Record<string, string> {
   switch (proof.kind) {
+    case 'none':
+      return {};
     case 'bearer':
       return proof.stepUpToken ? { step_up_token: proof.stepUpToken } : {};
     case 'pending':
@@ -198,6 +205,13 @@ class SignInRulesStore {
     if (!this.isServed) return;
     const candidate = password;
     if (!localRulesHold(this.password, candidate, context)) {
+      this.#checking = undefined;
+      this.#answered = undefined;
+      this.#violations = [];
+      return;
+    }
+    if (proof.kind === 'none') {
+      // Nothing to ask with: the check route demands a proof, and there is none before the setup.
       this.#checking = undefined;
       this.#answered = undefined;
       this.#violations = [];

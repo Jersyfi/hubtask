@@ -691,6 +691,32 @@ func (r SignInRepository) Redeem(
 	return changed > 0, nil
 }
 
+// ActivateFirstOwner sets the first start's owner's password and activates the account
+// (UC-INS-01). False where the account is not an invited one without a redemption token.
+func (r SignInRepository) ActivateFirstOwner(
+	ctx context.Context, accountID shared.ID, passwordHash string, now time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.ActivateFirstOwner(ctx, sqlc.ActivateFirstOwnerParams{
+		PasswordHash: &passwordHash,
+		Now:          pgtype.Timestamptz{Time: now, Valid: true},
+		ID:           id,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("activating the first owner: %w", err))
+	}
+	return changed > 0, nil
+}
+
 func (r SignInRepository) Find(ctx context.Context, subject string) (repository.AuthAttempt, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

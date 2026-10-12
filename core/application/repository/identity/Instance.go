@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -35,6 +36,10 @@ type InstanceLevel struct {
 	// lock here is meaningful — an operator may forbid a workspace raising its own — so the locks
 	// travel.
 	Quotas identity.QuotaDefaults
+	// Ai is the instance's say about AI (ADR-0072 §2): which sources a workspace may use and the
+	// least its own model must declare, each with a lock that holds a workspace out of a source and
+	// never in one.
+	Ai integration.AiLayer
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth
@@ -113,4 +118,36 @@ type Operators interface {
 	// one it is. False means it was not there, **or** that it is the last one - the register may not
 	// be emptied, and which of the two applies is answered by reading the list.
 	Remove(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
+// SetupClaim is what claiming a setup code answers (migration 0128).
+type SetupClaim string
+
+const (
+	// SetupClaimed: the code was valid, and every code is spent with it.
+	SetupClaimed SetupClaim = "CLAIMED"
+	// SetupAlreadyDone: a workspace exists, or somebody is in the register - there is nothing left
+	// to set up, whatever code was presented.
+	SetupAlreadyDone SetupClaim = "ALREADY_DONE"
+	// SetupWrong: no code matches.
+	SetupWrong SetupClaim = "WRONG"
+	// SetupExpired: the code matched and its thirty minutes are over.
+	SetupExpired SetupClaim = "EXPIRED"
+)
+
+// SetupCodes are the first start's one-time codes (UC-INS-01). Like the register, reached only
+// through narrow functions: the table has no policy and no grant to the application role. Only a
+// code's hash is stored, under the installation secret's own purpose label.
+type SetupCodes interface {
+	// Unset reports whether the installation is empty: no workspace at all, and nobody in the
+	// register. It is the whole condition under which a code is issued and the setup is offered.
+	Unset(ctx context.Context) (bool, error)
+
+	// Issue stores a code's hash on an empty installation, and answers false on any other.
+	Issue(ctx context.Context, id shared.ID, code identity.SetupCode, issuedAt, expiresAt time.Time) (bool, error)
+
+	// Claim spends a code inside the setup's own transaction. Two setups are serialised by the
+	// statement, and the emptiness is read after that, so the second finds the first's workspace.
+	// A zero code is one nobody issued.
+	Claim(ctx context.Context, code identity.SetupCode, now time.Time) (SetupClaim, error)
 }

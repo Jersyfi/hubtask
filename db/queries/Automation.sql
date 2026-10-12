@@ -315,6 +315,29 @@ UPDATE automation_rule
 SET next_run_at = sqlc.narg('next_run_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
+-- The rules a workspace's deletion request switched off (multi-tenancy.md §5), which a cancel
+-- switches back on.
+
+-- name: ListPausedAutomationRules :many
+-- This tenant's rules the deletion request switched off, oldest first. Unbounded on purpose: a
+-- workspace's rules are a handful, and a cancel that came back for a second page could return a
+-- workspace half restored.
+SELECT id, tenant_id, scope_type, scope_id, name, enabled, run_as, trigger, conditions, actions,
+       throttle, on_error, failure_count, created_by, created_at, updated_at, deleted_at, version,
+       next_run_at, inbound_rotated_at, findings, checked_at
+FROM automation_rule
+WHERE deleted_at IS NULL AND paused_for_deletion = true
+ORDER BY created_at, id;
+
+-- name: ResumePausedAutomationRule :execrows
+-- Switches one of them back on with its next moment, and takes the mark off. The failure count is
+-- left as it was: the rule was on with that count when the request switched it off, and nobody has
+-- looked at it since.
+UPDATE automation_rule
+SET enabled = true, paused_for_deletion = false, next_run_at = sqlc.narg('next_run_at'),
+    updated_at = sqlc.arg('at'), version = version + 1
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND paused_for_deletion = true;
+
 -- The RELATIVE_DATE trigger's occurrences (automation.md §1.1). The reminder's shape: a row per
 -- (rule, entry) saying when this rule owes that entry a run, moved when the anchor moves and gone
 -- when the anchor is cleared.

@@ -17,7 +17,8 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        -- function's text columns may be NULL, and a NULL scanned into a string is an error.
        coalesce(password_opened_requester, '')::text AS password_opened_requester,
        coalesce(password_opened_reason, '')::text AS password_opened_reason,
-       legal_hold::boolean AS legal_hold
+       legal_hold::boolean AS legal_hold,
+       purge_started_at::timestamptz AS purge_started_at
 FROM admin_tenants();
 
 -- name: InsertTenant :exec
@@ -34,7 +35,8 @@ VALUES (
 -- name: FindTenantForAdmin :one
 SELECT id, slug, display_name, status, default_locale, default_time_zone,
        created_at, purge_after, version,
-       password_opened_until, password_opened_requester, password_opened_reason
+       password_opened_until, password_opened_requester, password_opened_reason,
+       status_before_deletion, purge_started_at
 FROM tenant
 WHERE id = current_tenant_id() AND deleted_at IS NULL;
 
@@ -75,12 +77,38 @@ WHERE id = current_tenant_id() AND deleted_at IS NULL
   AND status = sqlc.arg('expected_status');
 
 -- name: RequestTenantDeletion :execrows
--- The one edge with two origins (§5: Active and Suspended both lead to PendingDeletion).
+-- The one edge with two origins (§5: Active and Suspended both lead to PendingDeletion). Where it
+-- came from is kept, so that a cancel returns it there; the right-hand side reads the row as it was.
 UPDATE tenant
 SET status = 'PENDING_DELETION', purge_after = sqlc.arg('purge_after'),
+    status_before_deletion = status, purge_started_at = NULL,
     updated_at = sqlc.arg('now'), version = version + 1
 WHERE id = current_tenant_id() AND deleted_at IS NULL
   AND status IN ('ACTIVE', 'SUSPENDED');
+
+-- name: CancelTenantDeletion :one
+-- The edge back (§5): the status the request came from, or SUSPENDED where none was kept - nobody
+-- regains access the operator did not choose. Guarded on the purge's mark in the same statement:
+-- the grace job writes that mark in this row before it removes a byte, so the two writes wait for
+-- each other and exactly one condition holds afterwards. No row is a workspace not pending, or one
+-- whose purge has begun.
+UPDATE tenant
+SET status = coalesce(status_before_deletion, 'SUSPENDED'), purge_after = NULL,
+    status_before_deletion = NULL,
+    updated_at = sqlc.arg('now'), version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'PENDING_DELETION' AND purge_started_at IS NULL
+RETURNING status;
+
+-- name: MarkTenantPurgeStarted :execrows
+-- The grace job's mark, before the first byte goes. The first mark stands on a second pass, which
+-- is the same purge going on. The version is left alone: nobody read the row to configure it. No
+-- row is a workspace no longer pending - a cancel came first - or one whose deadline lies ahead.
+UPDATE tenant
+SET purge_started_at = coalesce(purge_started_at, sqlc.arg('now'))
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+  AND status = 'PENDING_DELETION'
+  AND purge_after IS NOT NULL AND purge_after <= sqlc.arg('now');
 
 -- name: HardDeleteTenant :execrows
 -- The final row. The cascade takes every table with a foreign key; what carries none is removed
@@ -127,9 +155,11 @@ WHERE tenant_id = current_tenant_id() AND id <> sqlc.arg('keep_id');
 
 -- name: DisableAllAutomationRules :execrows
 -- The deletion request switches the tenant's automations off in one stroke (§5), visibly: the
--- rows keep existing with enabled = false, the way DisableFailingRule leaves them.
+-- rows keep existing with enabled = false, the way DisableFailingRule leaves them - and marked, so
+-- that a cancel switches back on exactly these and none somebody had switched off before.
 UPDATE automation_rule
-SET enabled = false, updated_at = sqlc.arg('now'), version = version + 1
+SET enabled = false, paused_for_deletion = true,
+    updated_at = sqlc.arg('now'), version = version + 1
 WHERE deleted_at IS NULL AND enabled = true;
 
 -- name: PurgeTenantTrail :one

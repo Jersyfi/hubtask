@@ -131,7 +131,9 @@ locked installation. The health report names an empty register on an installatio
 workspaces. A token whose administrative scope the register removes is refused with a sentence
 naming the register; the bounded-scope check fails closed on a read error. `dev-workspace.sh
 --bootstrap` and the smoke tests use the setup instead of SQL; the pseudo-workspace `operator` is
-no longer needed. Migration 0108's and ADR-0070's "hubctl against the database" sentence corrected.
+no longer needed. The way back is stated in identity.md §19; migration 0108's "hubctl against the
+database" sentence stays, because a merged migration never changes, and ADR-0070 already records
+that it does not hold (corrected 2026-10-12, SC-04).
 
 **Acceptance:** `compose-smoke.sh` reaches a signed-in owner without SQL; a test for each of the
 three doors; the integration environment's recovery documented with the new command.
@@ -195,7 +197,7 @@ the file refuse the same values; the health hint on a multi-tenant installation 
 
 ---
 
-## SC-08 — The workspace lifecycle keeps its promises
+## SC-08 — The workspace lifecycle keeps its promises · built
 
 *Depends on: nothing.*
 
@@ -635,7 +637,7 @@ notices; it overrides the workspace's switch and a lock; it can be closed early.
 
 ---
 
-## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere · built
 
 *Depends on: SC-31.* · issue #1194 · Decision 10
 

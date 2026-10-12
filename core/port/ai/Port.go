@@ -27,7 +27,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
 // Dependency is the name this provider has in /meta/health and in the metrics. Stable, short and
@@ -210,4 +212,27 @@ type Provider interface {
 	// Capabilities is what this provider can do. It is read on every health scrape and on every
 	// capability manifest, so it answers from configuration rather than by calling anybody.
 	Capabilities() ProviderCapabilities
+}
+
+// Selection is which configuration a workspace's AI may call now, decided by the application from
+// the installation's rule, the workspace's narrowing and its choice of source (ADR-0072 §2, §5).
+// The adapter that resolves a provider acts on it and decides nothing.
+type Selection struct {
+	// Provider is the configuration to call: the workspace's own or an offered one. Meaningful
+	// only where Refusal is empty.
+	Provider integration.AiProvider
+	// Sealed is its key and Purpose what it was sealed under; nil where it needs none.
+	Sealed  *crypto.Sealed
+	Purpose crypto.Purpose
+	// EmbeddingSpace is the name vectors of this source are stored under: the bare model for the
+	// workspace's own, qualified for an offered one, so the two never share a space.
+	EmbeddingSpace string
+	// Refusal is empty where there is something to call, otherwise the detail every call answers.
+	Refusal string
+}
+
+// SourceSelector decides a workspace's Selection inside the caller's transaction, in that
+// workspace's scope.
+type SourceSelector interface {
+	Select(ctx context.Context, tenantID shared.ID) (Selection, error)
 }
