@@ -732,7 +732,7 @@
   "app.ai.set_by_installation": "für jeden Arbeitsbereich dieser Installation festgelegt",
   "app.ai.set_by_plan": "von deinem Tarif festgelegt",
   "app.ai.budget_title": "Das Budget",
-  "app.ai.budget_hint": "Wie viele Tokens am Tag dieser Arbeitsbereich verbrauchen darf, ist eine Grenze wie jede andere, gesetzt von der Installation.",
+  "app.ai.budget_hint": "Das Tagesbudget des angebotenen Modells ist eine Grenze wie jede andere, gesetzt von der Installation.",
   "app.ai.budget_link": "Bei den anderen Grenzen ansehen.",
   "app.ai.budget_offered_use": "Das angebotene Modell: heute {used, plural, one {# Token} other {# Tokens}} von {limit, plural, one {# Token} other {# Tokens}} verbraucht.",
   "app.ai.budget_offered_unlimited": "Das angebotene Modell: heute {used, plural, one {# Token} other {# Tokens}} verbraucht, ohne Grenze.",

@@ -2086,7 +2086,7 @@
   "app.ai.set_by_installation": "set for every workspace on this installation",
   "app.ai.set_by_plan": "set by your plan",
   "app.ai.budget_title": "The budget",
-  "app.ai.budget_hint": "How many tokens a day this workspace may spend is a limit like any other, set by the installation.",
+  "app.ai.budget_hint": "The offered model’s daily budget is a limit like any other, set by the installation.",
   "app.ai.budget_link": "See it with the other limits.",
   "app.ai.budget_offered_use": "The offered model: today {used, plural, one {# token} other {# tokens}} of {limit, plural, one {# token} other {# tokens}} used.",
   "app.ai.budget_offered_unlimited": "The offered model: today {used, plural, one {# token} other {# tokens}} used, with no limit.",
