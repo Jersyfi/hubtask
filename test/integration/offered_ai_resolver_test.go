@@ -269,6 +269,7 @@ func TestAWorkspaceThatNeverChoseCallsNoModel(t *testing.T) {
 
 	for _, sources := range []domain.AiSources{domain.AiSourcesOffered, domain.AiSourcesEither} {
 		t.Run(string(sources), func(t *testing.T) {
+			//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 			world.rule(t, sources, domain.AiMinAny)
 			provider, source, err := world.resolver.Sourced(ctx,
 				appshared.ActorContext{Kind: appshared.ActorUser, TenantID: resolverTenant})
@@ -386,6 +387,7 @@ func TestTheInstanceFileOffersAModelAndSwitchesNobodysAiOn(t *testing.T) {
 				offeredID = offered[0].ID
 				return nil
 			})
+			//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 			if got := world.answering(t); !strings.HasPrefix(got, "refused") {
 				t.Errorf("after the file a workspace that never chose answers %q", got)
 			}

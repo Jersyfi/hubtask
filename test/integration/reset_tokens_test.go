@@ -102,6 +102,7 @@ func seedPasswordAccount(
 	}
 	presented := mintFor(t, tenantA, tokenSeed)
 	tokens := postgres.NewAccessTokenRepository(security.NewTokenHasher(secret.New(installationSecret)))
+	//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 	inTenant(t, passwords.UnitOfWork, tenantA, func(ctx context.Context) error {
 		return tokens.Insert(ctx, minted(tokenID, tenantA, account, "the nightly export"), presented)
 	})
@@ -122,6 +123,7 @@ func tokenStillWorks(ctx context.Context, t *testing.T, passwords identityservic
 func sessionOpen(ctx context.Context, t *testing.T, passwords identityservice.PasswordWriter, id shared.ID) bool {
 	t.Helper()
 	var open bool
+	//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 	inTenant(t, passwords.UnitOfWork, tenantA, func(ctx context.Context) error {
 		credential, err := passwords.Session.Sessions.FindForAuth(ctx, id)
 		if err != nil {
