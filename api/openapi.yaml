@@ -2689,7 +2689,21 @@ paths:
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
         it cannot act until the invitation is accepted.
-        The notification is queued as a job — this call does not wait for an email.
+
+        **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+        invitation mail is queued as a job - this call does not wait for it - and the answer
+        carries no link.
+
+        **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+        same link the mail would have carried, **shown here and never again**, to be handed over by
+        any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+        repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+        replaced with `POST /accounts/{accountId}:renew-invitation`.
+
+        An address that already has an account here is `409 accounts.email_taken`; one whose
+        invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+        sent for either. Without mail, an act an automation rule runs is refused with
+        `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -2704,7 +2718,37 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Account"
+                $ref: "#/components/schemas/InvitedAccount"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}:renew-invitation:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [identity]
+      operationId: renewInvitation
+      summary: Give an invitation not yet accepted a new link
+      description: |
+        For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+        any other is `409 accounts.not_invited`.
+
+        **Where this installation sends mail**, the invitation mail is queued again and the answer
+        carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+        no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+        earlier link stops working at once. Without mail, an act an automation rule runs is refused
+        with `accounts.invitation_needs_a_person`.
+
+        Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitedAccount"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8955,6 +8999,19 @@ components:
           description: >
             Shown here and never again. The person types it once, with the sign-in name, and then
             chooses their own.
+
+    InvitedAccount:
+      allOf:
+        - $ref: "#/components/schemas/Account"
+        - type: object
+          properties:
+            invitation_link:
+              type: string
+              format: uri
+              description: >
+                Present only where this installation sends no mail: the link that accepts the
+                invitation, the same one a mail would carry. Shown here and never again - only its
+                hash is kept. It works once, for fourteen days.
 
     AccountInvite:
       type: object
