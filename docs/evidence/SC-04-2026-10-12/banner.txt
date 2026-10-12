@@ -1,0 +1,5 @@
+========================================================================
+  Set up Hubtask: open http://localhost:18480 in a browser and enter the setup code 0PEY-W3CJ-DW1B. It works once, until 11:38 UTC.
+      0PEY-W3CJ-DW1B
+  No workspace exists yet. A new code is printed each time Hubtask starts.
+========================================================================
