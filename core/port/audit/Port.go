@@ -159,6 +159,18 @@ func fingerprint(value any) string {
 	return hex.EncodeToString(digest[:])
 }
 
+// Fingerprinter keys the fingerprint of a sensitive value (audit.md §4).
+//
+// Keyed, because an unkeyed hash of a name or a title is readable to anybody who can guess it:
+// whoever reads the trail hashes candidates until one matches, and the trail outlives the item
+// whose deletion it was meant not to undermine. The key is the installation's, never in the
+// database, and the workspace is bound in, so two workspaces' fingerprints of one value differ.
+// Which construction it is belongs to the adapter; the answer names its scheme as a prefix, so a
+// reader can tell it from a fingerprint written under another one.
+type Fingerprinter interface {
+	Fingerprint(tenantID shared.ID, value string) string
+}
+
 // Context is the request an entry belongs to (audit.md §2). The address is truncated (IPv4 /24,
 // IPv6 /48) and the user agent reduced to a class, because an audit trail is evidence about
 // actions, not a second analytics dataset.
