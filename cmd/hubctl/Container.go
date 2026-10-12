@@ -30,6 +30,12 @@ func containerGroup() group {
 				summary: "create a hub or a collection",
 				run:     containerCreate,
 			},
+			{
+				name:    "emergency-access",
+				usage:   "<hub id> --reason <why>",
+				summary: "open a private hub for one hour as the workspace's owner; every member is told",
+				run:     containerEmergencyAccess,
+			},
 		},
 	}
 }
@@ -130,6 +136,42 @@ func containerCreate(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(created, containerTable([]openapi.Container{created}))
+}
+
+// containerEmergencyAccess opens a private hub as the workspace's owner (ADR-0073 §4): a reason the
+// members read, a fresh proof in the header the act takes it in, one hour. The server tells every
+// member before it answers; this prints when the hour ends.
+func containerEmergencyAccess(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "container emergency-access <hub id> --reason <why>"
+	hubID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "container", "emergency-access", "<hub id> --reason <why>")
+	reason := flags.String("reason", "", "why the hub is opened; every member reads it")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if *reason == "" {
+		return usagef("opening a private hub needs --reason: every member of the hub reads it")
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var opened openapi.PrivateHubAccess
+	err = cli.proveAgain(ctx, client, func(stepUp string) error {
+		return client.PostWithHeader(ctx, "/private-hubs/"+hubID.String()+"/accesses",
+			openapi.PrivateHubAccessRequest{Reason: *reason}, stepUpProof(stepUp), &opened)
+	})
+	if err != nil {
+		return err
+	}
+	return cli.Emit(opened, Table{
+		Columns: []string{"hub", "open until"},
+		Rows:    [][]string{{opened.HubId.String(), opened.EndsAt.Local().Format("2006-01-02 15:04")}},
+	})
 }
 
 // containerType checks what somebody typed against the enum the specification declares, so that a
