@@ -569,13 +569,15 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 // Silent where the store or the host is not wired: nothing resolves a request through this table, so
 // a build without it provisions as if the table did not exist.
 //
-// Only reached in multi mode, because provisioning is: single mode's whole contract is one workspace
-// and no selection, and its `tenant_host` therefore stays empty - which costs nothing while nothing
-// resolves through it, and has to be filled before anything does.
+// Multi mode only. Single mode's whole contract is one workspace and no selection, and its
+// `tenant_host` therefore stays empty - which costs nothing while nothing resolves through it, and
+// has to be filled before anything does. The first start's setup seeds a single-mode workspace
+// through here too, and the installation's own host is often one no workspace host may be
+// (`localhost`), so the mode is asked here rather than assumed from the caller.
 func (h ProvisionTenant) seedHost(
 	ctx context.Context, tenant domain.Tenant, now time.Time,
 ) error {
-	if h.Hosts == nil || h.InstallationHost == "" {
+	if h.Hosts == nil || h.InstallationHost == "" || h.Tenancy != env.TenancyMulti {
 		return nil
 	}
 	host := domain.CanonicalHostOf(tenant.Slug, h.InstallationHost, h.Tenancy == env.TenancyMulti)
