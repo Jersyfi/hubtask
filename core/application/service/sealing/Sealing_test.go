@@ -232,8 +232,14 @@ func TestTheRequestQueuesOneRoundPerWorkspaceAndRecordsTheAsk(t *testing.T) {
 	if accepted.ActiveKeyID != "k2" || accepted.QueuedTenants != 2 {
 		t.Errorf("accepted %+v", accepted)
 	}
-	if len(queued.requests) != 2 {
+	if len(queued.requests) != 3 {
 		t.Fatalf("jobs %+v", queued.requests)
+	}
+	// The installation's own round: no tenant, queued in the scope with none, deduplicated too.
+	if job := queued.requests[2]; job.Kind != queue.KindSecretReseal || !job.TenantID.IsZero() ||
+		job.DedupeKey != "reseal:installation" || job.Payload["active_key_id"] != "k2" ||
+		!work.scopes[3].System {
+		t.Errorf("the installation's job %+v in %+v", job, work.scopes[3])
 	}
 	for i, tenant := range []shared.ID{tenantOne, tenantTwo} {
 		job := queued.requests[i]
@@ -300,6 +306,56 @@ func TestARoundRunsEveryResealerReportsAndLeavesEvidenceOnlyWhenSomethingMoved(t
 	}
 	if len(trail.entries) != 1 {
 		t.Errorf("a round that moved nothing left an entry: %+v", trail.entries)
+	}
+}
+
+type journal struct{ entries []adminrepo.InstanceEvent }
+
+func (j *journal) Record(_ context.Context, entry adminrepo.InstanceEvent) error {
+	j.entries = append(j.entries, entry)
+	return nil
+}
+
+func (j *journal) Page(context.Context, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+	return nil, adminrepo.PageInfo{}, nil
+}
+
+type ids struct{}
+
+func (ids) NewID() shared.ID { return shared.MustParseID("018f2a1b-0000-7000-8000-0000000000c1") }
+
+// The installation's round is told no tenant, and records in the installation's own journal -
+// counts and the key's name only - and only when something moved.
+func TestTheInstallationsRoundRecordsInItsOwnJournal(t *testing.T) {
+	providers := &resealer{store: "identity_provider", outcome: Outcome{Rewrapped: 1}}
+	models := &resealer{store: "ai_provider", outcome: Outcome{Rewrapped: 2, Skipped: 1}}
+	record := &journal{}
+	round := RunInstallationReseal{
+		Resealers: []Resealer{providers, models}, Encryptor: ring{keys: []string{"k2", "k1"}},
+		Journal: record, Clock: clock.Fixed(now), IDs: ids{}, Signals: &signals{},
+	}
+
+	outcome, err := round.Execute(t.Context())
+	if err != nil || outcome != (Outcome{Rewrapped: 3, Skipped: 1}) {
+		t.Fatalf("outcome %+v, %v", outcome, err)
+	}
+	if !providers.tenants[0].IsZero() || !models.tenants[0].IsZero() {
+		t.Error("the installation's round named a tenant")
+	}
+	if len(record.entries) != 1 || record.entries[0].Action != InstallationResealedAction ||
+		!record.entries[0].TenantID.IsZero() || record.entries[0].Details["rewrapped"] != int64(3) ||
+		record.entries[0].Details["active_key_id"] != "k2" || len(record.entries[0].Details) != 3 {
+		t.Errorf("journal %+v", record.entries)
+	}
+
+	providers.outcome, models.outcome = Outcome{}, Outcome{}
+	if _, err := round.Execute(t.Context()); err != nil || len(record.entries) != 1 {
+		t.Errorf("a round that moved nothing left an entry (%v): %+v", err, record.entries)
+	}
+
+	round.Encryptor = ring{}
+	if _, err := round.Execute(t.Context()); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("an installation without keys answered %v", err)
 	}
 }
 

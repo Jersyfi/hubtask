@@ -86,8 +86,8 @@ type providerSealing interface {
 //
 // The installation's own rows are outside a per-tenant pass by construction - `ListSealed` answers
 // the rows whose tenant matches the scope, and in a workspace's scope that is not NULL. They are
-// re-sealed by a pass in the installation's own scope, which the rotation's driver does not run
-// yet (ADR-0070's measured section says so).
+// re-sealed by the installation's own round, which runs this same resealer in the scope with no
+// tenant and passes the empty tenant, the purpose they were sealed under.
 type IdentityProviderResealer struct {
 	Providers providerSealing
 	Encryptor cryptoport.Encryptor

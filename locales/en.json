@@ -2024,6 +2024,7 @@
   "app.instance.action.instance_provider_withdrawal_cancelled": "Sign-in provider kept on offer",
   "app.instance.action.instance_ai_provider_configured": "AI model offered or changed",
   "app.instance.action.instance_ai_provider_removed": "Offered AI model withdrawn",
+  "app.instance.action.instance_secrets_resealed": "Installation secrets re-sealed under the current key",
   "app.instance.action.instance_session_elevated": "Session raised to the installation",
   "app.admin.ai": "AI",
   "app.ai.title": "AI",

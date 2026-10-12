@@ -18,6 +18,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
+// installationDedupeKey keeps one installation round pending at a time, as a workspace's key does.
+const installationDedupeKey = "reseal:installation"
+
 // Enqueuer is the slice of the queue this package uses.
 type Enqueuer interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
@@ -32,7 +35,8 @@ type Accepted struct {
 
 // ResealSecrets is the operator's ask (ADR-0045): one job per workspace, each enqueued in a
 // bounded transaction of that workspace's own, through the control plane's one legitimate
-// enumerator. Nothing here is a sweep, and nothing here opens a value.
+// enumerator - and one for the installation's own secrets. Nothing here is a sweep, and nothing
+// here opens a value.
 type ResealSecrets struct {
 	Tenants    adminrepo.Tenants
 	Jobs       Enqueuer
@@ -82,6 +86,21 @@ func (h ResealSecrets) Execute(
 		}
 	}
 
+	// And the installation's own round, for the secrets that belong to no workspace. Without a
+	// tenant, so the queue opens it in the scope whose writes the installation_write policies
+	// admit; deduplicated like a workspace's.
+	err = h.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := h.Jobs.Enqueue(ctx, queue.Request{
+			Kind:      queue.KindSecretReseal,
+			Payload:   map[string]any{"active_key_id": active},
+			DedupeKey: installationDedupeKey,
+		})
+		return err
+	})
+	if err != nil {
+		return Accepted{}, err
+	}
+
 	accepted := Accepted{ActiveKeyID: active, QueuedTenants: len(tenants)}
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return h.Audit.Append(ctx, audit.Entry{
@@ -107,13 +126,15 @@ func (h ResealSecrets) Execute(
 func (h ResealSecrets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ResealSecretsName,
-		Summary: "Queues, for every workspace of the installation, a round that moves each " +
+		Summary: "Queues, for every workspace of the installation and for the installation's own " +
+			"sign-in providers and offered AI models, a round that moves each " +
 			"stored value sealed under an older master key under the current one - so that the " +
 			"older key can be removed from the ring once nothing names it. Plaintext is never " +
 			"reconstructed: only the wrapping of each value's data key changes.",
-		SideEffects: "One job per workspace, deduplicated while pending; an audit entry in the " +
-			"operator's workspace naming the key and the count, and one in each workspace a " +
-			"round moved anything in. Progress is read from the encryption status.",
+		SideEffects: "One job per workspace and one for the installation, deduplicated while " +
+			"pending; an audit entry in the operator's workspace naming the key and the count, one " +
+			"in each workspace a round moved anything in, and an instance journal entry when the " +
+			"installation's round moved anything. Progress is read from the encryption status.",
 		TokenScope: adminTenantsScope,
 		Audit: usecase.AuditDeclaration{
 			Action: ResealRequestedAction, TargetType: tenantTarget,
