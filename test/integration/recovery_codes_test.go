@@ -70,6 +70,7 @@ func armForRecovery(ctx context.Context, t *testing.T, account, session shared.I
 	if _, err := admin.Exec(ctx, `DELETE FROM account_mfa WHERE account_id = $1`, account.String()); err != nil {
 		t.Fatalf("clearing an earlier run's factor: %v", err)
 	}
+	//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 	inTenant(t, uow, recoveryTenant, func(ctx context.Context) error {
 		return signIn.Clear(ctx, "stepup:"+account.String())
 	})
@@ -93,6 +94,7 @@ func armForRecovery(ctx context.Context, t *testing.T, account, session shared.I
 		}
 		return proof
 	}
+	//nolint:contextcheck // the helper opens a transaction of its own, as every test of this package does
 	armed.remaining = func() int {
 		t.Helper()
 		var left int
