@@ -33,6 +33,9 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
+	// The invitation card's first read (UC-ID-07 check 1): the token in the body is the call's whole
+	// credential, as it is for the redemption, and the auth bucket stands in front of both.
+	http.MethodPost + " " + APIBasePath + "/auth/invitations:inspect": true,
 	// The first start's setup is public because nobody exists yet who could hold a credential: the
 	// one-time code the server printed at start is the whole of what authenticates the call
 	// (UC-INS-01), and the auth bucket stands in front of it against guessing (T-24).

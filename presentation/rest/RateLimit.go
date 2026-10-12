@@ -284,6 +284,7 @@ func isAuthRoute(r *http.Request) bool {
 	case APIBasePath + "/auth/sessions",
 		APIBasePath + "/auth/sessions:refresh",
 		APIBasePath + "/auth/invitations:redeem",
+		APIBasePath + "/auth/invitations:inspect",
 		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
 		APIBasePath + "/auth/oidc:callback":

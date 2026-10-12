@@ -696,6 +696,7 @@ func (r SignInRepository) FindByRedemptionToken(
 		TenantTimeZone: row.DefaultTimeZone,
 		TenantSlug:     row.TenantSlug,
 		TenantStatus:   identity.TenantStatus(row.TenantStatus),
+		TenantName:     row.TenantName,
 	}, nil
 }
 

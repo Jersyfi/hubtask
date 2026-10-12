@@ -88,6 +88,8 @@ type RedemptionAccount struct {
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
+	// TenantName is the workspace's display name, which the invitation card names (UC-ID-07 check 1).
+	TenantName string
 }
 
 // AuthAttempt is one subject's standing in the attempt ledger (T-02).

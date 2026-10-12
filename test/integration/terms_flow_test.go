@@ -72,6 +72,13 @@ func TestAnInvitationAgreesToTheTermsAndANewVersionAsksAgain(t *testing.T) {
 	}
 	setWorkspaceTerms(ctx, t, "3")
 
+	// UC-ID-07 check 1: the card names the workspace and the address, and spends nothing.
+	summary, err := (identityservice.InspectInvitation{Writer: writer}).Execute(ctx,
+		identityservice.InspectInvitationCommand{Token: secret.New(redeem.Secret())})
+	if err != nil || summary.WorkspaceName != "Terms A" || summary.Email != "anna@terms.example" {
+		t.Fatalf("the invitation is named as (%+v, %v)", summary, err)
+	}
+
 	// Check 1: accepted with the terms agreed.
 	if _, err := (identityservice.RedeemInvitation{Writer: writer}).Execute(ctx, identityservice.RedeemInvitationCommand{
 		Token: secret.New(redeem.Secret()), Password: secret.New("seven blue lanterns over the harbour"),

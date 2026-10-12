@@ -344,7 +344,8 @@ SELECT a.id, a.kind, a.email, a.display_name, a.status,
        a.locale AS account_locale, a.time_zone AS account_time_zone,
        a.redemption_expires_at,
        n.default_locale, n.default_time_zone,
-       n.slug AS tenant_slug, n.status::text AS tenant_status
+       n.slug AS tenant_slug, n.status::text AS tenant_status,
+       n.display_name AS tenant_name
 FROM account a
 JOIN tenant n ON n.id = a.tenant_id
 WHERE a.redemption_token_hash = $1 AND a.deleted_at IS NULL
@@ -363,6 +364,7 @@ type FindAccountByRedemptionHashRow struct {
 	DefaultTimeZone     string
 	TenantSlug          string
 	TenantStatus        string
+	TenantName          string
 }
 
 func (q *Queries) FindAccountByRedemptionHash(ctx context.Context, tokenHash []byte) (FindAccountByRedemptionHashRow, error) {
@@ -381,6 +383,7 @@ func (q *Queries) FindAccountByRedemptionHash(ctx context.Context, tokenHash []b
 		&i.DefaultTimeZone,
 		&i.TenantSlug,
 		&i.TenantStatus,
+		&i.TenantName,
 	)
 	return i, err
 }

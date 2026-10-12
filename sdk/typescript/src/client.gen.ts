@@ -654,6 +654,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/invitations:redeem", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Name the workspace and the address an invitation is for
+   * Public: sent without a bearer where the client holds none. */
+  inspectInvitation(body: NonNullable<operations["inspectInvitation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["inspectInvitation"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/invitations:inspect", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set up a fresh installation with the code its first start printed
    * Public: sent without a bearer where the client holds none. */
   setUpInstallation(body: NonNullable<operations["setUpInstallation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpInstallation"]['responses'][201]['content']["application/json"]> {

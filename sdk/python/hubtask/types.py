@@ -183,6 +183,14 @@ class InvitationRedemption(TypedDict, total=False):
     terms_url: str | None
     terms_version: str | None
 
+class InvitationInspection(TypedDict, total=False):
+    token: Required[str]
+
+class InvitationSummary(TypedDict, total=False):
+    """What the invitation card names before anything is typed."""
+    workspace_name: Required[str]
+    email: Required[str]
+
 class InstallationSetUp(TypedDict, total=False):
     code: Required[str]
     display_name: Required[str]

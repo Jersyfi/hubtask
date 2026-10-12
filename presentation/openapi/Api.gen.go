@@ -6251,6 +6251,12 @@ type InstanceSettings struct {
 	Source *string `json:"source,omitempty"`
 }
 
+// InvitationInspection defines model for InvitationInspection.
+type InvitationInspection struct {
+	// Token The redemption token from the invitation. Read, not spent.
+	Token string `json:"token"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the workspace's password policy.
@@ -6264,6 +6270,15 @@ type InvitationRedemption struct {
 
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
+}
+
+// InvitationSummary What the invitation card names before anything is typed.
+type InvitationSummary struct {
+	// Email The address the invitation went to - the one a provider has to confirm.
+	Email string `json:"email"`
+
+	// WorkspaceName The display name of the workspace the person was invited to.
+	WorkspaceName string `json:"workspace_name"`
 }
 
 // InvitedAccount defines model for InvitedAccount.
@@ -10644,6 +10659,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
+// InspectInvitationJSONRequestBody defines body for InspectInvitation for application/json ContentType.
+type InspectInvitationJSONRequestBody = InvitationInspection
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -11120,6 +11138,9 @@ type ServerInterface interface {
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
+	// InspectInvitation Name the workspace and the address an invitation is for
+	// (POST /auth/invitations:inspect)
+	InspectInvitation(w http.ResponseWriter, r *http.Request)
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
@@ -13267,6 +13288,20 @@ func (siw *ServerInterfaceWrapper) SetUpInstallation(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetUpInstallation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InspectInvitation operation middleware
+func (siw *ServerInterfaceWrapper) InspectInvitation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InspectInvitation(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22529,6 +22564,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:inspect", wrapper.InspectInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/installation:set-up", wrapper.SetUpInstallation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:link", wrapper.CompleteLink)

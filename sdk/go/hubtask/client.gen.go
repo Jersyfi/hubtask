@@ -6257,6 +6257,12 @@ type InstanceSettings struct {
 	Source *string `json:"source,omitempty"`
 }
 
+// InvitationInspection defines model for InvitationInspection.
+type InvitationInspection struct {
+	// Token The redemption token from the invitation. Read, not spent.
+	Token string `json:"token"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the workspace's password policy.
@@ -6270,6 +6276,15 @@ type InvitationRedemption struct {
 
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
+}
+
+// InvitationSummary What the invitation card names before anything is typed.
+type InvitationSummary struct {
+	// Email The address the invitation went to - the one a provider has to confirm.
+	Email string `json:"email"`
+
+	// WorkspaceName The display name of the workspace the person was invited to.
+	WorkspaceName string `json:"workspace_name"`
 }
 
 // InvitedAccount defines model for InvitedAccount.
@@ -10650,6 +10665,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
+// InspectInvitationJSONRequestBody defines body for InspectInvitation for application/json ContentType.
+type InspectInvitationJSONRequestBody = InvitationInspection
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -11879,6 +11897,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
 	SetUpInstallation(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// InspectInvitationWithBody Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// InspectInvitation Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitation(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
@@ -16612,6 +16648,44 @@ func (c *Client) SetUpInstallationWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
 func (c *Client) SetUpInstallation(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetUpInstallationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// InspectInvitationWithBody Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *Client) InspectInvitationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInspectInvitationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// InspectInvitation Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *Client) InspectInvitation(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInspectInvitationRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -25452,6 +25526,46 @@ func NewSetUpInstallationRequestWithBody(server string, contentType string, body
 	}
 
 	operationPath := fmt.Sprintf("/auth/installation:set-up")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewInspectInvitationRequest calls the generic InspectInvitation builder with application/json body
+func NewInspectInvitationRequest(server string, body InspectInvitationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewInspectInvitationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewInspectInvitationRequestWithBody constructs an http.Request for the InspectInvitation method, with any body, and a specified content type
+func NewInspectInvitationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/invitations:inspect")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -38345,6 +38459,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
 	SetUpInstallationWithResponse(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error)
 
+	// InspectInvitationWithBodyWithResponse Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error)
+
+	// InspectInvitationWithResponse Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithResponse(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error)
+
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -44267,6 +44399,54 @@ func (r SetUpInstallationResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetUpInstallationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type InspectInvitationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InvitationSummary
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r InspectInvitationResult) GetJSON200() *InvitationSummary {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r InspectInvitationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r InspectInvitationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r InspectInvitationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r InspectInvitationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r InspectInvitationResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -57657,6 +57837,36 @@ func (c *ClientWithResponses) SetUpInstallationWithResponse(ctx context.Context,
 	return ParseSetUpInstallationResult(rsp)
 }
 
+// InspectInvitationWithBodyWithResponse Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *ClientWithResponses) InspectInvitationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error) {
+	rsp, err := c.InspectInvitationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseInspectInvitationResult(rsp)
+}
+
+// InspectInvitationWithResponse Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *ClientWithResponses) InspectInvitationWithResponse(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error) {
+	rsp, err := c.InspectInvitation(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseInspectInvitationResult(rsp)
+}
+
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -64925,6 +65135,39 @@ func ParseSetUpInstallationResult(rsp *http.Response) (*SetUpInstallationResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseInspectInvitationResult parses an HTTP response from a InspectInvitationWithResponse call
+func ParseInspectInvitationResult(rsp *http.Response) (*InspectInvitationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &InspectInvitationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InvitationSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

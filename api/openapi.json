@@ -4265,6 +4265,42 @@
         }
       }
     },
+    "/auth/invitations:inspect": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "inspectInvitation",
+        "security": [],
+        "summary": "Name the workspace and the address an invitation is for",
+        "description": "What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationInspection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The invitation, named",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationSummary"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/installation:set-up": {
       "post": {
         "tags": [
@@ -12350,6 +12386,36 @@
             ],
             "maxLength": 64,
             "description": "The version of those terms as it was shown, where the terms carry one.\n"
+          }
+        }
+      },
+      "InvitationInspection": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The redemption token from the invitation. Read, not spent."
+          }
+        }
+      },
+      "InvitationSummary": {
+        "type": "object",
+        "description": "What the invitation card names before anything is typed.",
+        "required": [
+          "workspace_name",
+          "email"
+        ],
+        "properties": {
+          "workspace_name": {
+            "type": "string",
+            "description": "The display name of the workspace the person was invited to."
+          },
+          "email": {
+            "type": "string",
+            "description": "The address the invitation went to - the one a provider has to confirm."
           }
         }
       },

@@ -174,6 +174,8 @@ func (pending) CompleteLink(w http.ResponseWriter, r *http.Request) { notAvailab
 
 func (pending) AgreeToTerms(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+func (pending) InspectInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) EnrollTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ConfirmTotp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
