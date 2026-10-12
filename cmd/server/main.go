@@ -1864,6 +1864,9 @@ func run() error {
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
 		}.Descriptor(),
+		privacyservice.ListConsents{
+			Consents: privacyStore, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		privacyservice.GiveConsent{
 			Consents: privacyStore, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,

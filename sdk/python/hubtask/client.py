@@ -923,6 +923,10 @@ class Client:
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_consents(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The consent register - who withdrew a purpose"""
+        return self._call("GET", "/privacy/consents", {}, query, {}, None, "none", None, "json")
+
     def withdraw_consent(self, body: "ConsentWithdrawal") -> "ConsentRecord":
         """Withdraw consent for an optional processing purpose (Art. 21)"""
         return self._call("POST", "/privacy/consents:withdraw", {}, None, {}, body, "json", "application/json", "json")

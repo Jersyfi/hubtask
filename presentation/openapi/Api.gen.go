@@ -1320,6 +1320,27 @@ func (e ConsentRecordSource) Valid() bool {
 	}
 }
 
+// Defines values for ConsentRegisterEntrySource.
+const (
+	ConsentRegisterEntrySourceConfig      ConsentRegisterEntrySource = "config"
+	ConsentRegisterEntrySourceTenantAdmin ConsentRegisterEntrySource = "tenant_admin"
+	ConsentRegisterEntrySourceUser        ConsentRegisterEntrySource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRegisterEntrySource enum.
+func (e ConsentRegisterEntrySource) Valid() bool {
+	switch e {
+	case ConsentRegisterEntrySourceConfig:
+		return true
+	case ConsentRegisterEntrySourceTenantAdmin:
+		return true
+	case ConsentRegisterEntrySourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -5270,6 +5291,21 @@ type ConsentRecord struct {
 
 // ConsentRecordSource defines model for ConsentRecord.Source.
 type ConsentRecordSource string
+
+// ConsentRegisterEntry defines model for ConsentRegisterEntry.
+type ConsentRegisterEntry struct {
+	AccountId   openapi_types.UUID `json:"account_id"`
+	DisplayName string             `json:"display_name"`
+
+	// Since When the withdrawal standing now was recorded.
+	Since time.Time `json:"since"`
+
+	// Source Whether the person or an administrator on their behalf recorded it.
+	Source *ConsentRegisterEntrySource `json:"source,omitempty"`
+}
+
+// ConsentRegisterEntrySource Whether the person or an administrator on their behalf recorded it.
+type ConsentRegisterEntrySource string
 
 // ConsentWithdrawal defines model for ConsentWithdrawal.
 type ConsentWithdrawal struct {
@@ -10221,6 +10257,11 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListConsentsParams defines parameters for ListConsents.
+type ListConsentsParams struct {
+	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -11527,6 +11568,9 @@ type ServerInterface interface {
 	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
 	// (POST /privacy/ai-objection:noticed)
 	AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request)
+	// ListConsents The consent register - who withdrew a purpose
+	// (GET /privacy/consents)
+	ListConsents(w http.ResponseWriter, r *http.Request, params ListConsentsParams)
 	// GiveConsent Agree to an optional processing purpose
 	// (POST /privacy/consents:give)
 	GiveConsent(w http.ResponseWriter, r *http.Request)
@@ -20479,6 +20523,39 @@ func (siw *ServerInterfaceWrapper) AcknowledgeAiPosition(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ListConsents operation middleware
+func (siw *ServerInterfaceWrapper) ListConsents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConsentsParams
+
+	// ------------- Required query parameter "purpose" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "purpose", r.URL.Query(), &params.Purpose, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "purpose"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "purpose", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConsents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GiveConsent operation middleware
 func (siw *ServerInterfaceWrapper) GiveConsent(w http.ResponseWriter, r *http.Request) {
 
@@ -22418,6 +22495,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests/{requestId}:extend", wrapper.ExtendDataSubjectRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests/{requestId}/erasure-preview", wrapper.PreviewErasure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/consents", wrapper.ListConsents)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:give", wrapper.GiveConsent)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/ai-objection", wrapper.ReadOwnAiPosition)

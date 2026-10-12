@@ -1157,6 +1157,11 @@ export class HubtaskClient {
     return this.call("POST", "/accounts/{accountId}:restrict", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The consent register - who withdrew a purpose */
+  listConsents(options: CallOptions & { readonly query?: NonNullable<operations["listConsents"]['parameters']['query']> } = {}): Promise<operations["listConsents"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/privacy/consents", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Withdraw consent for an optional processing purpose (Art. 21) */
   withdrawConsent(body: NonNullable<operations["withdrawConsent"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["withdrawConsent"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/privacy/consents:withdraw", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

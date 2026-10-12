@@ -6040,6 +6040,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /privacy/consents:
+    get:
+      tags: [privacy]
+      operationId: listConsents
+      summary: The consent register - who withdrew a purpose
+      description: |
+        For one purpose, every person whose newest record is a withdrawal, with since when and
+        whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+        own content out of AI - and this register is the one place that list appears. For the
+        people who manage members (`MANAGE_MEMBERS`).
+
+        Unpaged: it is bounded by the people of the workspace, ordered by name.
+      parameters:
+        - name: purpose
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/ConsentPurpose" }
+      responses:
+        "200":
+          description: The register
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ConsentRegisterEntry" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /privacy/consents:withdraw:
     post:
       tags: [privacy]
@@ -14574,6 +14606,21 @@ components:
         granted_at: { type: string, format: date-time }
         revoked_at: { type: [string, "null"], format: date-time }
         source: { type: [string, "null"], enum: [user, tenant_admin, config, null] }
+
+    ConsentRegisterEntry:
+      type: object
+      required: [account_id, display_name, since]
+      properties:
+        account_id: { type: string, format: uuid }
+        display_name: { type: string }
+        since:
+          type: string
+          format: date-time
+          description: When the withdrawal standing now was recorded.
+        source:
+          type: string
+          enum: [user, tenant_admin, config]
+          description: Whether the person or an administrator on their behalf recorded it.
 
     ConsentGrant:
       type: object

@@ -1927,6 +1927,12 @@ class ConsentRecord(TypedDict, total=False):
     revoked_at: str | None
     source: Literal["user", "tenant_admin", "config"] | None
 
+class ConsentRegisterEntry(TypedDict, total=False):
+    account_id: Required[str]
+    display_name: Required[str]
+    since: Required[str]
+    source: Literal["user", "tenant_admin", "config"]
+
 class ConsentGrant(TypedDict, total=False):
     purpose: Required["ConsentPurpose"]
     account_id: str

@@ -174,6 +174,7 @@ func Descriptors() []usecase.Descriptor {
 		privacyservice.RestrictProcessing{}.Descriptor(),
 		privacyservice.WithdrawConsent{}.Descriptor(),
 		privacyservice.GiveConsent{}.Descriptor(),
+		privacyservice.ListConsents{}.Descriptor(),
 		integration.ReadOwnAiPosition{}.Descriptor(),
 		integration.AcknowledgeAiPosition{}.Descriptor(),
 		backupservice.CreateBackupSchedule{}.Descriptor(),

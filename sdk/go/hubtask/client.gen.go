@@ -1326,6 +1326,27 @@ func (e ConsentRecordSource) Valid() bool {
 	}
 }
 
+// Defines values for ConsentRegisterEntrySource.
+const (
+	ConsentRegisterEntrySourceConfig      ConsentRegisterEntrySource = "config"
+	ConsentRegisterEntrySourceTenantAdmin ConsentRegisterEntrySource = "tenant_admin"
+	ConsentRegisterEntrySourceUser        ConsentRegisterEntrySource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRegisterEntrySource enum.
+func (e ConsentRegisterEntrySource) Valid() bool {
+	switch e {
+	case ConsentRegisterEntrySourceConfig:
+		return true
+	case ConsentRegisterEntrySourceTenantAdmin:
+		return true
+	case ConsentRegisterEntrySourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -5276,6 +5297,21 @@ type ConsentRecord struct {
 
 // ConsentRecordSource defines model for ConsentRecord.Source.
 type ConsentRecordSource string
+
+// ConsentRegisterEntry defines model for ConsentRegisterEntry.
+type ConsentRegisterEntry struct {
+	AccountId   openapi_types.UUID `json:"account_id"`
+	DisplayName string             `json:"display_name"`
+
+	// Since When the withdrawal standing now was recorded.
+	Since time.Time `json:"since"`
+
+	// Source Whether the person or an administrator on their behalf recorded it.
+	Source *ConsentRegisterEntrySource `json:"source,omitempty"`
+}
+
+// ConsentRegisterEntrySource Whether the person or an administrator on their behalf recorded it.
+type ConsentRegisterEntrySource string
 
 // ConsentWithdrawal defines model for ConsentWithdrawal.
 type ConsentWithdrawal struct {
@@ -10227,6 +10263,11 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListConsentsParams defines parameters for ListConsents.
+type ListConsentsParams struct {
+	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -14028,6 +14069,18 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
 	AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConsents The consent register - who withdrew a purpose
+	//
+	// For one purpose, every person whose newest record is a withdrawal, with since when and
+	// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+	// own content out of AI - and this register is the one place that list appears. For the
+	// people who manage members (`MANAGE_MEMBERS`).
+	//
+	// Unpaged: it is bounded by the people of the workspace, ordered by name.
+	//
+	// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+	ListConsents(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GiveConsentWithBody Agree to an optional processing purpose
 	//
@@ -21586,6 +21639,28 @@ func (c *Client) ReadOwnAiPosition(ctx context.Context, reqEditors ...RequestEdi
 // Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
 func (c *Client) AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAcknowledgeAiPositionRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConsents The consent register - who withdrew a purpose
+//
+// For one purpose, every person whose newest record is a withdrawal, with since when and
+// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+// own content out of AI - and this register is the one place that list appears. For the
+// people who manage members (`MANAGE_MEMBERS`).
+//
+// Unpaged: it is bounded by the people of the workspace, ordered by name.
+//
+// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+func (c *Client) ListConsents(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConsentsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -34934,6 +35009,56 @@ func NewAcknowledgeAiPositionRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListConsentsRequest constructs an http.Request for the ListConsents method
+func NewListConsentsRequest(server string, params *ListConsentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/consents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "purpose", params.Purpose, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGiveConsentRequest calls the generic GiveConsent builder with application/json body
 func NewGiveConsentRequest(server string, body GiveConsentJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -40744,6 +40869,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
 	AcknowledgeAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAiPositionResult, error)
+
+	// ListConsentsWithResponse The consent register - who withdrew a purpose
+	//
+	// For one purpose, every person whose newest record is a withdrawal, with since when and
+	// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+	// own content out of AI - and this register is the one place that list appears. For the
+	// people who manage members (`MANAGE_MEMBERS`).
+	//
+	// Unpaged: it is bounded by the people of the workspace, ordered by name.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+	ListConsentsWithResponse(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*ListConsentsResult, error)
 
 	// GiveConsentWithBodyWithResponse Agree to an optional processing purpose
 	//
@@ -53838,6 +53977,58 @@ func (r AcknowledgeAiPositionResult) ContentType() string {
 	return ""
 }
 
+type ListConsentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []ConsentRegisterEntry `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConsentsResult) GetJSON200() *struct {
+	Data []ConsentRegisterEntry `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConsentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConsentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConsentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConsentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConsentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GiveConsentResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -61783,6 +61974,26 @@ func (c *ClientWithResponses) AcknowledgeAiPositionWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseAcknowledgeAiPositionResult(rsp)
+}
+
+// ListConsentsWithResponse The consent register - who withdrew a purpose
+//
+// For one purpose, every person whose newest record is a withdrawal, with since when and
+// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+// own content out of AI - and this register is the one place that list appears. For the
+// people who manage members (`MANAGE_MEMBERS`).
+//
+// Unpaged: it is bounded by the people of the workspace, ordered by name.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+func (c *ClientWithResponses) ListConsentsWithResponse(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*ListConsentsResult, error) {
+	rsp, err := c.ListConsents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConsentsResult(rsp)
 }
 
 // GiveConsentWithBodyWithResponse Agree to an optional processing purpose
@@ -71890,6 +72101,41 @@ func ParseAcknowledgeAiPositionResult(rsp *http.Response) (*AcknowledgeAiPositio
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest OwnAiPosition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConsentsResult parses an HTTP response from a ListConsentsWithResponse call
+func ParseListConsentsResult(rsp *http.Response) (*ListConsentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConsentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []ConsentRegisterEntry `json:"data"`
+		}
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

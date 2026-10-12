@@ -27,6 +27,7 @@ const (
 	restrictProcessingUseCase       = "RestrictProcessing"
 	withdrawConsentUseCase          = "WithdrawConsent"
 	giveConsentUseCase              = "GiveConsent"
+	listConsentsUseCase             = "ListConsents"
 	readOwnAiPositionUseCase        = "ReadOwnAiPosition"
 	acknowledgeAiPositionUseCase    = "AcknowledgeAiPosition"
 )
@@ -339,6 +340,32 @@ func (c *RestController) WithdrawConsent(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, r, http.StatusOK, consentRecordOf(out))
+}
+
+// ListConsents answers GET /privacy/consents: the register, the one place who withdrew is listed.
+func (c *RestController) ListConsents(w http.ResponseWriter, r *http.Request, params openapi.ListConsentsParams) {
+	out, ok := c.read(w, r, listConsentsUseCase, usecase.Input{"purpose": params.Purpose})
+	if !ok {
+		return
+	}
+	rows, _ := out["items"].([]usecase.Output)
+	answer := struct {
+		Data []openapi.ConsentRegisterEntry `json:"data"`
+	}{Data: make([]openapi.ConsentRegisterEntry, 0, len(rows))}
+	for _, row := range rows {
+		entry := openapi.ConsentRegisterEntry{
+			AccountId: uuidValue(row.String("account_id")), DisplayName: row.String("display_name"),
+		}
+		if since, held := row["since"].(time.Time); held {
+			entry.Since = since
+		}
+		if source := row.String("source"); source != "" {
+			value := openapi.ConsentRegisterEntrySource(source)
+			entry.Source = &value
+		}
+		answer.Data = append(answer.Data, entry)
+	}
+	writeJSON(w, r, http.StatusOK, answer)
 }
 
 // GiveConsent answers POST /privacy/consents:give.
