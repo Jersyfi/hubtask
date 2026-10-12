@@ -384,6 +384,19 @@ class PrivateHubSummary(TypedDict, total=False):
     created_at: Required[str]
     trashed_at: str | None
     purge_on: str | None
+    emergency_access: Required[dict[str, Any]]
+
+class PrivateHubAccessRequest(TypedDict, total=False):
+    reason: Required[str]
+
+class PrivateHubAccess(TypedDict, total=False):
+    """One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why."""
+    id: Required[str]
+    hub_id: Required[str]
+    opened_by: Required[str | None]
+    reason: Required[str]
+    opened_at: Required[str]
+    ends_at: Required[str]
 
 class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
@@ -399,6 +412,7 @@ class Workspace(TypedDict, total=False):
     updated_at: str | None
     version: Required[int]
     private_hubs_offered: bool
+    several_people: bool
     sign_in_policy: "SignInPolicy"
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
@@ -455,6 +469,7 @@ class SignInPolicy(TypedDict, total=False):
     session: Required["SessionPolicySettings"]
     legal: Required["LegalPolicySettings"]
     managed_accounts: "SignInPolicyFlag"
+    private_hubs: "SignInPolicyFlag"
     rotation_from: Required[str | None]
 
 class PasswordPolicySettings(TypedDict, total=False):
@@ -517,6 +532,7 @@ class SignInPolicyChange(TypedDict, total=False):
     terms_url: str
     accessibility_url: str
     managed_accounts: bool
+    private_hubs: bool
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):

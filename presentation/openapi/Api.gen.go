@@ -6158,7 +6158,7 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -7249,6 +7249,24 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
+type PrivateHubAccess struct {
+	EndsAt   time.Time          `json:"ends_at"`
+	HubId    openapi_types.UUID `json:"hub_id"`
+	Id       openapi_types.UUID `json:"id"`
+	OpenedAt time.Time          `json:"opened_at"`
+
+	// OpenedBy The account that opened it; null once that account is gone.
+	OpenedBy *openapi_types.UUID `json:"opened_by"`
+	Reason   string              `json:"reason"`
+}
+
+// PrivateHubAccessRequest defines model for PrivateHubAccessRequest.
+type PrivateHubAccessRequest struct {
+	// Reason Why the hub is opened. Told to every member of the hub, and kept with the hub as their record of who opened it.
+	Reason string `json:"reason"`
+}
+
 // PrivateHubSummary A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name.
 type PrivateHubSummary struct {
 	// AttachmentBytes The bytes of the files attached to its entries.
@@ -7257,6 +7275,12 @@ type PrivateHubSummary struct {
 	// Collections Collections in it, the trashed ones included.
 	Collections int       `json:"collections"`
 	CreatedAt   time.Time `json:"created_at"`
+
+	// EmergencyAccess The caller's emergency access to this hub. `offered` is true where the caller may open it now - the workspace's owner, holding nothing in the hub, with no access of theirs running; `open_until` is the end of the caller's running access, or null.
+	EmergencyAccess struct {
+		Offered   bool       `json:"offered"`
+		OpenUntil *time.Time `json:"open_until"`
+	} `json:"emergency_access"`
 
 	// Entries Entries in it, the trashed ones included.
 	Entries int                `json:"entries"`
@@ -8207,6 +8231,9 @@ type SignInPolicy struct {
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
 
+	// PrivateHubs Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.
+	PrivateHubs *SignInPolicyFlag `json:"private_hubs,omitempty"`
+
 	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
 	RotationFrom *time.Time `json:"rotation_from"`
 
@@ -8243,6 +8270,7 @@ type SignInPolicyChange struct {
 	MinSymbols   *int    `json:"min_symbols,omitempty"`
 	MinUppercase *int    `json:"min_uppercase,omitempty"`
 	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+	PrivateHubs  *bool   `json:"private_hubs,omitempty"`
 
 	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
 	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
@@ -9178,11 +9206,14 @@ type Workspace struct {
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
 
-	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.
+	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace allows private hubs (`sign_in_policy.private_hubs`) and holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. Where private hubs are not allowed, the server refuses one (`containers.private_hubs_off`).
 	PrivateHubsOffered *bool `json:"private_hubs_offered,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
+
+	// SeveralPeople Whether the workspace holds more than one person whose account is not anonymised - where private hubs, and the setting that allows them, mean something.
+	SeveralPeople *bool `json:"several_people,omitempty"`
 
 	// SignInPolicy How people in this workspace prove who they are. Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
 	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
@@ -9296,6 +9327,9 @@ type FeedId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
+
+// HubId defines model for HubId.
+type HubId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -10289,6 +10323,12 @@ type ExtendDataSubjectRequestParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// OpenPrivateHubParams defines parameters for OpenPrivateHub.
+type OpenPrivateHubParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
 type ListRetentionPoliciesParams struct {
 	ContainerId *openapi_types.UUID `form:"container_id,omitempty" json:"container_id,omitempty"`
@@ -10760,6 +10800,9 @@ type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubj
 // ExtendDataSubjectRequestJSONRequestBody defines body for ExtendDataSubjectRequest for application/json ContentType.
 type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
 
+// OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
+type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
+
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
 
@@ -10816,6 +10859,9 @@ type ServerInterface interface {
 	// GetOwnAccount The account the caller is signed in as
 	// (GET /accounts/me)
 	GetOwnAccount(w http.ResponseWriter, r *http.Request)
+	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
+	// (GET /accounts/me/emergency-notices)
+	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11575,6 +11621,12 @@ type ServerInterface interface {
 	// ListPrivateHubs The workspace's private hubs, without their names
 	// (GET /private-hubs)
 	ListPrivateHubs(w http.ResponseWriter, r *http.Request)
+	// ListPrivateHubAccesses Who opened this private hub through the emergency access, and why
+	// (GET /private-hubs/{hubId}/accesses)
+	ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// OpenPrivateHub Open a private hub through the emergency access
+	// (POST /private-hubs/{hubId}/accesses)
+	OpenPrivateHub(w http.ResponseWriter, r *http.Request, hubId HubId, params OpenPrivateHubParams)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -11705,6 +11757,20 @@ func (siw *ServerInterfaceWrapper) GetOwnAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEmergencyNotices operation middleware
+func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEmergencyNotices(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20796,6 +20862,82 @@ func (siw *ServerInterfaceWrapper) ListPrivateHubs(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListPrivateHubAccesses operation middleware
+func (siw *ServerInterfaceWrapper) ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPrivateHubAccesses(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OpenPrivateHub operation middleware
+func (siw *ServerInterfaceWrapper) OpenPrivateHub(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OpenPrivateHubParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenPrivateHub(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadQuotas operation middleware
 func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -22397,6 +22539,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
