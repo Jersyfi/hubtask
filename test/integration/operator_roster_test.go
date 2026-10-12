@@ -296,3 +296,37 @@ func TestAddingTheFirstColleagueKeepsTheOwnerAnOperator(t *testing.T) {
 		t.Errorf("adding an invited account answered %v", err)
 	}
 }
+
+// UC-INS-04 check 1, the "only" half: with an empty register the owner of the only workspace is the
+// operator and nobody else is - not a member, not an account without a role, not a service account;
+// and once a second workspace exists, an empty register names nobody, so neither owner reaches it.
+func TestAnEmptyRegisterNamesTheOnlyWorkspacesOwnerAndNobodyElse(t *testing.T) {
+	ctx := context.Background()
+	admin, app := privateInstallation(ctx, t, "hubtask_operator_only_owner")
+
+	if !operatorHeld(ctx, t, app, rosterOwner) {
+		t.Fatal("the owner of the only workspace does not reach the installation")
+	}
+	for _, other := range []string{rosterMember, rosterColleague, rosterService, rosterNobody} {
+		if operatorHeld(ctx, t, app, other) {
+			t.Errorf("%s, not the owner, reaches the installation through an empty register", other)
+		}
+	}
+
+	for _, statement := range []string{
+		`INSERT INTO tenant (id, slug, display_name) VALUES ('` + rosterOther + `', 'acme', 'Acme')`,
+		`INSERT INTO account (id, tenant_id, kind, email, display_name, status) VALUES
+		   ('` + rosterOtherOwner + `', '` + rosterOther + `', 'USER', 'olga@acme.example', 'Olga', 'ACTIVE')`,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES
+		   ('` + rosterOtherGrant + `', '` + rosterOther + `', '` + rosterOtherOwner + `', 'TENANT', 'OWNER')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding a second workspace: %v", err)
+		}
+	}
+	for _, owner := range []string{rosterOwner, rosterOtherOwner} {
+		if operatorHeld(ctx, t, app, owner) {
+			t.Errorf("%s, the owner of one of two workspaces, reaches the installation through an empty register", owner)
+		}
+	}
+}
