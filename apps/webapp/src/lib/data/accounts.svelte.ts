@@ -40,6 +40,11 @@ class Accounts {
    * mail fail silently.
    */
   #addressless = $state<Record<string, true>>({});
+  /**
+   * The managed accounts: a sign-in name and no address (ADR-0074 §4, §6). The server's full
+   * condition for a new start password and an address, so a screen offers both exactly there.
+   */
+  #managed = $state<Record<string, true>>({});
   /** Asked for and not answered yet, so a second caller does not ask again. */
   #asking = new Set<string>();
   /** Asked for and refused, so nobody asks again at all. */
@@ -53,6 +58,11 @@ class Accounts {
   /** Whether mail is known not to reach this person. Unknown reads as reachable. */
   hasNoAddress(id: string | null | undefined): boolean {
     return id ? this.#addressless[id] === true : false;
+  }
+
+  /** Whether the account is known to be managed. Unknown reads as not: nothing is offered. */
+  isManaged(id: string | null | undefined): boolean {
+    return id ? this.#managed[id] === true : false;
   }
 
   /** The account's standing — `ACTIVE`, `INVITED`, `DISABLED` — where it is known. */
@@ -81,6 +91,7 @@ class Accounts {
         this.#names = { ...this.#names, [id]: state.data.display_name };
         if (state.data.status) this.#statuses = { ...this.#statuses, [id]: state.data.status };
         if (state.data.has_address === false) this.#addressless = { ...this.#addressless, [id]: true };
+        if (state.data.managed === true) this.#managed = { ...this.#managed, [id]: true };
       } else {
         this.#unknown.add(id);
       }
