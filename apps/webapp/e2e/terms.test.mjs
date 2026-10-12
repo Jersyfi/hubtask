@@ -52,7 +52,11 @@ function stubFor(rules, sent, answers = {}) {
     if (request.method() === 'POST') sent.push({ path, body: request.postDataJSON() });
     if (path === '/auth/sign-in-rules') return route.fulfill({ json: rules });
     if (path === '/auth/password:check') return route.fulfill({ json: { violations: [] } });
-    if (path in answers) return route.fulfill(answers[path]());
+    if (path in answers) {
+      const answer = answers[path]();
+      // `null` is a request left unanswered: what is asserted is what it carried.
+      return answer === null ? new Promise(() => {}) : route.fulfill(answer);
+    }
     if (path === '/meta/capabilities') {
       return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
     }
@@ -158,7 +162,7 @@ test('the agreement on the invitation card travels with the provider', async () 
   const sent = [];
   const { page, done } = await openAt('/redeem#token=invitation-token', stubFor(RULES, sent, {
     // Never answered: what is asserted is what the start carried.
-    '/auth/oidc:start': () => new Promise(() => {}),
+    '/auth/oidc:start': () => null,
   }));
   try {
     await page.getByRole('checkbox', { name: 'I agree to the terms of use (version 3)' }).check();
