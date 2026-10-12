@@ -23,6 +23,7 @@
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
 
+  import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -162,6 +163,19 @@
       ? renderProblem(containers.hubsState.error, messages)
       : undefined,
   );
+
+  // While nobody has given this person anything, coming back to the window asks again: an
+  // administrator granting access meanwhile shows without a reload. Only then - a person with
+  // access is not re-read on every focus.
+  $effect(() => {
+    if (!actor.hasNoAccess) return;
+    const askAgain = () => {
+      void actor.reread();
+      void containers.refresh();
+    };
+    window.addEventListener('focus', askAgain);
+    return () => window.removeEventListener('focus', askAgain);
+  });
 </script>
 
 <!-- A column rather than a `Stack`, because the tree has to fill it: the `keeping` band is
@@ -200,6 +214,12 @@
       retryLabel={t('app.retry')}
       onRetry={() => containers.refresh()}
     />
+  {:else if actor.hasNoAccess}
+    {#if !isRail}
+      <!-- Nobody gave this person anything yet (UC-ID-08 check 2): a sentence, and no *Create hub*,
+           which the server refuses to an account holding no role anywhere. -->
+      <EmptyState kind="unused" title={t('app.workspace.no_access')} icon="hub" />
+    {/if}
   {:else if containers.hasNoHubs && !isRail}
     <!-- `unused` and not `filtered`: nothing is filtering the sidebar, and voice-and-tone.md §4.2 is
          about a filter that excluded something. §4.1 is the other half of that rule - say what this

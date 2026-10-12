@@ -272,7 +272,7 @@ rows every workspace reads and none writes. An installation provider is **offere
 | Preset | Directory claim | Authoritative for an address when | Mode allowed |
 |---|---|---|---|
 | `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any |
-| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` only (a public issuer) |
+| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` or `DOMAINS`, never `ANY` (a public issuer: a personal account carries no `hd` and comes in only by invitation) |
 | `GENERIC` | none | never — a self-hosted issuer included | any; at installation level `INVITED_ONLY` only |
 
 Presets are data: the issuer or its pattern, scopes, particulars, and registration instructions as
@@ -296,9 +296,17 @@ An unverified address comes in nowhere. Then:
 * **A preset with a directory claim ignores `allowed_email_domains`** — two lists that both admit are
   two doors. An empty list under `DOMAINS` admits nobody; domains without directories under such a
   preset admit nobody until a directory is named, and the screen says so.
+* **A directory list narrows `INVITED_ONLY`** for a preset with a directory claim: an
+  authoritative address from a directory not listed is not admitted on the provider's word. An
+  empty list does not narrow.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
-* An account created on arrival holds no role.
+* **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
+  group of it — given in the transaction that creates the account, recorded as a grant. Only a
+  workspace's own provider under `DOMAINS` or `ANY` names it; never `OWNER`, directly or through a
+  group, which is checked when it is saved and again on arrival (a group gone or holding `OWNER` by
+  then gives nothing). A person holding no membership anywhere is told an administrator still has
+  to give access.
 * A mode a build does not know admits nobody.
 * Microsoft's personal-account directory is `9188040d-6c67-4c5b-b112-36a304b66dad`; a company's is
   its tenant GUID. Google directories are Workspace domains as `hd` answers them.
@@ -677,9 +685,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 |---|---|
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
-| I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
-| I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |

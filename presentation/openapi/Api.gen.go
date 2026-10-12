@@ -4116,6 +4116,9 @@ type Account struct {
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
 
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
@@ -5933,6 +5936,7 @@ type HubPrivacy struct {
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
 	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
+	// Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.
 	AllowedDirectories []string `json:"allowed_directories"`
 
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
@@ -5957,6 +5961,12 @@ type IdentityProvider struct {
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
 
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
@@ -6011,8 +6021,14 @@ type IdentityProviderConfiguration struct {
 	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
-	Kind     *IdentityProviderKind `json:"kind,omitempty"`
-	Position *int                  `json:"position,omitempty"`
+	Kind *IdentityProviderKind `json:"kind,omitempty"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+	Position     *int            `json:"position,omitempty"`
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
@@ -6044,7 +6060,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
@@ -6247,6 +6263,9 @@ type InvitedAccount struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
 
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`

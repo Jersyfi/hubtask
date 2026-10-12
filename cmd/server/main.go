@@ -1018,6 +1018,9 @@ func run() error {
 		Accounts:    accounts,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		// What a provider names for newcomers is given in the arrival's own transaction.
+		Grants: grants,
+		Groups: groups,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1171,6 +1174,9 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
+		// What a newcomer gets names a group of this workspace, checked at configuration.
+		Groups: groups,
+		Grants: grants,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1370,6 +1376,8 @@ func run() error {
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
+			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
+			Access: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{

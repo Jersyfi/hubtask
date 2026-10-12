@@ -560,7 +560,19 @@ CREATE TABLE identity_provider (
   -- move_provider_offer, and when its offer ends (ADR-0076, migration 0114). A workspace's own row
   -- keeps zero and NULL.
   offered_workspaces    integer NOT NULL DEFAULT 0,
-  withdraw_at           timestamptz
+  withdraw_at           timestamptz,
+  -- What somebody the provider brings in new gets (migration 0132): one role on the workspace, or
+  -- one group of it, or nothing (both NULL). Never on the installation's rows, never OWNER.
+  newcomer_role         membership_role,
+  newcomer_group_id     uuid,
+  CONSTRAINT identity_provider_newcomers_check CHECK (
+    (newcomer_role IS NULL OR newcomer_group_id IS NULL)
+    AND (tenant_id IS NOT NULL OR (newcomer_role IS NULL AND newcomer_group_id IS NULL))
+    AND newcomer_role IS DISTINCT FROM 'OWNER'
+  ),
+  CONSTRAINT identity_provider_newcomer_group_fk
+    FOREIGN KEY (tenant_id, newcomer_group_id) REFERENCES account_group (tenant_id, id)
+    ON DELETE SET NULL (newcomer_group_id)
 );
 -- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
 -- installation's rows: without it every NULL tenant is its own.

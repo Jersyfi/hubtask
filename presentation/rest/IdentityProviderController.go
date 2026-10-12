@@ -213,6 +213,12 @@ func (c *RestController) writeProvider(
 	if body.Enabled != nil {
 		in["enabled"] = *body.Enabled
 	}
+	if body.NewcomerRole != nil {
+		in["newcomer_role"] = string(*body.NewcomerRole)
+	}
+	if body.NewcomerGroupId != nil {
+		in["newcomer_group_id"] = body.NewcomerGroupId.String()
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), in)
 	if err != nil {
@@ -384,6 +390,14 @@ func identityProviderResponse(out usecase.Output) openapi.IdentityProvider {
 	}
 	if enabled, held := out["enabled"].(bool); held {
 		answer.Enabled = enabled
+	}
+	if role, held := out["newcomer_role"].(string); held && role != "" {
+		newcomer := openapi.MembershipRole(role)
+		answer.NewcomerRole = &newcomer
+	}
+	if group, held := out["newcomer_group_id"].(string); held && group != "" {
+		newcomer := uuidValue(group)
+		answer.NewcomerGroupId = &newcomer
 	}
 	if offered, held := out["offered_here"].(bool); held {
 		answer.OfferedHere = &offered
