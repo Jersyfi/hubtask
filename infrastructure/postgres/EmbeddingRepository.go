@@ -42,9 +42,20 @@ const (
 		FROM work_item wi
 		LEFT JOIN item_embedding e ON e.tenant_id = wi.tenant_id AND e.item_id = wi.id
 		WHERE wi.deleted_at IS NULL
+		  AND NOT (wi.created_by = ANY($3::uuid[]))
 		  AND (e.item_id IS NULL OR e.model <> $1 OR e.source_digest <> digest_of(wi.title, coalesce(wi.notes, '')))
 		ORDER BY wi.updated_at DESC NULLS LAST, wi.id
 		LIMIT $2`
+
+	// The vectors of the entries some people created: theirs, in another form. The table exists
+	// only where pgvector does, so the statement asks first and forgets nothing where it is not.
+	embeddingStoreExists = `SELECT to_regclass('public.item_embedding') IS NOT NULL`
+
+	forgetEmbeddings = `
+		DELETE FROM item_embedding e
+		USING work_item wi
+		WHERE wi.tenant_id = e.tenant_id AND wi.id = e.item_id
+		  AND wi.created_by = ANY($1::uuid[])`
 
 	countMissingEmbeddings = `
 		SELECT count(*)::bigint FROM (
@@ -108,14 +119,14 @@ const (
 // is for: the alternative is reading every entry's text into the process to fingerprint it, which
 // is the whole table crossing the wire to find the handful of rows that moved.
 func (EmbeddingRepository) Owed(
-	ctx context.Context, model string, batch int,
+	ctx context.Context, model string, batch int, skip []shared.ID,
 ) ([]repository.OwedEmbedding, error) {
 	tx, err := FromContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := tx.Query(ctx, owedEmbeddings, model, batch)
+	rows, err := tx.Query(ctx, owedEmbeddings, model, batch, idTexts(skip))
 	if err != nil {
 		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading what needs embedding: %w", err))
@@ -331,4 +342,39 @@ func (EmbeddingRepository) OtherSpaceRemains(ctx context.Context, space string) 
 			WithCause(fmt.Errorf("asking whether another model's vectors remain: %w", err))
 	}
 	return remains, nil
+}
+
+// Forget removes the vectors of every entry the named people created.
+func (EmbeddingRepository) Forget(ctx context.Context, creators []shared.ID) (int, error) {
+	if len(creators) == 0 {
+		return 0, nil
+	}
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return 0, err
+	}
+	var exists bool
+	if err := tx.QueryRow(ctx, embeddingStoreExists).Scan(&exists); err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether the embedding store exists: %w", err))
+	}
+	if !exists {
+		return 0, nil
+	}
+	tag, err := tx.Exec(ctx, forgetEmbeddings, idTexts(creators))
+	if err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("forgetting embeddings: %w", err))
+	}
+	return int(tag.RowsAffected()), nil
+}
+
+// idTexts binds a list of identifiers as a uuid array: always a list, never nil, so that "nobody"
+// is an empty array the statement compares against rather than a NULL that matches nothing.
+func idTexts(ids []shared.ID) []string {
+	texts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		texts = append(texts, id.String())
+	}
+	return texts
 }

@@ -222,3 +222,25 @@ func TestAPseudonymIsRecordedOnce(t *testing.T) {
 		t.Errorf("the actor is answered as %q - a retried erasure renamed them", found[actor])
 	}
 }
+
+// Standing is the newest record per account, kept where it is a withdrawal.
+func (d *double) Standing(_ context.Context, purpose string) ([]Objector, error) {
+	newest := map[shared.ID]domain.Consent{}
+	order := []shared.ID{}
+	for _, consent := range d.consents {
+		if consent.Purpose != purpose || consent.AccountID.IsZero() {
+			continue
+		}
+		if _, seen := newest[consent.AccountID]; !seen {
+			order = append(order, consent.AccountID)
+		}
+		newest[consent.AccountID] = consent
+	}
+	var standing []Objector
+	for _, id := range order {
+		if consent := newest[id]; !consent.Granted {
+			standing = append(standing, Objector{AccountID: id, Since: consent.GrantedAt, Source: consent.Source})
+		}
+	}
+	return standing, nil
+}

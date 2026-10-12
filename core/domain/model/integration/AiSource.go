@@ -101,18 +101,18 @@ func declaredRank(declared AiJurisdiction) int {
 	return 0
 }
 
-// AiSwitch names a key of the instance area `ai`. A later key - a person keeping their own
-// content out - is one more constant and one more field on AiLayer.
+// AiSwitch names a key of the instance area `ai`.
 type AiSwitch string
 
 const (
 	AiSwitchSources         AiSwitch = "sources"
 	AiSwitchMinJurisdiction AiSwitch = "min_jurisdiction"
+	AiSwitchPersonOptOut    AiSwitch = "person_opt_out"
 )
 
 // AiSwitches is every key of the area, in the order a screen draws them.
 func AiSwitches() []AiSwitch {
-	return []AiSwitch{AiSwitchSources, AiSwitchMinJurisdiction}
+	return []AiSwitch{AiSwitchSources, AiSwitchMinJurisdiction, AiSwitchPersonOptOut}
 }
 
 // DeclarationOfAiSwitch answers a key's kind and closed set, from the loosest value to the
@@ -133,22 +133,34 @@ func DeclarationOfAiSwitch(name AiSwitch) (identity.ValueDeclaration, bool) {
 			options = append(options, string(floor))
 		}
 		return identity.ValueDeclaration{Kind: identity.KindChoice, May: identity.MayTighten, Options: options}, true
+	case AiSwitchPersonOptOut:
+		// One value: the installation holds every workspace at letting each person keep their own
+		// content out, or leaves the choice to each workspace. NOT_OFFERED is a workspace's alone.
+		return identity.ValueDeclaration{
+			Kind: identity.KindChoice, May: identity.MayTighten, Options: []string{string(AiOptOutOffered)},
+		}, true
 	}
 	return identity.ValueDeclaration{}, false
 }
 
 // AiLayer is one level's say about AI: a nil value is a key that level did not decide, and Locks
-// the keys it forbids the level below to touch. A workspace's layer carries only Sources - its
-// narrowing - because a workspace has no own model below it to hold to a minimum.
+// the keys it forbids the level below to touch. A workspace's layer carries Sources - its
+// narrowing - and its position on people keeping their content out, never a minimum: a workspace
+// has no own model below it to hold to one.
 type AiLayer struct {
 	Sources         *AiSources
 	MinJurisdiction *AiMinJurisdiction
-	Locks           map[AiSwitch]bool
+	// PersonOptOut is OFFERED at the installation and a plan, or nothing; NOT_OFFERED only at
+	// the workspace, and only with Basis.
+	PersonOptOut *AiPersonOptOut
+	// Basis is the legal basis a workspace named for NOT_OFFERED. Ignored at every other level.
+	Basis AiOptOutBasis
+	Locks map[AiSwitch]bool
 }
 
 // IsZero reports a layer that decided nothing and locked nothing.
 func (l AiLayer) IsZero() bool {
-	if l.Sources != nil || l.MinJurisdiction != nil {
+	if l.Sources != nil || l.MinJurisdiction != nil || l.PersonOptOut != nil {
 		return false
 	}
 	for _, locked := range l.Locks {
@@ -168,8 +180,12 @@ type AiRule struct {
 	// and before dropping what is not offered - what a narrowing is checked against.
 	Above           AiSources
 	MinJurisdiction AiMinJurisdiction
-	Locks           map[AiSwitch]identity.LockOrigin
-	Origins         map[AiSwitch]identity.PolicySource
+	// PersonOptOut is whether each person may keep their own content out, and Basis the legal
+	// basis the workspace named where it may not.
+	PersonOptOut AiPersonOptOut
+	Basis        AiOptOutBasis
+	Locks        map[AiSwitch]identity.LockOrigin
+	Origins      map[AiSwitch]identity.PolicySource
 }
 
 // LockOf answers where a key is locked, or LockNone.
@@ -194,6 +210,7 @@ func EffectiveAi(instance, plan, workspace AiLayer, offered bool) AiRule {
 	rule := AiRule{
 		Sources:         AiSourcesOwn,
 		MinJurisdiction: AiMinAny,
+		PersonOptOut:    AiOptOutOffered,
 		Locks:           map[AiSwitch]identity.LockOrigin{},
 		Origins:         map[AiSwitch]identity.PolicySource{},
 	}
@@ -212,6 +229,12 @@ func EffectiveAi(instance, plan, workspace AiLayer, offered bool) AiRule {
 			rule.MinJurisdiction = *level.layer.MinJurisdiction
 			rule.Origins[AiSwitchMinJurisdiction] = level.source
 		}
+		// Only OFFERED is honoured above the workspace: a level that cannot name a legal basis
+		// cannot make AI part of everybody's work (milestone PH, decision 4).
+		if level.layer.PersonOptOut != nil && *level.layer.PersonOptOut == AiOptOutOffered &&
+			rule.Locks[AiSwitchPersonOptOut] == identity.LockNone {
+			rule.Origins[AiSwitchPersonOptOut] = level.source
+		}
 		for _, name := range AiSwitches() {
 			if level.layer.Locks[name] && rule.Locks[name] == identity.LockNone {
 				rule.Locks[name] = level.origin
@@ -224,6 +247,18 @@ func EffectiveAi(instance, plan, workspace AiLayer, offered bool) AiRule {
 		(rule.Locks[AiSwitchSources] == identity.LockNone || *narrowed == AiSourcesNone) {
 		rule.Sources = *narrowed
 		rule.Origins[AiSwitchSources] = identity.SourceWorkspace
+	}
+
+	// The workspace's NOT_OFFERED stands only with a basis and where nothing is locked; one stored
+	// before a lock was placed is ignored, as a stale narrowing is.
+	if position := workspace.PersonOptOut; position != nil && rule.Locks[AiSwitchPersonOptOut] == identity.LockNone {
+		switch {
+		case *position == AiOptOutNotOffered && workspace.Basis.Valid():
+			rule.PersonOptOut, rule.Basis = AiOptOutNotOffered, workspace.Basis
+			rule.Origins[AiSwitchPersonOptOut] = identity.SourceWorkspace
+		case *position == AiOptOutOffered:
+			rule.Origins[AiSwitchPersonOptOut] = identity.SourceWorkspace
+		}
 	}
 
 	if !offered {

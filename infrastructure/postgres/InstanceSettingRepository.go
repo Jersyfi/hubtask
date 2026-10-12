@@ -255,6 +255,13 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 			level.Ai.MinJurisdiction = &floor
 			level.Ai.Locks[integration.AiSwitchMinJurisdiction] = locked
 		}
+	case aiArea + "." + string(integration.AiSwitchPersonOptOut):
+		var value string
+		if value, err = word(); err == nil {
+			position := integration.AiPersonOptOut(value)
+			level.Ai.PersonOptOut = &position
+			level.Ai.Locks[integration.AiSwitchPersonOptOut] = locked
+		}
 	default:
 		if name, isQuota := strings.CutPrefix(key, quotaArea+"."); isQuota {
 			var ceiling int64
@@ -529,6 +536,11 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		aiValues[integration.AiSwitchMinJurisdiction] = string(*level.Ai.MinJurisdiction)
 	} else if level.Ai.Locks[integration.AiSwitchMinJurisdiction] {
 		aiValues[integration.AiSwitchMinJurisdiction] = string(integration.AiMinAny)
+	}
+	if level.Ai.PersonOptOut != nil {
+		aiValues[integration.AiSwitchPersonOptOut] = string(*level.Ai.PersonOptOut)
+	} else if level.Ai.Locks[integration.AiSwitchPersonOptOut] {
+		aiValues[integration.AiSwitchPersonOptOut] = string(integration.AiOptOutOffered)
 	}
 	for _, name := range integration.AiSwitches() {
 		value, decided := aiValues[name]

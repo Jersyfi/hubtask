@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/port/audit"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -237,5 +238,34 @@ func assertNoPlaintext(t *testing.T, output string) {
 	t.Helper()
 	if strings.Contains(output, plaintext) {
 		t.Errorf("the log contains the secret: %s", output)
+	}
+}
+
+// Rule 10 for the audit trail's sensitive values on their way to the sink: a log line through
+// this logger shows the marker, never the value - as an attribute of its own in either format, and
+// inside an entry's changes, where the JSON handler meets the value's refusal to serialise instead.
+func TestASensitiveAuditValueLogsAsRedacted(t *testing.T) {
+	const name = "Lena Beispiel"
+	changes := audit.Changes(audit.Change{Field: "name", Classification: audit.Sensitive, To: name})
+	pending := changes["name"].(map[string]any)["to_hash"]
+
+	for _, format := range []string{"json", "text"} {
+		t.Run(format, func(t *testing.T) {
+			logger, buf := newTestLogger(t, format)
+			logger.Info("recording", slog.Any("to_hash", pending))
+			if strings.Contains(buf.String(), name) || !strings.Contains(buf.String(), audit.Redacted) {
+				t.Errorf("the attribute is not redacted: %s", buf)
+			}
+
+			buf.Reset()
+			logger.Info("recording", slog.Any("changes", changes),
+				slog.Any("entry", audit.Entry{Action: "container.created", Changes: changes}))
+			if strings.Contains(buf.String(), name) {
+				t.Errorf("an entry's changes carried the value into the log: %s", buf)
+			}
+			if format == "text" && !strings.Contains(buf.String(), audit.Redacted) {
+				t.Errorf("the text line does not show the marker: %s", buf)
+			}
+		})
 	}
 }

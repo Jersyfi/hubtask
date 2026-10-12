@@ -28,6 +28,7 @@ const (
 	CodeRequestClosed           = "privacy.request_closed"
 	CodePurposeRequired         = "privacy.purpose_required"
 	CodeConsentNotFound         = "privacy.consent_not_found"
+	CodeConsentOwnOnly          = "privacy.consent_own_only"
 	CodeSubjectNotFound         = "privacy.subject_not_found"
 	CodeInstallationScopeDenied = "privacy.installation_scope_denied"
 	// CodeErasureBlockedByRule is the refusal PG-2 asked for: the person still runs automation,

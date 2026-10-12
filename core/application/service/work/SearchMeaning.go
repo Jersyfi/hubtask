@@ -31,6 +31,9 @@ type SearchMeaning struct {
 	UnitOfWork persistence.UnitOfWork
 	// Timeout bounds the provider call. Zero takes the default below.
 	Timeout time.Duration
+	// Kept is whose content stays out of AI. A person kept out searches by words: what they type
+	// is theirs, and no AI action is theirs (UC-PRV-05 check 7). Nil keeps nobody out.
+	Kept KeptOutReader
 }
 
 // defaultMeaningTimeout is how long a search waits for a provider.
@@ -58,8 +61,15 @@ func (m SearchMeaning) Of(
 	if err := m.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			var err error
-			available, err = m.Semantic.Available(ctx)
-			return err
+			if available, err = m.Semantic.Available(ctx); err != nil || !available || m.Kept == nil {
+				return err
+			}
+			kept, err := m.Kept.Read(ctx, actor.TenantID)
+			if err != nil {
+				return err
+			}
+			available = !kept.Has(actor.AccountID)
+			return nil
 		}); err != nil {
 		return nil, "", err
 	}

@@ -87,6 +87,23 @@ export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'ho
  * The private hubs as an administrator lists them: one in use, owned by the other person, and one
  * whose last member left, in the trash. No names - the list has none to give.
  */
+/** This installation's own callback, as the presets answer it. */
+export const REDIRECT_URI = 'https://hubtask.example/api/v1/auth/oidc/callback';
+
+const preset = (kind, provisioning, extra = {}) => ({
+  kind, scopes: ['openid', 'email', 'profile'], addresses_verified: kind !== 'GENERIC',
+  public: kind === 'GOOGLE', provisioning, installation_provisioning: ['INVITED_ONLY'],
+  redirect_uri: REDIRECT_URI, instructions: `identity_provider.preset.${kind.toLowerCase()}.instructions`,
+  supports_templated_issuer: kind === 'MICROSOFT', ...extra,
+});
+
+/** The three presets as `GET /identity-provider-presets` answers them today (UC-ID-11). */
+export const PROVIDER_PRESETS = [
+  preset('GOOGLE', ['INVITED_ONLY', 'DOMAINS'], { directory_claim: 'hd', particular: 'identity_provider.preset.google.particular' }),
+  preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid' }),
+  preset('GENERIC', ['INVITED_ONLY', 'DOMAINS', 'ANY']),
+];
+
 export const PRIVATE_HUBS = [
   { id: '01a0e2e0-0000-7000-8000-0000000005b1', owners: [OTHER.id], collections: 2, entries: 14, attachment_bytes: 2_621_440, created_at: '2026-09-02T08:00:00Z', trashed_at: null, purge_on: null },
   { id: '01a0e2e0-0000-7000-8000-0000000005b2', owners: [], collections: 1, entries: 3, attachment_bytes: 0, created_at: '2026-09-03T08:00:00Z', trashed_at: '2026-10-01T08:00:00Z', purge_on: '2026-10-31' },
@@ -134,7 +151,16 @@ export const OFFERED_AI = [
  * A workspace's AI source on a private installation (D1): its own model, nothing offered, no lock -
  * today's screen. A walk of an installation that offers a model routes `/ai-source` itself.
  */
-export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0 };
+export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0 };
+
+/**
+ * A person's own view of keeping their content out of AI where there is nothing to choose: AI off
+ * in the fixture's workspace (UC-PRV-05 check 8). A walk of the switch routes it itself.
+ */
+export const AI_OBJECTION = { shown: false, person_opt_out: 'OFFERED', keeping_out: false, in_effect: false, notice_pending: false };
+
+/** The consent register: one person keeps their content out, recorded by themselves. */
+export const CONSENT_REGISTER = { data: [{ account_id: '01a0e2e0-0000-7000-8000-0000000000b7', display_name: 'Kim Keeper', since: '2026-10-05T09:12:00Z', source: 'user' }] };
 
 /**
  * The keyring mid-rotation, as the operator reads it: the current key, a predecessor nothing names
@@ -230,9 +256,12 @@ export function stub(route) {
     return route.fulfill({ json: { mode: url.searchParams.get('mode') ?? 'ANONYMIZE', kept: PRIVACY_REQUESTS[4].kept } });
   }
   if (path.endsWith('/api/v1/legal-holds') && request.method() === 'GET') return route.fulfill({ json: LEGAL_HOLDS });
+  if (path.endsWith('/api/v1/identity-provider-presets')) return route.fulfill({ json: PROVIDER_PRESETS });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
+  if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
+  if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).

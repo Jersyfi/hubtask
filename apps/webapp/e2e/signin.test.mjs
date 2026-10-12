@@ -966,3 +966,58 @@ test('where the password is on, the card keeps Forgot your password and no sign-
     await close();
   }
 });
+
+// UC-ID-09 check 4: a provider's mark is its owner's, in the neutral button every guideline allows -
+// drawn from the bundle, never fetched, never recoloured (ADR-0069). The colours are the owners'
+// published values; a kind with no mark draws the tile with the name's first character.
+test('a provider mark is drawn inline in its owner\'s colours, and nothing is fetched for it', async () => {
+  const { origin, close } = await serve(DIST);
+  const rules = {
+    ...RULES,
+    providers: [{ id: 'p-google', display_name: 'Contoso Google', kind: 'GOOGLE', scope: 'installation' }, ...RULES.providers],
+  };
+  const stub = stubFor({ answer: refused });
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const requests = [];
+  context.on('request', (request) => requests.push(request.url()));
+  await context.route('**/api/v1/**', (route) =>
+    new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')
+      ? route.fulfill({ json: rules })
+      : stub(route));
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.waitForSelector('text=to contoso.hubtask.eu');
+    const fills = (name, shape) => page.getByRole('button', { name }).locator(`svg ${shape}`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill')));
+
+    const google = page.getByRole('button', { name: /Contoso Google/ }).locator('svg');
+    assert.equal(await google.getAttribute('viewBox'), '10 10 20 20', 'the G is not drawn on its published grid');
+    assert.ok((await google.locator('mask path').getAttribute('d')).startsWith('M29.3987 18.1814H19.9849V22.0445H25.3598'),
+      'the G is not the published shape');
+    assert.deepEqual(await fills(/Contoso Google/, 'ellipse'), ['#3186FF', '#3186FF', '#FF4641', '#FF5B8B', '#3186FF', '#FF4641']);
+    // The two declarations the published file carries as style attributes arrive through the
+    // stylesheet - an inline style would be refused by the content security policy, and the G
+    // would lose its gradient without a word.
+    assert.match(await google.locator('.g-angular').evaluate((node) => getComputedStyle(node).backgroundImage), /conic-gradient/);
+    assert.equal(await google.locator('mask').evaluate((node) => getComputedStyle(node).maskType), 'alpha');
+    assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#f25022', '#00a4ef', '#7fba00', '#ffb900']);
+    assert.equal(await page.getByRole('button', { name: /Contoso Entra ID/ }).locator('svg').getAttribute('viewBox'), '0 0 21 21',
+      'the Microsoft symbol is not drawn on its published grid');
+    const lab = page.getByRole('button', { name: /Contoso Lab/ });
+    assert.equal(await lab.locator('svg').count(), 0, 'a provider without a preset drew a brand');
+    assert.equal(await lab.locator('.tile').textContent(), 'C');
+
+    for (const name of [/Contoso Google/, /Contoso Entra ID/, /Contoso Lab/]) {
+      const button = page.getByRole('button', { name });
+      assert.equal(await button.getAttribute('data-tone'), 'secondary', `${name} is not the neutral button`);
+      assert.equal(await button.locator('[href], [src], image, use').count(), 0, `${name} draws a mark by reference`);
+    }
+    const foreign = requests.filter((url) => new URL(url).origin !== new URL(origin).origin);
+    assert.deepEqual(foreign, [], 'the card reached another origin');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});

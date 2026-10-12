@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -233,6 +234,9 @@ type GetCapabilities struct {
 	// like Semantic and for the same reason: a build wired without it answers `false`, which is
 	// the honest reading of "nothing here says otherwise".
 	Providers AiProviders
+	// Kept answers whose content stays out of AI: a caller kept out is offered no AI action, so
+	// both AI features read false for them (UC-PRV-05 check 7, P-05). Nil keeps nobody out.
+	Kept KeptOutReader
 	// Legal answers the four links. Optional, like Semantic and for the same reason: a
 	// build wired without it answers none, which is what an installation with no instance layer has.
 	Legal LegalPolicy
@@ -363,6 +367,19 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			return Capabilities{}, err
 		}
 		ai = provider.Capabilities()
+	}
+	if (ai.Completion || ai.Embedding) && g.Kept != nil && !actor.AccountID.IsZero() {
+		// The same predicate the asking refuses with ai.kept_out, so that nothing offered is
+		// refused when taken.
+		if err := g.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			kept, err := g.Kept.Read(ctx, actor.TenantID)
+			if err == nil && kept.Has(actor.AccountID) {
+				ai = aiprovider.ProviderCapabilities{}
+			}
+			return err
+		}); err != nil {
+			return Capabilities{}, err
+		}
 	}
 
 	return Capabilities{
@@ -497,4 +514,10 @@ func notificationChannels() []string {
 		names = append(names, string(channel))
 	}
 	return names
+}
+
+// KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
+// here because the application layer may not import a sibling service.
+type KeptOutReader interface {
+	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }

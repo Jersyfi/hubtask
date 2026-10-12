@@ -98,6 +98,11 @@ type Cases struct {
 	// read, and IDs names the row. Both nil in a build that asks no such question.
 	Requests repository.Requests
 	IDs      clock.IDGenerator
+	// Material is the same source the producer reads, asked at the asking so that a question
+	// with nothing to work with - an empty entry, or one whose content is kept out of AI - is
+	// refused now rather than queued for nothing, and a person who keeps their own content out is
+	// told no AI action is theirs. Nil skips both, a build without the rule.
+	Material Sources
 }
 
 // ListSuggestions answers what stands against one entry.

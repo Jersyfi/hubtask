@@ -426,6 +426,12 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AiObjectionNotice struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	NoticedAt pgtype.Timestamptz
+}
+
 type AiProvider struct {
 	TenantID          pgtype.UUID
 	Kind              string
@@ -587,6 +593,7 @@ type AuthPending struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	Address            *string
 }
 
 type AutoAssignPolicy struct {
@@ -920,6 +927,8 @@ type IdentityProvider struct {
 	AllowedDirectories []string
 	OfferedWorkspaces  int32
 	WithdrawAt         pgtype.Timestamptz
+	NewcomerRole       *MembershipRole
+	NewcomerGroupID    pgtype.UUID
 }
 
 type ImportRun struct {

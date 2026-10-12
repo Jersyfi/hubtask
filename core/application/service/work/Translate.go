@@ -11,6 +11,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
@@ -68,6 +69,14 @@ type AiTranslate struct {
 	Clock      clock.Clock
 	// Timeout bounds the provider call. Zero takes the default above.
 	Timeout time.Duration
+	// Kept is whose content stays out of AI (data-protection.md §4.1). Nil keeps nobody out.
+	Kept KeptOutReader
+}
+
+// KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
+// here because the application layer may not import a sibling service.
+type KeptOutReader interface {
+	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }
 
 // TranslateCommand is the input, typed.
@@ -120,6 +129,19 @@ func (h AiTranslate) Execute(
 	if err != nil {
 		return Translation{}, err
 	}
+	kept, err := h.keptOut(ctx, actor)
+	if err != nil {
+		return Translation{}, err
+	}
+	if kept.Has(actor.AccountID) {
+		return Translation{}, integration.KeptOutOfAi()
+	}
+	// An entry a kept-out person created, and an entry with nothing in it, get one answer, which
+	// says nothing about who wrote what.
+	if kept.Has(item.CreatedBy) || strings.TrimSpace(item.Title) == "" && strings.TrimSpace(item.Notes) == "" {
+		return Translation{}, integration.NothingToWorkWith()
+	}
+	item.Title, item.Notes = kept.Scrub(item.Title), kept.Scrub(item.Notes)
 
 	if h.Providers == nil || h.Prompts == nil {
 		return Translation{}, aiUnavailable
@@ -284,4 +306,19 @@ func (h AiTranslate) invoke(
 		"prompt_version":  translation.PromptVersion,
 		"produced_at":     translation.ProducedAt.UTC().Format(time.RFC3339Nano),
 	}, nil
+}
+
+// keptOut reads whose content stays out of AI, in a transaction of its own: the entry was read by
+// its own use case, and this read is the same state for the one call that follows.
+func (h AiTranslate) keptOut(ctx context.Context, actor appshared.ActorContext) (integration.KeptOut, error) {
+	var kept integration.KeptOut
+	if h.Kept == nil || h.UnitOfWork == nil {
+		return kept, nil
+	}
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		kept, err = h.Kept.Read(ctx, actor.TenantID)
+		return err
+	})
+	return kept, err
 }

@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**279 use cases, 240 distinct action codes, 200 of them recorded on every call.** A use case that
+Every use case is a row, under the action code it records. A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -33,6 +33,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `account.address_confirmed` | ConfirmAddress | `account` | NOTICE | Every time |
+| `account.address_requested` | RequestAddress | `account` | NOTICE | Every time |
 | `account.invitation_renewed` | RenewInvitation | `account` | NOTICE | Every time |
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |
@@ -46,6 +48,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
+| `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
 
 ## Ai
 
@@ -55,7 +58,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |
 | `ai.fields_asked` | AiSuggestFields | `ai_suggestion` | NOTICE | Every time |
+| `ai.notice_acknowledged` | AcknowledgeAiPosition | `account` | INFO | Every time |
 | `ai.own_budget_set` | SetOwnAiBudget | `ai_budget` | NOTICE | Every time |
+| `ai.own_position_read` | ReadOwnAiPosition | `account` | INFO | When refused |
+| `ai.person_opt_out_set` | SetAiPersonOptOut | `ai_source` | NOTICE | Every time |
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
@@ -231,7 +237,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `dsr.consent_given` | GiveConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consent_withdrawn` | WithdrawConsent | `consent_record` | NOTICE | Every time |
+| `dsr.consents_listed` | ListConsents | `consent_record` | INFO | When refused |
 | `dsr.extended` | ExtendDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.processing_restricted` | RestrictProcessing | `account` | WARNING | Every time |
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |

@@ -329,7 +329,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("clock: %w", err)
 	}
-	auditSink := postgres.NewAuditSink(ids)
+	auditSink := postgres.NewAuditSink(ids).Keyed(security.NewAuditFingerprinter(cfg.SecretKey))
 	// The queue is wired into the write path before any worker exists: an event carries its own
 	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
 	jobs := postgres.NewQueue(ids, clockadapter.System{})
@@ -411,6 +411,9 @@ func run() error {
 		security.NewPendingTokenHasher(cfg.SecretKey),
 		security.NewRecoveryCodeHasher(cfg.SecretKey))
 	sessions := postgres.NewSessionRepository()
+	// A managed account's address waiting for its mailbox: an ADDRESS row of the pending
+	// credentials, its token hashed under their label (ADR-0074 §6).
+	addressRequests := postgres.NewAddressRepository(security.NewPendingTokenHasher(cfg.SecretKey))
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
@@ -1015,6 +1018,9 @@ func run() error {
 		Accounts:    accounts,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		// What a provider names for newcomers is given in the arrival's own transaction.
+		Grants: grants,
+		Groups: groups,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1036,7 +1042,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(),
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
@@ -1047,10 +1053,30 @@ func run() error {
 		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
+	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
+	// content to a model reads in the transaction it reads the material in. An objection is its
+	// first reason; a restriction is added as a second source beside it.
+	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		integrationservice.ObjectionSource{
+			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		},
+	}}
+	// The asking reads what the producer will read, with the same exclusion, so that nothing to
+	// work with is refused at once rather than queued. Set here, before any descriptor copies the
+	// cases below.
+	suggestionCases.Material = suggestionservice.CatalogueSources{
+		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+	}
+	// A person's own view of keeping their content out of AI, over the same rule every AI call
+	// resolves (data-protection.md §4.1).
+	aiObjectionReader := integrationservice.AiObjectionReader{
+		Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		Notices: privacyStore, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
-		Spaces: postgres.NewEmbeddingRepository(),
+		Spaces: postgres.NewEmbeddingRepository(), Embeddings: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
@@ -1113,7 +1139,7 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1168,6 +1194,9 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
+		// What a newcomer gets names a group of this workspace, checked at configuration.
+		Groups: groups,
+		Grants: grants,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1372,6 +1401,8 @@ func run() error {
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
+			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
+			Access: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{
@@ -1384,6 +1415,17 @@ func run() error {
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Text: forms,
+		}.Descriptor(),
+		identity.IssueStartPassword{
+			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.RequestAddress{
+			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Door: passwordWriter,
 		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
@@ -1434,6 +1476,9 @@ func run() error {
 			Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ConfirmAddress{
+			Requests: addressRequests, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{
@@ -1510,6 +1555,7 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1627,7 +1673,7 @@ func run() error {
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
-			Queue:  jobs,
+			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
@@ -1783,7 +1829,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -1805,7 +1851,7 @@ func run() error {
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork,
+				UnitOfWork: unitOfWork, Kept: keptOut,
 			},
 		}.Descriptor(),
 		// The index brought current at an administrator's request: what the row's
@@ -1880,8 +1926,18 @@ func run() error {
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
+		privacyservice.ListConsents{
+			Consents: privacyStore, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		privacyservice.GiveConsent{
+			Consents: privacyStore, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+		}.Descriptor(),
+		integrationservice.ReadOwnAiPosition{Reader: aiObjectionReader}.Descriptor(),
+		integrationservice.AcknowledgeAiPosition{Reader: aiObjectionReader}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
@@ -2265,6 +2321,8 @@ func run() error {
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
 			Providers: budgetedAi,
+			// And per caller: a person who keeps their own content out is offered no AI action.
+			Kept: keptOut,
 			// The four links the installation is obliged to show, through the one resolver that
 			// knows the levels. The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
@@ -2682,6 +2740,21 @@ func run() error {
 			BaseURL:        cfg.BaseURL,
 		},
 	}
+	// The link that confirms a managed account's new address, minted at delivery.
+	addressConfirmationMessage := worker.AddressConfirmationMessage{
+		Send: notification.SendAddressConfirmation{
+			Links: addressMinterAdapter{mint: identity.MintAddressLink{
+				Requests: addressRequests, Entropy: clockadapter.CryptoRandom{}, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			}},
+			Mail:           mailSender,
+			Renderer:       renderer,
+			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork:     unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale,
+			BaseURL:        cfg.BaseURL,
+		},
+	}
 	// An operator's opening of the password: its notices to the administrators, and the job
 	// that records its end once the time has passed.
 	passwordOpeningMessage := worker.PasswordOpeningMessage{
@@ -2999,21 +3072,22 @@ func run() error {
 	}
 
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:          reminderFiring,
-		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
-		queueport.KindOutboxDispatch:        dispatcher,
-		queueport.KindRetentionSweep:        retention,
-		queueport.KindMediaReconcile:        mediaReconciliation,
-		queueport.KindInvitationEmail:       invitationMessage,
-		queueport.KindPasswordResetEmail:    passwordResetMessage,
-		queueport.KindPasswordOpeningEmail:  passwordOpeningMessage,
-		queueport.KindPasswordOpeningEnd:    passwordOpeningEnd,
-		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindReminderFire:             reminderFiring,
+		queueport.KindRecurrenceMaterialize:    recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:           dispatcher,
+		queueport.KindRetentionSweep:           retention,
+		queueport.KindMediaReconcile:           mediaReconciliation,
+		queueport.KindInvitationEmail:          invitationMessage,
+		queueport.KindPasswordResetEmail:       passwordResetMessage,
+		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
+		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
+		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
-				Clock: clockadapter.System{},
+				Clock: clockadapter.System{}, Kept: keptOut,
 			},
 			// A quiet workspace pays one pass an hour for having the machinery; a busy one comes
 			// straight back while there is known work left. The retention sweep's two numbers, for
@@ -3607,6 +3681,20 @@ func (a resetMinterAdapter) MintResetToken(
 		Connect:     link.Connect,
 		Address:     link.Address,
 		Locale:      link.Locale,
+	}, nil
+}
+
+type addressMinterAdapter struct{ mint identity.MintAddressLink }
+
+func (a addressMinterAdapter) MintAddressLink(
+	ctx context.Context, tenantID, requestID shared.ID,
+) (notification.AddressLink, error) {
+	link, err := a.mint.MintAddressLink(ctx, tenantID, requestID)
+	if err != nil {
+		return notification.AddressLink{}, err
+	}
+	return notification.AddressLink{
+		Token: link.Token, Address: link.Address, Locale: link.Locale, DisplayName: link.DisplayName,
 	}, nil
 }
 

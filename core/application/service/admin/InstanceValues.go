@@ -306,6 +306,9 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			if !isObject {
 				return identityrepo.InstanceLevel{}, refusedValue(reader.area, name)
 			}
+			if err := settableAbove(reader.area, name, entry["value"]); err != nil {
+				return identityrepo.InstanceLevel{}, err
+			}
 			value, decided, err := valueOfKind(reader.area, name, declaration, entry["value"])
 			if err != nil {
 				return identityrepo.InstanceLevel{}, err
@@ -464,8 +467,25 @@ func applyLocalisation(defaults *identity.LocalisationDefaults, name, value stri
 	return nil
 }
 
+// settableAbove refuses, with its own reason, a value only a workspace may choose: the
+// installation cannot name the legal basis a workspace that keeps nobody's content out of AI has
+// to name (data-protection.md §4.1), so it holds a workspace at the opt-out or leaves it alone.
+func settableAbove(area, name string, raw any) error {
+	word, isWord := raw.(string)
+	if area != areaAi || name != string(integration.AiSwitchPersonOptOut) || !isWord || word == "" {
+		return nil
+	}
+	if position := integration.AiPersonOptOut(word); position.Valid() {
+		return position.SettableAbove()
+	}
+	return nil
+}
+
 func applyAiValue(layer *integration.AiLayer, name integration.AiSwitch, value string) {
 	switch name {
+	case integration.AiSwitchPersonOptOut:
+		position := integration.AiPersonOptOut(value)
+		layer.PersonOptOut = &position
 	case integration.AiSwitchSources:
 		sources := integration.AiSources(value)
 		layer.Sources = &sources

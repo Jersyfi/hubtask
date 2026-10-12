@@ -23,7 +23,15 @@
  * (`ai-first.md` §2), and this module keeps them two by sending exactly what the form holds.
  */
 
-import type { AiProvider, AiProviderConfiguration, AiSource, AiSourceChoice, OwnAiBudget, ResourceState } from '@hubtask/sync-engine';
+import type {
+  AiPersonOptOutChoice,
+  AiProvider,
+  AiProviderConfiguration,
+  AiSource,
+  AiSourceChoice,
+  OwnAiBudget,
+  ResourceState,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
@@ -90,6 +98,16 @@ class AiProviderStore {
    */
   async setOwnBudget(body: OwnAiBudget): Promise<void> {
     await engine.mutate('PUT', BUDGET, body, { invalidates: [QUOTAS] });
+  }
+
+  /**
+   * Whether each person may keep their own content out of AI, or AI is part of everybody's work
+   * on the basis named. It moves what each person's own view says, so that view is stale too.
+   */
+  async setPersonOptOut(body: AiPersonOptOutChoice): Promise<AiSource> {
+    return engine.mutate<AiSource>('PUT', '/ai-person-opt-out', body, {
+      invalidates: [...TOUCHES, '/privacy/ai-objection'],
+    });
   }
 
   /** Sets it, whole. `api_key` absent keeps the sealed one; empty clears it; a value replaces it. */

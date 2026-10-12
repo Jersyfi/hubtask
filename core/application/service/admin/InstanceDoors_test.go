@@ -54,6 +54,9 @@ func doorRows() []doorRow {
 		{area: "quotas", key: quota.Items, value: "lots", code: "auth.policy_value_invalid", path: "/quotas/items"},
 		{area: "ai", key: "sources", value: "OFFERED"},
 		{area: "ai", key: "sources", value: "SOMEBODY", code: "auth.policy_value_invalid", path: "/ai/sources"},
+		{area: "ai", key: "person_opt_out", value: "OFFERED"},
+		{area: "ai", key: "person_opt_out", value: "NOT_OFFERED", code: "ai.opt_out_workspace_only", path: "/ai/person_opt_out"},
+		{area: "ai", key: "person_opt_out", value: "SOMETIMES", code: "auth.policy_value_invalid", path: "/ai/person_opt_out"},
 	}
 }
 

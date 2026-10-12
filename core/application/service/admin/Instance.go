@@ -257,6 +257,10 @@ func aiValueOf(layer integration.AiLayer, name integration.AiSwitch) string {
 		if layer.MinJurisdiction != nil {
 			return string(*layer.MinJurisdiction)
 		}
+	case integration.AiSwitchPersonOptOut:
+		if layer.PersonOptOut != nil {
+			return string(*layer.PersonOptOut)
+		}
 	}
 	return ""
 }

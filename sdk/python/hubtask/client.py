@@ -491,6 +491,14 @@ class Client:
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
 
+    def issue_start_password(self, account_id: str, *, step_up: str | None = None) -> "StartPasswordIssued":
+        """Give a managed account a new start password"""
+        return self._call("POST", "/accounts/{accountId}:issue-start-password", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def request_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
+        """Give a managed account a mail address"""
+        return self._call("POST", "/accounts/{accountId}:add-address", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
+
     def update_account_preferences(self, account_id: str, body: "AccountPreferences") -> "Account":
         """Set how the product speaks to an account"""
         return self._call("PATCH", "/accounts/{accountId}/preferences", {"accountId": account_id}, None, {}, body, "json", "application/merge-patch+json", "json")
@@ -554,6 +562,10 @@ class Client:
     def reset_password(self, body: "PasswordReset") -> "SessionTokens":
         """Spend a reset link and set the password"""
         return self._call("POST", "/auth/password:reset", {}, None, {}, body, "json", "application/json", "json")
+
+    def confirm_address(self, body: "AddressConfirm") -> None:
+        """Confirm a mail address with the link that was sent to it"""
+        return self._call("POST", "/auth/address:confirm", {}, None, {}, body, "json", "application/json", "void")
 
     def check_password(self, body: "PasswordCheck", *, step_up: str | None = None) -> "PasswordCheckResult":
         """Ask what only the server knows about a candidate password"""
@@ -867,6 +879,10 @@ class Client:
         """Choose which AI answers this workspace"""
         return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
+        """Whether each person may keep their own content out of AI"""
+        return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""
         return self._call("PUT", "/ai-budget", {}, None, {}, body, "json", "application/json", "json")
@@ -927,9 +943,25 @@ class Client:
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_consents(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The consent register - who withdrew a purpose"""
+        return self._call("GET", "/privacy/consents", {}, query, {}, None, "none", None, "json")
+
     def withdraw_consent(self, body: "ConsentWithdrawal") -> "ConsentRecord":
         """Withdraw consent for an optional processing purpose (Art. 21)"""
         return self._call("POST", "/privacy/consents:withdraw", {}, None, {}, body, "json", "application/json", "json")
+
+    def give_consent(self, body: "ConsentGrant") -> "ConsentRecord":
+        """Agree to an optional processing purpose"""
+        return self._call("POST", "/privacy/consents:give", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_own_ai_position(self) -> "OwnAiPosition":
+        """The caller's own view of keeping their content out of AI"""
+        return self._call("GET", "/privacy/ai-objection", {}, None, {}, None, "none", None, "json")
+
+    def acknowledge_ai_position(self) -> "OwnAiPosition":
+        """Acknowledge that keeping one's content out stopped taking effect"""
+        return self._call("POST", "/privacy/ai-objection:noticed", {}, None, {}, None, "none", None, "json")
 
     def list_memberships(self, *, query: dict[str, Any] | None = None) -> "MembershipPage":
         """Who holds a role at a scope"""

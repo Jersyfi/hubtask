@@ -276,6 +276,45 @@ func (e AiMinJurisdiction) Valid() bool {
 	}
 }
 
+// Defines values for AiOptOutBasis.
+const (
+	EMPLOYMENTCONTRACT AiOptOutBasis = "EMPLOYMENT_CONTRACT"
+	LEGALOBLIGATION    AiOptOutBasis = "LEGAL_OBLIGATION"
+	WORKSAGREEMENT     AiOptOutBasis = "WORKS_AGREEMENT"
+)
+
+// Valid indicates whether the value is a known member of the AiOptOutBasis enum.
+func (e AiOptOutBasis) Valid() bool {
+	switch e {
+	case EMPLOYMENTCONTRACT:
+		return true
+	case LEGALOBLIGATION:
+		return true
+	case WORKSAGREEMENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiPersonOptOut.
+const (
+	AiPersonOptOutNOTOFFERED AiPersonOptOut = "NOT_OFFERED"
+	AiPersonOptOutOFFERED    AiPersonOptOut = "OFFERED"
+)
+
+// Valid indicates whether the value is a known member of the AiPersonOptOut enum.
+func (e AiPersonOptOut) Valid() bool {
+	switch e {
+	case AiPersonOptOutNOTOFFERED:
+		return true
+	case AiPersonOptOutOFFERED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiProviderKind.
 const (
 	NOOP             AiProviderKind = "NOOP"
@@ -333,6 +372,48 @@ func (e AiSourceMinJurisdictionOrigin) Valid() bool {
 	case AiSourceMinJurisdictionOriginPLAN:
 		return true
 	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutLock.
+const (
+	AiSourcePersonOptOutLockINSTANCE AiSourcePersonOptOutLock = "INSTANCE"
+	AiSourcePersonOptOutLockPLAN     AiSourcePersonOptOutLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutLock enum.
+func (e AiSourcePersonOptOutLock) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutLockINSTANCE:
+		return true
+	case AiSourcePersonOptOutLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutOrigin.
+const (
+	AiSourcePersonOptOutOriginDEFAULT   AiSourcePersonOptOutOrigin = "DEFAULT"
+	AiSourcePersonOptOutOriginINSTANCE  AiSourcePersonOptOutOrigin = "INSTANCE"
+	AiSourcePersonOptOutOriginPLAN      AiSourcePersonOptOutOrigin = "PLAN"
+	AiSourcePersonOptOutOriginWORKSPACE AiSourcePersonOptOutOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutOrigin enum.
+func (e AiSourcePersonOptOutOrigin) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutOriginDEFAULT:
+		return true
+	case AiSourcePersonOptOutOriginINSTANCE:
+		return true
+	case AiSourcePersonOptOutOriginPLAN:
+		return true
+	case AiSourcePersonOptOutOriginWORKSPACE:
 		return true
 	default:
 		return false
@@ -1233,6 +1314,27 @@ func (e ConsentRecordSource) Valid() bool {
 	case ConsentRecordSourceTenantAdmin:
 		return true
 	case ConsentRecordSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConsentRegisterEntrySource.
+const (
+	ConsentRegisterEntrySourceConfig      ConsentRegisterEntrySource = "config"
+	ConsentRegisterEntrySourceTenantAdmin ConsentRegisterEntrySource = "tenant_admin"
+	ConsentRegisterEntrySourceUser        ConsentRegisterEntrySource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRegisterEntrySource enum.
+func (e ConsentRegisterEntrySource) Valid() bool {
+	switch e {
+	case ConsentRegisterEntrySourceConfig:
+		return true
+	case ConsentRegisterEntrySourceTenantAdmin:
+		return true
+	case ConsentRegisterEntrySourceUser:
 		return true
 	default:
 		return false
@@ -4215,6 +4317,9 @@ type Account struct {
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
 
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
@@ -4291,10 +4396,13 @@ type AccountSummary struct {
 	DisplayName string `json:"display_name"`
 
 	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
-	HasAddress *bool                `json:"has_address,omitempty"`
-	Id         openapi_types.UUID   `json:"id"`
-	Kind       AccountSummaryKind   `json:"kind"`
-	Status     AccountSummaryStatus `json:"status"`
+	HasAddress *bool              `json:"has_address,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       AccountSummaryKind `json:"kind"`
+
+	// Managed True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.
+	Managed *bool                `json:"managed,omitempty"`
+	Status  AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -4346,6 +4454,23 @@ type Actor struct {
 // ActorType defines model for Actor.Type.
 type ActorType string
 
+// AddressConfirm defines model for AddressConfirm.
+type AddressConfirm struct {
+	// Token The token from the confirmation mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// AddressRequest defines model for AddressRequest.
+type AddressRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// AddressRequested defines model for AddressRequested.
+type AddressRequested struct {
+	// ExpiresAt Until when the link in the mail confirms the address.
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time          `json:"created_at"`
@@ -4385,6 +4510,24 @@ type AiJurisdiction string
 
 // AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 type AiMinJurisdiction string
+
+// AiOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+type AiOptOutBasis string
+
+// AiPersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+type AiPersonOptOut string
+
+// AiPersonOptOutChoice defines model for AiPersonOptOutChoice.
+type AiPersonOptOutChoice struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+}
 
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
@@ -4445,6 +4588,9 @@ type AiSource struct {
 	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 	InstallationSources AiSources `json:"installation_sources"`
 
+	// KeepingOutCount How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+	KeepingOutCount int `json:"keeping_out_count"`
+
 	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
 	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
@@ -4458,6 +4604,22 @@ type AiSource struct {
 
 	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
 	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// PersonOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+	PersonOptOutBasis *AiOptOutBasis `json:"person_opt_out_basis,omitempty"`
+
+	// PersonOptOutContact Whom people may ask about the basis. Absent for an administrator of this workspace.
+	PersonOptOutContact *string `json:"person_opt_out_contact,omitempty"`
+
+	// PersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+	PersonOptOutLock   *AiSourcePersonOptOutLock  `json:"person_opt_out_lock,omitempty"`
+	PersonOptOutOrigin AiSourcePersonOptOutOrigin `json:"person_opt_out_origin"`
+
+	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
+	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -4480,6 +4642,12 @@ type AiSourceMinJurisdictionLock string
 
 // AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
 type AiSourceMinJurisdictionOrigin string
+
+// AiSourcePersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+type AiSourcePersonOptOutLock string
+
+// AiSourcePersonOptOutOrigin defines model for AiSource.PersonOptOutOrigin.
+type AiSourcePersonOptOutOrigin string
 
 // AiSourceSourcesLock Present where a level above locked what the workspace may use.
 type AiSourceSourcesLock string
@@ -4574,7 +4742,11 @@ type AuditAnchoringConfiguration struct {
 // AuditChange One changed field, masked per its classification. An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
-// all.
+// all. A hash is keyed with a secret of the installation and bound to the workspace, and
+// names its scheme as a prefix (`hmac-sha256:`): two hashes are comparable only when both
+// carry the same scheme and come from the same workspace on an installation whose secret
+// did not change between them. A hash without a prefix was written by an earlier version
+// and is never equal to a prefixed one, whatever the value.
 type AuditChange struct {
 	Changed  *bool       `json:"changed,omitempty"`
 	Field    *string     `json:"field,omitempty"`
@@ -5236,7 +5408,7 @@ type Capabilities struct {
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
-	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
@@ -5359,6 +5531,15 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentGrant defines model for ConsentGrant.
+type ConsentGrant struct {
+	// AccountId Whose consent - only ever the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+}
+
 // ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
 type ConsentPurpose = string
 
@@ -5377,6 +5558,21 @@ type ConsentRecord struct {
 
 // ConsentRecordSource defines model for ConsentRecord.Source.
 type ConsentRecordSource string
+
+// ConsentRegisterEntry defines model for ConsentRegisterEntry.
+type ConsentRegisterEntry struct {
+	AccountId   openapi_types.UUID `json:"account_id"`
+	DisplayName string             `json:"display_name"`
+
+	// Since When the withdrawal standing now was recorded.
+	Since time.Time `json:"since"`
+
+	// Source Whether the person or an administrator on their behalf recorded it.
+	Source *ConsentRegisterEntrySource `json:"source,omitempty"`
+}
+
+// ConsentRegisterEntrySource Whether the person or an administrator on their behalf recorded it.
+type ConsentRegisterEntrySource string
 
 // ConsentWithdrawal defines model for ConsentWithdrawal.
 type ConsentWithdrawal struct {
@@ -6012,6 +6208,7 @@ type HubPrivacy struct {
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
 	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
+	// Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.
 	AllowedDirectories []string `json:"allowed_directories"`
 
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
@@ -6036,6 +6233,12 @@ type IdentityProvider struct {
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
 
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
@@ -6090,8 +6293,14 @@ type IdentityProviderConfiguration struct {
 	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
-	Kind     *IdentityProviderKind `json:"kind,omitempty"`
-	Position *int                  `json:"position,omitempty"`
+	Kind *IdentityProviderKind `json:"kind,omitempty"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+	Position     *int            `json:"position,omitempty"`
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
@@ -6123,7 +6332,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
@@ -6317,7 +6526,7 @@ type InstanceSettingWorkspaceMay string
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
-	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.
+	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
 
@@ -6360,6 +6569,9 @@ type InvitedAccount struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
 
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
@@ -7271,6 +7483,34 @@ type OperatorAdd struct {
 type OwnAiBudget struct {
 	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
 	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
+}
+
+// OwnAiPosition defines model for OwnAiPosition.
+type OwnAiPosition struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom to ask about the basis. Absent for an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// InEffect Whether the caller's content is kept out now.
+	InEffect bool `json:"in_effect"`
+
+	// KeepingOut The caller's own choice - their newest `ai_processing` record is a withdrawal.
+	KeepingOut      bool       `json:"keeping_out"`
+	KeepingOutSince *time.Time `json:"keeping_out_since,omitempty"`
+
+	// NoticePending True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.
+	NoticePending bool `json:"notice_pending"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// Shown Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.
+	Shown bool `json:"shown"`
+
+	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
+	Since *time.Time `json:"since,omitempty"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -8546,6 +8786,14 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// StartPasswordIssued defines model for StartPasswordIssued.
+type StartPasswordIssued struct {
+	Account Account `json:"account"`
+
+	// StartPassword Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
+}
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -9566,6 +9814,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// IssueStartPasswordParams defines parameters for IssueStartPassword.
+type IssueStartPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // RenewInvitationParams defines parameters for RenewInvitation.
 type RenewInvitationParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -10460,6 +10714,11 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListConsentsParams defines parameters for ListConsents.
+type ListConsentsParams struct {
+	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -10624,6 +10883,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -10675,6 +10937,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
 
+// SetAiPersonOptOutJSONRequestBody defines body for SetAiPersonOptOut for application/json ContentType.
+type SetAiPersonOptOutJSONRequestBody = AiPersonOptOutChoice
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -10689,6 +10954,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
+
+// ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
+type ConfirmAddressJSONRequestBody = AddressConfirm
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -10951,6 +11219,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
+type GiveConsentJSONRequestBody = ConsentGrant
+
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 
@@ -11031,6 +11302,12 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// RequestAddress Give a managed account a mail address
+	// (POST /accounts/{accountId}:add-address)
+	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// IssueStartPassword Give a managed account a new start password
+	// (POST /accounts/{accountId}:issue-start-password)
+	IssueStartPassword(w http.ResponseWriter, r *http.Request, accountId AccountId, params IssueStartPasswordParams)
 	// RenewInvitation Give an invitation not yet accepted a new link
 	// (POST /accounts/{accountId}:renew-invitation)
 	RenewInvitation(w http.ResponseWriter, r *http.Request, accountId AccountId, params RenewInvitationParams)
@@ -11136,6 +11413,9 @@ type ServerInterface interface {
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
+	// SetAiPersonOptOut Whether each person may keep their own content out of AI
+	// (PUT /ai-person-opt-out)
+	SetAiPersonOptOut(w http.ResponseWriter, r *http.Request)
 	// RemoveAiProvider Remove the workspace's AI provider
 	// (DELETE /ai-provider)
 	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
@@ -11163,6 +11443,9 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// ConfirmAddress Confirm a mail address with the link that was sent to it
+	// (POST /auth/address:confirm)
+	ConfirmAddress(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -11760,6 +12043,18 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+	// (GET /privacy/ai-objection)
+	ReadOwnAiPosition(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+	// (POST /privacy/ai-objection:noticed)
+	AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request)
+	// ListConsents The consent register - who withdrew a purpose
+	// (GET /privacy/consents)
+	ListConsents(w http.ResponseWriter, r *http.Request, params ListConsentsParams)
+	// GiveConsent Agree to an optional processing purpose
+	// (POST /privacy/consents:give)
+	GiveConsent(w http.ResponseWriter, r *http.Request)
 	// WithdrawConsent Withdraw consent for an optional processing purpose (Art. 21)
 	// (POST /privacy/consents:withdraw)
 	WithdrawConsent(w http.ResponseWriter, r *http.Request)
@@ -12033,6 +12328,82 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestAddress operation middleware
+func (siw *ServerInterfaceWrapper) RequestAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestAddress(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueStartPassword operation middleware
+func (siw *ServerInterfaceWrapper) IssueStartPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params IssueStartPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueStartPassword(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13056,6 +13427,20 @@ func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// SetAiPersonOptOut operation middleware
+func (siw *ServerInterfaceWrapper) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAiPersonOptOut(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveAiProvider operation middleware
 func (siw *ServerInterfaceWrapper) RemoveAiProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -13296,6 +13681,20 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmAddress operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAddress(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20731,6 +21130,81 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadOwnAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOwnAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConsents operation middleware
+func (siw *ServerInterfaceWrapper) ListConsents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConsentsParams
+
+	// ------------- Required query parameter "purpose" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "purpose", r.URL.Query(), &params.Purpose, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "purpose"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "purpose", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConsents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GiveConsent operation middleware
+func (siw *ServerInterfaceWrapper) GiveConsent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GiveConsent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // WithdrawConsent operation middleware
 func (siw *ServerInterfaceWrapper) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
 
@@ -22548,6 +23022,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
@@ -22564,6 +23040,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/address:confirm", wrapper.ConfirmAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)
@@ -22642,6 +23119,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-person-opt-out", wrapper.SetAiPersonOptOut)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
@@ -22657,7 +23135,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests/{requestId}:extend", wrapper.ExtendDataSubjectRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests/{requestId}/erasure-preview", wrapper.PreviewErasure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/consents", wrapper.ListConsents)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:give", wrapper.GiveConsent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/ai-objection", wrapper.ReadOwnAiPosition)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/ai-objection:noticed", wrapper.AcknowledgeAiPosition)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)

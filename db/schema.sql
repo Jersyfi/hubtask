@@ -410,12 +410,15 @@ CREATE TABLE auth_pending (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id  uuid NOT NULL,
-  token_hash  bytea NOT NULL,
+  -- NULL only on an ADDRESS row whose mail has not gone out yet: the token is minted at delivery
+  -- (migration 0131), and a NULL never matches a presented token.
+  token_hash  bytea,
   -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
   -- enforcement route, RESET is the token a reset mail carries, PASSWORD is the credential
   -- the PASSWORD_CHANGE step hands out (migration 0098), LINK is a provider arrival waiting
-  -- for the account's own proof (migration 0110), and CONNECT is the link a workspace without
-  -- the password mails to connect its provider (migration 0117).
+  -- for the account's own proof (migration 0110), CONNECT is the link a workspace without
+  -- the password mails to connect its provider (migration 0117), and ADDRESS is the link that
+  -- confirms a managed account's new address (migration 0131).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -432,10 +435,16 @@ CREATE TABLE auth_pending (
   -- A password change still owed once this step completes: a password the rule refused, or a
   -- start password, met after a factor step (migration 0127).
   password_change_owed boolean NOT NULL DEFAULT false,
+  -- The address an ADDRESS row confirms; it becomes the account's only when the link is followed
+  -- (migration 0131).
+  address     text CONSTRAINT auth_pending_address_length CHECK (char_length(address) BETWEEN 3 AND 254),
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS')),
+  CONSTRAINT auth_pending_address_purpose
+    CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
+           AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
 );
@@ -551,7 +560,19 @@ CREATE TABLE identity_provider (
   -- move_provider_offer, and when its offer ends (ADR-0076, migration 0114). A workspace's own row
   -- keeps zero and NULL.
   offered_workspaces    integer NOT NULL DEFAULT 0,
-  withdraw_at           timestamptz
+  withdraw_at           timestamptz,
+  -- What somebody the provider brings in new gets (migration 0132): one role on the workspace, or
+  -- one group of it, or nothing (both NULL). Never on the installation's rows, never OWNER.
+  newcomer_role         membership_role,
+  newcomer_group_id     uuid,
+  CONSTRAINT identity_provider_newcomers_check CHECK (
+    (newcomer_role IS NULL OR newcomer_group_id IS NULL)
+    AND (tenant_id IS NOT NULL OR (newcomer_role IS NULL AND newcomer_group_id IS NULL))
+    AND newcomer_role IS DISTINCT FROM 'OWNER'
+  ),
+  CONSTRAINT identity_provider_newcomer_group_fk
+    FOREIGN KEY (tenant_id, newcomer_group_id) REFERENCES account_group (tenant_id, id)
+    ON DELETE SET NULL (newcomer_group_id)
 );
 -- One registration per issuer per level. NULLS NOT DISTINCT is what makes that true of the
 -- installation's rows: without it every NULL tenant is its own.
@@ -1828,6 +1849,17 @@ CREATE TABLE consent_record (
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
+-- A person told once that their objection to AI stopped taking effect (migration 0137): the
+-- notice is pending while noticed_at is older than the workspace's position.
+CREATE TABLE ai_objection_notice (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  noticed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT ai_objection_notice_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
 -- Documented data breaches (Art. 33/34) - evidence, not automated notification.
 CREATE TABLE privacy_incident (
   id             uuid PRIMARY KEY,
@@ -2339,6 +2371,7 @@ BEGIN
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
+    'ai_objection_notice',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',

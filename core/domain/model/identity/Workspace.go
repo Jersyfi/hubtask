@@ -69,6 +69,19 @@ type WorkspaceSettings struct {
 	// (i18n-l10n.md §4). In the settings document rather than a column of its own, so the archive,
 	// the export and every restore carry it as they carry the rest of the document.
 	WeekStart WeekStart
+	// AiPersonOptOut is this workspace's position on people keeping their own content out of AI
+	// (data-protection.md §4.1): `NOT_OFFERED` where it made AI part of everybody's work, empty or
+	// `OFFERED` otherwise. Strings for AiSources' reason; checked where written.
+	//
+	// In the archived settings, beside the narrowing: it is the controller's documented decision
+	// with its legal basis, and a restore puts back what was decided.
+	AiPersonOptOut string
+	// AiOptOutBasis is the legal basis named for `NOT_OFFERED`; AiOptOutContact whom to ask about
+	// it, empty for "an administrator of this workspace"; AiOptOutSince when the position was
+	// taken - what tells a person whether they have been told yet.
+	AiOptOutBasis   string
+	AiOptOutContact string
+	AiOptOutSince   time.Time
 }
 
 // Offers reports whether this workspace switched on a provider the installation offers.

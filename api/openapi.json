@@ -3938,6 +3938,81 @@
         }
       }
     },
+    "/accounts/{accountId}:issue-start-password": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "issueStartPassword",
+        "summary": "Give a managed account a new start password",
+        "description": "For a person without a mail address who forgot their password: there is no mailbox a reset\ncould reach, so an owner or administrator helps them back in. **The one exception to \"an\nadministrator does not recover an account\"**, and it exists only for managed accounts - an\naccount with an address is refused with `409 accounts.not_managed`, and recovers through\nits mailbox.\n\nHubtask draws a new start password and answers it once, as at creation; nobody chooses it\nand nothing can read it again. Every session of the account ends and every unfinished\nsign-in step is spent. The next sign-in leads into choosing a new password, after the\nsecond factor where the account has one - the factor and the recovery codes stay. Personal\naccess tokens stay, as a password change leaves them.\n\nAsks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`\notherwise). An act an automation rule runs is refused with\n`accounts.managed_needs_a_person`: a run reads no answer.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new start password, shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartPasswordIssued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}:add-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "requestAddress",
+        "summary": "Give a managed account a mail address",
+        "description": "Sends a confirmation link to the address. Nothing on the account changes until somebody\nholding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an\nordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second\nidentifier.\n\nThe person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.\nOnly a managed account - a sign-in name and no address - takes one: any other is refused\nwith `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,\nan address would take the person's one way in, and the request is refused with\n`409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten\nminutes of the last is `429 accounts.address_requested_recently` with\n`retry_after_seconds`.\n\nWhether the address already belongs to somebody here is not said: the confirmation answers\nthat, to whoever holds the mailbox.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The confirmation is on its way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressRequested"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/{accountId}/preferences": {
       "parameters": [
         {
@@ -4494,6 +4569,35 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/address:confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "confirmAddress",
+        "security": [],
+        "summary": "Confirm a mail address with the link that was sent to it",
+        "description": "The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The address is the account's"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -7054,6 +7158,41 @@
         }
       }
     },
+    "/ai-person-opt-out": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setAiPersonOptOut",
+        "summary": "Whether each person may keep their own content out of AI",
+        "description": "`OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiPersonOptOutChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ai-budget": {
       "put": {
         "tags": [
@@ -7635,6 +7774,52 @@
         }
       }
     },
+    "/privacy/consents": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "listConsents",
+        "summary": "The consent register - who withdrew a purpose",
+        "description": "For one purpose, every person whose newest record is a withdrawal, with since when and\nwhether they or an administrator recorded it. For `ai_processing` this is who keeps their\nown content out of AI - and this register is the one place that list appears. For the\npeople who manage members (`MANAGE_MEMBERS`).\n\nUnpaged: it is bounded by the people of the workspace, ordered by name.\n",
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConsentPurpose"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The register",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ConsentRegisterEntry"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/privacy/consents:withdraw": {
       "post": {
         "tags": [
@@ -7660,6 +7845,91 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConsentRecord"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/consents:give": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "giveConsent",
+        "summary": "Agree to an optional processing purpose",
+        "description": "The caller's own agreement - for `ai_processing`, letting the content they authored back\ninto AI after they kept it out. Only ever the caller's own: a consent for anybody else is\nrefused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.\nThe withdrawal before it stays on record for the period it covered.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentGrant"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The consent record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentRecord"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/ai-objection": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "readOwnAiPosition",
+        "summary": "The caller's own view of keeping their content out of AI",
+        "description": "Whether there is anything to choose here (`shown`: AI answers this workspace and more than\none person works in it), the workspace's position - with the legal basis and whom to ask\nwhere AI is part of everybody's work - the caller's own choice, whether it takes effect,\nand whether they still have to be told that it stopped taking effect.\n\nThe caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back\nin with `POST /privacy/consents:give`, both with the purpose `ai_processing`.\n",
+        "responses": {
+          "200": {
+            "description": "The caller's view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnAiPosition"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/ai-objection:noticed": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "acknowledgeAiPosition",
+        "summary": "Acknowledge that keeping one's content out stopped taking effect",
+        "description": "Records that the caller read the notice: the workspace made AI part of everybody's work,\nso their choice to keep their content out no longer takes effect. Acknowledging twice is\nacknowledging once.\n",
+        "responses": {
+          "200": {
+            "description": "The caller's view afterwards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnAiPosition"
                 }
               }
             }
@@ -11830,6 +12100,10 @@
           "has_password": {
             "type": "boolean",
             "description": "Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.\n"
+          },
+          "has_access": {
+            "type": "boolean",
+            "description": "Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.\n"
           }
         }
       },
@@ -11900,6 +12174,10 @@
           "has_address": {
             "type": "boolean",
             "description": "False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.\n"
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.\n"
           }
         }
       },
@@ -11954,6 +12232,60 @@
           "start_password": {
             "type": "string",
             "description": "Shown here and never again. The person types it once, with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "StartPasswordIssued": {
+        "type": "object",
+        "required": [
+          "account",
+          "start_password"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "start_password": {
+            "type": "string",
+            "description": "Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "AddressRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "AddressRequested": {
+        "type": "object",
+        "required": [
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Until when the link in the mail confirms the address."
+          }
+        }
+      },
+      "AddressConfirm": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token from the confirmation mail. It dies on use."
           }
         }
       },
@@ -13011,7 +13343,10 @@
           "min_jurisdiction",
           "min_jurisdiction_origin",
           "offered",
-          "version"
+          "version",
+          "person_opt_out",
+          "person_opt_out_origin",
+          "keeping_out_count"
         ],
         "properties": {
           "source": {
@@ -13078,12 +13413,85 @@
             "type": "boolean",
             "description": "True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.\n"
           },
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "person_opt_out_origin": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "INSTANCE",
+              "PLAN",
+              "WORKSPACE"
+            ]
+          },
+          "person_opt_out_lock": {
+            "type": "string",
+            "enum": [
+              "INSTANCE",
+              "PLAN"
+            ],
+            "description": "Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.\n"
+          },
+          "person_opt_out_basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "person_opt_out_contact": {
+            "type": "string",
+            "description": "Whom people may ask about the basis. Absent for an administrator of this workspace."
+          },
+          "person_opt_out_since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the workspace made AI part of everybody's work. Absent with `OFFERED`."
+          },
+          "keeping_out_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.\n"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "AiPersonOptOut": {
+        "type": "string",
+        "enum": [
+          "OFFERED",
+          "NOT_OFFERED"
+        ],
+        "description": "`OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.\n"
+      },
+      "AiOptOutBasis": {
+        "type": "string",
+        "enum": [
+          "EMPLOYMENT_CONTRACT",
+          "WORKS_AGREEMENT",
+          "LEGAL_OBLIGATION"
+        ],
+        "description": "The legal basis a workspace names for making AI part of everybody's work."
+      },
+      "AiPersonOptOutChoice": {
+        "type": "object",
+        "required": [
+          "person_opt_out"
+        ],
+        "properties": {
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.\n"
           }
         }
       },
@@ -13932,7 +14340,26 @@
             "items": {
               "type": "string"
             },
-            "description": "The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.\n**This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.\n"
+            "description": "The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.\n**This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.\nUnder `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.\n"
+          },
+          "newcomer_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MembershipRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.\n"
+          },
+          "newcomer_group_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.\n"
           },
           "created_at": {
             "type": "string",
@@ -14052,6 +14479,25 @@
             },
             "default": [],
             "description": "The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.\n**Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.\n"
+          },
+          "newcomer_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MembershipRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).\n"
+          },
+          "newcomer_group_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.\n"
           }
         }
       },
@@ -14108,7 +14554,7 @@
           },
           "public": {
             "type": "boolean",
-            "description": "Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.\n"
+            "description": "Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.\n"
           },
           "provisioning": {
             "type": "array",
@@ -14496,7 +14942,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
+            "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
           },
           "blocklist_file": {
             "type": "string",
@@ -20875,6 +21321,100 @@
           }
         }
       },
+      "ConsentRegisterEntry": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "display_name",
+          "since"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the withdrawal standing now was recorded."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "user",
+              "tenant_admin",
+              "config"
+            ],
+            "description": "Whether the person or an administrator on their behalf recorded it."
+          }
+        }
+      },
+      "ConsentGrant": {
+        "type": "object",
+        "required": [
+          "purpose"
+        ],
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Whose consent - only ever the caller's own."
+          }
+        }
+      },
+      "OwnAiPosition": {
+        "type": "object",
+        "required": [
+          "shown",
+          "person_opt_out",
+          "keeping_out",
+          "in_effect",
+          "notice_pending"
+        ],
+        "properties": {
+          "shown": {
+            "type": "boolean",
+            "description": "Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.\n"
+          },
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Whom to ask about the basis. Absent for an administrator of this workspace."
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Since when AI is part of everybody's work. Absent with `OFFERED`."
+          },
+          "keeping_out": {
+            "type": "boolean",
+            "description": "The caller's own choice - their newest `ai_processing` record is a withdrawal."
+          },
+          "keeping_out_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "in_effect": {
+            "type": "boolean",
+            "description": "Whether the caller's content is kept out now."
+          },
+          "notice_pending": {
+            "type": "boolean",
+            "description": "True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.\n"
+          }
+        }
+      },
       "ConsentWithdrawal": {
         "type": "object",
         "required": [
@@ -20997,7 +21537,7 @@
       },
       "AuditChange": {
         "type": "object",
-        "description": "One changed field, masked per its classification. An `OPEN` field carries\n`from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which\nmakes two entries comparable without either being readable; a `SECRET` one is not here at\nall.\n",
+        "description": "One changed field, masked per its classification. An `OPEN` field carries\n`from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which\nmakes two entries comparable without either being readable; a `SECRET` one is not here at\nall. A hash is keyed with a secret of the installation and bound to the workspace, and\nnames its scheme as a prefix (`hmac-sha256:`): two hashes are comparable only when both\ncarry the same scheme and come from the same workspace on an installation whose secret\ndid not change between them. A hash without a prefix was written by an earlier version\nand is never equal to a prefixed one, whatever the value.\n",
         "properties": {
           "field": {
             "type": "string"
@@ -23913,7 +24453,7 @@
           },
           "features": {
             "type": "object",
-            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
+            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
             "additionalProperties": {
               "type": "boolean"
             }
