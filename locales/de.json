@@ -668,6 +668,8 @@
   "app.admin.group_holds": "Was er enthält",
   "app.admin.group_record": "Das Protokoll",
   "app.admin.group_entry": "Wie Menschen hineinkommen",
+  "app.admin.group_installation": "Installation",
+  "app.admin.installation": "Gilt für jeden Arbeitsbereich, den du anlegst",
   "app.admin.workspace": "Arbeitsbereich",
   "app.admin.quotas": "Grenzen",
   "app.admin.private_hubs": "Private Hubs",

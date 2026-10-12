@@ -1713,6 +1713,8 @@
   "app.admin.group_holds": "What it holds",
   "app.admin.group_record": "The record",
   "app.admin.group_entry": "How people get in",
+  "app.admin.group_installation": "Installation",
+  "app.admin.installation": "Applies to every workspace you create",
   "app.admin.workspace": "Workspace",
   "app.admin.quotas": "Limits",
   "app.admin.private_hubs": "Private hubs",

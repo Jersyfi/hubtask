@@ -225,12 +225,47 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
 ];
 
 /**
- * The administration's navigation as this reader is shown it: the *Private hubs* row only where
- * the server answered at least one (UC-ID-16 check 3) - none, or a refusal, and the row is absent.
+ * The installation as the administration's last group, on a private installation (UC-INS-04's
+ * story): there the one workspace *is* the installation, so its owner finds the level above it
+ * where they find everything else about it, and the row says what it applies to rather than
+ * naming a register they never configured. It opens the instance area, which keeps its section.
  */
-export function administration(options: { readonly hasPrivateHubs: boolean }): readonly SectionGroup[] {
-  if (options.hasPrivateHubs) return ADMINISTRATION;
-  return ADMINISTRATION.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'private-hubs') }));
+const INSTALLATION_GROUP: SectionGroup = {
+  id: 'installation',
+  code: 'app.admin.group_installation',
+  rows: [
+    { id: 'instance', icon: 'gauge', code: 'app.admin.installation', path: '/instance', routes: [] },
+  ],
+};
+
+/**
+ * The administration's navigation as this reader is shown it: the *Private hubs* row only where
+ * the server answered at least one (UC-ID-16 check 3) - none, or a refusal, and the row is absent;
+ * and the installation as the last group where `withInstallation` says so (`installationPlace`).
+ */
+export function administration(options: {
+  readonly hasPrivateHubs: boolean;
+  readonly withInstallation?: boolean;
+}): readonly SectionGroup[] {
+  const groups = options.hasPrivateHubs
+    ? ADMINISTRATION
+    : ADMINISTRATION.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'private-hubs') }));
+  return options.withInstallation ? [...groups, INSTALLATION_GROUP] : groups;
+}
+
+/**
+ * Where the installation is offered to this reader: as the administration's last group on a
+ * single-workspace installation whose operator can reach the administration, in the account menu
+ * otherwise, and nowhere for somebody who is not an operator. Never in both, and never nowhere for
+ * an operator - one who cannot reach the administration keeps the menu row (P-05).
+ */
+export function installationPlace(options: {
+  readonly isInstanceReachable: boolean;
+  readonly isAdministrationReachable: boolean;
+  readonly isSingleWorkspace: boolean;
+}): 'administration' | 'menu' | 'none' {
+  if (!options.isInstanceReachable) return 'none';
+  return options.isSingleWorkspace && options.isAdministrationReachable ? 'administration' : 'menu';
 }
 
 /**
@@ -376,11 +411,18 @@ export function primary(): readonly Destination[] {
 export function account(options: {
   readonly isAdministrationReachable: boolean;
   readonly isInstanceReachable: boolean;
+  /** A single-workspace installation, where the installation is the administration's last group. */
+  readonly isSingleWorkspace?: boolean;
 }): readonly Destination[] {
+  const place = installationPlace({
+    isInstanceReachable: options.isInstanceReachable,
+    isAdministrationReachable: options.isAdministrationReachable,
+    isSingleWorkspace: options.isSingleWorkspace === true,
+  });
   return DESTINATIONS.filter((destination) => {
     if (destination.group !== 'account') return false;
     if (destination.area === 'administration') return options.isAdministrationReachable;
-    if (destination.area === 'instance') return options.isInstanceReachable;
+    if (destination.area === 'instance') return place === 'menu';
     return true;
   });
 }
