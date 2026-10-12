@@ -3966,30 +3966,6 @@ func (e WorkspaceHostState) Valid() bool {
 	}
 }
 
-// Defines values for WorkspaceUpdateDefaultWeekStart.
-const (
-	WorkspaceUpdateDefaultWeekStartEmpty    WorkspaceUpdateDefaultWeekStart = ""
-	WorkspaceUpdateDefaultWeekStartMONDAY   WorkspaceUpdateDefaultWeekStart = "MONDAY"
-	WorkspaceUpdateDefaultWeekStartSATURDAY WorkspaceUpdateDefaultWeekStart = "SATURDAY"
-	WorkspaceUpdateDefaultWeekStartSUNDAY   WorkspaceUpdateDefaultWeekStart = "SUNDAY"
-)
-
-// Valid indicates whether the value is a known member of the WorkspaceUpdateDefaultWeekStart enum.
-func (e WorkspaceUpdateDefaultWeekStart) Valid() bool {
-	switch e {
-	case WorkspaceUpdateDefaultWeekStartEmpty:
-		return true
-	case WorkspaceUpdateDefaultWeekStartMONDAY:
-		return true
-	case WorkspaceUpdateDefaultWeekStartSATURDAY:
-		return true
-	case WorkspaceUpdateDefaultWeekStartSUNDAY:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ListAuditEntriesParamsOutcome.
 const (
 	ListAuditEntriesParamsOutcomeDENIED  ListAuditEntriesParamsOutcome = "DENIED"
@@ -9403,9 +9379,9 @@ type WorkspaceUpdate struct {
 	// DefaultTimeZone An IANA zone. One that does not load is a field error.
 	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
 
-	// DefaultWeekStart The day a member's week starts on when they chose none of their own. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.
-	DefaultWeekStart *WorkspaceUpdateDefaultWeekStart `json:"default_week_start,omitempty"`
-	DisplayName      *string                          `json:"display_name,omitempty"`
+	// DefaultWeekStart `MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.
+	DefaultWeekStart *string `json:"default_week_start,omitempty"`
+	DisplayName      *string `json:"display_name,omitempty"`
 
 	// RequireAdminTotp The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever it moves anything - see the operation.
 	RequireAdminTotp *bool `json:"require_admin_totp,omitempty"`
@@ -9414,9 +9390,6 @@ type WorkspaceUpdate struct {
 	// Three refusals, each against its own field. A switch the level above locked is `auth.policy_locked` with the origin in its parameters; one that would loosen the rule is `auth.policy_loosens`; a value of the wrong kind is `auth.policy_value_invalid`. Sending this member demands the step-up header - a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in.
 	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
-
-// WorkspaceUpdateDefaultWeekStart The day a member's week starts on when they chose none of their own. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.
-type WorkspaceUpdateDefaultWeekStart string
 
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID

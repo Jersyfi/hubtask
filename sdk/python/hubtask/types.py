@@ -498,7 +498,7 @@ class WorkspaceUpdate(TypedDict, total=False):
     display_name: str
     default_locale: str
     default_time_zone: str
-    default_week_start: Literal["MONDAY", "SATURDAY", "SUNDAY", ""]
+    default_week_start: str
     require_admin_totp: bool
     sign_in_policy: "SignInPolicyChange"
 

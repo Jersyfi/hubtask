@@ -13667,13 +13667,8 @@
           },
           "default_week_start": {
             "type": "string",
-            "enum": [
-              "MONDAY",
-              "SATURDAY",
-              "SUNDAY",
-              ""
-            ],
-            "description": "The day a member's week starts on when they chose none of their own. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.\n"
+            "maxLength": 8,
+            "description": "`MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.\n"
           },
           "require_admin_totp": {
             "type": "boolean",
