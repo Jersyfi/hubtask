@@ -92,6 +92,24 @@ class ManagedAccountCreated(TypedDict, total=False):
     membership: Required["Membership"]
     start_password: Required[str]
 
+class InvitedAccount(TypedDict, total=False):
+    id: Required[str]
+    kind: Required[Literal["USER", "SERVICE_ACCOUNT"]]
+    email: str | None
+    sign_in_name: str | None
+    display_name: Required[str]
+    status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
+    locale: str | None
+    time_zone: str | None
+    week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
+    celebrations: bool | None
+    onboarding_completed_at: str | None
+    has_second_factor: bool
+    recovery_codes_remaining: int
+    second_factor_required: bool
+    has_password: bool
+    invitation_link: str
+
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
@@ -529,6 +547,7 @@ class IdentityProvider(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     offered_here: bool
+    installation_lock: Literal["TURNS_ON", "LEAVES_TO_WORKSPACE", "NONE"]
     withdraw_at: str | None
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]

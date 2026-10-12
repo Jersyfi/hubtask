@@ -106,6 +106,39 @@ type IdentityProvider struct {
 	// reads it, so every write to them leaves it true, and zero wherever a workspace reads it
 	// (ADR-0077 §1). Answered to the operator only.
 	OfferedWorkspaces int
+	// InstallationLock is what the installation's lock on the ways in does to the installation's
+	// row, as InstallationLockAt answers it where the row is read. Not a column: the lock lives in
+	// the installation's settings. Empty on a workspace's own row.
+	InstallationLock InstallationLock
+}
+
+// InstallationLock is what the installation's lock on the ways in does to one of its rows
+// (identity.md §18), said per row so that a screen never re-derives the rule.
+type InstallationLock string
+
+const (
+	// InstallationLockTurnsOn: on in every workspace, and no workspace's to switch off.
+	InstallationLockTurnsOn InstallationLock = "TURNS_ON"
+	// InstallationLockLeavesToWorkspace: the ways in are locked with providers, but the row admits
+	// people by domain or to anyone, so it stays each workspace's switch (P-07).
+	InstallationLockLeavesToWorkspace InstallationLock = "LEAVES_TO_WORKSPACE"
+	// InstallationLockNone: no such lock stands, or the offer has ended.
+	InstallationLockNone InstallationLock = "NONE"
+)
+
+// InstallationLockAt answers what the lock does to this row at a moment: nothing to a workspace's
+// own row, nothing to an offer that has ended.
+func (p IdentityProvider) InstallationLockAt(providersLockedIn bool, now time.Time) InstallationLock {
+	switch {
+	case !p.Installation():
+		return ""
+	case !providersLockedIn || !p.OfferedAt(now):
+		return InstallationLockNone
+	case p.MandatedHere(providersLockedIn):
+		return InstallationLockTurnsOn
+	default:
+		return InstallationLockLeavesToWorkspace
+	}
 }
 
 // WithdrawalNotice is how far ahead a withdrawal is announced where the operator names no date
@@ -156,6 +189,17 @@ func (p IdentityProvider) RemovableAt(now time.Time) error {
 
 // Installation reports whether this row belongs to no workspace.
 func (p IdentityProvider) Installation() bool { return p.TenantID.IsZero() }
+
+// MandatedHere reports whether the installation's lock turns this row on in every workspace, the
+// workspace's own switch notwithstanding (identity.md §18): an installation row admitted as *Only
+// people invited here*, under ways in locked with providers among them
+// (EffectivePolicy.ProvidersLockedIn). Such a provider creates no account; it is another way in for
+// people already there, connected with their own proof (§11). One admitted by domain or to anyone
+// stays each workspace's switch - otherwise the installation would let people into a workspace that
+// did not decide it (P-07). Whether the offer still stands is OfferedAt's question, not this one's.
+func (p IdentityProvider) MandatedHere(providersLockedIn bool) bool {
+	return providersLockedIn && p.Installation() && p.Provisioning == ProvisionInvitedOnly
+}
 
 // NewIdentityProviderInput is what configuring one needs.
 type NewIdentityProviderInput struct {

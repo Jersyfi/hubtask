@@ -191,8 +191,10 @@ individually switchable, and enumerated here in full:
    exists in `INVITED` status from the moment somebody is invited, so a permission can be granted
    to it before the person signs in, and nothing they were given works until they do. The
    redemption token arrived with the sign-in flow (H-01): minted when the invitation mail is
-   delivered, stored only as a hash on the account, redeemable for 14 days, and dead on
-   redemption - a token nobody can redeem is never lying around for months.
+   delivered - or, on an installation that sends no mail, when the invitation is made or renewed,
+   and then answered once as a link for the inviter to hand over - stored only as a hash on the
+   account, redeemable for 14 days, and dead on redemption or renewal - a token nobody can redeem
+   is never lying around for months.
 6. A partition is not a data category. `audit_log_2026_08` and the other partitions of `audit_log`
    and `change_log` are recorded through their parent table, and a gate reconciling the schema
    against this document has to resolve them to it rather than demand a row of their own.

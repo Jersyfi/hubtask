@@ -2689,7 +2689,21 @@ paths:
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
         it cannot act until the invitation is accepted.
-        The notification is queued as a job — this call does not wait for an email.
+
+        **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+        invitation mail is queued as a job - this call does not wait for it - and the answer
+        carries no link.
+
+        **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+        same link the mail would have carried, **shown here and never again**, to be handed over by
+        any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+        repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+        replaced with `POST /accounts/{accountId}:renew-invitation`.
+
+        An address that already has an account here is `409 accounts.email_taken`; one whose
+        invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+        sent for either. Without mail, an act an automation rule runs is refused with
+        `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -2704,7 +2718,37 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Account"
+                $ref: "#/components/schemas/InvitedAccount"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}:renew-invitation:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [identity]
+      operationId: renewInvitation
+      summary: Give an invitation not yet accepted a new link
+      description: |
+        For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+        any other is `409 accounts.not_invited`.
+
+        **Where this installation sends mail**, the invitation mail is queued again and the answer
+        carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+        no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+        earlier link stops working at once. Without mail, an act an automation rule runs is refused
+        with `accounts.invitation_needs_a_person`.
+
+        Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitedAccount"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5110,6 +5154,13 @@ paths:
 
         The last way in cannot be switched off: a workspace that turned off its only method would
         be a workspace nobody can reach. Auditable.
+
+        **A provider the installation's lock turns on cannot be switched off here.** Where the
+        installation locked the ways to sign in with providers among them, every provider it offers
+        as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and
+        switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its
+        parameters. Switching it on is accepted and kept as this workspace's own choice, which
+        applies again once the lock is lifted.
       requestBody:
         required: true
         content:
@@ -9064,6 +9115,19 @@ components:
             Shown here and never again. The person types it once, with the sign-in name, and then
             chooses their own.
 
+    InvitedAccount:
+      allOf:
+        - $ref: "#/components/schemas/Account"
+        - type: object
+          properties:
+            invitation_link:
+              type: string
+              format: uri
+              description: >
+                Present only where this installation sends no mail: the link that accepts the
+                invitation, the same one a mail would carry. Shown here and never again - only its
+                hash is kept. It works once, for fourteen days.
+
     AccountInvite:
       type: object
       required: [email]
@@ -10371,7 +10435,19 @@ components:
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
             installation's decision, taking it is the workspace's. False from the
-            moment an announced withdrawal takes effect.
+            moment an announced withdrawal takes effect. True, whatever the workspace's own switch,
+            where `installation_lock` is `TURNS_ON`.
+        installation_lock:
+          type: string
+          enum: [TURNS_ON, LEAVES_TO_WORKSPACE, NONE]
+          readOnly: true
+          description: >
+            For a row the installation offers: what the installation's lock on the ways to sign in
+            does to it. `TURNS_ON` - the ways in are locked with providers among them and the row
+            admits *Only people invited here*, so it is on in every workspace and no workspace can
+            switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits
+            people by domain or anyone the provider knows, so it stays each workspace's own switch.
+            `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
         withdraw_at:
           type: [string, "null"]
           format: date-time
@@ -10389,7 +10465,8 @@ components:
           description: >
             For a row the installation offers, answered to the operator only: how many workspaces
             have it switched on. A number, never names - counted from the workspaces' own switches
-            when it is read. Absent from a workspace's listing.
+            when it is read, and every live workspace where `installation_lock` is `TURNS_ON`.
+            Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }

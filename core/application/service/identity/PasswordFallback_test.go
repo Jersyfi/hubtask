@@ -95,13 +95,15 @@ func TestThePasswordOpensWheneverNoWayInWorks(t *testing.T) {
 		{"an installation default without the password", func(f *wayInFixture) {
 			f.passwords.instance.level.Policy.Patch.Methods = providersAlone()
 		}},
-		// A lock decides the methods, never which provider is on: the installation's provider offered
-		// beside it is a way in nowhere until a workspace takes it (offeredHere reads no lock).
-		{"an installation lock on the provider alone", func(f *wayInFixture) {
+		// A lock turns on only a provider admitted as *Only people invited here* (identity.md §18): one
+		// admitted by domain stays each workspace's switch, and here nobody switched it on.
+		{"an installation lock on the provider alone, admitted by domain", func(f *wayInFixture) {
 			f.passwords.workspace.row.Settings.SignIn.Methods = &[]string{domain.MethodDirect, domain.MethodOidc}
 			f.passwords.instance.level.Policy.Patch.Methods = providersAlone()
 			f.passwords.instance.level.Policy.Locks[domain.SwitchMethods] = true
-			f.passwords.providers.rows = []domain.IdentityProvider{offeredUntil(time.Time{})}
+			byDomain := offeredUntil(time.Time{})
+			byDomain.Provisioning = domain.ProvisionDomains
+			f.passwords.providers.rows = []domain.IdentityProvider{byDomain}
 		}},
 		{"a restore or an import that brought the settings without the providers", func(f *wayInFixture) {
 			f.passwords.workspace.row.Settings.SignIn.Methods = providersAlone()

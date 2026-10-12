@@ -48,6 +48,12 @@ func (pending) CreateManagedAccount(
 	notAvailable(w, r)
 }
 
+func (pending) RenewInvitation(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.RenewInvitationParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

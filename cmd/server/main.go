@@ -447,6 +447,7 @@ func run() error {
 			Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			External:    postgres.NewExternalAccountRepository(),
 			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+			Instance:    postgres.NewInstanceSettingRepository(),
 			Relying:     relyingParty,
 			RedirectURL: oidcRedirectURL,
 		},
@@ -1008,6 +1009,7 @@ func run() error {
 		// Which of the installation's providers this workspace took: a flow through one it did not
 		// take, or one whose withdrawal has come, is refused at the start and at the return.
 		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+		Instance:    postgres.NewInstanceSettingRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1180,6 +1182,9 @@ func run() error {
 		// Which of the installation's providers this workspace took: the switch lives in
 		// the workspace's settings, because the row is the installation's.
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The installation's lock on the ways in, which turns its invite-only rows on everywhere
+		// (identity.md §18).
+		Instance: postgres.NewInstanceSettingRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
@@ -1263,6 +1268,7 @@ func run() error {
 		WaysIn: identity.WaysIn{
 			Providers:  postgres.NewIdentityProviderRepository(),
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Instance:   postgres.NewInstanceSettingRepository(),
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		},
 		Text:       forms,
@@ -1362,7 +1368,12 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
-			Text: forms,
+			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
+		}.Descriptor(),
+		identity.RenewInvitation{
+			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Links: invitationLinks(cfg, signInStore, unitOfWork),
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -3470,6 +3481,24 @@ func busBreaker(
 	})
 	registry.Register(eventbus.NewProbe(breaker, configured))
 	return breaker
+}
+
+// invitationLinks is how invitations travel on this installation: by mail where one is configured
+// (the zero value), and as a link answered once where none is - the same reading `features.mail`
+// gives every client, so the screen's promise and the server's behaviour cannot part.
+func invitationLinks(
+	cfg envport.Config, store identity.RedemptionTokenStore, unitOfWork persistenceport.UnitOfWork,
+) identity.InvitationLinks {
+	if cfg.Mail.Configured() {
+		return identity.InvitationLinks{}
+	}
+	return identity.InvitationLinks{
+		Minter: identity.MintRedemptionToken{
+			Accounts: store, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Entropy: clockadapter.CryptoRandom{},
+		},
+		BaseURL: cfg.BaseURL,
+	}
 }
 
 // buildMailSender assembles the mail port: the SMTP adapter behind a breaker and a bulkhead, and

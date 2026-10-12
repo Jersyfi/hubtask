@@ -55,6 +55,13 @@ Each measured against the deployments `D1`–`D7`:
     owner, 2026-10-11, #1268): an identifier without `@` keeps sign-in, the `PASSWORD_CHANGE` step
     and the step-up under the workspace's rules; an address is refused as before — identity.md §4.1,
     §17.1. Built by PH-06.
+12. **A managed account adds an address only where the password is a way in** (the owner,
+    2026-10-12, #1282): where the workspace's methods leave the password out, adding an address is
+    not offered and the server refuses it (`accounts.address_needs_password`), so confirming one never
+    strands the person — UC-ID-20 check 7, identity.md §13. Built by PH-07.
+13. **A withdrawal of a purpose never consented to is recorded** (the owner, 2026-10-12, #1298): as a
+    standing objection, not refused — UC-PRV-05 check 1; *Keep my content out of AI* is such a
+    withdrawal. Built as it stands; PH-03 relies on it.
 
 ---
 
