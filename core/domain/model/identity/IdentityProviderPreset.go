@@ -100,11 +100,13 @@ type ProviderPreset struct {
 	OwnMailDomains        []string
 	DirectoryIsMailDomain bool
 
-	// Public is whether anybody in the world can hold an account at this issuer.
+	// Public is whether anybody in the world can hold an account at this issuer - personal
+	// accounts, not only an organisation's (milestone SC, decision 12).
 	//
-	// A public provider may **only** be INVITED_ONLY, and the rule is not an operator's to relax:
-	// `ANY` on a public issuer means every person alive is provisioned an account in this
-	// workspace.
+	// A public provider is never ANY, and the rule is not an operator's to relax: `ANY` on a public
+	// issuer means every person alive is provisioned an account in this workspace. DOMAINS stays,
+	// because it is bounded by the directory claim, which a personal account does not carry: a
+	// personal account comes in only by invitation.
 	Public bool
 
 	// Particular is the message code of the one thing about this provider that is not like the

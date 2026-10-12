@@ -590,6 +590,7 @@ type AuthPending struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	Address            *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
 }
@@ -925,6 +926,8 @@ type IdentityProvider struct {
 	AllowedDirectories []string
 	OfferedWorkspaces  int32
 	WithdrawAt         pgtype.Timestamptz
+	NewcomerRole       *MembershipRole
+	NewcomerGroupID    pgtype.UUID
 }
 
 type ImportRun struct {

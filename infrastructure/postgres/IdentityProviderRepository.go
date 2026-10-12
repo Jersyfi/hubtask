@@ -59,7 +59,7 @@ func (IdentityProviderRepository) List(ctx context.Context) ([]identity.Identity
 		configured, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 			row.DisplayName, row.Kind, row.Provisioning, row.Position,
 			row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-		configured = withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces)
+		configured = withNewcomers(withOffer(configured, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID)
 		if err != nil {
 			return nil, err
 		}
@@ -106,7 +106,7 @@ func (IdentityProviderRepository) Find(
 	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
+	return withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), err
 }
 
 func (IdentityProviderRepository) FindWithSecret(
@@ -135,6 +135,8 @@ func (IdentityProviderRepository) FindWithSecret(
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled,
 		pgtype.Timestamptz{}, pgtype.Timestamptz{}, 0)
 	configured.WithdrawAt = timeFrom(row.WithdrawAt)
+	// The arrival reads this one, and what a newcomer gets is decided from it.
+	configured = withNewcomers(configured, row.NewcomerRole, row.NewcomerGroupID)
 	if err != nil {
 		return identity.IdentityProvider{}, crypto.Sealed{}, err
 	}
@@ -169,6 +171,8 @@ func (IdentityProviderRepository) Insert(
 		AllowedDirectories:  configured.AllowedDirectories,
 		Enabled:             configured.Enabled,
 		Now:                 pgtype.Timestamptz{Time: configured.CreatedAt, Valid: true},
+		NewcomerRole:        newcomerRoleParam(configured),
+		NewcomerGroupID:     newcomerGroupParam(configured),
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -183,7 +187,7 @@ func (IdentityProviderRepository) Insert(
 	found, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	return withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), err
+	return withNewcomers(withOffer(found, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), err
 }
 
 func (r IdentityProviderRepository) Update(
@@ -229,6 +233,8 @@ func (IdentityProviderRepository) write(
 		AllowedDirectories:  configured.AllowedDirectories,
 		Enabled:             enabled,
 		Now:                 pgtype.Timestamptz{Time: now, Valid: true},
+		NewcomerRole:        newcomerRoleParam(configured),
+		NewcomerGroupID:     newcomerGroupParam(configured),
 	}
 	// Nil is "keep what is sealed", which the statement's COALESCE reads from these two being
 	// absent. Both or neither: an envelope and the key it was wrapped under are one value.
@@ -255,8 +261,42 @@ func (IdentityProviderRepository) write(
 	stored, err := providerFrom(row.ID, row.TenantID, row.Issuer, row.ClientID,
 		row.DisplayName, row.Kind, row.Provisioning, row.Position,
 		row.AllowedEmailDomains, row.AllowedDirectories, row.Enabled, row.CreatedAt, row.UpdatedAt, row.Version)
-	stored = withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces)
+	stored = withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID)
 	return stored, err == nil, err
+}
+
+// withNewcomers adds what a newcomer gets (migration 0132): both NULL is nothing.
+func withNewcomers(
+	configured identity.IdentityProvider, role *sqlc.MembershipRole, group pgtype.UUID,
+) identity.IdentityProvider {
+	if role != nil {
+		configured.NewcomerRole = identity.Role(*role)
+	}
+	if group.Valid {
+		if id, err := idFrom(group); err == nil {
+			configured.NewcomerGroupID = id
+		}
+	}
+	return configured
+}
+
+func newcomerRoleParam(configured identity.IdentityProvider) *sqlc.MembershipRole {
+	if configured.NewcomerRole == "" {
+		return nil
+	}
+	role := sqlc.MembershipRole(configured.NewcomerRole)
+	return &role
+}
+
+func newcomerGroupParam(configured identity.IdentityProvider) pgtype.UUID {
+	if configured.NewcomerGroupID.IsZero() {
+		return pgtype.UUID{}
+	}
+	key, err := uuidOf(configured.NewcomerGroupID)
+	if err != nil {
+		return pgtype.UUID{}
+	}
+	return key
 }
 
 // withOffer adds the two columns of ADR-0076 an installation row carries.
@@ -301,7 +341,7 @@ func (IdentityProviderRepository) SetWithdrawal(
 	if err != nil {
 		return identity.IdentityProvider{}, false, err
 	}
-	return withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), true, nil
+	return withNewcomers(withOffer(stored, row.WithdrawAt, row.OfferedWorkspaces), row.NewcomerRole, row.NewcomerGroupID), true, nil
 }
 
 func (IdentityProviderRepository) Delete(ctx context.Context, id shared.ID, now time.Time) (bool, error) {

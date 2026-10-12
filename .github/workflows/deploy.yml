@@ -1,9 +1,11 @@
 name: Deploy
 
 # Every push to main reaches the integration environment (deployment.md §3). Nothing here needs an
-# approval: main is protected, a change arrives through a pull request, and the four required
-# checks have already run on it — so what this deploys is code the gates have seen. `production` is
-# the environment with the human in front of it, and it is reached by a tag, not by this workflow.
+# approval: main is protected, a change arrives through a pull request, and `CI required` ran on it.
+# It ran on the merge with main as main stood then; what merged meanwhile is first checked by main's
+# own run, beside this deploy (ADR-0083) - so integration may run a combination no gate has seen for
+# those minutes, and a red run is filed. `production` is the environment with the human in front of
+# it, and it is reached by a tag, not by this workflow.
 on:
   push:
     branches: [main]

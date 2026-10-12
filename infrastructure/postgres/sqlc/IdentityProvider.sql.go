@@ -277,7 +277,7 @@ func (q *Queries) FindAccountByProviderSubject(ctx context.Context, arg FindAcco
 const findIdentityProviderByID = `-- name: FindIdentityProviderByID :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -302,6 +302,8 @@ type FindIdentityProviderByIDRow struct {
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	OfferedWorkspaces   int32
 }
 
@@ -326,6 +328,8 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 		&i.UpdatedAt,
 		&i.Version,
 		&i.WithdrawAt,
+		&i.NewcomerRole,
+		&i.NewcomerGroupID,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -334,7 +338,7 @@ func (q *Queries) FindIdentityProviderByID(ctx context.Context, id pgtype.UUID) 
 const findIdentityProviderSecret = `-- name: FindIdentityProviderSecret :one
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
-  withdraw_at
+  withdraw_at, newcomer_role, newcomer_group_id
 FROM identity_provider
 WHERE id = $1
 `
@@ -354,6 +358,8 @@ type FindIdentityProviderSecretRow struct {
 	AllowedDirectories  []string
 	Enabled             bool
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 }
 
 // The token exchange's own read, separate from the one above so that opening the envelope is a
@@ -376,6 +382,8 @@ func (q *Queries) FindIdentityProviderSecret(ctx context.Context, id pgtype.UUID
 		&i.AllowedDirectories,
 		&i.Enabled,
 		&i.WithdrawAt,
+		&i.NewcomerRole,
+		&i.NewcomerGroupID,
 	)
 	return i, err
 }
@@ -384,17 +392,18 @@ const insertIdentityProvider = `-- name: InsertIdentityProvider :one
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
    display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
-   enabled, created_at)
+   enabled, created_at, newcomer_role, newcomer_group_id)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5,
   $6, $7, $8, $9,
   $10, $11,
-  $12, $13
+  $12, $13,
+  $14::membership_role, $15::uuid
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -415,6 +424,8 @@ type InsertIdentityProviderParams struct {
 	AllowedDirectories  []string
 	Enabled             bool
 	Now                 pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 }
 
 type InsertIdentityProviderRow struct {
@@ -433,6 +444,8 @@ type InsertIdentityProviderRow struct {
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	OfferedWorkspaces   int32
 }
 
@@ -455,6 +468,8 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		arg.AllowedDirectories,
 		arg.Enabled,
 		arg.Now,
+		arg.NewcomerRole,
+		arg.NewcomerGroupID,
 	)
 	var i InsertIdentityProviderRow
 	err := row.Scan(
@@ -473,6 +488,8 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 		&i.UpdatedAt,
 		&i.Version,
 		&i.WithdrawAt,
+		&i.NewcomerRole,
+		&i.NewcomerGroupID,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -602,7 +619,7 @@ const listIdentityProviders = `-- name: ListIdentityProviders :many
 
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -627,6 +644,8 @@ type ListIdentityProvidersRow struct {
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	OfferedWorkspaces   int32
 }
 
@@ -666,6 +685,8 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 			&i.UpdatedAt,
 			&i.Version,
 			&i.WithdrawAt,
+			&i.NewcomerRole,
+			&i.NewcomerGroupID,
 			&i.OfferedWorkspaces,
 		); err != nil {
 			return nil, err
@@ -715,7 +736,7 @@ UPDATE identity_provider SET
 WHERE id = $3 AND tenant_id IS NULL
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -744,6 +765,8 @@ type SetProviderWithdrawalRow struct {
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	OfferedWorkspaces   int32
 }
 
@@ -769,6 +792,8 @@ func (q *Queries) SetProviderWithdrawal(ctx context.Context, arg SetProviderWith
 		&i.UpdatedAt,
 		&i.Version,
 		&i.WithdrawAt,
+		&i.NewcomerRole,
+		&i.NewcomerGroupID,
 		&i.OfferedWorkspaces,
 	)
 	return i, err
@@ -801,13 +826,15 @@ UPDATE identity_provider SET
   position              = $8,
   allowed_email_domains = $9,
   allowed_directories   = $10,
-  enabled               = coalesce($11, enabled),
-  updated_at            = $12,
+  newcomer_role         = $11::membership_role,
+  newcomer_group_id     = $12::uuid,
+  enabled               = coalesce($13, enabled),
+  updated_at            = $14,
   version               = version + 1
-WHERE id = $13
+WHERE id = $15
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -825,6 +852,8 @@ type UpdateIdentityProviderParams struct {
 	Position            int32
 	AllowedEmailDomains []string
 	AllowedDirectories  []string
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	Enabled             *bool
 	Now                 pgtype.Timestamptz
 	ID                  pgtype.UUID
@@ -846,6 +875,8 @@ type UpdateIdentityProviderRow struct {
 	UpdatedAt           pgtype.Timestamptz
 	Version             int32
 	WithdrawAt          pgtype.Timestamptz
+	NewcomerRole        *MembershipRole
+	NewcomerGroupID     pgtype.UUID
 	OfferedWorkspaces   int32
 }
 
@@ -871,6 +902,8 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		arg.Position,
 		arg.AllowedEmailDomains,
 		arg.AllowedDirectories,
+		arg.NewcomerRole,
+		arg.NewcomerGroupID,
 		arg.Enabled,
 		arg.Now,
 		arg.ID,
@@ -892,6 +925,8 @@ func (q *Queries) UpdateIdentityProvider(ctx context.Context, arg UpdateIdentity
 		&i.UpdatedAt,
 		&i.Version,
 		&i.WithdrawAt,
+		&i.NewcomerRole,
+		&i.NewcomerGroupID,
 		&i.OfferedWorkspaces,
 	)
 	return i, err

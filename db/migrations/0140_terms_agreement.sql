@@ -24,7 +24,7 @@ ALTER TABLE account ADD COLUMN IF NOT EXISTS terms_agreed_at timestamptz;
 
 ALTER TABLE auth_pending DROP CONSTRAINT IF EXISTS auth_pending_purpose_check;
 ALTER TABLE auth_pending ADD CONSTRAINT auth_pending_purpose_check
-  CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'TERMS'));
+  CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS'));
 ALTER TABLE auth_pending ADD COLUMN IF NOT EXISTS session_method text
   CONSTRAINT auth_pending_session_method_check CHECK (char_length(session_method) <= 32);
 ALTER TABLE auth_pending ADD COLUMN IF NOT EXISTS session_via uuid;

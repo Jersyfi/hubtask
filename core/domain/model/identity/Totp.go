@@ -177,6 +177,10 @@ const (
 	// one wins - and it does one thing only: stand in for the password at the provider's first
 	// arrival. It is never a session and never replaces the second factor.
 	PendingConnect PendingPurpose = "CONNECT"
+	// PendingAddress is the link that confirms a managed account's new address (ADR-0074 §6). It
+	// holds the address it confirms, proves the mailbox and nothing else - it never signs anybody
+	// in - and lives a day (AddressLifetime); the newest request wins.
+	PendingAddress PendingPurpose = "ADDRESS"
 	// PendingTerms is the step a sign-in ends in while the account has not agreed to the terms of
 	// use in force (UC-ID-19): after every proof, so it never stands in for one. It completes by
 	// agreeing, and then opens the session the sign-in would have opened - which is why it carries

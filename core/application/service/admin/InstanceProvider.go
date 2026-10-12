@@ -270,6 +270,10 @@ func (h ConfigureInstanceIdentityProvider) Descriptor() usecase.Descriptor {
 				Description: "The organisations this provider admits under DOMAINS, in its own identifiers - and required for a multi-directory issuer, which without one is every organisation in the world."},
 			{Name: "enabled", Kind: usecase.KindBool,
 				Description: "Deprecated. Whether a new provider is offered, absent being on. Afterwards an offer ends through the withdrawal, and a changed value is refused with identity_provider.withdraw_instead."},
+			// Declared so that the refusal is the domain's own sentence: newcomers are a workspace's
+			// to decide, and the installation's providers carry none.
+			identityservice.NewcomerRoleField,
+			identityservice.NewcomerGroupField,
 			identityservice.ProviderStepUpField,
 		},
 		StepUp: "changing a way in every workspace is offered",

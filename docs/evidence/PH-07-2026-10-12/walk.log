@@ -1,0 +1,32 @@
+setup: create-managed 201
+setup: Lena signed in with her own password; her session is open
+
+# the renewal at 1280 px
+  Paula's own row offers New start password: 0
+  the new start password is four groups of four: true
+  Lena's session opened before the renewal answers 401
+  Lena's previous password answers 401 auth.sign_in_failed
+  a password with the name: the line names the sign-in name
+  Lena chose her own password and is signed in
+
+# the renewal at 375 px
+  Paula's own row offers New start password: 0
+  the new start password is four groups of four: true
+  Lena's session opened before the renewal answers 401
+  Lena's previous password answers 401 auth.sign_in_failed
+  Lena chose her own password and is signed in
+
+# the address
+  mail to lena@example.org, subject: Confirm your address for Hubtask
+  body: Somebody asked to add this address to the Hubtask account of Lena. Confirm it here: http://localhost:58080/confirm-address#token=<the token> /  / The link works once and for a day. Once confirmed, the account signs in with this address too, and a forgotten password can be reset by mail. If you do not know about this, ignore this message - nothing changes. / 
+  the mail carries a confirmation link: true
+  before the confirmation the account holds an address: false
+  at 375 px the token left the address: true
+  at 1280 px the token left the address: true
+  sign-in by address answers 201, by sign-in name 201
+  a new start password for the upgraded account answers 409 accounts.not_managed
+  forgot-password for the address answers 202
+  at 1280 px Lena's row offers New start password: 0, Add an address: 0
+  at 375 px Lena's row offers New start password: 0, Add an address: 0
+
+the walk ended

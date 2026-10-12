@@ -411,6 +411,9 @@ func run() error {
 		security.NewPendingTokenHasher(cfg.SecretKey),
 		security.NewRecoveryCodeHasher(cfg.SecretKey))
 	sessions := postgres.NewSessionRepository()
+	// A managed account's address waiting for its mailbox: an ADDRESS row of the pending
+	// credentials, its token hashed under their label (ADR-0074 §6).
+	addressRequests := postgres.NewAddressRepository(security.NewPendingTokenHasher(cfg.SecretKey))
 	signInStore := postgres.NewSignInRepository(
 		security.NewRedemptionTokenHasher(cfg.SecretKey),
 		security.NewAuthAttemptHasher(cfg.SecretKey))
@@ -1024,6 +1027,9 @@ func run() error {
 		Accounts:    accounts,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
+		// What a provider names for newcomers is given in the arrival's own transaction.
+		Grants: grants,
+		Groups: groups,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1177,6 +1183,9 @@ func run() error {
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
+		// What a newcomer gets names a group of this workspace, checked at configuration.
+		Groups: groups,
+		Grants: grants,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1376,6 +1385,8 @@ func run() error {
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
+			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
+			Access: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{
@@ -1388,6 +1399,17 @@ func run() error {
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Text: forms,
+		}.Descriptor(),
+		identity.IssueStartPassword{
+			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.RequestAddress{
+			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Door: passwordWriter,
 		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
@@ -1438,6 +1460,9 @@ func run() error {
 			Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ConfirmAddress{
+			Requests: addressRequests, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{
@@ -2687,6 +2712,21 @@ func run() error {
 			BaseURL:        cfg.BaseURL,
 		},
 	}
+	// The link that confirms a managed account's new address, minted at delivery.
+	addressConfirmationMessage := worker.AddressConfirmationMessage{
+		Send: notification.SendAddressConfirmation{
+			Links: addressMinterAdapter{mint: identity.MintAddressLink{
+				Requests: addressRequests, Entropy: clockadapter.CryptoRandom{}, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{},
+			}},
+			Mail:           mailSender,
+			Renderer:       renderer,
+			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
+			UnitOfWork:     unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale,
+			BaseURL:        cfg.BaseURL,
+		},
+	}
 	// An operator's opening of the password: its notices to the administrators, and the job
 	// that records its end once the time has passed.
 	passwordOpeningMessage := worker.PasswordOpeningMessage{
@@ -3004,16 +3044,17 @@ func run() error {
 	}
 
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:          reminderFiring,
-		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
-		queueport.KindOutboxDispatch:        dispatcher,
-		queueport.KindRetentionSweep:        retention,
-		queueport.KindMediaReconcile:        mediaReconciliation,
-		queueport.KindInvitationEmail:       invitationMessage,
-		queueport.KindPasswordResetEmail:    passwordResetMessage,
-		queueport.KindPasswordOpeningEmail:  passwordOpeningMessage,
-		queueport.KindPasswordOpeningEnd:    passwordOpeningEnd,
-		queueport.KindAiSuggest:             worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindReminderFire:             reminderFiring,
+		queueport.KindRecurrenceMaterialize:    recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:           dispatcher,
+		queueport.KindRetentionSweep:           retention,
+		queueport.KindMediaReconcile:           mediaReconciliation,
+		queueport.KindInvitationEmail:          invitationMessage,
+		queueport.KindPasswordResetEmail:       passwordResetMessage,
+		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
+		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
+		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
@@ -3612,6 +3653,20 @@ func (a resetMinterAdapter) MintResetToken(
 		Connect:     link.Connect,
 		Address:     link.Address,
 		Locale:      link.Locale,
+	}, nil
+}
+
+type addressMinterAdapter struct{ mint identity.MintAddressLink }
+
+func (a addressMinterAdapter) MintAddressLink(
+	ctx context.Context, tenantID, requestID shared.ID,
+) (notification.AddressLink, error) {
+	link, err := a.mint.MintAddressLink(ctx, tenantID, requestID)
+	if err != nil {
+		return notification.AddressLink{}, err
+	}
+	return notification.AddressLink{
+		Token: link.Token, Address: link.Address, Locale: link.Locale, DisplayName: link.DisplayName,
 	}, nil
 }
 

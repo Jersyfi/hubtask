@@ -109,6 +109,41 @@ func TestContextWordsAreFlattenedAndBounded(t *testing.T) {
 	}
 }
 
+// A refused password names the words a person actually has: somebody without an address is told
+// about their sign-in name, never about an email address (UC-ID-20, the sentence the client already
+// shows before submitting). The rule stays one rule; only its sentence follows the account's kind.
+func TestTheContextWordRefusalNamesWhatTheAccountHolds(t *testing.T) {
+	policy := PasswordPolicy{MinLength: 8, ContextWords: true}
+	for name, tc := range map[string]struct {
+		context PasswordContext
+		code    string
+	}{
+		"a sign-in name and no address": {
+			PasswordContext{SignInName: "lena"}, "auth.password_rule.context_words_name",
+		},
+		"an address": {
+			PasswordContext{Email: "lena@example.org"}, "auth.password_rule.context_words",
+		},
+		"an address and a sign-in name": {
+			PasswordContext{Email: "lena@example.org", SignInName: "lena"}, "auth.password_rule.context_words",
+		},
+		"neither": {
+			PasswordContext{DisplayName: "Lenalein Berger"}, "auth.password_rule.context_words",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			violations := LocalPasswordViolations(policy, text.Composing{}, "lena-and-lenalein-hubtask", tc.context)
+			if len(violations) != 1 || violations[0].Rule != RuleContextWords {
+				t.Fatalf("violations %v, want the context words alone", violations)
+			}
+			fields := fieldsOf(t, PasswordRefused(violations))
+			if fields[0].Code != tc.code {
+				t.Errorf("the refusal named %q, want %q", fields[0].Code, tc.code)
+			}
+		})
+	}
+}
+
 // fieldsOf reads the field errors off a refusal, which is what a client's list is built from.
 func fieldsOf(t *testing.T, err error) []shared.FieldError {
 	t.Helper()

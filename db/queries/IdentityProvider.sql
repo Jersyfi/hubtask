@@ -13,7 +13,7 @@
 -- above the default it inherited - and the sealed secret is in none of it.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -26,7 +26,7 @@ ORDER BY (tenant_id IS NULL), position, created_at, id;
 -- it by name below, so a read cannot spill it by accident.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -39,7 +39,7 @@ WHERE id = sqlc.arg('id');
 -- deliberate call and not a field that happens to be in a struct somebody logged.
 SELECT id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   client_secret_enc, client_secret_key_id, allowed_email_domains, allowed_directories, enabled,
-  withdraw_at
+  withdraw_at, newcomer_role, newcomer_group_id
 FROM identity_provider
 WHERE id = sqlc.arg('id');
 
@@ -56,17 +56,18 @@ SELECT count(*) FROM identity_provider WHERE tenant_id = current_tenant_id();
 INSERT INTO identity_provider
   (id, tenant_id, issuer, client_id, client_secret_enc, client_secret_key_id,
    display_name, kind, provisioning, position, allowed_email_domains, allowed_directories,
-   enabled, created_at)
+   enabled, created_at, newcomer_role, newcomer_group_id)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('issuer'), sqlc.arg('client_id'),
   sqlc.arg('client_secret_enc'), sqlc.arg('client_secret_key_id'),
   sqlc.arg('display_name'), sqlc.arg('kind'), sqlc.arg('provisioning'), sqlc.arg('position'),
   sqlc.arg('allowed_email_domains'), sqlc.arg('allowed_directories'),
-  sqlc.arg('enabled'), sqlc.arg('now')
+  sqlc.arg('enabled'), sqlc.arg('now'),
+  sqlc.narg('newcomer_role')::membership_role, sqlc.narg('newcomer_group_id')::uuid
 )
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -94,13 +95,15 @@ UPDATE identity_provider SET
   position              = sqlc.arg('position'),
   allowed_email_domains = sqlc.arg('allowed_email_domains'),
   allowed_directories   = sqlc.arg('allowed_directories'),
+  newcomer_role         = sqlc.narg('newcomer_role')::membership_role,
+  newcomer_group_id     = sqlc.narg('newcomer_group_id')::uuid,
   enabled               = coalesce(sqlc.narg('enabled'), enabled),
   updated_at            = sqlc.arg('now'),
   version               = version + 1
 WHERE id = sqlc.arg('id')
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
@@ -118,7 +121,7 @@ UPDATE identity_provider SET
 WHERE id = sqlc.arg('id') AND tenant_id IS NULL
 RETURNING id, tenant_id, issuer, client_id, display_name, kind, provisioning, position,
   allowed_email_domains, allowed_directories, enabled, created_at, updated_at, version,
-  withdraw_at,
+  withdraw_at, newcomer_role, newcomer_group_id,
   -- The installation's count, counted where it is read (ADR-0077 §1) - and only in the
   -- installation's own scope: a workspace reads zero, never another workspace's choices.
   (CASE WHEN current_tenant_id() IS NULL AND tenant_id IS NULL
