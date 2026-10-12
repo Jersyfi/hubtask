@@ -3,7 +3,7 @@
 SELECT
   a.id, a.tenant_id, a.kind, a.email, a.display_name, a.status,
   a.locale, a.time_zone, a.week_start,
-  a.password_hash, a.password_set_at
+  a.password_hash, a.password_set_at, a.sign_in_name, a.start_password_at
 FROM account a
 WHERE a.id = $1 AND a.deleted_at IS NULL;
 
@@ -12,15 +12,17 @@ WHERE a.id = $1 AND a.deleted_at IS NULL;
 SELECT
   a.id, a.tenant_id, a.kind, a.email, a.display_name, a.status,
   a.locale, a.time_zone, a.week_start,
-  a.password_hash, a.password_set_at
+  a.password_hash, a.password_set_at, a.sign_in_name, a.start_password_at
 FROM account a
 WHERE lower(a.email) = lower(sqlc.arg('email')) AND a.deleted_at IS NULL;
 
 -- name: SetAccountPassword :execrows
--- The hash and the moment in one statement, so no reader sees one without the other.
+-- The hash and the moment in one statement, so no reader sees one without the other. A password set
+-- through any door is the person's own, so a start password's mark goes with it (ADR-0074 §2).
 UPDATE account
    SET password_hash = sqlc.arg('password_hash'),
        password_set_at = sqlc.arg('at'),
+       start_password_at = NULL,
        updated_at = sqlc.arg('at'),
        version = version + 1
  WHERE id = sqlc.arg('account_id') AND deleted_at IS NULL;

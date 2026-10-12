@@ -33,21 +33,26 @@
   import { canCopy } from '@hubtask/design-system/components';
   import { Banner, Button, CodeField, OneTimeSecret, QrCode, Stack, encodeQr } from '@hubtask/design-system/components';
 
-  import { mfa } from '../data/mfa.svelte.ts';
+  import { mfa, type OwedChange } from '../data/mfa.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     /** The credential a sign-in that demands a factor answered. Absent for a signed-in caller. */
     pendingToken?: string;
-    /** Called at *Continue*, with the pair where the confirmation *was* the sign-in. */
-    onarmed?: (pair?: { access: string; refresh: string }) => void;
+    /**
+     * Called at *Continue*, with the pair where the confirmation *was* the sign-in, or the change
+     * step the sign-in still owes where the password must be replaced first.
+     */
+    onarmed?: (pair?: { access: string; refresh: string }, owedChange?: OwedChange) => void;
   }
 
   let { pendingToken, onarmed }: Props = $props();
 
   let code = $state('');
   /** The codes and the pair between the confirmation and *Continue*. */
-  let armed = $state<{ codes: readonly string[]; pair?: { access: string; refresh: string } } | undefined>(undefined);
+  let armed = $state<
+    { codes: readonly string[]; pair?: { access: string; refresh: string }; owedChange?: OwedChange } | undefined
+  >(undefined);
 
   const enrollment = $derived(mfa.enrollment);
 
@@ -76,13 +81,14 @@
     const codes = enrollment?.recovery_codes ?? [];
     const answer = await mfa.confirm(code.trim(), pendingToken);
     code = '';
-    if (answer?.armed) armed = { codes, pair: answer.tokens };
+    if (answer?.armed) armed = { codes, pair: answer.tokens, owedChange: answer.challenge };
   }
 
   function proceed(): void {
     const pair = armed?.pair;
+    const owedChange = armed?.owedChange;
     armed = undefined;
-    onarmed?.(pair);
+    onarmed?.(pair, owedChange);
   }
 </script>
 

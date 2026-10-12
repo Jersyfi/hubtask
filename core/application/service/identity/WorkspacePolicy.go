@@ -291,7 +291,9 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			"idle_minutes": setting(domain.SwitchSessionIdleMinutes,
 				policy.Sessions.IdleMinutes, above.Sessions.IdleMinutes),
 		},
-		"legal":         legal,
+		"legal": legal,
+		"managed_accounts": setting(domain.SwitchManagedAccounts,
+			policy.ManagedAccounts, above.ManagedAccounts),
 		"rotation_from": nil,
 	}
 	if !policy.RotationFrom.IsZero() {
@@ -375,6 +377,7 @@ func policyPatchFrom(sent map[string]any) (WorkspacePolicyChange, error) {
 		{"common_passwords", &change.Policy.CommonPasswords},
 		{"context_words", &change.Policy.ContextWords},
 		{"breach_check", &change.Policy.BreachCheck},
+		{"managed_accounts", &change.Policy.ManagedAccounts},
 	} {
 		if *field.target, err = flag(field.key); err != nil {
 			return WorkspacePolicyChange{}, err

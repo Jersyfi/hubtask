@@ -132,10 +132,11 @@ func TestConnectingAnArmedAccountTakesItsPasswordAndItsCode(t *testing.T) {
 	// The code: now the provider is connected, in the same step that opens the session. The next
 	// step's code, because enrolling spent the current one.
 	material := f.session.writer.Encryptor.(*encryptorFake).sealedBy[string(mfaSecretPurpose(account))]
-	pair, _, err := CompleteSignIn{Writer: f.session.writer}.Execute(t.Context(), CompleteSignInCommand{
+	completed, _, err := CompleteSignIn{Writer: f.session.writer}.Execute(t.Context(), CompleteSignInCommand{
 		PendingToken: next.Challenge.Token,
 		Code:         domain.TotpCode([]byte(material), domain.TotpStep(now)+1),
 	})
+	pair := completed.Pair
 	if err != nil {
 		t.Fatalf("the second factor's step: %v", err)
 	}

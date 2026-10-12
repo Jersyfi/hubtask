@@ -339,10 +339,11 @@ func TestAnArmedFactorIsStillAskedAfterTheMailbox(t *testing.T) {
 	}
 
 	material := f.session.writer.Encryptor.(*encryptorFake).sealedBy[string(mfaSecretPurpose(account))]
-	pair, _, err := CompleteSignIn{Writer: f.session.writer}.Execute(t.Context(), CompleteSignInCommand{
+	completed, _, err := CompleteSignIn{Writer: f.session.writer}.Execute(t.Context(), CompleteSignInCommand{
 		PendingToken: result.Challenge.Token,
 		Code:         domain.TotpCode([]byte(material), domain.TotpStep(connectAt)+1),
 	})
+	pair := completed.Pair
 	if err != nil {
 		t.Fatalf("the second factor's step: %v", err)
 	}

@@ -91,6 +91,7 @@ const (
 	keyMethods            = signInArea + ".methods"
 	keySessionMaxDays     = signInArea + ".session_max_days"
 	keySessionIdleMinutes = signInArea + ".session_idle_minutes"
+	keyManagedAccounts    = signInArea + ".managed_accounts"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
 )
 
@@ -116,6 +117,7 @@ var switchKeys = map[identity.PolicySwitch]string{
 	identity.SwitchMethods:            keyMethods,
 	identity.SwitchSessionMaxDays:     keySessionMaxDays,
 	identity.SwitchSessionIdleMinutes: keySessionIdleMinutes,
+	identity.SwitchManagedAccounts:    keyManagedAccounts,
 }
 
 // Read answers the whole level.
@@ -206,6 +208,8 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		patch.SessionMaxDays, err = number()
 	case keySessionIdleMinutes:
 		patch.SessionIdleMinutes, err = number()
+	case keyManagedAccounts:
+		patch.ManagedAccounts, err = flag()
 	case keyCommonPasswords:
 		patch.CommonPasswords, err = flag()
 	case keyContextWords:
@@ -430,6 +434,9 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 	}
 	if patch.SessionIdleMinutes != nil {
 		values[identity.SwitchSessionIdleMinutes] = *patch.SessionIdleMinutes
+	}
+	if patch.ManagedAccounts != nil {
+		values[identity.SwitchManagedAccounts] = *patch.ManagedAccounts
 	}
 
 	// In the domain's own order, so that two writes of one level produce the same statements and a

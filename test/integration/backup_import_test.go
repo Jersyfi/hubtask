@@ -978,3 +978,59 @@ func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 		t.Error("the emptying kept an account that is not restricted")
 	}
 }
+
+// A managed account signs in with its name and its start password's mark (ADR-0074): a restore that
+// dropped either would leave a person with no way in, or skip the change their first sign-in owes.
+func TestARestoredManagedAccountKeepsItsNameAndItsStartPasswordMark(t *testing.T) {
+	ctx := context.Background()
+	tenant, _, account := restrictedTenant(ctx, t)
+	drawn := created.Add(time.Hour)
+	archived := map[string]any{
+		"id": account.String(), "kind": "USER", "display_name": "Lena", "status": "ACTIVE", "ai_consent": false,
+		"sign_in_name": "lena", "start_password_at": drawn.Format(time.RFC3339Nano),
+		"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
+		"version": 1,
+	}
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		_, err := importRepo().Write(ctx, "account", archived, true)
+		return err
+	}); err != nil {
+		t.Fatalf("restoring the account: %v", err)
+	}
+
+	var (
+		name   *string
+		marked *time.Time
+	)
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT sign_in_name, start_password_at FROM account WHERE tenant_id = $1 AND id = $2`,
+		tenant.String(), account.String()).Scan(&name, &marked); err != nil {
+		t.Fatalf("reading the account back: %v", err)
+	}
+	if name == nil || *name != "lena" {
+		t.Errorf("the sign-in name came back as %v, want lena", name)
+	}
+	if marked == nil || !marked.Equal(drawn) {
+		t.Errorf("the start password's mark came back as %v, want %v", marked, drawn)
+	}
+}
+
+// The database holds the two rules an identifier's shape depends on, whatever a writer forgot: a
+// sign-in name never carries `@`, and one name is one account in a workspace.
+func TestASignInNameIsUniqueAndNeverAnAddress(t *testing.T) {
+	ctx := context.Background()
+	_, first, second := restrictedTenant(ctx, t)
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = 'lena' WHERE id = $1`, first.String()); err != nil {
+		t.Fatalf("naming the first account: %v", err)
+	}
+	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = 'lena' WHERE id = $1`, second.String()); err == nil {
+		t.Error("a second account took a name already taken in the workspace")
+	}
+	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = 'lena@home' WHERE id = $1`, second.String()); err == nil {
+		t.Error("a sign-in name with @ was stored")
+	}
+	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = 'le' WHERE id = $1`, second.String()); err == nil {
+		t.Error("a sign-in name of two characters was stored")
+	}
+}

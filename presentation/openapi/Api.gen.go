@@ -3995,6 +3995,9 @@ type Account struct {
 	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
 	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
 
+	// SignInName What a managed account signs in with instead of an address: unique in the workspace, stored folded (compatibility form, lower case). Absent on an account that signs in with its address.
+	SignInName *string `json:"sign_in_name,omitempty"`
+
 	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
 	// stays, and what stops is this system deciding anything about the person by machine.
 	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
@@ -4045,10 +4048,13 @@ type AccountPreferencesWeekStart string
 // AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission.
 type AccountSummary struct {
 	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
-	DisplayName string               `json:"display_name"`
-	Id          openapi_types.UUID   `json:"id"`
-	Kind        AccountSummaryKind   `json:"kind"`
-	Status      AccountSummaryStatus `json:"status"`
+	DisplayName string `json:"display_name"`
+
+	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
+	HasAddress *bool                `json:"has_address,omitempty"`
+	Id         openapi_types.UUID   `json:"id"`
+	Kind       AccountSummaryKind   `json:"kind"`
+	Status     AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -6004,7 +6010,7 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and the two session bounds. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -6432,6 +6438,34 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// ManagedAccountCreate defines model for ManagedAccountCreate.
+type ManagedAccountCreate struct {
+	DisplayName string `json:"display_name"`
+
+	// Role `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
+	// the configuration and no content at all. It exists because the
+	// alternative, in practice, is giving an auditor administrator rights - a permissions
+	// problem that arises precisely where evidence is being demanded. Somebody who needs both
+	// holds two memberships; the rights add up rather than the stronger one winning.
+	Role MembershipRole `json:"role"`
+
+	// ScopeId Absent for `TENANT`; the hub, collection or entry otherwise.
+	ScopeId   *openapi_types.UUID `json:"scope_id,omitempty"`
+	ScopeType MembershipScope     `json:"scope_type"`
+
+	// SignInName 3 to 32 characters after folding (compatibility form, lower case, trimmed); no `@`, no whitespace and no control character. Unique in the workspace.
+	SignInName string `json:"sign_in_name"`
+}
+
+// ManagedAccountCreated defines model for ManagedAccountCreated.
+type ManagedAccountCreated struct {
+	Account    Account    `json:"account"`
+	Membership Membership `json:"membership"`
+
+	// StartPassword Shown here and never again. The person types it once, with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
 }
 
 // MediaObject defines model for MediaObject.
@@ -7892,9 +7926,13 @@ type SessionTokens struct {
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
 
-// SignIn defines model for SignIn.
+// SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
-	Email openapi_types.Email `json:"email"`
+	// Email The address, for a client that knows only addresses. `identifier` takes either.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Identifier The address the account signs in with, or its sign-in name where it has one instead (a managed account). One with `@` is read as an address, one without as a sign-in name; both are compared after the same folding the stored values had. Every failure is the one refusal, whichever it was.
+	Identifier *string `json:"identifier,omitempty"`
 
 	// Password Checked in constant shape against the stored Argon2id hash. No minimum here: the policy binds where a password is *set*, and refusing a short guess differently from a wrong one would leak which it was.
 	Password string `json:"password"`
@@ -7926,8 +7964,11 @@ type SignInPasswordChange struct {
 // **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
 type SignInPolicy struct {
 	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
-	Legal   LegalPolicySettings `json:"legal"`
-	Methods SignInPolicyMethods `json:"methods"`
+	Legal LegalPolicySettings `json:"legal"`
+
+	// ManagedAccounts Whether owners and administrators may give somebody an account without a mail address. On by default; off is the stricter value. Off stops new ones only - the managed accounts already here keep signing in.
+	ManagedAccounts *SignInPolicyFlag   `json:"managed_accounts,omitempty"`
+	Methods         SignInPolicyMethods `json:"methods"`
 
 	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
 	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
@@ -7950,8 +7991,9 @@ type SignInPolicyChange struct {
 	ContextWords     *bool   `json:"context_words,omitempty"`
 
 	// HistoryCount 0 is off. At most ten.
-	HistoryCount *int    `json:"history_count,omitempty"`
-	ImprintUrl   *string `json:"imprint_url,omitempty"`
+	HistoryCount    *int    `json:"history_count,omitempty"`
+	ImprintUrl      *string `json:"imprint_url,omitempty"`
+	ManagedAccounts *bool   `json:"managed_accounts,omitempty"`
 
 	// MaxAgeDays 0 is off, which is the shipped value.
 	MaxAgeDays *int `json:"max_age_days,omitempty"`
@@ -8064,6 +8106,9 @@ type SignInRules struct {
 	// PasswordFallback True while `PASSWORD` is among the methods only because no other way into the workspace works - its rule leaves the password out and no provider is switched on there, whatever the cause: an offer that ended, an installation default or lock, a restore. The password opens for the accounts that hold one, under the workspace's own rules, until an administrator switches on a way in. The administrators' screen says so.
 	PasswordFallback *bool             `json:"password_fallback,omitempty"`
 	Providers        []ProviderSummary `json:"providers"`
+
+	// SignInNames True while this workspace has at least one managed account - a person who signs in with a sign-in name instead of an address - so the card's first field asks for either. False everywhere else, a host without a workspace included.
+	SignInNames *bool `json:"sign_in_names,omitempty"`
 
 	// WorkspaceHost The host this answer was resolved for, which is what the card shows.
 	WorkspaceHost string `json:"workspace_host"`
@@ -8532,7 +8577,10 @@ type TotpConfirmed struct {
 	// Armed Always true on success; the field exists so the answer is a statement, not an empty object.
 	Armed bool `json:"armed"`
 
-	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one.
+	// Challenge The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the password the sign-in began with must still be changed - one the rule refuses, or a start password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Tokens The pair, when a pending credential completed a sign-in here. Absent for a signed-in caller, who already holds one, and where `challenge` stands instead.
 	Tokens *SessionTokens `json:"tokens,omitempty"`
 }
 
@@ -9086,6 +9134,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// CreateManagedAccountParams defines parameters for CreateManagedAccount.
+type CreateManagedAccountParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // InviteAccountParams defines parameters for InviteAccount.
 type InviteAccountParams struct {
@@ -10136,6 +10190,9 @@ type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountP
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
+// CreateManagedAccountJSONRequestBody defines body for CreateManagedAccount for application/json ContentType.
+type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
+
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
@@ -10534,6 +10591,9 @@ type ServerInterface interface {
 	// RestrictProcessing Restrict the processing of an account's data (Art. 18)
 	// (POST /accounts/{accountId}:restrict)
 	RestrictProcessing(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// CreateManagedAccount Give somebody an account without a mail address
+	// (POST /accounts:create-managed)
+	CreateManagedAccount(w http.ResponseWriter, r *http.Request, params CreateManagedAccountParams)
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
@@ -11544,6 +11604,47 @@ func (siw *ServerInterfaceWrapper) RestrictProcessing(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RestrictProcessing(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateManagedAccount operation middleware
+func (siw *ServerInterfaceWrapper) CreateManagedAccount(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateManagedAccountParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateManagedAccount(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21884,6 +21985,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sync/devices/{deviceId}", wrapper.ForgetSyncDevice)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)

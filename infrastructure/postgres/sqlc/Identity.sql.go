@@ -90,7 +90,7 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 }
 
 const accountsOfKind = `-- name: AccountsOfKind :many
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE kind = $1 AND deleted_at IS NULL
@@ -101,6 +101,7 @@ type AccountsOfKindRow struct {
 	ID                    pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
+	SignInName            *string
 	DisplayName           string
 	Status                AccountStatus
 	Locale                *string
@@ -128,6 +129,7 @@ func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]Accou
 			&i.ID,
 			&i.Kind,
 			&i.Email,
+			&i.SignInName,
 			&i.DisplayName,
 			&i.Status,
 			&i.Locale,
@@ -358,7 +360,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 
 const findAccount = `-- name: FindAccount :one
 
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
@@ -368,6 +370,7 @@ type FindAccountRow struct {
 	ID                    pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
+	SignInName            *string
 	DisplayName           string
 	Status                AccountStatus
 	Locale                *string
@@ -388,6 +391,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.ID,
 		&i.Kind,
 		&i.Email,
+		&i.SignInName,
 		&i.DisplayName,
 		&i.Status,
 		&i.Locale,
@@ -400,7 +404,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 }
 
 const findAccountByEmail = `-- name: FindAccountByEmail :one
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower($1) AND deleted_at IS NULL
@@ -410,6 +414,7 @@ type FindAccountByEmailRow struct {
 	ID                    pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
+	SignInName            *string
 	DisplayName           string
 	Status                AccountStatus
 	Locale                *string
@@ -428,6 +433,48 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 		&i.ID,
 		&i.Kind,
 		&i.Email,
+		&i.SignInName,
+		&i.DisplayName,
+		&i.Status,
+		&i.Locale,
+		&i.TimeZone,
+		&i.WeekStart,
+		&i.Celebrations,
+		&i.OnboardingCompletedAt,
+	)
+	return i, err
+}
+
+const findAccountBySignInName = `-- name: FindAccountBySignInName :one
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
+FROM account
+WHERE sign_in_name = $1 AND deleted_at IS NULL
+`
+
+type FindAccountBySignInNameRow struct {
+	ID                    pgtype.UUID
+	Kind                  AccountKind
+	Email                 *string
+	SignInName            *string
+	DisplayName           string
+	Status                AccountStatus
+	Locale                *string
+	TimeZone              *string
+	WeekStart             *string
+	Celebrations          *bool
+	OnboardingCompletedAt pgtype.Timestamptz
+}
+
+// Compared folded, the form it is stored in (account_sign_in_name_uq); the caller folds it.
+func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *string) (FindAccountBySignInNameRow, error) {
+	row := q.db.QueryRow(ctx, findAccountBySignInName, signInName)
+	var i FindAccountBySignInNameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Email,
+		&i.SignInName,
 		&i.DisplayName,
 		&i.Status,
 		&i.Locale,
@@ -576,6 +623,22 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 		return nil, err
 	}
 	return items, nil
+}
+
+const hasManagedAccounts = `-- name: HasManagedAccounts :one
+SELECT EXISTS (
+  SELECT 1 FROM account
+  WHERE sign_in_name IS NOT NULL AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+)::boolean AS present
+`
+
+// Whether the sign-in card asks for "address or sign-in name": a managed account that can still
+// sign in. An anonymised one has lost its name already; a disabled one may be enabled again.
+func (q *Queries) HasManagedAccounts(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, hasManagedAccounts)
+	var present bool
+	err := row.Scan(&present)
+	return present, err
 }
 
 const holdsAnyMembership = `-- name: HoldsAnyMembership :one
@@ -730,6 +793,37 @@ type InsertGroupParams struct {
 
 func (q *Queries) InsertGroup(ctx context.Context, arg InsertGroupParams) error {
 	_, err := q.db.Exec(ctx, insertGroup, arg.ID, arg.Name, arg.Description)
+	return err
+}
+
+const insertManagedAccount = `-- name: InsertManagedAccount :exec
+INSERT INTO account (id, tenant_id, kind, sign_in_name, display_name, status, password_hash,
+  password_set_at, start_password_at)
+VALUES (
+  $1, current_tenant_id(), 'USER', $2, $3,
+  'ACTIVE', $4, $5, $5
+)
+`
+
+type InsertManagedAccountParams struct {
+	ID           pgtype.UUID
+	SignInName   *string
+	DisplayName  string
+	PasswordHash *string
+	Now          pgtype.Timestamptz
+}
+
+// A managed account (ADR-0074): a sign-in name instead of an address, active at once, holding the
+// start password Hubtask drew - its hash, the moment it was set, and the mark that it is a start
+// password (start_password_at), which the first sign-in's change step clears.
+func (q *Queries) InsertManagedAccount(ctx context.Context, arg InsertManagedAccountParams) error {
+	_, err := q.db.Exec(ctx, insertManagedAccount,
+		arg.ID,
+		arg.SignInName,
+		arg.DisplayName,
+		arg.PasswordHash,
+		arg.Now,
+	)
 	return err
 }
 

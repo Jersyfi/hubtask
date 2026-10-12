@@ -408,10 +408,11 @@ func TestTheTwoStepSignInCompletesWithACode(t *testing.T) {
 	later := now.Add(domain.TotpStepSeconds * time.Second)
 	completer := fixture.writer
 	completer.Clock = clock.Fixed(later)
-	pair, remaining, err := CompleteSignIn{Writer: completer}.Execute(t.Context(), CompleteSignInCommand{
+	completed, remaining, err := CompleteSignIn{Writer: completer}.Execute(t.Context(), CompleteSignInCommand{
 		PendingToken: result.Challenge.Token,
 		Code:         domain.TotpCode(material, domain.TotpStep(later)),
 	})
+	pair := completed.Pair
 	if err != nil {
 		t.Fatalf("completing: %v", err)
 	}
@@ -469,10 +470,11 @@ func TestARecoveryCodeWorksOnceAndCountsDown(t *testing.T) {
 	codes := recoveryCodesOf(fixture)
 
 	challenge := signInChallenge(t, fixture)
-	pair, remaining, err := CompleteSignIn{Writer: fixture.writer}.Execute(t.Context(), CompleteSignInCommand{
+	completed, remaining, err := CompleteSignIn{Writer: fixture.writer}.Execute(t.Context(), CompleteSignInCommand{
 		PendingToken: challenge,
 		RecoveryCode: secret.New(strings.ToLower(codes[0])),
 	})
+	pair := completed.Pair
 	if err != nil || pair.RefreshToken.IsEmpty() {
 		t.Fatalf("a recovery completion failed: %v", err)
 	}

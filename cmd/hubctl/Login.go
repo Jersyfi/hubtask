@@ -32,6 +32,7 @@ const (
 	sessionsPath        = "/auth/sessions"
 	sessionRefreshPath  = "/auth/sessions:refresh"
 	sessionVerifyPath   = "/auth/sessions:verify"
+	sessionChangePath   = "/auth/sessions:set-password"
 	sessionRevokePrefix = "/auth/sessions/"
 )
 
@@ -39,7 +40,7 @@ func loginGroup() group {
 	return group{
 		name:    "login",
 		summary: "sign in as a person, with a password and - where one is armed - a code",
-		usage:   "--url <address> --email <address> [--tenant <workspace>] [--recovery]",
+		usage:   "--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery]",
 		run:     signIn,
 	}
 }
@@ -52,9 +53,10 @@ func loginGroup() group {
 // access token nearly out buys the next pair before it calls anything.
 func signIn(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "login", "",
-		"--url <address> --email <address> [--tenant <workspace>] [--recovery]")
+		"--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery]")
 	address := flags.String("url", cli.Profile.BaseURL, "the installation to sign in to")
 	email := flags.String("email", "", "the address the account signs in with")
+	name := flags.String("sign-in-name", "", "the sign-in name an account without an address signs in with")
 	tenant := flags.String("tenant", cli.Profile.Tenant,
 		"the workspace, in an installation that runs more than one")
 	recovery := flags.Bool("recovery", false,
@@ -65,8 +67,8 @@ func signIn(ctx context.Context, cli *CLI, args []string) error {
 	if *address == "" {
 		return usagef("say which installation to sign in to: --url https://hub.example.com")
 	}
-	if *email == "" {
-		return usagef("say who is signing in: --email somebody@example.com")
+	if (*email == "") == (*name == "") {
+		return usagef("say who is signing in, once: --email somebody@example.com or --sign-in-name lena")
 	}
 	normalised, err := NormaliseBaseURL(*address)
 	if err != nil {
@@ -86,9 +88,14 @@ func signIn(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
-	status, answer, err := client.PostStatus(ctx, sessionsPath, openapi.SignIn{
-		Email: openapitypes.Email(*email), Password: password,
-	})
+	body := openapi.SignIn{Password: password}
+	if *name != "" {
+		body.Identifier = name
+	} else {
+		typed := openapitypes.Email(*email)
+		body.Email = &typed
+	}
+	status, answer, err := client.PostStatus(ctx, sessionsPath, body)
 	if err != nil {
 		return err
 	}
@@ -119,6 +126,9 @@ func (cli *CLI) secondStep(
 		return fmt.Errorf("the installation owed a second step in a shape this client cannot read: %w", err)
 	}
 
+	if offers(challenge, openapi.MfaChallengeMethodsPASSWORDCHANGE) {
+		return cli.changeOwed(ctx, client, baseURL, tenant, challenge)
+	}
 	if !offers(challenge, openapi.MfaChallengeMethodsTOTP) &&
 		!offers(challenge, openapi.MfaChallengeMethodsRECOVERY) {
 		return cli.enrolmentOwed(baseURL, tenant, challenge)
@@ -139,9 +149,17 @@ func (cli *CLI) secondStep(
 		completion.Code = &code
 	}
 
-	_, verified, err := client.PostStatus(ctx, sessionVerifyPath, completion)
+	verifiedStatus, verified, err := client.PostStatus(ctx, sessionVerifyPath, completion)
 	if err != nil {
 		return err
+	}
+	if verifiedStatus == http.StatusAccepted {
+		// The code was right, and the password the sign-in began with still owes the change.
+		var owed openapi.MfaChallenge
+		if err := json.Unmarshal(verified, &owed); err != nil {
+			return fmt.Errorf("the installation owed a further step in a shape this client cannot read: %w", err)
+		}
+		return cli.changeOwed(ctx, client, baseURL, tenant, owed)
 	}
 	tokens, err := readSessionTokens(verified)
 	if err != nil {
@@ -149,6 +167,38 @@ func (cli *CLI) secondStep(
 	}
 	if tokens.RecoveryCodesRemaining != nil {
 		printf(cli.Err, "hubctl: a recovery code was spent; %d remain\n", *tokens.RecoveryCodesRemaining)
+	}
+	return cli.holdSession(baseURL, tenant, tokens)
+}
+
+// changeOwed answers the change step: a password the workspace's rule no longer accepts, or a start
+// password somebody was given (ADR-0074). The new one is asked twice - it is typed blind into a
+// prompt that cannot hide it, and a typing mistake here would be a password nobody knows - and
+// presented with the pending credential; the pair that answers is held like any other.
+func (cli *CLI) changeOwed(
+	ctx context.Context, client *Client, baseURL, tenant string, challenge openapi.MfaChallenge,
+) error {
+	printf(cli.Err, "this password has to be replaced before the sign-in finishes.\n")
+	chosen, err := cli.readCredential("", "New password: ")
+	if err != nil {
+		return err
+	}
+	again, err := cli.readCredential("", "The new password again: ")
+	if err != nil {
+		return err
+	}
+	if chosen != again {
+		return errors.New("the two new passwords differ; nothing was sent - sign in again")
+	}
+	_, changed, err := client.PostStatus(ctx, sessionChangePath, openapi.SignInPasswordChange{
+		PendingToken: challenge.PendingToken, Password: chosen,
+	})
+	if err != nil {
+		return err
+	}
+	tokens, err := readSessionTokens(changed)
+	if err != nil {
+		return err
 	}
 	return cli.holdSession(baseURL, tenant, tokens)
 }

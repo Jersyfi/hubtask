@@ -475,6 +475,10 @@ class Client:
         """Invite a person into this workspace"""
         return self._call("POST", "/accounts:invite", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def create_managed_account(self, body: "ManagedAccountCreate", *, step_up: str | None = None) -> "ManagedAccountCreated":
+        """Give somebody an account without a mail address"""
+        return self._call("POST", "/accounts:create-managed", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def get_own_account(self) -> "Account":
         """The account the caller is signed in as"""
         return self._call("GET", "/accounts/me", {}, None, {}, None, "none", None, "json")

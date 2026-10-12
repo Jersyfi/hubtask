@@ -22,6 +22,11 @@ import (
 // IdempotencyKeyHeader is the client's handle on a repeated write (api-guidelines.md §5).
 const IdempotencyKeyHeader = "Idempotency-Key"
 
+// ShownOnceHeader is how a handler marks an answer that carries a credential shown once - a start
+// password, a token: the replay record keeps its status and no body. Internal: the middleware takes
+// it off the answer before it leaves.
+const ShownOnceHeader = "X-Hubtask-Shown-Once"
+
 // ReplayedHeader tells a client that it is looking at a stored answer rather than a fresh one.
 // Not in the contract as a promise, and deliberately so: a client must behave identically either
 // way. It exists for the person debugging why a request "did nothing".
@@ -165,11 +170,18 @@ type capturedResponse struct {
 	buffer   bytes.Buffer
 	limit    int
 	overflow bool
+	// shownOnce is the handler's mark that the answer carries a credential shown once.
+	shownOnce bool
 }
 
 func (c *capturedResponse) WriteHeader(status int) {
 	if c.written {
 		return
+	}
+	// The mark is this layer's and never the client's: read, then taken off the answer.
+	if c.Header().Get(ShownOnceHeader) != "" {
+		c.shownOnce = true
+		c.Header().Del(ShownOnceHeader)
 	}
 	c.status, c.written = status, true
 	c.ResponseWriter.WriteHeader(status)
@@ -199,8 +211,15 @@ func (c *capturedResponse) statusCode() int {
 	return c.status
 }
 
+// stored is the body kept for a replay. An answer marked as shown once (ShownOnceHeader) keeps none,
+// whichever route wrote it: it is the answer a credential travels in - a start password, a token -
+// and a replay record is a copy of it in clear. The key is still completed with the status, so a
+// repeat runs nothing twice and answers the status alone.
+//
+// Not `Cache-Control: no-store`: every JSON answer carries that (writeJSON), so reading it would
+// keep no body for any replay at all.
 func (c *capturedResponse) stored() []byte {
-	if c.overflow {
+	if c.overflow || c.shownOnce {
 		return nil
 	}
 	return c.buffer.Bytes()

@@ -447,6 +447,7 @@ func run() error {
 			RedirectURL: oidcRedirectURL,
 		},
 		Domains:  domains,
+		Text:     forms,
 		Accounts: signInStore,
 		Sessions: sessions,
 		// Every session opened seeds its workspace's retention sweep (data-retention.md §5).
@@ -1313,6 +1314,17 @@ func run() error {
 			Password: sessionWriter,
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.CreateManagedAccount{
+			Managed: postgres.NewAccountRepository(), Authorizer: authorizer,
+			Grant: identity.GrantMembership{
+				Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
+				Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			},
+			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Text: forms,
+		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -1375,6 +1387,8 @@ func run() error {
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			// Whether the card asks for a sign-in name too (ADR-0074 §3).
+			Managed: postgres.NewAccountRepository(),
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,

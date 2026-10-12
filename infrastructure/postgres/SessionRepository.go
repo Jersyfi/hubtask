@@ -566,7 +566,7 @@ func (r SignInRepository) FindForSignIn(
 		return repository.SignInAccount{}, err
 	}
 
-	row, err := queries.FindAccountForSignIn(ctx, email)
+	row, err := queries.FindAccountForSignIn(ctx, signInLookup(email))
 	if err != nil {
 		if IsNoRows(err) {
 			return repository.SignInAccount{}, shared.ErrNotFound.WithDetail("accounts.not_found")
@@ -586,6 +586,7 @@ func (r SignInRepository) FindForSignIn(
 			ID:          accountID,
 			Kind:        identity.AccountKind(row.Kind),
 			Email:       stringFrom(row.Email),
+			SignInName:  stringFrom(row.SignInName),
 			DisplayName: row.DisplayName,
 			Status:      identity.AccountStatus(row.Status),
 			Locale:      stringFrom(row.AccountLocale),
@@ -972,4 +973,13 @@ func (r StepUpRepository) Consume(
 			WithCause(fmt.Errorf("consuming the step-up: %w", err))
 	}
 	return identity.StepUpMethod(stringFrom(method)), changed > 0, nil
+}
+
+// signInLookup sets the one argument an identifier's shape names: a sign-in name never holds `@`
+// (ADR-0074), an address always does. One statement either way (T-02).
+func signInLookup(identifier string) sqlc.FindAccountForSignInParams {
+	if identity.IsSignInName(identifier) {
+		return sqlc.FindAccountForSignInParams{SignInName: &identifier}
+	}
+	return sqlc.FindAccountForSignInParams{Address: &identifier}
 }

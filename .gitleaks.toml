@@ -35,4 +35,12 @@ regexes = [
   # writes, and the alphabet is the one string that is visibly no TOTP secret while being one to
   # a length check. The same reasoning as the rank key digits above.
   '''ABCDEFGHIJKLMNOPQRSTUVWXYZ234567''',
+  # Crockford's base32 alphabet in lower case, the start password alphabet of
+  # core/domain/model/identity/ManagedAccount.go. The same reasoning as the two alphabets above:
+  # every character a password is drawn from, in order, which is visibly no password.
+  '''0123456789abcdefghjkmnpqrstvwxyz''',
+  # A start password a stubbed server returned in apps/webapp/e2e/managed.test.mjs. It was a
+  # random-looking literal until the fixture was changed to one that reads as a placeholder; the
+  # scan reads the history, so the entry stays for as long as the commit does.
+  '''kq7m-xr2p-4wna-c9ht''',
 ]
