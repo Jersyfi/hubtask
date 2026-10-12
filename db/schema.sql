@@ -150,6 +150,11 @@ CREATE TABLE tenant (
   password_opened_until     timestamptz,
   password_opened_requester text CHECK (length(password_opened_requester) BETWEEN 1 AND 200),
   password_opened_reason    text CHECK (length(password_opened_reason) BETWEEN 1 AND 500),
+  -- A pending deletion can be called off (0130, multi-tenancy.md §5): where the workspace stood
+  -- when it was requested, to return it there, and the grace job's mark, written before the first
+  -- byte goes, after which no cancel lands.
+  status_before_deletion    tenant_status,
+  purge_started_at          timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
@@ -586,7 +591,9 @@ ALTER TABLE auth_pending ADD CONSTRAINT auth_pending_link_provider_id_fkey
 -- workspace. The API key is sealed under the envelope encryption (security.md §8), never hashed - the adapter needs the
 -- plaintext to sign a request - and the two envelope columns are all-or-nothing.
 CREATE TABLE ai_provider (
-  tenant_id        uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL is a model the installation offers to every workspace (ADR-0072, migration 0129).
+  tenant_id        uuid REFERENCES tenant(id) ON DELETE CASCADE,
   kind             text NOT NULL CHECK (kind IN ('NOOP', 'OPENAI_COMPATIBLE', 'OLLAMA')),
   base_url         text NOT NULL DEFAULT '' CHECK (length(base_url) <= 2000),
   completion_model text NOT NULL DEFAULT '' CHECK (length(completion_model) <= 200),
@@ -602,10 +609,33 @@ CREATE TABLE ai_provider (
   created_at       timestamptz NOT NULL,
   updated_at       timestamptz,
   version          integer NOT NULL DEFAULT 1,
+  -- What a workspace is shown of an offered model, as the operator declares it.
+  display_name     text NOT NULL DEFAULT '' CHECK (length(display_name) <= 200),
+  processor        text NOT NULL DEFAULT '' CHECK (length(processor) <= 200),
   CONSTRAINT ai_provider_key_envelope CHECK (
     (api_key_enc IS NULL AND api_key_key_id IS NULL) OR
     (api_key_enc IS NOT NULL AND api_key_key_id IS NOT NULL)
+  ),
+  -- An offered row is named, says who processes, calls something, and never carries consent.
+  CONSTRAINT ai_provider_offered_shape CHECK (
+    tenant_id IS NOT NULL OR (
+      display_name <> '' AND processor <> '' AND kind <> 'NOOP' AND NOT processing_allowed
+    )
   )
+);
+-- One own row per workspace; NULLs are distinct, so any number of offered rows.
+CREATE UNIQUE INDEX ai_provider_tenant_uq ON ai_provider (tenant_id);
+CREATE UNIQUE INDEX ai_provider_offered_name_uq ON ai_provider (display_name) WHERE tenant_id IS NULL;
+
+-- The workspace's choice of AI source (ADR-0072 §2, §3). Choosing an offered model is the
+-- workspace's consent to it; a withdrawn model leaves the choice pointing at nothing.
+CREATE TABLE ai_source (
+  tenant_id           uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  source              text NOT NULL CHECK (source IN ('OWN', 'OFFERED', 'NONE')),
+  offered_provider_id uuid REFERENCES ai_provider(id) ON DELETE SET NULL,
+  updated_at          timestamptz NOT NULL,
+  version             integer NOT NULL DEFAULT 1,
+  CONSTRAINT ai_source_offered_only CHECK (source = 'OFFERED' OR offered_provider_id IS NULL)
 );
 
 CREATE TABLE oidc_flow (
@@ -1238,6 +1268,9 @@ CREATE TABLE automation_rule (
   -- rule with nothing wrong and for one never checked, and the moment that tells the two apart.
   findings   jsonb NOT NULL DEFAULT '[]'::jsonb,
   checked_at timestamptz,
+  -- Switched off by the workspace's deletion request (0130), so that a cancel switches exactly
+  -- these back on.
+  paused_for_deletion boolean NOT NULL DEFAULT false,
   CONSTRAINT automation_rule_run_as_fkey
     FOREIGN KEY (tenant_id, run_as) REFERENCES account (tenant_id, id) ON DELETE RESTRICT
 );
@@ -2255,7 +2288,8 @@ CREATE TABLE item_embedding (
   item_id    uuid NOT NULL,
   -- Vectors are only comparable within one model's space, so a row that does not name its model is
   -- one nothing can decide about after a reconfiguration.
-  model      text NOT NULL CHECK (length(model) BETWEEN 1 AND 200),
+  -- An offered model's vectors are named `offered:<id>/<model>` (migration 0129), hence 300.
+  model      text NOT NULL CHECK (length(model) BETWEEN 1 AND 300),
   embedding  vector(1536) NOT NULL,
   source_digest bytea NOT NULL,
   updated_at timestamptz NOT NULL,
@@ -2295,7 +2329,7 @@ BEGIN
     'session','session_refresh_token','auth_attempt',
     'account_mfa','account_recovery_code','account_password_history','auth_pending',
     'oauth_client','oauth_grant','oauth_code',
-    'account_identity','tenant_host','oidc_flow','ai_provider','ai_suggestion','ai_request',
+    'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
     'custom_field_definition','comment','activity_entry','media_object','item_attachment',
@@ -2351,6 +2385,19 @@ CREATE POLICY tenant_write ON identity_provider FOR ALL
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
 CREATE POLICY installation_write ON identity_provider FOR ALL
+  USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
+  WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
+
+-- ai_provider follows identity_provider (migration 0129): a NULL row is a model the installation
+-- offers. Every workspace that chose one reads it for the call; only the installation writes it.
+ALTER TABLE ai_provider ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_provider FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_read ON ai_provider FOR SELECT
+  USING (tenant_id = current_tenant_id() OR tenant_id IS NULL);
+CREATE POLICY tenant_write ON ai_provider FOR ALL
+  USING (tenant_id = current_tenant_id())
+  WITH CHECK (tenant_id = current_tenant_id());
+CREATE POLICY installation_write ON ai_provider FOR ALL
   USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
   WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
 
@@ -2733,6 +2780,110 @@ GRANT EXECUTE ON FUNCTION operator_register() TO hubtask_app;
 GRANT EXECUTE ON FUNCTION add_operator(uuid, uuid) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION drop_operator(uuid) TO hubtask_app;
 
+
+-- The register a person can read and safely change (migration 0135, UC-INS-05): a roster with names
+-- that answers nothing to a caller the register does not name, an addition that cannot lock the adder
+-- out and admits only an active account, and a removal that tells "not there" from "the last one".
+CREATE OR REPLACE FUNCTION operator_roster(p_caller uuid)
+RETURNS TABLE (
+  tenant_id      uuid,
+  account_id     uuid,
+  added_at       timestamptz,
+  added_by       uuid,
+  display_name   text,
+  email          text,
+  sign_in_name   text,
+  kind           text,
+  workspace_slug text,
+  workspace_name text,
+  added_by_name  text
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT o.tenant_id, o.account_id, o.added_at, o.added_by,
+         a.display_name, a.email, a.sign_in_name, a.kind::text,
+         t.slug, t.display_name,
+         b.display_name
+  FROM operator o
+  JOIN account a ON a.tenant_id = o.tenant_id AND a.id = o.account_id
+  JOIN tenant t ON t.id = o.tenant_id
+  LEFT JOIN account b ON b.id = o.added_by AND b.deleted_at IS NULL
+  WHERE is_operator(p_caller)
+  ORDER BY o.added_at, o.account_id
+$$;
+
+CREATE OR REPLACE FUNCTION enlist_operator(p_account uuid, p_by uuid) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE
+  target_status account_status;
+  was_empty     boolean;
+  added         integer;
+  caller_added  integer := 0;
+BEGIN
+  -- Conflicts with itself and with every insert and delete, so "the register is empty" is read and
+  -- written under one lock: two first additions at once leave one empty-register branch, not two.
+  LOCK TABLE operator IN SHARE ROW EXCLUSIVE MODE;
+
+  SELECT a.status INTO target_status
+  FROM account a WHERE a.id = p_account AND a.deleted_at IS NULL;
+  IF NOT FOUND THEN
+    RETURN 'UNKNOWN';
+  END IF;
+  IF target_status <> 'ACTIVE' THEN
+    RETURN 'NOT_ACTIVE';
+  END IF;
+
+  was_empty := NOT EXISTS (SELECT 1 FROM operator);
+
+  INSERT INTO operator (tenant_id, account_id, added_by)
+  SELECT a.tenant_id, a.id, p_by FROM account a WHERE a.id = p_account
+  ON CONFLICT (tenant_id, account_id) DO NOTHING;
+  GET DIAGNOSTICS added = ROW_COUNT;
+  IF added = 0 THEN
+    RETURN 'PRESENT';
+  END IF;
+
+  -- The adder was an operator only because the register was empty; the row just written ends that.
+  IF was_empty AND p_by IS NOT NULL AND p_by <> p_account THEN
+    INSERT INTO operator (tenant_id, account_id, added_by)
+    SELECT a.tenant_id, a.id, p_by
+    FROM account a
+    WHERE a.id = p_by AND a.deleted_at IS NULL AND a.status = 'ACTIVE'
+    ON CONFLICT (tenant_id, account_id) DO NOTHING;
+    GET DIAGNOSTICS caller_added = ROW_COUNT;
+  END IF;
+
+  IF caller_added > 0 THEN
+    RETURN 'ADDED_WITH_CALLER';
+  END IF;
+  RETURN 'ADDED';
+END $$;
+
+CREATE OR REPLACE FUNCTION dismiss_operator(p_account uuid) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE removed integer;
+BEGIN
+  -- The last one stays, in the statement: two operators removing each other at once would both read
+  -- "there are two".
+  DELETE FROM operator
+  WHERE account_id = p_account
+    AND (SELECT count(*) FROM operator) > 1;
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  IF removed > 0 THEN
+    RETURN 'REMOVED';
+  END IF;
+  IF EXISTS (SELECT 1 FROM operator WHERE account_id = p_account) THEN
+    RETURN 'LAST';
+  END IF;
+  RETURN 'ABSENT';
+END $$;
+
+REVOKE ALL ON FUNCTION operator_roster(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION enlist_operator(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION dismiss_operator(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION operator_roster(uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION enlist_operator(uuid, uuid) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION dismiss_operator(uuid) TO hubtask_app;
+
 -- ============ The first start (migration 0128, UC-INS-01) ===================
 -- A one-time setup code, issued at start while the installation is empty - no tenant row at all and
 -- nobody in the operator register - and claimed by the setup that creates the first workspace. Only
@@ -2853,13 +3004,28 @@ GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 
 -- Counted where it is read, since 0115 (ADR-0077 §1): how many live workspaces name the provider among
 -- their own switches - a number, never which, and only outside a workspace. The column and the
--- function above stay for one release.
+-- function above stay for one release. Since 0133 an invite-only offer the installation's lock on the
+-- ways in turns on (identity.md §18) counts every live workspace, whatever their own switches say.
 CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT count(*)::integer FROM tenant
   WHERE current_tenant_id() IS NULL
     AND deleted_at IS NULL
-    AND coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+    AND (
+      coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+      OR EXISTS (
+        SELECT 1 FROM identity_provider p
+        JOIN instance_setting s ON s.key = 'sign_in.methods'
+        WHERE p.id = provider
+          AND p.tenant_id IS NULL
+          AND p.provisioning = 'INVITED_ONLY'
+          AND p.enabled
+          AND (p.withdraw_at IS NULL OR p.withdraw_at > now())
+          AND s.lock_origin <> 'OPEN'
+          AND jsonb_typeof(s.value) = 'array'
+          AND (s.value ? 'OIDC' OR NOT s.value ?| ARRAY['PASSWORD', 'OIDC'])
+      )
+    )
 $$;
 
 REVOKE ALL ON FUNCTION count_provider_offers(uuid) FROM PUBLIC;
@@ -2871,20 +3037,22 @@ GRANT EXECUTE ON FUNCTION count_provider_offers(uuid) TO hubtask_app;
 -- resolve_tenant's reason; what bounds it is the application - the use case behind it demands
 -- the admin:tenants scope, which no session carries.
 -- It answers an operator's opening of the password beside the lifecycle (migration 0118), and
--- whether a legal hold is in force - a state, never which hold (migration 0121).
+-- whether a legal hold is in force - a state, never which hold (migration 0121), and when the grace
+-- job began the purge, after which no cancel lands (migration 0130).
 CREATE OR REPLACE FUNCTION admin_tenants()
 RETURNS TABLE (
   id uuid, slug text, display_name text, status text,
   default_locale text, default_time_zone text,
   created_at timestamptz, purge_after timestamptz,
   password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
-  legal_hold boolean
+  legal_hold boolean, purge_started_at timestamptz
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT t.id, t.slug, t.display_name, t.status::text,
          t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
          t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
-         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL)
+         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL),
+         t.purge_started_at
   FROM tenant t
   WHERE t.deleted_at IS NULL
   ORDER BY t.created_at, t.id

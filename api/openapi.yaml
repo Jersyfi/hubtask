@@ -2689,7 +2689,21 @@ paths:
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
         it cannot act until the invitation is accepted.
-        The notification is queued as a job — this call does not wait for an email.
+
+        **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+        invitation mail is queued as a job - this call does not wait for it - and the answer
+        carries no link.
+
+        **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+        same link the mail would have carried, **shown here and never again**, to be handed over by
+        any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+        repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+        replaced with `POST /accounts/{accountId}:renew-invitation`.
+
+        An address that already has an account here is `409 accounts.email_taken`; one whose
+        invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+        sent for either. Without mail, an act an automation rule runs is refused with
+        `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -2704,7 +2718,37 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Account"
+                $ref: "#/components/schemas/InvitedAccount"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}:renew-invitation:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [identity]
+      operationId: renewInvitation
+      summary: Give an invitation not yet accepted a new link
+      description: |
+        For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+        any other is `409 accounts.not_invited`.
+
+        **Where this installation sends mail**, the invitation mail is queued again and the answer
+        carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+        no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+        earlier link stops working at once. Without mail, an act an automation rule runs is refused
+        with `accounts.invitation_needs_a_person`.
+
+        Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Renewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitedAccount"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -3424,7 +3468,9 @@ paths:
         outcome the strict rule produces in practice, and which is worse.
 
         It does not slide: activity extends a session's own horizon and never this, and a second hour
-        needs a second proof. The register is read again on every request, so an operator removed
+        needs a second proof. A running hour is neither replaced nor extended: raising a session that
+        is raised already is `auth.session_already_elevated` (409), before any proof is asked, with
+        the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed
         while a raised session is open loses the scope on their next call rather than at the end of
         the hour.
 
@@ -4066,6 +4112,8 @@ paths:
         Flips the middleware: every API call of the tenant's own people answers
         `403 tenant_suspended` on their very next request. The data remains, and the read
         export still works - the suspended are exactly who needs it.
+        Refused with `admin.multi_mode_required` in single mode, where the one workspace is
+        the installation.
       responses:
         "204":
           description: Suspended
@@ -4086,6 +4134,27 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:cancel-deletion:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: cancelTenantDeletion
+      summary: Call off a workspace's pending deletion
+      description: >
+        Returns a workspace pending deletion to where it stood when the deletion was requested -
+        active or suspended; suspended where that is not known - and clears the deadline. The
+        automation rules the request switched off are switched back on, a schedule from now on,
+        without the occurrences it missed. Possible until the hard delete begins, also past the
+        deadline while a legal hold keeps the workspace; refused with
+        `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing).
+        Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+      responses:
+        "204":
+          description: The deletion is called off
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:delete:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -4097,8 +4166,10 @@ paths:
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
         step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
-        typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
-        automations disabled, the export still answering. The hard delete runs after the
+        typed - the restore precedent. Refused with `admin.multi_mode_required` in single
+        mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked,
+        automations disabled, the export still answering. Until the hard delete begins,
+        `:cancel-deletion` calls it off. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
         media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
         because the tenant's own trail dies with it.
@@ -4311,6 +4382,10 @@ paths:
         The operator register. **An empty one is the private installation**: nothing was
         configured, one workspace, and its owner is the operator exactly as they were before the
         register existed.
+
+        Each row names its account - a name, the address or sign-in name, the kind and the
+        workspace - so that nobody has to read an identifier. Only accounts in the register are ever
+        named; a workspace's other accounts are not listed anywhere at this level.
       responses:
         "200":
           description: The register
@@ -4332,7 +4407,11 @@ paths:
         the day that becomes true.
 
         An account that is already an operator is not an error - the caller asked for somebody to be
-        one, and they are.
+        one, and they are. Only an active account can be added (`admin.operator_not_active`).
+
+        **Adding the first entry adds the caller too.** On an empty register the only workspace's
+        owner is the operator, and the first row ends that; so where the register was empty, the
+        caller is entered in the same statement, and both entries are in the journal.
       requestBody:
         required: true
         content:
@@ -4359,7 +4438,8 @@ paths:
 
         The account alone identifies the row - an identifier is unique across the installation, and a
         caller that had to name the workspace too would have to read the register to find out which
-        one it is.
+        one it is. An account that is not in the register is `admin.operator_not_registered` (404);
+        the last one is `admin.operator_last` (409).
       responses:
         "204":
           description: Out of the register
@@ -4415,6 +4495,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstanceJournalPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/ai-providers:
+    get:
+      tags: [admin]
+      operationId: listInstanceAiProviders
+      summary: The AI models this installation offers every workspace
+      description: >
+        A workspace sees only each model's name, processor and jurisdiction, and switches one on
+        itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator
+        register, both. The key is not among the fields.
+      responses:
+        "200":
+          description: The offered models
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OfferedAiModel"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createInstanceAiProvider
+      summary: Offer an AI model to every workspace
+      description: >
+        The same rules as a workspace's own model, plus a name and a processor every workspace is
+        shown before it agrees. A model outside the EEA is refused with
+        `ai.third_country_not_confirmed` unless the installation confirmed such transfers.
+        Journalled in the installation's own evidence.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfferedAiModelConfiguration"
+      responses:
+        "201":
+          description: Offered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfferedAiModel"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/ai-providers/{providerId}:
+    parameters:
+      - $ref: "#/components/parameters/ProviderId"
+    put:
+      tags: [admin]
+      operationId: configureInstanceAiProvider
+      summary: Change an offered AI model
+      description: >
+        Set whole, with the key's one exception: omitting it keeps the one that is sealed, an
+        empty string clears it. Journalled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OfferedAiModelConfiguration"
+      responses:
+        "200":
+          description: Changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OfferedAiModel"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: removeInstanceAiProvider
+      summary: Withdraw an offered AI model
+      description: >
+        Removes the model and its sealed key. Every workspace that chose it gets no AI answer until
+        it chooses again; nothing a workspace configured itself is touched. Journalled.
+      responses:
+        "204":
+          description: Withdrawn
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5002,6 +5165,13 @@ paths:
 
         The last way in cannot be switched off: a workspace that turned off its only method would
         be a workspace nobody can reach. Auditable.
+
+        **A provider the installation's lock turns on cannot be switched off here.** Where the
+        installation locked the ways to sign in with providers among them, every provider it offers
+        as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and
+        switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its
+        parameters. Switching it on is accepted and kept as this workspace's own choice, which
+        applies again once the lock is lifted.
       requestBody:
         required: true
         content:
@@ -5461,6 +5631,53 @@ paths:
       responses:
         "204":
           description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /ai-source:
+    get:
+      tags: [ai]
+      operationId: readAiSource
+      summary: Which AI answers this workspace, and what it may use
+      description: >
+        The workspace's own model, a model the installation offers, or none - with what the
+        installation allows, whether that is locked and by whom, and the least a workspace's own
+        model must declare. An offered model is answered by its name, its processor and its
+        jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and
+        `offered` is empty: the workspace's own model, as always.
+      responses:
+        "200":
+          description: The workspace's AI source
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [ai]
+      operationId: chooseAiSource
+      summary: Choose which AI answers this workspace
+      description: >
+        Choosing an offered model is this workspace's consent to send its content to it, and
+        choosing its own model or none withdraws that consent. `NONE` is always allowed; a source
+        the installation does not allow is refused with `403`, `ai.source_not_allowed`. A
+        narrowing wider than the installation allows is refused with `auth.policy_loosens`, one
+        under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own
+        always. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSourceChoice"
+      responses:
+        "200":
+          description: Chosen
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8783,6 +9000,19 @@ components:
             Shown here and never again. The person types it once, with the sign-in name, and then
             chooses their own.
 
+    InvitedAccount:
+      allOf:
+        - $ref: "#/components/schemas/Account"
+        - type: object
+          properties:
+            invitation_link:
+              type: string
+              format: uri
+              description: >
+                Present only where this installation sends no mail: the link that accepts the
+                invitation, the same one a mail would carry. Shown here and never again - only its
+                hash is kept. It works once, for fourteen days.
+
     AccountInvite:
       type: object
       required: [email]
@@ -9448,6 +9678,154 @@ components:
             content to it are two decisions, and a default that ran them together would make the
             second one by accident.
 
+    OfferedAiModel:
+      type: object
+      description: >
+        An AI model the installation offers every workspace, as the operator reads it. A workspace
+        is answered only its name, processor and jurisdiction (`AiSource.offered`).
+      required: [id, display_name, processor, kind, jurisdiction, has_api_key, created_at, version]
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        processor: { type: string }
+        kind:
+          $ref: "#/components/schemas/AiProviderKind"
+        base_url: { type: string, format: uri }
+        completion_model: { type: string }
+        embedding_model: { type: string }
+        has_api_key:
+          type: boolean
+          description: Whether a key is stored. The key itself is answered by nothing.
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time, nullable: true }
+        version: { type: integer }
+
+    OfferedAiModelConfiguration:
+      type: object
+      description: >
+        An offered model, set whole. Consent is not here: switching an offered model on is each
+        workspace's own act.
+      required: [display_name, processor, kind, base_url, jurisdiction]
+      properties:
+        display_name:
+          type: string
+          maxLength: 200
+          description: The name workspaces choose it by. Unique among offered models.
+        processor:
+          type: string
+          maxLength: 200
+          description: Who processes what is sent to it, as the operator declares it.
+        kind:
+          $ref: "#/components/schemas/AiProviderKind"
+        base_url: { type: string, format: uri }
+        completion_model: { type: string }
+        embedding_model: { type: string }
+        api_key:
+          type: string
+          description: >
+            Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep
+            the key already stored; send an empty string to clear it.
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+
+    AiSources:
+      type: string
+      enum: [NONE, OFFERED, OWN, EITHER]
+      description: >
+        Which sources a workspace may use: none, only a model the installation offers, only its
+        own (the default), or either.
+
+    AiSourceKind:
+      type: string
+      enum: [OWN, OFFERED, NONE]
+      description: Which source answers a workspace.
+
+    AiMinJurisdiction:
+      type: string
+      enum: [ANY, ADEQUACY, EEA, SELF_HOSTED]
+      description: >
+        The least a workspace's own model must declare about where it processes content, further
+        right being stricter.
+
+    AiSource:
+      type: object
+      required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
+        min_jurisdiction_origin, offered, version]
+      properties:
+        source:
+          $ref: "#/components/schemas/AiSourceKind"
+        offered_model_id:
+          type: string
+          format: uuid
+          description: >
+            The offered model chosen. Absent with any other source - and absent while the source
+            is `OFFERED` once the installation withdrew the model chosen: then nothing answers
+            until the workspace chooses again.
+        sources:
+          $ref: "#/components/schemas/AiSources"
+        installation_sources:
+          $ref: "#/components/schemas/AiSources"
+        narrowing:
+          $ref: "#/components/schemas/AiSources"
+        sources_origin:
+          type: string
+          enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+        sources_lock:
+          type: string
+          enum: [INSTANCE, PLAN]
+          description: Present where a level above locked what the workspace may use.
+        min_jurisdiction:
+          $ref: "#/components/schemas/AiMinJurisdiction"
+        min_jurisdiction_origin:
+          type: string
+          enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+        min_jurisdiction_lock:
+          type: string
+          enum: [INSTANCE, PLAN]
+        offered:
+          type: array
+          description: >
+            The models the installation offers, where it allows them at all: name, processor and
+            jurisdiction, never an address, a model name or a key.
+          items:
+            $ref: "#/components/schemas/OfferedAiModelSummary"
+        search_rebuilding:
+          type: boolean
+          description: >
+            True while search by meaning is being rebuilt for the model now in use. Search by
+            words keeps working meanwhile.
+        updated_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    OfferedAiModelSummary:
+      type: object
+      required: [id, display_name, processor, jurisdiction]
+      properties:
+        id: { type: string, format: uuid }
+        display_name: { type: string }
+        processor: { type: string }
+        jurisdiction:
+          $ref: "#/components/schemas/AiJurisdiction"
+
+    AiSourceChoice:
+      type: object
+      required: [source]
+      properties:
+        source:
+          $ref: "#/components/schemas/AiSourceKind"
+        offered_model_id:
+          type: string
+          format: uuid
+          description: The offered model, with `OFFERED` only.
+        sources:
+          type: string
+          enum: [NONE, OFFERED, OWN, EITHER, INHERIT]
+          description: >
+            This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes
+            what the installation allows, absent keeps it.
+
     AiProviderKind:
       type: string
       enum: [NOOP, OPENAI_COMPATIBLE, OLLAMA]
@@ -9888,7 +10266,19 @@ components:
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
             installation's decision, taking it is the workspace's. False from the
-            moment an announced withdrawal takes effect.
+            moment an announced withdrawal takes effect. True, whatever the workspace's own switch,
+            where `installation_lock` is `TURNS_ON`.
+        installation_lock:
+          type: string
+          enum: [TURNS_ON, LEAVES_TO_WORKSPACE, NONE]
+          readOnly: true
+          description: >
+            For a row the installation offers: what the installation's lock on the ways to sign in
+            does to it. `TURNS_ON` - the ways in are locked with providers among them and the row
+            admits *Only people invited here*, so it is on in every workspace and no workspace can
+            switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits
+            people by domain or anyone the provider knows, so it stays each workspace's own switch.
+            `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
         withdraw_at:
           type: [string, "null"]
           format: date-time
@@ -9906,7 +10296,8 @@ components:
           description: >
             For a row the installation offers, answered to the operator only: how many workspaces
             have it switched on. A number, never names - counted from the workspaces' own switches
-            when it is read. Absent from a workspace's listing.
+            when it is read, and every live workspace where `installation_lock` is `TURNS_ON`.
+            Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }
@@ -10321,7 +10712,7 @@ components:
       type: object
       description: >
         The installation's own level: the sign-in switches, the legal links, the
-        localisation defaults and the quota ceilings.
+        localisation defaults, the quota ceilings and which AI workspaces may use.
 
         **Every key of every area is answered**, decided or not, with `set` saying which. A reader
         has to be able to see that a setting exists and that this installation has left it to each
@@ -10363,6 +10754,18 @@ components:
             Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je
             Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is
             "the installation decides nothing", and the product's own default applies.
+        ai:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+          description: >
+            Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this
+            installation offers), `OWN` (only the workspace's own, the default) or `EITHER`;
+            `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a
+            workspace's own model must declare about where it processes content.
+
+            A workspace may narrow `sources` where it is not locked, and may always choose no AI:
+            a lock holds a workspace out of a source, never in one. No value here switches
+            processing on - that is each workspace's own consent.
         blocklist_file:
           type: string
           description: >
@@ -10396,6 +10799,31 @@ components:
           description: >
             Who put them there. Absent for a row the installation seeded at its first start, which
             had nobody to name.
+        display_name:
+          type: string
+          description: The account's name, as its workspace shows it.
+        email:
+          type: [string, "null"]
+          format: email
+          description: >
+            The address the account signs in with. Absent for a service account, which signs in
+            nowhere, and for an account that signs in with a name instead.
+        sign_in_name:
+          type: [string, "null"]
+          description: The name an account without an address signs in with.
+        kind:
+          type: string
+          enum: [USER, SERVICE_ACCOUNT]
+          description: A person, or a machine's account.
+        workspace_slug:
+          type: string
+          description: The short name of the workspace the account is in.
+        workspace_name:
+          type: string
+          description: The name of the workspace the account is in.
+        added_by_name:
+          type: [string, "null"]
+          description: The name of who put them there, where that account still exists.
 
     OperatorAdd:
       type: object
@@ -10748,6 +11176,12 @@ components:
             Whether a legal hold is in force in the workspace. While one is, a deletion request is
             refused, and a workspace already pending deletion stays pending until the last hold is
             lifted. Only the state: which hold, on what and why stay the workspace's.
+        purge_started_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Set once the hard delete has begun removing the workspace. From then on its deletion
+            can no longer be called off.
         password_opening:
           description: >
             The operator's opening of the password while it is in force, null

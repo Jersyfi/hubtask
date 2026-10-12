@@ -5,6 +5,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -64,6 +65,12 @@ type AiProviderWriter struct {
 	// responsibility does. False by default, which is what makes it friction rather than a
 	// formality.
 	ThirdCountryConfirmed bool
+	// Rules is the installation's rule about AI sources (ADR-0072 §2). Nil is an installation
+	// without one, where the own model is always allowed.
+	Rules *AiRules
+	// Reindex seeds re-embedding when the own embedding model changes (ADR-0072 §6). Nil seeds
+	// nothing.
+	Reindex EmbeddingReseeder
 }
 
 // ConfigureAiProvider points a workspace at its AI provider, or switches it off.
@@ -117,6 +124,10 @@ func (h ConfigureAiProvider) Execute(
 			})
 	}
 
+	if err := w.admittedByRule(ctx, actor, configured); err != nil {
+		return domain.AiProvider{}, err
+	}
+
 	var sealed *crypto.Sealed
 	if cmd.APIKeyPresent && !cmd.APIKey.IsEmpty() {
 		envelope, err := w.Encryptor.Seal(ctx, cmd.APIKey, AiKeyPurpose(actor.TenantID))
@@ -128,7 +139,10 @@ func (h ConfigureAiProvider) Execute(
 
 	var stored domain.AiProvider
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
+		previous, err := w.Providers.Find(ctx)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
 		if cmd.APIKeyPresent {
 			stored, err = w.Providers.Upsert(ctx, configured, sealed, w.Clock.Now())
 		} else {
@@ -137,12 +151,42 @@ func (h ConfigureAiProvider) Execute(
 		if err != nil {
 			return err
 		}
+		// The model behind search changed: the write that changed it seeds the rebuild.
+		if w.Reindex != nil && previous.EmbeddingModel != stored.EmbeddingModel && stored.EmbeddingModel != "" {
+			if err := w.Reindex.Reseed(ctx, actor.TenantID); err != nil {
+				return err
+			}
+		}
 		return w.record(ctx, actor, AiProviderConfiguredAction, stored)
 	})
 	if err != nil {
 		return domain.AiProvider{}, err
 	}
 	return stored, nil
+}
+
+// admittedByRule refuses an own model the installation's rule does not allow: where the workspace
+// may not use its own model at all (UC-AI-02 check 5), and where it declares less than the minimum,
+// naming the minimum and who set it (UC-AI-06 check 4). Switching AI off (NOOP) is always allowed.
+// Reading and removing the own model are not asked: narrowing stops calls and deletes nothing.
+func (w AiProviderWriter) admittedByRule(
+	ctx context.Context, actor appshared.ActorContext, configured domain.AiProvider,
+) error {
+	if w.Rules == nil || configured.Kind == domain.AiNoop {
+		return nil
+	}
+	var state AiState
+	if err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		state, err = w.Rules.Resolve(ctx, actor.TenantID)
+		return err
+	}); err != nil {
+		return err
+	}
+	if !state.Rule.Permits(domain.AiSourceOwn) {
+		return domain.SourceNotAllowed()
+	}
+	return state.Rule.AdmitsOwn(configured.Jurisdiction)
 }
 
 // ReadAiProvider answers the configuration, never the key.

@@ -28,6 +28,8 @@ import type {
   InstanceJournalEntry,
   InstanceOverview,
   InstanceSettings,
+  OfferedAiModel,
+  OfferedAiModelConfiguration,
   Operator,
   PasswordOpeningRequest,
   ProvisionedTenant,
@@ -36,6 +38,7 @@ import type {
   ResourceState,
   SessionElevation,
 } from '@hubtask/sync-engine';
+import { TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
@@ -43,6 +46,8 @@ import { identityProviderPresetPath } from './identityprovider.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ELEVATE = '/auth/sessions:elevate';
+/** The refusal of a raise while the session's hour still runs; it names the end. */
+const ALREADY_ELEVATED = 'auth.session_already_elevated';
 const OVERVIEW = '/admin/overview';
 const TENANTS = '/admin/tenants';
 const SETTINGS = '/admin/settings';
@@ -50,9 +55,10 @@ const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
 const PROVIDERS = '/admin/identity-providers';
 const ENCRYPTION = '/admin/encryption';
+const AI_PROVIDERS = '/admin/ai-providers';
 
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
-const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION];
+const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -72,6 +78,7 @@ class Instance {
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
   #providers = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
   #encryption = $state<ResourceState<EncryptionStatus>>({ status: 'idle' });
+  #offeredAi = $state<ResourceState<readonly OfferedAiModel[]>>({ status: 'idle' });
   // The presets are neither the installation's nor a workspace's: they are what Hubtask knows about
   // three issuers, and the same list answers at both levels. Read through the path the workspace's
   // own store already names, so one route has one constant.
@@ -133,23 +140,24 @@ class Instance {
     return this.#encryption;
   }
 
-  /**
-   * Raises this session for an hour.
-   *
-   * Through the step-up wrapper rather than with a token this module asked for: the call is refused
-   * without a proof, and the wrapper is the one place that knows what to do with that refusal.
-   */
+  get offeredAi(): readonly OfferedAiModel[] {
+    return this.#offeredAi.status === 'ready' ? this.#offeredAi.data : [];
+  }
+
+  get offeredAiState(): ResourceState<readonly OfferedAiModel[]> {
+    return this.#offeredAi;
+  }
+
   /**
    * Forgets the elevation, because the session it belonged to is gone.
    *
    * This store is a module singleton and its clock was not: signing out and back in inside one page
-   * load left `#until` where it was, so the area drew itself with a live countdown over a session
-   * the server refuses every call from — "Du arbeitest an der Installation. Noch 17 Minuten" beside
-   * "Das verwendete Token darf das nicht". Worse, it did that for **whoever signed in next**,
-   * which is a control plane drawn for somebody who was never offered it.
+   * load would leave `#until` where it was, and the area would draw a live countdown over a session
+   * the server refuses every call from - for **whoever signed in next**, which is a control plane
+   * drawn for somebody who was never offered it.
    *
-   * An elevation belongs to one session (ADR-0070 §4: "hängt an dieser einen Sitzung, endet mit
-   * ihr"), so every path that ends or replaces a session ends this too.
+   * An elevation belongs to one session and ends with it (ADR-0070 §4), so every path that ends or
+   * replaces a session ends this too. A refresh does neither: it is the same session's next pair.
    */
   forget(): void {
     this.#until = undefined;
@@ -160,20 +168,39 @@ class Instance {
     this.#journal = { status: 'idle' };
     this.#providers = { status: 'idle' };
     this.#encryption = { status: 'idle' };
+    this.#offeredAi = { status: 'idle' };
   }
 
+  /**
+   * Raises this session for an hour.
+   *
+   * Through the step-up wrapper rather than with a token this module asked for: the call is refused
+   * without a proof, and the wrapper is the one place that knows what to do with that refusal.
+   *
+   * **A session raised already is not raised again.** The server answers that before it asks for a
+   * proof, with the running hour's end, and that end is adopted: this tab lost its copy of the hour
+   * (another tab raised it, or a storage that forgets), and the hour is still the one that runs.
+   */
   async elevate(): Promise<void> {
-    const raised = await stepUp.around((stepUpToken) =>
-      engine.mutate<SessionElevation>(
-        'POST',
-        ELEVATE,
-        undefined,
-        { stepUpToken, invalidates: EVERYTHING },
-      ),
-    );
-    this.#until = raised.elevated_until;
+    let until: string;
+    try {
+      const raised = await stepUp.around((stepUpToken) =>
+        engine.mutate<SessionElevation>(
+          'POST',
+          ELEVATE,
+          undefined,
+          { stepUpToken, invalidates: EVERYTHING },
+        ),
+      );
+      until = raised.elevated_until;
+    } catch (cause) {
+      const running = runningHour(cause);
+      if (running === undefined) throw cause;
+      until = running;
+    }
+    this.#until = until;
     this.#now = Date.now();
-    platform.rememberElevation(raised.elevated_until);
+    platform.rememberElevation(until);
   }
 
   /**
@@ -254,6 +281,13 @@ class Instance {
     return this.#presets.status === 'ready' ? this.#presets.data : [];
   }
 
+  /** The AI models the installation offers every workspace (ADR-0072 §1). */
+  openOfferedAi(): () => void {
+    return engine.subscribe<readonly OfferedAiModel[]>({ path: AI_PROVIDERS }, (next) => {
+      this.#offeredAi = next;
+    });
+  }
+
   openEncryption(): () => void {
     return engine.subscribe<EncryptionStatus>({ path: ENCRYPTION }, (next) => {
       this.#encryption = next;
@@ -288,6 +322,19 @@ class Instance {
   }
 
   /**
+   * Puts an account in by its identifier: a service account chosen from the reader's own
+   * workspace, which has no address to type (UC-INS-06 check 1).
+   */
+  async addOperatorById(accountId: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('POST', OPERATORS, { account_id: accountId }, {
+        stepUpToken,
+        invalidates: [OPERATORS, JOURNAL],
+      }),
+    );
+  }
+
+  /**
    * Takes somebody out of it.
    *
    * The last operator cannot remove themselves, and the database refuses that in the statement
@@ -303,8 +350,11 @@ class Instance {
     );
   }
 
-  /** Suspends a workspace or resumes one. Both are audited and journalled. */
-  async shift(tenantId: string, action: 'suspend' | 'resume'): Promise<void> {
+  /**
+   * Suspends a workspace, resumes one, or calls off its pending deletion. Each is audited and
+   * journalled.
+   */
+  async shift(tenantId: string, action: 'suspend' | 'resume' | 'cancel-deletion'): Promise<void> {
     await stepUp.around((stepUpToken) =>
       engine.mutate('POST', `${TENANTS}/${tenantId}:${action}`, undefined, {
         stepUpToken,
@@ -448,6 +498,21 @@ class Instance {
   }
 
   /**
+   * Offers an AI model to every workspace, or changes one. No step-up beyond the raised hour:
+   * offering sends nothing anywhere - each workspace switches a model on itself.
+   */
+  async configureOfferedAi(body: OfferedAiModelConfiguration, id?: string): Promise<OfferedAiModel> {
+    return id === undefined
+      ? engine.mutate<OfferedAiModel>('POST', AI_PROVIDERS, body, { invalidates: [AI_PROVIDERS, JOURNAL] })
+      : engine.mutate<OfferedAiModel>('PUT', `${AI_PROVIDERS}/${id}`, body, { invalidates: [AI_PROVIDERS, JOURNAL] });
+  }
+
+  /** Withdraws an offered model. Every workspace that chose it gets no AI answer until it chooses again. */
+  async removeOfferedAi(id: string): Promise<void> {
+    await engine.mutate('DELETE', `${AI_PROVIDERS}/${id}`, undefined, { invalidates: [AI_PROVIDERS, JOURNAL] });
+  }
+
+  /**
    * Removes one from every workspace at once: the row, not only the offer. A workspace left with no
    * way in falls back to the password for the accounts that hold one (ADR-0076 §4).
    */
@@ -463,6 +528,7 @@ class Instance {
 
 export const instance = new Instance();
 export {
+  AI_PROVIDERS as instanceAiProvidersPath,
   ENCRYPTION as instanceEncryptionPath,
   PROVIDERS as instanceProvidersPath,
   ELEVATE as instanceElevatePath,
@@ -472,3 +538,10 @@ export {
   SETTINGS as instanceSettingsPath,
   TENANTS as instanceWorkspacesPath,
 };
+
+/** The end of a running hour a refused raise names, or `undefined` for any other refusal. */
+function runningHour(cause: unknown): string | undefined {
+  if (!(cause instanceof TransportError) || cause.detailCode !== ALREADY_ELEVATED) return undefined;
+  const until = cause.params?.until;
+  return until !== undefined && !Number.isNaN(Date.parse(until)) ? until : undefined;
+}

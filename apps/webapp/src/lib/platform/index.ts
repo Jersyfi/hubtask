@@ -54,6 +54,14 @@ export interface Platform {
   holdSession(pair: SessionPair): void;
 
   /**
+   * Holds the next pair of the same session, as a refresh answered it.
+   *
+   * Apart from `holdSession` because what belongs to the session - its elevation to the control
+   * plane - stays, where a new session's pair drops it (ADR-0070 §4, UC-INS-04 check 3).
+   */
+  renewSession(pair: SessionPair): void;
+
+  /**
    * Forgets it. What sign-out calls, and what a refused exchange calls before the sign-in screen.
    *
    * The credentials only; everything else the client holds is dropped by the caller

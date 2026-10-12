@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-02, P-05, P-10, P-11]
-state: partial
-tasks: [SI-06, SI-17]
-checked_by: [core/application/service/identity/AuthenticateToken_test.go]
+state: verified
+tasks: [SI-06, SI-17, SC-05]
+checked_by: [core/application/service/identity/AuthenticateToken_test.go, core/application/service/identity/Elevate_test.go, test/integration/session_elevation_test.go, apps/webapp/src/lib/platform/tokenStore.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/instancehour.test.mjs, apps/webapp/e2e/instanceplace.test.mjs, cmd/hubctl/AdminElevate_test.go, docs/evidence/SC-05-2026-10-12.md]
 ---
 
 # Work on the installation for an hour after proving it is me
@@ -43,8 +43,3 @@ back in his workspace. In a private installation (D1) the same entry appears as 
 
 * No separate operator sign-in, no second application ([NG-second-app](../../vision/non-goals.md)).
 * The raised session never opens a workspace's content ([NG-operator-reads-content](../../vision/non-goals.md)).
-
-## Today
-
-* Check 3: not met — every token refresh clears the stored hour, so a reload asks again and starts a second hour while the first still stands, tracked in #1061.
-* Check 6: not met — `hubctl` has no command to raise a session, tracked in #1061.

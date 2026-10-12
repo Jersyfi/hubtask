@@ -82,6 +82,27 @@ func TestTheEnvironmentPutsItsOperatorsIntoTheRegister(t *testing.T) {
 	}
 }
 
+// An entry whose account exists and is not active - invited, disabled - waits like one whose
+// account does not exist yet, and lands once the account is active (UC-INS-05 check 4).
+func TestTheEnvironmentWaitsForAnAccountThatIsNotActive(t *testing.T) {
+	ada := env.OperatorEntry{Workspace: "acme", Email: "ada@acme.example"}
+	applying, register, journal := environmentFixture(ada)
+	register.inactive[adaAccount] = true
+
+	waiting, err := applying.Apply(t.Context())
+	if err != nil {
+		t.Fatalf("applying: %v", err)
+	}
+	if register.accounts[adaAccount] || len(journal.entries) != 0 || len(waiting) != 1 {
+		t.Fatalf("an invited account was added (waiting %v, journal %d)", waiting, len(journal.entries))
+	}
+
+	delete(register.inactive, adaAccount)
+	if waiting, _ := applying.Apply(t.Context()); len(waiting) != 0 || !register.accounts[adaAccount] {
+		t.Errorf("the account was not added once active: waiting %v", waiting)
+	}
+}
+
 // UC-INS-02 check 5: the environment adds, it does not own the register. An operator the variable
 // no longer names stays.
 func TestTheEnvironmentNeverRemovesAnOperator(t *testing.T) {

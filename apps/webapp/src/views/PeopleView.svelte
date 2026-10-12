@@ -17,13 +17,14 @@
   // sees the people and no controls — a screen that hid itself would leave them unable to tell who
   // is in their own workspace.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Badge,
     Banner,
     Button,
     Input,
+    OneTimeSecret,
     PageHeader,
     RoleBadge,
     Select,
@@ -42,6 +43,7 @@
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { inviteWay } from '../lib/people/invitation.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -60,6 +62,15 @@
   let inviteName = $state('');
   let inviteRole = $state('');
   let invited = $state<string | undefined>(undefined);
+  /**
+   * The one answer that carried an invitation's link - an installation that sends no mail - until
+   * the reader dismisses it. Held here only: the link is a credential, and nothing keeps it.
+   */
+  let handedOver = $state<{ readonly who: string; readonly link: string } | undefined>(undefined);
+  let handedOverPanel = $state<HTMLElement | undefined>(undefined);
+
+  /** Whether an invitation goes out by mail or as a link, as the manifest says before the press. */
+  const way = $derived(inviteWay(manifest.value?.features));
 
   $effect(() =>
     untrack(() => {
@@ -182,15 +193,54 @@
     const address = inviteEmail.trim();
     if (!address || !inviteRole) return;
     invited = undefined;
+    handedOver = undefined;
+    let grantFailure: unknown;
     await attempt(async () => {
-      await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
-      invited = address;
-    }, t('app.people.invited_announced'));
+      const answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
+      grantFailure = answer.grantFailure;
+      if (answer.link !== undefined) {
+        // UC-ID-14 check 5: no mail went out, and the screen does not pretend one did.
+        await showLink(address, answer.link, t('app.people.invite_link_announced'));
+      } else {
+        invited = address;
+        announcer.say(t('app.people.invited_announced'));
+      }
+    });
+    // The link stands even where the role could not be given; the reason is said beside it.
+    if (grantFailure !== undefined) failure = renderProblem(grantFailure as never, messages).message;
     // Out of the form whatever happened. A second press with the same address in it would be a
     // second invitation the reader did not mean to send.
     inviteEmail = '';
     inviteName = '';
     inviteRole = '';
+  }
+
+  /**
+   * Gives an invitation not yet accepted a new way to arrive: the mail again, or a new link shown
+   * once. The earlier link stops working, which the panel's hint says.
+   */
+  async function renew(holder: Holder): Promise<void> {
+    if (!holder.accountId) return;
+    invited = undefined;
+    handedOver = undefined;
+    const accountId = holder.accountId;
+    await attempt(async () => {
+      const link = await people.renewInvitation(accountId);
+      if (link !== undefined) {
+        await showLink(nameOf(holder), link, t('app.people.renew_link_announced'));
+      } else {
+        invited = nameOf(holder);
+        announcer.say(t('app.people.invited_announced'));
+      }
+    });
+  }
+
+  /** Shows the one answer's link, and takes the reader to it: it may be drawn far from the press. */
+  async function showLink(who: string, link: string, said: string): Promise<void> {
+    handedOver = { who, link };
+    announcer.say(said);
+    await tick();
+    handedOverPanel?.focus();
   }
 
   async function grant(): Promise<void> {
@@ -272,17 +322,31 @@
               {/if}
             </td>
             <td>
-              <!-- Asks first: a single keystroke on a focused control must not end
-                   somebody's access. -->
-              <Button
-                size="sm"
-                tone="danger"
-                isBusy={isWriting}
-                busyLabel={t('app.people.working')}
-                onclick={() => (revoking = holder)}
-              >
-                {t('app.people.revoke')}
-              </Button>
+              <div class="actions">
+                {#if statusOf(holder.accountId) === 'INVITED'}
+                  <!-- An invitation not yet accepted can be given a new way to arrive: a link lost
+                       or run out would otherwise leave the address taken for good. -->
+                  <Button
+                    size="sm"
+                    isBusy={isWriting}
+                    busyLabel={t('app.people.working')}
+                    onclick={() => void renew(holder)}
+                  >
+                    {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
+                  </Button>
+                {/if}
+                <!-- Asks first: a single keystroke on a focused control must not end
+                     somebody's access. -->
+                <Button
+                  size="sm"
+                  tone="danger"
+                  isBusy={isWriting}
+                  busyLabel={t('app.people.working')}
+                  onclick={() => (revoking = holder)}
+                >
+                  {t('app.people.revoke')}
+                </Button>
+              </div>
             </td>
           </tr>
         {/each}
@@ -302,9 +366,32 @@
 
     <Stack gap="150">
       <h2 class="section">{t('app.people.invite_title')}</h2>
-      <p class="quiet small">{t('app.people.invite_hint')}</p>
+      <!-- What the press will do, said before it: a mail, or - where no mail goes out - a link to
+           hand over. Neither until the manifest has said which. -->
+      <p class="quiet small">
+        {way === 'link' ? t('app.people.invite_hint_link') : way === 'mail' ? t('app.people.invite_hint') : t('app.people.invite_hint_neutral')}
+      </p>
       {#if invited}
         <Banner tone="success">{t('app.people.invited_sent', { email: invited })}</Banner>
+      {/if}
+      {#if handedOver}
+        <!-- The only time the link exists anywhere but as the server's hash. Focused when drawn: a
+             renewal pressed in the table above draws it here. -->
+        <div class="handed-over" tabindex="-1" bind:this={handedOverPanel} data-invitation-link>
+          <OneTimeSecret
+            value={handedOver.link}
+            label={t('app.people.invite_link', { name: handedOver.who })}
+            hint={t('app.people.invite_link_hint')}
+            revealLabel={t('app.people.invite_link_reveal')}
+            hideLabel={t('app.people.invite_link_hide')}
+            copyLabel={t('app.people.managed_copy')}
+            copiedLabel={t('app.people.invite_link_copied')}
+            acknowledgementLabel={t('app.people.invite_link_kept')}
+            notAcknowledgedReason={t('app.people.invite_link_keep_first')}
+            dismissLabel={t('app.tokens.done')}
+            onDismiss={() => (handedOver = undefined)}
+          />
+        </div>
       {/if}
       <form class="panel" onsubmit={invite}>
         <Stack gap="150">
@@ -336,7 +423,7 @@
               isBusy={isWriting}
               busyLabel={t('app.people.working')}
             >
-              {t('app.people.invite')}
+              {way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite')}
             </Button>
           </div>
         </Stack>
@@ -403,4 +490,12 @@
   .small { font-size: var(--fs-075); }
 
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
+
+  /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
+  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
+
+  /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring
+     is the focus ring every control draws. */
+  .handed-over { max-inline-size: 52ch; }
+  .handed-over:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

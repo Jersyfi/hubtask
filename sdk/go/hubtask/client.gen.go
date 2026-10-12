@@ -236,22 +236,46 @@ func (e AdminTenantStatus) Valid() bool {
 
 // Defines values for AiJurisdiction.
 const (
-	ADEQUACY     AiJurisdiction = "ADEQUACY"
-	EEA          AiJurisdiction = "EEA"
-	SELFHOSTED   AiJurisdiction = "SELF_HOSTED"
-	THIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
+	AiJurisdictionADEQUACY     AiJurisdiction = "ADEQUACY"
+	AiJurisdictionEEA          AiJurisdiction = "EEA"
+	AiJurisdictionSELFHOSTED   AiJurisdiction = "SELF_HOSTED"
+	AiJurisdictionTHIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
 )
 
 // Valid indicates whether the value is a known member of the AiJurisdiction enum.
 func (e AiJurisdiction) Valid() bool {
 	switch e {
-	case ADEQUACY:
+	case AiJurisdictionADEQUACY:
 		return true
-	case EEA:
+	case AiJurisdictionEEA:
 		return true
-	case SELFHOSTED:
+	case AiJurisdictionSELFHOSTED:
 		return true
-	case THIRDCOUNTRY:
+	case AiJurisdictionTHIRDCOUNTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiMinJurisdiction.
+const (
+	AiMinJurisdictionADEQUACY   AiMinJurisdiction = "ADEQUACY"
+	AiMinJurisdictionANY        AiMinJurisdiction = "ANY"
+	AiMinJurisdictionEEA        AiMinJurisdiction = "EEA"
+	AiMinJurisdictionSELFHOSTED AiMinJurisdiction = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AiMinJurisdiction enum.
+func (e AiMinJurisdiction) Valid() bool {
+	switch e {
+	case AiMinJurisdictionADEQUACY:
+		return true
+	case AiMinJurisdictionANY:
+		return true
+	case AiMinJurisdictionEEA:
+		return true
+	case AiMinJurisdictionSELFHOSTED:
 		return true
 	default:
 		return false
@@ -273,6 +297,162 @@ func (e AiProviderKind) Valid() bool {
 	case OLLAMA:
 		return true
 	case OPENAICOMPATIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceMinJurisdictionLock.
+const (
+	AiSourceMinJurisdictionLockINSTANCE AiSourceMinJurisdictionLock = "INSTANCE"
+	AiSourceMinJurisdictionLockPLAN     AiSourceMinJurisdictionLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceMinJurisdictionLock enum.
+func (e AiSourceMinJurisdictionLock) Valid() bool {
+	switch e {
+	case AiSourceMinJurisdictionLockINSTANCE:
+		return true
+	case AiSourceMinJurisdictionLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceMinJurisdictionOrigin.
+const (
+	AiSourceMinJurisdictionOriginDEFAULT   AiSourceMinJurisdictionOrigin = "DEFAULT"
+	AiSourceMinJurisdictionOriginINSTANCE  AiSourceMinJurisdictionOrigin = "INSTANCE"
+	AiSourceMinJurisdictionOriginPLAN      AiSourceMinJurisdictionOrigin = "PLAN"
+	AiSourceMinJurisdictionOriginWORKSPACE AiSourceMinJurisdictionOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceMinJurisdictionOrigin enum.
+func (e AiSourceMinJurisdictionOrigin) Valid() bool {
+	switch e {
+	case AiSourceMinJurisdictionOriginDEFAULT:
+		return true
+	case AiSourceMinJurisdictionOriginINSTANCE:
+		return true
+	case AiSourceMinJurisdictionOriginPLAN:
+		return true
+	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceSourcesLock.
+const (
+	AiSourceSourcesLockINSTANCE AiSourceSourcesLock = "INSTANCE"
+	AiSourceSourcesLockPLAN     AiSourceSourcesLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceSourcesLock enum.
+func (e AiSourceSourcesLock) Valid() bool {
+	switch e {
+	case AiSourceSourcesLockINSTANCE:
+		return true
+	case AiSourceSourcesLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceSourcesOrigin.
+const (
+	AiSourceSourcesOriginDEFAULT   AiSourceSourcesOrigin = "DEFAULT"
+	AiSourceSourcesOriginINSTANCE  AiSourceSourcesOrigin = "INSTANCE"
+	AiSourceSourcesOriginPLAN      AiSourceSourcesOrigin = "PLAN"
+	AiSourceSourcesOriginWORKSPACE AiSourceSourcesOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceSourcesOrigin enum.
+func (e AiSourceSourcesOrigin) Valid() bool {
+	switch e {
+	case AiSourceSourcesOriginDEFAULT:
+		return true
+	case AiSourceSourcesOriginINSTANCE:
+		return true
+	case AiSourceSourcesOriginPLAN:
+		return true
+	case AiSourceSourcesOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceChoiceSources.
+const (
+	AiSourceChoiceSourcesEITHER  AiSourceChoiceSources = "EITHER"
+	AiSourceChoiceSourcesINHERIT AiSourceChoiceSources = "INHERIT"
+	AiSourceChoiceSourcesNONE    AiSourceChoiceSources = "NONE"
+	AiSourceChoiceSourcesOFFERED AiSourceChoiceSources = "OFFERED"
+	AiSourceChoiceSourcesOWN     AiSourceChoiceSources = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceChoiceSources enum.
+func (e AiSourceChoiceSources) Valid() bool {
+	switch e {
+	case AiSourceChoiceSourcesEITHER:
+		return true
+	case AiSourceChoiceSourcesINHERIT:
+		return true
+	case AiSourceChoiceSourcesNONE:
+		return true
+	case AiSourceChoiceSourcesOFFERED:
+		return true
+	case AiSourceChoiceSourcesOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceKind.
+const (
+	AiSourceKindNONE    AiSourceKind = "NONE"
+	AiSourceKindOFFERED AiSourceKind = "OFFERED"
+	AiSourceKindOWN     AiSourceKind = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceKind enum.
+func (e AiSourceKind) Valid() bool {
+	switch e {
+	case AiSourceKindNONE:
+		return true
+	case AiSourceKindOFFERED:
+		return true
+	case AiSourceKindOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSources.
+const (
+	AiSourcesEITHER  AiSources = "EITHER"
+	AiSourcesNONE    AiSources = "NONE"
+	AiSourcesOFFERED AiSources = "OFFERED"
+	AiSourcesOWN     AiSources = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSources enum.
+func (e AiSources) Valid() bool {
+	switch e {
+	case AiSourcesEITHER:
+		return true
+	case AiSourcesNONE:
+		return true
+	case AiSourcesOFFERED:
+		return true
+	case AiSourcesOWN:
 		return true
 	default:
 		return false
@@ -1539,6 +1719,27 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for IdentityProviderInstallationLock.
+const (
+	IdentityProviderInstallationLockLEAVESTOWORKSPACE IdentityProviderInstallationLock = "LEAVES_TO_WORKSPACE"
+	IdentityProviderInstallationLockNONE              IdentityProviderInstallationLock = "NONE"
+	IdentityProviderInstallationLockTURNSON           IdentityProviderInstallationLock = "TURNS_ON"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderInstallationLock enum.
+func (e IdentityProviderInstallationLock) Valid() bool {
+	switch e {
+	case IdentityProviderInstallationLockLEAVESTOWORKSPACE:
+		return true
+	case IdentityProviderInstallationLockNONE:
+		return true
+	case IdentityProviderInstallationLockTURNSON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IdentityProviderScope.
 const (
 	IdentityProviderScopeInstallation IdentityProviderScope = "installation"
@@ -1580,19 +1781,19 @@ func (e IdentityProviderKind) Valid() bool {
 
 // Defines values for IdentityProviderProvisioning.
 const (
-	ANY         IdentityProviderProvisioning = "ANY"
-	DOMAINS     IdentityProviderProvisioning = "DOMAINS"
-	INVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
+	IdentityProviderProvisioningANY         IdentityProviderProvisioning = "ANY"
+	IdentityProviderProvisioningDOMAINS     IdentityProviderProvisioning = "DOMAINS"
+	IdentityProviderProvisioningINVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderProvisioning enum.
 func (e IdentityProviderProvisioning) Valid() bool {
 	switch e {
-	case ANY:
+	case IdentityProviderProvisioningANY:
 		return true
-	case DOMAINS:
+	case IdentityProviderProvisioningDOMAINS:
 		return true
-	case INVITEDONLY:
+	case IdentityProviderProvisioningINVITEDONLY:
 		return true
 	default:
 		return false
@@ -1641,6 +1842,75 @@ func (e ImportRunStatus) Valid() bool {
 	case ImportRunStatusRUNNING:
 		return true
 	case ImportRunStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountKind.
+const (
+	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
+	InvitedAccountKindUSER           InvitedAccountKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountKind enum.
+func (e InvitedAccountKind) Valid() bool {
+	switch e {
+	case InvitedAccountKindSERVICEACCOUNT:
+		return true
+	case InvitedAccountKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountStatus.
+const (
+	InvitedAccountStatusACTIVE     InvitedAccountStatus = "ACTIVE"
+	InvitedAccountStatusANONYMIZED InvitedAccountStatus = "ANONYMIZED"
+	InvitedAccountStatusDISABLED   InvitedAccountStatus = "DISABLED"
+	InvitedAccountStatusINVITED    InvitedAccountStatus = "INVITED"
+	InvitedAccountStatusRESTRICTED InvitedAccountStatus = "RESTRICTED"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountStatus enum.
+func (e InvitedAccountStatus) Valid() bool {
+	switch e {
+	case InvitedAccountStatusACTIVE:
+		return true
+	case InvitedAccountStatusANONYMIZED:
+		return true
+	case InvitedAccountStatusDISABLED:
+		return true
+	case InvitedAccountStatusINVITED:
+		return true
+	case InvitedAccountStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountWeekStart.
+const (
+	InvitedAccountWeekStartLessThannil InvitedAccountWeekStart = "<nil>"
+	InvitedAccountWeekStartMONDAY      InvitedAccountWeekStart = "MONDAY"
+	InvitedAccountWeekStartSATURDAY    InvitedAccountWeekStart = "SATURDAY"
+	InvitedAccountWeekStartSUNDAY      InvitedAccountWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountWeekStart enum.
+func (e InvitedAccountWeekStart) Valid() bool {
+	switch e {
+	case InvitedAccountWeekStartLessThannil:
+		return true
+	case InvitedAccountWeekStartMONDAY:
+		return true
+	case InvitedAccountWeekStartSATURDAY:
+		return true
+	case InvitedAccountWeekStartSUNDAY:
 		return true
 	default:
 		return false
@@ -2097,6 +2367,24 @@ const (
 func (e OauthTokenRequestGrantType) Valid() bool {
 	switch e {
 	case AuthorizationCode:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OperatorKind.
+const (
+	OperatorKindSERVICEACCOUNT OperatorKind = "SERVICE_ACCOUNT"
+	OperatorKindUSER           OperatorKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the OperatorKind enum.
+func (e OperatorKind) Valid() bool {
+	switch e {
+	case OperatorKindSERVICEACCOUNT:
+		return true
+	case OperatorKindUSER:
 		return true
 	default:
 		return false
@@ -3947,9 +4235,12 @@ type AdminTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
-	Slug       string            `json:"slug"`
-	Status     AdminTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
+	Slug           string            `json:"slug"`
+	Status         AdminTenantStatus `json:"status"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -3965,6 +4256,9 @@ type AiAsk struct {
 // AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
 // `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 type AiJurisdiction string
+
+// AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
+type AiMinJurisdiction string
 
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
@@ -4019,6 +4313,74 @@ type AiProviderConfiguration struct {
 
 // AiProviderKind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 type AiProviderKind string
+
+// AiSource defines model for AiSource.
+type AiSource struct {
+	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	InstallationSources AiSources `json:"installation_sources"`
+
+	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
+	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
+	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
+	MinJurisdictionOrigin AiSourceMinJurisdictionOrigin `json:"min_jurisdiction_origin"`
+
+	// Narrowing Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	Narrowing *AiSources `json:"narrowing,omitempty"`
+
+	// Offered The models the installation offers, where it allows them at all: name, processor and jurisdiction, never an address, a model name or a key.
+	Offered []OfferedAiModelSummary `json:"offered"`
+
+	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
+	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
+	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
+
+	// Source Which source answers a workspace.
+	Source AiSourceKind `json:"source"`
+
+	// Sources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	Sources AiSources `json:"sources"`
+
+	// SourcesLock Present where a level above locked what the workspace may use.
+	SourcesLock   *AiSourceSourcesLock  `json:"sources_lock,omitempty"`
+	SourcesOrigin AiSourceSourcesOrigin `json:"sources_origin"`
+	UpdatedAt     *time.Time            `json:"updated_at,omitempty"`
+	Version       int                   `json:"version"`
+}
+
+// AiSourceMinJurisdictionLock defines model for AiSource.MinJurisdictionLock.
+type AiSourceMinJurisdictionLock string
+
+// AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
+type AiSourceMinJurisdictionOrigin string
+
+// AiSourceSourcesLock Present where a level above locked what the workspace may use.
+type AiSourceSourcesLock string
+
+// AiSourceSourcesOrigin defines model for AiSource.SourcesOrigin.
+type AiSourceSourcesOrigin string
+
+// AiSourceChoice defines model for AiSourceChoice.
+type AiSourceChoice struct {
+	// OfferedModelId The offered model, with `OFFERED` only.
+	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// Source Which source answers a workspace.
+	Source AiSourceKind `json:"source"`
+
+	// Sources This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes what the installation allows, absent keeps it.
+	Sources *AiSourceChoiceSources `json:"sources,omitempty"`
+}
+
+// AiSourceChoiceSources This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes what the installation allows, absent keeps it.
+type AiSourceChoiceSources string
+
+// AiSourceKind Which source answers a workspace.
+type AiSourceKind string
+
+// AiSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+type AiSources string
 
 // AiTranslateRequest Which language to read the entry in.
 type AiTranslateRequest struct {
@@ -5526,16 +5888,19 @@ type IdentityProvider struct {
 	Enabled bool               `json:"enabled"`
 	Id      openapi_types.UUID `json:"id"`
 
+	// InstallationLock For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
+	InstallationLock *IdentityProviderInstallationLock `json:"installation_lock,omitempty"`
+
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first check of the token.
 	Issuer string `json:"issuer"`
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
 
-	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.
 	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
@@ -5556,6 +5921,9 @@ type IdentityProvider struct {
 	// WithdrawAt For a row the installation offers: when the installation withdraws it. Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
 	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
+
+// IdentityProviderInstallationLock For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
+type IdentityProviderInstallationLock string
 
 // IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
 type IdentityProviderScope string
@@ -5772,9 +6140,13 @@ type InstanceSetting struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-// InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings.
+// InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
+	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.
+	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
+	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
+
 	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
 	BlocklistFile *string `json:"blocklist_file,omitempty"`
 
@@ -5807,6 +6179,62 @@ type InvitationRedemption struct {
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
 }
+
+// InvitedAccount defines model for InvitedAccount.
+type InvitedAccount struct {
+	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
+	Celebrations *bool                `json:"celebrations,omitempty"`
+	DisplayName  string               `json:"display_name"`
+	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
+	HasPassword *bool `json:"has_password,omitempty"`
+
+	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
+	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// InvitationLink Present only where this installation sends no mail: the link that accepts the invitation, the same one a mail would carry. Shown here and never again - only its hash is kept. It works once, for fourteen days.
+	InvitationLink *string            `json:"invitation_link,omitempty"`
+	Kind           InvitedAccountKind `json:"kind"`
+	Locale         *string            `json:"locale,omitempty"`
+
+	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
+	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
+
+	// SignInName What a managed account signs in with instead of an address: unique in the workspace, stored folded (compatibility form, lower case). Absent on an account that signs in with its address.
+	SignInName *string `json:"sign_in_name,omitempty"`
+
+	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+	// stays, and what stops is this system deciding anything about the person by machine.
+	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+	// stays so that the workspace's own content is still readable, and everything of the
+	// person's in it is gone.
+	Status    InvitedAccountStatus     `json:"status"`
+	TimeZone  *string                  `json:"time_zone,omitempty"`
+	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+}
+
+// InvitedAccountKind defines model for InvitedAccount.Kind.
+type InvitedAccountKind string
+
+// InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+// stays, and what stops is this system deciding anything about the person by machine.
+// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+// stays so that the workspace's own content is still readable, and everything of the
+// person's in it is gone.
+type InvitedAccountStatus string
+
+// InvitedAccountWeekStart defines model for InvitedAccount.WeekStart.
+type InvitedAccountWeekStart string
 
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
@@ -6525,6 +6953,62 @@ type OauthTokenRequest struct {
 // OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
 type OauthTokenRequestGrantType string
 
+// OfferedAiModel An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`).
+type OfferedAiModel struct {
+	BaseUrl         *string   `json:"base_url,omitempty"`
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	DisplayName     string    `json:"display_name"`
+	EmbeddingModel  *string   `json:"embedding_model,omitempty"`
+
+	// HasApiKey Whether a key is stored. The key itself is answered by nothing.
+	HasApiKey bool               `json:"has_api_key"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind      AiProviderKind `json:"kind"`
+	Processor string         `json:"processor"`
+	UpdatedAt *time.Time     `json:"updated_at,omitempty"`
+	Version   int            `json:"version"`
+}
+
+// OfferedAiModelConfiguration An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act.
+type OfferedAiModelConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep the key already stored; send an empty string to clear it.
+	ApiKey          *string `json:"api_key,omitempty"`
+	BaseUrl         string  `json:"base_url"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+
+	// DisplayName The name workspaces choose it by. Unique among offered models.
+	DisplayName    string  `json:"display_name"`
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// Processor Who processes what is sent to it, as the operator declares it.
+	Processor string `json:"processor"`
+}
+
+// OfferedAiModelSummary defines model for OfferedAiModelSummary.
+type OfferedAiModelSummary struct {
+	DisplayName string             `json:"display_name"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+	Processor    string         `json:"processor"`
+}
+
 // OidcAuthorization Where to send the browser, and the handle to finish with.
 type OidcAuthorization struct {
 	// AuthorizationUrl The provider's authorization endpoint with this flow's parameters, including the PKCE challenge. The verifier that answers it stays on the server.
@@ -6567,9 +7051,33 @@ type Operator struct {
 	AddedAt   time.Time          `json:"added_at"`
 
 	// AddedBy Who put them there. Absent for a row the installation seeded at its first start, which had nobody to name.
-	AddedBy  *openapi_types.UUID `json:"added_by,omitempty"`
-	TenantId openapi_types.UUID  `json:"tenant_id"`
+	AddedBy *openapi_types.UUID `json:"added_by,omitempty"`
+
+	// AddedByName The name of who put them there, where that account still exists.
+	AddedByName *string `json:"added_by_name,omitempty"`
+
+	// DisplayName The account's name, as its workspace shows it.
+	DisplayName *string `json:"display_name,omitempty"`
+
+	// Email The address the account signs in with. Absent for a service account, which signs in nowhere, and for an account that signs in with a name instead.
+	Email *openapi_types.Email `json:"email,omitempty"`
+
+	// Kind A person, or a machine's account.
+	Kind *OperatorKind `json:"kind,omitempty"`
+
+	// SignInName The name an account without an address signs in with.
+	SignInName *string            `json:"sign_in_name,omitempty"`
+	TenantId   openapi_types.UUID `json:"tenant_id"`
+
+	// WorkspaceName The name of the workspace the account is in.
+	WorkspaceName *string `json:"workspace_name,omitempty"`
+
+	// WorkspaceSlug The short name of the workspace the account is in.
+	WorkspaceSlug *string `json:"workspace_slug,omitempty"`
 }
+
+// OperatorKind A person, or a machine's account.
+type OperatorKind string
 
 // OperatorAdd One account, named either way.
 // **By identifier** where the caller has one — a script, an automation. The workspace it lives in is read from it rather than named: a pair that could disagree is a pair somebody eventually gets wrong.
@@ -6874,9 +7382,12 @@ type ProvisionedTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
-	Slug       string                  `json:"slug"`
-	Status     ProvisionedTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
+	Slug           string                  `json:"slug"`
+	Status         ProvisionedTenantStatus `json:"status"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -8861,6 +9372,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// RenewInvitationParams defines parameters for RenewInvitation.
+type RenewInvitationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CreateManagedAccountParams defines parameters for CreateManagedAccount.
 type CreateManagedAccountParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -9922,6 +10439,12 @@ type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
+type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
+// ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
+type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -9957,6 +10480,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
+
+// ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
+type ChooseAiSourceJSONRequestBody = AiSourceChoice
 
 // ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
 type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
@@ -10473,6 +10999,22 @@ type ClientInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RenewInvitation Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RestrictProcessingWithBody Restrict the processing of an account's data (Art. 18)
 	//
 	// A technical state rather than a lock: the account stays readable and its content stays
@@ -10557,7 +11099,21 @@ type ClientInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10568,12 +11124,76 @@ type ClientInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceAiProviders The AI models this installation offers every workspace
+	//
+	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+	//
+	// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+	ListInstanceAiProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceAiProviderWithBody Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceAiProvider Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProvider(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveInstanceAiProvider Withdraw an offered AI model
+	//
+	// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+	//
+	// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+	RemoveInstanceAiProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceAiProviderWithBody Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfigureInstanceAiProvider Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
@@ -10681,6 +11301,7 @@ type ClientInterface interface {
 	// ListOperators Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Corresponds with GET /admin/operators (the `ListOperators` operationId).
 	ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10688,7 +11309,8 @@ type ClientInterface interface {
 	// AddOperatorWithBody Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10698,7 +11320,8 @@ type ClientInterface interface {
 	// AddOperator Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10708,7 +11331,7 @@ type ClientInterface interface {
 	// RemoveOperator Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 	RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10796,6 +11419,13 @@ type ClientInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CancelTenantDeletion Call off a workspace's pending deletion
+	//
+	// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+	CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CloseTenantPassword Close an operator's opening of the password early
 	//
 	// Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -10805,7 +11435,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletionWithBody Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10814,7 +11444,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletion Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -10886,7 +11516,7 @@ type ClientInterface interface {
 
 	// SuspendTenant Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -10927,6 +11557,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-provider (the `ConfigureAiProvider` operationId).
 	ConfigureAiProvider(ctx context.Context, body ConfigureAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAiSource Which AI answers this workspace, and what it may use
+	//
+	// The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.
+	//
+	// Corresponds with GET /ai-source (the `ReadAiSource` operationId).
+	ReadAiSource(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChooseAiSourceWithBody Choose which AI answers this workspace
+	//
+	// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+	ChooseAiSourceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChooseAiSource Choose which AI answers this workspace
+	//
+	// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+	ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAuditEntries Query audit entries
 	//
@@ -11384,7 +12039,7 @@ type ClientInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -12280,6 +12935,7 @@ type ClientInterface interface {
 	// For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 	// **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 	// The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+	// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -12292,6 +12948,7 @@ type ClientInterface interface {
 	// For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 	// **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 	// The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+	// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -14364,6 +15021,32 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 	return c.Client.Do(req)
 }
 
+// RenewInvitation Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewInvitationRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RestrictProcessingWithBody Restrict the processing of an account's data (Art. 18)
 //
 // A technical state rather than a lock: the account stays readable and its content stays
@@ -14488,7 +15171,21 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14509,13 +15206,137 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 func (c *Client) InviteAccount(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewInviteAccountRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceAiProviders The AI models this installation offers every workspace
+//
+// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+//
+// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+func (c *Client) ListInstanceAiProviders(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceAiProvidersRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceAiProviderWithBody Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *Client) CreateInstanceAiProviderWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceAiProviderRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceAiProvider Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *Client) CreateInstanceAiProvider(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceAiProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveInstanceAiProvider Withdraw an offered AI model
+//
+// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+//
+// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+func (c *Client) RemoveInstanceAiProvider(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveInstanceAiProviderRequest(c.Server, providerId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceAiProviderWithBody Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *Client) ConfigureInstanceAiProviderWithBody(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceAiProviderRequestWithBody(c.Server, providerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfigureInstanceAiProvider Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfigureInstanceAiProviderRequest(c.Server, providerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -14752,6 +15573,7 @@ func (c *Client) ListInstanceJournal(ctx context.Context, params *ListInstanceJo
 // ListOperators Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Corresponds with GET /admin/operators (the `ListOperators` operationId).
 func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14769,7 +15591,8 @@ func (c *Client) ListOperators(ctx context.Context, reqEditors ...RequestEditorF
 // AddOperatorWithBody Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14789,7 +15612,8 @@ func (c *Client) AddOperatorWithBody(ctx context.Context, contentType string, bo
 // AddOperator Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -14809,7 +15633,7 @@ func (c *Client) AddOperator(ctx context.Context, body AddOperatorJSONRequestBod
 // RemoveOperator Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Corresponds with DELETE /admin/operators/{accountId} (the `RemoveOperator` operationId).
 func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -14997,6 +15821,23 @@ func (c *Client) UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx con
 	return c.Client.Do(req)
 }
 
+// CancelTenantDeletion Call off a workspace's pending deletion
+//
+// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+func (c *Client) CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCancelTenantDeletionRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CloseTenantPassword Close an operator's opening of the password early
 //
 // Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -15016,7 +15857,7 @@ func (c *Client) CloseTenantPassword(ctx context.Context, tenantId AdminTenantId
 
 // RequestTenantDeletionWithBody Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes any type of body and a specified content type.
 //
@@ -15035,7 +15876,7 @@ func (c *Client) RequestTenantDeletionWithBody(ctx context.Context, tenantId Adm
 
 // RequestTenantDeletion Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -15187,7 +16028,7 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 
 // SuspendTenant Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -15269,6 +16110,61 @@ func (c *Client) ConfigureAiProviderWithBody(ctx context.Context, contentType st
 // Corresponds with PUT /ai-provider (the `ConfigureAiProvider` operationId).
 func (c *Client) ConfigureAiProvider(ctx context.Context, body ConfigureAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfigureAiProviderRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAiSource Which AI answers this workspace, and what it may use
+//
+// The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.
+//
+// Corresponds with GET /ai-source (the `ReadAiSource` operationId).
+func (c *Client) ReadAiSource(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAiSourceRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChooseAiSourceWithBody Choose which AI answers this workspace
+//
+// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+func (c *Client) ChooseAiSourceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChooseAiSourceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChooseAiSource Choose which AI answers this workspace
+//
+// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+func (c *Client) ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChooseAiSourceRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -16145,7 +17041,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEdit
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Corresponds with POST /auth/sessions:elevate (the `ElevateSession` operationId).
@@ -18151,6 +19047,7 @@ func (c *Client) ConfigureIdentityProvider(ctx context.Context, providerId Provi
 // For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 // **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 // The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 //
 // Takes any type of body and a specified content type.
 //
@@ -18173,6 +19070,7 @@ func (c *Client) OfferIdentityProviderWithBody(ctx context.Context, providerId P
 // For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 // **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 // The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -22329,6 +23227,55 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	return req, nil
 }
 
+// NewRenewInvitationRequest constructs an http.Request for the RenewInvitation method
+func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:renew-invitation", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRestrictProcessingRequest calls the generic RestrictProcessing builder with application/json body
 func NewRestrictProcessingRequest(server string, accountId AccountId, body RestrictProcessingJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -22482,6 +23429,154 @@ func NewInviteAccountRequestWithBody(server string, params *InviteAccountParams,
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewListInstanceAiProvidersRequest constructs an http.Request for the ListInstanceAiProviders method
+func NewListInstanceAiProvidersRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceAiProviderRequest calls the generic CreateInstanceAiProvider builder with application/json body
+func NewCreateInstanceAiProviderRequest(server string, body CreateInstanceAiProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceAiProviderRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstanceAiProviderRequestWithBody constructs an http.Request for the CreateInstanceAiProvider method, with any body, and a specified content type
+func NewCreateInstanceAiProviderRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveInstanceAiProviderRequest constructs an http.Request for the RemoveInstanceAiProvider method
+func NewRemoveInstanceAiProviderRequest(server string, providerId ProviderId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfigureInstanceAiProviderRequest calls the generic ConfigureInstanceAiProvider builder with application/json body
+func NewConfigureInstanceAiProviderRequest(server string, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfigureInstanceAiProviderRequestWithBody(server, providerId, "application/json", bodyReader)
+}
+
+// NewConfigureInstanceAiProviderRequestWithBody constructs an http.Request for the ConfigureInstanceAiProvider method, with any body, and a specified content type
+func NewConfigureInstanceAiProviderRequestWithBody(server string, providerId ProviderId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "providerId", providerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/ai-providers/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -23234,6 +24329,40 @@ func NewUpdateTenantQuotasRequestWithBody(server string, tenantId AdminTenantId,
 	return req, nil
 }
 
+// NewCancelTenantDeletionRequest constructs an http.Request for the CancelTenantDeletion method
+func NewCancelTenantDeletionRequest(server string, tenantId AdminTenantId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:cancel-deletion", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCloseTenantPasswordRequest constructs an http.Request for the CloseTenantPassword method
 func NewCloseTenantPasswordRequest(server string, tenantId AdminTenantId) (*http.Request, error) {
 	var err error
@@ -23629,6 +24758,73 @@ func NewConfigureAiProviderRequestWithBody(server string, contentType string, bo
 	}
 
 	operationPath := fmt.Sprintf("/ai-provider")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadAiSourceRequest constructs an http.Request for the ReadAiSource method
+func NewReadAiSourceRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-source")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChooseAiSourceRequest calls the generic ChooseAiSource builder with application/json body
+func NewChooseAiSourceRequest(server string, body ChooseAiSourceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChooseAiSourceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewChooseAiSourceRequestWithBody constructs an http.Request for the ChooseAiSource method, with any body, and a specified content type
+func NewChooseAiSourceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-source")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -36024,6 +37220,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
+	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
+
 	// RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 	//
 	// A technical state rather than a lock: the account stays readable and its content stays
@@ -36108,7 +37322,21 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36119,12 +37347,80 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /accounts:invite (the `InviteAccount` operationId).
 	InviteAccountWithResponse(ctx context.Context, params *InviteAccountParams, body InviteAccountJSONRequestBody, reqEditors ...RequestEditorFn) (*InviteAccountResult, error)
+
+	// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
+	//
+	// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+	ListInstanceAiProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceAiProvidersResult, error)
+
+	// CreateInstanceAiProviderWithBodyWithResponse Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error)
+
+	// CreateInstanceAiProviderWithResponse Offer an AI model to every workspace
+	//
+	// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+	CreateInstanceAiProviderWithResponse(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error)
+
+	// RemoveInstanceAiProviderWithResponse Withdraw an offered AI model
+	//
+	// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+	RemoveInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceAiProviderResult, error)
+
+	// ConfigureInstanceAiProviderWithBodyWithResponse Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error)
+
+	// ConfigureInstanceAiProviderWithResponse Change an offered AI model
+	//
+	// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+	ConfigureInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error)
 
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
@@ -36244,6 +37540,7 @@ type ClientWithResponsesInterface interface {
 	// ListOperatorsWithResponse Who operates this installation
 	//
 	// The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+	// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -36253,7 +37550,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithBodyWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36263,7 +37561,8 @@ type ClientWithResponsesInterface interface {
 	// AddOperatorWithResponse Put an account in the register
 	//
 	// A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+	// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+	// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36273,7 +37572,7 @@ type ClientWithResponsesInterface interface {
 	// RemoveOperatorWithResponse Take an account out of the register
 	//
 	// The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+	// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -36369,6 +37668,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /admin/tenants/{tenantId}/quotas (the `UpdateTenantQuotas` operationId).
 	UpdateTenantQuotasWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTenantQuotasResult, error)
 
+	// CancelTenantDeletionWithResponse Call off a workspace's pending deletion
+	//
+	// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+	CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error)
+
 	// CloseTenantPasswordWithResponse Close an operator's opening of the password early
 	//
 	// Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -36380,7 +37688,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36389,7 +37697,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36463,7 +37771,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuspendTenantWithResponse Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -36510,6 +37818,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /ai-provider (the `ConfigureAiProvider` operationId).
 	ConfigureAiProviderWithResponse(ctx context.Context, body ConfigureAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureAiProviderResult, error)
+
+	// ReadAiSourceWithResponse Which AI answers this workspace, and what it may use
+	//
+	// The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /ai-source (the `ReadAiSource` operationId).
+	ReadAiSourceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAiSourceResult, error)
+
+	// ChooseAiSourceWithBodyWithResponse Choose which AI answers this workspace
+	//
+	// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+	ChooseAiSourceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error)
+
+	// ChooseAiSourceWithResponse Choose which AI answers this workspace
+	//
+	// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+	ChooseAiSourceWithResponse(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error)
 
 	// ListAuditEntriesWithResponse Query audit entries
 	//
@@ -36981,7 +38316,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 	// This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+	// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 	// The personal access token stays exactly as it is, for automation.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -37993,6 +39328,7 @@ type ClientWithResponsesInterface interface {
 	// For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 	// **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 	// The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+	// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -38005,6 +39341,7 @@ type ClientWithResponsesInterface interface {
 	// For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 	// **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 	// The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+	// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -40357,6 +41694,54 @@ func (r UpdateAccountPreferencesResult) ContentType() string {
 	return ""
 }
 
+type RenewInvitationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InvitedAccount
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RenewInvitationResult) GetJSON200() *InvitedAccount {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RenewInvitationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RenewInvitationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenewInvitationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenewInvitationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenewInvitationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RestrictProcessingResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -40457,13 +41842,13 @@ type InviteAccountResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *Account
+	JSON201 *InvitedAccount
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r InviteAccountResult) GetJSON201() *Account {
+func (r InviteAccountResult) GetJSON201() *InvitedAccount {
 	return r.JSON201
 }
 
@@ -40495,6 +41880,191 @@ func (r InviteAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r InviteAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceAiProvidersResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceAiProvidersResult) GetJSON200() *[]OfferedAiModel {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListInstanceAiProvidersResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceAiProvidersResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceAiProvidersResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceAiProvidersResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceAiProvidersResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceAiProviderResult) GetJSON201() *OfferedAiModel {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveInstanceAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfigureInstanceAiProviderResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OfferedAiModel
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfigureInstanceAiProviderResult) GetJSON200() *OfferedAiModel {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfigureInstanceAiProviderResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfigureInstanceAiProviderResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfigureInstanceAiProviderResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfigureInstanceAiProviderResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfigureInstanceAiProviderResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -41344,6 +42914,47 @@ func (r UpdateTenantQuotasResult) ContentType() string {
 	return ""
 }
 
+type CancelTenantDeletionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CancelTenantDeletionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CancelTenantDeletionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CancelTenantDeletionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CancelTenantDeletionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CancelTenantDeletionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseTenantPasswordResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -41797,6 +43408,102 @@ func (r ConfigureAiProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfigureAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAiSourceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAiSourceResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAiSourceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAiSourceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAiSourceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAiSourceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChooseAiSourceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChooseAiSourceResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChooseAiSourceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChooseAiSourceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChooseAiSourceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChooseAiSourceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChooseAiSourceResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -54274,6 +55981,30 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
+// RenewInvitationWithResponse Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error) {
+	rsp, err := c.RenewInvitation(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenewInvitationResult(rsp)
+}
+
 // RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 //
 // A technical state rather than a lock: the account stays readable and its content stays
@@ -54382,7 +56113,21 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54399,7 +56144,21 @@ func (c *ClientWithResponses) InviteAccountWithBodyWithResponse(ctx context.Cont
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54410,6 +56169,96 @@ func (c *ClientWithResponses) InviteAccountWithResponse(ctx context.Context, par
 		return nil, err
 	}
 	return ParseInviteAccountResult(rsp)
+}
+
+// ListInstanceAiProvidersWithResponse The AI models this installation offers every workspace
+//
+// A workspace sees only each model's name, processor and jurisdiction, and switches one on itself - offering a model switches nothing on. Behind `admin:tenants` **and** the operator register, both. The key is not among the fields.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/ai-providers (the `ListInstanceAiProviders` operationId).
+func (c *ClientWithResponses) ListInstanceAiProvidersWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceAiProvidersResult, error) {
+	rsp, err := c.ListInstanceAiProviders(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceAiProvidersResult(rsp)
+}
+
+// CreateInstanceAiProviderWithBodyWithResponse Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceAiProviderWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error) {
+	rsp, err := c.CreateInstanceAiProviderWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceAiProviderResult(rsp)
+}
+
+// CreateInstanceAiProviderWithResponse Offer an AI model to every workspace
+//
+// The same rules as a workspace's own model, plus a name and a processor every workspace is shown before it agrees. A model outside the EEA is refused with `ai.third_country_not_confirmed` unless the installation confirmed such transfers. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/ai-providers (the `CreateInstanceAiProvider` operationId).
+func (c *ClientWithResponses) CreateInstanceAiProviderWithResponse(ctx context.Context, body CreateInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceAiProviderResult, error) {
+	rsp, err := c.CreateInstanceAiProvider(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceAiProviderResult(rsp)
+}
+
+// RemoveInstanceAiProviderWithResponse Withdraw an offered AI model
+//
+// Removes the model and its sealed key. Every workspace that chose it gets no AI answer until it chooses again; nothing a workspace configured itself is touched. Journalled.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/ai-providers/{providerId} (the `RemoveInstanceAiProvider` operationId).
+func (c *ClientWithResponses) RemoveInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, reqEditors ...RequestEditorFn) (*RemoveInstanceAiProviderResult, error) {
+	rsp, err := c.RemoveInstanceAiProvider(ctx, providerId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveInstanceAiProviderResult(rsp)
+}
+
+// ConfigureInstanceAiProviderWithBodyWithResponse Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceAiProviderWithBodyWithResponse(ctx context.Context, providerId ProviderId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error) {
+	rsp, err := c.ConfigureInstanceAiProviderWithBody(ctx, providerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceAiProviderResult(rsp)
+}
+
+// ConfigureInstanceAiProviderWithResponse Change an offered AI model
+//
+// Set whole, with the key's one exception: omitting it keeps the one that is sealed, an empty string clears it. Journalled.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
+func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error) {
+	rsp, err := c.ConfigureInstanceAiProvider(ctx, providerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfigureInstanceAiProviderResult(rsp)
 }
 
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
@@ -54602,6 +56451,7 @@ func (c *ClientWithResponses) ListInstanceJournalWithResponse(ctx context.Contex
 // ListOperatorsWithResponse Who operates this installation
 //
 // The operator register. **An empty one is the private installation**: nothing was configured, one workspace, and its owner is the operator exactly as they were before the register existed.
+// Each row names its account - a name, the address or sign-in name, the kind and the workspace - so that nobody has to read an identifier. Only accounts in the register are ever named; a workspace's other accounts are not listed anywhere at this level.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -54617,7 +56467,8 @@ func (c *ClientWithResponses) ListOperatorsWithResponse(ctx context.Context, req
 // AddOperatorWithBodyWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54633,7 +56484,8 @@ func (c *ClientWithResponses) AddOperatorWithBodyWithResponse(ctx context.Contex
 // AddOperatorWithResponse Put an account in the register
 //
 // A service account may be an operator: a purchase platform that provisions workspaces needs a credential that does not belong to a person who may leave, and the first day of a platform is the day that becomes true.
-// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are.
+// An account that is already an operator is not an error - the caller asked for somebody to be one, and they are. Only an active account can be added (`admin.operator_not_active`).
+// **Adding the first entry adds the caller too.** On an empty register the only workspace's owner is the operator, and the first row ends that; so where the register was empty, the caller is entered in the same statement, and both entries are in the journal.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54649,7 +56501,7 @@ func (c *ClientWithResponses) AddOperatorWithResponse(ctx context.Context, body 
 // RemoveOperatorWithResponse Take an account out of the register
 //
 // The last operator cannot be removed: an installation with no operators is an installation nobody can operate. The refusal is in the statement rather than in a read, because two operators removing each other at the same moment would both read "there are two".
-// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is.
+// The account alone identifies the row - an identifier is unique across the installation, and a caller that had to name the workspace too would have to read the register to find out which one it is. An account that is not in the register is `admin.operator_not_registered` (404); the last one is `admin.operator_last` (409).
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -54805,6 +56657,21 @@ func (c *ClientWithResponses) UpdateTenantQuotasWithApplicationMergePatchPlusJSO
 	return ParseUpdateTenantQuotasResult(rsp)
 }
 
+// CancelTenantDeletionWithResponse Call off a workspace's pending deletion
+//
+// Returns a workspace pending deletion to where it stood when the deletion was requested - active or suspended; suspended where that is not known - and clears the deadline. The automation rules the request switched off are switched back on, a schedule from now on, without the occurrences it missed. Possible until the hard delete begins, also past the deadline while a legal hold keeps the workspace; refused with `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing). Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
+func (c *ClientWithResponses) CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error) {
+	rsp, err := c.CancelTenantDeletion(ctx, tenantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCancelTenantDeletionResult(rsp)
+}
+
 // CloseTenantPasswordWithResponse Close an operator's opening of the password early
 //
 // Ends the opening `:open-password` made before its time. The workspace's own rules decide again from the next request on. Recorded in the workspace's trail (`tenant.password_closed`) and the installation's journal, and the workspace's administrators are told. No step-up: closing narrows the way in rather than widening it. Closing where nothing is open changes nothing and records nothing.
@@ -54822,7 +56689,7 @@ func (c *ClientWithResponses) CloseTenantPasswordWithResponse(ctx context.Contex
 
 // RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54837,7 +56704,7 @@ func (c *ClientWithResponses) RequestTenantDeletionWithBodyWithResponse(ctx cont
 
 // RequestTenantDeletionWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -54959,7 +56826,7 @@ func (c *ClientWithResponses) ResumeTenantWithResponse(ctx context.Context, tena
 
 // SuspendTenantWithResponse Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -55035,6 +56902,51 @@ func (c *ClientWithResponses) ConfigureAiProviderWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseConfigureAiProviderResult(rsp)
+}
+
+// ReadAiSourceWithResponse Which AI answers this workspace, and what it may use
+//
+// The workspace's own model, a model the installation offers, or none - with what the installation allows, whether that is locked and by whom, and the least a workspace's own model must declare. An offered model is answered by its name, its processor and its jurisdiction only. With nothing offered and nothing decided, `sources` is `OWN` and `offered` is empty: the workspace's own model, as always.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /ai-source (the `ReadAiSource` operationId).
+func (c *ClientWithResponses) ReadAiSourceWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAiSourceResult, error) {
+	rsp, err := c.ReadAiSource(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAiSourceResult(rsp)
+}
+
+// ChooseAiSourceWithBodyWithResponse Choose which AI answers this workspace
+//
+// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+func (c *ClientWithResponses) ChooseAiSourceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error) {
+	rsp, err := c.ChooseAiSourceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChooseAiSourceResult(rsp)
+}
+
+// ChooseAiSourceWithResponse Choose which AI answers this workspace
+//
+// Choosing an offered model is this workspace's consent to send its content to it, and choosing its own model or none withdraws that consent. `NONE` is always allowed; a source the installation does not allow is refused with `403`, `ai.source_not_allowed`. A narrowing wider than the installation allows is refused with `auth.policy_loosens`, one under a lock with `auth.policy_locked` - except `NONE`, which is the workspace's own always. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
+func (c *ClientWithResponses) ChooseAiSourceWithResponse(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error) {
+	rsp, err := c.ChooseAiSource(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChooseAiSourceResult(rsp)
 }
 
 // ListAuditEntriesWithResponse Query audit entries
@@ -55753,7 +57665,7 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 //
 // A registered operator raises **their own session** to `admin:tenants` by passing a fresh step-up. One hour, on that session and no other, gone with it, and both the act and the moment it falls back in the installation's journal.
 // This deliberately weakens the rule that `admin:tenants` is never carried by a session. It weakens it to: only for a registered operator, only after a fresh proof, only for an hour, only on the session that proved it, and written down. What it buys is that nobody has to mint a long-lived all-powerful token and paste it into a browser to change a switch - which is the outcome the strict rule produces in practice, and which is worse.
-// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
+// It does not slide: activity extends a session's own horizon and never this, and a second hour needs a second proof. A running hour is neither replaced nor extended: raising a session that is raised already is `auth.session_already_elevated` (409), before any proof is asked, with the running end in `params.until` - so a client that lost its copy of the hour learns it. The register is read again on every request, so an operator removed while a raised session is open loses the scope on their next call rather than at the end of the hour.
 // The personal access token stays exactly as it is, for automation.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -57431,6 +59343,7 @@ func (c *ClientWithResponses) ConfigureIdentityProviderWithResponse(ctx context.
 // For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 // **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 // The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -57449,6 +59362,7 @@ func (c *ClientWithResponses) OfferIdentityProviderWithBodyWithResponse(ctx cont
 // For the workspace's own provider it is the row's `enabled`. For one the installation offers, it is this workspace's own switch - the row belongs to the installation and is not the workspace's to change, but whether it is *offered here* is: an offer of the installation reaches every workspace and is switched on in none, and each owner switches it on for their own.
 // **An installation's provider is off until a workspace switches it on.** Offering every workspace a way in is the installation's decision; taking it is the workspace's.
 // The last way in cannot be switched off: a workspace that turned off its only method would be a workspace nobody can reach. Auditable.
+// **A provider the installation's lock turns on cannot be switched off here.** Where the installation locked the ways to sign in with providers among them, every provider it offers as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its parameters. Switching it on is accepted and kept as this workspace's own choice, which applies again once the lock is lifted.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -60961,6 +62875,39 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 	return response, nil
 }
 
+// ParseRenewInvitationResult parses an HTTP response from a RenewInvitationWithResponse call
+func ParseRenewInvitationResult(rsp *http.Response) (*RenewInvitationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenewInvitationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InvitedAccount
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRestrictProcessingResult parses an HTTP response from a RestrictProcessingWithResponse call
 func ParseRestrictProcessingResult(rsp *http.Response) (*RestrictProcessingResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -61042,11 +62989,139 @@ func ParseInviteAccountResult(rsp *http.Response) (*InviteAccountResult, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Account
+		var dest InvitedAccount
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceAiProvidersResult parses an HTTP response from a ListInstanceAiProvidersWithResponse call
+func ParseListInstanceAiProvidersResult(rsp *http.Response) (*ListInstanceAiProvidersResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceAiProvidersResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceAiProviderResult parses an HTTP response from a CreateInstanceAiProviderWithResponse call
+func ParseCreateInstanceAiProviderResult(rsp *http.Response) (*CreateInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveInstanceAiProviderResult parses an HTTP response from a RemoveInstanceAiProviderWithResponse call
+func ParseRemoveInstanceAiProviderResult(rsp *http.Response) (*RemoveInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfigureInstanceAiProviderResult parses an HTTP response from a ConfigureInstanceAiProviderWithResponse call
+func ParseConfigureInstanceAiProviderResult(rsp *http.Response) (*ConfigureInstanceAiProviderResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfigureInstanceAiProviderResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -61642,6 +63717,35 @@ func ParseUpdateTenantQuotasResult(rsp *http.Response) (*UpdateTenantQuotasResul
 	return response, nil
 }
 
+// ParseCancelTenantDeletionResult parses an HTTP response from a CancelTenantDeletionWithResponse call
+func ParseCancelTenantDeletionResult(rsp *http.Response) (*CancelTenantDeletionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CancelTenantDeletionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseCloseTenantPasswordResult parses an HTTP response from a CloseTenantPasswordWithResponse call
 func ParseCloseTenantPasswordResult(rsp *http.Response) (*CloseTenantPasswordResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -61943,6 +64047,72 @@ func ParseConfigureAiProviderResult(rsp *http.Response) (*ConfigureAiProviderRes
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AiProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAiSourceResult parses an HTTP response from a ReadAiSourceWithResponse call
+func ParseReadAiSourceResult(rsp *http.Response) (*ReadAiSourceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAiSourceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChooseAiSourceResult parses an HTTP response from a ChooseAiSourceWithResponse call
+func ParseChooseAiSourceResult(rsp *http.Response) (*ChooseAiSourceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChooseAiSourceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

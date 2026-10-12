@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -220,10 +221,97 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(link))
 		}
 	}
+	for _, name := range integration.AiSwitches() {
+		if aiValueOf(before.Ai, name) != aiValueOf(after.Ai, name) ||
+			before.Ai.Locks[name] != after.Ai.Locks[name] {
+			moved = append(moved, "ai."+string(name))
+		}
+	}
 	if before.BlocklistFile != after.BlocklistFile {
 		moved = append(moved, "blocklist_file")
 	}
 	return moved
+}
+
+// aiValueOf is one key of the AI area as text, empty where the level decided nothing.
+func aiValueOf(layer integration.AiLayer, name integration.AiSwitch) string {
+	switch name {
+	case integration.AiSwitchSources:
+		if layer.Sources != nil {
+			return string(*layer.Sources)
+		}
+	case integration.AiSwitchMinJurisdiction:
+		if layer.MinJurisdiction != nil {
+			return string(*layer.MinJurisdiction)
+		}
+	}
+	return ""
+}
+
+// aiAreaOutput is the AI area, every key decided or not, for the switches' reason.
+func aiAreaOutput(layer integration.AiLayer) usecase.Output {
+	area := usecase.Output{}
+	for _, name := range integration.AiSwitches() {
+		value := aiValueOf(layer, name)
+		entry := usecase.Output{"set": value != "", "locked": layer.Locks[name]}
+		if value != "" {
+			entry["value"] = value
+		}
+		area[string(name)] = entry
+	}
+	return area
+}
+
+// applyAiArea reads the AI area. A value outside its closed set is refused, naming the key; an
+// unknown key is skipped, the `PUT`'s rule for a newer client.
+func applyAiArea(level *identityrepo.InstanceLevel, raw any) error {
+	sent, isObject := raw.(map[string]any)
+	if !isObject {
+		return nil
+	}
+	for name, entry := range sent {
+		field, isObject := entry.(map[string]any)
+		if !isObject {
+			return refusedAiValue(name)
+		}
+		locked, _ := field["locked"].(bool)
+		value, held := field["value"]
+		text, isText := value.(string)
+		if held && value != nil && !isText {
+			return refusedAiValue(name)
+		}
+		switch integration.AiSwitch(name) {
+		case integration.AiSwitchSources:
+			if isText {
+				sources := integration.AiSources(text)
+				if !sources.Valid() {
+					return refusedAiValue(name)
+				}
+				level.Ai.Sources = &sources
+			}
+		case integration.AiSwitchMinJurisdiction:
+			if isText {
+				floor := integration.AiMinJurisdiction(text)
+				if !floor.Valid() {
+					return refusedAiValue(name)
+				}
+				level.Ai.MinJurisdiction = &floor
+			}
+		default:
+			continue
+		}
+		if locked {
+			level.Ai.Locks[integration.AiSwitch(name)] = true
+		}
+	}
+	return nil
+}
+
+func refusedAiValue(name string) error {
+	return shared.ErrValidation.
+		WithDetail("auth.policy_value_invalid").
+		WithParams(map[string]string{"switch": "ai." + name}).
+		WithFields(shared.FieldError{Path: "/ai/" + name, Code: "auth.policy_value_invalid"})
 }
 
 // ListOperators answers the register.
@@ -241,7 +329,7 @@ func (h ListOperators) Execute(
 	var register []identityrepo.Operator
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
 		func(ctx context.Context) error {
-			read, err := w.Operators.List(ctx)
+			read, err := w.Operators.Roster(ctx, actor.AccountID)
 			register = read
 			return err
 		})
@@ -312,30 +400,39 @@ func (h AddOperator) execute(
 	// the caller: a pair that could disagree is a pair somebody eventually gets wrong, and only
 	// that function can read the account row across the tenant boundary at all.
 	return w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
-		added, err := w.Operators.Add(ctx, accountID, actor.AccountID)
+		outcome, err := w.Operators.Enlist(ctx, accountID, actor.AccountID)
 		if err != nil {
 			return err
 		}
-		if !added {
-			// Already there, or no such account. Which of the two is answered by reading the
-			// register, and the caller's question - "make this account an operator" - is answered
-			// either way only when it now is.
-			register, err := w.Operators.List(ctx)
-			if err != nil {
+		switch outcome {
+		case identityrepo.EnlistPresent:
+			// The caller asked for somebody to be an operator, and they are.
+			return nil
+		case identityrepo.EnlistNotActive:
+			return shared.ErrValidation.WithDetail("admin.operator_not_active")
+		case identityrepo.EnlistUnknown:
+			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+		case identityrepo.EnlistAddedWithCaller:
+			// The register was empty, so the caller was an operator only because it was; the
+			// statement put them in too, and that is as much an addition as the one asked for.
+			if err := w.recordAdded(ctx, actor, actor.AccountID); err != nil {
 				return err
 			}
-			for _, operator := range register {
-				if operator.AccountID == accountID {
-					return nil
-				}
-			}
-			return shared.ErrValidation.WithDetail("admin.operator_unknown_account")
+		case identityrepo.EnlistAdded:
+		default:
+			return shared.ErrInternal.WithDetail("admin.operator_outcome_unknown")
 		}
-		return w.Journal.Record(ctx, adminrepo.InstanceEvent{
-			ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorAdded,
-			ActorLabel: actor.AccountName,
-			Details:    map[string]any{"account_id": accountID.String()},
-		})
+		return w.recordAdded(ctx, actor, accountID)
+	})
+}
+
+func (w InstanceWriter) recordAdded(
+	ctx context.Context, actor appshared.ActorContext, accountID shared.ID,
+) error {
+	return w.Journal.Record(ctx, adminrepo.InstanceEvent{
+		ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorAdded,
+		ActorLabel: actor.AccountName,
+		Details:    map[string]any{"account_id": accountID.String()},
 	})
 }
 
@@ -352,15 +449,19 @@ func (h RemoveOperator) Execute(
 	}
 
 	return w.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
-		removed, err := w.Operators.Remove(ctx, accountID)
+		outcome, err := w.Operators.Dismiss(ctx, accountID)
 		if err != nil {
 			return err
 		}
-		if !removed {
-			// Either it was not there, or it is the last one. The second is the interesting case
-			// and the one worth a sentence: an installation with no operators is an installation
-			// nobody can operate.
+		switch outcome {
+		case identityrepo.DismissRemoved:
+		case identityrepo.DismissLast:
+			// An installation with no operators is an installation nobody can operate.
 			return shared.ErrConflict.WithDetail("admin.operator_last")
+		case identityrepo.DismissAbsent:
+			return shared.ErrNotFound.WithDetail("admin.operator_not_registered")
+		default:
+			return shared.ErrInternal.WithDetail("admin.operator_outcome_unknown")
 		}
 		return w.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: w.IDs.NewID(), OccurredAt: w.Clock.Now(), Action: journalOperatorRemoved,
@@ -490,6 +591,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		"legal":                 legal,
 		"localisation":          localisation,
 		"quotas":                quotas,
+		"ai":                    aiAreaOutput(level.Ai),
 		"source":                level.Source,
 		"is_enforced_from_file": level.IsEnforcedFromFile,
 	}
@@ -617,6 +719,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
 		Quotas: identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
+		Ai:     integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
 	}
 
 	sent, _ := in["sign_in"].(map[string]any)
@@ -638,6 +741,9 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		return identityrepo.InstanceLevel{}, err
 	}
 	if err := applyQuotaDefaults(&level, in["quotas"]); err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
+	if err := applyAiArea(&level, in["ai"]); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}
 
@@ -759,12 +865,25 @@ func refusedInstanceValue(name string) error {
 
 func operatorOutput(operator identityrepo.Operator) usecase.Output {
 	out := usecase.Output{
-		"tenant_id":  operator.TenantID.String(),
-		"account_id": operator.AccountID.String(),
-		"added_at":   operator.AddedAt.UTC(),
+		"tenant_id":      operator.TenantID.String(),
+		"account_id":     operator.AccountID.String(),
+		"added_at":       operator.AddedAt.UTC(),
+		"display_name":   operator.DisplayName,
+		"kind":           string(operator.Kind),
+		"workspace_slug": operator.WorkspaceSlug,
+		"workspace_name": operator.WorkspaceName,
 	}
 	if !operator.AddedBy.IsZero() {
 		out["added_by"] = operator.AddedBy.String()
+	}
+	if operator.Email != "" {
+		out["email"] = operator.Email
+	}
+	if operator.SignInName != "" {
+		out["sign_in_name"] = operator.SignInName
+	}
+	if operator.AddedByName != "" {
+		out["added_by_name"] = operator.AddedByName
 	}
 	return out
 }
@@ -775,7 +894,7 @@ func (h ReadInstanceSettings) Descriptor() usecase.Descriptor {
 		Name: ReadInstanceSettingsName,
 		Summary: "Answers what this installation has decided for every workspace on it: the " +
 			"sign-in switches, which of them are locked, the legal links, the localisation " +
-			"defaults and the quota ceilings. Every key of every area, decided or not. Only " +
+			"defaults, the quota ceilings and which AI workspaces may use. Every key of every area, decided or not. Only " +
 			"what was decided - a level that answered the product's defaults for everything " +
 			"else would be one nobody could tell apart from an operator who had chosen them.",
 		SideEffects: "None. Reads only.",
@@ -835,6 +954,14 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Description: "One ceiling per quota, each `{value, locked}` - the middle level " +
 					"of Effective(product, instance, plan, workspace). A workspace's own still " +
 					"wins unless the ceiling is locked; 0 is unlimited and absent is undecided.",
+			},
+			{
+				Name: "ai", Kind: usecase.KindObject,
+				Description: "`sources` (NONE, OFFERED, OWN, EITHER) - which AI a workspace may " +
+					"use - and `min_jurisdiction` (ANY, ADEQUACY, EEA, SELF_HOSTED) - the least a " +
+					"workspace's own model must declare - each `{value, locked}`. A lock holds a " +
+					"workspace out of a source and never in one: no AI is always its own choice, " +
+					"and no value here switches processing on.",
 			},
 			{
 				Name: "blocklist_file", Kind: usecase.KindString,

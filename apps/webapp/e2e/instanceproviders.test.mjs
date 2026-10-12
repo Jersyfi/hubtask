@@ -161,3 +161,45 @@ test('chromium: withdraw now needs the number typed back, and a wrong one is ref
     /deletes the provider and every connection between a person and it; offering it again does not restore them/,
   );
 });
+
+// UC-INS-11 check 4: the installation's screen says what its lock on the ways to sign in does to each
+// row - on in every workspace for one admitted as "Only people invited here", each workspace's own
+// switch for one admitted by domain - and, without the lock, what a lock would do.
+test('chromium: each offered provider says what the lock on the ways to sign in does to it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  let rows = [
+    { ...offered(), installation_lock: 'TURNS_ON' },
+    {
+      ...offered(), id: 'entra', display_name: 'Entra', kind: 'MICROSOFT', provisioning: 'DOMAINS',
+      allowed_directories: ['contoso'], installation_lock: 'LEAVES_TO_WORKSPACE', offered_workspaces: 3,
+    },
+  ];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/admin/identity-providers' && request.method() === 'GET') return route.fulfill({ json: rows });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/instance/providers`);
+  const mandated = page.getByRole('row').filter({ hasText: 'The platform' });
+  await mandated.waitFor();
+  assert.match(await mandated.textContent() ?? '', /On in every workspace: the ways to sign in are locked/);
+  const byDomain = page.getByRole('row').filter({ hasText: 'Entra' });
+  assert.match(await byDomain.textContent() ?? '', /Each workspace's own choice/);
+
+  // Without the lock: the invite-only offer says what a lock would do, the other says nothing.
+  rows = rows.map((row) => ({ ...row, installation_lock: 'NONE' }));
+  await page.reload();
+  await mandated.waitFor();
+  assert.match(await mandated.textContent() ?? '', /Locking the ways to sign in with providers among them turns it on/);
+  assert.equal(await byDomain.locator('[data-lock]').count(), 0);
+});

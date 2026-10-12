@@ -6,6 +6,8 @@ package rest
 import (
 	"net/http"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -75,6 +77,9 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	if body.Quotas != nil {
 		in["quotas"] = instanceSettingMap(*body.Quotas)
 	}
+	if body.Ai != nil {
+		in["ai"] = instanceSettingMap(*body.Ai)
+	}
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
 	}
@@ -113,6 +118,19 @@ func (c *RestController) ListOperators(w http.ResponseWriter, r *http.Request) {
 			id := uuidValue(by)
 			operator.AddedBy = &id
 		}
+		operator.DisplayName = optionalStringOutput(row, "display_name")
+		if email := row.String("email"); email != "" {
+			address := openapi_types.Email(email)
+			operator.Email = &address
+		}
+		operator.SignInName = optionalStringOutput(row, "sign_in_name")
+		if kind := row.String("kind"); kind != "" {
+			typed := openapi.OperatorKind(kind)
+			operator.Kind = &typed
+		}
+		operator.WorkspaceSlug = optionalStringOutput(row, "workspace_slug")
+		operator.WorkspaceName = optionalStringOutput(row, "workspace_name")
+		operator.AddedByName = optionalStringOutput(row, "added_by_name")
 		operators = append(operators, operator)
 	}
 	writeJSON(w, r, http.StatusOK, operators)
@@ -193,6 +211,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if quotas := instanceSettingsOf(out["quotas"]); quotas != nil {
 		answer.Quotas = &quotas
+	}
+	if ai := instanceSettingsOf(out["ai"]); ai != nil {
+		answer.Ai = &ai
 	}
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file

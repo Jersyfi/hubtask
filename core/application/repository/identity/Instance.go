@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -35,6 +36,10 @@ type InstanceLevel struct {
 	// lock here is meaningful — an operator may forbid a workspace raising its own — so the locks
 	// travel.
 	Quotas identity.QuotaDefaults
+	// Ai is the instance's say about AI (ADR-0072 §2): which sources a workspace may use and the
+	// least its own model must declare, each with a lock that holds a workspace out of a source and
+	// never in one.
+	Ai integration.AiLayer
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth
@@ -66,30 +71,74 @@ type InstanceSettings interface {
 }
 
 // Operator is one row of the register (ADR-0070 §1): an account of some workspace that operates
-// this installation, and who put it there.
+// this installation, who put it there, and what a person reads to know who that is.
 type Operator struct {
 	TenantID  shared.ID
 	AccountID shared.ID
 	AddedAt   time.Time
 	AddedBy   shared.ID
+
+	// The account as its workspace names it. Email is empty for a service account and for an
+	// account that signs in with a name instead (SignInName).
+	DisplayName string
+	Email       string
+	SignInName  string
+	Kind        identity.AccountKind
+
+	WorkspaceSlug string
+	WorkspaceName string
+	// AddedByName is empty where the row had no adder or the adder's account is gone.
+	AddedByName string
 }
+
+// EnlistOutcome is what putting an account into the register did (migration 0135).
+type EnlistOutcome string
+
+const (
+	// EnlistAdded: the account is in the register now.
+	EnlistAdded EnlistOutcome = "ADDED"
+	// EnlistAddedWithCaller: the register was empty, so the caller - an operator only because it
+	// was - is in it now as well.
+	EnlistAddedWithCaller EnlistOutcome = "ADDED_WITH_CALLER"
+	// EnlistPresent: it was in the register already; nothing changed.
+	EnlistPresent EnlistOutcome = "PRESENT"
+	// EnlistNotActive: the account exists and is not active (invited, disabled, restricted,
+	// anonymised); nothing changed.
+	EnlistNotActive EnlistOutcome = "NOT_ACTIVE"
+	// EnlistUnknown: no undeleted account has that identifier.
+	EnlistUnknown EnlistOutcome = "UNKNOWN"
+)
+
+// DismissOutcome is what taking an account out of the register did (migration 0135).
+type DismissOutcome string
+
+const (
+	// DismissRemoved: it is out.
+	DismissRemoved DismissOutcome = "REMOVED"
+	// DismissLast: it is the last operator, and stays.
+	DismissLast DismissOutcome = "LAST"
+	// DismissAbsent: it was not in the register.
+	DismissAbsent DismissOutcome = "ABSENT"
+)
 
 // Operators is the register. Every method goes through a narrow function rather than at the table:
 // `operator` carries no row-level policy *and* no grant to the application role, because its rows
 // name accounts across workspaces - a policy-free table the application role could read would let
 // every workspace enumerate the installation's operators.
 type Operators interface {
-	// Holds reports whether this account operates the installation. **An empty register answers
-	// true**, which is the private installation: nothing was configured, and the owner is the
-	// operator exactly as they were before the register existed.
+	// Holds reports whether this account operates the installation. An empty register answers true
+	// only for the active owner of an installation with exactly one workspace - the private
+	// installation, where nothing was configured and the owner is the operator (identity.md §19).
 	//
-	// The account alone, here and in Add: the workspace is on the row and the function reads it
+	// The account alone, here and in Enlist: the workspace is on the row and the function reads it
 	// from the account, so no caller holds a pair that could disagree - and no method here takes a
 	// tenant, which rule 3 does not permit and this register does not need.
 	Holds(ctx context.Context, accountID shared.ID) (bool, error)
 
-	// List answers the whole register, for the control plane's own screen.
-	List(ctx context.Context) ([]Operator, error)
+	// Roster answers the whole register with names, for the control plane's own screen - and
+	// nothing at all unless the caller operates the installation, so the function cannot be used to
+	// learn more than the use case shows an operator. It names only accounts the register holds.
+	Roster(ctx context.Context, caller shared.ID) ([]Operator, error)
 
 	// Resolve answers the account an address names inside one workspace, and zero where the pair
 	// matches nothing.
@@ -100,19 +149,20 @@ type Operators interface {
 	// An address and a workspace are what a person actually knows.
 	//
 	// **One identifier and nothing else.** Not a list, not a search, not a name — and no more than
-	// a caller already learns by trying `Add`, so nothing here widens what the control plane sees.
+	// a caller already learns by trying `Enlist`, so nothing here widens what the control plane
+	// sees.
 	Resolve(ctx context.Context, slug, email string) (shared.ID, error)
 
-	// Add puts an account in. False means it was already there **or** that no such account exists:
-	// the first is not an error - a caller asking for somebody to be an operator got what they
-	// asked for - and the second is, which the caller tells apart by reading the register.
-	Add(ctx context.Context, accountID, by shared.ID) (bool, error)
+	// Enlist puts an active account in. Where the register was empty it puts `by` in as well, in
+	// the same statement and under a lock: on an empty register `by` was an operator only because
+	// it was empty, and the first row would have ended that (UC-INS-05 check 3). A zero `by` is the
+	// installation itself - its first start, its environment, its machine - which has nobody to add.
+	Enlist(ctx context.Context, accountID, by shared.ID) (EnlistOutcome, error)
 
-	// Remove takes one out, by account alone: an identifier is unique across the installation, and
-	// a caller that had to name the workspace too would have to read the register to find out which
-	// one it is. False means it was not there, **or** that it is the last one - the register may not
-	// be emptied, and which of the two applies is answered by reading the list.
-	Remove(ctx context.Context, accountID shared.ID) (bool, error)
+	// Dismiss takes one out, by account alone: an identifier is unique across the installation.
+	// The last operator stays, in the statement, so two operators removing each other at once
+	// cannot both win.
+	Dismiss(ctx context.Context, accountID shared.ID) (DismissOutcome, error)
 }
 
 // SetupClaim is what claiming a setup code answers (migration 0128).

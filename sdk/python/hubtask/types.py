@@ -92,6 +92,24 @@ class ManagedAccountCreated(TypedDict, total=False):
     membership: Required["Membership"]
     start_password: Required[str]
 
+class InvitedAccount(TypedDict, total=False):
+    id: Required[str]
+    kind: Required[Literal["USER", "SERVICE_ACCOUNT"]]
+    email: str | None
+    sign_in_name: str | None
+    display_name: Required[str]
+    status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
+    locale: str | None
+    time_zone: str | None
+    week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
+    celebrations: bool | None
+    onboarding_completed_at: str | None
+    has_second_factor: bool
+    recovery_codes_remaining: int
+    second_factor_required: bool
+    has_password: bool
+    invitation_link: str
+
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
@@ -293,6 +311,65 @@ class AiProviderConfiguration(TypedDict, total=False):
     jurisdiction: Required["AiJurisdiction"]
     processing_allowed: bool
 
+class OfferedAiModel(TypedDict, total=False):
+    """An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`)."""
+    id: Required[str]
+    display_name: Required[str]
+    processor: Required[str]
+    kind: Required["AiProviderKind"]
+    base_url: str
+    completion_model: str
+    embedding_model: str
+    has_api_key: Required[bool]
+    jurisdiction: Required["AiJurisdiction"]
+    created_at: Required[str]
+    updated_at: str | None
+    version: Required[int]
+
+class OfferedAiModelConfiguration(TypedDict, total=False):
+    """An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act."""
+    display_name: Required[str]
+    processor: Required[str]
+    kind: Required["AiProviderKind"]
+    base_url: Required[str]
+    completion_model: str
+    embedding_model: str
+    api_key: str
+    jurisdiction: Required["AiJurisdiction"]
+
+AiSources = Literal["NONE", "OFFERED", "OWN", "EITHER"]
+
+AiSourceKind = Literal["OWN", "OFFERED", "NONE"]
+
+AiMinJurisdiction = Literal["ANY", "ADEQUACY", "EEA", "SELF_HOSTED"]
+
+class AiSource(TypedDict, total=False):
+    source: Required["AiSourceKind"]
+    offered_model_id: str
+    sources: Required["AiSources"]
+    installation_sources: Required["AiSources"]
+    narrowing: "AiSources"
+    sources_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    sources_lock: Literal["INSTANCE", "PLAN"]
+    min_jurisdiction: Required["AiMinJurisdiction"]
+    min_jurisdiction_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    min_jurisdiction_lock: Literal["INSTANCE", "PLAN"]
+    offered: Required[list["OfferedAiModelSummary"]]
+    search_rebuilding: bool
+    updated_at: str
+    version: Required[int]
+
+class OfferedAiModelSummary(TypedDict, total=False):
+    id: Required[str]
+    display_name: Required[str]
+    processor: Required[str]
+    jurisdiction: Required["AiJurisdiction"]
+
+class AiSourceChoice(TypedDict, total=False):
+    source: Required["AiSourceKind"]
+    offered_model_id: str
+    sources: Literal["NONE", "OFFERED", "OWN", "EITHER", "INHERIT"]
+
 AiProviderKind = Literal["NOOP", "OPENAI_COMPATIBLE", "OLLAMA"]
 
 AiJurisdiction = Literal["SELF_HOSTED", "EEA", "ADEQUACY", "THIRD_COUNTRY"]
@@ -454,6 +531,7 @@ class IdentityProvider(TypedDict, total=False):
     position: Required[int]
     enabled: Required[bool]
     offered_here: bool
+    installation_lock: Literal["TURNS_ON", "LEAVES_TO_WORKSPACE", "NONE"]
     withdraw_at: str | None
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
@@ -566,11 +644,12 @@ class InstanceSetting(TypedDict, total=False):
     locked: Required[bool]
 
 class InstanceSettings(TypedDict, total=False):
-    """The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings."""
+    """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""
     sign_in: dict[str, Any]
     legal: dict[str, Any]
     localisation: dict[str, Any]
     quotas: dict[str, Any]
+    ai: dict[str, Any]
     blocklist_file: str
     source: str
     is_enforced_from_file: bool
@@ -581,6 +660,13 @@ class Operator(TypedDict, total=False):
     account_id: Required[str]
     added_at: Required[str]
     added_by: str | None
+    display_name: str
+    email: str | None
+    sign_in_name: str | None
+    kind: Literal["USER", "SERVICE_ACCOUNT"]
+    workspace_slug: str
+    workspace_name: str
+    added_by_name: str | None
 
 class OperatorAdd(TypedDict, total=False):
     """One account, named either way."""
@@ -690,6 +776,7 @@ class AdminTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
 
 class PasswordOpening(TypedDict, total=False):
@@ -760,6 +847,7 @@ class ProvisionedTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
     owner_redemption_token: Required[str]

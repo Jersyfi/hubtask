@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Spinner, Stack, Switch, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Table } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -76,7 +76,36 @@
     // to. Drawn in the same table because they are the same model — a value, and who may change it.
     ...Object.entries(settings?.localisation ?? {}).map(([key, setting]) => ({ area: 'localisation', key, setting })),
     ...Object.entries(settings?.quotas ?? {}).map(([key, setting]) => ({ area: 'quotas', key, setting })),
+    // Which AI workspaces may use (ADR-0072 §2): closed sets, so they are chosen and shown in words.
+    ...Object.entries(settings?.ai ?? {}).map(([key, setting]) => ({ area: 'ai', key, setting })),
   ]);
+
+  /** The AI area's closed sets, each value with its words, in the order of strictness. */
+  const aiChoices: Record<string, readonly { value: string; label: string }[]> = $derived({
+    sources: [
+      { value: 'EITHER', label: t('app.instance.ai_sources_either') },
+      { value: 'OFFERED', label: t('app.instance.ai_sources_offered') },
+      { value: 'OWN', label: t('app.instance.ai_sources_own') },
+      { value: 'NONE', label: t('app.instance.ai_sources_none') },
+    ],
+    min_jurisdiction: [
+      { value: 'ANY', label: t('app.instance.ai_min_any') },
+      { value: 'ADEQUACY', label: t('app.instance.ai_min_adequacy') },
+      { value: 'EEA', label: t('app.instance.ai_min_eea') },
+      { value: 'SELF_HOSTED', label: t('app.instance.ai_min_self_hosted') },
+    ],
+  });
+
+  /** A row's name: the AI area's keys in words, the others as the contract spells them. */
+  function nameOf(area: string, key: string): string {
+    return area === 'ai' ? t(`app.instance.ai_key_${key}`) : `${area}.${key}`;
+  }
+
+  /** A value as the screen says it: the AI area's in words. */
+  function said(area: string, key: string, value: unknown): string {
+    if (area === 'ai') return aiChoices[key]?.find((each) => each.value === value)?.label ?? shown(value);
+    return shown(value);
+  }
 
   /** A value as one line. The switches are numbers, flags, strings and lists of strings. */
   function shown(value: unknown): string {
@@ -101,8 +130,8 @@
     saved = false;
   }
 
-  /** The four areas the level is written in, which is what a row's `area` is. */
-  type SettingArea = 'sign_in' | 'legal' | 'localisation' | 'quotas';
+  /** The areas the level is written in, which is what a row's `area` is. */
+  type SettingArea = 'sign_in' | 'legal' | 'localisation' | 'quotas' | 'ai';
 
   /** Reads one switch out of the draft, and writes it back whole. */
   function setting(area: SettingArea, key: string): InstanceSetting | undefined {
@@ -139,6 +168,7 @@
         legal: draft.legal,
         localisation: draft.localisation,
         quotas: draft.quotas,
+        ai: draft.ai,
         blocklist_file: draft.blocklist_file,
       });
       draft = undefined;
@@ -206,8 +236,24 @@
               <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
 
               {#each rows as row (row.area + '.' + row.key)}
-                {@const current = setting(row.area as 'sign_in' | 'legal', row.key)}
+                {@const current = setting(row.area as SettingArea, row.key)}
                 <div class="field">
+                  {#if row.area === 'ai'}
+                    <Select
+                      label={nameOf(row.area, row.key)}
+                      value={current?.set ? String(current.value) : ''}
+                      placeholder={t('app.instance.value_undecided')}
+                      options={aiChoices[row.key] ?? []}
+                      onchange={(event) => {
+                        const chosen = (event.currentTarget as HTMLSelectElement).value;
+                        if (chosen === '') {
+                          clear('ai', row.key);
+                          return;
+                        }
+                        put('ai', row.key, { set: true, value: chosen, locked: current?.locked ?? false });
+                      }}
+                    />
+                  {:else}
                   <Input
                     label={row.area + '.' + row.key}
                     value={current?.set ? shown(current.value) : ''}
@@ -236,6 +282,7 @@
                     autocomplete="off"
                     spellcheck={false}
                   />
+                  {/if}
                   <Switch
                     label={t('app.instance.locked_label')}
                     hint={t('app.instance.locked_hint')}
@@ -281,10 +328,10 @@
           <Table label={t('app.instance.settings')} isLabelHidden columns={columns}>
             {#each rows as row (row.area + '.' + row.key)}
               <tr>
-                <td class="mono">{row.area}.{row.key}</td>
+                <td class={row.area === 'ai' ? '' : 'mono'}>{nameOf(row.area, row.key)}</td>
                 <td>
                   {#if row.setting.set}
-                    {shown(row.setting.value)}
+                    {said(row.area, row.key, row.setting.value)}
                   {:else}
                     <!-- Not a blank cell: "this installation decided nothing here" is a fact worth
                          a sentence, and the workspace is who decides it instead. -->

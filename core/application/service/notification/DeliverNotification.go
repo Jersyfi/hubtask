@@ -298,8 +298,7 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 			return err
 		}
 		if !token.IsEmpty() {
-			base := strings.TrimSuffix(d.BaseURL, "/")
-			message.Link = base + "/redeem#token=" + url.PathEscape(token.Reveal())
+			message.Link = identity.InvitationLink(d.BaseURL, token.Reveal())
 		}
 	}
 

@@ -26,8 +26,8 @@ account is told they were not invited here.
 
 ## How to check
 
-1. A public provider (Google accounts, personal Microsoft accounts) can only be set to *Only
-   invited people*; the setting shows it and cannot be changed.
+1. A provider's personal accounts (personal Google and Microsoft accounts) are admitted only by
+   invitation: no admission mode gives one an account on arrival.
 2. A person whose invited address matches the address the provider vouches for is signed in and
    linked; the link is recorded in the trail.
 3. A person with no account here is refused with the "not invited" sentence, and nothing is created.

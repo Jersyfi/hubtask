@@ -48,6 +48,12 @@ func (pending) CreateManagedAccount(
 	notAvailable(w, r)
 }
 
+func (pending) RenewInvitation(
+	w http.ResponseWriter, r *http.Request, _ openapi.AccountId, _ openapi.RenewInvitationParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
@@ -205,6 +211,10 @@ func (pending) SuspendTenant(w http.ResponseWriter, r *http.Request, _ openapi.A
 }
 
 func (pending) ResumeTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
+func (pending) CancelTenantDeletion(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }
 
@@ -1240,3 +1250,29 @@ func (pending) CancelInstanceIdentityProviderWithdrawal(
 }
 
 func (pending) ListPrivateHubs(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The AI models the installation offers. RestController serves all four; these stand behind them.
+func (pending) ListInstanceAiProviders(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request, _ openapi.ProviderId) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request, _ openapi.ProviderId) {
+	notAvailable(w, r)
+}
+
+// The workspace's AI source. RestController serves both; these stand behind them.
+func (pending) ReadAiSource(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

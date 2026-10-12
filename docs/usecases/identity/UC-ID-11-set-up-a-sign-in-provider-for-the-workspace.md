@@ -38,7 +38,8 @@ or a role, or a group.
 
 1. The three admission choices are shown in the words above; the contract's values
    (`INVITED_ONLY`, `DOMAINS`, `ANY`) never appear on the screen.
-2. A public provider offers only *Only people invited here*.
+2. A provider's personal accounts are admitted only through *Only people invited here*; Google is
+   never offered *Anyone this provider knows*.
 3. *Only people invited here* is available for every provider kind, including *Other OpenID Connect
    provider*.
 4. For Google and Microsoft, *Anyone from these organisations* asks for directories (Google
