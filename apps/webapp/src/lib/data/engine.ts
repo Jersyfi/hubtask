@@ -74,7 +74,9 @@ async function renew(): Promise<boolean> {
     // Both halves, always. The exchange retires the token it was given, so keeping the old one
     // beside a new access token would leave the client holding a credential the server has
     // already treated as spent - and presenting it again is what it reads as theft.
-    platform.holdSession({
+    // The same session's next pair, so what belongs to the session - its hour at the installation -
+    // stays with it.
+    platform.renewSession({
       access: answer.body.access_token,
       refresh: answer.body.refresh_token,
     });
