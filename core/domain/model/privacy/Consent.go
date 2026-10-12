@@ -32,6 +32,11 @@ type Consent struct {
 	Source string
 }
 
+// PurposeAi is the purpose a person's objection to AI is recorded under: their withdrawal keeps
+// what they authored out of every prompt where the workspace offers that (data-protection.md
+// §4.1).
+const PurposeAi = "ai_processing"
+
 // The sources the schema allows.
 const (
 	SourceUser        = "user"

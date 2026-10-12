@@ -55,6 +55,13 @@ type settingsDocument struct {
 	// Written empty rather than omitted, `audit_anchor_target_id`'s reason: the write merges keys,
 	// and an omitted key would leave a cleared narrowing standing.
 	AiSources string `json:"ai_sources"`
+	// The workspace's position on people keeping their content out of AI, with its basis, whom
+	// to ask and since when. Written empty rather than omitted, for `ai_sources`' reason: going
+	// back to OFFERED must clear the basis rather than leave it standing in the merge.
+	AiPersonOptOut  string `json:"ai_person_opt_out"`
+	AiOptOutBasis   string `json:"ai_person_opt_out_basis"`
+	AiOptOutContact string `json:"ai_person_opt_out_contact"`
+	AiOptOutSince   string `json:"ai_person_opt_out_since"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -207,6 +214,10 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			AuditAnchorTargetID: shared.ID(settings.AuditAnchorTargetID),
 			OfferedProviders:    offeredProvidersOf(settings.OfferedProviders),
 			AiSources:           settings.AiSources,
+			AiPersonOptOut:      settings.AiPersonOptOut,
+			AiOptOutBasis:       settings.AiOptOutBasis,
+			AiOptOutContact:     settings.AiOptOutContact,
+			AiOptOutSince:       sinceOf(settings.AiOptOutSince),
 			SignIn:              patch,
 			Legal:               links,
 		},
@@ -241,6 +252,10 @@ func (WorkspaceSettingsRepository) Update(
 		SignInPolicy:        signInDocumentOf(changed.Settings.SignIn, changed.Settings.Legal),
 		OfferedProviders:    offered,
 		AiSources:           changed.Settings.AiSources,
+		AiPersonOptOut:      changed.Settings.AiPersonOptOut,
+		AiOptOutBasis:       changed.Settings.AiOptOutBasis,
+		AiOptOutContact:     changed.Settings.AiOptOutContact,
+		AiOptOutSince:       sinceText(changed.Settings.AiOptOutSince),
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)
@@ -277,4 +292,24 @@ func offeredProvidersOf(stored []string) []shared.ID {
 		}
 	}
 	return offered
+}
+
+// sinceOf reads a stored moment. One this build cannot read counts as none: a stored document is
+// not a request, and one bad value must not make the workspace unreadable.
+func sinceOf(stored string) time.Time {
+	if stored == "" {
+		return time.Time{}
+	}
+	at, err := time.Parse(time.RFC3339Nano, stored)
+	if err != nil {
+		return time.Time{}
+	}
+	return at.UTC()
+}
+
+func sinceText(at time.Time) string {
+	if at.IsZero() {
+		return ""
+	}
+	return at.UTC().Format(time.RFC3339Nano)
 }
