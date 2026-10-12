@@ -62,7 +62,7 @@ async function open(browser, managed, sent) {
         json: {
           account: { id: '01a0e2e0-0000-7000-8000-0000000000c1', kind: 'USER', sign_in_name: 'lena', display_name: 'Lena', status: 'ACTIVE' },
           membership: { id: 'm-lena', scope_type: 'HUB', scope_id: HUB.id, account_id: '01a0e2e0-0000-7000-8000-0000000000c1', role: 'CONTRIBUTOR' },
-          start_password: 'kq7m-xr2p-4wna-c9ht',
+          start_password: 'aaaa-bbbb-cccc-dddd',
         },
       });
     }
