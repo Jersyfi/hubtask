@@ -22,6 +22,7 @@
   import { Button, EmptyState, Input, Select, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -144,6 +145,18 @@
         </div>
       </Stack>
     </form>
+
+    {#if account.sign_in_name && !account.email}
+      <!-- A person without a mail address may add one (UC-ID-20 check 7): drawn exactly where the
+           server would take it, a sign-in name and no address. -->
+      <Stack gap="150">
+        <h2 class="section">{t('app.profile.address_title')}</h2>
+        <p class="quiet">{t('app.profile.address_intro', { name: account.sign_in_name })}</p>
+        <div class="panel">
+          <AddressForm accountId={account.id} hint={t('app.people.address_hint_own')} />
+        </div>
+      </Stack>
+    {/if}
   </Stack>
 {/if}
 
@@ -165,6 +178,8 @@
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>

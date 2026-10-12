@@ -67,6 +67,7 @@ import ContainerView from './views/ContainerView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
+  import ConfirmAddressView from './views/ConfirmAddressView.svelte';
   import SignInSettingsView from './views/SignInSettingsView.svelte';
   import SignInView from './views/SignInView.svelte';
 
@@ -199,11 +200,15 @@ import ContainerView from './views/ContainerView.svelte';
        second copy of it mounted inside the frame would find the address already cleaned and
        report a refusal for a sign-in that succeeded. -->
   <OidcCallbackView onnavigate={(path) => router.navigate(path)} />
-{:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem'}
+{:else if !session.isSignedIn || route.name === 'reset' || route.name === 'redeem' || route.name === 'confirm-address'}
   {#if route.name === 'reset'}
     <!-- Before the sign-in screen, exactly as the invitation is: somebody who arrives with a
          reset link is here to set a password, not to remember the one they forgot. -->
     <ResetView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'confirm-address'}
+    <!-- Signed in or not: whoever holds the mailbox confirms, from whichever device the mail is
+         read on. It signs nobody in. -->
+    <ConfirmAddressView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'redeem'}
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
