@@ -156,6 +156,37 @@ func TestAManagedAccountSignsInWithItsNameAndChoosesItsPassword(t *testing.T) {
 	}
 }
 
+// The change step's refusal speaks to a person without an address about their sign-in name, the
+// sentence the card already showed before the password was sent.
+func TestTheChangeStepNamesTheSignInNameToAPersonWithoutAnAddress(t *testing.T) {
+	fixture := newStepFixture(now)
+	fixture.session.writer.Text = text.Composing{}
+	fixture.withManaged(now.Add(-time.Hour))
+	registry := signInRegistry(t, fixture.session.writer)
+
+	out, err := signInWith(t, registry, "lena", startPassword)
+	if err != nil {
+		t.Fatalf("signing in with the name: %v", err)
+	}
+	change, err := usecase.NewRegistry(nil, SetPasswordAndSignIn{Writer: fixture.passwords.writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	_, err = change.Invoke(t.Context(), SetPasswordAndSignInName, appshared.Anonymous("en", "UTC"),
+		usecase.Input{"pending_token": out.String("pending_token"), "password": "lena likes the quiet harbour"})
+	refusal := shared.AsError(err)
+	if refusal == nil {
+		t.Fatalf("a password carrying the name was accepted")
+	}
+	codes := []string{}
+	for _, field := range refusal.Fields {
+		codes = append(codes, field.Code)
+	}
+	if len(codes) != 1 || codes[0] != "auth.password_rule.context_words_name" {
+		t.Errorf("the refusal named %v, want the sign-in name's sentence", codes)
+	}
+}
+
 // The sign-in name is a word the person types beside the password, so the new one may not carry it.
 func TestTheNewPasswordMayNotCarryTheName(t *testing.T) {
 	words := domain.ContextWords(nil, domain.PasswordContext{SignInName: "lena-mueller"})

@@ -5,6 +5,7 @@ package identity
 
 import (
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -113,6 +114,41 @@ func NewManagedAccount(
 		DisplayName: shown,
 		Status:      AccountActive,
 	}, nil
+}
+
+// A managed account takes an address later (ADR-0074 §6): a link goes to it, and the address is the
+// account's only once somebody holding that mailbox follows it.
+const (
+	// AddressLifetime is how long the link confirms. A day rather than a reset's half hour: the
+	// person may be a child whose parent reads the mail in the evening, and the link opens nothing
+	// but the address.
+	AddressLifetime = 24 * time.Hour
+	// AddressRequestFloor is the least time between two links for one account. Anybody with a
+	// managed account types any address; without a floor it would be a way to fill somebody's inbox.
+	AddressRequestFloor = 10 * time.Minute
+)
+
+// NewAddress checks and folds an address a managed account is to take, an invitation's rule
+// (emailAddress), its refusal named at the field.
+func NewAddress(raw string, domains text.DomainEncoder) (string, error) {
+	address, err := emailAddress(raw, domains)
+	if err != nil {
+		refusal := shared.AsError(err)
+		return "", refusal.WithFields(shared.FieldError{Path: "/email", Code: refusal.DetailCode})
+	}
+	return address, nil
+}
+
+// AddressRequestWait answers how long until another link may go out, given when the last one was
+// requested: zero where it may go now, or where none was.
+func AddressRequestWait(latest, now time.Time) time.Duration {
+	if latest.IsZero() {
+		return 0
+	}
+	if wait := latest.Add(AddressRequestFloor).Sub(now); wait > 0 {
+		return wait
+	}
+	return 0
 }
 
 // StartPassword spells drawn entropy as a start password: four groups of four characters joined by

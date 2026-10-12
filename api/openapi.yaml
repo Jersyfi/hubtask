@@ -2860,6 +2860,83 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/{accountId}:issue-start-password:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [identity]
+      operationId: issueStartPassword
+      summary: Give a managed account a new start password
+      description: |
+        For a person without a mail address who forgot their password: there is no mailbox a reset
+        could reach, so an owner or administrator helps them back in. **The one exception to "an
+        administrator does not recover an account"**, and it exists only for managed accounts - an
+        account with an address is refused with `409 accounts.not_managed`, and recovers through
+        its mailbox.
+
+        Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+        and nothing can read it again. Every session of the account ends and every unfinished
+        sign-in step is spent. The next sign-in leads into choosing a new password, after the
+        second factor where the account has one - the factor and the recovery codes stay. Personal
+        access tokens stay, as a password change leaves them.
+
+        Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+        otherwise). An act an automation rule runs is refused with
+        `accounts.managed_needs_a_person`: a run reads no answer.
+
+        There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+        no-store`: an answer kept for a replay would keep the start password with it.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "200":
+          description: The new start password, shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartPasswordIssued"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/{accountId}:add-address:
+    parameters:
+      - $ref: "#/components/parameters/AccountId"
+    post:
+      tags: [identity]
+      operationId: requestAddress
+      summary: Give a managed account a mail address
+      description: |
+        Sends a confirmation link to the address. Nothing on the account changes until somebody
+        holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+        ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+        identifier.
+
+        The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+        Only a managed account - a sign-in name and no address - takes one: any other is refused
+        with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+        an address would take the person's one way in, and the request is refused with
+        `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+        minutes of the last is `429 accounts.address_requested_recently` with
+        `retry_after_seconds`.
+
+        Whether the address already belongs to somebody here is not said: the confirmation answers
+        that, to whoever holds the mailbox.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressRequest"
+      responses:
+        "202":
+          description: The confirmation is on its way
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddressRequested"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}/preferences:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -3375,6 +3452,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MfaChallenge"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/address:confirm:
+    post:
+      tags: [auth]
+      operationId: confirmAddress
+      security: []
+      summary: Confirm a mail address with the link that was sent to it
+      description: >
+        The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it
+        signs nobody in. The address becomes the account's, which is from then on an ordinary
+        account that keeps its sign-in name. The token works once and for a day; unknown, spent,
+        replaced and expired are one refusal, `auth.address_link_invalid`. An address that has
+        meanwhile become another account's here is `409 accounts.address_taken`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressConfirm"
+      responses:
+        "204":
+          description: The address is the account's
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8957,6 +9058,16 @@ components:
             Whether this account holds a password, answered on `GET /accounts/me` and on nothing
             else. An account that signs in only through a provider holds none: a screen
             does not offer it a password change, and no step-up asks it for one.
+        has_access:
+          type: boolean
+          description: >
+            Whether this account holds a role anywhere in the workspace - on the workspace, a hub,
+            a collection or one entry, directly or through a group - answered on
+            `GET /accounts/me` and on nothing else. False is a person an administrator still has
+            to give access to, such as somebody a sign-in provider brought in with nothing: a
+            screen says so instead of an empty workspace. It is also the condition for creating a
+            private hub of one's own, so where it is false no hub can be created; a person whose
+            only role is on their own private hub, or on one shared entry, holds access.
 
     Actor:
       type: object
@@ -9002,6 +9113,12 @@ components:
             False for an account that has no mail address - a managed account - so a screen can say
             that a reminder by mail does not reach this person, instead of letting it fail silently.
             The address itself is not answered here.
+        managed:
+          type: boolean
+          description: >
+            True for a managed account: a sign-in name and no address. Only such an account takes a
+            new start password or an address; an erased account has no address either and is not
+            managed.
 
     ManagedAccountCreate:
       type: object
@@ -9031,6 +9148,40 @@ components:
           description: >
             Shown here and never again. The person types it once, with the sign-in name, and then
             chooses their own.
+
+    StartPasswordIssued:
+      type: object
+      required: [account, start_password]
+      properties:
+        account: { $ref: "#/components/schemas/Account" }
+        start_password:
+          type: string
+          description: >
+            Shown here and never again. The earlier password no longer works; the person types this
+            one with the sign-in name, and then chooses their own.
+
+    AddressRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+
+    AddressRequested:
+      type: object
+      required: [expires_at]
+      properties:
+        expires_at:
+          type: string
+          format: date-time
+          description: Until when the link in the mail confirms the address.
+
+    AddressConfirm:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: The token from the confirmation mail. It dies on use.
 
     InvitedAccount:
       allOf:
@@ -10359,6 +10510,25 @@ components:
             `allowed_email_domains` is then not consulted at all. Both providers say why in their
             own documentation: an address is a name the provider reports, a directory is a fact it
             vouches for. Empty admits nobody, exactly as an empty domains list does.
+
+            Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is
+            not signed in on the provider's word. There an empty list narrows nothing.
+        newcomer_role:
+          anyOf:
+            - $ref: "#/components/schemas/MembershipRole"
+            - type: "null"
+          description: >
+            What somebody this provider brings in **new** gets: this role on the whole workspace.
+            Null, with `newcomer_group_id` null too, is nothing - no access until an administrator
+            gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and
+            `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+        newcomer_group_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            What somebody this provider brings in new gets instead of a role: membership of this
+            group of the workspace, and with it whatever the group holds. Null when a role or
+            nothing is set; set to null when the group is deleted.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:
@@ -10474,6 +10644,26 @@ components:
             **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0`
             with no directories named is every organisation in the world, and that is a decision
             rather than a default.
+        newcomer_role:
+          anyOf:
+            - $ref: "#/components/schemas/MembershipRole"
+            - type: "null"
+          description: >
+            What somebody this provider brings in new gets: this role on the whole workspace,
+            granted in the same transaction that creates the account. Absent or null, with no
+            group, is nothing - no access until an administrator gives it. One of a role or a
+            group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`,
+            which creates nobody (`identity_provider.newcomers_not_created`), on the installation's
+            providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given
+            to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+        newcomer_group_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            What somebody this provider brings in new gets instead of a role: membership of this
+            group of the workspace. The same refusals as `newcomer_role`, and a group that holds
+            `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group
+            this workspace does not have answers `groups.not_found`.
 
     ProviderWithdrawal:
       type: object
@@ -10514,8 +10704,11 @@ components:
         public:
           type: boolean
           description: >
-            Whether anybody in the world can hold an account at this issuer. A public provider is
-            held to `INVITED_ONLY`, and that is not an operator's to relax.
+            Whether anybody in the world can hold an account at this issuer - personal accounts,
+            not only an organisation's. A public provider is never `ANY`, and that is not an
+            operator's to relax; under `DOMAINS` it admits only the organisations named, which a
+            personal account belongs to none of, so a personal account comes in only by
+            invitation.
         provisioning:
           type: array
           items: { $ref: "#/components/schemas/IdentityProviderProvisioning" }

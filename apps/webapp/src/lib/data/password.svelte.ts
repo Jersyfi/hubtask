@@ -29,6 +29,7 @@ import { stepUp } from './stepup.svelte.ts';
 const FORGOT = '/auth/password:forgot';
 const RESET = '/auth/password:reset';
 const CHANGE = '/auth/password';
+const CONFIRM_ADDRESS = '/auth/address:confirm';
 
 /** The pair, or the second step a reset still owes. Narrowed to what this module uses. */
 interface ResetAnswer {
@@ -118,6 +119,24 @@ class Password {
       }
       this.#problem = { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
       return false;
+    } catch (cause) {
+      this.#problem = this.#render(cause);
+      return false;
+    } finally {
+      this.#working = false;
+    }
+  }
+
+  /**
+   * Spends the link that confirms a managed account's new address (ADR-0074 §6). It signs nobody
+   * in: `true` means the address is the account's now.
+   */
+  async confirmAddress(token: string): Promise<boolean> {
+    this.#working = true;
+    this.#problem = undefined;
+    try {
+      await engine.mutate<void>('POST', CONFIRM_ADDRESS, { token });
+      return true;
     } catch (cause) {
       this.#problem = this.#render(cause);
       return false;

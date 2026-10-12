@@ -214,6 +214,7 @@ func passwordCheckResponse(out usecase.Output) openapi.PasswordCheckResult {
 const (
 	forgetPasswordUseCase = "ForgetPassword"
 	resetPasswordUseCase  = "ResetPassword"
+	confirmAddressUseCase = "ConfirmAddress"
 )
 
 // ForgetPassword answers POST /auth/password:forgot.
@@ -244,6 +245,29 @@ func (c *RestController) ForgetPassword(w http.ResponseWriter, r *http.Request) 
 	}
 	// No body. There is nothing to say that would be true for one address and not for another.
 	w.WriteHeader(http.StatusAccepted)
+}
+
+// ConfirmAddress answers POST /auth/address:confirm: the link mailed to a managed account's new
+// address. Public, the reset's reasoning; it signs nobody in, so the answer has no body.
+func (c *RestController) ConfirmAddress(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AddressConfirm
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if _, err := c.UseCases.Invoke(r.Context(), confirmAddressUseCase, actorOf(r), usecase.Input{
+		"token":         body.Token,
+		"tenant_header": r.Header.Get(TenantHeader),
+	}); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ResetPassword answers POST /auth/password:reset.

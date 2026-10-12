@@ -22,6 +22,8 @@ import (
 const (
 	inviteAccountUseCase               = "InviteAccount"
 	createManagedAccountUseCase        = "CreateManagedAccount"
+	issueStartPasswordUseCase          = "IssueStartPassword"
+	requestAddressUseCase              = "RequestAddress"
 	renewInvitationUseCase             = "RenewInvitation"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
@@ -132,6 +134,47 @@ func (c *RestController) CreateManagedAccount(
 		w.Header().Set(ShownOnceHeader, "start_password")
 		w.Header().Set("Location", APIBasePath+"/accounts/"+created.Account.Id.String())
 		writeJSON(w, r, http.StatusCreated, created)
+	})
+}
+
+// IssueStartPassword answers POST /accounts/{accountId}:issue-start-password.
+//
+// The answer carries the new start password once, marked as the creation's is, so neither a cache
+// nor an idempotency record keeps it.
+func (c *RestController) IssueStartPassword(
+	w http.ResponseWriter, r *http.Request, accountID openapi.AccountId, params openapi.IssueStartPasswordParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), issueStartPasswordUseCase, actor, usecase.Input{
+			"account_id":    accountID.String(),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+		})
+	}, func(out usecase.Output) {
+		account, _ := out["account"].(usecase.Output)
+		issued := openapi.StartPasswordIssued{
+			Account:       accountResponse(account),
+			StartPassword: out.String("start_password"),
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set(ShownOnceHeader, "start_password")
+		writeJSON(w, r, http.StatusOK, issued)
+	})
+}
+
+// RequestAddress answers POST /accounts/{accountId}:add-address.
+func (c *RestController) RequestAddress(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.AddressRequest
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), requestAddressUseCase, actor, usecase.Input{
+			"account_id": accountID.String(),
+			"email":      string(body.Email),
+		})
+	}, func(out usecase.Output) {
+		expires, _ := out["expires_at"].(time.Time)
+		writeJSON(w, r, http.StatusAccepted, openapi.AddressRequested{ExpiresAt: expires})
 	})
 }
 
@@ -465,6 +508,7 @@ func accountSummaryResponse(out usecase.Output) openapi.AccountSummary {
 		DisplayName: out.String("display_name"),
 		Status:      openapi.AccountSummaryStatus(out.String("status")),
 		HasAddress:  boolPointer(out["has_address"]),
+		Managed:     boolPointer(out["managed"]),
 	}
 }
 
@@ -517,6 +561,10 @@ func accountResponse(out usecase.Output) openapi.Account {
 	if password, held := out["has_password"].(bool); held {
 		// The caller's own account only, for has_second_factor's reason.
 		account.HasPassword = &password
+	}
+	if access, held := out["has_access"].(bool); held {
+		// The caller's own account only, for has_second_factor's reason.
+		account.HasAccess = &access
 	}
 	if remaining, held := out["recovery_codes_remaining"].(int); held {
 		// Present exactly where a factor is armed, and then zero is answered as zero, because there

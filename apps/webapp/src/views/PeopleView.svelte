@@ -42,7 +42,11 @@
   import { ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
+  import AddressDialog from '../lib/people/AddressDialog.svelte';
+  import RenewDialog from '../lib/people/RenewDialog.svelte';
+  import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { inviteWay } from '../lib/people/invitation.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -101,6 +105,39 @@
       return t('app.people.group_named', { name: groups.nameOf(holder.groupId) ?? t('app.people.unnamed_group') });
     }
     return accounts.nameOf(holder.accountId) ?? t('app.people.unnamed');
+  }
+
+  // A managed person's two actions (UC-ID-20 checks 5 and 7), on their row and nowhere else: the
+  // summary's `managed` is the server's full condition, so a person with an address never sees them.
+  /** The row a new start password is being confirmed for. */
+  let renewing = $state<Holder | undefined>(undefined);
+  /** The one answer that carried the new start password, until the reader dismisses it. */
+  let renewed = $state<{ signInName: string; startPassword: string; who: string } | undefined>(undefined);
+  /** The person an address is being added for. */
+  let addressing = $state<{ accountId: string; who: string } | undefined>(undefined);
+
+  function isManaged(holder: Holder): boolean {
+    return holder.groupId === undefined && accounts.isManaged(holder.accountId);
+  }
+
+  // An address is added only where the password is a way in (identity.md §13): elsewhere it would
+  // take a managed person's one way in. The sign-in rules say whether it is, fallback included; the
+  // action is offered once they have answered, and its reason stands under the table otherwise.
+  $effect(() => signInRules.read());
+  const addressOffered = $derived(signInRules.isSettled && signInRules.hasPassword);
+  const addressWithheld = $derived(
+    signInRules.isSettled && !signInRules.hasPassword && holders.some((holder) => isManaged(holder)),
+  );
+
+  async function issueStartPassword(): Promise<void> {
+    const holder = renewing;
+    renewing = undefined;
+    if (!holder?.accountId) return;
+    const who = nameOf(holder);
+    await attempt(async () => {
+      const issued = await people.issueStartPassword(holder.accountId as string);
+      renewed = { ...issued, who };
+    }, t('app.people.renewed_announced', { who }));
   }
 
   async function revoke(): Promise<void> {
@@ -289,6 +326,18 @@
       <Banner tone="danger">{failure}</Banner>
     {/if}
 
+    {#if renewed}
+      <!-- The only time the new start password exists anywhere but the server's hash. -->
+      <Stack gap="150">
+        <StartPasswordResult
+          signInName={renewed.signInName}
+          startPassword={renewed.startPassword}
+          label={t('app.people.renewed_start_password', { who: renewed.who, name: renewed.signInName })}
+          onDismiss={() => (renewed = undefined)}
+        />
+      </Stack>
+    {/if}
+
     {#if holders.length === 0}
       <p class="quiet"><Spinner label={t('app.people.reading')} /> <span>{t('app.people.reading')}</span></p>
     {:else}
@@ -335,6 +384,20 @@
                     {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
                   </Button>
                 {/if}
+                {#if isManaged(holder)}
+                  <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
+                    {t('app.people.renew')}
+                  </Button>
+                  {#if addressOffered}
+                    <Button
+                      size="sm"
+                      tone="secondary"
+                      onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
+                    >
+                      {t('app.people.address_add')}
+                    </Button>
+                  {/if}
+                {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. -->
                 <Button
@@ -352,7 +415,19 @@
         {/each}
       </Table>
 
+      {#if addressWithheld}
+        <p class="quiet small">{t('app.people.address_needs_password')}</p>
+      {/if}
     {/if}
+
+    <RenewDialog
+      who={renewing ? nameOf(renewing) : undefined}
+      isBusy={isWriting}
+      onConfirm={() => void issueStartPassword()}
+      onCancel={() => (renewing = undefined)}
+    />
+
+    <AddressDialog target={addressing} onClose={() => (addressing = undefined)} />
 
     <RevokeDialog
       holder={revoking}
@@ -492,7 +567,7 @@
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
 
   /* A row still invited carries two actions; they wrap rather than widen the table on a phone. */
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; white-space: nowrap; }
 
   /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring
      is the focus ring every control draws. */

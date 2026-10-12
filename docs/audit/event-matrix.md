@@ -33,6 +33,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `account.address_confirmed` | ConfirmAddress | `account` | NOTICE | Every time |
+| `account.address_requested` | RequestAddress | `account` | NOTICE | Every time |
 | `account.invitation_renewed` | RenewInvitation | `account` | NOTICE | Every time |
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |
@@ -46,6 +48,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
+| `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
 
 ## Ai
 

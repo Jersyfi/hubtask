@@ -5,9 +5,9 @@ context: identity
 actors: [PE-admin, PE-owner]
 deployments: [D3, D4, D6]
 serves: [P-02, P-05, P-06, P-08, P-12]
-state: partial
-tasks: [SI-10, SI-11, SI-16, SC-01, SC-06, SC-21]
-checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, test/contract/identity_provider_test.go, apps/webapp/e2e/signinsettings.test.mjs]
+state: built
+tasks: [SI-10, SI-11, SI-16, SC-01, SC-02, SC-06, SC-21]
+checked_by: [core/application/service/identity/IdentityProviderConfig_test.go, core/application/service/identity/LastWayIn_test.go, core/application/service/identity/IdentityProviderSwitch_test.go, test/contract/identity_provider_test.go, apps/webapp/e2e/signinsettings.test.mjs, core/domain/model/identity/ProviderAdmission_test.go, core/domain/model/identity/ProviderNewcomers_test.go, core/application/service/identity/ProviderNewcomersConfig_test.go, test/integration/provider_newcomers_test.go, test/integration/provider_newcomers_arrival_test.go, apps/webapp/e2e/identityprovider.test.mjs, docs/evidence/SC-02-2026-10-12.md]
 ---
 
 # Set up a sign-in provider for our workspace
@@ -59,9 +59,3 @@ or a role, or a group.
   Connect provider* with instructions covers them.
 * SAML is not offered ([NG-saml-before-1](../../vision/non-goals.md)).
 * No logo upload for a custom provider: it gets a letter tile.
-
-## Today
-
-* Check 1: not met — the screen names the modes in other words than the use case's ("Only people who already have an account here", "Anybody the provider vouches for"), tracked in #1058.
-* Check 5: not met — there is no *New people get* setting, tracked in #1058.
-* Check 6: not met — the redirect address sits inside the instructions sentence, without a copy button, tracked in #1058.

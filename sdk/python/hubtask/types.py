@@ -66,6 +66,7 @@ class Account(TypedDict, total=False):
     recovery_codes_remaining: int
     second_factor_required: bool
     has_password: bool
+    has_access: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""
@@ -79,6 +80,7 @@ class AccountSummary(TypedDict, total=False):
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
     has_address: bool
+    managed: bool
 
 class ManagedAccountCreate(TypedDict, total=False):
     display_name: Required[str]
@@ -91,6 +93,19 @@ class ManagedAccountCreated(TypedDict, total=False):
     account: Required["Account"]
     membership: Required["Membership"]
     start_password: Required[str]
+
+class StartPasswordIssued(TypedDict, total=False):
+    account: Required["Account"]
+    start_password: Required[str]
+
+class AddressRequest(TypedDict, total=False):
+    email: Required[str]
+
+class AddressRequested(TypedDict, total=False):
+    expires_at: Required[str]
+
+class AddressConfirm(TypedDict, total=False):
+    token: Required[str]
 
 class InvitedAccount(TypedDict, total=False):
     id: Required[str]
@@ -108,6 +123,7 @@ class InvitedAccount(TypedDict, total=False):
     recovery_codes_remaining: int
     second_factor_required: bool
     has_password: bool
+    has_access: bool
     invitation_link: str
 
 class AccountInvite(TypedDict, total=False):
@@ -539,6 +555,8 @@ class IdentityProvider(TypedDict, total=False):
     offered_workspaces: int | None
     allowed_email_domains: Required[list[str]]
     allowed_directories: Required[list[str]]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
@@ -562,6 +580,8 @@ class IdentityProviderConfiguration(TypedDict, total=False):
     enabled: bool
     allowed_email_domains: list[str]
     allowed_directories: list[str]
+    newcomer_role: "MembershipRole" | Any
+    newcomer_group_id: str | None
 
 class ProviderWithdrawal(TypedDict, total=False):
     """When an offered provider is withdrawn, and for *Withdraw now* the count confirmed."""

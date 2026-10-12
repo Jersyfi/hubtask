@@ -4122,6 +4122,9 @@ type Account struct {
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
 
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
@@ -4198,10 +4201,13 @@ type AccountSummary struct {
 	DisplayName string `json:"display_name"`
 
 	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
-	HasAddress *bool                `json:"has_address,omitempty"`
-	Id         openapi_types.UUID   `json:"id"`
-	Kind       AccountSummaryKind   `json:"kind"`
-	Status     AccountSummaryStatus `json:"status"`
+	HasAddress *bool              `json:"has_address,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       AccountSummaryKind `json:"kind"`
+
+	// Managed True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.
+	Managed *bool                `json:"managed,omitempty"`
+	Status  AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -4252,6 +4258,23 @@ type Actor struct {
 
 // ActorType defines model for Actor.Type.
 type ActorType string
+
+// AddressConfirm defines model for AddressConfirm.
+type AddressConfirm struct {
+	// Token The token from the confirmation mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// AddressRequest defines model for AddressRequest.
+type AddressRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// AddressRequested defines model for AddressRequested.
+type AddressRequested struct {
+	// ExpiresAt Until when the link in the mail confirms the address.
+	ExpiresAt time.Time `json:"expires_at"`
+}
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
@@ -5919,6 +5942,7 @@ type HubPrivacy struct {
 type IdentityProvider struct {
 	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in the provider's own identifiers: a Microsoft tenant id, a Google Workspace domain.
 	// **This is what `DOMAINS` reads where the preset has a directory claim**, and `allowed_email_domains` is then not consulted at all. Both providers say why in their own documentation: an address is a name the provider reports, a directory is a fact it vouches for. Empty admits nobody, exactly as an empty domains list does.
+	// Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is not signed in on the provider's word. There an empty list narrows nothing.
 	AllowedDirectories []string `json:"allowed_directories"`
 
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
@@ -5943,6 +5967,12 @@ type IdentityProvider struct {
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace, and with it whatever the group holds. Null when a role or nothing is set; set to null when the group is deleted.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in **new** gets: this role on the whole workspace. Null, with `newcomer_group_id` null too, is nothing - no access until an administrator gives it, which is the default and what a newcomer is told. Only under `DOMAINS` and `ANY`, the two modes that create accounts, and only on a workspace's own provider.
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
 
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
@@ -5997,8 +6027,14 @@ type IdentityProviderConfiguration struct {
 	Issuer  string `json:"issuer"`
 
 	// Kind Absent is read from the issuer.
-	Kind     *IdentityProviderKind `json:"kind,omitempty"`
-	Position *int                  `json:"position,omitempty"`
+	Kind *IdentityProviderKind `json:"kind,omitempty"`
+
+	// NewcomerGroupId What somebody this provider brings in new gets instead of a role: membership of this group of the workspace. The same refusals as `newcomer_role`, and a group that holds `OWNER` anywhere is refused like the role (`identity_provider.newcomers_owner`); a group this workspace does not have answers `groups.not_found`.
+	NewcomerGroupId *openapi_types.UUID `json:"newcomer_group_id,omitempty"`
+
+	// NewcomerRole What somebody this provider brings in new gets: this role on the whole workspace, granted in the same transaction that creates the account. Absent or null, with no group, is nothing - no access until an administrator gives it. One of a role or a group, never both (`identity_provider.newcomers_one`). Refused under `INVITED_ONLY`, which creates nobody (`identity_provider.newcomers_not_created`), on the installation's providers (`identity_provider.newcomers_installation`), and for `OWNER`, which is given to one person with a fresh proof of its own (`identity_provider.newcomers_owner`).
+	NewcomerRole *MembershipRole `json:"newcomer_role,omitempty"`
+	Position     *int            `json:"position,omitempty"`
 
 	// Provisioning Absent is the safe value rather than the permissive one: `INVITED_ONLY` for a public provider, `DOMAINS` for everything else.
 	Provisioning *IdentityProviderProvisioning `json:"provisioning,omitempty"`
@@ -6030,7 +6066,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer. A public provider is held to `INVITED_ONLY`, and that is not an operator's to relax.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
@@ -6233,6 +6269,9 @@ type InvitedAccount struct {
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
 	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
+	HasAccess *bool `json:"has_access,omitempty"`
 
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
@@ -8419,6 +8458,14 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// StartPasswordIssued defines model for StartPasswordIssued.
+type StartPasswordIssued struct {
+	Account Account `json:"account"`
+
+	// StartPassword Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
+}
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -9426,6 +9473,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// IssueStartPasswordParams defines parameters for IssueStartPassword.
+type IssueStartPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // RenewInvitationParams defines parameters for RenewInvitation.
 type RenewInvitationParams struct {
@@ -10485,6 +10538,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -10550,6 +10606,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
+
+// ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
+type ConfirmAddressJSONRequestBody = AddressConfirm
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -11056,6 +11115,76 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestAddressWithBody Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RequestAddress Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// IssueStartPassword Give a managed account a new start password
+	//
+	// For a person without a mail address who forgot their password: there is no mailbox a reset
+	// could reach, so an owner or administrator helps them back in. **The one exception to "an
+	// administrator does not recover an account"**, and it exists only for managed accounts - an
+	// account with an address is refused with `409 accounts.not_managed`, and recovers through
+	// its mailbox.
+	//
+	// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+	// and nothing can read it again. Every session of the account ends and every unfinished
+	// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+	// second factor where the account has one - the factor and the recovery codes stay. Personal
+	// access tokens stay, as a password change leaves them.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). An act an automation rule runs is refused with
+	// `accounts.managed_needs_a_person`: a run reads no answer.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it.
+	//
+	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+	IssueStartPassword(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RenewInvitation Give an invitation not yet accepted a new link
 	//
@@ -11758,6 +11887,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAddressWithBody Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmAddress Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
 	//
@@ -15097,6 +15244,106 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 	return c.Client.Do(req)
 }
 
+// RequestAddressWithBody Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequestWithBody(c.Server, accountId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RequestAddress Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequest(c.Server, accountId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// IssueStartPassword Give a managed account a new start password
+//
+// For a person without a mail address who forgot their password: there is no mailbox a reset
+// could reach, so an owner or administrator helps them back in. **The one exception to "an
+// administrator does not recover an account"**, and it exists only for managed accounts - an
+// account with an address is refused with `409 accounts.not_managed`, and recovers through
+// its mailbox.
+//
+// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+// and nothing can read it again. Every session of the account ends and every unfinished
+// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+// second factor where the account has one - the factor and the recovery codes stay. Personal
+// access tokens stay, as a password change leaves them.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). An act an automation rule runs is refused with
+// `accounts.managed_needs_a_person`: a run reads no answer.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it.
+//
+// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIssueStartPasswordRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RenewInvitation Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -16449,6 +16696,44 @@ func (c *Client) VerifyAuditChainWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 func (c *Client) VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyAuditChainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmAddressWithBody Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *Client) ConfirmAddressWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAddressRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmAddress Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *Client) ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmAddressRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -23341,6 +23626,102 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	return req, nil
 }
 
+// NewRequestAddressRequest calls the generic RequestAddress builder with application/json body
+func NewRequestAddressRequest(server string, accountId AccountId, body RequestAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRequestAddressRequestWithBody(server, accountId, "application/json", bodyReader)
+}
+
+// NewRequestAddressRequestWithBody constructs an http.Request for the RequestAddress method, with any body, and a specified content type
+func NewRequestAddressRequestWithBody(server string, accountId AccountId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:add-address", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewIssueStartPasswordRequest constructs an http.Request for the IssueStartPassword method
+func NewIssueStartPasswordRequest(server string, accountId AccountId, params *IssueStartPasswordParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:issue-start-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewRenewInvitationRequest constructs an http.Request for the RenewInvitation method
 func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams) (*http.Request, error) {
 	var err error
@@ -25249,6 +25630,46 @@ func NewVerifyAuditChainRequestWithBody(server string, contentType string, body 
 	}
 
 	operationPath := fmt.Sprintf("/audit:verify")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewConfirmAddressRequest calls the generic ConfirmAddress builder with application/json body
+func NewConfirmAddressRequest(server string, body ConfirmAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmAddressRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewConfirmAddressRequestWithBody constructs an http.Request for the ConfirmAddress method, with any body, and a specified content type
+func NewConfirmAddressRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/address:confirm")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -37374,6 +37795,78 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
+	// RequestAddressWithBodyWithResponse Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
+
+	// RequestAddressWithResponse Give a managed account a mail address
+	//
+	// Sends a confirmation link to the address. Nothing on the account changes until somebody
+	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+	// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+	// identifier.
+	//
+	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// Only a managed account - a sign-in name and no address - takes one: any other is refused
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+	// minutes of the last is `429 accounts.address_requested_recently` with
+	// `retry_after_seconds`.
+	//
+	// Whether the address already belongs to somebody here is not said: the confirmation answers
+	// that, to whoever holds the mailbox.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
+
+	// IssueStartPasswordWithResponse Give a managed account a new start password
+	//
+	// For a person without a mail address who forgot their password: there is no mailbox a reset
+	// could reach, so an owner or administrator helps them back in. **The one exception to "an
+	// administrator does not recover an account"**, and it exists only for managed accounts - an
+	// account with an address is refused with `409 accounts.not_managed`, and recovers through
+	// its mailbox.
+	//
+	// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+	// and nothing can read it again. Every session of the account ends and every unfinished
+	// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+	// second factor where the account has one - the factor and the recovery codes stay. Personal
+	// access tokens stay, as a password change leaves them.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+	// otherwise). An act an automation rule runs is refused with
+	// `accounts.managed_needs_a_person`: a run reads no answer.
+	//
+	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+	// no-store`: an answer kept for a replay would keep the start password with it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+	IssueStartPasswordWithResponse(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*IssueStartPasswordResult, error)
+
 	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -38119,6 +38612,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChainWithResponse(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyAuditChainResult, error)
+
+	// ConfirmAddressWithBodyWithResponse Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
+
+	// ConfirmAddressWithResponse Confirm a mail address with the link that was sent to it
+	//
+	// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+	ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
 
 	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 	//
@@ -41866,6 +42377,102 @@ func (r UpdateAccountPreferencesResult) ContentType() string {
 	return ""
 }
 
+type RequestAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *AddressRequested
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r RequestAddressResult) GetJSON202() *AddressRequested {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RequestAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RequestAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RequestAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RequestAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RequestAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type IssueStartPasswordResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StartPasswordIssued
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r IssueStartPasswordResult) GetJSON200() *StartPasswordIssued {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r IssueStartPasswordResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r IssueStartPasswordResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r IssueStartPasswordResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IssueStartPasswordResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IssueStartPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RenewInvitationResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -43994,6 +44601,47 @@ func (r VerifyAuditChainResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyAuditChainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56201,6 +56849,96 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
+// RequestAddressWithBodyWithResponse Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddressWithBody(ctx, accountId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAddressResult(rsp)
+}
+
+// RequestAddressWithResponse Give a managed account a mail address
+//
+// Sends a confirmation link to the address. Nothing on the account changes until somebody
+// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
+// ordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second
+// identifier.
+//
+// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// Only a managed account - a sign-in name and no address - takes one: any other is refused
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
+// minutes of the last is `429 accounts.address_requested_recently` with
+// `retry_after_seconds`.
+//
+// Whether the address already belongs to somebody here is not said: the confirmation answers
+// that, to whoever holds the mailbox.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddress(ctx, accountId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRequestAddressResult(rsp)
+}
+
+// IssueStartPasswordWithResponse Give a managed account a new start password
+//
+// For a person without a mail address who forgot their password: there is no mailbox a reset
+// could reach, so an owner or administrator helps them back in. **The one exception to "an
+// administrator does not recover an account"**, and it exists only for managed accounts - an
+// account with an address is refused with `409 accounts.not_managed`, and recovers through
+// its mailbox.
+//
+// Hubtask draws a new start password and answers it once, as at creation; nobody chooses it
+// and nothing can read it again. Every session of the account ends and every unfinished
+// sign-in step is spent. The next sign-in leads into choosing a new password, after the
+// second factor where the account has one - the factor and the recovery codes stay. Personal
+// access tokens stay, as a password change leaves them.
+//
+// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
+// otherwise). An act an automation rule runs is refused with
+// `accounts.managed_needs_a_person`: a run reads no answer.
+//
+// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+// no-store`: an answer kept for a replay would keep the start password with it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:issue-start-password (the `IssueStartPassword` operationId).
+func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context, accountId AccountId, params *IssueStartPasswordParams, reqEditors ...RequestEditorFn) (*IssueStartPasswordResult, error) {
+	rsp, err := c.IssueStartPassword(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIssueStartPasswordResult(rsp)
+}
+
 // RenewInvitationWithResponse Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
@@ -57341,6 +58079,36 @@ func (c *ClientWithResponses) VerifyAuditChainWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseVerifyAuditChainResult(rsp)
+}
+
+// ConfirmAddressWithBodyWithResponse Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *ClientWithResponses) ConfirmAddressWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error) {
+	rsp, err := c.ConfirmAddressWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAddressResult(rsp)
+}
+
+// ConfirmAddressWithResponse Confirm a mail address with the link that was sent to it
+//
+// The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
+func (c *ClientWithResponses) ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error) {
+	rsp, err := c.ConfirmAddress(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmAddressResult(rsp)
 }
 
 // SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
@@ -63125,6 +63893,72 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 	return response, nil
 }
 
+// ParseRequestAddressResult parses an HTTP response from a RequestAddressWithResponse call
+func ParseRequestAddressResult(rsp *http.Response) (*RequestAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RequestAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest AddressRequested
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseIssueStartPasswordResult parses an HTTP response from a IssueStartPasswordWithResponse call
+func ParseIssueStartPasswordResult(rsp *http.Response) (*IssueStartPasswordResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IssueStartPasswordResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StartPasswordIssued
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRenewInvitationResult parses an HTTP response from a RenewInvitationWithResponse call
 func ParseRenewInvitationResult(rsp *http.Response) (*RenewInvitationResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -64585,6 +65419,35 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmAddressResult parses an HTTP response from a ConfirmAddressWithResponse call
+func ParseConfirmAddressResult(rsp *http.Response) (*ConfirmAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

@@ -172,6 +172,8 @@ func (r AccountRepository) Insert(ctx context.Context, account identity.Account)
 
 var _ repository.ManagedAccounts = AccountRepository{}
 
+var _ repository.StartPasswords = AccountRepository{}
+
 // FindBySignInName answers the account a folded sign-in name names (ADR-0074).
 func (r AccountRepository) FindBySignInName(ctx context.Context, signInName string) (identity.Account, error) {
 	queries, err := queriesFrom(ctx)
@@ -209,6 +211,53 @@ func (r AccountRepository) HasManaged(ctx context.Context) (bool, error) {
 
 // InsertManaged writes a managed account with its start password's hash and the moment it was
 // drawn, which is also the start password's mark.
+// IssueStartPassword writes a new start password for a managed account; false is "not managed".
+func (r AccountRepository) IssueStartPassword(
+	ctx context.Context, accountID shared.ID, passwordHash string, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.IssueStartPassword(ctx, sqlc.IssueStartPasswordParams{
+		PasswordHash: &passwordHash,
+		At:           pgtype.Timestamptz{Time: at.UTC(), Valid: true},
+		AccountID:    id,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("issuing a start password: %w", err))
+	}
+	return changed == 1, nil
+}
+
+// SpendPending spends every unfinished sign-in step of the account.
+func (r AccountRepository) SpendPending(ctx context.Context, accountID shared.ID, at time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return 0, err
+	}
+	spent, err := queries.SpendAccountPending(ctx, sqlc.SpendAccountPendingParams{
+		Now:       pgtype.Timestamptz{Time: at.UTC(), Valid: true},
+		AccountID: id,
+	})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("spending pending credentials: %w", err))
+	}
+	return int(spent), nil
+}
+
 func (r AccountRepository) InsertManaged(
 	ctx context.Context, account identity.Account, passwordHash string, at time.Time,
 ) error {
