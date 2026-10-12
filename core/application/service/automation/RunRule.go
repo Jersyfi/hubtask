@@ -908,6 +908,8 @@ func (w *walk) branch(
 // §4, §4.1), so the action is SKIPPED with the code.
 var notAFailure = map[string]bool{
 	"ai.nothing_to_work_with": true, "ai.kept_out": true, "ai.processing_restricted": true,
+	// And an assignment a rule may not make: the person's processing is restricted.
+	"items.assignee_restricted": true,
 }
 
 // record writes one result, applying `on_error` to a failure.

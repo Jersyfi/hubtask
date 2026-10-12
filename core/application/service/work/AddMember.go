@@ -48,14 +48,17 @@ type ItemMemberWriter struct {
 	Profiles    metarepo.CapabilityProfiles
 	Authorizer  Authorizer
 	Visibility  Visibility
-	Events      outbox.Events
-	Changes     changelog.ChangeLog
-	Audit       audit.Sink
-	Activity    ActivityJournal
-	UnitOfWork  persistence.UnitOfWork
-	Clock       clock.Clock
-	IDs         clock.IDGenerator
-	HLC         clock.HLCSource
+	// Accounts answers whether a rule is about to put a restricted person on the entry: no rule
+	// does (data-protection.md §4). Nil restricts nobody.
+	Accounts   RestrictedAccounts
+	Events     outbox.Events
+	Changes    changelog.ChangeLog
+	Audit      audit.Sink
+	Activity   ActivityJournal
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
+	IDs        clock.IDGenerator
+	HLC        clock.HLCSource
 }
 
 // AddMember puts an account on an entry's member list.
@@ -187,6 +190,15 @@ func (w ItemMemberWriter) change(
 		if err := item.EnsureEditable(); err != nil {
 			return err
 		}
+		if want == addingMember {
+			restricted, err := restrictedUnderRule(ctx, w.Accounts, actor, cmd.AccountID)
+			if err != nil {
+				return err
+			}
+			if restricted {
+				return assigneeRestricted(cmd.AccountID)
+			}
+		}
 
 		now := w.Clock.Now()
 		// The tag is the clock reading the OR-set merges on. Taken here rather than derived from
@@ -230,6 +242,10 @@ func (w ItemMemberWriter) addWithin(
 ) error {
 	if err := w.ensureMembersAllowed(ctx, item); err != nil {
 		return atListElement(err, "/member_ids", position)
+	}
+	// A rule creating an entry puts no restricted person on it; the entry is made without them.
+	if restricted, err := restrictedUnderRule(ctx, w.Accounts, actor, accountID); err != nil || restricted {
+		return err
 	}
 	tag := setTag(ctx, domain.SetMembers, w.HLC)
 	cmd := MemberCommand{ItemID: item.ID, AccountID: accountID}

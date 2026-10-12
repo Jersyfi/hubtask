@@ -479,6 +479,11 @@ func (p *createAssignment) apply(
 	if err := item.EnsureAssignable(profile); err != nil {
 		return domain.WorkItem{}, nil, err
 	}
+	// A rule creating an entry for a restricted person makes it unassigned, as automatic
+	// assignment leaves an entry nobody eligible could take (UC-PRV-04 checks 3 and 4).
+	if restricted, err := restrictedUnderRule(ctx, w.Accounts, actor, p.assignee); err != nil || restricted {
+		return item, nil, err
+	}
 	written, err := w.write(ctx, actor, item, item.Assigned(p.assignee, now),
 		0, profile, assigning, now, byHand)
 	return written, nil, err

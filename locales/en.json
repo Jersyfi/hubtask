@@ -394,6 +394,7 @@
   "items.auto_assign_no_candidate": "No candidate of the assignment policy can receive this entry at the moment. It stays unassigned.",
   "items.assignee_conflicts_auto_assign": "Name a person or ask for automatic assignment - not both.",
   "items.assignee_must_be_the_creator": "You may only create entries assigned to yourself.",
+  "items.assignee_restricted": "A rule cannot put this person on an entry: their data may not be processed automatically at the moment.",
   "items.custom_fields_unserialisable": "This installation could not store those custom field values.",
   "items.custom_fields_unreadable": "The custom field values of that entry could not be read.",
   "items.custom_fields_malformed": "The custom field values have to be an object of keys and values.",

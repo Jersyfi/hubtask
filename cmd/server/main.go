@@ -792,7 +792,9 @@ func run() error {
 	// purpose - the actor's own permission and the question about the second person are two
 	// different questions answered by the same service.
 	assignment := work.AssignmentWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		// No rule puts a person whose processing is restricted on an entry (Art. 18).
+		Accounts: accounts,
+		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
@@ -882,7 +884,8 @@ func run() error {
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
 	itemMemberWriter := work.ItemMemberWriter{
-		Items: items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
+		Accounts: accounts,
+		Items:    items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -942,7 +945,8 @@ func run() error {
 		// The authorisation service under three names: the permission, the question about the
 		// role the actor holds, and whether a second person can see the destination.
 		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
-		Events: outbox, Changes: changes,
+		Restrictions: accounts,
+		Events:       outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
@@ -1989,7 +1993,7 @@ func run() error {
 		work.InstantiateTemplate{
 			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
-			Visibility: authorizer, Events: outbox, Activity: journal,
+			Visibility: authorizer, Restrictions: accounts, Events: outbox, Activity: journal,
 		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
