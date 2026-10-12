@@ -9,9 +9,7 @@
   // in this component only until the reader dismisses it, and the slip exists in the document only
   // while the browser prints it - a credential is in the DOM no longer than its one showing.
 
-  import { tick } from 'svelte';
-
-  import { Banner, Button, Input, OneTimeSecret, Select, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
@@ -19,6 +17,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import StartPasswordResult from './StartPasswordResult.svelte';
 
   interface Props {
     /** The roles the installation reports, already labelled. */
@@ -39,8 +38,6 @@
   let nameError = $state<string | undefined>(undefined);
   /** The one answer that carried the start password, until the reader dismisses it. */
   let created = $state<{ signInName: string; startPassword: string } | undefined>(undefined);
-  /** True only while the browser prints the slip. */
-  let printing = $state(false);
 
   const whereOptions = $derived([
     { value: WORKSPACE, label: t('app.people.managed_where_workspace') },
@@ -76,12 +73,6 @@
     }
   }
 
-  async function print(): Promise<void> {
-    printing = true;
-    await tick();
-    window.print();
-    printing = false;
-  }
 </script>
 
 <Stack gap="150">
@@ -94,38 +85,12 @@
 
   {#if created}
     <!-- The only time the start password exists anywhere but the server's hash. -->
-    <OneTimeSecret
-      value={created.startPassword}
+    <StartPasswordResult
+      signInName={created.signInName}
+      startPassword={created.startPassword}
       label={t('app.people.managed_start_password', { name: created.signInName })}
-      hint={t('app.people.managed_start_password_hint')}
-      revealLabel={t('app.people.managed_reveal')}
-      hideLabel={t('app.people.managed_hide')}
-      copyLabel={t('app.people.managed_copy')}
-      copiedLabel={t('app.people.managed_copied')}
-      acknowledgementLabel={t('app.people.managed_kept')}
-      notAcknowledgedReason={t('app.people.managed_keep_first')}
-      dismissLabel={t('app.tokens.done')}
       onDismiss={() => (created = undefined)}
     />
-    <div>
-      <Button tone="secondary" onclick={() => void print()}>{t('app.people.managed_print')}</Button>
-    </div>
-    {#if printing}
-      <!-- What a person takes to the child: where, with what name, with which password, and that
-           they choose their own at once. Drawn for the printer only. -->
-      <div class="slip" data-slip>
-        <p class="slip-title">{t('app.people.managed_slip_title')}</p>
-        <dl>
-          <dt>{t('app.people.managed_slip_address')}</dt>
-          <dd>{location.host}</dd>
-          <dt>{t('app.people.managed_slip_name')}</dt>
-          <dd>{created.signInName}</dd>
-          <dt>{t('app.people.managed_slip_password')}</dt>
-          <dd class="code">{created.startPassword}</dd>
-        </dl>
-        <p>{t('app.people.managed_slip_next')}</p>
-      </div>
-    {/if}
   {/if}
 
   <form class="panel" onsubmit={create}>
@@ -182,31 +147,4 @@
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }
-
-  /* The slip is for paper only: on screen it is never drawn. */
-  .slip { display: none; }
-
-  @media print {
-    /* While the slip is printed, it is the page: everything else stays off the paper. The rule
-       reaches outside this component on purpose - in print only, and only while a slip exists, so
-       printing this screen at any other moment prints the screen. */
-    :global(body:has([data-slip]) *) { visibility: hidden; }
-
-    .slip,
-    .slip * { visibility: visible; }
-
-    .slip {
-      display: block;
-      position: absolute;
-      inset-block-start: 0;
-      inset-inline-start: 0;
-      padding: var(--sp-300);
-      font-size: var(--fs-300);
-      color: var(--text-primary);
-    }
-
-    .slip-title { font-family: var(--font-display); font-weight: var(--fw-semibold); }
-
-    .code { font-family: var(--font-mono); }
-  }
 </style>

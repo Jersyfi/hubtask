@@ -491,6 +491,14 @@ class Client:
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
 
+    def issue_start_password(self, account_id: str, *, step_up: str | None = None) -> "StartPasswordIssued":
+        """Give a managed account a new start password"""
+        return self._call("POST", "/accounts/{accountId}:issue-start-password", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def request_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
+        """Give a managed account a mail address"""
+        return self._call("POST", "/accounts/{accountId}:add-address", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
+
     def update_account_preferences(self, account_id: str, body: "AccountPreferences") -> "Account":
         """Set how the product speaks to an account"""
         return self._call("PATCH", "/accounts/{accountId}/preferences", {"accountId": account_id}, None, {}, body, "json", "application/merge-patch+json", "json")
@@ -554,6 +562,10 @@ class Client:
     def reset_password(self, body: "PasswordReset") -> "SessionTokens":
         """Spend a reset link and set the password"""
         return self._call("POST", "/auth/password:reset", {}, None, {}, body, "json", "application/json", "json")
+
+    def confirm_address(self, body: "AddressConfirm") -> None:
+        """Confirm a mail address with the link that was sent to it"""
+        return self._call("POST", "/auth/address:confirm", {}, None, {}, body, "json", "application/json", "void")
 
     def check_password(self, body: "PasswordCheck", *, step_up: str | None = None) -> "PasswordCheckResult":
         """Ask what only the server knows about a candidate password"""

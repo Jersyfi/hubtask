@@ -1,0 +1,56 @@
+name: After CI
+
+# What happens after a run of CI (scripts/ci/after-ci.sh, ADR-0083). Pull requests merge without
+# catching up with main, so main's own run is where a combination nobody tested is found:
+#   * a failed run is re-run once - known-traps.md's rule for flakes, made automatic;
+#   * a red main opens the issue "CI: main is red" and re-runs `CI required` of every green ready
+#     pull request, whose guard then holds it;
+#   * a green main closes the issue and re-runs the pull requests that waited for it.
+# The schedule sweeps the same way, because GitHub starts no workflow for what its own token caused
+# - the end of a re-run included - and a dispatch does it by hand.
+#
+# `workflow_run` runs with write rights for runs of forks' pull requests too. So nothing of the run
+# is checked out or executed: the checkout is the default branch's scripts, and the run's ids,
+# attempt, conclusion and branch reach the script through the environment, where it compares them.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Everything about main - its runs ending, the sweep - goes one at a time and is never cancelled:
+# two red runs ending together would both file the issue. A pull request's run has a group of its own.
+concurrency:
+  group: after-ci-${{ (github.event_name != 'workflow_run' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')) && 'main' || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  after:
+    name: Re-run once, file a red main, release what waited
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/ci
+      - name: Act on the finished run, or sweep
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ github.event_name == 'workflow_run' && 'run' || 'sweep' }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: scripts/ci/after-ci.sh

@@ -106,7 +106,7 @@ func (h CreateManagedAccount) Execute(
 		return ManagedAccountCreated{}, err
 	}
 
-	start, hash, err := h.drawStartPassword()
+	start, hash, err := drawStartPassword(h.Entropy, h.Passwords)
 	if err != nil {
 		return ManagedAccountCreated{}, err
 	}
@@ -144,10 +144,11 @@ func (h CreateManagedAccount) Execute(
 	return ManagedAccountCreated{Account: account, Membership: grant, StartPassword: start}, nil
 }
 
-// drawStartPassword draws the start password and its hash. Outside the transaction: Argon2id is
-// deliberately slow, and a connection held through it would let a burst of creations drain the pool.
-func (h CreateManagedAccount) drawStartPassword() (secret.Secret, string, error) {
-	drawn, err := h.Entropy.Bytes(domain.StartPasswordBytes)
+// drawStartPassword draws a start password and its hash, for a creation and a renewal alike. Outside
+// the transaction: Argon2id is deliberately slow, and a connection held through it would let a burst
+// of requests drain the pool.
+func drawStartPassword(entropy clock.Entropy, passwords cryptoport.PasswordHasher) (secret.Secret, string, error) {
+	drawn, err := entropy.Bytes(domain.StartPasswordBytes)
 	if err != nil {
 		return secret.Secret{}, "", shared.ErrInternal.WithDetail("accounts.start_password_unmintable").WithCause(err)
 	}
@@ -156,7 +157,7 @@ func (h CreateManagedAccount) drawStartPassword() (secret.Secret, string, error)
 		return secret.Secret{}, "", err
 	}
 	start := secret.New(spelt)
-	hash, err := h.Passwords.Hash(start)
+	hash, err := passwords.Hash(start)
 	if err != nil {
 		return secret.Secret{}, "", err
 	}

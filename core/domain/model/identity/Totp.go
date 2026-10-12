@@ -177,6 +177,10 @@ const (
 	// one wins - and it does one thing only: stand in for the password at the provider's first
 	// arrival. It is never a session and never replaces the second factor.
 	PendingConnect PendingPurpose = "CONNECT"
+	// PendingAddress is the link that confirms a managed account's new address (ADR-0074 §6). It
+	// holds the address it confirms, proves the mailbox and nothing else - it never signs anybody
+	// in - and lives a day (AddressLifetime); the newest request wins.
+	PendingAddress PendingPurpose = "ADDRESS"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.

@@ -23,6 +23,9 @@ export const ROUTES: readonly Route[] = [
   // arrives here has no password, and asking for one would be asking for the thing the screen
   // exists to set.
   { name: 'reset', pattern: '/reset' },
+  // Where the mail confirming a managed account's new address links (`SendAddressConfirmation.go`).
+  // Signed in or not, like `/reset`: whoever holds the mailbox may open it from any device.
+  { name: 'confirm-address', pattern: '/confirm-address' },
   // The redirect URI `cmd/server/main.go` derives and registers with the provider. The address is
   // the server's rather than this table's choice: nothing about where an authorization code comes
   // back may be taken from a request.

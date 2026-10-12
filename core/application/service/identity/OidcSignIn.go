@@ -82,6 +82,11 @@ type OidcWriter struct {
 	// own - computed by the composition root from the configured base URL. Never from a request:
 	// a redirect target a caller chooses is how authorization codes end up somewhere else.
 	RedirectURL string
+	// Grants and Groups give somebody the provider brings in new what its configuration names
+	// (UC-ID-11 check 5), in the transaction that creates the account. Nil refuses an arrival
+	// through a provider that names something, rather than creating an account without it.
+	Grants repository.MembershipGrants
+	Groups repository.Groups
 }
 
 // StartOidcSignIn is the first half: where to send the browser.
@@ -595,8 +600,12 @@ func (w OidcWriter) settleAccount(
 			ctx, configured.ID, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
 			return err
 		}
+		given, err := w.welcome(ctx, configured, provisioned)
+		if err != nil {
+			return err
+		}
 		account = provisioned
-		return w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving)
+		return w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving, given...)
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
 	// that transaction wrote is rolled back with the refusal, and the entry is what an operator
@@ -612,6 +621,81 @@ func (w OidcWriter) settleAccount(
 		return domain.Account{}, false, err
 	}
 	return account, owed, nil
+}
+
+// welcome gives an account created on arrival what the provider names for newcomers (UC-ID-11
+// check 5, UC-ID-08 check 2), inside the arrival's transaction: the account, its identity and its
+// access are written together or not at all. Nothing named is nothing given - the person is told an
+// administrator still has to give access.
+//
+// No authorisation is asked here, and that is not an adapter deciding (rule 2): there is no actor
+// yet, and the grant is the one an administrator configured under MANAGE_MEMBERS and a fresh proof.
+// What changed since is asked again: a group that is gone, or that holds OWNER by now, gives nothing
+// rather than failing the arrival - the person still gets in and is told, and the trail says so.
+// Once the member row is written its foreign key holds the group until the commit, so a deletion
+// running meanwhile waits and then takes the membership with it, which is what deleting it means.
+func (w OidcWriter) welcome(
+	ctx context.Context, configured domain.IdentityProvider, account domain.Account,
+) ([]audit.Change, error) {
+	if !configured.GivesNewcomers() {
+		return newcomerGiven(nil, nil), nil
+	}
+	if w.Grants == nil || w.Groups == nil {
+		return nil, shared.ErrInternal.WithDetail("identity_provider.newcomers_unwired")
+	}
+	if configured.NewcomerRole != "" {
+		grant, err := domain.NewGrant(w.Session.IDs.NewID(), account.TenantID, account.ID, "",
+			domain.TenantScope(), configured.NewcomerRole)
+		if err != nil {
+			return nil, err
+		}
+		if grant.Role == domain.RoleOwner {
+			return newcomerGiven(nil, nil), nil
+		}
+		if err := w.Grants.Grant(ctx, grant); err != nil {
+			return nil, err
+		}
+		// The grant reads in the trail as every other grant does, which is what an access review
+		// filters on; the system made it, for the account it was made for.
+		if err := w.Session.Audit.Append(ctx, GrantedEntry(ctx, grant, appshared.ActorContext{
+			Kind: appshared.ActorSystem, TenantID: account.TenantID,
+			AccountID: account.ID, AccountName: account.DisplayName,
+		}, w.Session.Clock.Now())); err != nil {
+			return nil, err
+		}
+		role := string(grant.Role)
+		return newcomerGiven(role, nil), nil
+	}
+
+	group := configured.NewcomerGroupID
+	if _, err := w.Groups.Find(ctx, group); err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return newcomerGiven(nil, nil), nil
+		}
+		return nil, err
+	}
+	held, err := w.Grants.OfGroup(ctx, group)
+	if err != nil {
+		return nil, err
+	}
+	for _, grant := range held {
+		if grant.Role == domain.RoleOwner {
+			return newcomerGiven(nil, nil), nil
+		}
+	}
+	if err := w.Groups.AddMember(ctx, group, account.ID); err != nil {
+		return nil, err
+	}
+	return newcomerGiven(nil, group.String()), nil
+}
+
+// newcomerGiven is what the provisioning entry records of it: a role code and a group's identifier,
+// null for what was not given - never the group's name (rule 10).
+func newcomerGiven(role, group any) []audit.Change {
+	return []audit.Change{
+		{Field: "newcomer_role", Classification: audit.Open, To: role},
+		{Field: "newcomer_group_id", Classification: audit.Open, To: group},
+	}
 }
 
 // connectByMail is the arrival of a sign-in begun from a CONNECT link (ADR-0078 §1): the

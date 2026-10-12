@@ -101,8 +101,9 @@ restore, import and bulk operations, exports (requested, produced, **downloaded*
 use, integrations, data protection cases and security-relevant administration, a private hub
 opened through the emergency access among them (`container.emergency_access_opened`, its reason
 masked: it is written to the hub's members, not to the trail's readers). Planned, not built
-(milestone PH): a managed account's start password issued, a data subject request's deadline
-extended.
+(milestone PH): a data subject request's deadline extended. A managed account's new start password
+(`account.start_password_issued`, a warning) and its address requested and confirmed
+(`account.address_requested`, `account.address_confirmed`, the address `SENSITIVE`) are recorded.
 
 **A private hub keeps no act out of the trail.** Whoever reads the trail sees acts in a private hub
 as every other act — actor, action, the target's identifier — and, as everywhere, never a name or

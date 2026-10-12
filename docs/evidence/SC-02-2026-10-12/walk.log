@@ -1,0 +1,12 @@
+desktop 1: modes=["Only people invited here","Anyone from these organisations","Anyone this provider knows"] newcomers=["No access until an administrator gives it","The role Administrator on the whole workspace","The role Member on the whole workspace","The role Viewer on the whole workspace","Membership of the group Staff"] redirect=https://hubtask.example/api/v1/auth/oidc/callback redirect-box={"scroll":435,"client":435}
+desktop 2: list label=Microsoft directories that may sign in
+desktop 3: newcomers drawn=0 list drawn=1
+desktop 4: google modes=["Only people invited here"]
+desktop: script errors=[]
+desktop 5: notices=2 create-hub=0 errors=[]
+375 1: modes=["Only people invited here","Anyone from these organisations","Anyone this provider knows"] newcomers=["No access until an administrator gives it","The role Administrator on the whole workspace","The role Member on the whole workspace","The role Viewer on the whole workspace","Membership of the group Staff"] redirect=https://hubtask.example/api/v1/auth/oidc/callback redirect-box={"scroll":307,"client":307}
+375 2: list label=Microsoft directories that may sign in
+375 3: newcomers drawn=0 list drawn=1
+375 4: google modes=["Only people invited here"]
+375: script errors=[]
+375 5: notices=2 create-hub=0 errors=[]

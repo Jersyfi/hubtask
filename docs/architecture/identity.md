@@ -209,7 +209,7 @@ the password's shape), one place the history is written.
 | No password; its provider lets it in | — | "Use your organisation's provider" |
 | No password; no connected provider lets it in | Password open (way in, fallback, operator's opening) | A link to **set** a first password |
 | A password but no provider switched on here (or only an ended offer), or no credential at all | Password switched off | A link to **connect** the workspace's provider (§11) |
-| A managed account without an address | Any | None; the screen says so (§13) |
+| A managed account without an address | Any | None; the screen says so, and an administrator issues a new start password (§13) |
 
 ---
 
@@ -272,7 +272,7 @@ rows every workspace reads and none writes. An installation provider is **offere
 | Preset | Directory claim | Authoritative for an address when | Mode allowed |
 |---|---|---|---|
 | `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any |
-| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` only (a public issuer) |
+| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` or `DOMAINS`, never `ANY` (a public issuer: a personal account carries no `hd` and comes in only by invitation) |
 | `GENERIC` | none | never — a self-hosted issuer included | any; at installation level `INVITED_ONLY` only |
 
 Presets are data: the issuer or its pattern, scopes, particulars, and registration instructions as
@@ -296,9 +296,17 @@ An unverified address comes in nowhere. Then:
 * **A preset with a directory claim ignores `allowed_email_domains`** — two lists that both admit are
   two doors. An empty list under `DOMAINS` admits nobody; domains without directories under such a
   preset admit nobody until a directory is named, and the screen says so.
+* **A directory list narrows `INVITED_ONLY`** for a preset with a directory claim: an
+  authoritative address from a directory not listed is not admitted on the provider's word. An
+  empty list does not narrow.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
-* An account created on arrival holds no role.
+* **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
+  group of it — given in the transaction that creates the account, recorded as a grant. Only a
+  workspace's own provider under `DOMAINS` or `ANY` names it; never `OWNER`, directly or through a
+  group, which is checked when it is saved and again on arrival (a group gone or holding `OWNER` by
+  then gives nothing). A person holding no membership anywhere is told an administrator still has
+  to give access.
 * A mode a build does not know admits nobody.
 * Microsoft's personal-account directory is `9188040d-6c67-4c5b-b112-36a304b66dad`; a company's is
   its tenant GUID. Google directories are Workspace domains as `hd` answers them.
@@ -365,8 +373,8 @@ safeguard belongs to connecting, not to the provider kind.
 ## 13. Managed accounts
 
 *Decided ([ADR-0074](../adr/ADR-0074-managed-accounts.md));
-[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md). The new start
-password and an address added later are decided, not built.*
+[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md).*
+A **managed account** is one with a sign-in name and no address (`AccountSummary.managed`).
 
 * An owner or administrator creates a `USER` account with a **sign-in name** instead of an address
   (`POST /accounts:create-managed`), and places it at a scope in the same step, through the grant's
@@ -382,14 +390,30 @@ password and an address added later are decided, not built.*
   where the workspace has a managed account (`sign_in_names` on the sign-in rules), elsewhere
   "Email address". Where the methods leave the password out, a sign-in name keeps its password
   (§4.1): the card draws the providers and, after them, a *Sign-in name* form.
-* **The one exception to "an administrator does not recover an account":** an owner or
-  administrator may issue a new start password — step-up, recorded, every session ended, next
-  sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
-* What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
-  ordinary account, the sign-in name kept.
+* **The one exception to "an administrator does not recover an account":** whoever holds
+  `MANAGE_MEMBERS` at the workspace may issue a managed account a new start password
+  (`POST /accounts/{id}:issue-start-password`) — after a step-up, answered once as at creation,
+  recorded (`account.start_password_issued`), every session and unfinished sign-in step of the
+  account ended, the next sign-in into `PASSWORD_CHANGE` after an armed factor. Personal access
+  tokens, the factor and the recovery codes stay; the attempt ledger is not cleared. Refused for
+  every account that is not managed (`409 accounts.not_managed`) before the step-up is spent, and
+  for an automation rule's act.
+* What needs a mailbox says "not possible without a mailbox".
+* **An address later:** the person, or whoever holds `MANAGE_MEMBERS` at the workspace, names one
+  (`POST /accounts/{id}:add-address`). It waits on a pending credential of purpose `ADDRESS` for a
+  day, the account unchanged; a newer request replaces it, at most one every ten minutes per account
+  (`429 accounts.address_requested_recently`); the mail's token is minted at delivery. Whether the
+  address is somebody else's here is not said at the request. Following the link
+  (`POST /auth/address:confirm`, public, signing nobody in) makes the address the account's while it
+  is still managed — an ordinary account from then on, reset by mail, the sign-in name kept as a
+  second identifier; an address taken meanwhile is `409 accounts.address_taken`, every other
+  unusable link `401 auth.address_link_invalid`. An erasure deletes the waiting address with the
+  account's other pending steps.
 * An address is added only where the password is a way in: where the workspace's methods leave the
   password out, the account would lose its one way in once it held an address (§4.1), so the action
-  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282). The refusal is
+  `409 accounts.address_needs_password`; the profile and *People* say why in the action's place,
+  read from the sign-in rules (`methods`, the fallback included).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.
@@ -518,9 +542,9 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER`, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19
-and [backup-restore.md](./backup-restore.md) §8's destructive modes, and a private hub's emergency
-access (§22). Decided, not built: §13's new start password.
+member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
+(§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
+[backup-restore.md](./backup-restore.md) §8's destructive modes.
 
 ---
 
@@ -661,9 +685,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 |---|---|
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
-| I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
-| I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |

@@ -37,6 +37,7 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
   import {
     defaultWithdrawalDate,
     earliestWithdrawalDate,
@@ -102,15 +103,10 @@
   ]);
 
   /**
-   * What a mode is called for a given preset.
-   *
-   * `DOMAINS` reads two different lists depending on the provider (ADR-0071 §2), so it cannot have
-   * one sentence: a row that says "the domains below" while the server reads directories is a row
-   * that describes somebody else's configuration.
+   * What a mode is called, in the use case's own words (UC-ID-11 check 1). Which list `DOMAINS`
+   * reads - directories or domains (ADR-0071 §2) - is said by the list's own field, not the mode.
    */
-  function admissionLabel(kind: string, mode: string): string {
-    const claim = presets.find((each) => each.kind === kind)?.directory_claim;
-    if (mode === 'DOMAINS' && claim) return t(`app.identity_provider.provisioning.directories_${claim}`);
+  function admissionLabel(mode: string): string {
     return t(`app.identity_provider.provisioning.${mode.toLowerCase()}`);
   }
 
@@ -304,7 +300,7 @@
                 </td>
                 <td class="mono">{provider.issuer}</td>
                 <td>
-                  <span>{admissionLabel(provider.kind, provider.provisioning)}</span>
+                  <span>{admissionLabel(provider.provisioning)}</span>
                   {#if admits(provider).length > 0}
                     <span class="slug">{admits(provider).join(', ')}</span>
                   {/if}
@@ -405,6 +401,7 @@
     {/if}
     {#if preset}
       <p class="quiet-line">{t(preset.instructions, { redirect_uri: preset.redirect_uri })}</p>
+      <RedirectAddress address={preset.redirect_uri} />
     {/if}
 
     <Input label={t('app.instance.provider_issuer_label')} hint={t('app.instance.provider_issuer_hint')} bind:value={issuer} autocomplete="off" spellcheck={false} isRequired />
@@ -423,9 +420,19 @@
       label={t('app.instance.provider_admission_label')}
       hint={t('app.instance.provider_admission_hint')}
       bind:value={provisioning}
-      options={modes.map((mode) => ({ value: mode, label: admissionLabel(kind, mode) }))}
+      options={modes.map((mode) => ({ value: mode, label: admissionLabel(mode) }))}
     />
 
+    {#if provisioning === 'INVITED_ONLY' && preset?.directory_claim}
+      <!-- Optional here: a list narrows who of the invited may come in (ADR-0071 §4). -->
+      <Input
+        label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
+        hint={t('app.identity_provider.directories_narrow_hint')}
+        bind:value={directories}
+        autocomplete="off"
+        spellcheck={false}
+      />
+    {/if}
     {#if provisioning === 'DOMAINS'}
       <!-- The list the server will read, and only that one (ADR-0071 §2). -->
       {#if preset?.directory_claim}

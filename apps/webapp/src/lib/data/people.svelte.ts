@@ -207,6 +207,40 @@ class People {
     return { signInName: created.account.sign_in_name ?? signInName, startPassword: created.start_password };
   }
 
+  /**
+   * A new start password for a managed account whose person forgot theirs (ADR-0074 §4): behind a
+   * fresh proof, answered once, every session of that account ended. As at creation there is no
+   * idempotency key - the answer carries the password - and it is handed back, never kept.
+   */
+  async issueStartPassword(
+    accountId: string,
+  ): Promise<{ readonly signInName: string; readonly startPassword: string }> {
+    const issued = await stepUp.around((stepUpToken) =>
+      engine.mutate<{ account: { sign_in_name?: string | null }; start_password: string }>(
+        'POST',
+        `/accounts/${accountId}:issue-start-password`,
+        undefined,
+        // Nothing a screen holds changes: the people and their roles are what they were.
+        { invalidates: [], stepUpToken },
+      ),
+    );
+    return { signInName: issued.account.sign_in_name ?? '', startPassword: issued.start_password };
+  }
+
+  /**
+   * Sends the link that gives a managed account an address (ADR-0074 §6). Nothing changes until
+   * somebody holding that mailbox follows it, so nothing a screen holds is stale.
+   */
+  async addAddress(accountId: string, email: string): Promise<{ readonly expiresAt: string }> {
+    const requested = await engine.mutate<{ expires_at: string }>(
+      'POST',
+      `/accounts/${accountId}:add-address`,
+      { email },
+      { invalidates: [] },
+    );
+    return { expiresAt: requested.expires_at };
+  }
+
   /** Revokes one grant. Only a grant made *here* can be revoked here; the row says which. */
   async revoke(membershipId: string, scope: Scope): Promise<void> {
     await stepUp.around((stepUpToken) =>
