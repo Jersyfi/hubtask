@@ -61,6 +61,10 @@ func (r AiRules) Select(ctx context.Context, tenantID shared.ID) (AiSelection, e
 		if !state.Rule.Permits(domain.AiSourceOwn) {
 			return AiSelection{Refusal: RefusalNotAllowed}, nil
 		}
+		if own == nil {
+			// Rules wired without the own store can call nothing of the workspace's own.
+			return AiSelection{Refusal: RefusalUnavailable}, nil
+		}
 		configured, sealed, err := own.FindWithKey(ctx)
 		if errors.Is(err, shared.ErrNotFound) {
 			return AiSelection{Refusal: RefusalUnavailable}, nil
