@@ -261,15 +261,23 @@ func TestWhatAHoldKeepsStaysOutOfAiAndAutomation(t *testing.T) {
 // Decision 7: the kept data stays in the workspace export and in the person's own Art. 15 copy -
 // a restriction allows storage, and no export is filtered.
 func TestWhatAHoldKeepsStaysInTheExports(t *testing.T) {
-	ctx := context.Background()
-	s := seedSubject(ctx, t, "exported-"+freshID(t).String()+"@example.test")
-	seedColleagueOf(ctx, t, s)
-	holdOn(ctx, t, s.tenant, "TENANT", "")
-	request := erasureRequest(ctx, t, s, domain.ModeAnonymize)
-	if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{RequestID: request.ID, TenantID: s.tenant}); err != nil {
-		t.Fatalf("carrying out the case: %v", err)
+	for _, testCase := range keptScopes {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx := context.Background()
+			s := seedSubject(ctx, t, "exported-"+freshID(t).String()+"@example.test")
+			c := seedColleagueOf(ctx, t, s)
+			holdOn(ctx, t, s.tenant, testCase.scope, testCase.at(s, c))
+			request := erasureRequest(ctx, t, s, testCase.mode)
+			if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{RequestID: request.ID, TenantID: s.tenant}); err != nil {
+				t.Fatalf("carrying out the case: %v", err)
+			}
+			keptInTheExports(ctx, t, s)
+		})
 	}
+}
 
+func keptInTheExports(ctx context.Context, t *testing.T, s person) {
+	t.Helper()
 	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
 	written := func(write func(store backupstorage.LocalStore)) string {
 		t.Helper()
