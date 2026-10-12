@@ -16,8 +16,10 @@ import (
 )
 
 const (
-	listPrivateHubsUseCase = "ListPrivateHubs"
-	openPrivateHubUseCase  = "OpenPrivateHub"
+	listPrivateHubsUseCase        = "ListPrivateHubs"
+	openPrivateHubUseCase         = "OpenPrivateHub"
+	listPrivateHubAccessesUseCase = "ListPrivateHubAccesses"
+	listEmergencyNoticesUseCase   = "ListEmergencyNotices"
 )
 
 // ListPrivateHubs answers GET /private-hubs.
@@ -57,6 +59,10 @@ func privateHubsResponse(out usecase.Output) []openapi.PrivateHubSummary {
 					hub.Owners = append(hub.Owners, uuidValue(id))
 				}
 			}
+		}
+		if emergency, held := row["emergency_access"].(usecase.Output); held {
+			hub.EmergencyAccess.Offered, _ = emergency["offered"].(bool)
+			hub.EmergencyAccess.OpenUntil = optionalTimeField(emergency["open_until"])
 		}
 		if purge := row.String("purge_on"); purge != "" {
 			if day, err := time.Parse(openapi_types.DateFormat, purge); err == nil {
@@ -99,6 +105,40 @@ func privateHubAccessResponse(out usecase.Output) openapi.PrivateHubAccess {
 	if opener := out.String("opened_by"); opener != "" {
 		id := uuidValue(opener)
 		answer.OpenedBy = &id
+	}
+	return answer
+}
+
+// ListPrivateHubAccesses answers GET /private-hubs/{hubId}/accesses.
+func (c *RestController) ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request, hubID openapi.HubId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), listPrivateHubAccessesUseCase, actor,
+			usecase.Input{"hub_id": hubID.String()})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, privateHubAccessesResponse(out))
+	})
+}
+
+// ListEmergencyNotices answers GET /accounts/me/emergency-notices.
+func (c *RestController) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), listEmergencyNoticesUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, privateHubAccessesResponse(out))
+}
+
+func privateHubAccessesResponse(out usecase.Output) []openapi.PrivateHubAccess {
+	rows, _ := out["data"].([]usecase.Output)
+	answer := make([]openapi.PrivateHubAccess, 0, len(rows))
+	for _, row := range rows {
+		answer = append(answer, privateHubAccessResponse(row))
 	}
 	return answer
 }

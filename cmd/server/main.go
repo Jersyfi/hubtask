@@ -1690,6 +1690,13 @@ func run() error {
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Accesses: postgres.NewEmergencyAccessRepository(), Owners: authorizer, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.ListPrivateHubAccesses{
+			Accesses: postgres.NewEmergencyAccessRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListEmergencyNotices{
+			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.OpenPrivateHub{
 			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),

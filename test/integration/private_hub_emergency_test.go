@@ -67,10 +67,36 @@ func openingRegistry(ctx context.Context, t *testing.T, notifications notificati
 	return registry
 }
 
+// listingRegistry is the three readers of the emergency access, at the moment `at`.
+func listingRegistry(ctx context.Context, t *testing.T, at time.Time) *usecase.Registry {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	authoriser := realAuthoriser(ctx, t)
+	authoriser.Clock = portclock.Fixed(at)
+	registry, err := usecase.NewRegistry(nil,
+		work.ListEmergencyNotices{
+			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: portclock.Fixed(at),
+		}.Descriptor(),
+		work.ListPrivateHubAccesses{
+			Accesses: postgres.NewEmergencyAccessRepository(), Authorizer: authoriser, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListPrivateHubs{
+			Hubs: postgres.NewPrivateHubRepository(), Policies: postgres.NewLifecycleRepository(),
+			Authorizer: authoriser, UnitOfWork: unitOfWork,
+			Accesses: postgres.NewEmergencyAccessRepository(), Owners: authoriser, Clock: portclock.Fixed(at),
+		}.Descriptor(),
+	)
+	if err != nil {
+		t.Fatalf("building the catalogue: %v", err)
+	}
+	return registry
+}
+
 // present is the owner as a request through the API carries them.
 func present(tenant, account shared.ID) appshared.ActorContext {
 	actor := administrator(tenant, account)
 	actor.Present = true
+	actor.Scopes = []string{"containers:write", "containers:read", "items:read", "members:read"}
 	return actor
 }
 
@@ -176,6 +202,45 @@ func TestTheEmergencyAccessNotifiesBeforeItAnswersAnyRead(t *testing.T) {
 	}
 	if readsTheHub(ctx, t, w, owner, created.Add(time.Hour)) {
 		t.Error("the access outlived its hour")
+	}
+
+	// The member without a mailbox - a managed account, a sign-in name and no address - is told in
+	// the app from the record written in the opening's transaction, and so is everybody else.
+	lena := w.member
+	if _, err := admin.Exec(ctx, `UPDATE account SET sign_in_name = $2 WHERE id = $1`,
+		lena.String(), "lena"+lena.String()[24:]); err != nil {
+		t.Fatalf("making the child's account a managed one: %v", err)
+	}
+	lists := listingRegistry(ctx, t, created.Add(10*time.Minute))
+	notices, err := lists.Invoke(ctx, work.ListEmergencyNoticesName, present(w.tenant, lena), usecase.Input{})
+	if err != nil {
+		t.Fatalf("the child's notices: %v", err)
+	}
+	if rows, _ := notices["data"].([]usecase.Output); len(rows) != 1 ||
+		rows[0]["reason"] != "Maria is in hospital" || rows[0]["opened_by"] != w.administrator.String() {
+		t.Errorf("the managed member is shown %v, want the access with its reason", notices["data"])
+	}
+	accesses, err := lists.Invoke(ctx, work.ListPrivateHubAccessesName, present(w.tenant, lena),
+		usecase.Input{"hub_id": w.hub.String()})
+	if rows, _ := accesses["data"].([]usecase.Output); err != nil || len(rows) != 1 {
+		t.Errorf("the hub's member reads its accesses: %v, %v", accesses, err)
+	}
+	if _, err := listingRegistry(ctx, t, created.Add(time.Hour)).Invoke(ctx, work.ListPrivateHubAccessesName,
+		owner, usecase.Input{"hub_id": w.hub.String()}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the owner after the hour reads the hub's accesses: %v, want not found", err)
+	}
+	hubs, err := lists.Invoke(ctx, work.ListPrivateHubsName, owner, usecase.Input{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range hubs["data"].([]usecase.Output) {
+		if row["id"] != w.hub.String() {
+			continue
+		}
+		emergency, _ := row["emergency_access"].(usecase.Output)
+		if emergency["offered"] != false || emergency["open_until"] != created.Add(time.Hour) {
+			t.Errorf("the owner's row while the access runs: %v", emergency)
+		}
 	}
 
 	// Not renewable while it runs.
