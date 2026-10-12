@@ -76,6 +76,12 @@ the fields; what leaves the installation is:
 Every one of them is `PERSONAL_CONTENT`. None of it is sent by a background process nobody asked
 for: an embedding follows a write somebody made, a suggestion follows an entry somebody submitted.
 
+**Except what a person keeps out.** Where the workspace lets each person keep their own content out
+of AI (the default), what a person who did so created, commented or mailed in is sent nowhere, and
+their name is replaced in the rest; where the workspace made AI part of everybody's work, it names
+the legal basis, and every person sees it instead of the switch
+([data-protection.md](../architecture/data-protection.md) §4.1).
+
 **Content is data, never instruction.** A prompt marks user content as context and no server-side
 AI call carries out an action "demanded" in the text ([ai-first.md](../architecture/ai-first.md)
 §1.3). Actions arise only from automation actions somebody configured.

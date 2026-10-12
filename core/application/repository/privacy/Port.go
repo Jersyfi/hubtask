@@ -119,6 +119,32 @@ type Consents interface {
 
 	// Latest answers the most recent record for an account and a purpose, or ErrNotFound.
 	Latest(ctx context.Context, accountID shared.ID, purpose string) (domain.Consent, error)
+
+	// Standing answers every person whose newest record for a purpose is a withdrawal, ordered by
+	// name. An empty list is not an error.
+	Standing(ctx context.Context, purpose string) ([]Objector, error)
+}
+
+// Objector is a person whose newest record for a purpose is a withdrawal. The names and the
+// address are what a prompt builder replaces in what remains; nothing else answers them.
+type Objector struct {
+	AccountID   shared.ID
+	DisplayName string
+	Email       string
+	SignInName  string
+	// Since is when the withdrawal standing now was recorded, and Source who recorded it.
+	Since  time.Time
+	Source string
+}
+
+// AiNotices records that a person was told their objection to AI stopped taking effect
+// (data-protection.md §4.1).
+type AiNotices interface {
+	// NoticedAt answers when the person last acknowledged it, the zero time where never.
+	NoticedAt(ctx context.Context, accountID shared.ID) (time.Time, error)
+
+	// Notice records an acknowledgement. It only ever moves the moment forwards.
+	Notice(ctx context.Context, accountID shared.ID, at time.Time) error
 }
 
 // Subjects is what an erasure and a restriction reach for: the account behind the case.

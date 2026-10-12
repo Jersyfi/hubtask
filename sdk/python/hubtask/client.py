@@ -879,6 +879,10 @@ class Client:
         """Choose which AI answers this workspace"""
         return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
+        """Whether each person may keep their own content out of AI"""
+        return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""
         return self._call("PUT", "/ai-budget", {}, None, {}, body, "json", "application/json", "json")
@@ -939,9 +943,25 @@ class Client:
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_consents(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The consent register - who withdrew a purpose"""
+        return self._call("GET", "/privacy/consents", {}, query, {}, None, "none", None, "json")
+
     def withdraw_consent(self, body: "ConsentWithdrawal") -> "ConsentRecord":
         """Withdraw consent for an optional processing purpose (Art. 21)"""
         return self._call("POST", "/privacy/consents:withdraw", {}, None, {}, body, "json", "application/json", "json")
+
+    def give_consent(self, body: "ConsentGrant") -> "ConsentRecord":
+        """Agree to an optional processing purpose"""
+        return self._call("POST", "/privacy/consents:give", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_own_ai_position(self) -> "OwnAiPosition":
+        """The caller's own view of keeping their content out of AI"""
+        return self._call("GET", "/privacy/ai-objection", {}, None, {}, None, "none", None, "json")
+
+    def acknowledge_ai_position(self) -> "OwnAiPosition":
+        """Acknowledge that keeping one's content out stopped taking effect"""
+        return self._call("POST", "/privacy/ai-objection:noticed", {}, None, {}, None, "none", None, "json")
 
     def list_memberships(self, *, query: dict[str, Any] | None = None) -> "MembershipPage":
         """Who holds a role at a scope"""

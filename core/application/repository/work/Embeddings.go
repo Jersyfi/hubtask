@@ -88,7 +88,15 @@ type Embeddings interface {
 	// is the fingerprint the caller would compute for each entry's current text, and `model` the
 	// one it would use - both passed in, because what makes a vector stale is a comparison between
 	// what is stored and what the caller would store now.
-	Owed(ctx context.Context, model string, batch int) ([]OwedEmbedding, error)
+	//
+	// `skip` are the creators whose entries are not embedded at all: the people whose content is
+	// kept out of AI (data-protection.md §4.1).
+	Owed(ctx context.Context, model string, batch int, skip []shared.ID) ([]OwedEmbedding, error)
+
+	// Forget removes the vectors of every entry the named people created, and answers how many.
+	// Their content is kept out of AI, and a vector is their content in another form. Answers zero
+	// where the installation has no store, rather than an error: there is nothing to forget.
+	Forget(ctx context.Context, creators []shared.ID) (int, error)
 
 	// CountMissing reports how many entries have no vector at all, counted no higher than the
 	// ceiling. For the pass's own log rather than for a decision.

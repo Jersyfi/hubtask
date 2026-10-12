@@ -12,6 +12,7 @@ import (
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -27,6 +28,15 @@ type CatalogueSources struct {
 	// Profiles is the shape a template may take, read for that one prompt. Nil in a build that
 	// never asks it, and the question then fails by name.
 	Profiles metarepo.CapabilityProfiles
+	// Kept is whose content stays out of AI, read in the same transaction as the material
+	// (data-protection.md §4.1). Nil keeps nobody out - a build without the rule.
+	Kept KeptOutReader
+}
+
+// KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
+// here because the application layer may not import a sibling service.
+type KeptOutReader interface {
+	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }
 
 var _ Sources = CatalogueSources{}
@@ -37,23 +47,43 @@ func (s CatalogueSources) Material(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID, promptID string,
 ) (Material, error) {
+	var kept integration.KeptOut
+	if s.Kept != nil {
+		read, err := s.Kept.Read(ctx, actor.TenantID)
+		if err != nil {
+			return Material{}, err
+		}
+		kept = read
+	}
+	material, err := s.material(ctx, actor, targetType, targetID, promptID, kept)
+	if err != nil {
+		return Material{}, err
+	}
+	material.Kept = kept
+	return material, nil
+}
+
+func (s CatalogueSources) material(
+	ctx context.Context, actor appshared.ActorContext,
+	targetType domain.TargetType, targetID shared.ID, promptID string, kept integration.KeptOut,
+) (Material, error) {
 	switch targetType {
 	case domain.TargetJumbleEntry:
 		// An entry in the inbox is in no collection yet, so there is no board to choose from: the
 		// person converting names the destination, and its columns are theirs to pick.
-		return s.entry(ctx, actor, targetID)
+		return s.entry(ctx, actor, targetID, kept)
 	case domain.TargetWorkItem:
 		if promptID == threadPrompt {
-			return s.thread(ctx, actor, targetID)
+			return s.thread(ctx, actor, targetID, kept)
 		}
-		return s.item(ctx, actor, targetID, promptID)
+		return s.item(ctx, actor, targetID, promptID, kept)
 	case domain.TargetContainer:
 		// A collection is read for two questions, and the source that reads it is the one the
 		// prompt names.
 		if promptID == templatePrompt {
-			return s.templateMaterial(ctx, actor, targetID)
+			return s.templateMaterial(ctx, actor, targetID, kept)
 		}
-		return s.collection(ctx, actor, targetID)
+		return s.collection(ctx, actor, targetID, kept)
 	default:
 		return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
 	}
@@ -70,7 +100,7 @@ func (s CatalogueSources) Material(
 // entry somebody had already converted answered nothing at all, rather than answering what the
 // entry says.
 func (s CatalogueSources) entry(
-	ctx context.Context, actor appshared.ActorContext, entryID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, kept integration.KeptOut,
 ) (Material, error) {
 	out, err := s.Catalogue.Invoke(ctx, "ListJumbleEntries", actor, usecase.Input{})
 	if err != nil {
@@ -85,11 +115,17 @@ func (s CatalogueSources) entry(
 			continue
 		}
 		subject, body := entry.String("raw_subject"), entry.String("raw_body")
+		digest := domain.Digest(subject, body)
+		if kept.HasAddress(entry.String("sender")) {
+			// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
+			return Material{Digest: digest}, nil
+		}
+		subject, body = kept.Scrub(subject), kept.Scrub(body)
 		if strings.TrimSpace(subject) == "" && strings.TrimSpace(body) == "" {
 			// Nothing to describe. The labels below would otherwise make an empty entry look like
 			// content to the caller's emptiness check, and a provider would be asked about
 			// "Subject:" and nothing else.
-			return Material{Digest: domain.Digest(subject, body)}, nil
+			return Material{Digest: digest}, nil
 		}
 		return Material{
 			// Two fields joined for the model with a label each, because a subject and a body are
@@ -97,7 +133,7 @@ func (s CatalogueSources) entry(
 			// The labels are the instruction's, not the content's: nothing here is interpolated
 			// into the system message (Prompt.Ask).
 			Content: "Subject: " + subject + "\n\n" + body,
-			Digest:  domain.Digest(subject, body),
+			Digest:  digest,
 		}, nil
 	}
 	return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
@@ -107,6 +143,7 @@ func (s CatalogueSources) entry(
 // a question that chooses from one, the board it sits on.
 func (s CatalogueSources) item(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, promptID string,
+	kept integration.KeptOut,
 ) (Material, error) {
 	out, err := s.Catalogue.Invoke(ctx, "GetWorkItem", actor, usecase.Input{
 		"item_id": itemID.String(),
@@ -115,13 +152,20 @@ func (s CatalogueSources) item(
 		return Material{}, err
 	}
 	title, notes := out.String("title"), out.String("notes")
+	digest := domain.Digest(title, notes)
+	if keptAuthor(kept, out.String("created_by")) {
+		// An entry a kept-out person created is not material: the answer is the one an empty
+		// entry gets, and it says nothing about why.
+		return Material{Digest: digest}, nil
+	}
+	title, notes = kept.Scrub(title), kept.Scrub(notes)
 	if strings.TrimSpace(title) == "" && strings.TrimSpace(notes) == "" {
-		return Material{Digest: domain.Digest(title, notes)}, nil
+		return Material{Digest: digest}, nil
 	}
 
 	material := Material{
 		Content: "Title: " + title + "\n\n" + notes,
-		Digest:  domain.Digest(title, notes),
+		Digest:  digest,
 	}
 	if promptFields[promptID][fieldsKey] {
 		declared, err := s.declared(ctx, actor, out)
@@ -136,6 +180,9 @@ func (s CatalogueSources) item(
 			return Material{}, err
 		}
 		if len(set.Options) > 0 {
+			for i := range set.Options {
+				set.Options[i].Name = kept.Scrub(set.Options[i].Name)
+			}
 			material.Choices = append(material.Choices, set)
 		}
 	}
@@ -190,7 +237,7 @@ const (
 // comments would make every thread summary stale the moment somebody replied - and a summary is
 // accepted into the entry's notes, which is what the entry's fingerprint protects.
 func (s CatalogueSources) thread(
-	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, kept integration.KeptOut,
 ) (Material, error) {
 	entry, err := s.Catalogue.Invoke(ctx, "GetWorkItem", actor, usecase.Input{
 		"item_id": itemID.String(),
@@ -199,6 +246,11 @@ func (s CatalogueSources) thread(
 		return Material{}, err
 	}
 	digest := domain.Digest(entry.String("title"), entry.String("notes"))
+	if keptAuthor(kept, entry.String("created_by")) {
+		// A summary is accepted into the entry's notes: a kept-out person's entry is not asked
+		// about at all, whoever commented on it.
+		return Material{Digest: digest}, nil
+	}
 
 	out, err := s.Catalogue.Invoke(ctx, "ListComments", actor, usecase.Input{
 		"item_id": itemID.String(), "size": maxSummarisedComments,
@@ -209,17 +261,19 @@ func (s CatalogueSources) thread(
 	comments, _ := out["data"].([]usecase.Output)
 
 	var written strings.Builder
-	written.WriteString("Entry: " + entry.String("title") + "\n\nComments, oldest first:\n")
+	written.WriteString("Entry: " + kept.Scrub(entry.String("title")) + "\n\nComments, oldest first:\n")
 	said := 0
 	for _, comment := range comments {
 		// A deleted comment answers no body at all (`AddComment`), and what it said is not part of
 		// the discussion any more. Nothing is written in its place: a summary that mentioned
 		// removed comments would put them back.
 		body, held := comment["body"].(string)
-		if !held || strings.TrimSpace(body) == "" {
+		if !held || strings.TrimSpace(body) == "" || keptAuthor(kept, comment.String("author_id")) {
+			// A kept-out person's comment is left out as a deleted one is: nothing in its place,
+			// so the summary says nothing about who was left out.
 			continue
 		}
-		written.WriteString("\n- " + writtenAt(comment) + ": " + body + "\n")
+		written.WriteString("\n- " + writtenAt(comment) + ": " + kept.Scrub(body) + "\n")
 		said++
 	}
 	if said == 0 {
@@ -245,7 +299,7 @@ func writtenAt(comment usecase.Output) string {
 // business, and a summary that walked the tree would be reading a workspace to answer a question
 // about a collection.
 func (s CatalogueSources) collection(
-	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, containerID shared.ID, kept integration.KeptOut,
 ) (Material, error) {
 	container, err := s.Catalogue.Invoke(ctx, "GetContainer", actor, usecase.Input{
 		"container_id": containerID.String(),
@@ -261,16 +315,23 @@ func (s CatalogueSources) collection(
 	if err != nil {
 		return Material{}, err
 	}
-	entries, _ := out["data"].([]usecase.Output)
+	listed, _ := out["data"].([]usecase.Output)
+	entries := make([]usecase.Output, 0, len(listed))
+	for _, entry := range listed {
+		// A kept-out person's entries are left out, as if they were not in the collection.
+		if !keptAuthor(kept, entry.String("created_by")) {
+			entries = append(entries, entry)
+		}
+	}
 	if len(entries) == 0 {
 		// An empty collection stands one way and it needs no model to say so.
 		return Material{Digest: digest}, nil
 	}
 
 	var written strings.Builder
-	written.WriteString("Collection: " + container.String("name") + "\n\nEntries in it:\n")
+	written.WriteString("Collection: " + kept.Scrub(container.String("name")) + "\n\nEntries in it:\n")
 	for _, entry := range entries {
-		written.WriteString("\n- " + entry.String("title") + " [" + standing(entry) + "]\n")
+		written.WriteString("\n- " + kept.Scrub(entry.String("title")) + " [" + standing(entry) + "]\n")
 	}
 	return Material{Content: written.String(), Digest: digest}, nil
 }
@@ -497,4 +558,13 @@ func (s CatalogueSources) board(
 		})
 	}
 	return Choices{Key: bucketKey, Label: "Board columns", Options: options}, nil
+}
+
+// keptAuthor reports whether the account a listing names as an author is kept out of AI.
+func keptAuthor(kept integration.KeptOut, raw string) bool {
+	if raw == "" {
+		return false
+	}
+	id, err := shared.ParseID(raw)
+	return err == nil && kept.Has(id)
 }

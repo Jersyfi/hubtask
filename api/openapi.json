@@ -7158,6 +7158,41 @@
         }
       }
     },
+    "/ai-person-opt-out": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setAiPersonOptOut",
+        "summary": "Whether each person may keep their own content out of AI",
+        "description": "`OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiPersonOptOutChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ai-budget": {
       "put": {
         "tags": [
@@ -7739,6 +7774,52 @@
         }
       }
     },
+    "/privacy/consents": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "listConsents",
+        "summary": "The consent register - who withdrew a purpose",
+        "description": "For one purpose, every person whose newest record is a withdrawal, with since when and\nwhether they or an administrator recorded it. For `ai_processing` this is who keeps their\nown content out of AI - and this register is the one place that list appears. For the\npeople who manage members (`MANAGE_MEMBERS`).\n\nUnpaged: it is bounded by the people of the workspace, ordered by name.\n",
+        "parameters": [
+          {
+            "name": "purpose",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ConsentPurpose"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The register",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ConsentRegisterEntry"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/privacy/consents:withdraw": {
       "post": {
         "tags": [
@@ -7764,6 +7845,91 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConsentRecord"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/consents:give": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "giveConsent",
+        "summary": "Agree to an optional processing purpose",
+        "description": "The caller's own agreement - for `ai_processing`, letting the content they authored back\ninto AI after they kept it out. Only ever the caller's own: a consent for anybody else is\nrefused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.\nThe withdrawal before it stays on record for the period it covered.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentGrant"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The consent record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsentRecord"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/ai-objection": {
+      "get": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "readOwnAiPosition",
+        "summary": "The caller's own view of keeping their content out of AI",
+        "description": "Whether there is anything to choose here (`shown`: AI answers this workspace and more than\none person works in it), the workspace's position - with the legal basis and whom to ask\nwhere AI is part of everybody's work - the caller's own choice, whether it takes effect,\nand whether they still have to be told that it stopped taking effect.\n\nThe caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back\nin with `POST /privacy/consents:give`, both with the purpose `ai_processing`.\n",
+        "responses": {
+          "200": {
+            "description": "The caller's view",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnAiPosition"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/privacy/ai-objection:noticed": {
+      "post": {
+        "tags": [
+          "privacy"
+        ],
+        "operationId": "acknowledgeAiPosition",
+        "summary": "Acknowledge that keeping one's content out stopped taking effect",
+        "description": "Records that the caller read the notice: the workspace made AI part of everybody's work,\nso their choice to keep their content out no longer takes effect. Acknowledging twice is\nacknowledging once.\n",
+        "responses": {
+          "200": {
+            "description": "The caller's view afterwards",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OwnAiPosition"
                 }
               }
             }
@@ -13177,7 +13343,10 @@
           "min_jurisdiction",
           "min_jurisdiction_origin",
           "offered",
-          "version"
+          "version",
+          "person_opt_out",
+          "person_opt_out_origin",
+          "keeping_out_count"
         ],
         "properties": {
           "source": {
@@ -13244,12 +13413,85 @@
             "type": "boolean",
             "description": "True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.\n"
           },
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "person_opt_out_origin": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "INSTANCE",
+              "PLAN",
+              "WORKSPACE"
+            ]
+          },
+          "person_opt_out_lock": {
+            "type": "string",
+            "enum": [
+              "INSTANCE",
+              "PLAN"
+            ],
+            "description": "Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.\n"
+          },
+          "person_opt_out_basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "person_opt_out_contact": {
+            "type": "string",
+            "description": "Whom people may ask about the basis. Absent for an administrator of this workspace."
+          },
+          "person_opt_out_since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the workspace made AI part of everybody's work. Absent with `OFFERED`."
+          },
+          "keeping_out_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.\n"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "AiPersonOptOut": {
+        "type": "string",
+        "enum": [
+          "OFFERED",
+          "NOT_OFFERED"
+        ],
+        "description": "`OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.\n"
+      },
+      "AiOptOutBasis": {
+        "type": "string",
+        "enum": [
+          "EMPLOYMENT_CONTRACT",
+          "WORKS_AGREEMENT",
+          "LEGAL_OBLIGATION"
+        ],
+        "description": "The legal basis a workspace names for making AI part of everybody's work."
+      },
+      "AiPersonOptOutChoice": {
+        "type": "object",
+        "required": [
+          "person_opt_out"
+        ],
+        "properties": {
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.\n"
           }
         }
       },
@@ -14613,7 +14855,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
+            "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
           },
           "blocklist_file": {
             "type": "string",
@@ -20992,6 +21234,100 @@
           }
         }
       },
+      "ConsentRegisterEntry": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "display_name",
+          "since"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the withdrawal standing now was recorded."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "user",
+              "tenant_admin",
+              "config"
+            ],
+            "description": "Whether the person or an administrator on their behalf recorded it."
+          }
+        }
+      },
+      "ConsentGrant": {
+        "type": "object",
+        "required": [
+          "purpose"
+        ],
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/ConsentPurpose"
+          },
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Whose consent - only ever the caller's own."
+          }
+        }
+      },
+      "OwnAiPosition": {
+        "type": "object",
+        "required": [
+          "shown",
+          "person_opt_out",
+          "keeping_out",
+          "in_effect",
+          "notice_pending"
+        ],
+        "properties": {
+          "shown": {
+            "type": "boolean",
+            "description": "Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.\n"
+          },
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Whom to ask about the basis. Absent for an administrator of this workspace."
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Since when AI is part of everybody's work. Absent with `OFFERED`."
+          },
+          "keeping_out": {
+            "type": "boolean",
+            "description": "The caller's own choice - their newest `ai_processing` record is a withdrawal."
+          },
+          "keeping_out_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "in_effect": {
+            "type": "boolean",
+            "description": "Whether the caller's content is kept out now."
+          },
+          "notice_pending": {
+            "type": "boolean",
+            "description": "True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.\n"
+          }
+        }
+      },
       "ConsentWithdrawal": {
         "type": "object",
         "required": [
@@ -24030,7 +24366,7 @@
           },
           "features": {
             "type": "object",
-            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
+            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
             "additionalProperties": {
               "type": "boolean"
             }

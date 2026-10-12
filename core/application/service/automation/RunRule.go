@@ -880,8 +880,19 @@ func (w *walk) branch(
 	w.list(ctx, arm, path+"/"+name)
 }
 
+// notAFailure are the answers an action gives when it had nothing to do rather than failing: an AI
+// action over material with nothing left - empty, or kept out of AI - and one asked as a person who
+// keeps their own content out. A rule must not count somebody's objection as its own failure and
+// switch itself off over it (data-protection.md §4.1), so the action is SKIPPED with the code.
+var notAFailure = map[string]bool{"ai.nothing_to_work_with": true, "ai.kept_out": true}
+
 // record writes one result, applying `on_error` to a failure.
 func (w *walk) record(result domain.ActionResult, err error) {
+	if err != nil && notAFailure[codeOf(err)] {
+		result.Status, result.ErrorCode = domain.ActionSkipped, codeOf(err)
+		w.results = append(w.results, result)
+		return
+	}
 	if err != nil {
 		result.Status, result.ErrorCode = domain.ActionFailed, codeOf(err)
 		if w.rule.OnError == domain.OnErrorStop {

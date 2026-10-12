@@ -35,6 +35,8 @@ type embeddingWorld struct {
 	vectors       [][]float32
 	embedded      [][]string
 	askedModel    []string
+	skipped       []shared.ID
+	forgotten     []shared.ID
 	embedErr      error
 	// dimensions is the width the provider answers with; zero means the fixtures' three.
 	dimensions int
@@ -80,8 +82,9 @@ func embeddingHarness(world *embeddingWorld) EmbedItems {
 	}
 }
 
-func (w *embeddingWorld) Owed(_ context.Context, model string, batch int) ([]repository.OwedEmbedding, error) {
+func (w *embeddingWorld) Owed(_ context.Context, model string, batch int, skip []shared.ID) ([]repository.OwedEmbedding, error) {
 	w.askedModel = append(w.askedModel, model)
+	w.skipped = append(w.skipped, skip...)
 	if len(w.owed) > batch {
 		return w.owed[:batch], nil
 	}
@@ -89,6 +92,11 @@ func (w *embeddingWorld) Owed(_ context.Context, model string, batch int) ([]rep
 }
 
 func (w *embeddingWorld) CountMissing(context.Context, int) (int, error) { return len(w.owed), nil }
+
+func (w *embeddingWorld) Forget(_ context.Context, creators []shared.ID) (int, error) {
+	w.forgotten = append(w.forgotten, creators...)
+	return len(creators), nil
+}
 
 // Near is the neighbourhood query. The embedding pass neither reads it nor could: this
 // fake carries it because the port is one interface, and a pass that started asking about

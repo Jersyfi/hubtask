@@ -1042,7 +1042,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(),
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
@@ -1053,10 +1053,30 @@ func run() error {
 		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
+	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
+	// content to a model reads in the transaction it reads the material in. An objection is its
+	// first reason; a restriction is added as a second source beside it.
+	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		integrationservice.ObjectionSource{
+			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		},
+	}}
+	// The asking reads what the producer will read, with the same exclusion, so that nothing to
+	// work with is refused at once rather than queued. Set here, before any descriptor copies the
+	// cases below.
+	suggestionCases.Material = suggestionservice.CatalogueSources{
+		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+	}
+	// A person's own view of keeping their content out of AI, over the same rule every AI call
+	// resolves (data-protection.md §4.1).
+	aiObjectionReader := integrationservice.AiObjectionReader{
+		Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		Notices: privacyStore, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
-		Spaces: postgres.NewEmbeddingRepository(),
+		Spaces: postgres.NewEmbeddingRepository(), Embeddings: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
@@ -1119,7 +1139,7 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1529,6 +1549,7 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1646,7 +1667,7 @@ func run() error {
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
-			Queue:  jobs,
+			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
@@ -1802,7 +1823,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -1824,7 +1845,7 @@ func run() error {
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork,
+				UnitOfWork: unitOfWork, Kept: keptOut,
 			},
 		}.Descriptor(),
 		// The index brought current at an administrator's request: what the row's
@@ -1899,8 +1920,18 @@ func run() error {
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
+		privacyservice.ListConsents{
+			Consents: privacyStore, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		privacyservice.GiveConsent{
+			Consents: privacyStore, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+		}.Descriptor(),
+		integrationservice.ReadOwnAiPosition{Reader: aiObjectionReader}.Descriptor(),
+		integrationservice.AcknowledgeAiPosition{Reader: aiObjectionReader}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
@@ -2284,6 +2315,8 @@ func run() error {
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
 			Providers: budgetedAi,
+			// And per caller: a person who keeps their own content out is offered no AI action.
+			Kept: keptOut,
 			// The four links the installation is obliged to show, through the one resolver that
 			// knows the levels. The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
@@ -3048,7 +3081,7 @@ func run() error {
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
-				Clock: clockadapter.System{},
+				Clock: clockadapter.System{}, Kept: keptOut,
 			},
 			// A quiet workspace pays one pass an hour for having the machinery; a busy one comes
 			// straight back while there is known work left. The retention sweep's two numbers, for

@@ -282,6 +282,45 @@ func (e AiMinJurisdiction) Valid() bool {
 	}
 }
 
+// Defines values for AiOptOutBasis.
+const (
+	EMPLOYMENTCONTRACT AiOptOutBasis = "EMPLOYMENT_CONTRACT"
+	LEGALOBLIGATION    AiOptOutBasis = "LEGAL_OBLIGATION"
+	WORKSAGREEMENT     AiOptOutBasis = "WORKS_AGREEMENT"
+)
+
+// Valid indicates whether the value is a known member of the AiOptOutBasis enum.
+func (e AiOptOutBasis) Valid() bool {
+	switch e {
+	case EMPLOYMENTCONTRACT:
+		return true
+	case LEGALOBLIGATION:
+		return true
+	case WORKSAGREEMENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiPersonOptOut.
+const (
+	AiPersonOptOutNOTOFFERED AiPersonOptOut = "NOT_OFFERED"
+	AiPersonOptOutOFFERED    AiPersonOptOut = "OFFERED"
+)
+
+// Valid indicates whether the value is a known member of the AiPersonOptOut enum.
+func (e AiPersonOptOut) Valid() bool {
+	switch e {
+	case AiPersonOptOutNOTOFFERED:
+		return true
+	case AiPersonOptOutOFFERED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiProviderKind.
 const (
 	NOOP             AiProviderKind = "NOOP"
@@ -339,6 +378,48 @@ func (e AiSourceMinJurisdictionOrigin) Valid() bool {
 	case AiSourceMinJurisdictionOriginPLAN:
 		return true
 	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutLock.
+const (
+	AiSourcePersonOptOutLockINSTANCE AiSourcePersonOptOutLock = "INSTANCE"
+	AiSourcePersonOptOutLockPLAN     AiSourcePersonOptOutLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutLock enum.
+func (e AiSourcePersonOptOutLock) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutLockINSTANCE:
+		return true
+	case AiSourcePersonOptOutLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutOrigin.
+const (
+	AiSourcePersonOptOutOriginDEFAULT   AiSourcePersonOptOutOrigin = "DEFAULT"
+	AiSourcePersonOptOutOriginINSTANCE  AiSourcePersonOptOutOrigin = "INSTANCE"
+	AiSourcePersonOptOutOriginPLAN      AiSourcePersonOptOutOrigin = "PLAN"
+	AiSourcePersonOptOutOriginWORKSPACE AiSourcePersonOptOutOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutOrigin enum.
+func (e AiSourcePersonOptOutOrigin) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutOriginDEFAULT:
+		return true
+	case AiSourcePersonOptOutOriginINSTANCE:
+		return true
+	case AiSourcePersonOptOutOriginPLAN:
+		return true
+	case AiSourcePersonOptOutOriginWORKSPACE:
 		return true
 	default:
 		return false
@@ -1239,6 +1320,27 @@ func (e ConsentRecordSource) Valid() bool {
 	case ConsentRecordSourceTenantAdmin:
 		return true
 	case ConsentRecordSourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ConsentRegisterEntrySource.
+const (
+	ConsentRegisterEntrySourceConfig      ConsentRegisterEntrySource = "config"
+	ConsentRegisterEntrySourceTenantAdmin ConsentRegisterEntrySource = "tenant_admin"
+	ConsentRegisterEntrySourceUser        ConsentRegisterEntrySource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRegisterEntrySource enum.
+func (e ConsentRegisterEntrySource) Valid() bool {
+	switch e {
+	case ConsentRegisterEntrySourceConfig:
+		return true
+	case ConsentRegisterEntrySourceTenantAdmin:
+		return true
+	case ConsentRegisterEntrySourceUser:
 		return true
 	default:
 		return false
@@ -4316,6 +4418,24 @@ type AiJurisdiction string
 // AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 type AiMinJurisdiction string
 
+// AiOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+type AiOptOutBasis string
+
+// AiPersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+type AiPersonOptOut string
+
+// AiPersonOptOutChoice defines model for AiPersonOptOutChoice.
+type AiPersonOptOutChoice struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+}
+
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
 	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed.
@@ -4375,6 +4495,9 @@ type AiSource struct {
 	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 	InstallationSources AiSources `json:"installation_sources"`
 
+	// KeepingOutCount How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+	KeepingOutCount int `json:"keeping_out_count"`
+
 	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
 	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
@@ -4388,6 +4511,22 @@ type AiSource struct {
 
 	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
 	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// PersonOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+	PersonOptOutBasis *AiOptOutBasis `json:"person_opt_out_basis,omitempty"`
+
+	// PersonOptOutContact Whom people may ask about the basis. Absent for an administrator of this workspace.
+	PersonOptOutContact *string `json:"person_opt_out_contact,omitempty"`
+
+	// PersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+	PersonOptOutLock   *AiSourcePersonOptOutLock  `json:"person_opt_out_lock,omitempty"`
+	PersonOptOutOrigin AiSourcePersonOptOutOrigin `json:"person_opt_out_origin"`
+
+	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
+	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -4410,6 +4549,12 @@ type AiSourceMinJurisdictionLock string
 
 // AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
 type AiSourceMinJurisdictionOrigin string
+
+// AiSourcePersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+type AiSourcePersonOptOutLock string
+
+// AiSourcePersonOptOutOrigin defines model for AiSource.PersonOptOutOrigin.
+type AiSourcePersonOptOutOrigin string
 
 // AiSourceSourcesLock Present where a level above locked what the workspace may use.
 type AiSourceSourcesLock string
@@ -5170,7 +5315,7 @@ type Capabilities struct {
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
-	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
@@ -5293,6 +5438,15 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentGrant defines model for ConsentGrant.
+type ConsentGrant struct {
+	// AccountId Whose consent - only ever the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+}
+
 // ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
 type ConsentPurpose = string
 
@@ -5311,6 +5465,21 @@ type ConsentRecord struct {
 
 // ConsentRecordSource defines model for ConsentRecord.Source.
 type ConsentRecordSource string
+
+// ConsentRegisterEntry defines model for ConsentRegisterEntry.
+type ConsentRegisterEntry struct {
+	AccountId   openapi_types.UUID `json:"account_id"`
+	DisplayName string             `json:"display_name"`
+
+	// Since When the withdrawal standing now was recorded.
+	Since time.Time `json:"since"`
+
+	// Source Whether the person or an administrator on their behalf recorded it.
+	Source *ConsentRegisterEntrySource `json:"source,omitempty"`
+}
+
+// ConsentRegisterEntrySource Whether the person or an administrator on their behalf recorded it.
+type ConsentRegisterEntrySource string
 
 // ConsentWithdrawal defines model for ConsentWithdrawal.
 type ConsentWithdrawal struct {
@@ -6230,7 +6399,7 @@ type InstanceSetting struct {
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
-	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.
+	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
 
@@ -7187,6 +7356,34 @@ type OperatorAdd struct {
 type OwnAiBudget struct {
 	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
 	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
+}
+
+// OwnAiPosition defines model for OwnAiPosition.
+type OwnAiPosition struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom to ask about the basis. Absent for an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// InEffect Whether the caller's content is kept out now.
+	InEffect bool `json:"in_effect"`
+
+	// KeepingOut The caller's own choice - their newest `ai_processing` record is a withdrawal.
+	KeepingOut      bool       `json:"keeping_out"`
+	KeepingOutSince *time.Time `json:"keeping_out_since,omitempty"`
+
+	// NoticePending True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.
+	NoticePending bool `json:"notice_pending"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// Shown Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.
+	Shown bool `json:"shown"`
+
+	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
+	Since *time.Time `json:"since,omitempty"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -10378,6 +10575,11 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListConsentsParams defines parameters for ListConsents.
+type ListConsentsParams struct {
+	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -10595,6 +10797,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
+// SetAiPersonOptOutJSONRequestBody defines body for SetAiPersonOptOut for application/json ContentType.
+type SetAiPersonOptOutJSONRequestBody = AiPersonOptOutChoice
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
@@ -10874,6 +11079,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
+
+// GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
+type GiveConsentJSONRequestBody = ConsentGrant
 
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
@@ -11729,6 +11937,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiPersonOptOut Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOut(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveAiProvider Remove the workspace's AI provider
 	//
@@ -14298,6 +14524,64 @@ type ClientInterface interface {
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+	//
+	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+	// one person works in it), the workspace's position - with the legal basis and whom to ask
+	// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+	// and whether they still have to be told that it stopped taking effect.
+	//
+	// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+	// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+	//
+	// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+	ReadOwnAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+	//
+	// Records that the caller read the notice: the workspace made AI part of everybody's work,
+	// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+	// acknowledging once.
+	//
+	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+	AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListConsents The consent register - who withdrew a purpose
+	//
+	// For one purpose, every person whose newest record is a withdrawal, with since when and
+	// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+	// own content out of AI - and this register is the one place that list appears. For the
+	// people who manage members (`MANAGE_MEMBERS`).
+	//
+	// Unpaged: it is bounded by the people of the workspace, ordered by name.
+	//
+	// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+	ListConsents(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GiveConsentWithBody Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GiveConsent Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsent(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// WithdrawConsentWithBody Withdraw consent for an optional processing purpose (Art. 21)
 	//
 	// Objection, as the one thing it can technically be: the optional processing stops and the
@@ -16398,6 +16682,44 @@ func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string,
 // Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *Client) SetAiPersonOptOutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiPersonOptOutRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiPersonOptOut Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *Client) SetAiPersonOptOut(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiPersonOptOutRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -21996,6 +22318,114 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 	return c.Client.Do(req)
 }
 
+// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+//
+// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+// one person works in it), the workspace's position - with the legal basis and whom to ask
+// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+// and whether they still have to be told that it stopped taking effect.
+//
+// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+//
+// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+func (c *Client) ReadOwnAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadOwnAiPositionRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+//
+// Records that the caller read the notice: the workspace made AI part of everybody's work,
+// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+// acknowledging once.
+//
+// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+func (c *Client) AcknowledgeAiPosition(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAcknowledgeAiPositionRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListConsents The consent register - who withdrew a purpose
+//
+// For one purpose, every person whose newest record is a withdrawal, with since when and
+// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+// own content out of AI - and this register is the one place that list appears. For the
+// people who manage members (`MANAGE_MEMBERS`).
+//
+// Unpaged: it is bounded by the people of the workspace, ordered by name.
+//
+// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+func (c *Client) ListConsents(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListConsentsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GiveConsentWithBody Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *Client) GiveConsentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGiveConsentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GiveConsent Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *Client) GiveConsent(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGiveConsentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // WithdrawConsentWithBody Withdraw consent for an optional processing purpose (Art. 21)
 //
 // Objection, as the one thing it can technically be: the optional processing stops and the
@@ -25203,6 +25633,46 @@ func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/ai-budget")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetAiPersonOptOutRequest calls the generic SetAiPersonOptOut builder with application/json body
+func NewSetAiPersonOptOutRequest(server string, body SetAiPersonOptOutJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAiPersonOptOutRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAiPersonOptOutRequestWithBody constructs an http.Request for the SetAiPersonOptOut method, with any body, and a specified content type
+func NewSetAiPersonOptOutRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-person-opt-out")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -35421,6 +35891,150 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewReadOwnAiPositionRequest constructs an http.Request for the ReadOwnAiPosition method
+func NewReadOwnAiPositionRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/ai-objection")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAcknowledgeAiPositionRequest constructs an http.Request for the AcknowledgeAiPosition method
+func NewAcknowledgeAiPositionRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/ai-objection:noticed")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListConsentsRequest constructs an http.Request for the ListConsents method
+func NewListConsentsRequest(server string, params *ListConsentsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/consents")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "purpose", params.Purpose, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGiveConsentRequest calls the generic GiveConsent builder with application/json body
+func NewGiveConsentRequest(server string, body GiveConsentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGiveConsentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGiveConsentRequestWithBody constructs an http.Request for the GiveConsent method, with any body, and a specified content type
+func NewGiveConsentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/privacy/consents:give")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewWithdrawConsentRequest calls the generic WithdrawConsent builder with application/json body
 func NewWithdrawConsentRequest(server string, body WithdrawConsentJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -38447,6 +39061,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
 
+	// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error)
+
+	// SetAiPersonOptOutWithResponse Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithResponse(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error)
+
 	// RemoveAiProviderWithResponse Remove the workspace's AI provider
 	//
 	// The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.
@@ -41307,6 +41939,70 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
 
+	// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
+	//
+	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+	// one person works in it), the workspace's position - with the legal basis and whom to ask
+	// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+	// and whether they still have to be told that it stopped taking effect.
+	//
+	// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+	// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+	ReadOwnAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnAiPositionResult, error)
+
+	// AcknowledgeAiPositionWithResponse Acknowledge that keeping one's content out stopped taking effect
+	//
+	// Records that the caller read the notice: the workspace made AI part of everybody's work,
+	// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+	// acknowledging once.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+	AcknowledgeAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAiPositionResult, error)
+
+	// ListConsentsWithResponse The consent register - who withdrew a purpose
+	//
+	// For one purpose, every person whose newest record is a withdrawal, with since when and
+	// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+	// own content out of AI - and this register is the one place that list appears. For the
+	// people who manage members (`MANAGE_MEMBERS`).
+	//
+	// Unpaged: it is bounded by the people of the workspace, ordered by name.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+	ListConsentsWithResponse(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*ListConsentsResult, error)
+
+	// GiveConsentWithBodyWithResponse Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GiveConsentResult, error)
+
+	// GiveConsentWithResponse Agree to an optional processing purpose
+	//
+	// The caller's own agreement - for `ai_processing`, letting the content they authored back
+	// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+	// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+	// The withdrawal before it stays on record for the period it covered.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+	GiveConsentWithResponse(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*GiveConsentResult, error)
+
 	// WithdrawConsentWithBodyWithResponse Withdraw consent for an optional processing purpose (Art. 21)
 	//
 	// Objection, as the one thing it can technically be: the optional processing stops and the
@@ -44102,6 +44798,54 @@ func (r SetOwnAiBudgetResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetOwnAiBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAiPersonOptOutResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAiPersonOptOutResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAiPersonOptOutResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAiPersonOptOutResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAiPersonOptOutResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAiPersonOptOutResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAiPersonOptOutResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -54465,6 +55209,202 @@ func (r ExchangeOauthCodeResult) ContentType() string {
 	return ""
 }
 
+type ReadOwnAiPositionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnAiPosition
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadOwnAiPositionResult) GetJSON200() *OwnAiPosition {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadOwnAiPositionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadOwnAiPositionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadOwnAiPositionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadOwnAiPositionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadOwnAiPositionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AcknowledgeAiPositionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnAiPosition
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AcknowledgeAiPositionResult) GetJSON200() *OwnAiPosition {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AcknowledgeAiPositionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AcknowledgeAiPositionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AcknowledgeAiPositionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AcknowledgeAiPositionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AcknowledgeAiPositionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListConsentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []ConsentRegisterEntry `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListConsentsResult) GetJSON200() *struct {
+	Data []ConsentRegisterEntry `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListConsentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListConsentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListConsentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListConsentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListConsentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GiveConsentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConsentRecord
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GiveConsentResult) GetJSON200() *ConsentRecord {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GiveConsentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GiveConsentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GiveConsentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GiveConsentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GiveConsentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type WithdrawConsentResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -57829,6 +58769,36 @@ func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseSetOwnAiBudgetResult(rsp)
+}
+
+// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *ClientWithResponses) SetAiPersonOptOutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error) {
+	rsp, err := c.SetAiPersonOptOutWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiPersonOptOutResult(rsp)
+}
+
+// SetAiPersonOptOutWithResponse Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *ClientWithResponses) SetAiPersonOptOutWithResponse(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error) {
+	rsp, err := c.SetAiPersonOptOut(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiPersonOptOutResult(rsp)
 }
 
 // RemoveAiProviderWithResponse Remove the workspace's AI provider
@@ -62503,6 +63473,100 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 	return ParseExchangeOauthCodeResult(rsp)
 }
 
+// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
+//
+// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+// one person works in it), the workspace's position - with the legal basis and whom to ask
+// where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+// and whether they still have to be told that it stopped taking effect.
+//
+// The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+// in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /privacy/ai-objection (the `ReadOwnAiPosition` operationId).
+func (c *ClientWithResponses) ReadOwnAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadOwnAiPositionResult, error) {
+	rsp, err := c.ReadOwnAiPosition(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadOwnAiPositionResult(rsp)
+}
+
+// AcknowledgeAiPositionWithResponse Acknowledge that keeping one's content out stopped taking effect
+//
+// Records that the caller read the notice: the workspace made AI part of everybody's work,
+// so their choice to keep their content out no longer takes effect. Acknowledging twice is
+// acknowledging once.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/ai-objection:noticed (the `AcknowledgeAiPosition` operationId).
+func (c *ClientWithResponses) AcknowledgeAiPositionWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAiPositionResult, error) {
+	rsp, err := c.AcknowledgeAiPosition(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAcknowledgeAiPositionResult(rsp)
+}
+
+// ListConsentsWithResponse The consent register - who withdrew a purpose
+//
+// For one purpose, every person whose newest record is a withdrawal, with since when and
+// whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+// own content out of AI - and this register is the one place that list appears. For the
+// people who manage members (`MANAGE_MEMBERS`).
+//
+// Unpaged: it is bounded by the people of the workspace, ordered by name.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /privacy/consents (the `ListConsents` operationId).
+func (c *ClientWithResponses) ListConsentsWithResponse(ctx context.Context, params *ListConsentsParams, reqEditors ...RequestEditorFn) (*ListConsentsResult, error) {
+	rsp, err := c.ListConsents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListConsentsResult(rsp)
+}
+
+// GiveConsentWithBodyWithResponse Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *ClientWithResponses) GiveConsentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GiveConsentResult, error) {
+	rsp, err := c.GiveConsentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGiveConsentResult(rsp)
+}
+
+// GiveConsentWithResponse Agree to an optional processing purpose
+//
+// The caller's own agreement - for `ai_processing`, letting the content they authored back
+// into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+// refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+// The withdrawal before it stays on record for the period it covered.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /privacy/consents:give (the `GiveConsent` operationId).
+func (c *ClientWithResponses) GiveConsentWithResponse(ctx context.Context, body GiveConsentJSONRequestBody, reqEditors ...RequestEditorFn) (*GiveConsentResult, error) {
+	rsp, err := c.GiveConsent(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGiveConsentResult(rsp)
+}
+
 // WithdrawConsentWithBodyWithResponse Withdraw consent for an optional processing purpose (Art. 21)
 //
 // Objection, as the one thing it can technically be: the optional processing stops and the
@@ -65073,6 +66137,39 @@ func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAiPersonOptOutResult parses an HTTP response from a SetAiPersonOptOutWithResponse call
+func ParseSetAiPersonOptOutResult(rsp *http.Response) (*SetAiPersonOptOutResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAiPersonOptOutResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -72638,6 +73735,140 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadOwnAiPositionResult parses an HTTP response from a ReadOwnAiPositionWithResponse call
+func ParseReadOwnAiPositionResult(rsp *http.Response) (*ReadOwnAiPositionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadOwnAiPositionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnAiPosition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAcknowledgeAiPositionResult parses an HTTP response from a AcknowledgeAiPositionWithResponse call
+func ParseAcknowledgeAiPositionResult(rsp *http.Response) (*AcknowledgeAiPositionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AcknowledgeAiPositionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnAiPosition
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListConsentsResult parses an HTTP response from a ListConsentsWithResponse call
+func ParseListConsentsResult(rsp *http.Response) (*ListConsentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListConsentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []ConsentRegisterEntry `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGiveConsentResult parses an HTTP response from a GiveConsentWithResponse call
+func ParseGiveConsentResult(rsp *http.Response) (*GiveConsentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GiveConsentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConsentRecord
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

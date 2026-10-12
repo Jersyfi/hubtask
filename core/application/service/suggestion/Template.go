@@ -9,6 +9,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -110,7 +111,7 @@ func (h AiGenerateTemplate) invoke(
 // The description itself is not here: it is the request's, read by the producer beside this and
 // appended as content. The digest is the collection's, the same one acceptance recomputes.
 func (s CatalogueSources) templateMaterial(
-	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
+	ctx context.Context, actor appshared.ActorContext, containerID shared.ID, kept integration.KeptOut,
 ) (Material, error) {
 	container, err := s.Catalogue.Invoke(ctx, "GetContainer", actor, usecase.Input{
 		"container_id": containerID.String(),
@@ -137,9 +138,9 @@ func (s CatalogueSources) templateMaterial(
 	}
 
 	var written strings.Builder
-	written.WriteString("Collection: " + container.String("name") + "\n")
+	written.WriteString("Collection: " + kept.Scrub(container.String("name")) + "\n")
 	if description := strings.TrimSpace(container.String("description")); description != "" {
-		written.WriteString(description + "\n")
+		written.WriteString(kept.Scrub(description) + "\n")
 	}
 	written.WriteString("\nThe shape a template may take here. A root node is one of: ")
 	var roots []string

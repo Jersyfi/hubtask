@@ -1102,6 +1102,11 @@ export class HubtaskClient {
     return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Whether each person may keep their own content out of AI */
+  setAiPersonOptOut(body: NonNullable<operations["setAiPersonOptOut"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiPersonOptOut"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-person-opt-out", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set the daily budget of this workspace's own AI model */
   setOwnAiBudget(body: NonNullable<operations["setOwnAiBudget"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAiBudget"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ai-budget", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
@@ -1178,9 +1183,29 @@ export class HubtaskClient {
     return this.call("POST", "/accounts/{accountId}:restrict", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The consent register - who withdrew a purpose */
+  listConsents(options: CallOptions & { readonly query?: NonNullable<operations["listConsents"]['parameters']['query']> } = {}): Promise<operations["listConsents"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/privacy/consents", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Withdraw consent for an optional processing purpose (Art. 21) */
   withdrawConsent(body: NonNullable<operations["withdrawConsent"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["withdrawConsent"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/privacy/consents:withdraw", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Agree to an optional processing purpose */
+  giveConsent(body: NonNullable<operations["giveConsent"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["giveConsent"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/privacy/consents:give", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The caller's own view of keeping their content out of AI */
+  readOwnAiPosition(options: CallOptions = {}): Promise<operations["readOwnAiPosition"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/privacy/ai-objection", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Acknowledge that keeping one's content out stopped taking effect */
+  acknowledgeAiPosition(options: CallOptions = {}): Promise<operations["acknowledgeAiPosition"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/privacy/ai-objection:noticed", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Who holds a role at a scope */
