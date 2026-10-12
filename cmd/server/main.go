@@ -442,6 +442,7 @@ func run() error {
 			Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 			External:    postgres.NewExternalAccountRepository(),
 			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+			Instance:    postgres.NewInstanceSettingRepository(),
 			Relying:     relyingParty,
 			RedirectURL: oidcRedirectURL,
 		},
@@ -1003,6 +1004,7 @@ func run() error {
 		// Which of the installation's providers this workspace took: a flow through one it did not
 		// take, or one whose withdrawal has come, is refused at the start and at the return.
 		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+		Instance:    postgres.NewInstanceSettingRepository(),
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
@@ -1130,6 +1132,9 @@ func run() error {
 		// Which of the installation's providers this workspace took: the switch lives in
 		// the workspace's settings, because the row is the installation's.
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		// The installation's lock on the ways in, which turns its invite-only rows on everywhere
+		// (identity.md §18).
+		Instance: postgres.NewInstanceSettingRepository(),
 		// The one value every registration form at every provider asks for, and it is this
 		// installation's own rather than anything a request carries.
 		RedirectURL: oidcRedirectURL,
@@ -1192,6 +1197,7 @@ func run() error {
 		WaysIn: identity.WaysIn{
 			Providers:  postgres.NewIdentityProviderRepository(),
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Instance:   postgres.NewInstanceSettingRepository(),
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		},
 		Text:       forms,

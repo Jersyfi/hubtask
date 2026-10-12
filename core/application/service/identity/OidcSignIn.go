@@ -67,10 +67,13 @@ type OidcWriter struct {
 	// identifier the caller sends - the card not drawing a button is not what refuses it. Nil reads
 	// "nothing taken", so an installation's provider opens no flow on a build wired without it.
 	Workspaces repository.Workspaces
-	Flows      repository.OidcFlows
-	External   repository.ExternalAccounts
-	Accounts   repository.Accounts
-	Relying    provider.Port
+	// Instance is the installation's level: its lock on the ways in turns the installation's
+	// invite-only rows on here (identity.md §18). Nil reads no lock.
+	Instance repository.InstanceSettings
+	Flows    repository.OidcFlows
+	External repository.ExternalAccounts
+	Accounts repository.Accounts
+	Relying  provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form.
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
@@ -310,7 +313,9 @@ func (w OidcWriter) connectStands(ctx context.Context, found repository.PendingL
 // connectsHere is the provider stores as the reset's question reads them: which providers the
 // account is connected to, and which are switched on here.
 func (w OidcWriter) connectsHere() ProviderStepUps {
-	return ProviderStepUps{Providers: w.Providers, External: w.External, Workspaces: w.Workspaces}
+	return ProviderStepUps{
+		Providers: w.Providers, External: w.External, Workspaces: w.Workspaces, Instance: w.Instance,
+	}
 }
 
 // CompleteOidcSignIn is the second half: the code becomes a session.
@@ -1088,7 +1093,8 @@ func (w OidcWriter) challengeLink(
 func (w OidcWriter) provider(
 	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, secret.Secret, error) {
-	return openProvider(ctx, w.Session, w.Providers, w.Workspaces, scope, providerID, w.onlyProvider)
+	return openProvider(ctx, w.Session, w.Providers, w.Workspaces, w.Instance, scope, providerID,
+		w.onlyProvider)
 }
 
 // openProvider is provider's body, shared with the step-up at the provider (ADR-0075 §2), which
@@ -1096,15 +1102,15 @@ func (w OidcWriter) provider(
 // answers the one way in where no identifier came; nil refuses that case as not configured.
 func openProvider(
 	ctx context.Context, session SessionWriter, providers repository.IdentityProviders,
-	workspaces repository.Workspaces, scope persistence.Scope, providerID shared.ID,
-	only func(context.Context, domain.WorkspaceSettings, time.Time) (shared.ID, error),
+	workspaces repository.Workspaces, instance repository.InstanceSettings, scope persistence.Scope,
+	providerID shared.ID, only func(context.Context, waysHere, time.Time) (shared.ID, error),
 ) (domain.IdentityProvider, secret.Secret, error) {
 	var (
 		configured domain.IdentityProvider
 		opened     secret.Secret
 	)
 	err := session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		settings, err := offersIn(ctx, workspaces)
+		settings, err := readWaysHere(ctx, workspaces, instance)
 		if err != nil {
 			return err
 		}
@@ -1149,23 +1155,10 @@ func openProvider(
 	return configured, opened, nil
 }
 
-// offersIn reads this workspace's own switches for the installation's providers. Nil reads "nothing
-// taken".
-func offersIn(ctx context.Context, workspaces repository.Workspaces) (domain.WorkspaceSettings, error) {
-	if workspaces == nil {
-		return domain.WorkspaceSettings{}, nil
-	}
-	workspace, err := workspaces.Find(ctx)
-	if err != nil && !errors.Is(err, shared.ErrNotFound) {
-		return domain.WorkspaceSettings{}, err
-	}
-	return workspace.Settings, nil
-}
-
 // onlyProvider answers the single way in, or says which of the refusals applies: none configured,
 // or a choice nobody made.
 func (w OidcWriter) onlyProvider(
-	ctx context.Context, settings domain.WorkspaceSettings, now time.Time,
+	ctx context.Context, settings waysHere, now time.Time,
 ) (shared.ID, error) {
 	inForce, err := w.Providers.List(ctx)
 	if err != nil {

@@ -81,7 +81,7 @@ func (h OfferIdentityProvider) Execute(
 		// only method is a provider and who switches it off is a workspace nobody can reach, and
 		// the refusal belongs here rather than in a screen that might not be the one asking.
 		now := w.Session.Clock.Now()
-		if !offered && !anotherWayIn(ctx, h.Writer.Providers, h.Workspaces, found.ID, now) {
+		if !offered && !anotherWayIn(ctx, w.Providers, h.Workspaces, w.Instance, found.ID, now) {
 			return lastWayIn()
 		}
 		// An offer the installation ended is not one to take (ADR-0076 §2): from its date it is a
@@ -160,18 +160,14 @@ func (h OfferIdentityProvider) offerInstallationRow(
 // form and its removal (UC-ID-12 check 6, UC-ID-11 check 8).
 func anotherWayIn(
 	ctx context.Context, providers repository.IdentityProviders, workspaces repository.Workspaces,
-	excluding shared.ID, now time.Time,
+	instance repository.InstanceSettings, excluding shared.ID, now time.Time,
 ) bool {
-	var workspace domain.Workspace
-	if workspaces != nil {
-		found, err := workspaces.Find(ctx)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			// Unreadable is not "there is another": a guard that fails open is not a guard.
-			return false
-		}
-		workspace = found
+	here, err := readWaysHere(ctx, workspaces, instance)
+	if err != nil {
+		// Unreadable is not "there is another": a guard that fails open is not a guard.
+		return false
 	}
-	on, err := providerOnHere(ctx, providers, workspace.Settings, excluding, now)
+	on, err := providerOnHere(ctx, providers, here, excluding, now)
 	if err != nil {
 		return false
 	}
@@ -181,12 +177,53 @@ func anotherWayIn(
 	// No other provider. The workspace still has a way in when a password opens one, which is what
 	// the effective policy's methods say — and a workspace with no policy above it signs in with a
 	// password, because that is the product's own default.
-	return !onlyProviderMethods(workspace)
+	return !onlyProviderMethods(here.workspace)
+}
+
+// waysHere is what "is this a way in here" reads beyond the provider's row: the workspace, whose
+// settings hold its own switches for the installation's rows, and whether the installation locked
+// the ways in with providers among them, which turns its invite-only rows on here whatever those
+// switches say (identity.md §18). Read together, in the transaction the reader is already in.
+type waysHere struct {
+	workspace         domain.Workspace
+	providersLockedIn bool
+}
+
+// readWaysHere reads both, in the ambient transaction: `instance_setting` carries no row policy, so
+// it reads the same under a workspace's scope as under none, and a scope of its own would be a
+// nested one that switches tenant (known-traps.md). A missing workspace reads as one that took
+// nothing; nil stores read as nothing taken and no lock, the honest reading on a build wired
+// without them. An unreadable level is an error, never "not locked" - nor "locked".
+func readWaysHere(
+	ctx context.Context, workspaces repository.Workspaces, instance repository.InstanceSettings,
+) (waysHere, error) {
+	var here waysHere
+	if workspaces != nil {
+		found, err := workspaces.Find(ctx)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return waysHere{}, err
+		}
+		here.workspace = found
+	}
+	if instance != nil {
+		level, err := instance.Read(ctx)
+		if err != nil {
+			return waysHere{}, err
+		}
+		here.providersLockedIn = providersLockedIn(level)
+	}
+	return here, nil
+}
+
+// providersLockedIn answers the installation's lock from its own level: the workspace's layer cannot
+// move a locked switch, so the level above alone decides it.
+func providersLockedIn(level repository.InstanceLevel) bool {
+	return domain.Effective(level.Policy, domain.PolicyLayer{}, domain.PolicyLayer{}).ProvidersLockedIn()
 }
 
 // providerOnHere answers whether any provider other than the one named is a way into this workspace.
 func providerOnHere(
-	ctx context.Context, providers repository.IdentityProviders, settings domain.WorkspaceSettings,
+	ctx context.Context, providers repository.IdentityProviders, here waysHere,
 	excluding shared.ID, now time.Time,
 ) (bool, error) {
 	if providers == nil {
@@ -197,7 +234,7 @@ func providerOnHere(
 		return false, err
 	}
 	for _, candidate := range inForce {
-		if candidate.ID != excluding && offeredHere(candidate, settings, now) {
+		if candidate.ID != excluding && offeredHere(candidate, here, now) {
 			return true, nil
 		}
 	}
@@ -227,14 +264,18 @@ func onlyProviderMethods(workspace domain.Workspace) bool {
 // sign-in card and the sign-in itself. At a moment, because an installation's offer can end on an
 // announced date (ADR-0076 §2) and the date is honoured here, where the offer is read, rather than
 // by a job that would have to walk every workspace.
-func offeredHere(
-	configured domain.IdentityProvider, settings domain.WorkspaceSettings, now time.Time,
-) bool {
+//
+// An installation's row is on here where this workspace took it, or where the installation's lock
+// mandates it (identity.md §18) - read, never written into the workspace's switches, so lifting the
+// lock returns every workspace to its own choice at once. A withdrawal still ends a mandated row:
+// the offer is asked first.
+func offeredHere(configured domain.IdentityProvider, here waysHere, now time.Time) bool {
 	if !configured.OfferedAt(now) {
 		return false
 	}
 	if configured.Installation() {
-		return settings.Offers(configured.ID)
+		return here.workspace.Settings.Offers(configured.ID) ||
+			configured.MandatedHere(here.providersLockedIn)
 	}
 	return true
 }

@@ -376,8 +376,8 @@ func (h GetSignInRules) providersOf(
 	}
 
 	var (
-		inForce   []domain.IdentityProvider
-		workspace domain.Workspace
+		inForce []domain.IdentityProvider
+		here    waysHere
 	)
 	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
@@ -386,18 +386,11 @@ func (h GetSignInRules) providersOf(
 				return err
 			}
 			inForce = read
-			if h.Workspaces == nil {
-				return nil
-			}
-			// Which of the installation's rows this workspace took, and whether an operator opened
-			// the password here. One read for the whole card - read even where no provider is, since
-			// an opening needs none to stand.
-			found, err := h.Workspaces.Find(ctx)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			workspace = found
-			return nil
+			// Which of the installation's rows this workspace took or the installation's lock turns
+			// on, and whether an operator opened the password here. One read for the whole card -
+			// read even where no provider is, since an opening needs none to stand.
+			here, err = readWaysHere(ctx, h.Workspaces, h.Resolver.Instance)
+			return err
 		})
 	if err != nil {
 		return nil, "", err
@@ -406,16 +399,15 @@ func (h GetSignInRules) providersOf(
 	if h.Clock == nil {
 		// Without a moment there is no telling whether an opening has ended, and an opening read as
 		// standing forever is the one mistake the bound exists to prevent.
-		workspace.PasswordOpening = domain.PasswordOpening{}
+		here.workspace.PasswordOpening = domain.PasswordOpening{}
 	}
-	settings := workspace.Settings
 	now := h.now()
 	summaries := make([]ProviderSummary, 0, len(inForce))
 	for _, configured := range inForce {
 		// A provider the installation offers is not a button until this workspace took it: "für
 		// alle Arbeitsbereiche angeboten, nirgends an". A button that led to a way in
 		// nobody here chose would be the installation deciding for the workspace.
-		if configured.Issuer == "" || !offeredHere(configured, settings, now) {
+		if configured.Issuer == "" || !offeredHere(configured, here, now) {
 			continue
 		}
 		scope := ProviderScopeWorkspace
@@ -429,7 +421,7 @@ func (h GetSignInRules) providersOf(
 			Scope:       scope,
 		})
 	}
-	return summaries, fallbackOpens(methods, inForce, workspace, now), nil
+	return summaries, fallbackOpens(methods, inForce, here, now), nil
 }
 
 // rulesOutput is the projection every channel gets.

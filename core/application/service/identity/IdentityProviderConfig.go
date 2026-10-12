@@ -73,6 +73,10 @@ type IdentityProviderWriter struct {
 	// Workspaces is where a workspace's own switches for the installation's providers live. Nil
 	// answers "nothing is taken", which is the honest reading on a build wired without it.
 	Workspaces repository.Workspaces
+	// Instance is the installation's level, read for its lock on the ways in: locked with providers
+	// among them, it turns the installation's invite-only rows on here (identity.md §18). Nil reads
+	// no lock, on a build wired without it.
+	Instance repository.InstanceSettings
 	// RedirectURL is this installation's own callback, which every registration form at every
 	// provider asks for. It is what the presets' instructions are rendered with.
 	RedirectURL string
@@ -149,18 +153,14 @@ func (h ListIdentityProviders) Execute(
 func (w IdentityProviderWriter) withOffers(
 	ctx context.Context, rows []domain.IdentityProvider,
 ) ([]domain.IdentityProvider, error) {
-	var settings domain.WorkspaceSettings
-	if w.Workspaces != nil {
-		workspace, err := w.Workspaces.Find(ctx)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return nil, err
-		}
-		settings = workspace.Settings
+	here, err := readWaysHere(ctx, w.Workspaces, w.Instance)
+	if err != nil {
+		return nil, err
 	}
 	now := w.Session.Clock.Now()
 	answered := make([]domain.IdentityProvider, 0, len(rows))
 	for _, row := range rows {
-		row.OfferedHere = offeredHere(row, settings, now)
+		row.OfferedHere = offeredHere(row, here, now)
 		answered = append(answered, row)
 	}
 	return answered, nil
@@ -275,16 +275,13 @@ func (w IdentityProviderWriter) keepsAWayIn(
 			}
 			return err
 		}
-		var settings domain.WorkspaceSettings
-		if w.Workspaces != nil {
-			workspace, err := w.Workspaces.Find(ctx)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			settings = workspace.Settings
+		here, err := readWaysHere(ctx, w.Workspaces, w.Instance)
+		if err != nil {
+			return err
 		}
 		now := w.Session.Clock.Now()
-		if offeredHere(found, settings, now) && !anotherWayIn(ctx, w.Providers, w.Workspaces, id, now) {
+		if offeredHere(found, here, now) &&
+			!anotherWayIn(ctx, w.Providers, w.Workspaces, w.Instance, id, now) {
 			return lastWayIn()
 		}
 		return nil
