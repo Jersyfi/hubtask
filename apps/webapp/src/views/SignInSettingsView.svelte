@@ -482,8 +482,9 @@
                     onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
                     disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
                   />
-                  {#if passwordOn && waysOn > 1 && (identityProvider.withoutProvider ?? 0) > 0}
-                    <!-- Only where it can go off: as the last way in, the switch is held. -->
+                  {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
+                    <!-- Only where it can go off: as the last way in, or under the installation's
+                         lock, the switch is held and the count would describe a choice nobody has. -->
                     <p class="quiet small" data-reach>
                       {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
                     </p>

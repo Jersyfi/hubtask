@@ -358,6 +358,32 @@ test('chromium: the password switch says how many people have no provider here b
   assert.equal(await list.locator('[data-reach]').count(), 0, 'a count of nobody was said');
 });
 
+// Under the installation's lock the password cannot go off here, so its cost is not said either -
+// the case a provider the lock turns on makes common: a second way in beside a locked password.
+test('chromium: a password the installation locked says no count', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const locked = policy();
+  locked.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC'], { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: locked } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('platform', 'The platform', 'installation', { offered: true }), installation_lock: 'TURNS_ON' },
+      ] });
+    }
+    if (path === '/tenant/accounts-without-provider') return route.fulfill({ json: { count: 3 } });
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.getByRole('listitem').filter({ hasText: 'The platform' }).waitFor();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(await list.locator('[data-reach]').count(), 0, 'the cost of a switch nobody here may move was said');
+});
+
 // The password already off: the cost is past, and the row says nothing of it.
 test('chromium: a switched-off password says no count', async (t) => {
   const browser = await chromium.launch();
