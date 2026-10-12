@@ -387,6 +387,9 @@ password and an address added later are decided, not built.*
   sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
 * What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
   ordinary account, the sign-in name kept.
+* An address is added only where the password is a way in: where the workspace's methods leave the
+  password out, the account would lose its one way in once it held an address (§4.1), so the action
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.

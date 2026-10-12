@@ -30,8 +30,8 @@ the objection case.
 ## How to check
 
 1. A person withdraws their own consent for a named purpose; a withdrawal without a purpose is
-   refused with `privacy.purpose_required`, one for a purpose never consented to with
-   `privacy.consent_not_found`.
+   refused with `privacy.purpose_required`; one for a purpose never consented to is recorded as a
+   standing objection.
 2. An administrator can record a withdrawal for another person; a plain member cannot.
 3. The withdrawal is kept with its moment, and `dsr.consent_withdrawn` is written.
 4. A person can withdraw their own consent in the web app, not only through the API.
