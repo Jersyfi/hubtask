@@ -59,6 +59,9 @@ Each measured against the deployments `D1`–`D7`:
     2026-10-12, #1282): where the workspace's methods leave the password out, adding an address is
     not offered and the server refuses it (`accounts.address_needs_password`), so confirming one never
     strands the person — UC-ID-20 check 7, identity.md §13. Built by PH-07.
+13. **A withdrawal of a purpose never consented to is recorded** (the owner, 2026-10-12, #1298): as a
+    standing objection, not refused — UC-PRV-05 check 1; *Keep my content out of AI* is such a
+    withdrawal. Built as it stands; PH-03 relies on it.
 
 ---
 
