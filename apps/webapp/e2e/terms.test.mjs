@@ -173,6 +173,36 @@ test('the agreement on the invitation card travels with the provider', async () 
   }
 });
 
+// UC-ID-07 check 1 (finding #1289): the card names the workspace and the invited address before
+// anything is typed, read with the token in the body; one that would not redeem says so at once.
+test('the invitation card names the workspace and the address', async () => {
+  const sent = [];
+  const { page, done } = await openAt('/redeem#token=invitation-token', stubFor(RULES, sent, {
+    '/auth/invitations:inspect': () => ({ json: { workspace_name: 'Family Winkel', email: 'anna@example.invalid' } }),
+  }));
+  try {
+    await page.getByRole('heading', { name: 'Join Family Winkel' }).waitFor();
+    await page.getByText('anna@example.invalid').waitFor();
+    const inspected = sent.find((each) => each.path === '/auth/invitations:inspect');
+    assert.deepEqual(inspected?.body, { token: 'invitation-token' });
+    assert.ok(!page.url().includes('invitation-token'), 'the token stayed in the address');
+  } finally {
+    await done();
+  }
+
+  const refused = [];
+  const second = await openAt('/redeem#token=spent-token', stubFor(RULES, refused, {
+    '/auth/invitations:inspect': () => ({
+      status: 401, json: { code: 'errors.unauthenticated', detail_code: 'auth.redemption_failed', status: 401, request_id: 'req_e2e' },
+    }),
+  }));
+  try {
+    await second.page.getByText('That invitation cannot be redeemed. Ask for a new invitation.').waitFor();
+  } finally {
+    await second.done();
+  }
+});
+
 // Check 5: where no terms are set, no box and nothing sent about them.
 test('no terms, no box', async () => {
   const sent = [];

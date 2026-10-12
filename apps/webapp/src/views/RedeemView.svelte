@@ -40,6 +40,7 @@
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import { takeFragmentToken } from '../lib/signin/fragmentToken.ts';
+  import { invitation } from '../lib/data/invitation.svelte.ts';
   import { oidc } from '../lib/data/oidc.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
@@ -71,6 +72,12 @@
   const token = $state(takeFragmentToken());
 
   $effect(() => signInRules.read());
+  // The workspace and the address, read once with the token in the body (UC-ID-07 check 1).
+  $effect(() => {
+    if (token !== '') void invitation.inspect(token);
+  });
+  /** The card's title: the workspace by name once it is known, the plain one until then. */
+  const named = $derived(invitation.summary?.workspace_name);
 
   /** The terms of use in force here, or none - no box and nothing to agree to (UC-ID-19 check 5). */
   const terms = $derived.by((): TermsInForce | undefined => {
@@ -130,6 +137,19 @@
     <Banner tone="danger" title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}
     </Banner>
+  {:else if invitation.failure}
+    <!-- The invitation would not redeem: the redemption's one sentence, before anything is typed. -->
+    <Banner tone="danger">{t(invitation.failure)}</Banner>
+  {/if}
+{/snippet}
+
+{#snippet invited()}
+  <!-- Whose invitation this is: the address it went to, which a provider has to confirm too. -->
+  {#if invitation.summary}
+    <p class="invited">
+      <span class="who">{t('app.redeem.invited_as')}</span>
+      <span class="address">{invitation.summary.email}</span>
+    </p>
   {/if}
 {/snippet}
 
@@ -141,7 +161,12 @@
     <Banner tone="warning">{t('app.redeem.no_token')}</Banner>
   </SignInCard>
 {:else if signInRules.wasRead && !signInRules.hasPassword}
-  <SignInCard title={t('app.redeem.provider_title')} lead={t('app.redeem.provider_intro')} {notice}>
+  <SignInCard
+    title={named ? t('app.redeem.invited_title', { workspace: named }) : t('app.redeem.provider_title')}
+    lead={t('app.redeem.provider_intro')}
+    {notice}
+  >
+    {@render invited()}
     {#if signInRules.providers.length > 0}
       {@render agreement()}
       {@render providers('primary')}
@@ -152,13 +177,18 @@
     {/if}
   </SignInCard>
 {:else}
-  <SignInCard title={t('app.redeem.title')} lead={t('app.redeem.intro')} {notice}>
+  <SignInCard
+    title={named ? t('app.redeem.invited_title', { workspace: named }) : t('app.redeem.title')}
+    lead={t(named ? 'app.redeem.invited_intro' : 'app.redeem.intro')}
+    {notice}
+  >
     <form onsubmit={submit}>
       <Stack gap="200">
+        {@render invited()}
         <PasswordField
           bind:value={password}
           label={t('app.redeem.password_label')}
-          context={{ workspaceHost: signInRules.workspaceHost }}
+          context={{ email: invitation.summary?.email, workspaceHost: signInRules.workspaceHost }}
           proof={{ kind: 'invitation', token }}
           hint={t('app.redeem.password_hint')}
         />
@@ -230,6 +260,18 @@
   form { margin: 0; }
   .instead { display: grid; gap: var(--sp-100); margin-block-start: var(--sp-200); }
   .quiet { margin: 0; color: var(--text-secondary); }
+  .invited {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-050) var(--sp-150);
+    margin: 0;
+    padding: var(--sp-100) var(--sp-150);
+    background: var(--bg-surface-sunken);
+    border-radius: var(--r-md);
+    font-size: var(--fs-075);
+    color: var(--text-secondary);
+  }
+  .invited .address { color: var(--text-primary); font-weight: var(--fw-medium); }
   .agreement { display: grid; gap: var(--sp-100); }
   .terms { justify-self: start; }
   .missing { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
