@@ -85,6 +85,15 @@ class Manifest {
   }
 
   /**
+   * Whether this installation runs more than one workspace. Only then are workspaces created,
+   * suspended and deleted from the installation level: in single mode the one workspace is the
+   * installation, and the server refuses all three. `false` until the manifest says `multi`.
+   */
+  get isMultiTenant(): boolean {
+    return this.value?.tenancy_mode === 'multi';
+  }
+
+  /**
    * The locales this installation has, in the shape the renderer resolves against.
    *
    * Empty until the manifest arrives, and empty is the honest answer rather than a default: a
