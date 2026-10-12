@@ -42,6 +42,12 @@ func (pending) InviteAccount(w http.ResponseWriter, r *http.Request, _ openapi.I
 	notAvailable(w, r)
 }
 
+func (pending) CreateManagedAccount(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreateManagedAccountParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

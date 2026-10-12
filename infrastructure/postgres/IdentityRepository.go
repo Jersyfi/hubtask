@@ -58,7 +58,7 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading account %s: %w", accountID, err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
@@ -79,7 +79,7 @@ func (r AccountRepository) FindByEmail(ctx context.Context, email string) (ident
 			// into logs (rule 10).
 			WithCause(fmt.Errorf("reading an account by address: %w", err))
 	}
-	return accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
+	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 }
 
@@ -126,7 +126,7 @@ func (r AccountRepository) ListOfKind(
 
 	accounts := make([]identity.Account, 0, len(rows))
 	for _, row := range rows {
-		account, err := accountFrom(row.ID, row.Kind, row.Email, row.DisplayName, row.Status,
+		account, err := accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
 			row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
 		if err != nil {
 			return nil, err
@@ -166,6 +166,77 @@ func (r AccountRepository) Insert(ctx context.Context, account identity.Account)
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing an account: %w", err))
+	}
+	return nil
+}
+
+var _ repository.ManagedAccounts = AccountRepository{}
+
+// FindBySignInName answers the account a folded sign-in name names (ADR-0074).
+func (r AccountRepository) FindBySignInName(ctx context.Context, signInName string) (identity.Account, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.Account{}, err
+	}
+	row, err := queries.FindAccountBySignInName(ctx, &signInName)
+	if err != nil {
+		if IsNoRows(err) {
+			return identity.Account{}, shared.ErrNotFound.WithDetail("accounts.not_found")
+		}
+		return identity.Account{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			// The name stays out of the message, as an address does (rule 10).
+			WithCause(fmt.Errorf("reading an account by sign-in name: %w", err))
+	}
+	return accountFrom(row.ID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
+		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
+}
+
+// HasManaged answers whether the workspace has a managed account that can still sign in.
+func (r AccountRepository) HasManaged(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	present, err := queries.HasManagedAccounts(ctx)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking for managed accounts: %w", err))
+	}
+	return present, nil
+}
+
+// InsertManaged writes a managed account with its start password's hash and the moment it was
+// drawn, which is also the start password's mark.
+func (r AccountRepository) InsertManaged(
+	ctx context.Context, account identity.Account, passwordHash string, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(account.ID)
+	if err != nil {
+		return err
+	}
+	name := account.SignInName
+	err = queries.InsertManagedAccount(ctx, sqlc.InsertManagedAccountParams{
+		ID:           id,
+		SignInName:   &name,
+		DisplayName:  account.DisplayName,
+		PasswordHash: &passwordHash,
+		Now:          pgtype.Timestamptz{Time: at.UTC(), Valid: true},
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			// Two administrators taking one name at the same moment: both passed the check, and
+			// the index decides. The loser hears "taken" rather than a driver error.
+			return shared.ErrConflict.WithDetail("accounts.sign_in_name_taken")
+		}
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing a managed account: %w", err))
 	}
 	return nil
 }
@@ -250,7 +321,7 @@ func (r AccountRepository) UpdatePreferences(
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot
 // disagree about what a row means.
 func accountFrom(
-	id pgtype.UUID, kind sqlc.AccountKind, email *string, displayName string,
+	id pgtype.UUID, kind sqlc.AccountKind, email, signInName *string, displayName string,
 	status sqlc.AccountStatus, locale, timeZone, weekStart *string,
 	celebrations *bool, onboardingCompletedAt pgtype.Timestamptz,
 ) (identity.Account, error) {
@@ -262,6 +333,7 @@ func accountFrom(
 		ID:           accountID,
 		Kind:         identity.AccountKind(kind),
 		Email:        stringFrom(email),
+		SignInName:   stringFrom(signInName),
 		DisplayName:  displayName,
 		Status:       identity.AccountStatus(status),
 		Locale:       stringFrom(locale),

@@ -19,6 +19,7 @@ import {
   localRulesHold,
   longestRun,
   unmetCount,
+  type PasswordContext,
   type PasswordRules,
 } from './signinrules.ts';
 
@@ -130,4 +131,16 @@ test('with no proof to check with, the server’s lines wait for the form to be 
   const remote = lines.filter((line) => line.isServerSide);
   assert.ok(remote.length > 0, 'the rule has a server-side line');
   assert.ok(remote.every((line) => line.state === 'server'), 'a deferred line reads as checked on sending');
+});
+
+test('a person signing in with a name is told the name is compared, not an address they lack', () => {
+  const on = rules({ context_words: true });
+  const line = (password: string, context: PasswordContext) =>
+    evaluate(on, password, context).find((each) => each.id === 'context_words');
+
+  assert.equal(line('lanterns', { signInName: 'oma.erika' })?.code, 'auth.password_rule.context_words_name');
+  assert.equal(line('oma.erika-lanterns', { signInName: 'oma.erika' })?.state, 'unmet');
+  assert.equal(line('lanterns', { email: 'anna@contoso.example' })?.code, 'auth.password_rule.context_words');
+  // Nothing known about the person at all: the line everybody has always read.
+  assert.equal(line('lanterns', nobody)?.code, 'auth.password_rule.context_words');
 });

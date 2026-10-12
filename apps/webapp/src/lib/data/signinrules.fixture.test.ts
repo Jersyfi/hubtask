@@ -20,6 +20,7 @@ interface FixtureCase {
   readonly rules: PasswordRules;
   readonly context: {
     readonly email?: string;
+    readonly sign_in_name?: string;
     readonly display_name?: string;
     readonly workspace_name?: string;
     readonly workspace_host?: string;
@@ -35,6 +36,7 @@ const fixture = JSON.parse(
 
 const contextOf = (entry: FixtureCase): PasswordContext => ({
   email: entry.context.email,
+  signInName: entry.context.sign_in_name,
   displayName: entry.context.display_name,
   workspaceName: entry.context.workspace_name,
   workspaceHost: entry.context.workspace_host,

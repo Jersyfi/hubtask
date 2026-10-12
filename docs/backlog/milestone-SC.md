@@ -54,6 +54,10 @@ What deliberately is **not** in this milestone:
    the evidence says what was not walked. Not a statement for the website.
 10. **An installation lock mandates only an invite-only provider** (the owner, 2026-10-07, #1174):
     identity.md §18. SC-38 builds it and carries UC-INS-11 check 4, which is in `Delivers`.
+11. **SC-30 waits for the next cut** (the owner, 2026-10-12). Dropping the stored offer count is
+    safe only in the first release after the one that contains SC-26, and no release has been cut
+    since SC-26 merged; SC-30 carries no unmet check. Its task text stays on issue #1134 without a
+    milestone, for the cut after that release.
 
 ---
 
@@ -550,24 +554,6 @@ for the family finds both. SC-17's `auth.mfa_replaced` stays as built (its task 
 
 **Acceptance:** a test that a new regeneration is written under the new name and that filtering by it
 finds an old entry too.
-
----
-
-## SC-30 — The stored offer count is dropped
-
-*Depends on: SC-26, released - and one release more.* · issue #1134 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §1
-
-**Use cases:** UC-INS-11 (5) - unchanged; this removes what nothing reads any more.
-
-SC-26 counts an offered provider's workspaces where the count is read and leaves the stored count in
-place: expand, not yet contract. A new, forward-only migration drops the column
-`identity_provider.offered_workspaces` and the function `move_provider_offer` with its grant, and
-`db/schema.sql` with it. Not before the first release after the one that contains SC-26: the release
-before SC-26 reads the column and calls the function, and during a rolling update it runs beside the
-new one (ADR-0003). The migration's number is taken from `origin/main` right before it is written.
-
-**Acceptance:** the column and the function are gone from a migrated database and from
-`db/schema.sql`; `make generate` produces no diff; `make verify` and the integration suite are green.
 
 ---
 

@@ -72,6 +72,9 @@ probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
 - An editor's built-in browser pane may never run animation frames or turn Enter into a click;
   check motion, focus rings and key activation with Playwright.
 
+**Screenshots are in English**, the repository's language; another language is proven by a test,
+not a picture (the owner, 2026-10-12).
+
 **Recording it.** A walk that is evidence for a use case check is a file here — what was walked, at
 which commit, what was pressed, what was seen, and what was found. A finding becomes a `finding`
 issue; the walk file links it.

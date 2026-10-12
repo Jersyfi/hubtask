@@ -227,7 +227,13 @@ class Session {
   owe(
     pendingToken: string,
     methods: readonly string[],
-    context: { expiresAt?: string; email?: string; providerName?: string; afterReset?: boolean } = {},
+    context: {
+      expiresAt?: string;
+      email?: string;
+      providerName?: string;
+      afterReset?: boolean;
+      passwordRules?: unknown;
+    } = {},
   ): void {
     this.#pending = pendingToken;
     this.#owed = {
@@ -235,6 +241,7 @@ class Session {
       expiresAt: context.expiresAt,
       providerName: context.providerName,
       afterReset: context.afterReset,
+      passwordRules: context.passwordRules,
     };
     // A provider arrival and a reset link typed no address, so the identity line takes the one the
     // server names.
@@ -270,10 +277,12 @@ class Session {
    * or a second factor owed, which `secondFactorOwed` then carries: the password was right, and
    * the difference matters to the screen even though both leave the caller signed out.
    */
-  async signIn(email: string, password: string): Promise<boolean> {
-    this.#email = email;
+  async signIn(identifier: string, password: string): Promise<boolean> {
+    this.#email = identifier;
+    // `identifier` rather than `email`: what was typed may be a managed account's sign-in name
+    // (ADR-0074), and the server tells the two apart by their shape.
     return this.#open(() =>
-      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', SESSIONS, { email, password }),
+      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', SESSIONS, { identifier, password }),
     );
   }
 

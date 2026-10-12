@@ -71,6 +71,11 @@ type ActorContext struct {
 	// (ADR-0070 §1). They are not held - `HasScope` never sees them - and they exist so that a
 	// refusal can say the register is the reason (UC-INS-03 check 5).
 	Withheld WithheldScopes
+	// RunsForRule is the automation rule this act runs for, set by the rule engine and nowhere else;
+	// empty for every act a caller makes itself. The engine acts as the rule's service account, which
+	// a caller holding that account's token would be too - only this tells an act whose answer
+	// nobody reads from one whose caller reads it.
+	RunsForRule shared.ID
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID

@@ -40,6 +40,8 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
+  import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
+  import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -70,6 +72,12 @@
   );
 
   const holders = $derived(people.holders({}, TENANT));
+
+  // The workspace's sign-in rule, for one switch: whether accounts without an address may be given
+  // here at all (ADR-0074 §7). Read rather than assumed, and the form is absent - not disabled -
+  // where the rule says no or cannot be read (P-05).
+  $effect(() => untrack(() => signInPolicy.open()));
+  const managedAllowed = $derived(signInPolicy.policy?.managed_accounts?.value === true);
 
   /** The row a revoke is being confirmed for; the dialog is open while there is one. */
   let revoking = $state<Holder | undefined>(undefined);
@@ -334,6 +342,10 @@
         </Stack>
       </form>
     </Stack>
+
+    {#if managedAllowed}
+      <ManagedAccountForm {roleOptions} />
+    {/if}
 
     <Stack gap="150">
       <h2 class="section">{t('app.people.grant_title')}</h2>

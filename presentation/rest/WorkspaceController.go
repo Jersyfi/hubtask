@@ -101,7 +101,7 @@ func signInPolicyChange(sent openapi.SignInPolicyChange) map[string]any {
 	}
 	for name, value := range map[string]*bool{
 		"common_passwords": sent.CommonPasswords, "context_words": sent.ContextWords,
-		"breach_check": sent.BreachCheck,
+		"breach_check": sent.BreachCheck, "managed_accounts": sent.ManagedAccounts,
 	} {
 		if value != nil {
 			change[name] = *value
@@ -265,6 +265,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			TermsUrl:         word(legal, "terms_url"),
 			AccessibilityUrl: word(legal, "accessibility_url"),
 		},
+	}
+	if _, held := out["managed_accounts"].(usecase.Output); held {
+		managed := flag(out, "managed_accounts")
+		answer.ManagedAccounts = &managed
 	}
 	if moment, held := out["rotation_from"].(time.Time); held && !moment.IsZero() {
 		answer.RotationFrom = &moment

@@ -39,6 +39,7 @@ type ruleFixture struct {
 		} `json:"rules"`
 		Context struct {
 			Email         string `json:"email"`
+			SignInName    string `json:"sign_in_name"`
 			DisplayName   string `json:"display_name"`
 			WorkspaceName string `json:"workspace_name"`
 			WorkspaceHost string `json:"workspace_host"`
@@ -83,6 +84,7 @@ func TestThePasswordRulesAgreeWithTheSharedFixture(t *testing.T) {
 			violations := domain.LocalPasswordViolations(policy, text.Composing{}, entry.Password,
 				domain.PasswordContext{
 					Email:         entry.Context.Email,
+					SignInName:    entry.Context.SignInName,
 					DisplayName:   entry.Context.DisplayName,
 					WorkspaceName: entry.Context.WorkspaceName,
 					WorkspaceHost: entry.Context.WorkspaceHost,

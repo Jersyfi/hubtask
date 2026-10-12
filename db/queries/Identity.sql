@@ -166,7 +166,7 @@ WHERE m.scope_type = 'ITEM'
 -- rather than forbidden (ADR-0010, multi-tenancy.md §2).
 
 -- name: FindAccount :one
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
@@ -174,7 +174,7 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- name: FindAccountByEmail :one
 -- Compared lower case, the way the uniqueness index does - two spellings of one address are two
 -- accounts for one person otherwise (account_email_uq).
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower(sqlc.arg('email')) AND deleted_at IS NULL;
@@ -190,6 +190,32 @@ UPDATE account SET
   updated_at            = sqlc.arg('now')
 WHERE id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL
   AND (redemption_expires_at IS NULL OR redemption_expires_at > sqlc.arg('now'));
+
+-- name: FindAccountBySignInName :one
+-- Compared folded, the form it is stored in (account_sign_in_name_uq); the caller folds it.
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+  celebrations, onboarding_completed_at
+FROM account
+WHERE sign_in_name = sqlc.arg('sign_in_name') AND deleted_at IS NULL;
+
+-- name: InsertManagedAccount :exec
+-- A managed account (ADR-0074): a sign-in name instead of an address, active at once, holding the
+-- start password Hubtask drew - its hash, the moment it was set, and the mark that it is a start
+-- password (start_password_at), which the first sign-in's change step clears.
+INSERT INTO account (id, tenant_id, kind, sign_in_name, display_name, status, password_hash,
+  password_set_at, start_password_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), 'USER', sqlc.arg('sign_in_name'), sqlc.arg('display_name'),
+  'ACTIVE', sqlc.arg('password_hash'), sqlc.arg('now'), sqlc.arg('now')
+);
+
+-- name: HasManagedAccounts :one
+-- Whether the sign-in card asks for "address or sign-in name": a managed account that can still
+-- sign in. An anonymised one has lost its name already; a disabled one may be enabled again.
+SELECT EXISTS (
+  SELECT 1 FROM account
+  WHERE sign_in_name IS NOT NULL AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+)::boolean AS present;
 
 -- name: InsertAccount :exec
 INSERT INTO account (id, tenant_id, kind, email, display_name, status, locale, time_zone, week_start)
@@ -331,7 +357,7 @@ WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
 --
 -- Bounded by the kind rather than by a page: an installation has a handful of integrations, and a
 -- cursor over a handful is machinery nobody reads.
-SELECT id, kind, email, display_name, status, locale, time_zone, week_start,
+SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE kind = sqlc.arg('kind') AND deleted_at IS NULL
