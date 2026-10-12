@@ -1354,6 +1354,9 @@ func run() error {
 			Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.ResetPassword{Writer: passwordWriter}.Descriptor(),
+		identity.ConfirmAddress{
+			Requests: addressRequests, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.SetPasswordAndSignIn{Writer: passwordWriter}.Descriptor(),
 		identity.RegenerateRecoveryCodes{Writer: sessionWriter}.Descriptor(),
 		identity.ElevateSession{

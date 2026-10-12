@@ -1252,4 +1252,5 @@ func (pending) RequestAddress(w http.ResponseWriter, r *http.Request, _ openapi.
 	notAvailable(w, r)
 }
 
+// ConfirmAddress is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ConfirmAddress(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

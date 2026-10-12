@@ -211,3 +211,126 @@ func TestAnAddressRequestStaysInItsWorkspace(t *testing.T) {
 		t.Error("their request was spent from another workspace")
 	}
 }
+
+// mailedTo asks for an address for the account and answers the token its mail carries.
+func mailedTo(ctx context.Context, t *testing.T, tenant, account shared.ID, address string) string {
+	t.Helper()
+	if _, err := addressRequester(ctx, t).Execute(ctx, administratorOf(tenant), account, address); err != nil {
+		t.Fatalf("asking: %v", err)
+	}
+	var requestID string
+	if err := adminPool(ctx, t).QueryRow(ctx, `
+		SELECT id::text FROM auth_pending
+		WHERE account_id = $1 AND purpose = 'ADDRESS' AND consumed_at IS NULL`, account.String(),
+	).Scan(&requestID); err != nil {
+		t.Fatalf("reading the request: %v", err)
+	}
+	link, err := addressLinkMinter(ctx, t).MintAddressLink(ctx, tenant, shared.MustParseID(requestID))
+	if err != nil {
+		t.Fatalf("minting: %v", err)
+	}
+	return link.Token.Reveal()
+}
+
+func addressConfirmer(ctx context.Context, t *testing.T) identityservice.ConfirmAddress {
+	t.Helper()
+	return identityservice.ConfirmAddress{
+		Requests: addressStoreOf(), Audit: postgres.NewAuditSink(generator{t}),
+		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)), Clock: clockadapter.System{},
+	}
+}
+
+// UC-ID-20 check 7 at the store: once confirmed, the account signs in by its address and still by
+// its name, and the action of check 5 is gone for it.
+func TestAConfirmedAddressMakesAnOrdinaryAccountThatKeepsItsName(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	seedContainerTenants(ctx, t)
+	name := freshSignInName(t)
+	lena := managedIn(t, tenantA, name)
+	address := name + "@example.org"
+
+	token := mailedTo(ctx, t, tenantA, lena.ID, address)
+	if err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: token}); err != nil {
+		t.Fatalf("confirming: %v", err)
+	}
+
+	_, _, signIn, uow := sessionStores(ctx, t)
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		for _, identifier := range []string{address, name} {
+			found, err := signIn.FindForSignIn(ctx, identifier)
+			if err != nil || found.Account.ID != lena.ID {
+				t.Errorf("signing in as %q found %+v, %v", identifier, found.Account, err)
+			}
+		}
+		return nil
+	})
+	var entries int
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT count(*) FROM audit_log
+		WHERE target_id = $1 AND action = 'account.address_confirmed'`, lena.ID.String()).Scan(&entries); err != nil {
+		t.Fatalf("reading the trail: %v", err)
+	}
+	if entries != 1 {
+		t.Errorf("%d trail entries for the confirmation", entries)
+	}
+
+	_, err := renewal(ctx, t).Execute(ctx, administratorOf(tenantA), lena.ID, "proof")
+	if shared.AsError(err) == nil || shared.AsError(err).DetailCode != "accounts.not_managed" {
+		t.Errorf("a new start password after the upgrade answered %v", err)
+	}
+	if err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: token}); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "auth.address_link_invalid" {
+		t.Errorf("the link used twice answered %v", err)
+	}
+}
+
+// Two managed accounts confirming one address: the unique index lets one win, and the other link
+// stays unspent for once the address is free.
+func TestOneAddressIsConfirmedForOneAccountOnly(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	first, second := managedIn(t, tenantA, freshSignInName(t)), managedIn(t, tenantA, freshSignInName(t))
+	address := freshSignInName(t) + "@Example.org"
+
+	firstToken := mailedTo(ctx, t, tenantA, first.ID, address)
+	secondToken := mailedTo(ctx, t, tenantA, second.ID, strings.ToLower(address))
+	if err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: firstToken}); err != nil {
+		t.Fatalf("the first confirmation: %v", err)
+	}
+	err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: secondToken})
+	if shared.AsError(err) == nil || shared.AsError(err).DetailCode != "accounts.address_taken" {
+		t.Fatalf("the second confirmation answered %v", err)
+	}
+	var open int
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT count(*) FROM auth_pending
+		WHERE account_id = $1 AND consumed_at IS NULL`, second.ID.String()).Scan(&open); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	if open != 1 {
+		t.Errorf("the refused link was spent (%d open)", open)
+	}
+}
+
+// A renewal and a confirmation at once: whichever lands first decides, in the writing statements.
+func TestAConfirmedAddressWinsOverALaterRenewal(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	lena := managedIn(t, tenantA, freshSignInName(t))
+	token := mailedTo(ctx, t, tenantA, lena.ID, freshSignInName(t)+"@example.org")
+
+	// The renewal has read the account as managed; the confirmation lands before its write.
+	if err := addressConfirmer(ctx, t).Execute(ctx, identityservice.ConfirmAddressCommand{Token: token}); err != nil {
+		t.Fatalf("confirming: %v", err)
+	}
+	var renewed bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		renewed, err = postgres.NewAccountRepository().IssueStartPassword(ctx, lena.ID, "hash:x", time.Now())
+		return err
+	}); err != nil {
+		t.Fatalf("renewing: %v", err)
+	}
+	if renewed {
+		t.Error("the renewal overwrote an account that just took its address")
+	}
+}
