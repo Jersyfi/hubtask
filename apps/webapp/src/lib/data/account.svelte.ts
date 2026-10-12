@@ -74,6 +74,17 @@ class Actor {
     return this.account?.has_password !== false;
   }
 
+  /**
+   * Whether this account holds no role anywhere in the workspace - somebody an administrator still
+   * has to give access to, such as a person a sign-in provider brought in with nothing (UC-ID-08
+   * check 2). `true` only where the server said so: an older server answers nothing, and no notice
+   * is better than a wrong one. It is also the server's condition for a private hub of one's own,
+   * so where it is true no hub can be created (UC-ID-16 check 1 holds wherever it is false).
+   */
+  get hasNoAccess(): boolean {
+    return this.account?.has_access === false;
+  }
+
   get hasSecondFactor(): boolean | undefined {
     return this.account?.has_second_factor;
   }

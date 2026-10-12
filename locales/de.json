@@ -701,6 +701,8 @@
   "app.ai.keep": "Behalten",
   "app.workspace.title": "Arbeitsbereich",
   "app.workspace.no_hubs": "Noch keine Hubs. Ein Hub hält die Sammlungen, in denen du arbeitest.",
+  "app.workspace.no_access": "Eine Administratorin oder ein Administrator dieses Arbeitsbereichs muss dir noch Zugang geben.",
+  "app.workspace.no_access_detail": "Du bist angemeldet, aber hier ist noch nichts für dich sichtbar. Sobald du eine Rolle bekommen hast oder einer Gruppe hinzugefügt wurdest, erscheint es hier.",
   "app.nav.overview": "Überblick",
   "app.overview.mine": "Was bei dir liegt",
   "app.overview.overdue": "Überfällig ({count})",

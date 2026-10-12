@@ -1977,6 +1977,8 @@
   "app.ai.keep": "Keep it",
   "app.workspace.title": "Workspace",
   "app.workspace.no_hubs": "No hubs yet. A hub holds the collections you work in.",
+  "app.workspace.no_access": "An administrator of this workspace still has to give you access.",
+  "app.workspace.no_access_detail": "You are signed in, and nothing here is yours to see yet. Once you have been given a role or added to a group, it appears here.",
   "app.nav.overview": "Overview",
   "app.overview.mine": "What is on you",
   "app.overview.overdue": "Overdue ({count})",
