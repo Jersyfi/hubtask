@@ -966,3 +966,47 @@ test('where the password is on, the card keeps Forgot your password and no sign-
     await close();
   }
 });
+
+// UC-ID-09 check 4: a provider's mark is its owner's, in the neutral button every guideline allows -
+// drawn from the bundle, never fetched, never recoloured (ADR-0069). The colours are the owners'
+// published values; a kind with no mark draws the tile with the name's first character.
+test('a provider mark is drawn inline in its owner\'s colours, and nothing is fetched for it', async () => {
+  const { origin, close } = await serve(DIST);
+  const rules = {
+    ...RULES,
+    providers: [{ id: 'p-google', display_name: 'Contoso Google', kind: 'GOOGLE', scope: 'installation' }, ...RULES.providers],
+  };
+  const stub = stubFor({ answer: refused });
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const requests = [];
+  context.on('request', (request) => requests.push(request.url()));
+  await context.route('**/api/v1/**', (route) =>
+    new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')
+      ? route.fulfill({ json: rules })
+      : stub(route));
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.waitForSelector('text=to contoso.hubtask.eu');
+    const fills = (name, shape) => page.getByRole('button', { name }).locator(`svg ${shape}`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill')));
+
+    assert.deepEqual(await fills(/Contoso Google/, 'path'), ['#4285F4', '#34A853', '#FBBC05', '#EA4335']);
+    assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#F25022', '#7FBA00', '#00A4EF', '#FFB900']);
+    const lab = page.getByRole('button', { name: /Contoso Lab/ });
+    assert.equal(await lab.locator('svg').count(), 0, 'a provider without a preset drew a brand');
+    assert.equal(await lab.locator('.tile').textContent(), 'C');
+
+    for (const name of [/Contoso Google/, /Contoso Entra ID/, /Contoso Lab/]) {
+      const button = page.getByRole('button', { name });
+      assert.equal(await button.getAttribute('data-tone'), 'secondary', `${name} is not the neutral button`);
+      assert.equal(await button.locator('[href], [src], image, use').count(), 0, `${name} draws a mark by reference`);
+    }
+    const foreign = requests.filter((url) => new URL(url).origin !== new URL(origin).origin);
+    assert.deepEqual(foreign, [], 'the card reached another origin');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
