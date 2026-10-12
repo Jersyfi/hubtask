@@ -33,6 +33,10 @@ var PublicRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":           true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/invitations:redeem": true,
+	// The first start's setup is public because nobody exists yet who could hold a credential: the
+	// one-time code the server printed at start is the whole of what authenticates the call
+	// (UC-INS-01), and the auth bucket stands in front of it against guessing (T-24).
+	http.MethodPost + " " + APIBasePath + "/auth/installation:set-up": true,
 	// The rules a sign-in screen draws are public because the screen that draws them is: a
 	// signed-out visitor is exactly the caller this answer is for (ADR-0068 §7). It says nothing a
 	// guesser can use, and a host no workspace answers at gets the installation's own level rather

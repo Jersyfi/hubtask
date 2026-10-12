@@ -22,6 +22,7 @@ import { accounts } from './accounts.svelte.ts';
 import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
+import { handedOverLink } from '../people/invitation.ts';
 import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
@@ -129,21 +130,47 @@ class People {
    * A grant that fails after a successful invitation leaves an invited account with no role. That
    * is recoverable by granting from the same screen once the person appears, and it is better than
    * the alternative: an account created twice because the client retried the pair.
+   *
+   * **Where no mail goes out the answer carries the link, once**, and it is answered to the caller
+   * whatever the grant does: a link swallowed by the grant's failure would be an invitation nobody
+   * holds. The grant's failure travels beside it.
    */
   async invite(
     email: string,
     displayName: string | undefined,
     role: MembershipRole,
     scope: Scope,
-  ): Promise<void> {
+  ): Promise<{ readonly link?: string; readonly grantFailure?: unknown }> {
     const intent = crypto.randomUUID();
-    const account = await engine.mutate<{ id: string }>(
+    const answer = await engine.mutate<{ id: string; invitation_link?: string | null } | undefined>(
       'POST',
       '/accounts:invite',
       { email, ...(displayName ? { display_name: displayName } : {}) },
       { idempotencyKey: intent, invalidates: TOUCHES },
     );
-    await this.grant({ accountId: account.id }, role, scope);
+    const link = handedOverLink(answer);
+    try {
+      if (!answer?.id) throw new Error('the invitation answered no account');
+      await this.grant({ accountId: answer.id }, role, scope);
+    } catch (grantFailure) {
+      if (link === undefined) throw grantFailure;
+      return { link, grantFailure };
+    }
+    return link === undefined ? {} : { link };
+  }
+
+  /**
+   * Renews an invitation not yet accepted: the mail again, or a new link answered once - the earlier
+   * one stops working. Answers the link where there is one.
+   */
+  async renewInvitation(accountId: string): Promise<string | undefined> {
+    const answer = await engine.mutate<{ invitation_link?: string | null } | undefined>(
+      'POST',
+      `/accounts/${accountId}:renew-invitation`,
+      undefined,
+      { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES },
+    );
+    return handedOverLink(answer);
   }
 
   /**

@@ -44,10 +44,16 @@ search is available), a one-shot migration service, and the application. The dat
 published; the application runs `read_only` with `no-new-privileges`, has volumes for media and
 backups, and starts only after the migration ended with `service_completed_successfully`.
 
-**The first workspace and its owner** are created with `scripts/dev-workspace.sh --bootstrap`. The
-browser setup with a one-time code printed at first start is
-[UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md) — specified, not built.
-Installation settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
+**The first workspace and its owner** are created in the browser
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)): at its first start the
+installation prints a one-time setup code (`docker compose logs app`), and the *Set up Hubtask* card
+at the installation's address takes it, the workspace's name and the owner's address and password -
+no database shell. The code lasts thirty minutes; `docker compose restart app` prints a new one while
+nothing is set up. Operators can also be named in the environment (`HUBTASK_OPERATORS`), and an
+installation nobody can run any more gets one back on the machine:
+`docker compose exec app hubtask operator add --workspace <short name> --email <address>`
+([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Installation
+settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
 
 The application connects as `hubtask_app` — created by the migration without `SUPERUSER` or
 `BYPASSRLS` — never as the database owner, so row level security is the last boundary in
@@ -241,7 +247,7 @@ The variables whose default or behaviour a rule depends on:
 | Variable | Default | Rule |
 |---|---|---|
 | `HUBTASK_ROLES`, `HUBTASK_TENANCY_MODE` | all four roles, `single` | §2; `multi` is provider operation ([multi-tenancy.md](./multi-tenancy.md)) |
-| `HUBTASK_INSTANCE_FILE`, `_MODE` | — / `seed` | A file of installation settings ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)). `seed` writes it once, at first start; `enforce` writes it at every start, and the routes that would change those settings refuse. One source per mode, never two |
+| `HUBTASK_INSTANCE_FILE`, `_MODE` | — / `seed` | A file of installation settings ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)). `seed` writes it once, at first start; `enforce` writes it at every start, and the routes that would change those settings refuse. One source per mode, never two. Its `ai_models` list offers AI models to every workspace ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)), each key named by an environment variable (`api_key_env`) and never written in the file; `seed` offers them where none is offered, `enforce` makes the file the list |
 | `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in mails and feeds are wrong (warning) |
 | `HUBTASK_UI_ENABLED` | `true` | `false` answers `/` with 404 and leaves the API untouched; the `web_ui` feature in `/meta/capabilities` ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
 | `HUBTASK_METRICS_TENANT_LABEL`, `HUBTASK_TRACING_*` | `false`; tracing off, ratio `0.05` | [observability-reliability.md](./observability-reliability.md) §3.2, §3.3; an endpoint is required when tracing is on |

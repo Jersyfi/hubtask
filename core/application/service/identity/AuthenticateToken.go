@@ -134,6 +134,7 @@ func (a AuthenticateToken) Execute(
 			}
 		}
 
+		scopes, withheld := a.boundedScopes(ctx, credential.Account.ID, credential.Token.Scopes)
 		actor = appshared.ActorContext{
 			Kind:               actorKind(credential.Account.Kind),
 			TenantID:           credential.Token.TenantID,
@@ -142,7 +143,8 @@ func (a AuthenticateToken) Execute(
 			AccountID:          credential.Account.ID,
 			AccountName:        credential.Account.DisplayName,
 			TokenID:            credential.Token.ID,
-			Scopes:             a.boundedScopes(ctx, credential.Account.ID, credential.Token.Scopes),
+			Scopes:             scopes,
+			Withheld:           withheld,
 			Locale: firstNonEmpty(
 				credential.Account.Locale, cmd.RequestedLocale,
 				credential.TenantLocale, cmd.FallbackLocale),
@@ -290,20 +292,26 @@ func (a AuthenticateToken) elevatedScopes(
 }
 
 // boundedScopes is the register's second check (ADR-0070 §1): the control plane's scope is dropped
-// from a credential whose holder the register does not name.
+// from a credential whose holder the register does not name, and from every credential while the
+// register cannot be read.
 //
 // Dropped rather than refused, because a scope is a bound and not a grant (ADR-0005): the token goes
-// on doing everything else it names, and the admin routes refuse it with the ordinary scope refusal
-// - which is the same answer they would give a token that never asked for it.
+// on doing everything else it names. What was dropped travels with the actor, so that the route
+// which needed it says the register is the reason (UC-INS-03 check 5) rather than answering as if
+// the token had never asked for the scope.
+//
+// Closed on a failed read: the control plane's scope is the widest there is, and leaving it in
+// place on a guess would let a token outlive its holder's removal for as long as the register is
+// unreadable. The mint's own check does not cover a token minted before the removal.
 //
 // Checked here and again where the scope is *minted*, because either alone is a hole: minting alone
 // would leave a token that outlived its holder's removal from the register, and exercising alone
 // would leave the mint unbounded.
 func (a AuthenticateToken) boundedScopes(
 	ctx context.Context, accountID shared.ID, scopes []string,
-) []string {
+) ([]string, appshared.WithheldScopes) {
 	if a.Operators == nil {
-		return scopes
+		return scopes, appshared.WithheldScopes{}
 	}
 	carriesAdmin := false
 	for _, scope := range scopes {
@@ -313,24 +321,29 @@ func (a AuthenticateToken) boundedScopes(
 		}
 	}
 	if !carriesAdmin {
-		return scopes
+		return scopes, appshared.WithheldScopes{}
 	}
 
 	// In the credential read's own transaction, elevatedScopes' reasoning.
 	held, err := a.Operators.Holds(ctx, accountID)
-	if err != nil || held {
-		// A register that cannot be read leaves the bound where it was rather than widening or
-		// narrowing it on a guess. The mint's own check is what keeps that honest.
-		return scopes
+	if err == nil && held {
+		return scopes, appshared.WithheldScopes{}
+	}
+	withheld := appshared.WithheldScopes{Unreadable: err != nil}
+	if err != nil {
+		slog.WarnContext(ctx, "the operator register could not be read; the control plane's scope is withheld",
+			slog.String("error", err.Error()))
 	}
 
 	kept := make([]string, 0, len(scopes))
 	for _, scope := range scopes {
-		if !adminScopes[scope] {
-			kept = append(kept, scope)
+		if adminScopes[scope] {
+			withheld.Scopes = append(withheld.Scopes, scope)
+			continue
 		}
+		kept = append(kept, scope)
 	}
-	return kept
+	return kept, withheld
 }
 
 // actorKind maps the account kind to the actor kind of the audit trail. An unknown kind becomes a

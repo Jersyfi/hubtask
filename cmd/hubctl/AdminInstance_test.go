@@ -25,6 +25,7 @@ const wholeLevel = `{
   "legal": {"imprint": {"set": false, "locked": false}},
   "localisation": {"locale": {"set": true, "value": "de", "locked": false}},
   "quotas": {"export_jobs": {"set": true, "value": 9, "locked": true}},
+  "ai": {"sources": {"set": true, "value": "EITHER", "locked": false}, "min_jurisdiction": {"set": false, "locked": false}},
   "source": "database",
   "is_enforced_from_file": false
 }`
@@ -44,6 +45,7 @@ func TestTheSettingsTableShowsTheWholeLevelDecidedOrNot(t *testing.T) {
 	for _, expected := range []string{
 		"sign_in.min_length", "sign_in.min_digits",
 		"legal.imprint", "localisation.locale", "quotas.export_jobs",
+		"ai.sources", "ai.min_jurisdiction",
 	} {
 		if !strings.Contains(out, expected) {
 			t.Errorf("%s is missing from the table: %q", expected, out)
@@ -93,8 +95,8 @@ func TestSettingOneKeySendsTheRestBack(t *testing.T) {
 	if kept["value"] != float64(16) || kept["locked"] != true {
 		t.Errorf("an untouched switch changed: %v", kept)
 	}
-	// And so do the other three areas.
-	for _, area := range []string{"legal", "localisation", "quotas"} {
+	// And so do the other areas.
+	for _, area := range []string{"legal", "localisation", "quotas", "ai"} {
 		if _, held := sent[area]; !held {
 			t.Errorf("%s was dropped by a change to sign_in", area)
 		}
@@ -251,5 +253,26 @@ func TestAddingAProviderCarriesTheDirectoriesItWasGiven(t *testing.T) {
 	}
 	if _, held := sent["allowed_email_domains"]; held {
 		t.Error("a domain list nobody gave was sent")
+	}
+}
+
+// The AI area is set like any other: `admin settings set --locked ai.sources OFFERED` is how a
+// provider holds its workspaces to the model it offers.
+func TestTheAiAreaIsSetFromTheTerminal(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, wholeLevel)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "--locked", "ai.sources", "OFFERED")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	ai, _ := sent["ai"].(map[string]any)
+	sources, _ := ai["sources"].(map[string]any)
+	if sources["value"] != "OFFERED" || sources["locked"] != true {
+		t.Errorf("ai.sources was sent as %v", sources)
 	}
 }

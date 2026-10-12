@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
@@ -78,6 +79,8 @@ type RequestTenantDeletion struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Tenancy refuses the request in single mode (requireMulti).
+	Tenancy env.TenancyMode
 }
 
 // Execute schedules the deletion.
@@ -85,6 +88,10 @@ func (h RequestTenantDeletion) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd RequestTenantDeletionCommand,
 ) (DeletionScheduled, error) {
 	if err := actor.RequireScope(adminTenantsScope); err != nil {
+		return DeletionScheduled{}, err
+	}
+	// Before the typed name and the proof, so that the refusal burns neither.
+	if err := requireMulti(h.Tenancy); err != nil {
 		return DeletionScheduled{}, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -249,7 +256,8 @@ func (h RequestTenantDeletion) Descriptor() usecase.Descriptor {
 		Name: RequestTenantDeletionName,
 		Summary: "Schedules a workspace's hard deletion: access blocked immediately, automations " +
 			"disabled, the configured backups written one last time, and the hard delete after " +
-			"the 30-day grace. Demands a step-up and the workspace's display name, typed exactly.",
+			"the 30-day grace. Demands a step-up and the workspace's display name, typed exactly. " +
+			"Refused in single mode, where the one workspace is the installation.",
 		SideEffects: "Moves the tenant to PENDING_DELETION, disables its automation rules, " +
 			"seeds the grace job and the final backup wake, and records the act in the tenant's " +
 			"trail and the instance journal.",

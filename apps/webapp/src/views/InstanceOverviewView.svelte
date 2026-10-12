@@ -130,6 +130,11 @@
             <dd>{census.accounts_total}</dd>
           </div>
         </dl>
+        {#if census.workspaces_service_only > 0}
+          <!-- Not a customer, so not in the counts above; said here so the counts still add up with
+               the list of workspaces (UC-INS-12 check 5). -->
+          <p class="quiet">{t('app.instance.workspaces_service_only', { count: census.workspaces_service_only })}</p>
+        {/if}
 
         <!-- The digest the concept's §5.5 draws: each area with what it currently says, and the
              way to it. Not an index of the column beside it — the values are the point, and

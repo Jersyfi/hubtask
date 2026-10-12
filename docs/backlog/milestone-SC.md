@@ -58,6 +58,14 @@ What deliberately is **not** in this milestone:
     safe only in the first release after the one that contains SC-26, and no release has been cut
     since SC-26 merged; SC-30 carries no unmet check. Its task text stays on issue #1134 without a
     milestone, for the cut after that release.
+12. **"Public" names a provider's personal accounts** (the owner, 2026-10-12, #1284): Google may be
+    *Only people invited here* or *Anyone from these organisations* (Workspace domains from a
+    verified `hd`), never *Anyone this provider knows*; a personal account is admitted only by
+    invitation — UC-ID-09 check 1, UC-ID-11 check 2, ADR-0071 §2. Built by SC-02.
+13. **The Google and Microsoft marks are reproduced from their published files** (the owner,
+    2026-10-12, #1292): each file downloaded once from its owner's branding guidelines, its paths
+    copied unchanged, the file itself not committed; THIRD-PARTY-LICENSES names the file and the
+    guideline — ADR-0069 §2, UC-ID-09 check 4. Built by SC-14.
 
 ---
 
@@ -131,7 +139,9 @@ locked installation. The health report names an empty register on an installatio
 workspaces. A token whose administrative scope the register removes is refused with a sentence
 naming the register; the bounded-scope check fails closed on a read error. `dev-workspace.sh
 --bootstrap` and the smoke tests use the setup instead of SQL; the pseudo-workspace `operator` is
-no longer needed. Migration 0108's and ADR-0070's "hubctl against the database" sentence corrected.
+no longer needed. The way back is stated in identity.md §19; migration 0108's "hubctl against the
+database" sentence stays, because a merged migration never changes, and ADR-0070 already records
+that it does not hold (corrected 2026-10-12, SC-04).
 
 **Acceptance:** `compose-smoke.sh` reaches a signed-in owner without SQL; a test for each of the
 three doors; the integration environment's recovery documented with the new command.
@@ -195,7 +205,7 @@ the file refuse the same values; the health hint on a multi-tenant installation 
 
 ---
 
-## SC-08 — The workspace lifecycle keeps its promises
+## SC-08 — The workspace lifecycle keeps its promises · built
 
 *Depends on: nothing.*
 
@@ -266,7 +276,7 @@ provider and an installation AI model present.
 
 ---
 
-## SC-13 — Invitations that reach people without mail
+## SC-13 — Invitations that reach people without mail · built
 
 *Depends on: nothing.*
 
@@ -635,7 +645,7 @@ notices; it overrides the workspace's switch and a lock; it can be closed early.
 
 ---
 
-## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere · built
 
 *Depends on: SC-31.* · issue #1194 · Decision 10
 

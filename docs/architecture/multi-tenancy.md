@@ -9,8 +9,8 @@ serves thousands of workspaces. Decision: [ADR-0010](../adr/ADR-0010-multi-tenan
 
 | Mode | `HUBTASK_TENANCY_MODE` | Behaviour |
 |---|---|---|
-| Single | `single` (default) | Exactly one tenant, created by `scripts/dev-workspace.sh --bootstrap` or the admin API. A first-start setup in the web app ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)) is planned and not built. No tenant selection in the API; registration optionally open |
-| Multi | `multi` | Tenants are provisioned through the control plane (§4.1); resolved as §3 says; self-service signup optional |
+| Single | `single` (default) | Exactly one tenant, created by the first start's setup ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)): a one-time code printed on the console, spent in the web app's *Set up Hubtask* card. No tenant selection in the API; registration optionally open |
+| Multi | `multi` | The first tenant is created by the same setup, with its short name; every further one is provisioned through the control plane (§4.1); resolved as §3 says; self-service signup optional |
 
 The code **always** knows about a tenant; single mode is one row in `tenant`. There is no second
 code path and no special case in a repository.
@@ -208,7 +208,15 @@ Automation uses a personal access token minted for the purpose.
 
 **Who an operator is.** A register (`operator`), checked when `admin:tenants` is minted and when it
 is exercised. An empty register counts only for an active `OWNER` on an installation with exactly
-one workspace ([identity.md](./identity.md) §19). A service account may be an operator.
+one workspace ([identity.md](./identity.md) §19). A service account may be an operator. Three ways
+put somebody in besides the control plane itself: the first start's setup (its owner), the
+environment (`HUBTASK_OPERATORS`), and the machine (`hubtask operator add`) when nobody is left
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md),
+[UC-INS-02](../usecases/admin/UC-INS-02-bring-an-installation-up-from-a-file.md),
+[UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)).
+
+**What the census counts.** A workspace that holds no person - only service accounts - is not a
+customer: the overview's workspace counts leave it out and name how many there are.
 
 **What an instance setting is.** A row in `instance_setting` with a value **and a lock**. Open, a
 workspace may tighten it; closed, it applies and the workspace's control is shown switched off with
@@ -216,7 +224,9 @@ the reason and who set it — never hidden. The effective value is resolved on r
 `product minimum → instance → plan → workspace`, so a change applies at once.
 
 **How it is reached.** One API with three doors: a file (`seed` or `enforce`), `hubctl admin`, and
-the web app's `/instance` area.
+the web app's `/instance` area. The areas are the sign-in rule, the legal links, localisation
+defaults, quota ceilings and `ai` — which AI sources a workspace may use and the least its own model
+must declare ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)).
 
 **What it never shows** is a workspace's contents: counts, states and limits (`instance_census()`),
 never rows — the boundary is a database policy, not a role.
@@ -233,6 +243,8 @@ stateDiagram-v2
   Suspended --> Active: reactivation
   Active --> PendingDeletion: deletion request
   Suspended --> PendingDeletion: deletion request
+  PendingDeletion --> Active: cancel (requested while active)
+  PendingDeletion --> Suspended: cancel (requested while suspended, or not known)
   PendingDeletion --> [*]: hard delete after the grace period (30 days)
 ```
 
@@ -242,9 +254,13 @@ stateDiagram-v2
 | Active | Normal operation; metering only if enabled |
 | Suspended | The API answers `403 access.tenant_suspended`; data remains; the export still works |
 | PendingDeletion | Access blocked (`403 access.tenant_pending_deletion`), automations disabled, the export still works. A deletion request is refused while a legal hold in the workspace is in force, and a workspace already here stays here until the last hold is lifted ([data-protection.md](./data-protection.md) §5); its grace job comes back daily and removes nothing while one stands, and no hold can be placed here |
+| Cancel | The operator calls a pending deletion off until the hard delete begins - also past the deadline while a legal hold keeps the workspace pending, whose holds stay. The workspace returns to the status the request found it in (kept in `status_before_deletion`; `SUSPENDED` where it was not kept), the deadline is cleared, and the automation rules the request switched off (`paused_for_deletion`) come back on, a schedule from now without the occurrences it missed. No step-up and no typed name: it removes nothing. The grace job marks the row (`purge_started_at`) before its first byte goes, and a cancel is refused `admin.tenant_deletion_underway` from then on; both write the same row, so one waits for the other |
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
-Deleting a tenant demands a step-up and the typed tenant name. The hard delete removes the workspace
+Deleting a tenant demands a step-up and the typed tenant name. In single mode the one workspace is
+the installation and holds every operator: suspending it and requesting its deletion are refused
+(`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
+and cancelling stay open in every mode. The hard delete removes the workspace
 from the primary system at once and from the operator's system backups **35 days** later
 ([data-protection.md](./data-protection.md) §5).
 

@@ -2,7 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
 
-**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §2 (models the installation offers — decided, not yet built)
+**Rule lives in:** [ai-first.md](../architecture/ai-first.md) §2 (models the installation offers)
 
 ## Context
 

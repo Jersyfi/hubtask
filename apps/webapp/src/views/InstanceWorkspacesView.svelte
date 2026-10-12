@@ -21,6 +21,11 @@
   // **Opening the password for one workspace** (ADR-0078 §3) is the lever for a provider that is
   // switched on but broken: a day unless said otherwise, a week at most, with who asked and why. The
   // row says while one stands, and closes it with one press.
+  //
+  // **The operator's own workspace is marked**, because suspending or deleting it ends the
+  // operator's own session at once; both dialogs say so there. **In single mode** the one workspace
+  // is the installation: no *New workspace*, *Suspend* or *Delete*, which the server refuses there.
+  // *Cancel deletion* stands on a row pending deletion until the removal has begun.
 
   import { untrack } from 'svelte';
 
@@ -29,7 +34,9 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -48,7 +55,8 @@
 
   /** Which act is open, and on which workspace. One at a time: two dialogs would be two answers. */
   let acting = $state<
-    { kind: 'new' | 'delete' | 'export' | 'quotas' | 'open-password'; tenant?: AdminTenant } | undefined
+    | { kind: 'new' | 'suspend' | 'delete' | 'export' | 'quotas' | 'open-password'; tenant?: AdminTenant }
+    | undefined
   >(undefined);
   let working = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -84,6 +92,13 @@
     return String(entry.value);
   }
 
+  // The operator's own workspace, to mark its row: the one whose suspension or deletion ends the
+  // session this screen runs in.
+  $effect(() => untrack(() => own.open()));
+  const ownId = $derived(own.workspace?.id);
+  const isOwn = $derived(acting?.tenant !== undefined && acting.tenant.id === ownId);
+  const isMulti = $derived(manifest.isMultiTenant);
+
   const reading = $derived(instance.workspacesState);
   const workspaces = $derived(instance.workspaces);
   const unreadable = $derived(
@@ -109,7 +124,10 @@
     'ai_tokens_per_day',
   ] as const;
 
-  function open(kind: 'new' | 'delete' | 'export' | 'quotas' | 'open-password', tenant?: AdminTenant): void {
+  function open(
+    kind: 'new' | 'suspend' | 'delete' | 'export' | 'quotas' | 'open-password',
+    tenant?: AdminTenant,
+  ): void {
     acting = { kind, tenant };
     failure = undefined;
     confirmation = '';
@@ -207,9 +225,11 @@
           {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
         </Banner>
       {:else}
-        <div>
-          <Button tone="primary" onclick={() => open('new')}>{t('app.instance.workspace_new')}</Button>
-        </div>
+        {#if isMulti}
+          <div>
+            <Button tone="primary" onclick={() => open('new')}>{t('app.instance.workspace_new')}</Button>
+          </div>
+        {/if}
 
         {#if workspaces.length === 0}
           <Banner tone="info">{t('app.instance.workspaces_none')}</Banner>
@@ -220,6 +240,9 @@
                 <td>
                   <span class="name">{workspace.display_name}</span>
                   <span class="slug">{workspace.slug}</span>
+                  {#if workspace.id === ownId}
+                    <span class="mark"><Badge tone="neutral">{t('app.instance.own_workspace')}</Badge></span>
+                  {/if}
                 </td>
                 <td>
                   <Badge
@@ -243,9 +266,14 @@
                       })}
                     </span>
                   {/if}
-                  {#if workspace.purge_after}
+                  {#if workspace.purge_started_at}
+                    <!-- The removal has begun: from here on the deletion cannot be called off. -->
+                    <span class="slug">
+                      {t('app.instance.purge_started', { at: formatDateTime(workspace.purge_started_at, messages.locale) })}
+                    </span>
+                  {:else if workspace.purge_after}
                     <!-- The grace, where one stands: the number an operator needs before deciding
-                         whether there is still time to resume. -->
+                         whether there is still time to call the deletion off. -->
                     <span class="slug">
                       {t('app.instance.purge_after', { at: formatDateTime(workspace.purge_after, messages.locale) })}
                     </span>
@@ -265,14 +293,26 @@
                 <td>
                   <div class="row">
                     {#if workspace.status === 'ACTIVE'}
-                      <Button
-                        tone="subtle"
-                        isBusy={working === workspace.id}
-                        busyLabel={t('app.instance.working')}
-                        onclick={() => void run(workspace.id, () => instance.shift(workspace.id, 'suspend'))}
-                      >
-                        {t('app.instance.suspend')}
-                      </Button>
+                      {#if isMulti}
+                        <Button tone="subtle" onclick={() => open('suspend', workspace)}>
+                          {t('app.instance.suspend')}
+                        </Button>
+                      {/if}
+                    {:else if workspace.status === 'PENDING_DELETION'}
+                      {#if !workspace.purge_started_at}
+                        <!-- The way back, also past the deadline while a legal hold keeps the
+                             workspace pending; absent once the removal has begun, which the server
+                             would refuse. -->
+                        <Button
+                          tone="subtle"
+                          isBusy={working === workspace.id}
+                          busyLabel={t('app.instance.working')}
+                          onclick={() =>
+                            void run(workspace.id, () => instance.shift(workspace.id, 'cancel-deletion'))}
+                        >
+                          {t('app.instance.cancel_deletion')}
+                        </Button>
+                      {/if}
                     {:else if workspace.status === 'SUSPENDED'}
                       <Button
                         tone="subtle"
@@ -305,7 +345,7 @@
                         {t('app.instance.password_open_action')}
                       </Button>
                     {/if}
-                    {#if workspace.status !== 'PENDING_DELETION' && !workspace.legal_hold}
+                    {#if isMulti && workspace.status !== 'PENDING_DELETION' && !workspace.legal_hold}
                       <Button tone="subtle" onclick={() => open('delete', workspace)}>
                         {t('app.instance.delete')}
                       </Button>
@@ -365,6 +405,32 @@
 </Dialog>
 
 <Dialog
+  title={t('app.instance.suspend_title', { name: acting?.tenant?.display_name ?? '' })}
+  isOpen={acting?.kind === 'suspend'}
+  dismissLabel={t('app.instance.cancel')}
+  onClose={() => (acting = undefined)}
+>
+  {#snippet actions()}
+    <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.keep_running')}</Button>
+    <Button
+      tone="danger"
+      isBusy={working === 'suspend'}
+      busyLabel={t('app.instance.working')}
+      onclick={() => void run('suspend', () => instance.shift(acting?.tenant?.id ?? '', 'suspend'))}
+    >
+      {t('app.instance.suspend_now')}
+    </Button>
+  {/snippet}
+  <Stack gap="150">
+    <!-- What it does to the people in it, before the button. -->
+    <Banner tone="warning">{t('app.instance.suspend_cost')}</Banner>
+    {#if isOwn}
+      <Banner tone="danger">{t('app.instance.suspend_own')}</Banner>
+    {/if}
+  </Stack>
+</Dialog>
+
+<Dialog
   title={t('app.instance.delete_title')}
   isOpen={acting?.kind === 'delete'}
   dismissLabel={t('app.instance.cancel')}
@@ -387,6 +453,9 @@
   <Stack gap="150">
     <!-- What it costs, before the button and not in a help page. -->
     <Banner tone="warning">{t('app.instance.delete_cost')}</Banner>
+    {#if isOwn}
+      <Banner tone="danger">{t('app.instance.delete_own')}</Banner>
+    {/if}
     <Input
       label={t('app.instance.delete_confirm_label', { name: acting?.tenant?.display_name ?? '' })}
       hint={t('app.instance.delete_confirm_hint')}
@@ -534,4 +603,5 @@
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .mark { display: block; margin-block-start: var(--sp-050); white-space: nowrap; }
 </style>

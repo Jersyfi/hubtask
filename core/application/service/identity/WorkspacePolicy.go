@@ -167,7 +167,13 @@ func (w WorkspaceWriter) keepsAWayIn(
 			return nil
 		}
 	}
-	on, err := providerOnHere(ctx, w.Providers, stored.Settings, "", w.Clock.Now())
+	// The row being written is the workspace; only the installation's lock is read beside it.
+	here, err := readWaysHere(ctx, nil, w.Resolver.Instance)
+	if err != nil {
+		return err
+	}
+	here.workspace = stored
+	on, err := providerOnHere(ctx, w.Providers, here, "", w.Clock.Now())
 	if err != nil {
 		return err
 	}

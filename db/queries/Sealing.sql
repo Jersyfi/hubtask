@@ -21,7 +21,10 @@ FROM (
   UNION ALL
   SELECT credential_key_id FROM backup_target WHERE credential_key_id IS NOT NULL
   UNION ALL
-  SELECT api_key_key_id FROM ai_provider WHERE api_key_key_id IS NOT NULL
+  -- A workspace's own key only: an offered model's row is visible to every workspace and belongs
+  -- to none, so counting it here would count it once per workspace.
+  SELECT api_key_key_id FROM ai_provider
+  WHERE api_key_key_id IS NOT NULL AND tenant_id = current_tenant_id()
   UNION ALL
   SELECT named #>> '{}'
   FROM automation_rule,

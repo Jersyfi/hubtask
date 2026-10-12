@@ -153,3 +153,39 @@ func (OperatorRepository) Remove(ctx context.Context, accountID shared.ID) (bool
 	}
 	return removed, nil
 }
+
+// ResolveSingle answers the account an address names in a single-mode installation's one
+// workspace, and zero where there is not exactly one workspace or the address matches nothing
+// (migration 0128).
+func (OperatorRepository) ResolveSingle(ctx context.Context, email string) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return shared.ID(""), err
+	}
+	found, err := queries.ResolveSingleOperatorAccount(ctx, email)
+	if err != nil {
+		return shared.ID(""), shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("resolving an operator's account in the one workspace: %w", err))
+	}
+	if !found.Valid {
+		return shared.ID(""), nil
+	}
+	return idFrom(found)
+}
+
+// State answers how many workspaces there are and how many operators, counted as `is_operator`
+// counts (migration 0128).
+func (OperatorRepository) State(ctx context.Context) (workspaces, operators int64, err error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	row, err := queries.OperatorRegisterState(ctx)
+	if err != nil {
+		return 0, 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the operator register's state: %w", err))
+	}
+	return row.Workspaces, row.Operators, nil
+}

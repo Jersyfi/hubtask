@@ -286,6 +286,7 @@ func isAuthRoute(r *http.Request) bool {
 		APIBasePath + "/auth/invitations:redeem",
 		// A token in the body, as the invitation's: anonymous, and a write when it lands.
 		APIBasePath + "/auth/address:confirm",
+		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
 		APIBasePath + "/auth/oidc:callback":
 		return true

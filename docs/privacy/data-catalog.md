@@ -59,6 +59,8 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 | OAuth authorization codes (hash) | `oauth_code` | `SECRET` | The code+PKCE exchange | Consent | Minutes; swept with the sessions | `HASH_ONLY`, `RETENTION` |
 | OAuth client registry (name, redirect URIs, secret hash) | `oauth_client` | `NON_PERSONAL` (+ `SECRET` for the hash) | Third-party access | Contract | The lifetime of the registration | `CASCADE` |
 | AI provider (kind, endpoint, models, jurisdiction, consent, sealed key) | `ai_provider` | `NON_PERSONAL` (+ `SECRET` for `api_key_enc`) | Where a workspace's content may be sent, and whether it may (J-02) | Consent; the transfer is the controller's assessment ([ai-providers.md](./ai-providers.md)) | The lifetime of the configuration; removed with the workspace | `CASCADE`. The key is sealed under E-02 and answered by no read; removing the provider removes it. **What is sent** under this configuration is item and jumble content, which is catalogued as itself above — this row is the configuration, not a second copy of the content | 
+| Models the installation offers (display name, processor, kind, endpoint, models, jurisdiction, sealed key) | `ai_provider` rows with no workspace | `NON_PERSONAL` (+ `SECRET` for `api_key_enc`) | What a workspace may choose to send its content to, and who processes it there (ADR-0072) | The operator's offer | Until the operator withdraws it | Deleted by the operator; every workspace's choice of it is set to nothing (`ON DELETE SET NULL`). A workspace is answered its name, processor and jurisdiction only |
+| A workspace's AI source (own, an offered model, or none) | `ai_source` | `NON_PERSONAL` | Which model answers this workspace; choosing an offered one is the workspace's consent to it (ADR-0072 §3) | Consent | The lifetime of the choice; removed with the workspace | `CASCADE`. Not in the archive: a restore must not resume sending under a consent nobody gave again. Each change is in the workspace's trail (`ai.source_chosen`) |
 | Invitations (address, status) | `account` (status `INVITED`) | `PERSONAL_BASIC` | Onboarding | Contract | With the account; an invitation never accepted is an account never used | `CASCADE` |
 | Who invited whom, and when | `audit_log` | `PERSONAL_TECHNICAL` | Evidence of how somebody got access | Legitimate interest | The audit period | `IMMUTABLE` |
 | Queued invitation message (identifiers only) | `job` | `PERSONAL_TECHNICAL` (references) | Delivering the invitation | Contract | 7 days after completion | `RETENTION` |
@@ -189,8 +191,10 @@ individually switchable, and enumerated here in full:
    exists in `INVITED` status from the moment somebody is invited, so a permission can be granted
    to it before the person signs in, and nothing they were given works until they do. The
    redemption token arrived with the sign-in flow (H-01): minted when the invitation mail is
-   delivered, stored only as a hash on the account, redeemable for 14 days, and dead on
-   redemption - a token nobody can redeem is never lying around for months.
+   delivered - or, on an installation that sends no mail, when the invitation is made or renewed,
+   and then answered once as a link for the inviter to hand over - stored only as a hash on the
+   account, redeemable for 14 days, and dead on redemption or renewal - a token nobody can redeem
+   is never lying around for months.
 6. A partition is not a data category. `audit_log_2026_08` and the other partitions of `audit_log`
    and `change_log` are recorded through their parent table, and a gate reconciling the schema
    against this document has to resolve them to it rather than demand a row of their own.

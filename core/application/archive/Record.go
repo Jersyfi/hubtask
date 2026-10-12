@@ -613,6 +613,12 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// must do anyway to type a key nobody can read back; the configuration events are in the
 	// trail, which is archived.
 	"ai_provider": "§8.4 - a sealed key and a live outbound door; a restore must not resume sending a workspace's content to a provider under a consent nobody gave again",
+	// The workspace's choice of AI source carries consent: choosing an offered model is the
+	// consent to send to it. ai_provider's reasoning applies whole - and a choice restored onto an
+	// installation that offers other models would point at nothing anyway. The workspace's
+	// narrowing of the sources it may use is not here but in the archived workspace settings,
+	// because a restore must never widen what an administrator restricted.
+	"ai_source": "§8.4 - the choice is the consent to an offered model; a restore must not resume sending under a consent nobody gave again",
 	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history, which the archive carries; what a proposal was about is a state of an
 	// entry that a restore months later has anyway replaced. Restoring one would offer somebody a

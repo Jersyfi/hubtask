@@ -439,6 +439,9 @@ type AiProvider struct {
 	CreatedAt         pgtype.Timestamptz
 	UpdatedAt         pgtype.Timestamptz
 	Version           int32
+	ID                pgtype.UUID
+	DisplayName       string
+	Processor         string
 }
 
 type AiRequest struct {
@@ -447,6 +450,14 @@ type AiRequest struct {
 	AskedBy   pgtype.UUID
 	Text      string
 	CreatedAt pgtype.Timestamptz
+}
+
+type AiSource struct {
+	TenantID          pgtype.UUID
+	Source            string
+	OfferedProviderID pgtype.UUID
+	UpdatedAt         pgtype.Timestamptz
+	Version           int32
 }
 
 type AiSuggestion struct {
@@ -592,29 +603,30 @@ type AutoAssignPolicy struct {
 }
 
 type AutomationRule struct {
-	ID               pgtype.UUID
-	TenantID         pgtype.UUID
-	ScopeType        string
-	ScopeID          pgtype.UUID
-	Name             string
-	Enabled          bool
-	RunAs            pgtype.UUID
-	Trigger          []byte
-	Conditions       []byte
-	Actions          []byte
-	Throttle         []byte
-	OnError          string
-	FailureCount     int32
-	CreatedBy        pgtype.UUID
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	Version          int32
-	NextRunAt        pgtype.Timestamptz
-	InboundTokenHash []byte
-	InboundRotatedAt pgtype.Timestamptz
-	Findings         []byte
-	CheckedAt        pgtype.Timestamptz
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	ScopeType         string
+	ScopeID           pgtype.UUID
+	Name              string
+	Enabled           bool
+	RunAs             pgtype.UUID
+	Trigger           []byte
+	Conditions        []byte
+	Actions           []byte
+	Throttle          []byte
+	OnError           string
+	FailureCount      int32
+	CreatedBy         pgtype.UUID
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+	Version           int32
+	NextRunAt         pgtype.Timestamptz
+	InboundTokenHash  []byte
+	InboundRotatedAt  pgtype.Timestamptz
+	Findings          []byte
+	CheckedAt         pgtype.Timestamptz
+	PausedForDeletion bool
 }
 
 type BackupRun struct {
@@ -947,6 +959,13 @@ type InstanceSetting struct {
 	LockOrigin string
 	UpdatedBy  pgtype.UUID
 	UpdatedAt  pgtype.Timestamptz
+}
+
+type InstanceSetupCode struct {
+	ID        pgtype.UUID
+	CodeHash  []byte
+	IssuedAt  pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
 }
 
 type ItemAttachment struct {
@@ -1438,6 +1457,8 @@ type Tenant struct {
 	PasswordOpenedUntil     pgtype.Timestamptz
 	PasswordOpenedRequester *string
 	PasswordOpenedReason    *string
+	StatusBeforeDeletion    *TenantStatus
+	PurgeStartedAt          pgtype.Timestamptz
 }
 
 type TenantHost struct {

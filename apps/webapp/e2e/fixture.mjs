@@ -7,6 +7,8 @@
 // collection can be and still show every control the inventory names.
 export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER', display_name: 'Jérôme Winkel', email: 'j@example.invalid', status: 'ACTIVE', locale: 'en', onboarding_completed_at: '2026-09-01T00:00:00Z' };
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
+/** Somebody invited who has not arrived yet: the row an invitation is renewed from (UC-ID-14 check 5). */
+export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER', display_name: 'Bert', email: 'bert@example.invalid', status: 'INVITED' };
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
@@ -111,13 +113,28 @@ export const LEGAL_HOLDS = [
 
 /**
  * The installation's workspaces as the operator lists them: one under a legal hold, one pending
- * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5).
+ * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5) -
+ * and the operator's own (`WORKSPACE`), whose suspension or deletion ends the operator's session.
  */
 export const WORKSPACES = [
+  { id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name, status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: WORKSPACE.created_at, purge_after: null, legal_hold: false },
   { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
   { id: '01a0e2e0-0000-7000-8000-0000000004a2', slug: 'leaving', display_name: 'Leaving Ltd', status: 'PENDING_DELETION', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-02T08:00:00Z', purge_after: '2026-09-30T08:00:00Z', legal_hold: true },
   { id: '01a0e2e0-0000-7000-8000-0000000004a3', slug: 'household', display_name: 'Household', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-03T08:00:00Z', purge_after: null, legal_hold: false },
 ];
+
+/**
+ * The AI models the installation offers, as the operator lists them: one, with a key, in the EEA.
+ */
+export const OFFERED_AI = [
+  { id: '01a0e2e0-0000-7000-8000-0000000006a1', display_name: 'Large (EU)', processor: 'Example AI SAS', kind: 'OPENAI_COMPATIBLE', base_url: 'https://models.example.eu/v1', completion_model: 'large-2', embedding_model: 'embed-1', has_api_key: true, jurisdiction: 'EEA', created_at: '2026-10-01T08:00:00Z', version: 1 },
+];
+
+/**
+ * A workspace's AI source on a private installation (D1): its own model, nothing offered, no lock -
+ * today's screen. A walk of an installation that offers a model routes `/ai-source` itself.
+ */
+export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0 };
 
 export function stub(route) {
   const request = route.request();
@@ -139,6 +156,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
+  if (path.endsWith(`/api/v1/accounts/${INVITED.id}`)) return route.fulfill({ json: INVITED });
   // `include_archived` is honoured, because it is the whole of what the archive screen asks and a
   // stub that ignored it would prove the screen works by handing it rows the product hides.
   if (path.endsWith('/api/v1/containers')) {
@@ -195,6 +213,8 @@ export function stub(route) {
   }
   if (path.endsWith('/api/v1/legal-holds') && request.method() === 'GET') return route.fulfill({ json: LEGAL_HOLDS });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
+  if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
+  if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {

@@ -56,7 +56,9 @@ var personalColumns = map[string]bool{
 // partitions are resolved before this, so what is left here is the machinery: tables that hold the
 // system's own bookkeeping about work rather than anybody's data.
 var notADataCategory = map[string]string{
-	"goose_db_version":        "the migration ledger: which migrations ran, and nothing about anybody",
+	"goose_db_version": "the migration ledger: which migrations ran, and nothing about anybody",
+	"instance_setup_code": "the first start's one-time setup code, as a hash: it exists only before " +
+		"any workspace or account does, names nobody, and every row is deleted by the setup that spends one",
 	"item_capability_profile": "which fields a kind of entry may carry - the product's own shape",
 	"leader_election":         "which process is the leader for a minute",
 }
