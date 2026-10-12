@@ -69,6 +69,7 @@ import ContainerView from './views/ContainerView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
   import SignInSettingsView from './views/SignInSettingsView.svelte';
+  import SetupView from './views/SetupView.svelte';
   import SignInView from './views/SignInView.svelte';
 
   // The table lives in `lib/routes.ts` so that ADR-0032's areas can be asserted as a set:
@@ -209,6 +210,10 @@ import ContainerView from './views/ContainerView.svelte';
     <!-- Before the sign-in screen: somebody arriving with an invitation has no password yet, and
          asking them for one would be asking for the thing this screen exists to set. -->
     <RedeemView onnavigate={(path) => router.navigate(path)} />
+  {:else if manifest.isSetupOpen}
+    <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
+         sign-in card's place until the first workspace exists (UC-INS-01). -->
+    <SetupView onnavigate={(path) => router.navigate(path)} />
   {:else}
     <SignInView />
   {/if}

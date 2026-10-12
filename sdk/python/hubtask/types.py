@@ -163,6 +163,16 @@ class InvitationRedemption(TypedDict, total=False):
     token: Required[str]
     password: Required[str]
 
+class InstallationSetUp(TypedDict, total=False):
+    code: Required[str]
+    display_name: Required[str]
+    slug: str
+    owner_email: Required[str]
+    owner_display_name: str
+    password: Required[str]
+    default_locale: str
+    default_time_zone: str
+
 class Session(TypedDict, total=False):
     """A sign-in somebody can see and revoke. The client hint is what was recorded at sign-in - a user agent and an IP class, enough to recognise one's own devices and deliberately not a precise address."""
     id: Required[str]
@@ -561,6 +571,7 @@ class InstanceOverview(TypedDict, total=False):
     workspaces_pending_deletion: Required[int]
     accounts_active: Required[int]
     accounts_total: Required[int]
+    workspaces_service_only: Required[int]
 
 class InstanceJournalEntry(TypedDict, total=False):
     """One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists."""
@@ -739,6 +750,7 @@ class AdminTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
 
 class PasswordOpening(TypedDict, total=False):
@@ -809,6 +821,7 @@ class ProvisionedTenant(TypedDict, total=False):
     created_at: Required[str]
     purge_after: str | None
     legal_hold: bool
+    purge_started_at: str | None
     password_opening: "PasswordOpening" | Any
     owner_account_id: Required[str]
     owner_redemption_token: Required[str]

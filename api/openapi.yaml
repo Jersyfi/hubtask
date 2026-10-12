@@ -3104,6 +3104,43 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/installation:set-up:
+    post:
+      tags: [auth]
+      operationId: setUpInstallation
+      security: []
+      summary: Set up a fresh installation with the code its first start printed
+      description: >
+        The first start of an installation that has no workspace and nobody in its operator
+        register prints a one-time setup code to the server's console, valid for thirty minutes.
+        With it, this creates the first workspace with its defaults, its owner with the password,
+        and the owner's entry in the operator register - in one step, recorded in the instance
+        journal - and answers the same pair sign-in answers: the owner is signed in.
+
+        In single mode the workspace's short name is not asked for and is derived from its name;
+        in multi mode `slug` is required and the workspace answers at that subdomain.
+
+        A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired`
+        (restarting the server prints a new one). Once any workspace exists every code is spent and
+        the call is refused with `setup.already_done`: the code is the only key, and after the first
+        workspace there is nothing left for it to open. `features.setup_open` in
+        `/meta/capabilities` says whether this is offered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InstallationSetUp"
+      responses:
+        "201":
+          description: Set up, and signed in as the workspace's owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/sessions:verify:
     post:
       tags: [auth]
@@ -4029,6 +4066,8 @@ paths:
         Flips the middleware: every API call of the tenant's own people answers
         `403 tenant_suspended` on their very next request. The data remains, and the read
         export still works - the suspended are exactly who needs it.
+        Refused with `admin.multi_mode_required` in single mode, where the one workspace is
+        the installation.
       responses:
         "204":
           description: Suspended
@@ -4049,6 +4088,27 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:cancel-deletion:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: cancelTenantDeletion
+      summary: Call off a workspace's pending deletion
+      description: >
+        Returns a workspace pending deletion to where it stood when the deletion was requested -
+        active or suspended; suspended where that is not known - and clears the deadline. The
+        automation rules the request switched off are switched back on, a schedule from now on,
+        without the occurrences it missed. Possible until the hard delete begins, also past the
+        deadline while a legal hold keeps the workspace; refused with
+        `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing).
+        Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+      responses:
+        "204":
+          description: The deletion is called off
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:delete:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -4060,8 +4120,10 @@ paths:
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
         step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
-        typed - the restore precedent. The tenant moves to `PENDING_DELETION`: access blocked,
-        automations disabled, the export still answering. The hard delete runs after the
+        typed - the restore precedent. Refused with `admin.multi_mode_required` in single
+        mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked,
+        automations disabled, the export still answering. Until the hard delete begins,
+        `:cancel-deletion` calls it off. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
         media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
         because the tenant's own trail dies with it.
@@ -9079,6 +9141,46 @@ components:
           maxLength: 1024
           description: The first password, under the workspace's password policy.
 
+    InstallationSetUp:
+      type: object
+      required: [code, display_name, owner_email, password]
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          description: >
+            The setup code the server printed at start. Case and the dashes between its groups do
+            not matter.
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: The workspace's name.
+        slug:
+          type: string
+          description: >
+            Multi mode only, and required there: the subdomain the workspace answers on, 3-40
+            characters of lower-case letters, digits and hyphens. Refused in single mode.
+        owner_email:
+          type: string
+          maxLength: 320
+          description: The owner's address. Nothing is sent to it.
+        owner_display_name:
+          type: string
+          maxLength: 200
+          description: The owner's name; the address stands in when it is omitted.
+        password:
+          type: string
+          minLength: 12
+          maxLength: 1024
+          description: The owner's password, under the product's password policy.
+        default_locale:
+          type: string
+          description: BCP 47; the installation's default when omitted.
+        default_time_zone:
+          type: string
+          description: An IANA name; the installation's default when omitted.
+
     Session:
       type: object
       description: >
@@ -10351,7 +10453,7 @@ components:
         database policy this answer does not reach through.
       required:
         [workspaces_active, workspaces_suspended, workspaces_pending_deletion,
-         accounts_active, accounts_total]
+         accounts_active, accounts_total, workspaces_service_only]
       properties:
         workspaces_active: { type: integer }
         workspaces_suspended: { type: integer }
@@ -10366,6 +10468,12 @@ components:
           description: >
             Including the invited and the suspended, and excluding the deleted - an account that was
             deleted is gone as far as anybody operating the installation is concerned.
+        workspaces_service_only:
+          type: integer
+          description: >
+            Workspaces that hold no person, only service accounts - one made to hold a machine's
+            credential, for instance. They are not customers, so the three workspace counts above
+            leave them out; the list of workspaces shows them.
 
     InstanceJournalEntry:
       type: object
@@ -10955,6 +11063,12 @@ components:
             Whether a legal hold is in force in the workspace. While one is, a deletion request is
             refused, and a workspace already pending deletion stays pending until the last hold is
             lifted. Only the state: which hold, on what and why stay the workspace's.
+        purge_started_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Set once the hard delete has begun removing the workspace. From then on its deletion
+            can no longer be called off.
         password_opening:
           description: >
             The operator's opening of the password while it is in force, null
@@ -15782,7 +15896,11 @@ components:
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
-            `sign_in_rules` and `search_filter`.
+            `sign_in_rules`, `search_filter` and `setup_open`.
+
+            `setup_open` is `true` exactly while the installation has no workspace and nobody in its
+            operator register: then `POST /auth/installation:set-up` is offered, and a client shows
+            the setup in place of the sign-in.
 
             Two of them describe this version rather than its configuration, and every
             installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is

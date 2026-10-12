@@ -268,6 +268,7 @@ func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Req
 		WorkspacesPendingDeletion: censusCount(out["workspaces_pending_deletion"]),
 		AccountsActive:            censusCount(out["accounts_active"]),
 		AccountsTotal:             censusCount(out["accounts_total"]),
+		WorkspacesServiceOnly:     censusCount(out["workspaces_service_only"]),
 	})
 }
 

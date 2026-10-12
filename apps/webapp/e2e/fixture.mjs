@@ -111,9 +111,11 @@ export const LEGAL_HOLDS = [
 
 /**
  * The installation's workspaces as the operator lists them: one under a legal hold, one pending
- * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5).
+ * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5) -
+ * and the operator's own (`WORKSPACE`), whose suspension or deletion ends the operator's session.
  */
 export const WORKSPACES = [
+  { id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name, status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: WORKSPACE.created_at, purge_after: null, legal_hold: false },
   { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
   { id: '01a0e2e0-0000-7000-8000-0000000004a2', slug: 'leaving', display_name: 'Leaving Ltd', status: 'PENDING_DELETION', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-02T08:00:00Z', purge_after: '2026-09-30T08:00:00Z', legal_hold: true },
   { id: '01a0e2e0-0000-7000-8000-0000000004a3', slug: 'household', display_name: 'Household', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: '2026-08-03T08:00:00Z', purge_after: null, legal_hold: false },

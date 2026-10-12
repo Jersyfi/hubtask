@@ -55,7 +55,8 @@ type HardDeleteOutcome struct {
 // together, so there is never a deletion without evidence.
 //
 // It is safe to run twice: the byte deletion tolerates absent objects, and the final guard
-// re-reads the two facts the grace could have changed before anything falls.
+// re-reads the two facts the grace could have changed before anything falls. Before the first byte
+// it marks the row, which is what a cancel of the deletion is refused by from then on.
 type HardDeleteTenant struct {
 	Tenants adminrepo.Tenants
 	// Holds are the workspace's legal holds in force; while any stands nothing falls.
@@ -114,6 +115,23 @@ func (h HardDeleteTenant) Execute(
 	}
 	if outcome.Held {
 		return HardDeleteOutcome{Held: true, RunAgainIn: HeldPurgeRetry}, nil
+	}
+
+	// The mark, in the row, before the first byte goes: from here on no cancel lands. The cancel
+	// writes the same row under the opposite condition, so one of the two waits for the other and
+	// finds its condition gone - a cancel that came first leaves this nothing to mark, and nothing
+	// is removed.
+	var marked bool
+	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		var markErr error
+		marked, markErr = h.Purge.MarkStarted(ctx, now)
+		return markErr
+	})
+	if err != nil {
+		return outcome, err
+	}
+	if !marked {
+		return HardDeleteOutcome{}, nil
 	}
 
 	// The bytes, store-first and outside any transaction (observability-reliability.md §8

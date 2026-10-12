@@ -40,23 +40,22 @@ Let's Encrypt validates.
 
 ## A workspace somebody can sign in to
 
-A rebuilt environment has no workspace, and nothing in it issues the first credential that could
-provision one. [`scripts/dev-workspace.sh`](../../scripts/dev-workspace.sh) does both, the same way
-it does locally (`CONTRIBUTING.md` § "Signing in locally") — with two values that have to be the
-cluster's own:
+A rebuilt environment has no workspace. Its first start prints a one-time setup code on the
+server's console, valid for thirty minutes (restarting the deployment prints a new one while nothing
+is set up); [`scripts/dev-workspace.sh`](../../scripts/dev-workspace.sh) spends it on the first
+workspace and its owner, who becomes the installation's operator, and mints the control plane's
+token behind a step-up — the same way it does locally (`CONTRIBUTING.md` § "Signing in locally"):
 
 ```bash
 export SSH="ssh -i <key> root@<host>"
-HUBTASK_PSQL="$SSH kubectl -n hubtask exec -i hubtask-db-0 -- psql -U hubtask -d hubtask" \
-HUBTASK_SECRET_KEY="$($SSH kubectl -n hubtask get secret hubtask-secrets -o jsonpath='{.data.secret-key}' | base64 --decode)" \
-scripts/dev-workspace.sh --bootstrap
+CODE="$($SSH kubectl -n hubtask logs deploy/hubtask-api | grep -o 'setup code [0-9A-Z-]*' | tail -1 | cut -d' ' -f3)"
+HUBTASK_SETUP_CODE="$CODE" HUBTASK_DEMO_PASSWORD='…' \
+scripts/dev-workspace.sh --bootstrap --api https://api.integration.hubtask.eu --slug operations --name Operations
 ```
 
-`HUBTASK_SECRET_KEY` must be the value the server runs with, decoded — the token's hash is
-peppered with it, and one bootstrapped under any other value is a row the server never matches
-(`access.token_unknown`; the script says so when it meets it). The bootstrap prints the token once;
-it goes into the GitHub environment `integration` beside `KUBE_CONFIG`, and into the shell that
-runs the second step — the shell keeps whatever it held before, so export the one just printed:
+The bootstrap prints the token once; it goes into the GitHub environment `integration` beside
+`KUBE_CONFIG`, and into the shell that runs the second step — the shell keeps whatever it held
+before, so export the one just printed:
 
 ```bash
 HUBTASK_ADMIN_TOKEN=… HUBTASK_DEMO_PASSWORD='…' \
@@ -64,8 +63,25 @@ scripts/dev-workspace.sh --api https://api.integration.hubtask.eu --slug demo
 ```
 
 Then `https://demo.api.integration.hubtask.eu/` is a sign-in screen, and `owner@example.org` with
-that password gets in. The bootstrap is idempotent: run again, it replaces the token row and prints
-a new token, which is also how a lost one is replaced.
+that password gets in. Every API pod prints a code of its own; any one of them works, once. A lost
+token is replaced by the operator minting a new one (*Profile → Access tokens*, or `POST
+/auth/tokens` behind a step-up); `--bootstrap` runs only on an installation that is not set up.
+
+## When nobody can run it
+
+An environment whose operator register is empty while it holds more than one workspace - the
+operator account deleted, a database restored from before the register, a bootstrap skipped - says
+so in its health report (`config.operator_register_empty`). The way back is on the machine, with
+the server's own configuration, and nowhere else:
+
+```bash
+$SSH kubectl -n hubtask exec deploy/hubtask-api -- \
+  hubtask operator add --workspace operations --email ops@example.org
+```
+
+It adds that account to the register, records it in the installation's journal as done from the
+machine, and says what it did; an address that matches no account in that workspace is refused.
+The person then signs in and opens *Installation*.
 
 ## Mail
 

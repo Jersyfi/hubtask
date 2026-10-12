@@ -5,9 +5,9 @@ context: admin
 actors: [PE-selfhoster, PE-operator, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-09, P-10, P-12]
-state: specified
+state: verified
 tasks: [SC-04]
-checked_by: []
+checked_by: [cmd/server/FirstStart_test.go, core/application/service/identity/Setup_test.go, test/integration/first_start_test.go, apps/webapp/e2e/setup.test.mjs, scripts/compose-smoke.sh, scripts/hubctl-e2e.sh, docs/evidence/SC-04-2026-10-12.md]
 ---
 
 # Start a fresh installation and create my workspace in the browser
@@ -49,13 +49,3 @@ the setup card is gone for good.
 * No setup through a public page once any workspace exists — the code is the only key, and it is
   printed only where the server's log is readable.
 * An installation brought up from a file is UC-INS-02.
-
-## Today
-
-* Check 1: not met — nothing creates the first workspace and no setup code is printed; every installation starts with SQL, tracked in #1060.
-* Check 2: not met — there is no setup card, tracked in #1060.
-* Check 3: not met — there is no setup code to refuse, tracked in #1060.
-* Check 4: not met — no single step creates the workspace, its owner and the owner's operator entry, tracked in #1060.
-* Check 5: not met — there is no setup card, and provisioning is refused in single-tenant mode, tracked in #1060.
-* Check 6: not met — setting up needs database access, tracked in #1060.
-* Check 7: not met — `scripts/dev-workspace.sh --bootstrap` and the smoke tests reach the state through SQL, tracked in #1060.

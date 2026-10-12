@@ -323,8 +323,11 @@ class Instance {
     );
   }
 
-  /** Suspends a workspace or resumes one. Both are audited and journalled. */
-  async shift(tenantId: string, action: 'suspend' | 'resume'): Promise<void> {
+  /**
+   * Suspends a workspace, resumes one, or calls off its pending deletion. Each is audited and
+   * journalled.
+   */
+  async shift(tenantId: string, action: 'suspend' | 'resume' | 'cancel-deletion'): Promise<void> {
     await stepUp.around((stepUpToken) =>
       engine.mutate('POST', `${TENANTS}/${tenantId}:${action}`, undefined, {
         stepUpToken,

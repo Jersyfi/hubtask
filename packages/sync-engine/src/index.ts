@@ -131,6 +131,7 @@ export type {
   ImportRequest,
   ImportRun,
   InstanceOverview,
+  InstallationSetUp,
   InstanceJournalEntry,
   InstanceJournalPage,
   AdminTenant,

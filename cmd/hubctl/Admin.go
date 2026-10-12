@@ -39,7 +39,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|create|suspend|resume|delete|export|open-password|close-password|replace-holds …",
+				usage:   "ls|create|suspend|resume|delete|cancel-deletion|export|open-password|close-password|replace-holds …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
@@ -82,7 +82,7 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, create, suspend, resume, delete, export, open-password, close-password, replace-holds"
+	const verbs = "ls, create, suspend, resume, delete, cancel-deletion, export, open-password, close-password, replace-holds"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
@@ -97,6 +97,8 @@ func adminTenant(ctx context.Context, cli *CLI, args []string) error {
 		return adminTenantFlip(ctx, cli, args[1:], "resume")
 	case "delete":
 		return adminTenantDelete(ctx, cli, args[1:])
+	case "cancel-deletion":
+		return adminTenantFlip(ctx, cli, args[1:], "cancel-deletion")
 	case "export":
 		return adminTenantExport(ctx, cli, args[1:])
 	case "open-password":
@@ -202,8 +204,11 @@ func adminTenantFlip(ctx context.Context, cli *CLI, args []string, verb string) 
 	if err := client.Post(ctx, adminTenantsPath+"/"+tenantID.String()+":"+verb, nil, nil); err != nil {
 		return err
 	}
-	printf(cli.Err, "workspace %s is %s\n", tenantID,
-		map[string]string{"suspend": "suspended", "resume": "active again"}[verb])
+	printf(cli.Err, "workspace %s: %s\n", tenantID, map[string]string{
+		"suspend": "suspended", "resume": "active again",
+		// Back where the request found it - active or suspended - which `ls` shows.
+		"cancel-deletion": "deletion called off",
+	}[verb])
 	return nil
 }
 
@@ -397,12 +402,14 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 			text(tenant.DefaultLocale),
 			shortTime(&tenant.CreatedAt),
 			purgeAfter(tenant.PurgeAfter),
+			purgeAfter(tenant.PurgeStartedAt),
 			passwordOpenUntil(tenant.PasswordOpening),
 			legalHold(tenant),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "password open until", "legal hold"},
+		// "removal began" is the moment from which the deletion can no longer be called off.
+		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold"},
 		Rows:    rows,
 	}
 }

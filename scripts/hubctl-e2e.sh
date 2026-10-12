@@ -14,12 +14,11 @@
 # the published image rather than `go run`.
 #
 # The session's own credential is minted through the API it tests, which makes the auth
-# surface the first thing it proves rather than something it works around. What still comes from
-# outside is the *bootstrap*: an installation whose first account has no credential cannot be
-# reached at all, and no first-run path exists yet - so the script seeds one narrow, ten-minute
-# credential by SQL, uses it to mint the working PAT through `hubctl token create`, and then
-# revokes it. Both halves of the bootstrap come from the real constructions (test/e2e/mint),
-# because a token hashed by this script the way this script hashes tokens would prove nothing.
+# surface the first thing it proves rather than something it works around. The installation
+# starts the way a self-hoster's does (UC-INS-01): its first start prints a one-time setup code,
+# the route the *Set up Hubtask* card uses spends it on the workspace and its owner, and the owner's
+# session mints one narrow, ten-minute bootstrap token that `hubtask token create` then replaces with
+# the working one. Nothing here writes a credential into the database.
 
 set -euo pipefail
 
@@ -35,13 +34,9 @@ HTTP_PORT=18081
 OPS_PORT=19091
 DEADLINE_SECONDS=300
 
-# The identities the session runs as. Fixed rather than drawn: a failed run leaves a stack behind
-# for somebody to look at, and constants make the rows findable.
-TENANT_ID="01936f2a-7c1e-7000-8000-00000000e2e0"
-ACCOUNT_ID="01936f2a-7c1e-7000-8000-00000000e2e1"
-MEMBERSHIP_ID="01936f2a-7c1e-7000-8000-00000000e2e2"
-TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e2e3"
-OPERATOR_DRILL_TOKEN_ROW="01936f2a-7c1e-7000-8000-00000000e2e4"
+# The owner the first start's setup creates, and the password they set there.
+OWNER_EMAIL="e2e@example.org"
+SETUP_PASSWORD='seven blue lanterns above the harbour'
 
 # The closing act runs against a second stack, because the tenancy mode is read once at start-up
 # and the hour above is spent in single mode (compose-smoke.sh does the same for its control plane).
@@ -49,9 +44,6 @@ OPERATOR_DRILL_TOKEN_ROW="01936f2a-7c1e-7000-8000-00000000e2e4"
 MULTI_PROJECT="hubtask-e2e-multi"
 MULTI_HTTP_PORT=18082
 MULTI_OPS_PORT=19092
-OPERATOR_TENANT="01936f2a-7c1e-7000-8000-00000000e2f0"
-OPERATOR_ACCOUNT="01936f2a-7c1e-7000-8000-00000000e2f1"
-OPERATOR_TOKEN_ROW="01936f2a-7c1e-7000-8000-00000000e2f2"
 
 WORK_DIR="$(mktemp -d)"
 ENV_FILE="$WORK_DIR/env"
@@ -179,31 +171,53 @@ if [ -z "$ready" ]; then
 fi
 echo "ready after $((SECONDS - started))s"
 
-echo "--- seeding the workspace and its bootstrap credential ---"
-INSTALLATION_SECRET="$(grep '^HUBTASK_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-read -r BOOTSTRAP_TOKEN BOOTSTRAP_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
+echo "--- the first start: the printed setup code makes the workspace and its owner ---"
+# One field of a JSON answer.
+answer_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
+# The code the server printed on its console (UC-INS-01), read where an operator reads it: the
+# container's output, anchored on the banner's own words.
+setup_code() {
+	local logs
+	logs="$("$@" logs app 2>&1)"
+	grep -o 'setup code [0-9A-Z]\{4\}-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' <<< "$logs" | tail -1 | cut -d' ' -f3
+}
+in_ten_minutes() {
+	python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=10)).strftime('%Y-%m-%dT%H:%M:%SZ'))"
+}
+# A session for the owner, by password, on the single-workspace installation.
+sign_in() {
+	curl -sS -X POST "$1/api/v1/auth/sessions" -H 'Content-Type: application/json' \
+		-d "{\"email\":\"$2\",\"password\":\"$3\"}" | answer_field access_token
+}
+# A token minted through the API on a session - behind a step-up with the session's password, which
+# `admin:tenants` demands and the other scopes accept. Prints "<id> <token>".
+mint_on() {
+	local base="$1" access="$2" password="$3" name="$4" scopes="$5" proof minted
+	proof="$(curl -sS -X POST "$base/api/v1/auth/step-up" -H "Authorization: Bearer $access" \
+		-H 'Content-Type: application/json' -d "{\"password\":\"$password\"}" | answer_field step_up_token)"
+	minted="$(curl -sS -X POST "$base/api/v1/auth/tokens" -H "Authorization: Bearer $access" \
+		-H "X-Hubtask-Step-Up: $proof" -H 'Content-Type: application/json' \
+		-d "{\"name\":\"$name\",\"scopes\":$scopes,\"expires_at\":\"$(in_ten_minutes)\"}")"
+	printf '%s %s\n' "$(answer_field id <<< "$minted")" "$(answer_field token <<< "$minted")"
+}
 
-compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
-INSERT INTO tenant (id, slug, display_name)
-  VALUES ('$TENANT_ID', 'e2e', 'End to end')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO account (id, tenant_id, kind, display_name, status)
-  VALUES ('$ACCOUNT_ID', '$TENANT_ID', 'USER', 'End to end', 'ACTIVE')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
-  VALUES ('$MEMBERSHIP_ID', '$TENANT_ID', '$ACCOUNT_ID', 'TENANT', 'OWNER')
-  ON CONFLICT (id) DO NOTHING;
--- The bootstrap, and deliberately the smallest one that can do its one job: mint a token. Ten
--- minutes and two scopes, so that a run which dies before revoking it leaves behind a credential
--- that could not have done anything anyway.
-INSERT INTO access_token
-    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the end-to-end bootstrap',
-          decode('$BOOTSTRAP_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['accounts:read','accounts:write'],
-          now() + interval '10 minutes')
-  ON CONFLICT (id) DO NOTHING;
-SQL
+CODE="$(setup_code compose_in_place)"
+[ -n "$CODE" ] || { echo "FAILED: the first start printed no setup code"; compose_in_place logs app --tail 50; exit 1; }
+set_up="$(curl -sS -X POST "http://127.0.0.1:$HTTP_PORT/api/v1/auth/installation:set-up" \
+	-H 'Content-Type: application/json' \
+	-d "{\"code\":\"$CODE\",\"display_name\":\"End to end\",\"owner_email\":\"$OWNER_EMAIL\",\"password\":\"$SETUP_PASSWORD\"}")"
+SETUP_ACCESS="$(answer_field access_token <<< "$set_up")"
+[ -n "$SETUP_ACCESS" ] || { echo "FAILED: the setup answered $set_up"; exit 1; }
+TENANT_ID="$(compose_in_place exec -T db psql -U hubtask -d hubtask -tA -c "SELECT id FROM tenant" | tr -d '[:space:]')"
+ACCOUNT_ID="$(compose_in_place exec -T db psql -U hubtask -d hubtask -tA \
+	-c "SELECT id FROM account WHERE lower(email) = '$OWNER_EMAIL'" | tr -d '[:space:]')"
+
+# The bootstrap, and deliberately the smallest one that can do its one job: mint a token. Ten
+# minutes and two scopes, so that a run which dies before revoking it leaves behind a credential
+# that could not have done anything anyway.
+read -r TOKEN_ROW_ID BOOTSTRAP_TOKEN < <(mint_on "http://127.0.0.1:$HTTP_PORT" "$SETUP_ACCESS" \
+	"$SETUP_PASSWORD" 'the end-to-end bootstrap' '["accounts:read","accounts:write"]')
+[ -n "$BOOTSTRAP_TOKEN" ] || { echo "FAILED: the owner could not mint the bootstrap token"; exit 1; }
 
 echo "--- building hubctl ---"
 go build -trimpath -o "$WORK_DIR/hubctl" ./cmd/hubctl
@@ -806,9 +820,8 @@ fi
 #
 # A new workspace is the installation operator's (§8.2), so the session's own credential - a
 # workspace administrator's - is refused, and the drill runs on one that carries `admin:tenants`
-# as well. That one is seeded the way the bootstrap is, because minting it through the API asks
-# for a step-up this hour has no second factor for; the register is empty, so the workspace's
-# owner is the operator.
+# as well. The owner mints it behind a step-up with their password: the first start put them in
+# the operator register.
 set +e
 refused="$(hubctl --json restore run --target "$TARGET_ID" --archive "$ARCHIVE" \
 	--mode NEW_TENANT --apply 2>&1)"
@@ -819,15 +832,10 @@ if [ "$refused_status" -eq 0 ]; then
 fi
 expect_contains "restore run --mode NEW_TENANT without admin:tenants" "$refused" "admin:tenants"
 
-read -r OPERATOR_DRILL_TOKEN OPERATOR_DRILL_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
-compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
-INSERT INTO access_token
-    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$OPERATOR_DRILL_TOKEN_ROW', '$TENANT_ID', '$ACCOUNT_ID', 'the restore drill',
-          decode('$OPERATOR_DRILL_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['backup:manage','backup:read','jobs:read','admin:tenants'],
-          now() + interval '10 minutes');
-SQL
+read -r OPERATOR_DRILL_TOKEN_ROW OPERATOR_DRILL_TOKEN < <(mint_on "http://127.0.0.1:$HTTP_PORT" \
+	"$(sign_in "http://127.0.0.1:$HTTP_PORT" "$OWNER_EMAIL" "$SETUP_PASSWORD")" "$SETUP_PASSWORD" 'the restore drill' \
+	'["backup:manage","backup:read","jobs:read","admin:tenants"]')
+[ -n "$OPERATOR_DRILL_TOKEN" ] || fail "the owner could not mint the restore drill's token"
 new_tenant="$(HUBTASK_TOKEN="$OPERATOR_DRILL_TOKEN" hubctl --json restore run --target "$TARGET_ID" \
 	--archive "$ARCHIVE" --mode NEW_TENANT --apply --wait 5m)"
 hubctl token revoke "$OPERATOR_DRILL_TOKEN_ROW" >/dev/null
@@ -1479,29 +1487,17 @@ MULTI="http://127.0.0.1:$MULTI_HTTP_PORT"
 
 echo "--- the control plane's credential, and two workspaces ---"
 # `admin:tenants` is the one scope no session carries (api-guidelines.md §7), so the control plane is
-# reached with a personal access token minted for exactly this - and there is no first-run path
-# that mints one, so it is seeded the way the bootstrap above is: through the real constructions,
-# short-lived, and used for nothing else.
-read -r ADMIN_TOKEN ADMIN_HASH < <(HUBTASK_SECRET_KEY="$MULTI_SECRET" go run ./test/e2e/mint --tenant "$OPERATOR_TENANT")
-multi_compose exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
-BEGIN;
-INSERT INTO tenant (id, slug, display_name)
-  VALUES ('$OPERATOR_TENANT', 'operator', 'Operator');
-INSERT INTO account (id, tenant_id, kind, display_name, status)
-  VALUES ('$OPERATOR_ACCOUNT', '$OPERATOR_TENANT', 'USER', 'Operator', 'ACTIVE');
-INSERT INTO access_token
-    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$OPERATOR_TOKEN_ROW', '$OPERATOR_TENANT', '$OPERATOR_ACCOUNT',
-          'the control plane bootstrap', decode('$ADMIN_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['admin:tenants'], now() + interval '30 minutes');
--- And into the register (ADR-0070 §1). The scope alone is not enough: it is
--- checked again where it is exercised, and the empty-register fallback is the *single-workspace*
--- installation's — which this is not, the moment it provisions the second. An installation that
--- hosts workspaces registers whoever runs it, and seeding that row is what this script is standing
--- in for.
-INSERT INTO operator (tenant_id, account_id) VALUES ('$OPERATOR_TENANT', '$OPERATOR_ACCOUNT');
-COMMIT;
-SQL
+# reached with a personal access token minted for exactly this. The multi-mode installation starts
+# like the other one: its printed code sets up the operator's own workspace, whose owner is the
+# installation's operator and mints the token behind a step-up.
+MULTI_CODE="$(setup_code multi_compose)"
+[ -n "$MULTI_CODE" ] || { echo "FAILED: the multi-mode first start printed no setup code"; exit 1; }
+operator_setup="$(curl -sS -X POST "$MULTI/api/v1/auth/installation:set-up" -H 'Content-Type: application/json' \
+	-d "{\"code\":\"$MULTI_CODE\",\"display_name\":\"Operations\",\"slug\":\"operations\",\"owner_email\":\"ops@example.org\",\"password\":\"$SETUP_PASSWORD\"}")"
+OPERATOR_ACCESS="$(answer_field access_token <<< "$operator_setup")"
+[ -n "$OPERATOR_ACCESS" ] || { echo "FAILED: the multi-mode setup answered $operator_setup"; exit 1; }
+read -r _ ADMIN_TOKEN < <(mint_on "$MULTI" "$OPERATOR_ACCESS" "$SETUP_PASSWORD" 'the control plane' '["admin:tenants"]')
+[ -n "$ADMIN_TOKEN" ] || { echo "FAILED: the operator could not mint the control plane's credential"; exit 1; }
 
 # Two identities, two profiles. The operator holds a token and the owner holds a session, and the
 # whole point of the act is that they are different credentials with different powers - so they

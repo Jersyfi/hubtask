@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -112,6 +113,20 @@ type LifecycleShift struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Tenancy is read by the suspension alone: in single mode it is refused (requireMulti).
+	Tenancy env.TenancyMode
+}
+
+// requireMulti refuses an act that would shut a single-mode installation's only workspace: that
+// workspace holds every operator, so suspending it or requesting its deletion would lock everybody
+// out of the installation with no way back, and a deletion nobody can reach could never be called
+// off (milestone SC decision 3, ADR-0077 §4). Resume and the cancel stay open in every mode - they
+// are the way back. Unset is refused, as provisioning refuses it: fail closed.
+func requireMulti(tenancy env.TenancyMode) error {
+	if tenancy != env.TenancyMulti {
+		return shared.ErrForbidden.WithDetail("admin.multi_mode_required")
+	}
+	return nil
 }
 
 // shift moves one edge. Moving to the status that already stands is a no-op success: the state
@@ -188,6 +203,12 @@ type SuspendTenant struct{ LifecycleShift }
 func (h SuspendTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 ) error {
+	if err := actor.RequireScope(adminTenantsScope); err != nil {
+		return err
+	}
+	if err := requireMulti(h.Tenancy); err != nil {
+		return err
+	}
 	return h.shift(ctx, actor, tenantID,
 		domain.TenantActive, domain.TenantSuspended,
 		TenantSuspendedAction, audit.SeverityWarning, journalSuspended)
@@ -199,7 +220,8 @@ func (h SuspendTenant) Descriptor() usecase.Descriptor {
 		Name: SuspendTenantName,
 		Summary: "Suspends a workspace: every API call of its people answers 403 " +
 			"tenant_suspended from their next request on. The data remains, and suspending an " +
-			"already suspended workspace changes nothing.",
+			"already suspended workspace changes nothing. Refused in single mode, where the one " +
+			"workspace is the installation.",
 		SideEffects: "Flips the tenant's lifecycle status; records the act in the tenant's " +
 			"audit trail and the instance journal.",
 		TokenScope: adminTenantsScope,

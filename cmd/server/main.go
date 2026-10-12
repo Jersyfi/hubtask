@@ -132,6 +132,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(selfCheck())
 	}
+	// The way back into an installation nobody can run (UC-INS-03), from the machine itself.
+	if len(os.Args) > 1 && os.Args[1] == "operator" {
+		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).
@@ -1168,6 +1172,19 @@ func run() error {
 	// mint and the exercise - and both of those are wired above.
 	operators := postgres.NewOperatorRepository()
 
+	// HUBTASK_OPERATORS (UC-INS-02): applied below at start and again on the scheduler's ticks,
+	// and read by the health report for the entries still waiting for their account.
+	operatorsFromEnvironment := adminservice.OperatorsFromEnvironment{
+		Entries: cfg.Operators, Operators: operators, Single: operators,
+		Journal:    postgres.NewInstanceJournal(cursors),
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
+	// Who runs the installation, in the health report, read live for each report (UC-INS-03
+	// check 4).
+	registry.AddWarningSource(adminservice.RegisterWarnings{
+		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
+	}.Warnings)
+
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
 	// while a file enforces them. The seeding write below uses the plain one deliberately — the
@@ -1302,6 +1319,24 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
+	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
+	// began (UC-INS-01).
+	provisioning := adminservice.ProvisionTenant{
+		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Accounts: accounts, Redemption: signInStore, Grants: grants,
+		Containers: containers, Buckets: buckets, Labels: labels,
+		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
+		Domains: domains, Text: forms,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		// The one host the new workspace answers at. The installation's own host comes
+		// from the configured base URL and never from a request.
+		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
+		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+	}
+	// The first start's codes, hashed under their own purpose label (security.md, T-24).
+	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
+
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1403,6 +1438,12 @@ func run() error {
 		syncservice.ListSyncDevices{Writer: deviceWriter}.Descriptor(),
 		syncservice.ForgetSyncDevice{Writer: deviceWriter}.Descriptor(),
 		identity.RedeemInvitation{Writer: sessionWriter, Passwords: &passwordWriter}.Descriptor(),
+		identity.SetUpInstallation{
+			Writer: sessionWriter, Passwords: &passwordWriter, Codes: setupCodes,
+			Seeder: provisioning, Owners: signInStore, Operators: operators,
+			Journal: postgres.NewInstanceJournal(cursors),
+			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
 		identity.ConfirmTotp{Writer: sessionWriter}.Descriptor(),
@@ -1970,19 +2011,7 @@ func run() error {
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
-		adminservice.ProvisionTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
-			Accounts: accounts, Redemption: signInStore, Grants: grants,
-			Containers: containers, Buckets: buckets, Labels: labels,
-			Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
-			Domains: domains, Text: forms,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-			Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
-			// The one host the new workspace answers at. The installation's own host comes
-			// from the configured base URL and never from a request.
-			Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
-			Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
-		}.Descriptor(),
+		provisioning.Descriptor(),
 		adminservice.ListTenants{
 			Tenants: postgres.NewAdminTenantRepository(), UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{},
@@ -1990,6 +2019,7 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -2001,6 +2031,16 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		// The edge back from a pending deletion: the rules the request switched off come back
+		// on through the automation package, which owns how a schedule's next moment is found.
+		adminservice.CancelTenantDeletion{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+			Automations: automationservice.PausedRules{
+				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
+			},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -2199,7 +2239,10 @@ func run() error {
 			Legal: signInPolicyResolver,
 			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
-			Operators:  operators,
+			Operators: operators,
+			// Whether the first start's setup is offered: the same function the setup's claim
+			// reads, so the card is drawn exactly where the route would accept it.
+			Setup:      setupCodes,
 			UnitOfWork: unitOfWork,
 			Config:     cfg,
 			// The same catalogue the mint validates against, so the manifest cannot offer a scope
@@ -3114,6 +3157,13 @@ func run() error {
 		// The leader holds one connection of the background pool for as long as it leads, which is
 		// why that pool is never sized at one.
 		scheduler := worker.Scheduler{
+			// HUBTASK_OPERATORS again on the first tick of every minute, for the entries whose
+			// account has come to exist since (UC-INS-02 check 4).
+			Operators: func() adminservice.OperatorsFromEnvironment {
+				onBackground := operatorsFromEnvironment
+				onBackground.UnitOfWork = backgroundWork
+				return onBackground
+			}(),
 			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
 			Queue:        jobs,
 			Backlog:      jobs,
@@ -3162,6 +3212,23 @@ func run() error {
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
+	}
+
+	// The operators the environment names (UC-INS-02 check 4), before the first request: an
+	// installation brought up from a file has them from its first minute. A failure is logged and
+	// the scheduler tries again.
+	applyOperatorsFromEnvironment(ctx, operatorsFromEnvironment)
+
+	// The first start (UC-INS-01): a process that serves the API, on an installation with no
+	// workspace and nobody in its register, prints a one-time setup code. After the instance file,
+	// so a file's level is in place before the first workspace is set up under it.
+	if cfg.HasRole(envport.RoleAPI) {
+		firstStart(ctx, identity.IssueSetupCode{
+			Codes: setupCodes, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Entropy: clockadapter.CryptoRandom{},
+		}, func(code string, params map[string]string) string {
+			return renderer.Render(cfg.Locale.DefaultLocale, code, params)
+		}, cfg.BaseURL)
 	}
 
 	registry.MarkStarted()

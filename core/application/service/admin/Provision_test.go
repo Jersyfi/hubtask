@@ -68,6 +68,10 @@ type tenantsStore struct {
 	closes   []time.Time
 	// racing is an opening another transaction commits just before a close's statement runs.
 	racing *domain.PasswordOpening
+	// cancels counts the cancel's statement; purgeRacing is the grace job's mark landing just
+	// before it runs.
+	cancels     int
+	purgeRacing bool
 }
 
 func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
@@ -91,6 +95,24 @@ func (s *tenantsStore) RequestDeletion(
 ) (bool, error) {
 	s.deletions = append(s.deletions, purgeAfter)
 	return s.deleteOK, nil
+}
+
+// CancelDeletion moves the one row back, as the guarded statement does: only a pending row
+// without the purge's mark.
+func (s *tenantsStore) CancelDeletion(context.Context, time.Time) (domain.TenantStatus, bool, error) {
+	s.cancels++
+	if s.purgeRacing {
+		s.record.PurgeStartedAt = now
+	}
+	if s.record.Status != domain.TenantPendingDeletion || !s.record.PurgeStartedAt.IsZero() {
+		return "", false, nil
+	}
+	back := s.record.StatusBeforeDeletion
+	if back == "" {
+		back = domain.TenantSuspended
+	}
+	s.record.Status, s.record.StatusBeforeDeletion, s.record.PurgeAfter = back, "", time.Time{}
+	return back, true, nil
 }
 
 // OpenPassword writes the opening onto the one row, as the statement does where the workspace is
@@ -555,5 +577,32 @@ func TestProvisioningWithoutTheHostStoreStillWorks(t *testing.T) {
 
 	if _, err := f.handler.Execute(t.Context(), operator(), provisionCommand()); err != nil {
 		t.Fatalf("provisioning without the host store: %v", err)
+	}
+}
+
+// The first start's setup seeds a single-mode workspace through the same method, on an installation
+// whose own host is often `localhost` - which no workspace host may be. Single mode resolves the
+// one workspace without the table, so it writes no host at all, whatever the installation's host.
+func TestASingleModeWorkspaceIsSeededWithoutAHost(t *testing.T) {
+	f := newProvisionFixture()
+	f.handler.Tenancy = env.TenancySingle
+	f.handler.InstallationHost = "localhost"
+
+	tenant, err := domain.NewTenant(domain.NewTenantInput{
+		ID: "01936f2a-7c1e-7000-8000-0000000051a1", Slug: "family", DisplayName: "Family",
+		Now: fixed, Text: text.Composing{},
+	})
+	if err != nil {
+		t.Fatalf("a tenant: %v", err)
+	}
+	owner, err := domain.Invite("01936f2a-7c1e-7000-8000-0000000051a2", tenant.ID, "eva@family.example", "Eva", nil, text.Composing{})
+	if err != nil {
+		t.Fatalf("an owner: %v", err)
+	}
+	if _, _, err := f.handler.SeedWorkspace(t.Context(), operator(), tenant, owner, fixed); err != nil {
+		t.Fatalf("seeding a single-mode workspace: %v", err)
+	}
+	if len(f.hosts.rows) != 0 {
+		t.Errorf("%d hosts were written in single mode, want none", len(f.hosts.rows))
 	}
 }

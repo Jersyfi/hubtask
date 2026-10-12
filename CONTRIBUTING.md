@@ -77,17 +77,20 @@ make run
 `multi` because single mode resolves "the only workspace", and a database with several resolves
 nothing.
 
-**3. Make a workspace and somebody who can sign in.**
+**3. Make a workspace and somebody who can sign in.** A server that finds no workspace prints a
+one-time setup code on its console when it starts (`Set up Hubtask: … enter the setup code …`).
+Spend it in the browser on the *Set up Hubtask* card, or with the script, which does the same and
+then mints the control plane's token for provisioning more workspaces:
 
 ```bash
-export HUBTASK_PSQL="docker exec -i hubtask-dev-postgres-1 psql -U hubtask -d hubtask"
-export HUBTASK_SECRET_KEY=local-development-only-not-a-secret-000000
-scripts/dev-workspace.sh --bootstrap          # once per database; prints a token
+export HUBTASK_DEMO_PASSWORD='seven blue lanterns above the harbour'
+HUBTASK_SETUP_CODE=XXXX-XXXX-XXXX scripts/dev-workspace.sh --bootstrap   # once per database; prints a token
 
 export HUBTASK_ADMIN_TOKEN=…                  # the token it printed
-export HUBTASK_DEMO_PASSWORD='seven blue lanterns above the harbour'
-scripts/dev-workspace.sh
+scripts/dev-workspace.sh --slug acme --name Acme --email eva@acme.example
 ```
+
+The code works for thirty minutes; restarting the server prints a new one while nothing is set up.
 
 **4. Open the workspace, not the bare host.**
 

@@ -71,6 +71,8 @@ services:
       # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
       # multi-mode control plane against the same file: one Compose file, both modes.
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
+      # Operators named by the environment (UC-INS-02); empty names nobody.
+      HUBTASK_OPERATORS: ${HUBTASK_OPERATORS:-}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}
       # The master keyring for envelope encryption (security.md §8). Empty means this installation
       # encrypts nothing and says so when asked to seal something; `.env.example` shows how to fill

@@ -527,6 +527,10 @@ class Client:
         """Redeem an invitation and set the first password"""
         return self._call("POST", "/auth/invitations:redeem", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_up_installation(self, body: "InstallationSetUp") -> "SessionTokens":
+        """Set up a fresh installation with the code its first start printed"""
+        return self._call("POST", "/auth/installation:set-up", {}, None, {}, body, "json", "application/json", "json")
+
     def complete_sign_in(self, body: "SignInCompletion") -> "SessionTokens":
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
@@ -638,6 +642,10 @@ class Client:
     def resume_tenant(self, tenant_id: str) -> None:
         """Reactivate a workspace"""
         return self._call("POST", "/admin/tenants/{tenantId}:resume", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
+
+    def cancel_tenant_deletion(self, tenant_id: str) -> None:
+        """Call off a workspace's pending deletion"""
+        return self._call("POST", "/admin/tenants/{tenantId}:cancel-deletion", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
 
     def request_tenant_deletion(self, tenant_id: str, body: "TenantDeletionRequest", *, step_up: str | None = None) -> "TenantDeletionScheduled":
         """Request a workspace's deletion"""

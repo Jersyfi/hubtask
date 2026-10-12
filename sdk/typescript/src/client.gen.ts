@@ -649,6 +649,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/invitations:redeem", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Set up a fresh installation with the code its first start printed
+   * Public: sent without a bearer where the client holds none. */
+  setUpInstallation(body: NonNullable<operations["setUpInstallation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpInstallation"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/installation:set-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Present the second factor and receive the pair
    * Public: sent without a bearer where the client holds none. */
   completeSignIn(body: NonNullable<operations["completeSignIn"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeSignIn"]['responses'][201]['content']["application/json"]> {
@@ -798,6 +804,11 @@ export class HubtaskClient {
   /** Reactivate a workspace */
   resumeTenant(tenantId: string, options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/admin/tenants/{tenantId}:resume", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Call off a workspace's pending deletion */
+  cancelTenantDeletion(tenantId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/admin/tenants/{tenantId}:cancel-deletion", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** Request a workspace's deletion */

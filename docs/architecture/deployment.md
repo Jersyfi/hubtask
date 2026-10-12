@@ -44,10 +44,16 @@ search is available), a one-shot migration service, and the application. The dat
 published; the application runs `read_only` with `no-new-privileges`, has volumes for media and
 backups, and starts only after the migration ended with `service_completed_successfully`.
 
-**The first workspace and its owner** are created with `scripts/dev-workspace.sh --bootstrap`. The
-browser setup with a one-time code printed at first start is
-[UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md) — specified, not built.
-Installation settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
+**The first workspace and its owner** are created in the browser
+([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)): at its first start the
+installation prints a one-time setup code (`docker compose logs app`), and the *Set up Hubtask* card
+at the installation's address takes it, the workspace's name and the owner's address and password -
+no database shell. The code lasts thirty minutes; `docker compose restart app` prints a new one while
+nothing is set up. Operators can also be named in the environment (`HUBTASK_OPERATORS`), and an
+installation nobody can run any more gets one back on the machine:
+`docker compose exec app hubtask operator add --workspace <short name> --email <address>`
+([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Installation
+settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
 
 The application connects as `hubtask_app` — created by the migration without `SUPERUSER` or
 `BYPASSRLS` — never as the database owner, so row level security is the last boundary in
