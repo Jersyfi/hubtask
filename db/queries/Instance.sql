@@ -67,8 +67,32 @@ SELECT drop_operator(sqlc.arg('account_id'));
 -- (`AdminTenants`' own note).
 SELECT workspaces_active::bigint, workspaces_suspended::bigint,
        workspaces_pending_deletion::bigint,
-       accounts_active::bigint, accounts_total::bigint
+       accounts_active::bigint, accounts_total::bigint,
+       workspaces_service_only::bigint
 FROM instance_census();
+
+-- name: ResolveSingleOperatorAccount :one
+-- A bare address in `HUBTASK_OPERATORS` on a single-mode installation: its one workspace's account,
+-- or nothing (migration 0128).
+SELECT resolve_single_operator_account(sqlc.arg('email'));
+
+-- name: OperatorRegisterState :one
+-- Workspaces and operators, counted as `is_operator` counts, for the health report's warning about
+-- an installation with several workspaces and nobody registered to run it (migration 0128).
+SELECT workspaces::bigint, operators::bigint FROM operator_register_state();
+
+-- name: InstallationUnset :one
+-- No workspace and nobody in the register: the state in which a setup code is issued and the setup
+-- card is offered (migration 0128).
+SELECT installation_unset();
+
+-- name: IssueSetupCode :one
+-- Lands only on an empty installation; false otherwise.
+SELECT issue_setup_code(sqlc.arg('id'), sqlc.arg('code_hash'), sqlc.arg('issued_at'), sqlc.arg('expires_at'));
+
+-- name: ClaimSetupCode :one
+-- Inside the setup's transaction: ALREADY_DONE, WRONG, EXPIRED or CLAIMED (migration 0128).
+SELECT claim_setup_code(sqlc.arg('code_hash'), sqlc.arg('now'))::text;
 
 -- name: InstanceQuotaDefaults :many
 -- What the installation set as the default ceiling for each quota, which every workspace that set

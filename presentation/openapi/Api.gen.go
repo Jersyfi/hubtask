@@ -4739,7 +4739,8 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules` and `search_filter`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
+	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
@@ -5679,6 +5680,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstallationSetUp defines model for InstallationSetUp.
+type InstallationSetUp struct {
+	// Code The setup code the server printed at start. Case and the dashes between its groups do not matter.
+	Code string `json:"code"`
+
+	// DefaultLocale BCP 47; the installation's default when omitted.
+	DefaultLocale *string `json:"default_locale,omitempty"`
+
+	// DefaultTimeZone An IANA name; the installation's default when omitted.
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+
+	// DisplayName The workspace's name.
+	DisplayName string `json:"display_name"`
+
+	// OwnerDisplayName The owner's name; the address stands in when it is omitted.
+	OwnerDisplayName *string `json:"owner_display_name,omitempty"`
+
+	// OwnerEmail The owner's address. Nothing is sent to it.
+	OwnerEmail string `json:"owner_email"`
+
+	// Password The owner's password, under the product's password policy.
+	Password string `json:"password"`
+
+	// Slug Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.
+	Slug *string `json:"slug,omitempty"`
+}
+
 // InstanceJournalEntry One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists.
 type InstanceJournalEntry struct {
 	// Action `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`, `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by the client.
@@ -5712,7 +5740,10 @@ type InstanceOverview struct {
 
 	// WorkspacesPendingDeletion Workspaces inside the grace period of a deletion request.
 	WorkspacesPendingDeletion int `json:"workspaces_pending_deletion"`
-	WorkspacesSuspended       int `json:"workspaces_suspended"`
+
+	// WorkspacesServiceOnly Workspaces that hold no person, only service accounts - one made to hold a machine's credential, for instance. They are not customers, so the three workspace counts above leave them out; the list of workspaces shows them.
+	WorkspacesServiceOnly int `json:"workspaces_service_only"`
+	WorkspacesSuspended   int `json:"workspaces_suspended"`
 }
 
 // InstanceReach Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one.
@@ -9930,6 +9961,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
+// SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
+type SetUpInstallationJSONRequestBody = InstallationSetUp
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -10373,6 +10407,9 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// SetUpInstallation Set up a fresh installation with the code its first start printed
+	// (POST /auth/installation:set-up)
+	SetUpInstallation(w http.ResponseWriter, r *http.Request)
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
@@ -12305,6 +12342,20 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetUpInstallation operation middleware
+func (siw *ServerInterfaceWrapper) SetUpInstallation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetUpInstallation(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21552,6 +21603,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/installation:set-up", wrapper.SetUpInstallation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:link", wrapper.CompleteLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)

@@ -121,7 +121,8 @@ func (pending) RevokeAllSessions(w http.ResponseWriter, r *http.Request) { notAv
 // Sign out everywhere else: served by RestController.
 func (pending) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) RedeemInvitation(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) SetUpInstallation(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The sign-in surface of ADR-0068.
 func (pending) GetSignInRules(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

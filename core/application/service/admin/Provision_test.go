@@ -557,3 +557,30 @@ func TestProvisioningWithoutTheHostStoreStillWorks(t *testing.T) {
 		t.Fatalf("provisioning without the host store: %v", err)
 	}
 }
+
+// The first start's setup seeds a single-mode workspace through the same method, on an installation
+// whose own host is often `localhost` - which no workspace host may be. Single mode resolves the
+// one workspace without the table, so it writes no host at all, whatever the installation's host.
+func TestASingleModeWorkspaceIsSeededWithoutAHost(t *testing.T) {
+	f := newProvisionFixture()
+	f.handler.Tenancy = env.TenancySingle
+	f.handler.InstallationHost = "localhost"
+
+	tenant, err := domain.NewTenant(domain.NewTenantInput{
+		ID: "01936f2a-7c1e-7000-8000-0000000051a1", Slug: "family", DisplayName: "Family",
+		Now: fixed, Text: text.Composing{},
+	})
+	if err != nil {
+		t.Fatalf("a tenant: %v", err)
+	}
+	owner, err := domain.Invite("01936f2a-7c1e-7000-8000-0000000051a2", tenant.ID, "eva@family.example", "Eva", nil, text.Composing{})
+	if err != nil {
+		t.Fatalf("an owner: %v", err)
+	}
+	if _, _, err := f.handler.SeedWorkspace(t.Context(), operator(), tenant, owner, fixed); err != nil {
+		t.Fatalf("seeding a single-mode workspace: %v", err)
+	}
+	if len(f.hosts.rows) != 0 {
+		t.Errorf("%d hosts were written in single mode, want none", len(f.hosts.rows))
+	}
+}

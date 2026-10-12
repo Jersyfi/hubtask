@@ -583,5 +583,6 @@ func (InstallationRepository) Census(ctx context.Context) (repository.Census, er
 		WorkspacesPendingDeletion: row.WorkspacesPendingDeletion,
 		AccountsActive:            row.AccountsActive,
 		AccountsTotal:             row.AccountsTotal,
+		WorkspacesServiceOnly:     row.WorkspacesServiceOnly,
 	}, nil
 }
