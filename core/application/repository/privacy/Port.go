@@ -165,6 +165,14 @@ type Subjects interface {
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
 }
 
+// Restrictions answers whose processing is restricted (Art. 18, data-protection.md §4): the one
+// read the rule engine and the AI exclusion share, so that the two cannot disagree about a person.
+type Restrictions interface {
+	// RestrictedPeople answers every account in the RESTRICTED state, and every anonymised account a
+	// legal hold still keeps contributions of. An empty list is not an error.
+	RestrictedPeople(ctx context.Context) ([]domain.RestrictedPerson, error)
+}
+
 // Erasure is every storage location a person's data sits in, as the one thing that has to serve
 // them all (data-protection.md §5, risk R-09).
 //

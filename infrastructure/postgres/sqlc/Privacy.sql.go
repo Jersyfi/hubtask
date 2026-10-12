@@ -965,6 +965,57 @@ func (q *Queries) ReleaseIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const restrictedPeople = `-- name: RestrictedPeople :many
+SELECT a.id AS account_id, a.display_name, a.email, a.sign_in_name
+FROM account a
+WHERE a.tenant_id = current_tenant_id()
+  AND a.deleted_at IS NULL
+  AND (a.status = 'RESTRICTED'
+    OR (a.status = 'ANONYMIZED' AND EXISTS (
+      SELECT 1 FROM erasure_kept k
+      JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+      WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
+        AND r.subject_account_id = a.id)))
+ORDER BY a.id
+`
+
+type RestrictedPeopleRow struct {
+	AccountID   pgtype.UUID
+	DisplayName string
+	Email       *string
+	SignInName  *string
+}
+
+// Whose processing is restricted (Art. 18, data-protection.md §4): every account whose status is
+// RESTRICTED, and every anonymised account a legal hold still keeps contributions of - the subject
+// of an erasure case with a part not yet erased (§4.1). Not every anonymised account: what an
+// erasure anonymised without a hold is the workspace's content. The names and the address are what
+// a prompt builder replaces in what remains; an anonymised account has none left.
+func (q *Queries) RestrictedPeople(ctx context.Context) ([]RestrictedPeopleRow, error) {
+	rows, err := q.db.Query(ctx, restrictedPeople)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RestrictedPeopleRow{}
+	for rows.Next() {
+		var i RestrictedPeopleRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.DisplayName,
+			&i.Email,
+			&i.SignInName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const revokeConsent = `-- name: RevokeConsent :execrows
 UPDATE consent_record SET revoked_at = $1
 WHERE tenant_id = current_tenant_id()
