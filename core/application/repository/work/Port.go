@@ -1107,3 +1107,28 @@ type OrphanedHubs interface {
 	// through a group, neither anonymised nor deleted.
 	WorkspaceOwners(ctx context.Context) ([]shared.ID, error)
 }
+
+// EmergencyAccesses keeps the workspace owner's emergency accesses to private hubs (ADR-0073 §4):
+// the members' record of who opened their hub, when and why. Every statement runs in the caller's
+// transaction, under the workspace's row level security.
+type EmergencyAccesses interface {
+	// Insert writes a new access.
+	Insert(ctx context.Context, access work.EmergencyAccess) error
+
+	// Running answers the access the account opened on the hub that has not ended at `now`.
+	Running(ctx context.Context, hubID, openedBy shared.ID, now time.Time) (work.EmergencyAccess, bool, error)
+
+	// List answers a hub's accesses, newest first, at most `limit`.
+	List(ctx context.Context, hubID shared.ID, limit int) ([]work.EmergencyAccess, error)
+
+	// Members answers the hub's members as ADR-0073 §5 counts them: accounts, neither anonymised
+	// nor deleted, holding a role on the hub, on a collection in it or on an entry in one.
+	Members(ctx context.Context, hubID shared.ID) ([]shared.ID, error)
+
+	// NoticesFor answers the accesses the recipient was told of, opened at or after `since`,
+	// newest first, whatever the mail about them did.
+	NoticesFor(ctx context.Context, recipientID shared.ID, since time.Time) ([]work.EmergencyAccess, error)
+
+	// Find answers one access with the name of its hub, for the mail that tells of it.
+	Find(ctx context.Context, id shared.ID) (work.EmergencyAccess, string, error)
+}

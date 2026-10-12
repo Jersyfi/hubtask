@@ -76,6 +76,15 @@ type ActorContext struct {
 	// a caller holding that account's token would be too - only this tells an act whose answer
 	// nobody reads from one whose caller reads it.
 	RunsForRule shared.ID
+	// Present is true for a request a person is waiting on now: a call through the REST API - the
+	// web app's door and hubctl's - set by that adapter and nowhere else. It decides one thing:
+	// whether the workspace owner's running emergency access to a private hub counts (ADR-0073 §4,
+	// identity.md §22). The access is for the person looking, for one hour, and must leave nothing
+	// behind it: so it never counts for a device's copy (the sync service takes the mark off,
+	// ForACopy), a calendar subscription, a job or a rule run later (built without it), or an AI
+	// agent acting with the person's credential. False is the safe value: an actor somebody forgot
+	// to mark sees nothing of a private hub.
+	Present bool
 	// APIClient is the OAuth client the credential was issued to, empty for everything
 	// that is not a grant session. It is what the audit trail records as the acting app.
 	APIClient shared.ID
@@ -89,6 +98,13 @@ type ActorContext struct {
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
+}
+
+// ForACopy is the actor as a reader that fills a copy which outlives the request - a device's
+// replica - for which a running emergency access does not count (Present).
+func (a ActorContext) ForACopy() ActorContext {
+	a.Present = false
+	return a
 }
 
 // WithheldScopes is what the operator register removed from a credential, and why.

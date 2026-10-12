@@ -48,6 +48,9 @@ type SetHubPrivacy struct {
 	// cannot slip in while the hub turns private (identity.md §22).
 	Hubs        identityrepository.HubLocks
 	Revocations PrivacyRevocations
+	// PrivateHubs is the workspace's switch: read when a shared hub is to turn private, never when
+	// a private one is shared again (ADR-0073 §6).
+	PrivateHubs PrivateHubsRule
 }
 
 // SetHubPrivacyCommand is the input, typed.
@@ -74,6 +77,11 @@ func (h SetHubPrivacy) Execute(
 	}
 	if err := h.authorize(ctx, actor, current, cmd.Private); err != nil {
 		return domain.Container{}, err
+	}
+	if cmd.Private && !current.Private {
+		if err := allowPrivateHubs(ctx, h.PrivateHubs, actor.TenantID); err != nil {
+			return domain.Container{}, err
+		}
 	}
 
 	var updated domain.Container

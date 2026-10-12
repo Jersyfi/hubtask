@@ -263,6 +263,18 @@ func (q *Queries) ClearNotificationPreference(ctx context.Context) (int64, error
 	return result.RowsAffected(), nil
 }
 
+const clearPrivateHubAccess = `-- name: ClearPrivateHubAccess :execrows
+DELETE FROM private_hub_access
+`
+
+func (q *Queries) ClearPrivateHubAccess(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPrivateHubAccess)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearRecurrenceRule = `-- name: ClearRecurrenceRule :execrows
 DELETE FROM recurrence_rule
 `
@@ -585,6 +597,17 @@ SELECT EXISTS (SELECT 1 FROM notification_preference WHERE account_id = ($1::jso
 
 func (q *Queries) HoldsNotificationPreference(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsNotificationPreference, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPrivateHubAccess = `-- name: HoldsPrivateHubAccess :one
+SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPrivateHubAccess(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPrivateHubAccess, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1800,6 +1823,53 @@ type ImportNotificationPreferenceParams struct {
 
 func (q *Queries) ImportNotificationPreference(ctx context.Context, arg ImportNotificationPreferenceParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importNotificationPreference, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPrivateHubAccess = `-- name: ImportPrivateHubAccess :execrows
+INSERT INTO private_hub_access (
+  id,
+  tenant_id,
+  hub_id,
+  opened_by,
+  reason,
+  opened_at,
+  ends_at
+)
+SELECT
+  r.id,
+  r.tenant_id,
+  r.hub_id,
+  r.opened_by,
+  r.reason,
+  r.opened_at,
+  r.ends_at
+FROM jsonb_populate_record(
+  NULL::private_hub_access,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM container c WHERE c.id = r.hub_id)
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  opened_by = EXCLUDED.opened_by,
+  reason = EXCLUDED.reason,
+  opened_at = EXCLUDED.opened_at,
+  ends_at = EXCLUDED.ends_at
+WHERE $2::boolean
+`
+
+type ImportPrivateHubAccessParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// An access whose hub the restore did not bring back has nothing to describe, and is skipped
+// rather than refused by the foreign key.
+func (q *Queries) ImportPrivateHubAccess(ctx context.Context, arg ImportPrivateHubAccessParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPrivateHubAccess, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

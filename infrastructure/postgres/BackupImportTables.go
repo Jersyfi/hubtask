@@ -304,6 +304,17 @@ var importers = map[string]importer{
 			return queries.ClearNotificationPreference(ctx)
 		},
 	},
+	"private_hub_access": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPrivateHubAccess(ctx, sqlc.ImportPrivateHubAccessParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPrivateHubAccess(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPrivateHubAccess(ctx)
+		},
+	},
 	"retention_policy": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportRetentionPolicy(ctx, sqlc.ImportRetentionPolicyParams{Payload: payload, Overwrite: overwrite})

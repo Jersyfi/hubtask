@@ -1309,3 +1309,18 @@ func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
 func (pending) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// The emergency access to a private hub (ADR-0073 §4).
+func (pending) ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) OpenPrivateHub(
+	w http.ResponseWriter, r *http.Request, _ openapi.HubId, _ openapi.OpenPrivateHubParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

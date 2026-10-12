@@ -977,6 +977,21 @@ export class HubtaskClient {
     return this.call("GET", "/private-hubs", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Who opened this private hub through the emergency access, and why */
+  listPrivateHubAccesses(hubId: string, options: CallOptions = {}): Promise<operations["listPrivateHubAccesses"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/private-hubs/{hubId}/accesses", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Open a private hub through the emergency access */
+  openPrivateHub(hubId: string, body: NonNullable<operations["openPrivateHub"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["openPrivateHub"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/private-hubs/{hubId}/accesses", { "hubId": hubId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The emergency accesses the caller was told of in the last 30 days */
+  listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** How many people here no provider switched on here signs in */
   countAccountsWithoutProvider(options: CallOptions = {}): Promise<operations["countAccountsWithoutProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/accounts-without-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

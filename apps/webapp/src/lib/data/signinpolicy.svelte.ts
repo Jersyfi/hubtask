@@ -91,6 +91,11 @@ export interface SignInPolicy {
    * (ADR-0074 §7). Off is the stricter value; absent from a server that predates it.
    */
   readonly managed_accounts?: Setting<boolean>;
+  /**
+   * Whether people here may make private hubs (ADR-0073 §6). Off is the stricter value and stops
+   * new ones only; drawn on the *Private hubs* page, not on *Sign-in*. Absent from an older server.
+   */
+  readonly private_hubs?: Setting<boolean>;
   /** When everybody was last asked for a new password, or `null`. Set by the action, never typed. */
   readonly rotation_from: string | null;
 }

@@ -49,17 +49,18 @@ func catalogueFor(t *testing.T) *usecase.Registry {
 		Clock:       fixed,
 	}
 	registry, err := usecase.NewRegistry(nil, work.CreateContainer{
-		Containers: containerRepo(),
-		Authorizer: authoriser,
-		OwnHubs:    authoriser,
-		Grants:     postgres.NewMembershipGrantRepository(pageCursors()),
-		Events:     postgres.NewOutbox(jobQueue(t)),
-		Changes:    postgres.NewChangeLog(),
-		Audit:      sink,
-		UnitOfWork: unitOfWork,
-		Clock:      fixed,
-		IDs:        ids,
-		HLC:        hybrid,
+		Containers:  containerRepo(),
+		Authorizer:  authoriser,
+		OwnHubs:     authoriser,
+		Grants:      postgres.NewMembershipGrantRepository(pageCursors()),
+		PrivateHubs: privateHubsRule(unitOfWork),
+		Events:      postgres.NewOutbox(jobQueue(t)),
+		Changes:     postgres.NewChangeLog(),
+		Audit:       sink,
+		UnitOfWork:  unitOfWork,
+		Clock:       fixed,
+		IDs:         ids,
+		HLC:         hybrid,
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)

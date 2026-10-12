@@ -1703,18 +1703,19 @@ func run() error {
 			Lag: cfg.Queue.TriggerPollLag,
 		}.Descriptor(),
 		work.CreateContainer{
-			Containers: containers,
-			Authorizer: authorizer,
-			OwnHubs:    authorizer,
-			Grants:     grants,
-			Events:     outbox,
-			Changes:    changes,
-			Audit:      auditSink,
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{},
-			IDs:        ids,
-			HLC:        hybrid,
-			Text:       forms,
+			Containers:  containers,
+			Authorizer:  authorizer,
+			OwnHubs:     authorizer,
+			PrivateHubs: signInPolicyResolver,
+			Grants:      grants,
+			Events:      outbox,
+			Changes:     changes,
+			Audit:       auditSink,
+			UnitOfWork:  unitOfWork,
+			Clock:       clockadapter.System{},
+			IDs:         ids,
+			HLC:         hybrid,
+			Text:        forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:        items,
@@ -1762,9 +1763,27 @@ func run() error {
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Accesses: postgres.NewEmergencyAccessRepository(), Owners: authorizer, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.ListPrivateHubAccesses{
+			Accesses: postgres.NewEmergencyAccessRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListEmergencyNotices{
+			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.OpenPrivateHub{
+			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
+			// Every member told in the transaction that opens the hub (ADR-0073 §4).
+			Notices: notification.RecordEmergencyAccess{
+				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		work.SetHubPrivacy{
 			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
+			PrivateHubs: signInPolicyResolver,
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
@@ -2789,6 +2808,8 @@ func run() error {
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+			// The emergency access a member is told of: opener, times, reason and hub.
+			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
@@ -3122,11 +3143,14 @@ func run() error {
 			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
-		queueport.KindWebhookDeliver:      webhookDelivery,
-		queueport.KindAutomationRun:       automationRun,
-		queueport.KindAutomationHTTP:      outboundCall,
-		queueport.KindBackupRun:           backupRun,
-		queueport.KindBackupVerify:        worker.BackupVerify{Performer: backupPerformer},
+		// The same delivery under its own kind, which a process of the previous release leaves alone
+		// (queue.KindEmergencyAccessEmail).
+		queueport.KindEmergencyAccessEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:       webhookDelivery,
+		queueport.KindAutomationRun:        automationRun,
+		queueport.KindAutomationHTTP:       outboundCall,
+		queueport.KindBackupRun:            backupRun,
+		queueport.KindBackupVerify:         worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

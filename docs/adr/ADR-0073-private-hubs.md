@@ -1,8 +1,8 @@
 # ADR-0073 — A private hub narrows what the workspace's roles reach
 
 **Status:** accepted · **Date:** 2026-09-30 · **Accepted:** 2026-09-30
-**Rule lives in:** [identity.md](../architecture/identity.md) §22; the emergency access (§4) and the
-setting (§6) are not built yet
+**Rule lives in:** [identity.md](../architecture/identity.md) §22, the emergency access and the
+setting included
 
 ## Context
 

@@ -146,6 +146,10 @@ func TestAValidCredentialBecomesTheActor(t *testing.T) {
 	if !actor.IsAuthenticated() || actor.TenantID != tenantID {
 		t.Errorf("actor = %+v", actor)
 	}
+	// A person waiting on the answer: what a running emergency access counts for (ADR-0073 §4).
+	if !actor.Present {
+		t.Error("a request through the API is not marked present")
+	}
 	if auth.command.Credential != credential {
 		t.Errorf("the use case saw %q", auth.command.Credential)
 	}

@@ -6,6 +6,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -176,6 +177,36 @@ func (r MembershipRepository) Administrators(
 // The tenant is not a parameter: row level security bounds the query to the tenant of the running
 // transaction, so another tenant's container answers nothing even when its identifier is known
 // (ADR-0010).
+// HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access to.
+func (r MembershipRepository) HubsOpenedFor(
+	ctx context.Context, accountID shared.ID, hubIDs []shared.ID, now time.Time,
+) ([]shared.ID, error) {
+	if len(hubIDs) == 0 || accountID.IsZero() {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	hubs, err := uuidsOf(hubIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.HubsOpenedFor(ctx, sqlc.HubsOpenedForParams{
+		AccountID: account, HubIds: hubs, Now: timestampOf(now),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the emergency accesses: %w", err))
+	}
+	return idsFrom(rows)
+}
+
 func (r MembershipRepository) HubsOf(
 	ctx context.Context, ids []shared.ID,
 ) (map[shared.ID]repository.Hub, error) {

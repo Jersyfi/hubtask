@@ -44,6 +44,14 @@ type Message struct {
 	// Link is where to look. An absolute URL built from the configured public base, so that a mail
 	// client has something to click - a relative path in an email is a dead link.
 	Link string
+	// Reason, When and Until belong to one message only: the emergency access, which tells a
+	// hub's members who opened it, from when until when, and the reason the opener wrote for them
+	// to read (ADR-0073 §4). The reason is the message itself rather than content copied out of
+	// somewhere, which is why it travels and a note never does. When and Until are already written
+	// in the recipient's time zone.
+	Reason string
+	When   string
+	Until  string
 }
 
 // Params is the message's parameters as the i18n port takes them.
@@ -62,6 +70,11 @@ func (m Message) Params() map[string]string {
 	}
 	if m.Link != "" {
 		params["link"] = m.Link
+	}
+	for name, value := range map[string]string{"reason": m.Reason, "when": m.When, "until": m.Until} {
+		if value != "" {
+			params[name] = value
+		}
 	}
 	return params
 }

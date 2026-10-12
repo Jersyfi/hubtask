@@ -197,8 +197,9 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_holds',
     rows: [
       { id: 'quotas', icon: 'gauge', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
-      // Drawn only where a private hub exists (`administration` below): a workspace without one
-      // has nothing to show there, and a row that always opened an empty list would be noise.
+      // Drawn only where a private hub exists or more than one person is here (`administration`
+      // below): the page is also where *Private hubs allowed* is set, and a workspace of one has
+      // neither a hub to show nor anybody to keep one from.
       { id: 'private-hubs', icon: 'lock', code: 'app.admin.private_hubs', path: '/administration/private-hubs', routes: ['private-hubs'] },
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
@@ -240,7 +241,8 @@ const INSTALLATION_GROUP: SectionGroup = {
 
 /**
  * The administration's navigation as this reader is shown it: the *Private hubs* row only where
- * the server answered at least one (UC-ID-16 check 3) - none, or a refusal, and the row is absent;
+ * the server answers the list and either a private hub exists or the workspace holds more than one
+ * person (UC-ID-16 checks 3, 7) - a refusal, or a workspace of one without one, and it is absent;
  * and the installation as the last group where `withInstallation` says so (`installationPlace`).
  */
 export function administration(options: {

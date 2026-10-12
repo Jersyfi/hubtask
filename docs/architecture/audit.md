@@ -98,11 +98,12 @@ What this build records, use case by use case, is the generated
 [event matrix](../audit/event-matrix.md) (`make generate`). In short: authentication, tokens,
 permissions (including **denied access**, `outcome=DENIED`), the tenant lifecycle, deletion,
 restore, import and bulk operations, exports (requested, produced, **downloaded**), automation, AI
-use, integrations, data protection cases and security-relevant administration. Planned, not built
-(milestone PH): a private hub opened through the emergency access, a data subject request's deadline
-extended. A managed account's new start password (`account.start_password_issued`, a warning) and
-its address requested and confirmed (`account.address_requested`, `account.address_confirmed`, the
-address `SENSITIVE`) are recorded.
+use, integrations, data protection cases and security-relevant administration, a private hub
+opened through the emergency access among them (`container.emergency_access_opened`, its reason
+masked: it is written to the hub's members, not to the trail's readers). Planned, not built
+(milestone PH): a data subject request's deadline extended. A managed account's new start password
+(`account.start_password_issued`, a warning) and its address requested and confirmed
+(`account.address_requested`, `account.address_confirmed`, the address `SENSITIVE`) are recorded.
 
 **A private hub keeps no act out of the trail.** Whoever reads the trail sees acts in a private hub
 as every other act — actor, action, the target's identifier — and, as everywhere, never a name or

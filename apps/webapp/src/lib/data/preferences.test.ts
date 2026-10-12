@@ -70,6 +70,7 @@ test('the categories and channels are the installation’s, unknown ones include
 test('the invitation is the one nothing switches off', () => {
   // A switch that could be moved and would not be obeyed is worse than one that says why not.
   assert.equal(isAlwaysOn('INVITATION'), true);
+  assert.equal(isAlwaysOn('EMERGENCY_ACCESS'), true);
   assert.equal(isAlwaysOn('ITEM_ASSIGNED'), false);
 });
 

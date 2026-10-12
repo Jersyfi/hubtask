@@ -1,0 +1,60 @@
+
+## desktop 1280: Paul opens Diary
+  the list: OwnersCollectionsEntriesAttachmentsMadeStateEmergency accessLena Kind110 byteOct 12, 2026In use Open in an emergency Mara Parent000 byteOct 12, 2026In use Open in an emergency
+  screenshot 1-owner-private-hubs-list-desktop.png
+  screenshot 2-owner-emergency-dialog-desktop.png
+  the server asked for a fresh proof (auth.step_up_required)
+  screenshot 3-owner-step-up-desktop.png
+  on the hub: You opened this hub through the emergency access. It closes at Oct 12, 2026, 9:15 PM; its members have been told.
+  screenshot 4-owner-opened-hub-desktop.png
+  row stored: 01a13153-c36a-74c0-851e-52cb66bcc153 21:15
+  notification records: Lena Kind EMERGENCY_ACCESS SUPPRESSED notifications.no_address
+  trail: container.emergency_access_opened target 01a13153-06a1-7d8c-9650-22c3047244e2 reason in clear: false
+  screenshot 5-owner-list-while-open-desktop.png
+  owner failures: []
+
+## Lena Kind, a managed account without a mailbox
+  in the frame: Paul Parent opened one of your private hubs through the emergency access on Oct 12, 2026, 8:15 PM, until Oct 12, 2026, 9:15 PM. Reason: Lena is in hospital; the insurance papers for the trip are in this hub. Open the hub
+  screenshot 6-member-told-in-the-app-desktop.png
+  screenshot 7-member-hub-notice-desktop.png
+  member failures: []
+
+## 375 px: Paul opens Presents
+  the list: OwnersCollectionsEntriesAttachmentsMadeStateEmergency accessLena Kind110 byteOct 12, 2026In useOpen to you until Oct 12, 2026, 9:15 PM Go to the hubMara Parent000 byteOct 12, 2026In use Open in an emergency
+  screenshot 1-owner-private-hubs-list-375.png
+  screenshot 2-owner-emergency-dialog-375.png
+  the server asked for a fresh proof (auth.step_up_required)
+  screenshot 3-owner-step-up-375.png
+  on the hub: You opened this hub through the emergency access. It closes at Oct 12, 2026, 9:15 PM; its members have been told.
+  screenshot 4-owner-opened-hub-375.png
+  row stored: 01a13153-d822-73a9-a355-8b7e3002d69c 21:15
+  notification records: Mara Parent EMERGENCY_ACCESS SUPPRESSED notifications.no_address
+  trail: container.emergency_access_opened target 01a13153-06b7-7438-8586-9582c442c1ff reason in clear: false
+  screenshot 5-owner-list-while-open-375.png
+  owner failures: []
+
+## Mara Parent, a managed account without a mailbox
+  in the frame: Paul Parent opened one of your private hubs through the emergency access on Oct 12, 2026, 8:15 PM, until Oct 12, 2026, 9:15 PM. Reason: Mara is in hospital; the insurance papers for the trip are in this hub. Open the hub
+  screenshot 6-member-told-in-the-app-375.png
+  screenshot 7-member-hub-notice-375.png
+  member failures: []
+
+## desktop 1280: Private hubs allowed
+  the switch: Private hubs allowed People here may make private hubs A private hub is reached only by its own members — the workspace's owners and administrators included. Switching this off stops new ones; every private hub already here stays private. Set here.
+  screenshot 8-owner-private-hubs-switched-off-desktop.png
+  owner failures: []
+  Mara's create dialog offers *Private*: false
+  screenshot 9-member-create-hub-without-private-desktop.png
+  the API refuses a private hub: 403 containers.private_hubs_off
+  existing private hubs still private: Diary=true, Family=false, General=false, Presents=true
+  member failures: []
+
+## 375 px: Private hubs allowed
+  the switch: Private hubs allowed People here may make private hubs A private hub is reached only by its own members — the workspace's owners and administrators included. Switching this off stops new ones; every private hub already here stays private. Set here.
+  screenshot 8-owner-private-hubs-switched-off-375.png
+  owner failures: []
+  Mara's create dialog offers *Private*: false
+  screenshot 9-member-create-hub-without-private-375.png
+  the API refuses a private hub: 403 containers.private_hubs_off
+  existing private hubs still private: Diary=true, Family=false, General=false, Presents=true
+  member failures: []

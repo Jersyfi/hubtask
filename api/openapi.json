@@ -6318,6 +6318,105 @@
         }
       }
     },
+    "/private-hubs/{hubId}/accesses": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/HubId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "listPrivateHubAccesses",
+        "summary": "Who opened this private hub through the emergency access, and why",
+        "description": "Every emergency access to the hub, newest first, with the person who opened it, when, until when and the reason they gave. Read by whoever reads the hub - its members, and the workspace's owner while their access runs; to everybody else the hub is not there, and this answers not found as it does.\n",
+        "responses": {
+          "200": {
+            "description": "The accesses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrivateHubAccess"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "openPrivateHub",
+        "summary": "Open a private hub through the emergency access",
+        "description": "The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in, for one hour, with a reason. Every member of the hub is told at once, in the same step: by mail where they have an address, and in the app whatever their mail did; the opening is in the workspace's trail. The hour is not extended, and a second access is refused while one runs (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act, told again. During the hour the hub answers its opener as a hub of the workspace would, through the opener's own requests only - never into a device's copy, a calendar feed or a job.\nDemands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in (`containers.emergency_not_needed`).\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivateHubAccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Opened; the members have been told",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrivateHubAccess"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/emergency-notices": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listEmergencyNotices",
+        "summary": "The emergency accesses the caller was told of in the last 30 days",
+        "description": "Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.\n",
+        "responses": {
+          "200": {
+            "description": "The notices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PrivateHubAccess"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/tenant/accounts-without-provider": {
       "get": {
         "tags": [
@@ -11524,6 +11623,15 @@
           "type": "string"
         }
       },
+      "HubId": {
+        "name": "hubId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "ContainerId": {
         "name": "containerId",
         "in": "path",
@@ -13591,7 +13699,8 @@
           "collections",
           "entries",
           "attachment_bytes",
-          "created_at"
+          "created_at",
+          "emergency_access"
         ],
         "properties": {
           "id": {
@@ -13637,6 +13746,81 @@
             ],
             "format": "date",
             "description": "The day a trashed hub is deleted for good, by the workspace's trash period."
+          },
+          "emergency_access": {
+            "type": "object",
+            "required": [
+              "offered",
+              "open_until"
+            ],
+            "description": "The caller's emergency access to this hub. `offered` is true where the caller may open it now - the workspace's owner, holding nothing in the hub, with no access of theirs running; `open_until` is the end of the caller's running access, or null.\n",
+            "properties": {
+              "offered": {
+                "type": "boolean"
+              },
+              "open_until": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "PrivateHubAccessRequest": {
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Why the hub is opened. Told to every member of the hub, and kept with the hub as their record of who opened it.\n"
+          }
+        }
+      },
+      "PrivateHubAccess": {
+        "type": "object",
+        "description": "One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.\n",
+        "required": [
+          "id",
+          "hub_id",
+          "opened_by",
+          "reason",
+          "opened_at",
+          "ends_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "opened_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The account that opened it; null once that account is gone."
+          },
+          "reason": {
+            "type": "string"
+          },
+          "opened_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -13729,7 +13913,12 @@
           "private_hubs_offered": {
             "type": "boolean",
             "readOnly": true,
-            "description": "Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.\n"
+            "description": "Whether a client offers to make a hub private: the workspace allows private hubs (`sign_in_policy.private_hubs`) and holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. Where private hubs are not allowed, the server refuses one (`containers.private_hubs_off`).\n"
+          },
+          "several_people": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether the workspace holds more than one person whose account is not anonymised - where private hubs, and the setting that allows them, mean something.\n"
           },
           "sign_in_policy": {
             "$ref": "#/components/schemas/SignInPolicy",
@@ -13980,6 +14169,10 @@
             "$ref": "#/components/schemas/SignInPolicyFlag",
             "description": "Whether owners and administrators may give somebody an account without a mail address. On by default; off is the stricter value. Off stops new ones only - the managed accounts already here keep signing in.\n"
           },
+          "private_hubs": {
+            "$ref": "#/components/schemas/SignInPolicyFlag",
+            "description": "Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.\n"
+          },
           "rotation_from": {
             "type": [
               "string",
@@ -14226,6 +14419,9 @@
             "type": "string"
           },
           "managed_accounts": {
+            "type": "boolean"
+          },
+          "private_hubs": {
             "type": "boolean"
           },
           "rotation_from": {
@@ -14914,7 +15110,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
+            "description": "The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.\n"
           },
           "legal": {
             "type": "object",
