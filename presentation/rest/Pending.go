@@ -201,6 +201,10 @@ func (pending) ResumeTenant(w http.ResponseWriter, r *http.Request, _ openapi.Ad
 	notAvailable(w, r)
 }
 
+func (pending) CancelTenantDeletion(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
 func (pending) RequestTenantDeletion(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.RequestTenantDeletionParams) {
 	notAvailable(w, r)
 }

@@ -57,3 +57,48 @@ func TestTheInstallationListingAnswersTheLegalHold(t *testing.T) {
 		t.Errorf("legal_hold = %v, want true", rows[0]["legal_hold"])
 	}
 }
+
+// Once the purge has begun the listing says when, which is what the console reads to stop offering
+// *Cancel deletion*; before that the field is absent.
+func TestTheInstallationListingAnswersWhenThePurgeBegan(t *testing.T) {
+	began := time.Date(2026, 10, 12, 3, 0, 0, 0, time.UTC)
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{
+		{
+			"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "leaving", "display_name": "Leaving",
+			"status": "PENDING_DELETION", "created_at": began, "purge_after": began,
+			"legal_hold": false, "purge_started_at": began,
+		},
+		{
+			"id": "0192f000-0000-7000-8000-0000000000e2", "slug": "waiting", "display_name": "Waiting",
+			"status": "PENDING_DELETION", "created_at": began, "purge_after": began, "legal_hold": false,
+		},
+	}}}
+
+	recorder := callAdmin(t, registry, http.MethodGet, "/admin/tenants")
+	var rows []map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &rows); err != nil || len(rows) != 2 {
+		t.Fatalf("the answer %s (%v)", recorder.Body, err)
+	}
+	if rows[0]["purge_started_at"] != "2026-10-12T03:00:00Z" {
+		t.Errorf("purge_started_at = %v", rows[0]["purge_started_at"])
+	}
+	if started, present := rows[1]["purge_started_at"]; present && started != nil {
+		t.Errorf("a purge that has not begun answers %v", started)
+	}
+}
+
+func TestCancellingADeletionReachesItsUseCase(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"tenant_id": "0192f000-0000-7000-8000-0000000000e1", "status": "ACTIVE",
+	}}
+
+	recorder := callAdmin(t, registry, http.MethodPost,
+		"/admin/tenants/0192f000-0000-7000-8000-0000000000e1:cancel-deletion")
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "CancelTenantDeletion" ||
+		registry.in["tenant_id"] != "0192f000-0000-7000-8000-0000000000e1" {
+		t.Errorf("the call reached %q with %v", registry.name, registry.in)
+	}
+}

@@ -635,6 +635,10 @@ class Client:
         """Reactivate a workspace"""
         return self._call("POST", "/admin/tenants/{tenantId}:resume", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
 
+    def cancel_tenant_deletion(self, tenant_id: str) -> None:
+        """Call off a workspace's pending deletion"""
+        return self._call("POST", "/admin/tenants/{tenantId}:cancel-deletion", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
+
     def request_tenant_deletion(self, tenant_id: str, body: "TenantDeletionRequest", *, step_up: str | None = None) -> "TenantDeletionScheduled":
         """Request a workspace's deletion"""
         return self._call("POST", "/admin/tenants/{tenantId}:delete", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")

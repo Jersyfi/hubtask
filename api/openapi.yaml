@@ -3994,6 +3994,27 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:cancel-deletion:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: cancelTenantDeletion
+      summary: Call off a workspace's pending deletion
+      description: >
+        Returns a workspace pending deletion to where it stood when the deletion was requested -
+        active or suspended; suspended where that is not known - and clears the deadline. The
+        automation rules the request switched off are switched back on, a schedule from now on,
+        without the occurrences it missed. Possible until the hard delete begins, also past the
+        deadline while a legal hold keeps the workspace; refused with
+        `admin.tenant_deletion_underway` once it has begun (`purge_started_at` on the listing).
+        Cancelling a workspace that is not pending changes nothing. Legal holds stay as they are.
+      responses:
+        "204":
+          description: The deletion is called off
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:delete:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -10529,6 +10550,12 @@ components:
             Whether a legal hold is in force in the workspace. While one is, a deletion request is
             refused, and a workspace already pending deletion stays pending until the last hold is
             lifted. Only the state: which hold, on what and why stay the workspace's.
+        purge_started_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            Set once the hard delete has begun removing the workspace. From then on its deletion
+            can no longer be called off.
         password_opening:
           description: >
             The operator's opening of the password while it is in force, null

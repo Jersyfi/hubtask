@@ -21,8 +21,9 @@ import (
 // mark and the cancel exclude each other on the one row, and the rules the request switched off are
 // the ones a cancel finds - none of a neighbour's.
 
-// cancellableWorkspace seeds a workspace of its own with a person and three rules - one on, one on
-// with a schedule, one switched off by hand - and answers the workspace, the person and the rules.
+// cancellableWorkspace seeds a workspace of its own with a person, a hub, a media object and three
+// rules - one on, one on with a schedule, one switched off by hand - and answers the workspace and
+// the rules.
 func cancellableWorkspace(
 	ctx context.Context, t *testing.T, status identity.TenantStatus,
 ) (tenant shared.ID, rules [3]shared.ID) {
@@ -43,6 +44,12 @@ func cancellableWorkspace(
 		         ($2, $4, 'TENANT', 'nightly', $5, '{"kind":"SCHEDULE","rrule":"FREQ=DAILY;BYHOUR=3","timezone":"UTC"}'::jsonb, '[]'::jsonb, $5, true),
 		         ($3, $4, 'TENANT', 'off by hand', $5, '{"kind":"EVENT","event_type":"item.created"}'::jsonb, '[]'::jsonb, $5, false)`,
 			[]any{rules[0].String(), rules[1].String(), rules[2].String(), tenant.String(), person.String()}},
+		{`INSERT INTO container (id, tenant_id, type, name, order_key, created_by)
+		  VALUES ($1, $2, 'HUB', 'Household', 'a0', $3)`,
+			[]any{freshID(t).String(), tenant.String(), person.String()}},
+		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+		  VALUES ($1, $2, $3, 'text/plain', 11, 'ATTACHMENT', 'READY')`,
+			[]any{freshID(t).String(), tenant.String(), "media/cancel/" + tenant.String()}},
 	} {
 		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
 			t.Fatalf("seeding the workspace: %v\n%s", err, statement.sql)
@@ -52,6 +59,8 @@ func cancellableWorkspace(
 		done := context.WithoutCancel(ctx)
 		for _, statement := range []string{
 			`DELETE FROM automation_rule WHERE tenant_id = $1`,
+			`DELETE FROM media_object WHERE tenant_id = $1`,
+			`DELETE FROM container WHERE tenant_id = $1`,
 			`DELETE FROM tenant WHERE id = $1`,
 		} {
 			if _, err := adminPool(done, t).Exec(done, statement, tenant.String()); err != nil {

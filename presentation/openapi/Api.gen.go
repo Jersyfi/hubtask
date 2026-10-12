@@ -3935,9 +3935,12 @@ type AdminTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
-	Slug       string            `json:"slug"`
-	Status     AdminTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
+	Slug           string            `json:"slug"`
+	Status         AdminTenantStatus `json:"status"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -6803,9 +6806,12 @@ type ProvisionedTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
-	Slug       string                  `json:"slug"`
-	Status     ProvisionedTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
+	Slug           string                  `json:"slug"`
+	Status         ProvisionedTenantStatus `json:"status"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -10271,6 +10277,9 @@ type ServerInterface interface {
 	// UpdateTenantQuotas Set a workspace's quotas
 	// (PATCH /admin/tenants/{tenantId}/quotas)
 	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// CancelTenantDeletion Call off a workspace's pending deletion
+	// (POST /admin/tenants/{tenantId}:cancel-deletion)
+	CancelTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// CloseTenantPassword Close an operator's opening of the password early
 	// (POST /admin/tenants/{tenantId}:close-password)
 	CloseTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -11753,6 +11762,32 @@ func (siw *ServerInterfaceWrapper) UpdateTenantQuotas(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateTenantQuotas(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CancelTenantDeletion operation middleware
+func (siw *ServerInterfaceWrapper) CancelTenantDeletion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelTenantDeletion(w, r, tenantId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21478,6 +21513,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:cancel-deletion", wrapper.CancelTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
