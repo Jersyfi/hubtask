@@ -50,10 +50,22 @@ export interface Enrollment {
   readonly recovery_codes: readonly string[];
 }
 
+/**
+ * The change step a sign-in still owes after the enrolment: the password it began with must be
+ * replaced first - one the rule refuses, or a start password (ADR-0074 §2).
+ */
+export interface OwedChange {
+  readonly pending_token: string;
+  readonly methods: readonly string[];
+  readonly expires_at: string;
+  readonly password_rules?: unknown;
+}
+
 /** What `:confirm` answers. The pair is there only when a pending credential completed a sign-in. */
 interface Confirmed {
   readonly armed: boolean;
   readonly tokens?: { readonly access_token: string; readonly refresh_token: string } | null;
+  readonly challenge?: OwedChange | null;
 }
 
 class Mfa {
@@ -120,7 +132,15 @@ class Mfa {
   async confirm(
     code: string,
     pendingToken?: string,
-  ): Promise<{ armed: boolean; tokens?: { access: string; refresh: string } } | undefined> {
+  ): Promise<
+    | {
+        armed: boolean;
+        tokens?: { access: string; refresh: string };
+        /** The change step the sign-in still owes, standing where the pair would. */
+        challenge?: OwedChange;
+      }
+    | undefined
+  > {
     let answer: Confirmed | undefined;
     const ok = await this.#attempt(async () => {
       // Invalidating nothing, on purpose. The default re-reads every open resource, `/accounts/me`
@@ -145,6 +165,7 @@ class Mfa {
       tokens: answer.tokens
         ? { access: answer.tokens.access_token, refresh: answer.tokens.refresh_token }
         : undefined,
+      challenge: answer.challenge ?? undefined,
     };
   }
 

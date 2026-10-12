@@ -2708,6 +2708,49 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts:create-managed:
+    post:
+      tags: [identity]
+      operationId: createManagedAccount
+      summary: Give somebody an account without a mail address
+      description: |
+        Creates a managed account: a person who signs in with a sign-in name instead of an address,
+        and the role they hold at one scope, in one step. The account is active at once - there is
+        no invitation to redeem, because there is no mailbox to send one to.
+
+        **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
+        it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
+        choosing the person's own password under the workspace's rule.
+
+        Asks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with
+        `accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed
+        accounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any
+        spelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an
+        automation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no
+        answer, so the start password would reach nobody. Granting `OWNER` demands the step-up,
+        as the grant does.
+
+        There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
+        no-store`: an answer kept for a replay would keep the start password with it. A repeat after
+        a lost answer finds the name taken.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ManagedAccountCreate"
+      responses:
+        "201":
+          description: Created, with the start password shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ManagedAccountCreated"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/me:
     get:
       tags: [identity]
@@ -3076,6 +3119,10 @@ paths:
         presented again is refused, because a code that worked twice is a code somebody
         shoulder-read. A recovery code works exactly once, its consumption is audited, and the
         answer says how many remain. Failures count against the same attempt ledger sign-in uses.
+
+        Where the password the sign-in began with no longer meets the workspace's rule - or is a
+        start password Hubtask drew - the change step still stands after the code: the answer is
+        then `202` with `PASSWORD_CHANGE`, and the pair comes from `/auth/sessions:set-password`.
       requestBody:
         required: true
         content:
@@ -3089,6 +3136,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: >
+            The code was right and the password the sign-in began with must be changed first: the
+            `PASSWORD_CHANGE` step, with the rule the new one is judged against.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8572,6 +8627,14 @@ components:
         id: { type: string, format: uuid }
         kind: { type: string, enum: [USER, SERVICE_ACCOUNT] }
         email: { type: [string, "null"], format: email }
+        sign_in_name:
+          type: [string, "null"]
+          minLength: 3
+          maxLength: 32
+          description: >
+            What a managed account signs in with instead of an address: unique in the workspace,
+            stored folded (compatibility form, lower case). Absent on an account that signs in with
+            its address.
         display_name: { type: string, minLength: 1, maxLength: 200 }
         status:
           type: string
@@ -8672,6 +8735,41 @@ components:
         status:
           type: string
           enum: [ACTIVE, INVITED, DISABLED, RESTRICTED, ANONYMIZED]
+        has_address:
+          type: boolean
+          description: >
+            False for an account that has no mail address - a managed account - so a screen can say
+            that a reminder by mail does not reach this person, instead of letting it fail silently.
+            The address itself is not answered here.
+
+    ManagedAccountCreate:
+      type: object
+      required: [display_name, sign_in_name, role, scope_type]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in_name:
+          type: string
+          description: >
+            3 to 32 characters after folding (compatibility form, lower case, trimmed); no `@`, no
+            whitespace and no control character. Unique in the workspace.
+        role: { $ref: "#/components/schemas/MembershipRole" }
+        scope_type: { $ref: "#/components/schemas/MembershipScope" }
+        scope_id:
+          type: [string, "null"]
+          format: uuid
+          description: Absent for `TENANT`; the hub, collection or entry otherwise.
+
+    ManagedAccountCreated:
+      type: object
+      required: [account, membership, start_password]
+      properties:
+        account: { $ref: "#/components/schemas/Account" }
+        membership: { $ref: "#/components/schemas/Membership" }
+        start_password:
+          type: string
+          description: >
+            Shown here and never again. The person types it once, with the sign-in name, and then
+            chooses their own.
 
     AccountInvite:
       type: object
@@ -8827,9 +8925,26 @@ components:
 
     SignIn:
       type: object
-      required: [email, password]
+      description: >
+        Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal
+        of the shape, the same for everybody - nothing in it depends on who exists.
+      required: [password]
       properties:
-        email: { type: string, format: email, maxLength: 254 }
+        identifier:
+          type: string
+          minLength: 1
+          maxLength: 254
+          description: >
+            The address the account signs in with, or its sign-in name where it has one instead
+            (a managed account). One with `@` is read as an address, one without as a sign-in name;
+            both are compared after the same folding the stored values had. Every failure is the one
+            refusal, whichever it was.
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: >
+            The address, for a client that knows only addresses. `identifier` takes either.
         password:
           type: string
           maxLength: 1024
@@ -9544,6 +9659,12 @@ components:
         methods: { $ref: "#/components/schemas/SignInPolicyMethods" }
         session: { $ref: "#/components/schemas/SessionPolicySettings" }
         legal: { $ref: "#/components/schemas/LegalPolicySettings" }
+        managed_accounts:
+          $ref: "#/components/schemas/SignInPolicyFlag"
+          description: >
+            Whether owners and administrators may give somebody an account without a mail address.
+            On by default; off is the stricter value. Off stops new ones only - the managed accounts
+            already here keep signing in.
         rotation_from:
           type: [string, "null"]
           format: date-time
@@ -9658,6 +9779,7 @@ components:
         privacy_url: { type: string }
         terms_url: { type: string }
         accessibility_url: { type: string }
+        managed_accounts: { type: boolean }
         rotation_from:
           type: string
           enum: [now]
@@ -10152,8 +10274,8 @@ components:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
           description: >
-            The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, and
-            the two session bounds. `rotation_from` is deliberately not among them: it is an event a
+            The switches by name - the thirteen the password has, `mfa_required_for`, `methods`,
+            the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a
             workspace raises for its own people, and an operator who wanted every account on the
             installation to change its password would be asking for a different feature with a
             different blast radius.
@@ -10383,6 +10505,12 @@ components:
             the cause: an offer that ended, an installation default or lock, a restore.
             The password opens for the accounts that hold one, under the workspace's own rules,
             until an administrator switches on a way in. The administrators' screen says so.
+        sign_in_names:
+          type: boolean
+          description: >
+            True while this workspace has at least one managed account - a person who signs in with
+            a sign-in name instead of an address - so the card's first field asks for either. False
+            everywhere else, a host without a workspace included.
 
     MfaChallenge:
       type: object
@@ -10529,7 +10657,15 @@ components:
             - type: "null"
           description: >
             The pair, when a pending credential completed a sign-in here. Absent for a signed-in
-            caller, who already holds one.
+            caller, who already holds one, and where `challenge` stands instead.
+        challenge:
+          anyOf:
+            - $ref: "#/components/schemas/MfaChallenge"
+            - type: "null"
+          description: >
+            The `PASSWORD_CHANGE` step, when a pending credential completed the enrolment and the
+            password the sign-in began with must still be changed - one the rule refuses, or a start
+            password Hubtask drew. The pair then comes from `/auth/sessions:set-password`.
 
     AdminTenant:
       type: object

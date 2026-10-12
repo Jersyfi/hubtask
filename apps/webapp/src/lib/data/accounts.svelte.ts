@@ -34,6 +34,12 @@ class Accounts {
    * who has not arrived yet.
    */
   #statuses = $state<Record<string, string>>({});
+  /**
+   * The people mail does not reach: an account without an address, a managed one (ADR-0074 §5). The
+   * summary says so without the address, so a reminder's screen can say it rather than letting the
+   * mail fail silently.
+   */
+  #addressless = $state<Record<string, true>>({});
   /** Asked for and not answered yet, so a second caller does not ask again. */
   #asking = new Set<string>();
   /** Asked for and refused, so nobody asks again at all. */
@@ -42,6 +48,11 @@ class Accounts {
   /** The display name, when it is known. `undefined` means "say what is true of every actor". */
   nameOf(id: string | null | undefined): string | undefined {
     return id ? this.#names[id] : undefined;
+  }
+
+  /** Whether mail is known not to reach this person. Unknown reads as reachable. */
+  hasNoAddress(id: string | null | undefined): boolean {
+    return id ? this.#addressless[id] === true : false;
   }
 
   /** The account's standing — `ACTIVE`, `INVITED`, `DISABLED` — where it is known. */
@@ -69,6 +80,7 @@ class Accounts {
       if (state.status === 'ready' && state.data.display_name) {
         this.#names = { ...this.#names, [id]: state.data.display_name };
         if (state.data.status) this.#statuses = { ...this.#statuses, [id]: state.data.status };
+        if (state.data.has_address === false) this.#addressless = { ...this.#addressless, [id]: true };
       } else {
         this.#unknown.add(id);
       }

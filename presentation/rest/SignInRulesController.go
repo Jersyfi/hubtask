@@ -67,8 +67,10 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 
 	legal, _ := out["legal"].(usecase.Output)
 	fallback := boolValue(out["password_fallback"])
+	names := boolValue(out["sign_in_names"])
 	return openapi.SignInRules{
 		PasswordFallback: &fallback,
+		SignInNames:      &names,
 		WorkspaceHost:    out.String("workspace_host"),
 		Methods:          methods,
 		Providers:        providers,

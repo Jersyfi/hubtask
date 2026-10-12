@@ -92,8 +92,19 @@
 
   $effect(() => {
     if (!isComposing) return;
-    accounts.resolve(candidateIds);
+    accounts.resolve([...candidateIds, item.assignee_id]);
   });
+
+  /**
+   * Who a reminder by mail would not reach (ADR-0074 §5): the people chosen, or - where nobody is,
+   * and the reminder goes to the assignee and the members - the assignee. Said under the choice,
+   * instead of a mail that never arrives.
+   */
+  const unreachable = $derived(
+    (chosenRecipients.length > 0 ? chosenRecipients : [item.assignee_id])
+      .filter((id): id is string => typeof id === 'string' && accounts.hasNoAddress(id))
+      .map((id) => accounts.nameOf(id) ?? t('app.people.unnamed')),
+  );
 
   function startNew() {
     editing = undefined;
@@ -240,6 +251,9 @@
             unassignedLabel={t('app.reminders.default_recipients')}
             onSelect={(ids) => (chosenRecipients = ids)}
           />
+          {#if chosenChannels.includes('EMAIL') && unreachable.length > 0}
+            <p class="note">{t('app.reminders.no_mailbox', { names: unreachable.join(', '), count: unreachable.length })}</p>
+          {/if}
         {/snippet}
       </ReminderEditor>
       </div>
@@ -279,6 +293,8 @@
 <style>
   /* A focus scope and nothing else: the editor keeps the layout it had. */
   .opened { display: contents; }
+
+  .note { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 
   .list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-100); }
 

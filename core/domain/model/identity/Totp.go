@@ -201,6 +201,10 @@ type PendingCredential struct {
 	// LINK credential, and by the TOTP credential a LINK hands on to when the account has a second
 	// factor - so the connection happens at the end of the account's own proof, never before it.
 	Link *LinkIntent
+	// PasswordChangeOwed is the change step a TOTP or ENROLL credential still owes once it completes:
+	// the password the sign-in began with no longer meets the rule, or is a start password. The
+	// factor comes first; the change follows it rather than being forgotten (identity.md §4.2).
+	PasswordChangeOwed bool
 }
 
 // LinkIntent is a provider identity waiting for the account's own proof: which provider, and the

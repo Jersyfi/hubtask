@@ -170,6 +170,10 @@ type SignInPolicy struct {
 	// default: the password and any provider that is configured.
 	Methods  []string
 	Sessions SessionPolicy
+	// ManagedAccounts is whether owners and administrators may give somebody an account without a
+	// mail address (ADR-0074 §7). On by default; off is the stricter value, and it stops new ones
+	// only - a managed account already there keeps signing in.
+	ManagedAccounts bool
 	// RotationFrom is the moment "require a new password from everyone" was pressed. A password
 	// set before it meets PASSWORD_CHANGE at the next sign-in and a session opened before it is
 	// refused on its next request - which is the whole of the enforcement, with no job and no
@@ -190,9 +194,10 @@ func DefaultSignInPolicy() SignInPolicy {
 			CommonPasswords: true,
 			ContextWords:    true,
 		},
-		MfaRequiredFor: MfaForNobody,
-		Methods:        []string{MethodDirect, MethodOidc},
-		Sessions:       SessionPolicy{MaxDays: CeilingSessionMaxDays},
+		MfaRequiredFor:  MfaForNobody,
+		Methods:         []string{MethodDirect, MethodOidc},
+		Sessions:        SessionPolicy{MaxDays: CeilingSessionMaxDays},
+		ManagedAccounts: true,
 	}
 }
 
@@ -223,6 +228,8 @@ const (
 	SwitchSessionMaxDays     PolicySwitch = "session_max_days"
 	SwitchSessionIdleMinutes PolicySwitch = "session_idle_minutes"
 
+	SwitchManagedAccounts PolicySwitch = "managed_accounts"
+
 	SwitchRotationFrom PolicySwitch = "rotation_from"
 )
 
@@ -236,6 +243,7 @@ func PolicySwitches() []PolicySwitch {
 		SwitchMinAgeHours,
 		SwitchMfaRequiredFor, SwitchMethods,
 		SwitchSessionMaxDays, SwitchSessionIdleMinutes,
+		SwitchManagedAccounts,
 		SwitchRotationFrom,
 	}
 }
@@ -280,6 +288,8 @@ type PolicyPatch struct {
 
 	SessionMaxDays     *int
 	SessionIdleMinutes *int
+
+	ManagedAccounts *bool
 
 	RotationFrom *time.Time
 }
@@ -334,6 +344,8 @@ func (p PolicyPatch) carries(name PolicySwitch) bool {
 		return p.SessionMaxDays != nil
 	case SwitchSessionIdleMinutes:
 		return p.SessionIdleMinutes != nil
+	case SwitchManagedAccounts:
+		return p.ManagedAccounts != nil
 	case SwitchRotationFrom:
 		return p.RotationFrom != nil
 	}
@@ -380,6 +392,8 @@ func (p PolicyPatch) Merge(other PolicyPatch) PolicyPatch {
 			merged.SessionMaxDays = other.SessionMaxDays
 		case SwitchSessionIdleMinutes:
 			merged.SessionIdleMinutes = other.SessionIdleMinutes
+		case SwitchManagedAccounts:
+			merged.ManagedAccounts = other.ManagedAccounts
 		case SwitchRotationFrom:
 			merged.RotationFrom = other.RotationFrom
 		}
@@ -523,6 +537,8 @@ func applySwitch(policy SignInPolicy, name PolicySwitch, patch PolicyPatch) Sign
 		policy.Sessions.MaxDays = *patch.SessionMaxDays
 	case SwitchSessionIdleMinutes:
 		policy.Sessions.IdleMinutes = *patch.SessionIdleMinutes
+	case SwitchManagedAccounts:
+		policy.ManagedAccounts = *patch.ManagedAccounts
 	case SwitchRotationFrom:
 		policy.RotationFrom = patch.RotationFrom.UTC()
 	}
@@ -636,6 +652,9 @@ func tightens(name PolicySwitch, inForce SignInPolicy, proposed PolicyPatch) boo
 		return *proposed.SessionMaxDays <= sessions.MaxDays && *proposed.SessionMaxDays >= 1
 	case SwitchSessionIdleMinutes:
 		return offOrLower(*proposed.SessionIdleMinutes, sessions.IdleMinutes)
+	case SwitchManagedAccounts:
+		// Fewer kinds of account is stricter: off may follow on, never on follow off.
+		return !*proposed.ManagedAccounts || inForce.ManagedAccounts
 	case SwitchRotationFrom:
 		// A moment only ever moves forward: rewinding it would let a workspace un-require a
 		// rotation it already asked for, and the sessions it ended are already gone.
@@ -771,6 +790,8 @@ func SwitchText(policy SignInPolicy, name PolicySwitch) string {
 		return itoa(policy.Sessions.MaxDays)
 	case SwitchSessionIdleMinutes:
 		return itoa(policy.Sessions.IdleMinutes)
+	case SwitchManagedAccounts:
+		return boolText(policy.ManagedAccounts)
 	case SwitchRotationFrom:
 		if policy.RotationFrom.IsZero() {
 			return ""

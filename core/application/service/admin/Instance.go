@@ -449,6 +449,9 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	if patch.SessionIdleMinutes != nil {
 		put(identity.SwitchSessionIdleMinutes, *patch.SessionIdleMinutes)
 	}
+	if patch.ManagedAccounts != nil {
+		put(identity.SwitchManagedAccounts, *patch.ManagedAccounts)
+	}
 
 	// The four links, for the switches' reason: a screen that drew only the two somebody filled in
 	// is a screen that never mentions terms or an accessibility statement.
@@ -718,6 +721,8 @@ func applyInstanceSwitch(patch *identity.PolicyPatch, name string, raw any) erro
 		patch.ContextWords, err = flag()
 	case identity.SwitchBreachCheck:
 		patch.BreachCheck, err = flag()
+	case identity.SwitchManagedAccounts:
+		patch.ManagedAccounts, err = flag()
 	case identity.SwitchMfaRequiredFor:
 		value, isString := raw.(string)
 		requirement := identity.MfaRequirement(value)

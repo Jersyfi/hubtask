@@ -29,6 +29,10 @@ type PasswordAccount struct {
 	// treated as an expired one, because locking somebody out over a missing date would be the
 	// product's mistake and not theirs.
 	PasswordSetAt time.Time
+	// StartPasswordAt is when Hubtask drew the password the account holds - a managed account's
+	// start password (ADR-0074 §2). Zero once the person chose their own; while it is set, the next
+	// sign-in owes the change.
+	StartPasswordAt time.Time
 }
 
 // PasswordAccounts is the account surface of a password's life.

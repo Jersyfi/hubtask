@@ -949,11 +949,12 @@ func (h RunRule) runAs(
 	}
 
 	runAs := appshared.ActorContext{
-		Kind:      appshared.ActorServiceAccount,
-		TenantID:  actor.TenantID,
-		AccountID: rule.RunAs,
-		Locale:    actor.Locale,
-		TimeZone:  actor.TimeZone,
+		Kind:        appshared.ActorServiceAccount,
+		TenantID:    actor.TenantID,
+		AccountID:   rule.RunAs,
+		RunsForRule: rule.ID,
+		Locale:      actor.Locale,
+		TimeZone:    actor.TimeZone,
 	}
 	if scope != "" {
 		runAs.Scopes = []string{scope}

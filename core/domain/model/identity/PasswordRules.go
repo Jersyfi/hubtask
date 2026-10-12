@@ -76,7 +76,10 @@ type PasswordViolation struct {
 // PasswordContext is who is setting the password and where, for the rules that are about them
 // rather than about the string.
 type PasswordContext struct {
-	Email         string
+	Email string
+	// SignInName is a managed account's name (ADR-0074): a word the person types beside the
+	// password, so the password may not carry it.
+	SignInName    string
 	DisplayName   string
 	WorkspaceName string
 	WorkspaceHost string
@@ -175,6 +178,9 @@ func ContextWords(form text.Normalizer, context PasswordContext) []string {
 	}
 	if context.Email != "" {
 		words = append(words, context.Email)
+	}
+	if context.SignInName != "" {
+		words = append(words, context.SignInName)
 	}
 	for _, source := range []string{context.DisplayName, context.WorkspaceName} {
 		for _, part := range strings.Fields(source) {

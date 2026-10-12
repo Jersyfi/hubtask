@@ -71,6 +71,8 @@ function proofBody(proof: PasswordProof): Record<string, string> {
 
 class SignInRulesStore {
   #rules = $state<SignInRules | undefined>(undefined);
+  /** Whether the read in progress has answered - with the rules, or with a failure. */
+  #readSettled = $state(false);
 
   /** What was checked last, by value: the same candidate is never sent twice. */
   #answers = new Map<string, readonly string[]>();
@@ -116,12 +118,33 @@ class SignInRulesStore {
   }
 
   /** Whether this workspace still signs in with a password at all. */
+  /**
+   * Whether the card knows which ways in to draw: the rules answered, or could not be, or this
+   * installation does not serve them. Until then the ways in are not drawn at all - drawn from the
+   * default, the first field read "Email address" in a workspace with managed accounts, and a
+   * password form stood where the password is off, both changing under somebody's finger a moment
+   * later. A rule from an earlier read does not count: the workspace may have changed since
+   * (a managed account created while signed in), and a sign-out reads again.
+   */
+  get isSettled(): boolean {
+    if (!manifest.isRead) return manifest.failure !== undefined;
+    return !this.isServed || this.#readSettled;
+  }
+
   get hasPassword(): boolean {
     return this.#rules === undefined || this.#rules.methods.includes('PASSWORD');
   }
 
   get workspaceHost(): string | undefined {
     return this.#rules?.workspace_host;
+  }
+
+  /**
+   * Whether this workspace has a managed account, so the first field asks for an address or a
+   * sign-in name (ADR-0074 §3). False until the rules are read, and false everywhere else (P-10).
+   */
+  get signInNames(): boolean {
+    return this.#rules?.sign_in_names ?? false;
   }
 
   get isChecking(): boolean {
@@ -156,8 +179,10 @@ class SignInRulesStore {
    */
   read(): () => void {
     if (!this.isServed) return () => {};
+    this.#readSettled = false;
     return engine.subscribe<SignInRules>({ path: RULES }, (next) => {
       if (next.status === 'ready') this.#rules = next.data;
+      if (next.status === 'ready' || next.status === 'failed') this.#readSettled = true;
     });
   }
 

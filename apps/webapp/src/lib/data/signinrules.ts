@@ -76,11 +76,15 @@ export interface SignInRules {
    * provider the installation withdrew (ADR-0076 §4) - which the administrators' screen says.
    */
   readonly password_fallback?: boolean;
+  /** True while the workspace has a managed account: the first field takes a sign-in name too. */
+  readonly sign_in_names?: boolean;
 }
 
 /** Who is setting the password, for the rules that are about them rather than about the string. */
 export interface PasswordContext {
   readonly email?: string;
+  /** A managed account's sign-in name: a context word as the address is, for one who has none. */
+  readonly signInName?: string;
   readonly displayName?: string;
   readonly workspaceName?: string;
   readonly workspaceHost?: string;
@@ -164,6 +168,7 @@ export function contextWords(context: PasswordContext): string[] {
   const local = context.email?.split('@')[0];
   if (local && local.length >= 3) words.push(local);
   if (context.email) words.push(context.email);
+  if (context.signInName) words.push(context.signInName);
   for (const part of (context.displayName ?? '').split(/\s+/)) {
     if (part.length >= 4) words.push(part);
   }
@@ -217,7 +222,9 @@ export function evaluate(
   if (rules.min_symbols > 0) local('min_symbols', `${CODE}.min_symbols`, { count: String(rules.min_symbols) }, counts.symbols >= rules.min_symbols);
   if (rules.min_classes > 0) local('min_classes', `${CODE}.min_classes`, { count: String(rules.min_classes) }, counts.classes >= rules.min_classes);
   if (rules.max_repeat > 0) local('max_repeat', `${CODE}.max_repeat`, { count: String(rules.max_repeat) }, longestRun(typed) <= rules.max_repeat);
-  if (rules.context_words) local('context_words', `${CODE}.context_words`, {}, !carriesContextWord(typed, context));
+  // A person signing in with a name has no address: the line names what is compared instead.
+  const contextCode = context.signInName && !context.email ? `${CODE}.context_words_name` : `${CODE}.context_words`;
+  if (rules.context_words) local('context_words', contextCode, {}, !carriesContextWord(typed, context));
 
   const localHolds = lines.every((line) => line.state === 'met');
   const stateOfServerRule = (id: string): RuleState => {

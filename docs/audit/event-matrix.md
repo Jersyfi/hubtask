@@ -34,6 +34,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
+| `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |
 | `account.notification_preference_changed` | SetNotificationPreference | `account` | INFO | Every time |
 | `account.notification_preferences_read` | ListNotificationPreferences | `account` | INFO | When refused |
 | `account.password_changed` | ChangePassword | `account` | WARNING | Every time |
