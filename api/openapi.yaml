@@ -2859,7 +2859,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     post:
       tags: [identity]
-      operationId: addAddress
+      operationId: requestAddress
       summary: Give a managed account a mail address
       description: |
         Sends a confirmation link to the address. Nothing on the account changes until somebody

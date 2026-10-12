@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -197,5 +198,40 @@ func TestManagedAccountsSwitchOffIsStricter(t *testing.T) {
 	if !byPlan.Policy.ManagedAccounts || byPlan.LockOf(SwitchManagedAccounts) != LockPlan {
 		t.Errorf("the plan's lock did not hold the default: %v, lock %q",
 			byPlan.Policy.ManagedAccounts, byPlan.LockOf(SwitchManagedAccounts))
+	}
+}
+
+// An address a managed account takes follows an invitation's rule, and a refusal names the field.
+func TestAnAddressToTakeIsFoldedAndJudged(t *testing.T) {
+	address, err := NewAddress("  Lena@Example.ORG ", nil)
+	if err != nil || address != "lena@example.org" {
+		t.Errorf("answered %q, %v", address, err)
+	}
+	for _, raw := range []string{"", "lena", "lena@localhost", "lena @example.org"} {
+		_, err := NewAddress(raw, nil)
+		refusal := shared.AsError(err)
+		if refusal == nil || len(refusal.Fields) != 1 || refusal.Fields[0].Path != "/email" ||
+			refusal.Fields[0].Code != refusal.DetailCode {
+			t.Errorf("%q answered %v", raw, err)
+		}
+	}
+}
+
+// Ten minutes between two links for one account, counted from the last request.
+func TestAnotherAddressLinkWaitsTenMinutes(t *testing.T) {
+	last := time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC)
+	for name, c := range map[string]struct {
+		latest, now time.Time
+		want        time.Duration
+	}{
+		"none before":             {time.Time{}, last, 0},
+		"one second later":        {last, last.Add(time.Second), 10*time.Minute - time.Second},
+		"a second before the end": {last, last.Add(10*time.Minute - time.Second), time.Second},
+		"exactly ten minutes":     {last, last.Add(10 * time.Minute), 0},
+		"later":                   {last, last.Add(time.Hour), 0},
+	} {
+		if got := AddressRequestWait(c.latest, c.now); got != c.want {
+			t.Errorf("%s: wait %v, want %v", name, got, c.want)
+		}
 	}
 }

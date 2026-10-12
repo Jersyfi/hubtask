@@ -9916,8 +9916,8 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
-// AddAddressJSONRequestBody defines body for AddAddress for application/json ContentType.
-type AddAddressJSONRequestBody = AddressRequest
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
 
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
@@ -10479,7 +10479,7 @@ type ClientInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddAddressWithBody Give a managed account a mail address
+	// RequestAddressWithBody Give a managed account a mail address
 	//
 	// Sends a confirmation link to the address. Nothing on the account changes until somebody
 	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -10497,10 +10497,10 @@ type ClientInterface interface {
 	//
 	// Takes any type of body and a specified content type.
 	//
-	// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-	AddAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AddAddress Give a managed account a mail address
+	// RequestAddress Give a managed account a mail address
 	//
 	// Sends a confirmation link to the address. Nothing on the account changes until somebody
 	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -10518,8 +10518,8 @@ type ClientInterface interface {
 	//
 	// Takes a body of the `application/json` content type.
 	//
-	// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-	AddAddress(ctx context.Context, accountId AccountId, body AddAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// IssueStartPassword Give a managed account a new start password
 	//
@@ -14432,7 +14432,7 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 	return c.Client.Do(req)
 }
 
-// AddAddressWithBody Give a managed account a mail address
+// RequestAddressWithBody Give a managed account a mail address
 //
 // Sends a confirmation link to the address. Nothing on the account changes until somebody
 // holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -14450,9 +14450,9 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 //
 // Takes any type of body and a specified content type.
 //
-// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-func (c *Client) AddAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddAddressRequestWithBody(c.Server, accountId, contentType, body)
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddressWithBody(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequestWithBody(c.Server, accountId, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -14463,7 +14463,7 @@ func (c *Client) AddAddressWithBody(ctx context.Context, accountId AccountId, co
 	return c.Client.Do(req)
 }
 
-// AddAddress Give a managed account a mail address
+// RequestAddress Give a managed account a mail address
 //
 // Sends a confirmation link to the address. Nothing on the account changes until somebody
 // holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -14481,9 +14481,9 @@ func (c *Client) AddAddressWithBody(ctx context.Context, accountId AccountId, co
 //
 // Takes a body of the `application/json` content type.
 //
-// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-func (c *Client) AddAddress(ctx context.Context, accountId AccountId, body AddAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewAddAddressRequest(c.Server, accountId, body)
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *Client) RequestAddress(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRequestAddressRequest(c.Server, accountId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -22489,19 +22489,19 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	return req, nil
 }
 
-// NewAddAddressRequest calls the generic AddAddress builder with application/json body
-func NewAddAddressRequest(server string, accountId AccountId, body AddAddressJSONRequestBody) (*http.Request, error) {
+// NewRequestAddressRequest calls the generic RequestAddress builder with application/json body
+func NewRequestAddressRequest(server string, accountId AccountId, body RequestAddressJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewAddAddressRequestWithBody(server, accountId, "application/json", bodyReader)
+	return NewRequestAddressRequestWithBody(server, accountId, "application/json", bodyReader)
 }
 
-// NewAddAddressRequestWithBody constructs an http.Request for the AddAddress method, with any body, and a specified content type
-func NewAddAddressRequestWithBody(server string, accountId AccountId, contentType string, body io.Reader) (*http.Request, error) {
+// NewRequestAddressRequestWithBody constructs an http.Request for the RequestAddress method, with any body, and a specified content type
+func NewRequestAddressRequestWithBody(server string, accountId AccountId, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -36280,7 +36280,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
-	// AddAddressWithBodyWithResponse Give a managed account a mail address
+	// RequestAddressWithBodyWithResponse Give a managed account a mail address
 	//
 	// Sends a confirmation link to the address. Nothing on the account changes until somebody
 	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -36298,10 +36298,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-	AddAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAddressResult, error)
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
 
-	// AddAddressWithResponse Give a managed account a mail address
+	// RequestAddressWithResponse Give a managed account a mail address
 	//
 	// Sends a confirmation link to the address. Nothing on the account changes until somebody
 	// holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -36319,8 +36319,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-	AddAddressWithResponse(ctx context.Context, accountId AccountId, body AddAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAddressResult, error)
+	// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+	RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error)
 
 	// IssueStartPasswordWithResponse Give a managed account a new start password
 	//
@@ -40677,7 +40677,7 @@ func (r UpdateAccountPreferencesResult) ContentType() string {
 	return ""
 }
 
-type AddAddressResult struct {
+type RequestAddressResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON202 the response for an HTTP 202 `application/json` response
@@ -40687,22 +40687,22 @@ type AddAddressResult struct {
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
-func (r AddAddressResult) GetJSON202() *AddressRequested {
+func (r RequestAddressResult) GetJSON202() *AddressRequested {
 	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r AddAddressResult) GetApplicationproblemJSON4XX() *Problem {
+func (r RequestAddressResult) GetApplicationproblemJSON4XX() *Problem {
 	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
-func (r AddAddressResult) GetBody() []byte {
+func (r RequestAddressResult) GetBody() []byte {
 	return r.Body
 }
 
 // Status returns HTTPResponse.Status
-func (r AddAddressResult) Status() string {
+func (r RequestAddressResult) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -40710,7 +40710,7 @@ func (r AddAddressResult) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r AddAddressResult) StatusCode() int {
+func (r RequestAddressResult) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -40718,7 +40718,7 @@ func (r AddAddressResult) StatusCode() int {
 }
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
-func (r AddAddressResult) ContentType() string {
+func (r RequestAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -54683,7 +54683,7 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
-// AddAddressWithBodyWithResponse Give a managed account a mail address
+// RequestAddressWithBodyWithResponse Give a managed account a mail address
 //
 // Sends a confirmation link to the address. Nothing on the account changes until somebody
 // holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -54701,16 +54701,16 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-func (c *ClientWithResponses) AddAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddAddressResult, error) {
-	rsp, err := c.AddAddressWithBody(ctx, accountId, contentType, body, reqEditors...)
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithBodyWithResponse(ctx context.Context, accountId AccountId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddressWithBody(ctx, accountId, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAddAddressResult(rsp)
+	return ParseRequestAddressResult(rsp)
 }
 
-// AddAddressWithResponse Give a managed account a mail address
+// RequestAddressWithResponse Give a managed account a mail address
 //
 // Sends a confirmation link to the address. Nothing on the account changes until somebody
 // holding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an
@@ -54728,13 +54728,13 @@ func (c *ClientWithResponses) AddAddressWithBodyWithResponse(ctx context.Context
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Corresponds with POST /accounts/{accountId}:add-address (the `AddAddress` operationId).
-func (c *ClientWithResponses) AddAddressWithResponse(ctx context.Context, accountId AccountId, body AddAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*AddAddressResult, error) {
-	rsp, err := c.AddAddress(ctx, accountId, body, reqEditors...)
+// Corresponds with POST /accounts/{accountId}:add-address (the `RequestAddress` operationId).
+func (c *ClientWithResponses) RequestAddressWithResponse(ctx context.Context, accountId AccountId, body RequestAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RequestAddressResult, error) {
+	rsp, err := c.RequestAddress(ctx, accountId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAddAddressResult(rsp)
+	return ParseRequestAddressResult(rsp)
 }
 
 // IssueStartPasswordWithResponse Give a managed account a new start password
@@ -61452,15 +61452,15 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 	return response, nil
 }
 
-// ParseAddAddressResult parses an HTTP response from a AddAddressWithResponse call
-func ParseAddAddressResult(rsp *http.Response) (*AddAddressResult, error) {
+// ParseRequestAddressResult parses an HTTP response from a RequestAddressWithResponse call
+func ParseRequestAddressResult(rsp *http.Response) (*RequestAddressResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &AddAddressResult{
+	response := &RequestAddressResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

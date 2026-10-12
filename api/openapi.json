@@ -3948,7 +3948,7 @@
         "tags": [
           "identity"
         ],
-        "operationId": "addAddress",
+        "operationId": "requestAddress",
         "summary": "Give a managed account a mail address",
         "description": "Sends a confirmation link to the address. Nothing on the account changes until somebody\nholding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an\nordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second\nidentifier.\n\nThe person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.\nOnly a managed account - a sign-in name and no address - takes one: any other is refused\nwith `409 accounts.not_managed`. A new request replaces the earlier link; one within ten\nminutes of the last is `429 accounts.address_requested_recently` with\n`retry_after_seconds`.\n\nWhether the address already belongs to somebody here is not said: the confirmation answers\nthat, to whoever holds the mailbox.\n",
         "requestBody": {

@@ -23,6 +23,7 @@ const (
 	inviteAccountUseCase               = "InviteAccount"
 	createManagedAccountUseCase        = "CreateManagedAccount"
 	issueStartPasswordUseCase          = "IssueStartPassword"
+	requestAddressUseCase              = "RequestAddress"
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
@@ -112,6 +113,23 @@ func (c *RestController) IssueStartPassword(
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set(ShownOnceHeader, "start_password")
 		writeJSON(w, r, http.StatusOK, issued)
+	})
+}
+
+// RequestAddress answers POST /accounts/{accountId}:add-address.
+func (c *RestController) RequestAddress(w http.ResponseWriter, r *http.Request, accountID openapi.AccountId) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.AddressRequest
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		return c.UseCases.Invoke(r.Context(), requestAddressUseCase, actor, usecase.Input{
+			"account_id": accountID.String(),
+			"email":      string(body.Email),
+		})
+	}, func(out usecase.Output) {
+		expires, _ := out["expires_at"].(time.Time)
+		writeJSON(w, r, http.StatusAccepted, openapi.AddressRequested{ExpiresAt: expires})
 	})
 }
 

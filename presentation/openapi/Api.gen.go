@@ -9910,8 +9910,8 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
-// AddAddressJSONRequestBody defines body for AddAddress for application/json ContentType.
-type AddAddressJSONRequestBody = AddressRequest
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
 
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
@@ -10308,9 +10308,9 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
-	// AddAddress Give a managed account a mail address
+	// RequestAddress Give a managed account a mail address
 	// (POST /accounts/{accountId}:add-address)
-	AddAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
 	// IssueStartPassword Give a managed account a new start password
 	// (POST /accounts/{accountId}:issue-start-password)
 	IssueStartPassword(w http.ResponseWriter, r *http.Request, accountId AccountId, params IssueStartPasswordParams)
@@ -11298,8 +11298,8 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 	handler.ServeHTTP(w, r)
 }
 
-// AddAddress operation middleware
-func (siw *ServerInterfaceWrapper) AddAddress(w http.ResponseWriter, r *http.Request) {
+// RequestAddress operation middleware
+func (siw *ServerInterfaceWrapper) RequestAddress(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 	_ = err
@@ -11314,7 +11314,7 @@ func (siw *ServerInterfaceWrapper) AddAddress(w http.ResponseWriter, r *http.Req
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AddAddress(w, r, accountId)
+		siw.Handler.RequestAddress(w, r, accountId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21682,7 +21682,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.AddAddress)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)

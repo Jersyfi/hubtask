@@ -1247,8 +1247,8 @@ func (pending) IssueStartPassword(
 	notAvailable(w, r)
 }
 
-// A managed account's address and its confirmation (ADR-0074 §6).
-func (pending) AddAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
+// RequestAddress is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RequestAddress(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
 	notAvailable(w, r)
 }
 

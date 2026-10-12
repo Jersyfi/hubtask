@@ -491,7 +491,7 @@ class Client:
         """Give a managed account a new start password"""
         return self._call("POST", "/accounts/{accountId}:issue-start-password", {"accountId": account_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
 
-    def add_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
+    def request_address(self, account_id: str, body: "AddressRequest") -> "AddressRequested":
         """Give a managed account a mail address"""
         return self._call("POST", "/accounts/{accountId}:add-address", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
 

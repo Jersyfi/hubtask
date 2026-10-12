@@ -182,6 +182,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.InviteAccount{}.Descriptor(),
 		identity.CreateManagedAccount{}.Descriptor(),
 		identity.IssueStartPassword{}.Descriptor(),
+		identity.RequestAddress{}.Descriptor(),
 		identity.GetOwnAccount{}.Descriptor(),
 		identity.GetAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),

@@ -602,7 +602,7 @@ export class HubtaskClient {
   }
 
   /** Give a managed account a mail address */
-  addAddress(accountId: string, body: NonNullable<operations["addAddress"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addAddress"]['responses'][202]['content']["application/json"]> {
+  requestAddress(accountId: string, body: NonNullable<operations["requestAddress"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["requestAddress"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/accounts/{accountId}:add-address", { "accountId": accountId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
