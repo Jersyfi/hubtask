@@ -129,25 +129,47 @@ func TestAPermittedReadRecordsNothing(t *testing.T) {
 	}
 }
 
+// UC-AUD-01 check 7: a reversed period is refused with its own code, on the field that is wrong,
+// and nothing is read.
 func TestAPeriodThatEndsBeforeItStartsIsRefused(t *testing.T) {
-	list, _, _, _ := newListHarness(true)
+	list, trail, _, _ := newListHarness(true)
 
 	_, err := list.Execute(context.Background(), actor(), EntryQuery{
 		Filter: repository.Filter{From: now, To: now.Add(-time.Hour)},
 	})
-	if err == nil {
-		t.Fatal("a period ending before it starts was accepted")
+	assertRefusedWith(t, err, "audit.period_invalid", "/to")
+	if len(trail.asked) != 0 {
+		t.Errorf("the trail was read %d times for a reversed period", len(trail.asked))
 	}
 }
 
+// UC-AUD-01 check 7: an outcome that does not exist is refused with its own code.
 func TestAnUnknownOutcomeIsRefused(t *testing.T) {
-	list, _, _, _ := newListHarness(true)
+	list, trail, _, _ := newListHarness(true)
 
 	_, err := list.Execute(context.Background(), actor(), EntryQuery{
 		Filter: repository.Filter{Outcome: port.Outcome("MAYBE")},
 	})
+	assertRefusedWith(t, err, "audit.outcome_invalid", "/outcome")
+	if len(trail.asked) != 0 {
+		t.Errorf("the trail was read %d times for an unknown outcome", len(trail.asked))
+	}
+}
+
+func assertRefusedWith(t *testing.T, err error, code, path string) {
+	t.Helper()
 	if err == nil {
-		t.Fatal("an outcome that does not exist was accepted")
+		t.Fatalf("accepted, want %s", code)
+	}
+	var problem *shared.Error
+	if !errors.As(err, &problem) {
+		t.Fatalf("refused as %v, want a typed %s", err, code)
+	}
+	if !errors.Is(err, shared.ErrValidation) || problem.DetailCode != code {
+		t.Errorf("refused as %v, want a validation failure %s", err, code)
+	}
+	if len(problem.Fields) != 1 || problem.Fields[0].Code != code || problem.Fields[0].Path != path {
+		t.Errorf("the field findings are %+v, want %s at %s", problem.Fields, code, path)
 	}
 }
 
