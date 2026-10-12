@@ -65,8 +65,9 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
 | `ci-required` | The one required check (§3.2) |
 
-`quick` is the prerequisite of every Go job; a skipped `quick` skips them all. The Go jobs after it
-run in parallel.
+`quick` is the prerequisite of every Go job but `selftest`; a skipped `quick` skips them all. The Go
+jobs after it run in parallel. `selftest` starts beside `quick`, on the same filters: it is the
+longest Go job, and behind `quick` it set the pipeline's wall clock ([ADR-0083](../adr/ADR-0083-a-merge-without-catching-up.md)).
 
 **Contract gate.** In CI, `make gate-contract` runs in one place, the last step of
 `integration`; there is no separate `contract` job. It needs no database and runs in seconds, so
