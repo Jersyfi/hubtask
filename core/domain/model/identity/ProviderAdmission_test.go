@@ -244,6 +244,38 @@ func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 	}
 }
 
+// Google admits by Workspace domain, read from the verified `hd` (ADR-0071 §2, milestone SC,
+// decision 12): somebody from a listed domain comes in new; a personal account, which carries no
+// `hd`, comes in only by invitation - its own proof or the invitation's link, never the provider's
+// word; another domain does not come in, whatever its address says.
+func TestGoogleAdmitsByWorkspaceDomainAndAPersonalAccountOnlyByInvitation(t *testing.T) {
+	in := providerInput()
+	in.Issuer = "https://accounts.google.com"
+	in.Kind = string(KindGoogle)
+	in.Provisioning = string(ProvisionDomains)
+	in.AllowedDirectories = []string{"acme.example"}
+	google, err := NewIdentityProvider(in)
+	if err != nil {
+		t.Fatalf("configuring Google by Workspace domain: %v", err)
+	}
+	workspace := Arriving{Email: "ada@acme.example", EmailVerified: true, Directory: "acme.example", AddressAuthoritative: true}
+	personal := Arriving{Email: "ada@gmail.com", EmailVerified: true, AddressAuthoritative: true}
+	elsewhere := Arriving{Email: "eve@acme.example", EmailVerified: true, Directory: "other.example"}
+
+	if !google.MayAdmit(workspace) || !google.MayProvision() {
+		t.Error("somebody from a listed Workspace domain was not admitted new")
+	}
+	if google.MayAdmit(personal) {
+		t.Error("a personal Google account was admitted on the provider's word")
+	}
+	if !google.MayAdmitInvitation(personal) {
+		t.Error("a personal Google account was refused its own invitation")
+	}
+	if google.MayAdmit(elsewhere) {
+		t.Error("another Workspace domain was admitted because the address looked right")
+	}
+}
+
 // A directory list under INVITED_ONLY narrows it (ADR-0071 §4): a platform offering one provider to
 // everybody may still refuse a directory. An empty list does not narrow - the mode's bound is the
 // accounts that already exist - and a second proof the person brings is not narrowed, exactly as

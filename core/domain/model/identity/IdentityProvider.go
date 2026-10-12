@@ -484,8 +484,10 @@ func multiDirectoryIssuer(issuer string) bool {
 
 // resolvedProvisioning reads the mode and holds it to what the preset permits.
 //
-// One refusal: a **public** issuer may only be INVITED_ONLY. Anything else means every person who
-// holds an account at that provider - which is everybody - is provisioned one here.
+// One refusal: a **public** issuer is never ANY, which would provision everybody who holds an
+// account at that provider - which is everybody. DOMAINS is bounded by the directory claim a
+// personal account does not carry, so a personal account comes in only by invitation
+// (milestone SC, decision 12).
 //
 // There is deliberately no second - "a preset whose addresses this installation cannot vouch for
 // may not be INVITED_ONLY, because that mode gives an existing account away on the strength of an
@@ -510,7 +512,7 @@ func resolvedProvisioning(stated string, preset ProviderPreset, installation boo
 	if err != nil {
 		return "", err
 	}
-	if preset.Public && mode != ProvisionInvitedOnly {
+	if preset.Public && mode == ProvisionAny {
 		return "", shared.ErrValidation.
 			WithDetail("identity_provider.provisioning_public").
 			WithParams(map[string]string{"kind": string(preset.Kind)})

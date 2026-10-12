@@ -700,8 +700,13 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 // INVITED_ONLY is on every list since ADR-0071's addendum (E2): what keeps an address from handing
 // over an account is the account's own proof, not the provider kind.
 func provisioningOf(preset domain.ProviderPreset, installation bool) []any {
-	if preset.Public || (installation && preset.DirectoryClaim == "") {
+	if installation && preset.DirectoryClaim == "" {
 		return []any{string(domain.ProvisionInvitedOnly)}
+	}
+	// A public issuer is never ANY: its personal accounts come in only by invitation, and DOMAINS
+	// is bounded by the directory claim they do not carry (milestone SC, decision 12).
+	if preset.Public {
+		return []any{string(domain.ProvisionInvitedOnly), string(domain.ProvisionDomains)}
 	}
 	return []any{
 		string(domain.ProvisionInvitedOnly), string(domain.ProvisionDomains), string(domain.ProvisionAny),

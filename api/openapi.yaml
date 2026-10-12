@@ -10510,8 +10510,11 @@ components:
         public:
           type: boolean
           description: >
-            Whether anybody in the world can hold an account at this issuer. A public provider is
-            held to `INVITED_ONLY`, and that is not an operator's to relax.
+            Whether anybody in the world can hold an account at this issuer - personal accounts,
+            not only an organisation's. A public provider is never `ANY`, and that is not an
+            operator's to relax; under `DOMAINS` it admits only the organisations named, which a
+            personal account belongs to none of, so a personal account comes in only by
+            invitation.
         provisioning:
           type: array
           items: { $ref: "#/components/schemas/IdentityProviderProvisioning" }

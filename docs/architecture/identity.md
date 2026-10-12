@@ -272,7 +272,7 @@ rows every workspace reads and none writes. An installation provider is **offere
 | Preset | Directory claim | Authoritative for an address when | Mode allowed |
 |---|---|---|---|
 | `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any |
-| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` only (a public issuer) |
+| `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` or `DOMAINS`, never `ANY` (a public issuer: a personal account carries no `hd` and comes in only by invitation) |
 | `GENERIC` | none | never — a self-hosted issuer included | any; at installation level `INVITED_ONLY` only |
 
 Presets are data: the issuer or its pattern, scopes, particulars, and registration instructions as

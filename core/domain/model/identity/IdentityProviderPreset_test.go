@@ -81,14 +81,19 @@ func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 	google.Issuer = "https://accounts.google.com"
 	google.Kind = "GOOGLE"
 
-	// Everybody in the world holds an account at this issuer, so anything but INVITED_ONLY
-	// provisions all of them a desk here.
-	for _, mode := range []string{"DOMAINS", "ANY"} {
-		attempt := google
-		attempt.Provisioning = mode
-		if _, err := NewIdentityProvider(attempt); err == nil {
-			t.Errorf("%s was accepted on a public provider", mode)
-		}
+	// Everybody in the world holds an account at this issuer, so ANY provisions all of them a desk
+	// here. DOMAINS is bounded by the Workspace domains `hd` names - a personal account carries
+	// none - so a company admits its own people by domain (milestone SC, decision 12).
+	anyone := google
+	anyone.Provisioning = "ANY"
+	if _, err := NewIdentityProvider(anyone); err == nil || shared.AsError(err).DetailCode != "identity_provider.provisioning_public" {
+		t.Errorf("ANY on a public provider answered %v", err)
+	}
+	domains := google
+	domains.Provisioning = "DOMAINS"
+	domains.AllowedDirectories = []string{"acme.example"}
+	if _, err := NewIdentityProvider(domains); err != nil {
+		t.Errorf("DOMAINS with Workspace domains was refused on Google: %v", err)
 	}
 
 	// And with nothing stated it is the safe value rather than the previous default.
