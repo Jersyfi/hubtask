@@ -311,29 +311,33 @@
               {/if}
             </td>
             <td>
-              {#if isManaged(holder)}
-                <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
-                  {t('app.people.renew')}
-                </Button>
+              <!-- One line of controls: a row with three is no taller than a row with one, and a
+                   narrow screen scrolls the table rather than stacking words of one button. -->
+              <div class="row-actions">
+                {#if isManaged(holder)}
+                  <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
+                    {t('app.people.renew')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    tone="secondary"
+                    onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
+                  >
+                    {t('app.people.address_add')}
+                  </Button>
+                {/if}
+                <!-- Asks first: a single keystroke on a focused control must not end
+                     somebody's access. -->
                 <Button
                   size="sm"
-                  tone="secondary"
-                  onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
+                  tone="danger"
+                  isBusy={isWriting}
+                  busyLabel={t('app.people.working')}
+                  onclick={() => (revoking = holder)}
                 >
-                  {t('app.people.address_add')}
+                  {t('app.people.revoke')}
                 </Button>
-              {/if}
-              <!-- Asks first: a single keystroke on a focused control must not end
-                   somebody's access. -->
-              <Button
-                size="sm"
-                tone="danger"
-                isBusy={isWriting}
-                busyLabel={t('app.people.working')}
-                onclick={() => (revoking = holder)}
-              >
-                {t('app.people.revoke')}
-              </Button>
+              </div>
             </td>
           </tr>
         {/each}
@@ -463,4 +467,6 @@
   .small { font-size: var(--fs-075); }
 
   .who { color: var(--text-primary); font-weight: var(--fw-medium); }
+
+  .row-actions { display: flex; gap: var(--sp-100); white-space: nowrap; }
 </style>

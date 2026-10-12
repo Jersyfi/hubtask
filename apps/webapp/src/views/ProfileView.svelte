@@ -152,7 +152,7 @@
       <Stack gap="150">
         <h2 class="section">{t('app.profile.address_title')}</h2>
         <p class="quiet">{t('app.profile.address_intro', { name: account.sign_in_name })}</p>
-        <div class="panel">
+        <div class="panel measured">
           <AddressForm accountId={account.id} hint={t('app.people.address_hint_own')} />
         </div>
       </Stack>
@@ -180,6 +180,9 @@
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+
+  /* The form's own measure, as the panel above carries it. */
+  .measured { max-inline-size: 52ch; }
 
   .failure { margin: 0; color: var(--text-danger); }
 </style>
