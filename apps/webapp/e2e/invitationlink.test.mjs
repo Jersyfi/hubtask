@@ -160,6 +160,29 @@ test('an address already invited is named as one, and nothing is shown as sent (
   }
 });
 
+test('an address of somebody already here is named as one, and nothing is shown as sent (UC-ID-14 check 6)', async () => {
+  const browser = await chromium.launch();
+  const refused = {
+    status: 409,
+    json: { code: 'errors.conflict', detail_code: 'accounts.email_taken', status: 409, params: { account_id: ACCOUNT.id }, request_id: 'req_e2e' },
+  };
+  const sent = {};
+  const { page, close } = await open(browser, { mail: false, invite: refused }, sent);
+  try {
+    await page.goto(`${served.origin}/administration/people`);
+    const form = await invite(page, ACCOUNT.email);
+    await form.getByRole('button', { name: 'Create the invitation link' }).click();
+
+    await page.getByText('Somebody with that address is already in this workspace.', { exact: false }).waitFor();
+    assert.equal(sent.grant, undefined, 'a role was given after the refusal');
+    assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a link panel was drawn');
+    assert.equal(await page.getByText('Invitation sent', { exact: false }).count(), 0, 'an invitation was said to be sent');
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
 test('with mail the screen is what it was: a mail is promised, sent, and no link is drawn', async () => {
   const browser = await chromium.launch();
   const mailed = { status: 201, json: { id: NEWCOMER, kind: 'USER', display_name: 'anna', email: 'anna@example.invalid', status: 'INVITED' } };

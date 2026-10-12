@@ -188,6 +188,51 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
+// UC-ID-02 check 5: a wrong code is one sentence and an emptied field, and the step stays - the
+// same credential is presented again with the next code, so nothing restarts.
+test('a wrong code is one sentence and an emptied field, and the step stays', async () => {
+  const { origin, close } = await serve(DIST);
+  const presented = [];
+  const base = stubFor({ answer: owed });
+  const { browser, page } = await open(origin, async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sessions:verify')) {
+      presented.push(route.request().postDataJSON());
+      if (presented.length === 1) {
+        return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', detail_code: 'auth.mfa_code_invalid', status: 401, request_id: 'req_e2e' } });
+      }
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return base(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const code = page.getByLabel('Code from your authenticator');
+    await code.waitFor();
+    await code.fill('000000');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    const alert = page.locator('[role="alert"]');
+    await alert.waitFor();
+    assert.match(await alert.innerText(), /That code did not verify/);
+    assert.equal(await alert.count(), 1, 'one sentence');
+    assert.equal(await code.inputValue(), '', 'the wrong code is out of the field');
+    assert.equal(await page.locator('h1').innerText(), 'Second factor', 'the step stayed');
+    assert.ok(await page.locator('text=walker@example.invalid').count(), 'the identity line stayed');
+    assert.equal(await page.locator('input[type="email"]').count(), 0, 'the card did not return to step one');
+
+    await code.fill('482197');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+    assert.equal(presented.length, 2);
+    assert.equal(presented[1].pending_token, presented[0].pending_token, 'the same step, not a new sign-in');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-02 check 2: the code step says when its last minute begins - under the countdown and
 // through a live region - and at 0:00 the card returns to step one with the address kept, both code
 // fields emptied, and a sentence saying the sign-in waited too long. The window is not extended.
@@ -673,6 +718,35 @@ test('no provider button before the rules name a provider', async () => {
   }
 });
 
+// UC-ID-01 check 5, the case the check names: the rules arrive and name no provider.
+test('no provider button when the rules name none', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  let rulesRead = false;
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')) {
+      rulesRead = true;
+      return route.fulfill({ json: { ...RULES, methods: ['PASSWORD'], providers: [] } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.locator('input[type="email"]').waitFor();
+    // The footer's imprint link comes from the same answer: once it is drawn, the rules were applied.
+    await page.getByRole('link', { name: 'Imprint' }).waitFor();
+    assert.ok(rulesRead, 'the card read the rules');
+    assert.equal(await page.getByRole('button', { name: /Sign in with/ }).count(), 0, 'a provider button although the rules name none');
+    assert.equal(await page.getByText('or', { exact: true }).count(), 0, 'an "or" with nothing after it');
+    assert.ok(await page.locator('input[type="password"]').isVisible(), 'the password is the way in');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
 // point at, and a link nobody set is not shown - the accessibility link included, which does not fall
 // back to hubtask.eu.
@@ -683,6 +757,10 @@ test('the footer shows only the links that were set, with neutral labels', async
     for (const [legal, expected] of [
       [{}, []],
       [{ imprint_url: 'https://op.example/imprint', accessibility_url: 'https://op.example/a11y' }, ['Imprint', 'Accessibility']],
+      [{
+        imprint_url: 'https://op.example/imprint', privacy_url: 'https://op.example/privacy',
+        terms_url: 'https://op.example/terms', accessibility_url: 'https://op.example/a11y',
+      }, ['Imprint', 'Privacy', 'Terms', 'Accessibility']],
     ]) {
       const context = await browser.newContext();
       await context.route('**/api/v1/**', async (route) => {
