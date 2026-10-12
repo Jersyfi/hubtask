@@ -342,3 +342,47 @@ func TestTheAiRulesCarryTheOwnStore(t *testing.T) {
 		t.Error("main.go builds the AI rules without the own store: no workspace's own model is ever called")
 	}
 }
+
+// The installation's lock on the ways in turns its invite-only rows on in every workspace
+// (identity.md §18), and every reader of "is this a way in here" learns the lock from the store it
+// was built with. A literal without it reads no lock: the list would show the provider off, the card
+// would draw no button and the password fallback would open under the very lock that mandates the
+// provider - while every service test, which wires its own fixtures, passed.
+func TestEveryReaderOfTheWaysInCarriesTheInstallationsLevel(t *testing.T) {
+	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("reading main.go: %v", err)
+	}
+	readers := map[string]int{"ProviderStepUps": 0, "OidcWriter": 0, "IdentityProviderWriter": 0, "WaysIn": 0}
+	carrying := map[string]int{}
+	ast.Inspect(file, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		selector, ok := literal.Type.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if _, reader := readers[selector.Sel.Name]; !reader {
+			return true
+		}
+		readers[selector.Sel.Name]++
+		for _, element := range literal.Elts {
+			if pair, ok := element.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Instance" {
+					carrying[selector.Sel.Name]++
+				}
+			}
+		}
+		return true
+	})
+	for name, built := range readers {
+		if built == 0 {
+			t.Errorf("main.go builds no identity.%s", name)
+		}
+		if carrying[name] != built {
+			t.Errorf("main.go builds identity.%s without Instance: it reads no installation lock", name)
+		}
+	}
+}

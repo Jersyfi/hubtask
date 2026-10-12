@@ -1713,6 +1713,27 @@ func (e HttpRequestCallMethod) Valid() bool {
 	}
 }
 
+// Defines values for IdentityProviderInstallationLock.
+const (
+	IdentityProviderInstallationLockLEAVESTOWORKSPACE IdentityProviderInstallationLock = "LEAVES_TO_WORKSPACE"
+	IdentityProviderInstallationLockNONE              IdentityProviderInstallationLock = "NONE"
+	IdentityProviderInstallationLockTURNSON           IdentityProviderInstallationLock = "TURNS_ON"
+)
+
+// Valid indicates whether the value is a known member of the IdentityProviderInstallationLock enum.
+func (e IdentityProviderInstallationLock) Valid() bool {
+	switch e {
+	case IdentityProviderInstallationLockLEAVESTOWORKSPACE:
+		return true
+	case IdentityProviderInstallationLockNONE:
+		return true
+	case IdentityProviderInstallationLockTURNSON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IdentityProviderScope.
 const (
 	IdentityProviderScopeInstallation IdentityProviderScope = "installation"
@@ -5774,16 +5795,19 @@ type IdentityProvider struct {
 	Enabled bool               `json:"enabled"`
 	Id      openapi_types.UUID `json:"id"`
 
+	// InstallationLock For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
+	InstallationLock *IdentityProviderInstallationLock `json:"installation_lock,omitempty"`
+
 	// Issuer The provider's issuer identifier. Every ID token must name it exactly - a token whose `iss` differs is refused, which is the first check of the token.
 	Issuer string `json:"issuer"`
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 
-	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect.
+	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
 
-	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.
 	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.
@@ -5804,6 +5828,9 @@ type IdentityProvider struct {
 	// WithdrawAt For a row the installation offers: when the installation withdraws it. Null while it is offered without an end. Until that moment the provider keeps working; from it, it is a way in nowhere - and the connected identities stay, so cancelling the withdrawal restores sign-in. A workspace that switched it on reads this to say when it ends.
 	WithdrawAt *time.Time `json:"withdraw_at,omitempty"`
 }
+
+// IdentityProviderInstallationLock For a row the installation offers: what the installation's lock on the ways to sign in does to it. `TURNS_ON` - the ways in are locked with providers among them and the row admits *Only people invited here*, so it is on in every workspace and no workspace can switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits people by domain or anyone the provider knows, so it stays each workspace's own switch. `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
+type IdentityProviderInstallationLock string
 
 // IdentityProviderScope Which level this row belongs to. `installation` is offered to every workspace on this installation and is not any one of theirs to change - a settings screen shows it as inherited, without controls.
 type IdentityProviderScope string

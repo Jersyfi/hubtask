@@ -358,6 +358,32 @@ test('chromium: the password switch says how many people have no provider here b
   assert.equal(await list.locator('[data-reach]').count(), 0, 'a count of nobody was said');
 });
 
+// Under the installation's lock the password cannot go off here, so its cost is not said either -
+// the case a provider the lock turns on makes common: a second way in beside a locked password.
+test('chromium: a password the installation locked says no count', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const locked = policy();
+  locked.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC'], { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: locked } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('platform', 'The platform', 'installation', { offered: true }), installation_lock: 'TURNS_ON' },
+      ] });
+    }
+    if (path === '/tenant/accounts-without-provider') return route.fulfill({ json: { count: 3 } });
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.getByRole('listitem').filter({ hasText: 'The platform' }).waitFor();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(await list.locator('[data-reach]').count(), 0, 'the cost of a switch nobody here may move was said');
+});
+
 // The password already off: the cost is past, and the row says nothing of it.
 test('chromium: a switched-off password says no count', async (t) => {
   const browser = await chromium.launch();
@@ -494,4 +520,52 @@ test('chromium: the sign-in rules read in German', async (t) => {
   for (const english of ['Minimum length', 'Ways to sign in', 'Set here.', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
     assert.ok(!text.includes(english), `"${english}" fell back to English`);
   }
+});
+
+// UC-INS-11 check 4: under the installation's lock on the ways to sign in, an offered provider
+// admitted as "Only people invited here" is shown on and set by the installation - its switch kept,
+// on, switched off with the reason - while one admitted by domain stays this workspace's switch.
+test('chromium: a provider the installation\'s lock turns on is shown on and set by the installation', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const sent = [];
+  const locked = policy();
+  locked.methods = rule(['OIDC'], ['OIDC'], { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: locked } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('platform', 'The platform', 'installation', { offered: true }), installation_lock: 'TURNS_ON' },
+        {
+          ...provider('entra', 'Entra', 'installation', { offered: false }),
+          provisioning: 'DOMAINS', installation_lock: 'LEAVES_TO_WORKSPACE',
+        },
+      ] });
+    }
+    if (path.endsWith(':offer')) {
+      sent.push(path);
+      return route.fulfill({ json: provider('entra', 'Entra', 'installation', { offered: true }) });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+
+  const mandated = list.getByRole('listitem').filter({ hasText: 'The platform' });
+  const mandatedSwitch = mandated.locator('input');
+  assert.equal(await mandatedSwitch.isChecked(), true, 'the mandated provider is not shown on');
+  assert.equal(await mandatedSwitch.isDisabled(), true, 'the mandated provider can be switched off');
+  const said = (await mandated.textContent() ?? '').replace(/\s+/g, ' ');
+  assert.match(said, /on in every workspace while its ways to sign in are locked/, said);
+  assert.match(said, /Set by the installation for every workspace/, said);
+
+  // Admitted by domain: still this workspace's own switch.
+  const own = list.getByRole('listitem').filter({ hasText: 'Entra' }).locator('input');
+  assert.equal(await own.isDisabled(), false, 'a provider admitted by domain lost its switch');
+  await own.check();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(sent, ['/identity-providers/entra:offer']);
 });

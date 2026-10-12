@@ -637,7 +637,7 @@ notices; it overrides the workspace's switch and a lock; it can be closed early.
 
 ---
 
-## SC-38 — An installation lock turns an invite-only offered provider on everywhere
+## SC-38 — An installation lock turns an invite-only offered provider on everywhere · built
 
 *Depends on: SC-31.* · issue #1194 · Decision 10
 

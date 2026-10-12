@@ -1,0 +1,26 @@
+Installation lock: sign_in.methods = ["PASSWORD","OIDC"], lock_origin INSTANCE.
+[desktop] workspace, Ways to sign in:
+  - Password Set by the installation for every workspace. The address and a password, checked by this installation. Set by the installation for every workspace.
+  - T The platform Set by the installation for every workspace. Offered by the installation and on in every workspace while its ways to sign in are locked.
+  - Contoso Entra ID Offered by the installation. Off here until you switch it on.
+  The platform: checked true, disabled true
+  Contoso Entra ID: checked false, disabled false
+  sideways page overflow: 0px
+[desktop] installation, intro: The ways in this installation offers every workspace on it. Offered is not on: each workspace's owner decides whether to take one - except where the installation's ways to sign in are locked with providers among them, which turns on every provider that admits only invited people. Each row says which applies.
+[desktop] installation row: The platform Another providerhttps://id.platform.exampleOnly people who already have an account here Offered Workspaces using it: 1 On in every workspace: the ways to sign in are locked, and it admits only invited people. Change Withdraw Remove Withdraw it first: workspaces still use it.
+[desktop] installation row: Contoso Entra ID Microsofthttps://login.microsoftonline.com/{tenantid}/v2.0Only the Microsoft directories below 3f2504e0-4f89-11d3-9a0c-0305e82c3301 Offered Workspaces using it: 0 Each workspace's own choice: the lock on the ways to sign in turns on only providers that admit invited people alone. Change Withdraw Remove
+  sideways page overflow: 0px
+[375] workspace, Ways to sign in:
+  - Password Set by the installation for every workspace. The address and a password, checked by this installation. Set by the installation for every workspace.
+  - T The platform Set by the installation for every workspace. Offered by the installation and on in every workspace while its ways to sign in are locked.
+  - Contoso Entra ID Offered by the installation. Off here until you switch it on.
+  The platform: checked true, disabled true
+  Contoso Entra ID: checked false, disabled false
+  sideways page overflow: 0px
+[375] installation, intro: The ways in this installation offers every workspace on it. Offered is not on: each workspace's owner decides whether to take one - except where the installation's ways to sign in are locked with providers among them, which turns on every provider that admits only invited people. Each row says which applies.
+[375] installation row: The platform Another providerhttps://id.platform.exampleOnly people who already have an account here Offered Workspaces using it: 1 On in every workspace: the ways to sign in are locked, and it admits only invited people. Change Withdraw Remove Withdraw it first: workspaces still use it.
+[375] installation row: Contoso Entra ID Microsofthttps://login.microsoftonline.com/{tenantid}/v2.0Only the Microsoft directories below 3f2504e0-4f89-11d3-9a0c-0305e82c3301 Offered Workspaces using it: 0 Each workspace's own choice: the lock on the ways to sign in turns on only providers that admit invited people alone. Change Withdraw Remove
+  sideways page overflow: 0px
+Installation lock: sign_in.methods = ["OIDC"], lock_origin INSTANCE.
+[signed out] sign-in card: Hubtask to localhost:18438 Sign in T Sign in with The platform Get a sign-in link by mail
+  password field present: false

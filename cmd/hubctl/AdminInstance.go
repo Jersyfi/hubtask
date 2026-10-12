@@ -346,12 +346,18 @@ func adminProviderList(ctx context.Context, cli *CLI, args []string) error {
 		if admits == "" {
 			admits = strings.Join(provider.AllowedEmailDomains, ", ")
 		}
+		// What the installation's lock on the ways in does to the row (identity.md §18): on in every
+		// workspace, or each workspace's own switch.
+		lock := ""
+		if provider.InstallationLock != nil {
+			lock = string(*provider.InstallationLock)
+		}
 		rows = append(rows, []string{
-			provider.Id.String(), provider.DisplayName, string(provider.Provisioning), admits,
+			provider.Id.String(), provider.DisplayName, string(provider.Provisioning), admits, lock,
 		})
 	}
 	return cli.Emit(providers, Table{
-		Columns: []string{"id", "name", "admits", "listed"}, Rows: rows,
+		Columns: []string{"id", "name", "admits", "listed", "lock"}, Rows: rows,
 	})
 }
 

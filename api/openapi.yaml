@@ -5110,6 +5110,13 @@ paths:
 
         The last way in cannot be switched off: a workspace that turned off its only method would
         be a workspace nobody can reach. Auditable.
+
+        **A provider the installation's lock turns on cannot be switched off here.** Where the
+        installation locked the ways to sign in with providers among them, every provider it offers
+        as *Only people invited here* is on in every workspace (`installation_lock: TURNS_ON`), and
+        switching it off is refused with `identity_provider.mandated`, the lock's `origin` among its
+        parameters. Switching it on is accepted and kept as this workspace's own choice, which
+        applies again once the lock is lifted.
       requestBody:
         required: true
         content:
@@ -10191,7 +10198,19 @@ components:
             while they are enabled; for a row the installation offers, it is this workspace's own
             switch, and it is **false until somebody turns it on** — offering it is the
             installation's decision, taking it is the workspace's. False from the
-            moment an announced withdrawal takes effect.
+            moment an announced withdrawal takes effect. True, whatever the workspace's own switch,
+            where `installation_lock` is `TURNS_ON`.
+        installation_lock:
+          type: string
+          enum: [TURNS_ON, LEAVES_TO_WORKSPACE, NONE]
+          readOnly: true
+          description: >
+            For a row the installation offers: what the installation's lock on the ways to sign in
+            does to it. `TURNS_ON` - the ways in are locked with providers among them and the row
+            admits *Only people invited here*, so it is on in every workspace and no workspace can
+            switch it off. `LEAVES_TO_WORKSPACE` - the ways in are locked so, but the row admits
+            people by domain or anyone the provider knows, so it stays each workspace's own switch.
+            `NONE` - no such lock stands, or the offer has ended. Absent from a workspace's own rows.
         withdraw_at:
           type: [string, "null"]
           format: date-time
@@ -10209,7 +10228,8 @@ components:
           description: >
             For a row the installation offers, answered to the operator only: how many workspaces
             have it switched on. A number, never names - counted from the workspaces' own switches
-            when it is read. Absent from a workspace's listing.
+            when it is read, and every live workspace where `installation_lock` is `TURNS_ON`.
+            Absent from a workspace's listing.
         allowed_email_domains:
           type: array
           items: { type: string }

@@ -43,7 +43,9 @@ type ProviderStepUps struct {
 	External  repository.ExternalAccounts
 	// Workspaces answers the workspace's own switches, for a provider the installation offers.
 	Workspaces repository.Workspaces
-	Relying    provider.Port
+	// Instance is the installation's level, for its lock on the ways in (identity.md §18).
+	Instance repository.InstanceSettings
+	Relying  provider.Port
 	// RedirectURL is this installation's one callback, the address every registration permits.
 	RedirectURL string
 }
@@ -80,16 +82,12 @@ func (p ProviderStepUps) connectedHere(
 	if err != nil {
 		return domain.IdentityProvider{}, false, err
 	}
-	var settings domain.WorkspaceSettings
-	if p.Workspaces != nil {
-		workspace, err := p.Workspaces.Find(ctx)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return domain.IdentityProvider{}, false, err
-		}
-		settings = workspace.Settings
+	here, err := readWaysHere(ctx, p.Workspaces, p.Instance)
+	if err != nil {
+		return domain.IdentityProvider{}, false, err
 	}
 	for _, candidate := range listed {
-		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, settings, now) {
+		if slices.Contains(connected, candidate.ID) && offeredHere(candidate, here, now) {
 			return candidate, true, nil
 		}
 	}
@@ -112,12 +110,12 @@ func (p ProviderStepUps) connectStands(
 	if err != nil {
 		return false, err
 	}
-	settings, err := offersIn(ctx, p.Workspaces)
+	here, err := readWaysHere(ctx, p.Workspaces, p.Instance)
 	if err != nil {
 		return false, err
 	}
 	for _, candidate := range listed {
-		if offeredHere(candidate, settings, now) && candidate.AdmitsOwnProof() {
+		if offeredHere(candidate, here, now) && candidate.AdmitsOwnProof() {
 			return true, nil
 		}
 	}
@@ -130,7 +128,7 @@ func (w SessionWriter) stepUpConfig(
 	ctx context.Context, scope persistence.Scope, providerID shared.ID,
 ) (domain.IdentityProvider, provider.Config, error) {
 	p := w.StepUpProviders
-	configured, opened, err := openProvider(ctx, w, p.Providers, p.Workspaces, scope, providerID, nil)
+	configured, opened, err := openProvider(ctx, w, p.Providers, p.Workspaces, p.Instance, scope, providerID, nil)
 	if err != nil {
 		// No longer a way in here - switched off, not taken, or past an announced withdrawal
 		// (ADR-0076 §2): the step-up's own refusal, the one its start gives, rather than the

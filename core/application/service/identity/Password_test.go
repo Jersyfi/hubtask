@@ -171,8 +171,8 @@ func newPasswordFixture(at time.Time) *passwordFixture {
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(at),
 		IDs: &idSequence{queue: []shared.ID{historyRowID}},
 		WaysIn: WaysIn{
-			Providers: f.providers, Workspaces: f.workspace, UnitOfWork: &unitOfWork{},
-			Clock: clock.Fixed(at),
+			Providers: f.providers, Workspaces: f.workspace, Instance: f.instance,
+			UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(at),
 		},
 	}
 	return f
