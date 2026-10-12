@@ -6,8 +6,8 @@ actors: [PE-operator, PE-admin]
 deployments: [D5, D6]
 serves: [P-02, P-05, P-06, P-07]
 state: partial
-tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27, SC-31, SC-34]
-checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordFallback_test.go, test/integration/password_fallback_test.go, core/application/service/admin/PasswordOpening_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs]
+tasks: [SI-10, SI-17, SC-01, SC-20, SC-26, SC-27, SC-31, SC-34, SC-38]
+checked_by: [core/application/service/admin/InstanceProvider_test.go, core/application/service/admin/InstanceProviderWithdrawal_test.go, core/application/service/identity/IdentityProviderWithdrawal_test.go, test/integration/provider_withdrawal_test.go, apps/webapp/e2e/instanceproviders.test.mjs, core/application/service/identity/PasswordFallback_test.go, test/integration/password_fallback_test.go, core/application/service/admin/PasswordOpening_test.go, core/application/service/identity/OperatorOpening_test.go, test/integration/password_opening_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, core/domain/model/identity/ProviderMandate_test.go, core/application/service/identity/ProviderMandate_test.go, core/application/service/identity/ProviderMandateSwitch_test.go, core/application/service/admin/InstanceProviderLock_test.go, test/integration/provider_mandate_test.go, apps/webapp/e2e/signinsettings.test.mjs]
 ---
 
 # Offer sign-in providers to every workspace
@@ -49,5 +49,4 @@ screen says which applies.
 
 ## Today
 
-* Check 4: not met — a lock on the ways to sign in decides the methods only; it switches no provider on yet, tracked in #1194.
 * Check 6: not met — the re-seal runs per workspace; the installation's provider secrets stay under the key they were sealed with, tracked in #1068.
