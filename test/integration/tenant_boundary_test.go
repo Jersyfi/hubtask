@@ -85,6 +85,10 @@ var rlsExceptions = map[string]string{
 		"the check impossible, while a policy-free table the application role could read would " +
 		"let every workspace enumerate the operators - it is reachable only through four " +
 		"SECURITY DEFINER functions, and hubtask_app has no direct grant on it at all",
+	"instance_setup_code": "the first start's one-time setup code (UC-INS-01, migration 0128): " +
+		"it exists only before any workspace does, so there is no tenant to compare against; " +
+		"it holds a hash and an expiry, and hubtask_app has no direct grant on it at all - it is " +
+		"reached only through the issuing and claiming SECURITY DEFINER functions",
 	"instance_setting": "the installation's own configuration (ADR-0070 §2, migration 0099): " +
 		"every workspace has to read it, because the effective sign-in rule is resolved on every " +
 		"password screen, so a policy comparing current_tenant_id() would make it invisible to " +

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -818,6 +819,55 @@ func TestTheKeyringRefusesWhatItCannotStandBehind(t *testing.T) {
 			// The refusal names the variable and never the material.
 			if strings.Contains(err.Error(), "too short") && strings.Contains(err.Error(), validKey) {
 				t.Fatal("the refusal quoted the material")
+			}
+		})
+	}
+}
+
+// HUBTASK_OPERATORS (UC-INS-02 check 4): `workspace:address` everywhere, a bare address in single
+// mode only, and a malformed entry stops the start.
+func TestTheOperatorsVariableNamesAWorkspaceAndAnAddress(t *testing.T) {
+	cases := []struct {
+		name    string
+		tenancy string
+		value   string
+		want    []env.OperatorEntry
+		refused bool
+	}{
+		{name: "unset", tenancy: "multi", value: "", want: nil},
+		{
+			name: "two named entries", tenancy: "multi", value: "acme:ada@acme.example, Demo:bob@x.eu",
+			want: []env.OperatorEntry{{Workspace: "acme", Email: "ada@acme.example"}, {Workspace: "demo", Email: "bob@x.eu"}},
+		},
+		{
+			name: "a bare address in single mode", tenancy: "single", value: "jerome@example.eu",
+			want: []env.OperatorEntry{{Email: "jerome@example.eu"}},
+		},
+		{name: "a bare address in multi mode", tenancy: "multi", value: "jerome@example.eu", refused: true},
+		{name: "no address", tenancy: "multi", value: "acme:", refused: true},
+		{name: "no workspace", tenancy: "multi", value: ":ada@acme.example", refused: true},
+		{name: "not an address", tenancy: "single", value: "acme:ada", refused: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			withRequiredSecrets(t)
+			t.Setenv("HUBTASK_TENANCY_MODE", tc.tenancy)
+			t.Setenv("HUBTASK_OPERATORS", tc.value)
+			if tc.tenancy == "multi" {
+				t.Setenv("HUBTASK_HTTP_ALLOWED_HOSTS", "example.org")
+			}
+			cfg, err := load(t)
+			if tc.refused {
+				if !slices.Contains(detailCodes(t, err), "config.operators_invalid") {
+					t.Fatalf("%q was accepted: %v", tc.value, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("loading: %v", err)
+			}
+			if !reflect.DeepEqual(cfg.Operators, tc.want) {
+				t.Errorf("operators = %+v, want %+v", cfg.Operators, tc.want)
 			}
 		})
 	}

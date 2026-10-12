@@ -285,6 +285,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.provider_withdrawal_cancelled` | CancelInstanceIdentityProviderWithdrawal | `identity_provider` | NOTICE | Every time |
 | `instance.provider_withdrawn` | WithdrawInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.session_elevated` | ElevateSession | `session` | WARNING | Every time |
+| `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 

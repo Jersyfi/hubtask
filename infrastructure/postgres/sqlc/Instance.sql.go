@@ -29,6 +29,23 @@ func (q *Queries) AddOperator(ctx context.Context, arg AddOperatorParams) (bool,
 	return add_operator, err
 }
 
+const claimSetupCode = `-- name: ClaimSetupCode :one
+SELECT claim_setup_code($1, $2)::text
+`
+
+type ClaimSetupCodeParams struct {
+	CodeHash []byte
+	Now      pgtype.Timestamptz
+}
+
+// Inside the setup's transaction: ALREADY_DONE, WRONG, EXPIRED or CLAIMED (migration 0128).
+func (q *Queries) ClaimSetupCode(ctx context.Context, arg ClaimSetupCodeParams) (string, error) {
+	row := q.db.QueryRow(ctx, claimSetupCode, arg.CodeHash, arg.Now)
+	var column_1 string
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteInstanceSettingsExcept = `-- name: DeleteInstanceSettingsExcept :exec
 DELETE FROM instance_setting
 WHERE split_part(key, '.', 1) = ANY($1::text[])
@@ -62,10 +79,24 @@ func (q *Queries) DropOperator(ctx context.Context, accountID pgtype.UUID) (bool
 	return drop_operator, err
 }
 
+const installationUnset = `-- name: InstallationUnset :one
+SELECT installation_unset()
+`
+
+// No workspace and nobody in the register: the state in which a setup code is issued and the setup
+// card is offered (migration 0128).
+func (q *Queries) InstallationUnset(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, installationUnset)
+	var installation_unset bool
+	err := row.Scan(&installation_unset)
+	return installation_unset, err
+}
+
 const instanceCensus = `-- name: InstanceCensus :one
 SELECT workspaces_active::bigint, workspaces_suspended::bigint,
        workspaces_pending_deletion::bigint,
-       accounts_active::bigint, accounts_total::bigint
+       accounts_active::bigint, accounts_total::bigint,
+       workspaces_service_only::bigint
 FROM instance_census()
 `
 
@@ -75,6 +106,7 @@ type InstanceCensusRow struct {
 	WorkspacesPendingDeletion int64
 	AccountsActive            int64
 	AccountsTotal             int64
+	WorkspacesServiceOnly     int64
 }
 
 // The installation at a glance: counts, states and limits, never rows. Through the function
@@ -92,6 +124,7 @@ func (q *Queries) InstanceCensus(ctx context.Context) (InstanceCensusRow, error)
 		&i.WorkspacesPendingDeletion,
 		&i.AccountsActive,
 		&i.AccountsTotal,
+		&i.WorkspacesServiceOnly,
 	)
 	return i, err
 }
@@ -144,6 +177,30 @@ func (q *Queries) IsOperator(ctx context.Context, accountID pgtype.UUID) (bool, 
 	return is_operator, err
 }
 
+const issueSetupCode = `-- name: IssueSetupCode :one
+SELECT issue_setup_code($1, $2, $3, $4)
+`
+
+type IssueSetupCodeParams struct {
+	ID        pgtype.UUID
+	CodeHash  []byte
+	IssuedAt  pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
+// Lands only on an empty installation; false otherwise.
+func (q *Queries) IssueSetupCode(ctx context.Context, arg IssueSetupCodeParams) (bool, error) {
+	row := q.db.QueryRow(ctx, issueSetupCode,
+		arg.ID,
+		arg.CodeHash,
+		arg.IssuedAt,
+		arg.ExpiresAt,
+	)
+	var issue_setup_code bool
+	err := row.Scan(&issue_setup_code)
+	return issue_setup_code, err
+}
+
 const operatorRegister = `-- name: OperatorRegister :many
 SELECT tenant_id, account_id, added_at, added_by FROM operator_register()
 `
@@ -172,6 +229,24 @@ func (q *Queries) OperatorRegister(ctx context.Context) ([]Operator, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const operatorRegisterState = `-- name: OperatorRegisterState :one
+SELECT workspaces::bigint, operators::bigint FROM operator_register_state()
+`
+
+type OperatorRegisterStateRow struct {
+	Workspaces int64
+	Operators  int64
+}
+
+// Workspaces and operators, counted as `is_operator` counts, for the health report's warning about
+// an installation with several workspaces and nobody registered to run it (migration 0128).
+func (q *Queries) OperatorRegisterState(ctx context.Context) (OperatorRegisterStateRow, error) {
+	row := q.db.QueryRow(ctx, operatorRegisterState)
+	var i OperatorRegisterStateRow
+	err := row.Scan(&i.Workspaces, &i.Operators)
+	return i, err
 }
 
 const putInstanceSetting = `-- name: PutInstanceSetting :exec
@@ -263,4 +338,17 @@ func (q *Queries) ResolveOperatorAccount(ctx context.Context, arg ResolveOperato
 	var resolve_operator_account pgtype.UUID
 	err := row.Scan(&resolve_operator_account)
 	return resolve_operator_account, err
+}
+
+const resolveSingleOperatorAccount = `-- name: ResolveSingleOperatorAccount :one
+SELECT resolve_single_operator_account($1)
+`
+
+// A bare address in `HUBTASK_OPERATORS` on a single-mode installation: its one workspace's account,
+// or nothing (migration 0128).
+func (q *Queries) ResolveSingleOperatorAccount(ctx context.Context, email string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, resolveSingleOperatorAccount, email)
+	var resolve_single_operator_account pgtype.UUID
+	err := row.Scan(&resolve_single_operator_account)
+	return resolve_single_operator_account, err
 }

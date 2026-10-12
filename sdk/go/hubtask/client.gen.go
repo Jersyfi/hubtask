@@ -4748,7 +4748,8 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules` and `search_filter`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
+	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
@@ -5688,6 +5689,33 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstallationSetUp defines model for InstallationSetUp.
+type InstallationSetUp struct {
+	// Code The setup code the server printed at start. Case and the dashes between its groups do not matter.
+	Code string `json:"code"`
+
+	// DefaultLocale BCP 47; the installation's default when omitted.
+	DefaultLocale *string `json:"default_locale,omitempty"`
+
+	// DefaultTimeZone An IANA name; the installation's default when omitted.
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+
+	// DisplayName The workspace's name.
+	DisplayName string `json:"display_name"`
+
+	// OwnerDisplayName The owner's name; the address stands in when it is omitted.
+	OwnerDisplayName *string `json:"owner_display_name,omitempty"`
+
+	// OwnerEmail The owner's address. Nothing is sent to it.
+	OwnerEmail string `json:"owner_email"`
+
+	// Password The owner's password, under the product's password policy.
+	Password string `json:"password"`
+
+	// Slug Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.
+	Slug *string `json:"slug,omitempty"`
+}
+
 // InstanceJournalEntry One act the installation recorded. The workspace is named by a bare identifier and its slug: the row it names is usually gone, which is the reason the journal exists.
 type InstanceJournalEntry struct {
 	// Action `tenant.provisioned`, `tenant.suspended`, `tenant.hard_deleted`, `instance.settings_changed`, `instance.operator_added` and the rest. A code, rendered by the client.
@@ -5721,7 +5749,10 @@ type InstanceOverview struct {
 
 	// WorkspacesPendingDeletion Workspaces inside the grace period of a deletion request.
 	WorkspacesPendingDeletion int `json:"workspaces_pending_deletion"`
-	WorkspacesSuspended       int `json:"workspaces_suspended"`
+
+	// WorkspacesServiceOnly Workspaces that hold no person, only service accounts - one made to hold a machine's credential, for instance. They are not customers, so the three workspace counts above leave them out; the list of workspaces shows them.
+	WorkspacesServiceOnly int `json:"workspaces_service_only"`
+	WorkspacesSuspended   int `json:"workspaces_suspended"`
 }
 
 // InstanceReach Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one.
@@ -9942,6 +9973,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 
+// SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
+type SetUpInstallationJSONRequestBody = InstallationSetUp
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -11006,6 +11040,28 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
+	//
+	// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+	// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+	// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+	SetUpInstallationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpInstallation Set up a fresh installation with the code its first start printed
+	//
+	// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+	// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+	// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+	SetUpInstallation(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
@@ -15413,6 +15469,48 @@ func (c *Client) VerifyAuditChainWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 func (c *Client) VerifyAuditChain(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyAuditChainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
+//
+// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+func (c *Client) SetUpInstallationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpInstallationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpInstallation Set up a fresh installation with the code its first start printed
+//
+// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+func (c *Client) SetUpInstallation(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpInstallationRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -23865,6 +23963,46 @@ func NewVerifyAuditChainRequestWithBody(server string, contentType string, body 
 	}
 
 	operationPath := fmt.Sprintf("/audit:verify")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewSetUpInstallationRequest calls the generic SetUpInstallation builder with application/json body
+func NewSetUpInstallationRequest(server string, body SetUpInstallationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetUpInstallationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetUpInstallationRequestWithBody constructs an http.Request for the SetUpInstallation method, with any body, and a specified content type
+func NewSetUpInstallationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/installation:set-up")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -36548,6 +36686,28 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /audit:verify (the `VerifyAuditChain` operationId).
 	VerifyAuditChainWithResponse(ctx context.Context, body VerifyAuditChainJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyAuditChainResult, error)
 
+	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
+	//
+	// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+	// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+	// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+	SetUpInstallationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error)
+
+	// SetUpInstallationWithResponse Set up a fresh installation with the code its first start printed
+	//
+	// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+	// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+	// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+	SetUpInstallationWithResponse(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error)
+
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -42021,6 +42181,54 @@ func (r VerifyAuditChainResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyAuditChainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetUpInstallationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SetUpInstallationResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetUpInstallationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetUpInstallationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetUpInstallationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetUpInstallationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetUpInstallationResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -55102,6 +55310,40 @@ func (c *ClientWithResponses) VerifyAuditChainWithResponse(ctx context.Context, 
 	return ParseVerifyAuditChainResult(rsp)
 }
 
+// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
+//
+// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+func (c *ClientWithResponses) SetUpInstallationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error) {
+	rsp, err := c.SetUpInstallationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpInstallationResult(rsp)
+}
+
+// SetUpInstallationWithResponse Set up a fresh installation with the code its first start printed
+//
+// The first start of an installation that has no workspace and nobody in its operator register prints a one-time setup code to the server's console, valid for thirty minutes. With it, this creates the first workspace with its defaults, its owner with the password, and the owner's entry in the operator register - in one step, recorded in the instance journal - and answers the same pair sign-in answers: the owner is signed in.
+// In single mode the workspace's short name is not asked for and is derived from its name; in multi mode `slug` is required and the workspace answers at that subdomain.
+// A wrong code is refused with `setup.code_wrong`, an expired one with `setup.code_expired` (restarting the server prints a new one). Once any workspace exists every code is spent and the call is refused with `setup.already_done`: the code is the only key, and after the first workspace there is nothing left for it to open. `features.setup_open` in `/meta/capabilities` says whether this is offered.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
+func (c *ClientWithResponses) SetUpInstallationWithResponse(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error) {
+	rsp, err := c.SetUpInstallation(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpInstallationResult(rsp)
+}
+
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -62048,6 +62290,39 @@ func ParseVerifyAuditChainResult(rsp *http.Response) (*VerifyAuditChainResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetUpInstallationResult parses an HTTP response from a SetUpInstallationWithResponse call
+func ParseSetUpInstallationResult(rsp *http.Response) (*SetUpInstallationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetUpInstallationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

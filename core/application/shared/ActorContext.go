@@ -67,6 +67,10 @@ type ActorContext struct {
 	// Scopes are the token's bounds. They are a second, independent limit on top of the role: a
 	// token can never do more than its scopes allow, whatever role its owner holds (ADR-0005).
 	Scopes []string
+	// Withheld are the scopes the credential names that the operator register took away
+	// (ADR-0070 §1). They are not held - `HasScope` never sees them - and they exist so that a
+	// refusal can say the register is the reason (UC-INS-03 check 5).
+	Withheld WithheldScopes
 	// RunsForRule is the automation rule this act runs for, set by the rule engine and nowhere else;
 	// empty for every act a caller makes itself. The engine acts as the rule's service account, which
 	// a caller holding that account's token would be too - only this tells an act whose answer
@@ -85,6 +89,14 @@ type ActorContext struct {
 	// The week anchors of a query - `@start_of_week`, `@end_of_week` - are computed from it, so
 	// it travels here beside the zone rather than being looked up per use case. Empty is Monday.
 	WeekStart string
+}
+
+// WithheldScopes is what the operator register removed from a credential, and why.
+type WithheldScopes struct {
+	Scopes []string
+	// Unreadable is true when the register could not be read, so the scope was withheld closed
+	// rather than because the holder is outside it.
+	Unreadable bool
 }
 
 // Anonymous is the actor of a request that carried no credential. It has a locale, because an
@@ -109,6 +121,16 @@ func (a ActorContext) HasScope(scope string) bool { return slices.Contains(a.Sco
 func (a ActorContext) RequireScope(scope string) error {
 	if !a.IsAuthenticated() {
 		return shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if !a.HasScope(scope) && slices.Contains(a.Withheld.Scopes, scope) {
+		if a.Withheld.Unreadable {
+			return shared.ErrUnavailable.
+				WithDetail("access.operator_register_unreadable").
+				WithParams(map[string]string{"scope": scope})
+		}
+		return shared.ErrForbidden.
+			WithDetail("access.operator_register_required").
+			WithParams(map[string]string{"scope": scope})
 	}
 	if !a.HasScope(scope) {
 		return shared.ErrForbidden.

@@ -211,6 +211,7 @@ func Descriptors() []usecase.Descriptor {
 		syncservice.ListSyncDevices{}.Descriptor(),
 		syncservice.ForgetSyncDevice{}.Descriptor(),
 		identity.RedeemInvitation{}.Descriptor(),
+		identity.SetUpInstallation{}.Descriptor(),
 		identity.CompleteSignIn{}.Descriptor(),
 		identity.EnrollTotp{}.Descriptor(),
 		identity.ConfirmTotp{}.Descriptor(),

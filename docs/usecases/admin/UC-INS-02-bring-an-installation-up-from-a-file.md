@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator]
 deployments: [D4, D5, D6, D7]
 serves: [P-08, P-09]
-state: partial
+state: built
 tasks: [SI-05, SI-17, SC-04]
-checked_by: [core/application/service/admin/InstanceLevels_test.go]
+checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/OperatorsFromEnvironment_test.go, infrastructure/environment/EnvConfig_test.go, test/integration/first_start_test.go]
 ---
 
 # Bring an installation up from a file, operators included
@@ -43,8 +43,3 @@ health report lists the ones still waiting.
 
 * Workspaces themselves are not described in the file: they are provisioned through the API.
 * No secrets in the file; keys stay in the environment ([ADR-0045](../../adr/ADR-0045-master-key-in-the-environment.md)).
-
-## Today
-
-* Check 4: not met — `HUBTASK_OPERATORS` does not exist; the register is filled only through the API by somebody already in it, or by SQL, tracked in #1060.
-* Check 5: not met — `HUBTASK_OPERATORS` does not exist, tracked in #1060.
