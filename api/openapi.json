@@ -3938,6 +3938,81 @@
         }
       }
     },
+    "/accounts/{accountId}:issue-start-password": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "issueStartPassword",
+        "summary": "Give a managed account a new start password",
+        "description": "For a person without a mail address who forgot their password: there is no mailbox a reset\ncould reach, so an owner or administrator helps them back in. **The one exception to \"an\nadministrator does not recover an account\"**, and it exists only for managed accounts - an\naccount with an address is refused with `409 accounts.not_managed`, and recovers through\nits mailbox.\n\nHubtask draws a new start password and answers it once, as at creation; nobody chooses it\nand nothing can read it again. Every session of the account ends and every unfinished\nsign-in step is spent. The next sign-in leads into choosing a new password, after the\nsecond factor where the account has one - the factor and the recovery codes stay. Personal\naccess tokens stay, as a password change leaves them.\n\nAsks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`\notherwise). An act an automation rule runs is refused with\n`accounts.managed_needs_a_person`: a run reads no answer.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new start password, shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartPasswordIssued"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/{accountId}:add-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AccountId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "requestAddress",
+        "summary": "Give a managed account a mail address",
+        "description": "Sends a confirmation link to the address. Nothing on the account changes until somebody\nholding that mailbox follows the link (`POST /auth/address:confirm`); then the account is an\nordinary one - reset by mail, mailed notices - and keeps its sign-in name as a second\nidentifier.\n\nThe person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.\nOnly a managed account - a sign-in name and no address - takes one: any other is refused\nwith `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,\nan address would take the person's one way in, and the request is refused with\n`409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten\nminutes of the last is `429 accounts.address_requested_recently` with\n`retry_after_seconds`.\n\nWhether the address already belongs to somebody here is not said: the confirmation answers\nthat, to whoever holds the mailbox.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The confirmation is on its way",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddressRequested"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/accounts/{accountId}/preferences": {
       "parameters": [
         {
@@ -4494,6 +4569,35 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/address:confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "confirmAddress",
+        "security": [],
+        "summary": "Confirm a mail address with the link that was sent to it",
+        "description": "The token from the confirmation mail. Holding it proves the mailbox, and nothing else: it signs nobody in. The address becomes the account's, which is from then on an ordinary account that keeps its sign-in name. The token works once and for a day; unknown, spent, replaced and expired are one refusal, `auth.address_link_invalid`. An address that has meanwhile become another account's here is `409 accounts.address_taken`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddressConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The address is the account's"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -11900,6 +12004,10 @@
           "has_address": {
             "type": "boolean",
             "description": "False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.\n"
+          },
+          "managed": {
+            "type": "boolean",
+            "description": "True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.\n"
           }
         }
       },
@@ -11954,6 +12062,60 @@
           "start_password": {
             "type": "string",
             "description": "Shown here and never again. The person types it once, with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "StartPasswordIssued": {
+        "type": "object",
+        "required": [
+          "account",
+          "start_password"
+        ],
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          },
+          "start_password": {
+            "type": "string",
+            "description": "Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.\n"
+          }
+        }
+      },
+      "AddressRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "AddressRequested": {
+        "type": "object",
+        "required": [
+          "expires_at"
+        ],
+        "properties": {
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Until when the link in the mail confirms the address."
+          }
+        }
+      },
+      "AddressConfirm": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The token from the confirmation mail. It dies on use."
           }
         }
       },

@@ -551,6 +551,11 @@ func (r PrivacyRepository) Anonymise(
 	if err != nil {
 		return false, erasureFailed("anonymising an account", err)
 	}
+	// The account's unfinished steps go with its identifiers: an address waiting for its
+	// confirmation is the person's, and a link that still worked would give the erased row one.
+	if _, err := queries.DeleteAccountPending(ctx, id); err != nil {
+		return false, erasureFailed("removing an account's pending steps", err)
+	}
 	return rows > 0, nil
 }
 

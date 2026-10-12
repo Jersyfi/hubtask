@@ -4192,10 +4192,13 @@ type AccountSummary struct {
 	DisplayName string `json:"display_name"`
 
 	// HasAddress False for an account that has no mail address - a managed account - so a screen can say that a reminder by mail does not reach this person, instead of letting it fail silently. The address itself is not answered here.
-	HasAddress *bool                `json:"has_address,omitempty"`
-	Id         openapi_types.UUID   `json:"id"`
-	Kind       AccountSummaryKind   `json:"kind"`
-	Status     AccountSummaryStatus `json:"status"`
+	HasAddress *bool              `json:"has_address,omitempty"`
+	Id         openapi_types.UUID `json:"id"`
+	Kind       AccountSummaryKind `json:"kind"`
+
+	// Managed True for a managed account: a sign-in name and no address. Only such an account takes a new start password or an address; an erased account has no address either and is not managed.
+	Managed *bool                `json:"managed,omitempty"`
+	Status  AccountSummaryStatus `json:"status"`
 }
 
 // AccountSummaryKind defines model for AccountSummary.Kind.
@@ -4246,6 +4249,23 @@ type Actor struct {
 
 // ActorType defines model for Actor.Type.
 type ActorType string
+
+// AddressConfirm defines model for AddressConfirm.
+type AddressConfirm struct {
+	// Token The token from the confirmation mail. It dies on use.
+	Token string `json:"token"`
+}
+
+// AddressRequest defines model for AddressRequest.
+type AddressRequest struct {
+	Email openapi_types.Email `json:"email"`
+}
+
+// AddressRequested defines model for AddressRequested.
+type AddressRequested struct {
+	// ExpiresAt Until when the link in the mail confirms the address.
+	ExpiresAt time.Time `json:"expires_at"`
+}
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
@@ -8413,6 +8433,14 @@ type SortTermDir string
 // SortTermNulls defines model for SortTerm.Nulls.
 type SortTermNulls string
 
+// StartPasswordIssued defines model for StartPasswordIssued.
+type StartPasswordIssued struct {
+	Account Account `json:"account"`
+
+	// StartPassword Shown here and never again. The earlier password no longer works; the person types this one with the sign-in name, and then chooses their own.
+	StartPassword string `json:"start_password"`
+}
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -9420,6 +9448,12 @@ type ViewId = openapi_types.UUID
 
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
+
+// IssueStartPasswordParams defines parameters for IssueStartPassword.
+type IssueStartPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
 
 // RenewInvitationParams defines parameters for RenewInvitation.
 type RenewInvitationParams struct {
@@ -10479,6 +10513,9 @@ type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 // UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody defines body for UpdateAccountPreferences for application/merge-patch+json ContentType.
 type UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody = AccountPreferences
 
+// RequestAddressJSONRequestBody defines body for RequestAddress for application/json ContentType.
+type RequestAddressJSONRequestBody = AddressRequest
+
 // RestrictProcessingJSONRequestBody defines body for RestrictProcessing for application/json ContentType.
 type RestrictProcessingJSONRequestBody = ProcessingRestriction
 
@@ -10544,6 +10581,9 @@ type ExportAuditTrailJSONRequestBody = AuditExport
 
 // VerifyAuditChainJSONRequestBody defines body for VerifyAuditChain for application/json ContentType.
 type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
+
+// ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
+type ConfirmAddressJSONRequestBody = AddressConfirm
 
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
@@ -10886,6 +10926,12 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// RequestAddress Give a managed account a mail address
+	// (POST /accounts/{accountId}:add-address)
+	RequestAddress(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// IssueStartPassword Give a managed account a new start password
+	// (POST /accounts/{accountId}:issue-start-password)
+	IssueStartPassword(w http.ResponseWriter, r *http.Request, accountId AccountId, params IssueStartPasswordParams)
 	// RenewInvitation Give an invitation not yet accepted a new link
 	// (POST /accounts/{accountId}:renew-invitation)
 	RenewInvitation(w http.ResponseWriter, r *http.Request, accountId AccountId, params RenewInvitationParams)
@@ -11018,6 +11064,9 @@ type ServerInterface interface {
 	// VerifyAuditChain Verify the integrity of the audit chain
 	// (POST /audit:verify)
 	VerifyAuditChain(w http.ResponseWriter, r *http.Request)
+	// ConfirmAddress Confirm a mail address with the link that was sent to it
+	// (POST /auth/address:confirm)
+	ConfirmAddress(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -11888,6 +11937,82 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RequestAddress operation middleware
+func (siw *ServerInterfaceWrapper) RequestAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RequestAddress(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueStartPassword operation middleware
+func (siw *ServerInterfaceWrapper) IssueStartPassword(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params IssueStartPasswordParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueStartPassword(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13151,6 +13276,20 @@ func (siw *ServerInterfaceWrapper) VerifyAuditChain(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyAuditChain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmAddress operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmAddress(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22403,6 +22542,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/{accountId}/preferences", wrapper.UpdateAccountPreferences)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences", wrapper.ListNotificationPreferences)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/{accountId}/notification-preferences/{category}/{channel}", wrapper.SetNotificationPreference)
@@ -22419,6 +22560,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/address:confirm", wrapper.ConfirmAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:check", wrapper.CheckPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:set-password", wrapper.SetPasswordAndSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:elevate", wrapper.ElevateSession)

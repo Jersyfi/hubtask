@@ -410,12 +410,15 @@ CREATE TABLE auth_pending (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id  uuid NOT NULL,
-  token_hash  bytea NOT NULL,
+  -- NULL only on an ADDRESS row whose mail has not gone out yet: the token is minted at delivery
+  -- (migration 0131), and a NULL never matches a presented token.
+  token_hash  bytea,
   -- What the credential may complete. TOTP presents a code, ENROLL is the second factor's
   -- enforcement route, RESET is the token a reset mail carries, PASSWORD is the credential
   -- the PASSWORD_CHANGE step hands out (migration 0098), LINK is a provider arrival waiting
-  -- for the account's own proof (migration 0110), and CONNECT is the link a workspace without
-  -- the password mails to connect its provider (migration 0117).
+  -- for the account's own proof (migration 0110), CONNECT is the link a workspace without
+  -- the password mails to connect its provider (migration 0117), and ADDRESS is the link that
+  -- confirms a managed account's new address (migration 0131).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -432,10 +435,16 @@ CREATE TABLE auth_pending (
   -- A password change still owed once this step completes: a password the rule refused, or a
   -- start password, met after a factor step (migration 0127).
   password_change_owed boolean NOT NULL DEFAULT false,
+  -- The address an ADDRESS row confirms; it becomes the account's only when the link is followed
+  -- (migration 0131).
+  address     text CONSTRAINT auth_pending_address_length CHECK (char_length(address) BETWEEN 3 AND 254),
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS')),
+  CONSTRAINT auth_pending_address_purpose
+    CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
+           AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
 );

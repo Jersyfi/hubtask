@@ -827,6 +827,34 @@ func (q *Queries) InsertManagedAccount(ctx context.Context, arg InsertManagedAcc
 	return err
 }
 
+const issueStartPassword = `-- name: IssueStartPassword :execrows
+UPDATE account
+   SET password_hash = $1,
+       password_set_at = $2,
+       start_password_at = $2,
+       updated_at = $2,
+       version = version + 1
+ WHERE id = $3 AND deleted_at IS NULL
+   AND sign_in_name IS NOT NULL AND email IS NULL AND status <> 'ANONYMIZED'
+`
+
+type IssueStartPasswordParams struct {
+	PasswordHash *string
+	At           pgtype.Timestamptz
+	AccountID    pgtype.UUID
+}
+
+// A new start password for a managed account (ADR-0074 §4): the hash, the moment, and the mark
+// that sends the next sign-in into choosing a password. "Managed" is checked here, in the writing
+// statement, so an address confirmed a moment earlier wins and nothing is renewed (zero rows).
+func (q *Queries) IssueStartPassword(ctx context.Context, arg IssueStartPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, issueStartPassword, arg.PasswordHash, arg.At, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listGroups = `-- name: ListGroups :many
 SELECT id, name, description, version
 FROM account_group
@@ -1204,6 +1232,26 @@ func (q *Queries) SharedItemsInCollection(ctx context.Context, arg SharedItemsIn
 		return nil, err
 	}
 	return items, nil
+}
+
+const spendAccountPending = `-- name: SpendAccountPending :execrows
+UPDATE auth_pending SET consumed_at = $1
+WHERE account_id = $2 AND consumed_at IS NULL
+`
+
+type SpendAccountPendingParams struct {
+	Now       pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// Every unfinished step of the account, whatever its purpose: a change-step credential won with the
+// old start password must not set a password after the new one was issued.
+func (q *Queries) SpendAccountPending(ctx context.Context, arg SpendAccountPendingParams) (int64, error) {
+	result, err := q.db.Exec(ctx, spendAccountPending, arg.Now, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const touchAccessToken = `-- name: TouchAccessToken :exec

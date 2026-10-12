@@ -209,7 +209,7 @@ the password's shape), one place the history is written.
 | No password; its provider lets it in | — | "Use your organisation's provider" |
 | No password; no connected provider lets it in | Password open (way in, fallback, operator's opening) | A link to **set** a first password |
 | A password but no provider switched on here (or only an ended offer), or no credential at all | Password switched off | A link to **connect** the workspace's provider (§11) |
-| A managed account without an address | Any | None; the screen says so (§13) |
+| A managed account without an address | Any | None; the screen says so, and an administrator issues a new start password (§13) |
 
 ---
 
@@ -365,8 +365,8 @@ safeguard belongs to connecting, not to the provider kind.
 ## 13. Managed accounts
 
 *Decided ([ADR-0074](../adr/ADR-0074-managed-accounts.md));
-[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md). The new start
-password and an address added later are decided, not built.*
+[UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md).*
+A **managed account** is one with a sign-in name and no address (`AccountSummary.managed`).
 
 * An owner or administrator creates a `USER` account with a **sign-in name** instead of an address
   (`POST /accounts:create-managed`), and places it at a scope in the same step, through the grant's
@@ -382,14 +382,30 @@ password and an address added later are decided, not built.*
   where the workspace has a managed account (`sign_in_names` on the sign-in rules), elsewhere
   "Email address". Where the methods leave the password out, a sign-in name keeps its password
   (§4.1): the card draws the providers and, after them, a *Sign-in name* form.
-* **The one exception to "an administrator does not recover an account":** an owner or
-  administrator may issue a new start password — step-up, recorded, every session ended, next
-  sign-in into `PASSWORD_CHANGE`, an armed factor still demanded.
-* What needs a mailbox says "not possible without a mailbox"; a confirmed address makes it an
-  ordinary account, the sign-in name kept.
+* **The one exception to "an administrator does not recover an account":** whoever holds
+  `MANAGE_MEMBERS` at the workspace may issue a managed account a new start password
+  (`POST /accounts/{id}:issue-start-password`) — after a step-up, answered once as at creation,
+  recorded (`account.start_password_issued`), every session and unfinished sign-in step of the
+  account ended, the next sign-in into `PASSWORD_CHANGE` after an armed factor. Personal access
+  tokens, the factor and the recovery codes stay; the attempt ledger is not cleared. Refused for
+  every account that is not managed (`409 accounts.not_managed`) before the step-up is spent, and
+  for an automation rule's act.
+* What needs a mailbox says "not possible without a mailbox".
+* **An address later:** the person, or whoever holds `MANAGE_MEMBERS` at the workspace, names one
+  (`POST /accounts/{id}:add-address`). It waits on a pending credential of purpose `ADDRESS` for a
+  day, the account unchanged; a newer request replaces it, at most one every ten minutes per account
+  (`429 accounts.address_requested_recently`); the mail's token is minted at delivery. Whether the
+  address is somebody else's here is not said at the request. Following the link
+  (`POST /auth/address:confirm`, public, signing nobody in) makes the address the account's while it
+  is still managed — an ordinary account from then on, reset by mail, the sign-in name kept as a
+  second identifier; an address taken meanwhile is `409 accounts.address_taken`, every other
+  unusable link `401 auth.address_link_invalid`. An erasure deletes the waiting address with the
+  account's other pending steps.
 * An address is added only where the password is a way in: where the workspace's methods leave the
   password out, the account would lose its one way in once it held an address (§4.1), so the action
-  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282). The refusal is
+  `409 accounts.address_needs_password`; the profile and *People* say why in the action's place,
+  read from the sign-in rules (`methods`, the fallback included).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.
@@ -518,9 +534,9 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER`, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19
-and [backup-restore.md](./backup-restore.md) §8's destructive modes. Decided, not built: §13's new
-start password and a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
+member of `PATCH /tenant` that asks), §13's new start password, and every write of §6 (bearer
+door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes.
+Decided, not built: a private hub's emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
 
 ---
 

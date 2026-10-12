@@ -209,6 +209,25 @@ VALUES (
   'ACTIVE', sqlc.arg('password_hash'), sqlc.arg('now'), sqlc.arg('now')
 );
 
+-- name: IssueStartPassword :execrows
+-- A new start password for a managed account (ADR-0074 §4): the hash, the moment, and the mark
+-- that sends the next sign-in into choosing a password. "Managed" is checked here, in the writing
+-- statement, so an address confirmed a moment earlier wins and nothing is renewed (zero rows).
+UPDATE account
+   SET password_hash = sqlc.arg('password_hash'),
+       password_set_at = sqlc.arg('at'),
+       start_password_at = sqlc.arg('at'),
+       updated_at = sqlc.arg('at'),
+       version = version + 1
+ WHERE id = sqlc.arg('account_id') AND deleted_at IS NULL
+   AND sign_in_name IS NOT NULL AND email IS NULL AND status <> 'ANONYMIZED';
+
+-- name: SpendAccountPending :execrows
+-- Every unfinished step of the account, whatever its purpose: a change-step credential won with the
+-- old start password must not set a password after the new one was issued.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id') AND consumed_at IS NULL;
+
 -- name: HasManagedAccounts :one
 -- Whether the sign-in card asks for "address or sign-in name": a managed account that can still
 -- sign in. An anonymised one has lost its name already; a disabled one may be enabled again.
