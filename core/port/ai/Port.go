@@ -229,7 +229,20 @@ type Selection struct {
 	EmbeddingSpace string
 	// Refusal is empty where there is something to call, otherwise the detail every call answers.
 	Refusal string
+	// Source is which source Provider is - the budget the call counts against. Said by the one
+	// that chose it rather than read off the row, whose mapper need not carry the tenant.
+	Source Source
 }
+
+// Source is which of a workspace's sources a resolved provider is (ADR-0072 §4): what its budget is
+// counted against. None is nothing to call - no configuration, no consent, a refusal.
+type Source string
+
+const (
+	SourceNone    Source = "none"
+	SourceOwn     Source = "own"
+	SourceOffered Source = "offered"
+)
 
 // SourceSelector decides a workspace's Selection inside the caller's transaction, in that
 // workspace's scope.

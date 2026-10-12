@@ -186,12 +186,12 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-08](./admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md) | Suspend, resume and delete a workspace | admin | built |
 | [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | partial |
 | [UC-INS-10](./admin/UC-INS-10-set-limits-for-workspaces.md) | Set limits for workspaces, and see them before they hurt | admin | built |
-| [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | partial |
+| [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | built |
 | [UC-INS-12](./admin/UC-INS-12-see-the-installation-at-a-glance.md) | See the installation at a glance and read what happened | admin | partial |
 | [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | specified |
 | [UC-INS-14](./admin/UC-INS-14-tell-a-platform-what-happened.md) | Tell the purchase platform what happened, without it asking | admin | specified |
 | [UC-INS-15](./admin/UC-INS-15-give-a-workspace-its-own-domain.md) | Give a workspace its own domain | admin | specified |
-| [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | partial |
+| [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | verified |
 | [UC-INS-17](./admin/UC-INS-17-run-hubtask-on-my-own-hardware.md) | Run Hubtask on the hardware I have | admin | built |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work | partial |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work | built |
@@ -287,7 +287,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-03](./suggestion/UC-AI-03-consent-to-ai-processing.md) | Decide whether our content may be sent to a model, and take it back | suggestion | built |
 | [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
 | [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | built |
-| [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | partial |
+| [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | built |
 | [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | partial |
 | [UC-SYN-01](./sync/UC-SYN-01-keep-working-when-the-connection-drops.md) | Keep working when the connection drops | sync | partial |
 | [UC-SYN-02](./sync/UC-SYN-02-edit-on-two-devices-without-losing-either-change.md) | Edit on two devices without losing either change | sync | built |

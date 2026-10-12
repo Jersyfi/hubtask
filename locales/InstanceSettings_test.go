@@ -34,7 +34,7 @@ func TestEveryInstanceSettingHasItsWords(t *testing.T) {
 		declared, _ := identity.DeclarationOfLocalisation(name)
 		keys = append(keys, key{"localisation", name, declared.Options})
 	}
-	for _, name := range quota.Names() {
+	for _, name := range quota.OperatorNames() {
 		keys = append(keys, key{"quotas", name, nil})
 	}
 	for _, name := range integration.AiSwitches() {

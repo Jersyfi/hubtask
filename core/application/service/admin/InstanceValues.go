@@ -63,7 +63,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	}
 
 	quotas := usecase.Output{}
-	for _, name := range quota.Names() {
+	for _, name := range quota.OperatorNames() {
 		ceiling, decided := level.Quotas.Of(name)
 		quotas[name] = entryOf(quota.Declaration(), decided, ceiling, level.Quotas.Locked(name))
 	}
@@ -261,7 +261,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			return applyLocalisation(&level.Localisation, name, wordOf(value))
 		}},
 		{areaQuotas, func(name string) (identity.ValueDeclaration, bool) {
-			for _, known := range quota.Names() {
+			for _, known := range quota.OperatorNames() {
 				if known == name {
 					return quota.Declaration(), true
 				}

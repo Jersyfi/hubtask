@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-03, P-11]
-state: partial
-tasks: []
-checked_by: []
+state: verified
+tasks: [SC-12]
+checked_by: [test/integration/installation_census_test.go, test/integration/installation_rotation_test.go, test/integration/sealing_test.go, core/application/service/sealing/Sealing_test.go, core/application/service/sealing/KeyHealth_test.go, apps/webapp/e2e/instanceencryption.test.mjs, docs/evidence/SC-12-2026-10-12.md]
 ---
 
 # Rotate the installation's keys and know every secret moved
@@ -38,8 +38,3 @@ screen says it can be removed.
 
 * The keys themselves stay in the environment ([ADR-0045](../../adr/ADR-0045-master-key-in-the-environment.md));
   the screen shows state, it does not turn the ring.
-
-## Today
-
-* Check 1: not met — the census counts per workspace only, so the installation's provider secrets are counted once for every workspace and the installation's own level is not counted on its own, tracked in #1068.
-* Check 2: not met — the re-seal runs per workspace; the installation's provider secrets are never moved, tracked in #1068.

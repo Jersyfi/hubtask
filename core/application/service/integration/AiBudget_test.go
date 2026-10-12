@@ -39,14 +39,23 @@ type budgetWorld struct {
 	// provider that cannot be asked at all.
 	measures   int
 	measurable bool
+	// source is which source the resolver says answered; the zero value is the offered one.
+	source aiprovider.Source
+	// asked records which budget each check and meter was for: true is the own model's.
+	asked   []bool
+	meterOn []bool
 }
 
-func (w *budgetWorld) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
+func (w *budgetWorld) Sourced(context.Context, appshared.ActorContext) (aiprovider.Provider, aiprovider.Source, error) {
+	source := w.source
+	if source == "" {
+		source = aiprovider.SourceOffered
+	}
 	if w.measures > 0 && !w.measurable {
 		// The world was told a width but not made measurable: the test flipped it off.
-		return unmeasurable{inner: budgetProvider{world: w}}, nil
+		return unmeasurable{inner: budgetProvider{world: w}}, source, nil
 	}
-	return budgetProvider{world: w}, nil
+	return budgetProvider{world: w}, source, nil
 }
 
 // MeasureEmbedding is the width question, answered from the world.
@@ -66,11 +75,13 @@ func (u unmeasurable) Embed(ctx context.Context, t []string) (aiprovider.Embeddi
 	return u.inner.Embed(ctx, t)
 }
 
-func (w *budgetWorld) AiTokens(context.Context, string, time.Time) (bool, error) {
+func (w *budgetWorld) AiTokens(_ context.Context, _ string, own bool, _ time.Time) (bool, error) {
+	w.asked = append(w.asked, own)
 	return w.room, w.roomErr
 }
 
-func (w *budgetWorld) MeterAi(_ context.Context, _ time.Time, tokens int64) error {
+func (w *budgetWorld) MeterAi(_ context.Context, own bool, _ time.Time, tokens int64) error {
+	w.meterOn = append(w.meterOn, own)
 	if w.openTransactions > 0 {
 		w.meteredInside = true
 	}
@@ -287,5 +298,43 @@ func TestTheBudgetWrapperForwardsTheWidthQuestionAndMetersNothing(t *testing.T) 
 	provider, _ = budgeted(world).For(t.Context(), budgetActor())
 	if width, err := provider.(aiprovider.Measured).MeasureEmbedding(t.Context()); err != nil || width != 0 {
 		t.Errorf("an unmeasurable provider answered %d, %v", width, err)
+	}
+}
+
+// The budget a call is checked and metered against is the source's that answers it (ADR-0072 §4):
+// the offered model's, the workspace's own, or none at all where nothing is called.
+func TestTheCallCountsAgainstTheBudgetOfItsSource(t *testing.T) {
+	for name, c := range map[string]struct {
+		source aiprovider.Source
+		own    bool
+	}{
+		"offered": {source: aiprovider.SourceOffered, own: false},
+		"own":     {source: aiprovider.SourceOwn, own: true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			world := &budgetWorld{room: true, source: c.source, usage: aiprovider.Usage{InputTokens: 3}}
+			provider, err := budgeted(world).For(t.Context(), budgetActor())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := provider.Complete(t.Context(), aiprovider.CompletionRequest{}); err != nil {
+				t.Fatal(err)
+			}
+			if len(world.asked) != 1 || world.asked[0] != c.own || len(world.meterOn) != 1 || world.meterOn[0] != c.own {
+				t.Errorf("checked %v and metered %v, want own=%v", world.asked, world.meterOn, c.own)
+			}
+		})
+	}
+
+	world := &budgetWorld{room: false, source: aiprovider.SourceNone}
+	provider, err := budgeted(world).For(t.Context(), budgetActor())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(world.asked) != 0 {
+		t.Error("a provider with nothing to call was checked against a budget")
+	}
+	if _, isExhausted := provider.(exhausted); isExhausted {
+		t.Error("nothing to call was answered as a spent budget")
 	}
 }

@@ -321,6 +321,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ExportTenant{}.Descriptor(),
 		adminservice.UpdateTenantQuotas{}.Descriptor(),
 		quotaservice.ReadQuotas{}.Descriptor(),
+		quotaservice.SetOwnAiBudget{}.Descriptor(),
 		metaservice.GetHealthReport{}.Descriptor(),
 		sealingservice.ReadEncryptionStatus{}.Descriptor(),
 		sealingservice.ResealSecrets{}.Descriptor(),

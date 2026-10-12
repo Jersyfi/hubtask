@@ -7,6 +7,7 @@ import (
 	"context"
 	"flag"
 	"strconv"
+	"strings"
 	"time"
 
 	openapitypes "github.com/oapi-codegen/runtime/types"
@@ -524,9 +525,13 @@ func encryptionTable(status openapi.EncryptionStatus) Table {
 		case !key.InRing:
 			state = "NOT IN RING"
 		}
-		rows = append(rows, []string{key.KeyId, state, itoa64(key.SealedValues)})
+		kinds := make([]string, 0, len(key.Stores))
+		for _, store := range key.Stores {
+			kinds = append(kinds, string(store.Store)+"="+itoa64(store.SealedValues))
+		}
+		rows = append(rows, []string{key.KeyId, state, itoa64(key.SealedValues), strings.Join(kinds, " ")})
 	}
-	return Table{Columns: []string{"key", "state", "sealed values"}, Rows: rows}
+	return Table{Columns: []string{"key", "state", "sealed values", "by kind"}, Rows: rows}
 }
 
 func itoa(value int) string     { return itoa64(int64(value)) }

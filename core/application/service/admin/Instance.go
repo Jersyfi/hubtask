@@ -226,7 +226,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, "localisation."+name)
 		}
 	}
-	for _, name := range quota.Names() {
+	for _, name := range quota.OperatorNames() {
 		earlierCeiling, earlierSet := before.Quotas.Of(name)
 		laterCeiling, laterSet := after.Quotas.Of(name)
 		if earlierCeiling != laterCeiling || earlierSet != laterSet ||

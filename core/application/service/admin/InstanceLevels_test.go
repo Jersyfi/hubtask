@@ -215,8 +215,11 @@ func TestTheProjectionAnswersTheLocalisationAndQuotaAreas(t *testing.T) {
 	}
 
 	quotas, _ := out["quotas"].(usecase.Output)
-	if len(quotas) != len(quota.Names()) {
-		t.Errorf("the projection answers %d quotas, want every one of the %d", len(quotas), len(quota.Names()))
+	if len(quotas) != len(quota.OperatorNames()) {
+		t.Errorf("the projection answers %d quotas, want every one of the %d", len(quotas), len(quota.OperatorNames()))
+	}
+	if _, offered := quotas[quota.AiOwnTokensPerDay]; offered {
+		t.Error("the installation is offered the workspace's own AI budget to set")
 	}
 	exports, _ := quotas[quota.ExportJobs].(usecase.Output)
 	if exports["set"] != true || exports["value"] != int64(9) || exports["locked"] != true {
