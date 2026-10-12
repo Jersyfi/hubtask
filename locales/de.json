@@ -134,6 +134,8 @@
   "auth.step_up_session_required": "Ein Step-up ist die Handlung einer Sitzung. Melde dich zuerst mit deinem Passwort an; ein persönliches Zugriffstoken kann eine Person nicht erneut nachweisen.",
   "access.credential_required": "Für diese Operation musst du angemeldet sein.",
   "access.insufficient_scope": "Das verwendete Token darf das nicht. Es bräuchte den Scope {scope}.",
+  "access.operator_register_required": "Dieses Token trägt den Scope {scope}, aber sein Konto steht nicht im Betreiberverzeichnis dieser Installation, daher gilt der Scope nicht. Ein Betreiber trägt das Konto unter Installation → Betreiber ein.",
+  "access.operator_register_unreadable": "Das Betreiberverzeichnis konnte nicht gelesen werden, daher ist der Scope {scope} vorerst zurückgehalten. Versuche es gleich noch einmal.",
   "access.scheme_unsupported": "Diese API erwartet ein Bearer-Token im Authorization-Header.",
   "access.tenant_mismatch": "Das Token gehört zu einem anderen Workspace als dem angefragten.",
   "access.rate_limit_exceeded": "Zu viele Anfragen für {level}. Bitte langsamer.",
