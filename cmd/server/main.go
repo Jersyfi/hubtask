@@ -1189,6 +1189,10 @@ func run() error {
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
 	}.Warnings)
+	// A provider's installation without an accessibility statement (UC-ID-18), read live too.
+	registry.AddWarningSource(adminservice.AccessibilityWarnings{
+		Tenancy: cfg.Tenancy, Settings: postgres.NewInstanceSettingRepository(), UnitOfWork: unitOfWork,
+	}.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses

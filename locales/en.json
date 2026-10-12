@@ -64,6 +64,7 @@
   "config.operator_register_empty": "This installation has more than one workspace and nobody in its operator register, so nobody can run it. On the machine it runs on, add an operator with: {command}",
   "config.operator_pending": "HUBTASK_OPERATORS names {entry}, and no such account exists yet. It is added to the operator register once it does.",
   "config.operator_register_unchecked": "The operator register could not be read, so whether anybody can run this installation was not checked.",
+  "config.accessibility_statement_missing": "This installation runs workspaces for others and names no accessibility statement, so a sign-in card shows none unless its workspace set one. Set it under Installation, Defaults, or with: {command}",
   "config.smtp_missing_with_reminders": "No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured.",
   "config.base_url_missing": "HUBTASK_BASE_URL is not set. Links in emails and feeds will be wrong.",
   "config.egress_allowlist_missing": "No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.",

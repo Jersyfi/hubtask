@@ -524,7 +524,9 @@ Before one — sign-in, an invitation, a consent — the foot carries the **oper
 accessibility statement among them, only where the operator set one
 ([UC-ID-18](../usecases/identity/UC-ID-18-show-the-legal-information-before-sign-in.md) checks 4 and
 5): the project's statement never stands in for the operator's. It is **not** a footer on every
-screen.
+screen. The operator sets it on *Installation → Defaults* (`legal.accessibility_url`); an
+installation in multi mode that set none is named in the health report
+(`config.accessibility_statement_missing`, info), a private installation never.
 
 **What is deliberately not promised.** Level AAA anywhere; sign language or audio description (the
 product has no video); a conformance claim for a third-party client.
