@@ -329,7 +329,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("clock: %w", err)
 	}
-	auditSink := postgres.NewAuditSink(ids)
+	auditSink := postgres.NewAuditSink(ids).Keyed(security.NewAuditFingerprinter(cfg.SecretKey))
 	// The queue is wired into the write path before any worker exists: an event carries its own
 	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
 	jobs := postgres.NewQueue(ids, clockadapter.System{})

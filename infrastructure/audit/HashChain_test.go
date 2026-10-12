@@ -18,8 +18,16 @@ var (
 	occurred = time.Date(2026, 8, 17, 9, 0, 0, 0, time.UTC)
 )
 
+// storedFingerprints stands in for the sink's keyed fingerprint: the chain covers a stored entry,
+// and a stored entry holds a string where a sensitive value was.
+type storedFingerprints struct{}
+
+func (storedFingerprints) Fingerprint(_ shared.ID, value string) string {
+	return "hmac-sha256:" + value
+}
+
 func entry() port.Entry {
-	return port.Entry{
+	return port.KeyFingerprints(port.Entry{
 		TenantID: tenantID, OccurredAt: occurred, Action: "container.created",
 		Outcome: port.OutcomeSuccess, Severity: port.SeverityInfo,
 		ActorKind: shared.ActorUser, ActorLabel: "Anna Beispiel",
@@ -28,7 +36,7 @@ func entry() port.Entry {
 			port.Change{Field: "type", Classification: port.Open, To: "HUB"},
 			port.Change{Field: "name", Classification: port.Sensitive, To: "Private"},
 		),
-	}
+	}, storedFingerprints{})
 }
 
 func hash(t *testing.T, previous []byte, seq int64, e port.Entry) []byte {

@@ -548,6 +548,9 @@ gate-resilience:
 ## gate-licenses: Refuse a copyleft dependency, and keep the third-party list current
 .PHONY: gate-licenses
 gate-licenses:
+	@# First, because it needs no tool: every brand mark the sign-in buttons draw has its row and
+	@# its preset, and every row its mark (ADR-0069 §2, §3).
+	@scripts/check-brand-marks.sh
 	$(call require_tool,go-licenses)
 	@# forbidden is AGPL and friends, restricted is the GPL/LGPL family. Either one would change the
 	@# terms on which the Apache-2.0 binary may be passed on (ADR-0080), which is why this is a gate
