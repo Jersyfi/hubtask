@@ -64,11 +64,13 @@ type privacyHarness struct {
 	registry *usecase.Registry
 	locks    *lockedHubs
 	revoker  *privacyRevoker
+	rule     *privateHubsSwitch
 }
 
 func newPrivacyHarness(private bool, held ...identity.Membership) *privacyHarness {
 	h := &privacyHarness{
 		containerHarness: newContainerHarness(), locks: &lockedHubs{}, revoker: &privacyRevoker{},
+		rule: &privateHubsSwitch{},
 	}
 	hub := h.withHub(hubID, "Presents")
 	hub.Private = private
@@ -80,7 +82,7 @@ func newPrivacyHarness(private bool, held ...identity.Membership) *privacyHarnes
 		Memberships: roles, UnitOfWork: h.uow, Audit: h.audit, Clock: clock.Fixed(now),
 	}
 	registry, err := usecase.NewRegistry(nil, SetHubPrivacy{
-		Writer: h.writer, Hubs: h.locks, Revocations: h.revoker,
+		Writer: h.writer, Hubs: h.locks, Revocations: h.revoker, PrivateHubs: h.rule,
 	}.Descriptor())
 	if err != nil {
 		panic(err)

@@ -49,6 +49,13 @@ func (g *grantsMade) Grant(_ context.Context, grant identity.Grant) error {
 	return nil
 }
 
+// privateHubsSwitch is *Private hubs allowed* as the rule in force answers it.
+type privateHubsSwitch struct{ off bool }
+
+func (s privateHubsSwitch) PrivateHubsAllowed(context.Context, shared.ID) (bool, error) {
+	return !s.off, nil
+}
+
 // privateHarness is CreateContainer behind the real authoriser and the registry, so that the
 // registry's validation and the authoriser's decision are both what the test meets.
 func privateHarness(held ...identity.Membership) (*usecase.Registry, *harness, *grantsMade) {
@@ -60,6 +67,7 @@ func privateHarness(held ...identity.Membership) (*usecase.Registry, *harness, *
 	h.handler.Authorizer = authoriser
 	h.handler.OwnHubs = authoriser
 	h.handler.Grants = grants
+	h.handler.PrivateHubs = privateHubsSwitch{}
 	registry, err := usecase.NewRegistry(nil, h.handler.Descriptor())
 	if err != nil {
 		panic(err)

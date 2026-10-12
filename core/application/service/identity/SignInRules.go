@@ -131,6 +131,16 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 	}, nil
 }
 
+// PrivateHubsAllowed answers *Private hubs allowed* in force for the workspace (ADR-0073 §6): the
+// rule's switch, resolved through the same levels as every other.
+func (r SignInPolicyResolver) PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error) {
+	resolved, err := r.Resolve(ctx, tenantID)
+	if err != nil {
+		return false, err
+	}
+	return resolved.Effective.Policy.PrivateHubs, nil
+}
+
 // Legal answers the links in force for a workspace, or the installation's own where the identifier
 // is zero.
 //
