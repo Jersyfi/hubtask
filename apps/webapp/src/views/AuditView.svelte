@@ -114,6 +114,9 @@
   function actorOf(entry: Entry): string {
     const kind = entry.actor?.type ?? 'SYSTEM';
     if (kind === 'SYSTEM') return t('app.audit.actor_system');
+    // An erased account's name is the same "former user" for everybody erased; the entry's label is
+    // the stable pseudonym that tells one of them from another (UC-AUD-01 check 3).
+    if (accounts.statusOf(entry.actor?.id) === 'ANONYMIZED' && entry.actor?.label) return entry.actor.label;
     return (
       accounts.nameOf(entry.actor?.id) ??
       entry.actor?.label ??
