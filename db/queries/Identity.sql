@@ -15,6 +15,11 @@ SELECT
   a.week_start AS account_week_start,
   n.default_locale,
   n.default_time_zone,
+  -- The week start's two links above the account (i18n-l10n.md §4): the workspace's own, and
+  -- the installation's default as its row stores it. A scalar read of a policy-free table of a
+  -- few rows, on the round trip that already runs, rather than a second query per request.
+  coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
+  (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
   n.slug         AS tenant_slug,
   n.status::text AS tenant_status,
   coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override

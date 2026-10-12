@@ -55,6 +55,9 @@ type settingsDocument struct {
 	// Written empty rather than omitted, `audit_anchor_target_id`'s reason: the write merges keys,
 	// and an omitted key would leave a cleared narrowing standing.
 	AiSources string `json:"ai_sources"`
+	// WeekStart is the workspace's own week start, empty where it decided none. Written empty
+	// rather than omitted, `ai_sources`' reason: a cleared day would otherwise stand.
+	WeekStart string `json:"week_start"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -207,6 +210,7 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			AuditAnchorTargetID: shared.ID(settings.AuditAnchorTargetID),
 			OfferedProviders:    offeredProvidersOf(settings.OfferedProviders),
 			AiSources:           settings.AiSources,
+			WeekStart:           identity.WeekStart(settings.WeekStart),
 			SignIn:              patch,
 			Legal:               links,
 		},
@@ -241,6 +245,7 @@ func (WorkspaceSettingsRepository) Update(
 		SignInPolicy:        signInDocumentOf(changed.Settings.SignIn, changed.Settings.Legal),
 		OfferedProviders:    offered,
 		AiSources:           changed.Settings.AiSources,
+		WeekStart:           string(changed.Settings.WeekStart),
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)

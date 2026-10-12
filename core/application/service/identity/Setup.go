@@ -82,6 +82,9 @@ type SetUpInstallation struct {
 	// Tenancy decides whether a short name is asked for: in single mode it routes nothing and is
 	// derived from the name; in multi mode it is the workspace's subdomain.
 	Tenancy env.TenancyMode
+	// Instance is the installation's level: a file may have seeded its language and zone before
+	// the first workspace exists, and that workspace starts with them. Nil reads nothing.
+	Instance repository.InstanceSettings
 }
 
 // Execute sets the installation up and answers the owner's session.
@@ -102,10 +105,15 @@ func (h SetUpInstallation) Execute(
 		slug = domain.DeriveTenantSlug(cmd.DisplayName)
 	}
 
+	locale, zone, err := startingLocalisation(ctx, w.UnitOfWork, h.Instance, cmd.DefaultLocale, cmd.DefaultTimeZone)
+	if err != nil {
+		return SessionPair{}, err
+	}
+
 	now := w.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
 		ID: w.IDs.NewID(), Slug: slug, DisplayName: cmd.DisplayName,
-		DefaultLocale: cmd.DefaultLocale, DefaultTimeZone: cmd.DefaultTimeZone, Now: now,
+		DefaultLocale: locale, DefaultTimeZone: zone, Now: now,
 		Text: h.Text,
 	})
 	if err != nil {
@@ -334,4 +342,34 @@ func (h SetUpInstallation) invoke(
 		return nil, err
 	}
 	return pairOutput(pair), nil
+}
+
+// startingLocalisation answers the language and zone a new workspace starts with where the caller
+// named none: the installation's defaults (UC-INS-09, "what every workspace starts with"), and
+// otherwise nothing, which the tenant's own constructor reads as `en` and `UTC`. Read before the
+// write's transaction and under the installation's scope - `instance_setting` carries no policy,
+// and the write that follows runs in a scope of its own. Nil reads nothing.
+func startingLocalisation(
+	ctx context.Context, unitOfWork persistence.UnitOfWork, instance repository.InstanceSettings,
+	locale, zone string,
+) (string, string, error) {
+	if instance == nil || (strings.TrimSpace(locale) != "" && strings.TrimSpace(zone) != "") {
+		return locale, zone, nil
+	}
+	var defaults domain.LocalisationDefaults
+	err := unitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		level, err := instance.Read(ctx)
+		defaults = level.Localisation
+		return err
+	})
+	if err != nil {
+		return "", "", err
+	}
+	if strings.TrimSpace(locale) == "" {
+		locale = defaults.Locale
+	}
+	if strings.TrimSpace(zone) == "" {
+		zone = defaults.TimeZone
+	}
+	return locale, zone, nil
 }

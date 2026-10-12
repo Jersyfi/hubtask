@@ -763,6 +763,11 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.time_zone AS account_time_zone,
        a.week_start AS account_week_start,
        n.default_locale, n.default_time_zone,
+       -- The week start's two links above the account (i18n-l10n.md §4): the workspace's own, and
+       -- the installation's default as its row stores it. A scalar read of a policy-free table of a
+       -- few rows, on the round trip that already runs, rather than a second query per request.
+       coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
+       (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
        coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM session s
@@ -773,32 +778,34 @@ WHERE s.id = $1 AND a.deleted_at IS NULL
 `
 
 type FindSessionForAuthRow struct {
-	ID                 pgtype.UUID
-	TenantID           pgtype.UUID
-	AccountID          pgtype.UUID
-	CreatedAt          pgtype.Timestamptz
-	LastSeenAt         pgtype.Timestamptz
-	ExpiresAt          pgtype.Timestamptz
-	RevokedAt          pgtype.Timestamptz
-	GrantID            pgtype.UUID
-	Scopes             []string
-	HardExpiresAt      pgtype.Timestamptz
-	IdleMinutes        *int32
-	SignedInWith       *string
-	ElevatedUntil      pgtype.Timestamptz
-	RotationFrom       interface{}
-	GrantClientID      pgtype.UUID
-	AccountKind        AccountKind
-	AccountStatus      AccountStatus
-	AccountDisplayName string
-	AccountLocale      *string
-	AccountTimeZone    *string
-	AccountWeekStart   *string
-	DefaultLocale      string
-	DefaultTimeZone    string
-	TenantSlug         string
-	TenantStatus       string
-	TokenRateOverride  interface{}
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	AccountID             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	LastSeenAt            pgtype.Timestamptz
+	ExpiresAt             pgtype.Timestamptz
+	RevokedAt             pgtype.Timestamptz
+	GrantID               pgtype.UUID
+	Scopes                []string
+	HardExpiresAt         pgtype.Timestamptz
+	IdleMinutes           *int32
+	SignedInWith          *string
+	ElevatedUntil         pgtype.Timestamptz
+	RotationFrom          interface{}
+	GrantClientID         pgtype.UUID
+	AccountKind           AccountKind
+	AccountStatus         AccountStatus
+	AccountDisplayName    string
+	AccountLocale         *string
+	AccountTimeZone       *string
+	AccountWeekStart      *string
+	DefaultLocale         string
+	DefaultTimeZone       string
+	TenantWeekStart       string
+	InstallationWeekStart []byte
+	TenantSlug            string
+	TenantStatus          string
+	TokenRateOverride     interface{}
 }
 
 // What authenticating a session access token needs: the row the signature named, its account,
@@ -830,6 +837,8 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.AccountWeekStart,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantWeekStart,
+		&i.InstallationWeekStart,
 		&i.TenantSlug,
 		&i.TenantStatus,
 		&i.TokenRateOverride,

@@ -64,6 +64,9 @@ type ResolvedPolicy struct {
 	Workspace domain.Workspace
 	// BlocklistFile is the operator's own list, instance-only.
 	BlocklistFile string
+	// InstallationLocalisation is what the installation set as the default language, time zone and
+	// week start, for the workspace's screen to show beside its own (UC-INS-09 check 5).
+	InstallationLocalisation domain.LocalisationDefaults
 }
 
 // Resolve answers the rule in force, in **one** scope.
@@ -128,6 +131,8 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		InstanceLegal:         instance.Legal,
 		Workspace:             workspace,
 		BlocklistFile:         instance.BlocklistFile,
+
+		InstallationLocalisation: instance.Localisation,
 	}, nil
 }
 

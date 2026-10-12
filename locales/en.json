@@ -267,6 +267,7 @@
   "admin.slug_taken": "That subdomain is already a workspace's. Choose another.",
   "workspace.version_conflict": "Somebody else changed the workspace. Read it again and retry.",
   "workspace.admin_flag_contradicts_rule": "This change says two different things about who needs a second factor. Send only the rule.",
+  "workspace.week_start_invalid": "A week starts on Monday, Saturday or Sunday, not on {value}.",
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
   "admin.tenant_deletion_underway": "That workspace is being removed right now, so its deletion can no longer be called off.",
   "admin.holds_not_wired": "This installation is misconfigured: a deletion cannot read the legal holds, so it does not proceed.",

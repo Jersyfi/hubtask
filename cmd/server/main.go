@@ -1339,6 +1339,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
@@ -1454,6 +1455,7 @@ func run() error {
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors),
 			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+			Instance: postgres.NewInstanceSettingRepository(),
 		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),

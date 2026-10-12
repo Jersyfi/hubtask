@@ -290,6 +290,7 @@
   "admin.slug_taken": "Diese Subdomain gehört bereits einem Workspace. Wähle eine andere.",
   "workspace.version_conflict": "Jemand anderes hat den Arbeitsbereich geändert. Lies ihn neu und versuche es noch einmal.",
   "workspace.admin_flag_contradicts_rule": "Diese Änderung sagt zweierlei darüber, wer einen zweiten Faktor braucht. Sende nur die Regel.",
+  "workspace.week_start_invalid": "Eine Woche beginnt am Montag, Samstag oder Sonntag, nicht am {value}.",
   "admin.tenant_leaving": "Dieser Workspace wird gelöscht. Sein Lebenszyklus geht von hier aus nur noch vorwärts.",
   "admin.tenant_deletion_underway": "Dieser Workspace wird gerade entfernt, die Löschung lässt sich nicht mehr abbrechen.",
   "admin.deletion_confirmation_required": "Um einen Workspace zu löschen, musst du seinen Anzeigenamen genau eintippen. Erwartet: {name}",
