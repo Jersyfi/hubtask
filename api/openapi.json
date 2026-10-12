@@ -21072,7 +21072,7 @@
       },
       "AuditChange": {
         "type": "object",
-        "description": "One changed field, masked per its classification. An `OPEN` field carries\n`from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which\nmakes two entries comparable without either being readable; a `SECRET` one is not here at\nall.\n",
+        "description": "One changed field, masked per its classification. An `OPEN` field carries\n`from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which\nmakes two entries comparable without either being readable; a `SECRET` one is not here at\nall. A hash is keyed with a secret of the installation and bound to the workspace, and\nnames its scheme as a prefix (`hmac-sha256:`): two hashes are comparable only when both\ncarry the same scheme and come from the same workspace on an installation whose secret\ndid not change between them. A hash without a prefix was written by an earlier version\nand is never equal to a prefixed one, whatever the value.\n",
         "properties": {
           "field": {
             "type": "string"
