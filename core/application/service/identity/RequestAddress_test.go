@@ -142,15 +142,59 @@ func newAddressFixture(t *testing.T) *addressFixture {
 	renewal := newRenewalFixture(t)
 	f.accounts = renewal.accounts
 	f.store = &addressStore{accounts: f.accounts, taken: map[string]bool{}}
+	f.rebuild(t, passwordDoor{open: true})
+	return f
+}
+
+// rebuild registers the use case against a workspace whose password door answers as given.
+func (f *addressFixture) rebuild(t *testing.T, door PasswordDoor) {
+	t.Helper()
 	registry, err := usecase.NewRegistry(nil, RequestAddress{
 		Requests: f.store, Authorizer: f.authorizer, Notifier: f.jobs, Audit: f.audit,
 		UnitOfWork: &unitOfWork{}, Clock: f.clock, IDs: ids{next: "01936f2a-7c1e-7000-8000-0000000000a7"},
+		Door: door,
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("registering: %v", err)
 	}
 	f.registry = registry
-	return f
+}
+
+// passwordDoor answers whether the password is a way into the workspace.
+type passwordDoor struct {
+	open     bool
+	fallback FallbackCause
+}
+
+func (d passwordDoor) PasswordOpen(context.Context, shared.ID) (bool, FallbackCause, error) {
+	return d.open, d.fallback, nil
+}
+
+// Where the workspace's methods leave the password out, an address would take a managed person's one
+// way in (identity.md §4.1, §13): the request is refused before anything is written.
+func TestNoAddressIsAddedWhereThePasswordIsNotAWayIn(t *testing.T) {
+	f := newAddressFixture(t)
+	f.rebuild(t, passwordDoor{open: false})
+	for _, actor := range []appshared.ActorContext{lena(), admin()} {
+		_, err := f.request(t, actor, lenaID, "lena@example.org")
+		refusal := shared.AsError(err)
+		if refusal == nil || refusal.DetailCode != "accounts.address_needs_password" ||
+			refusal.Category != shared.CategoryConflict {
+			t.Fatalf("answered %v", err)
+		}
+	}
+	if len(f.store.requests)+len(f.jobs.requests)+len(f.audit.entries) != 0 {
+		t.Error("something was written")
+	}
+}
+
+// The fallback opens the password, so the managed person keeps a way in with an address too.
+func TestAnAddressIsAddedWhereOnlyTheFallbackOpensThePassword(t *testing.T) {
+	f := newAddressFixture(t)
+	f.rebuild(t, passwordDoor{open: true, fallback: FallbackCauseNoWayIn})
+	if _, err := f.request(t, lena(), lenaID, "lena@example.org"); err != nil {
+		t.Errorf("answered %v", err)
+	}
 }
 
 // lena is the managed person, signed in as herself.

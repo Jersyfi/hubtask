@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -23,12 +23,28 @@ const TOKEN = 'hbt_mfa_e2e-address-token';
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, { me = LENA, signedIn = true, confirm = 204 } = {}) {
+/** The sign-in rules of a workspace whose methods are the ones named. */
+function rulesWith(methods) {
+  return {
+    workspace_host: 'home.hubtask.eu', methods, providers: [], sign_in_names: true, legal: {},
+    password: {
+      min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+      min_classes: 0, max_repeat: null, common_passwords: true, context_words: true,
+      breach_check: false, history_count: 0, not_current: false,
+    },
+  };
+}
+
+async function open(browser, { me = LENA, signedIn = true, confirm = 204, methods = undefined } = {}) {
   const sent = { addresses: [], confirmations: [] };
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (methods && path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    }
+    if (methods && path === '/auth/sign-in-rules') return route.fulfill({ json: rulesWith(methods) });
     if (path === '/accounts/me') return route.fulfill({ json: me });
     if (path === `/accounts/${me.id}:add-address`) {
       sent.addresses.push(request.postDataJSON());
@@ -67,6 +83,28 @@ test('a managed person adds an address on the profile, and a link goes to it', a
   await page.getByRole('button', { name: 'Send the link' }).click();
   await page.getByText('A link went to lena@example.org. It works for a day.').first().waitFor();
   assert.deepEqual(sent.addresses, [{ email: 'lena@example.org' }]);
+});
+
+test('where the password is not a way in, the profile says why instead of offering an address', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, { methods: ['OIDC'] });
+  t.after(close);
+
+  await page.goto(`${served.origin}/profile`);
+  await page.getByRole('heading', { name: 'A mail address' }).waitFor({ timeout: 15_000 });
+  await page.getByText('An address cannot be added in this workspace').waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Send the link' }).count(), 0, 'the form is offered');
+});
+
+test('where only the password is a way in, the profile offers the address', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, { methods: ['PASSWORD'] });
+  t.after(close);
+
+  await page.goto(`${served.origin}/profile`);
+  await page.getByRole('button', { name: 'Send the link' }).waitFor({ timeout: 15_000 });
 });
 
 test('a person with an address is offered none', async (t) => {

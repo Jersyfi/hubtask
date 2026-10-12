@@ -403,7 +403,9 @@ A **managed account** is one with a sign-in name and no address (`AccountSummary
   account's other pending steps.
 * An address is added only where the password is a way in: where the workspace's methods leave the
   password out, the account would lose its one way in once it held an address (§4.1), so the action
-  is not offered there and the server refuses it (the owner, 2026-10-12, #1282).
+  is not offered there and the server refuses it (the owner, 2026-10-12, #1282). The refusal is
+  `409 accounts.address_needs_password`; the profile and *People* say why in the action's place,
+  read from the sign-in rules (`methods`, the fallback included).
 * *Managed accounts allowed* is the sign-in switch `managed_accounts`, default on, off the stricter
   value, with the installation's and the plan's default and lock (§18). Off stops new ones; the
   managed accounts already there keep signing in.

@@ -11006,7 +11006,9 @@ type ClientInterface interface {
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
-	// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 	// minutes of the last is `429 accounts.address_requested_recently` with
 	// `retry_after_seconds`.
 	//
@@ -11027,7 +11029,9 @@ type ClientInterface interface {
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
-	// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 	// minutes of the last is `429 accounts.address_requested_recently` with
 	// `retry_after_seconds`.
 	//
@@ -15109,7 +15113,9 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
-// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 // minutes of the last is `429 accounts.address_requested_recently` with
 // `retry_after_seconds`.
 //
@@ -15140,7 +15146,9 @@ func (c *Client) RequestAddressWithBody(ctx context.Context, accountId AccountId
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
-// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 // minutes of the last is `429 accounts.address_requested_recently` with
 // `retry_after_seconds`.
 //
@@ -37575,7 +37583,9 @@ type ClientWithResponsesInterface interface {
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
-	// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 	// minutes of the last is `429 accounts.address_requested_recently` with
 	// `retry_after_seconds`.
 	//
@@ -37596,7 +37606,9 @@ type ClientWithResponsesInterface interface {
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
-	// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+	// an address would take the person's one way in, and the request is refused with
+	// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 	// minutes of the last is `429 accounts.address_requested_recently` with
 	// `retry_after_seconds`.
 	//
@@ -56556,7 +56568,9 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
-// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 // minutes of the last is `429 accounts.address_requested_recently` with
 // `retry_after_seconds`.
 //
@@ -56583,7 +56597,9 @@ func (c *ClientWithResponses) RequestAddressWithBodyWithResponse(ctx context.Con
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
-// with `409 accounts.not_managed`. A new request replaces the earlier link; one within ten
+// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
+// an address would take the person's one way in, and the request is refused with
+// `409 accounts.address_needs_password`. A new request replaces the earlier link; one within ten
 // minutes of the last is `429 accounts.address_requested_recently` with
 // `retry_after_seconds`.
 //

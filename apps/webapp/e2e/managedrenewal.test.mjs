@@ -13,8 +13,20 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, OTHER, PAGE, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, OTHER, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+
+/** The sign-in rules of a workspace whose methods are the ones named. */
+function rulesWith(methods) {
+  return {
+    workspace_host: 'home.hubtask.eu', methods, providers: [], sign_in_names: true, legal: {},
+    password: {
+      min_length: 12, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+      min_classes: 0, max_repeat: null, common_passwords: true, context_words: true,
+      breach_check: false, history_count: 0, not_current: false,
+    },
+  };
+}
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const GRANT = 'hbt_sup_e2e';
@@ -25,13 +37,17 @@ export const LENA = { id: '01a0e2e0-0000-7000-8000-0000000000c1', kind: 'USER', 
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser) {
+async function open(browser, { methods = undefined } = {}) {
   const sent = { renewals: [], proofs: [], addresses: [] };
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (methods && path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    }
+    if (methods && path === '/auth/sign-in-rules') return route.fulfill({ json: rulesWith(methods) });
     if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
       return route.fulfill({
         json: {
@@ -128,4 +144,17 @@ test('an address for a managed person sends a link and says so', async (t) => {
   await dialog.getByRole('button', { name: 'Send the link' }).click();
   await dialog.getByText('A link went to lena@example.org. It works for a day.').waitFor();
   assert.deepEqual(sent.addresses, [{ email: 'lena@example.org' }]);
+});
+
+test('where the password is not a way in, no address is offered and the reason stands under the table', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, { methods: ['OIDC'] });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/people`);
+  const lena = rowOf(page, 'Lena');
+  await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
+  await page.getByText('People without an address cannot add one here').waitFor();
+  assert.equal(await lena.getByRole('button', { name: 'Add an address' }).count(), 0, 'an address is offered');
 });

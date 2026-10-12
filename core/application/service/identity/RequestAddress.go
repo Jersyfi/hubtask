@@ -50,6 +50,11 @@ type RequestAddress struct {
 	IDs        clock.IDGenerator
 	// Domains brings the address's domain to its ASCII form, an invitation's rule.
 	Domains text.DomainEncoder
+	// Door answers whether the password is a way into the workspace. Where it is not, an address
+	// would take the person's one way in: an account found by name that holds an address is refused
+	// the password (identity.md §4.1), and no provider need know the address (§13). Nil reads as
+	// open, as a writer without a rule does.
+	Door PasswordDoor
 }
 
 // Execute writes the request and queues its mail, answering until when the link confirms.
@@ -63,6 +68,16 @@ func (h RequestAddress) Execute(
 	if err != nil {
 		return time.Time{}, err
 	}
+	// Read before the transaction: the rule's resolution runs its own, and a nested one is what the
+	// unit of work refuses.
+	passwordOpen := true
+	if h.Door != nil {
+		open, _, err := h.Door.PasswordOpen(ctx, actor.TenantID)
+		if err != nil {
+			return time.Time{}, err
+		}
+		passwordOpen = open
+	}
 
 	var expires time.Time
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -74,6 +89,9 @@ func (h RequestAddress) Execute(
 		}
 		if !account.OnlyThePasswordReaches() {
 			return notManaged()
+		}
+		if !passwordOpen {
+			return shared.ErrConflict.WithDetail("accounts.address_needs_password")
 		}
 		now := h.Clock.Now()
 		latest, err := h.Requests.LatestRequest(ctx, accountID)

@@ -1384,6 +1384,7 @@ func run() error {
 		identity.RequestAddress{
 			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
+			Door: passwordWriter,
 		}.Descriptor(),
 		identity.UpdateAccountPreferences{
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,

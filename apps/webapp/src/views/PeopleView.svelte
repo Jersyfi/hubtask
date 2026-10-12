@@ -46,6 +46,7 @@
   import RenewDialog from '../lib/people/RenewDialog.svelte';
   import StartPasswordResult from '../lib/people/StartPasswordResult.svelte';
   import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
+  import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { inviteWay } from '../lib/people/invitation.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -118,6 +119,15 @@
   function isManaged(holder: Holder): boolean {
     return holder.groupId === undefined && accounts.isManaged(holder.accountId);
   }
+
+  // An address is added only where the password is a way in (identity.md §13): elsewhere it would
+  // take a managed person's one way in. The sign-in rules say whether it is, fallback included; the
+  // action is offered once they have answered, and its reason stands under the table otherwise.
+  $effect(() => signInRules.read());
+  const addressOffered = $derived(signInRules.isSettled && signInRules.hasPassword);
+  const addressWithheld = $derived(
+    signInRules.isSettled && !signInRules.hasPassword && holders.some((holder) => isManaged(holder)),
+  );
 
   async function issueStartPassword(): Promise<void> {
     const holder = renewing;
@@ -378,13 +388,15 @@
                   <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
                     {t('app.people.renew')}
                   </Button>
-                  <Button
-                    size="sm"
-                    tone="secondary"
-                    onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
-                  >
-                    {t('app.people.address_add')}
-                  </Button>
+                  {#if addressOffered}
+                    <Button
+                      size="sm"
+                      tone="secondary"
+                      onclick={() => (addressing = { accountId: holder.accountId as string, who: nameOf(holder) })}
+                    >
+                      {t('app.people.address_add')}
+                    </Button>
+                  {/if}
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. -->
@@ -403,6 +415,9 @@
         {/each}
       </Table>
 
+      {#if addressWithheld}
+        <p class="quiet small">{t('app.people.address_needs_password')}</p>
+      {/if}
     {/if}
 
     <RenewDialog
