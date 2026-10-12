@@ -3761,7 +3761,7 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 					return err
 				}
 				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
-					!level.Localisation.IsZero() || !level.Quotas.IsZero()
+					!level.Localisation.IsZero() || !level.Quotas.IsZero() || !level.Ai.IsZero()
 				return nil
 			}); err != nil {
 			return err

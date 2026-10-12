@@ -63,12 +63,12 @@ func ParseMode(raw string) (Mode, error) {
 	}
 }
 
-// The areas a file may carry. The same four the API answers, so a file is the document an operator
+// The areas a file may carry. The same five the API answers, so a file is the document an operator
 // would have read back — and an area this build does not know is refused rather than ignored,
 // because a file is written once and read by every future start: a typo that silently did nothing
 // is a configuration somebody believes is in force.
 var areas = map[string]bool{
-	"sign_in": true, "legal": true, "localisation": true, "quotas": true,
+	"sign_in": true, "legal": true, "localisation": true, "quotas": true, "ai": true,
 }
 
 // Read parses the file at a path into the request body `WriteInstanceSettings` takes.

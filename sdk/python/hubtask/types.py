@@ -537,11 +537,12 @@ class InstanceSetting(TypedDict, total=False):
     locked: Required[bool]
 
 class InstanceSettings(TypedDict, total=False):
-    """The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings."""
+    """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""
     sign_in: dict[str, Any]
     legal: dict[str, Any]
     localisation: dict[str, Any]
     quotas: dict[str, Any]
+    ai: dict[str, Any]
     blocklist_file: str
     source: str
     is_enforced_from_file: bool
