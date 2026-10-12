@@ -51,6 +51,7 @@
   import PoliciesDialog from '../lib/workspace/PoliciesDialog.svelte';
   import QueryPanel from '../lib/entries/QueryPanel.svelte';
   import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
@@ -785,6 +786,11 @@
         {/if}
       {/snippet}
     </PageHeader>
+
+    {#if container.type === 'HUB' && container.private}
+      <!-- Who opened this hub through the emergency access, and the opener's own hour (ADR-0073 §4). -->
+      <EmergencyNotice hubId={container.id} />
+    {/if}
 
     {#if isRenaming}
       <!-- The field takes the place of the control that opened it, so it takes the focus too (2.4.3). -->

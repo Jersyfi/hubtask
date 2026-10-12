@@ -10,9 +10,12 @@
  * server refuses (`MANAGE_MEMBERS` is what it asks) has no row either.
  */
 
-import type { PrivateHubSummary, ResourceState } from '@hubtask/sync-engine';
+import type { PrivateHubAccess, PrivateHubSummary, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
+
+export { isRunning, NOTICE_DAYS, recentAccesses } from './privatehubs.ts';
 
 const PATH = '/private-hubs';
 
@@ -44,6 +47,28 @@ class PrivateHubs {
       this.#state = next;
     });
   }
+
+  /**
+   * The workspace owner's emergency access (ADR-0073 §4): opens the hub for one hour with the
+   * reason every member reads. Behind the step-up, through the wrapper every privileged act uses:
+   * it sends without a proof and asks for one only when the server says to. The list is read again,
+   * because the row now says until when it is open.
+   */
+  async openHub(hubId: string, reason: string): Promise<PrivateHubAccess> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<PrivateHubAccess>('POST', accessesPath(hubId), { reason }, {
+        stepUpToken,
+        invalidates: [PATH, '/containers'],
+      }),
+    );
+  }
+
+  /** A hub's accesses, for whoever reads the hub. **From `untrack`**. */
+  accessesOf(hubId: string, onNext: (state: ResourceState<readonly PrivateHubAccess[]>) => void): () => void {
+    return engine.subscribe<readonly PrivateHubAccess[]>({ path: accessesPath(hubId) }, onNext);
+  }
 }
+
+const accessesPath = (hubId: string) => `${PATH}/${encodeURIComponent(hubId)}/accesses`;
 
 export const privateHubs = new PrivateHubs();

@@ -293,7 +293,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'quotas'}
     <QuotasView />
   {:else if route.name === 'private-hubs'}
-    <PrivateHubsView />
+    <PrivateHubsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'backup'}
     <BackupView />
   {:else if route.name === 'retention'}

@@ -29,6 +29,7 @@
   import BarSearch from './BarSearch.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import EmergencyNotices from './EmergencyNotices.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
@@ -419,6 +420,8 @@
             </Banner>
           </div>
         {/if}
+        <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
+        <EmergencyNotices onnavigate={go} />
         {#if stepUp.confirmed}
           <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
                the action the person left to confirm goes through when they take it again. Gone
