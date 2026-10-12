@@ -6214,7 +6214,7 @@ type IdentityProvider struct {
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
-	// ClientId This installation's registration with the provider.
+	// ClientId This installation's registration with the provider. Empty on a row of `scope` `installation` when a workspace reads it: the installation's registration is its operator's, and a workspace sees that provider by name, kind and admission rule only.
 	ClientId  string    `json:"client_id"`
 	CreatedAt time.Time `json:"created_at"`
 

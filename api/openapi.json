@@ -14471,7 +14471,7 @@
           },
           "client_id": {
             "type": "string",
-            "description": "This installation's registration with the provider."
+            "description": "This installation's registration with the provider. Empty on a row of `scope` `installation` when a workspace reads it: the installation's registration is its operator's, and a workspace sees that provider by name, kind and admission rule only.\n"
           },
           "display_name": {
             "type": "string",
