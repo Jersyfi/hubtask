@@ -42,6 +42,7 @@
 
 <style>
   .panel {
+    max-inline-size: 72ch;
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);

@@ -134,7 +134,9 @@
 </section>
 
 <style>
+  /* Prose and two fields: a measure of its own, as the form above it carries one. */
   .panel {
+    max-inline-size: 72ch;
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
