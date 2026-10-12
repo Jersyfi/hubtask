@@ -1919,6 +1919,7 @@ func run() error {
 		privacyservice.RestrictProcessing{
 			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
@@ -2851,6 +2852,7 @@ func run() error {
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
