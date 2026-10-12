@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -35,6 +36,10 @@ type InstanceLevel struct {
 	// lock here is meaningful — an operator may forbid a workspace raising its own — so the locks
 	// travel.
 	Quotas identity.QuotaDefaults
+	// Ai is the instance's say about AI (ADR-0072 §2): which sources a workspace may use and the
+	// least its own model must declare, each with a lock that holds a workspace out of a source and
+	// never in one.
+	Ai integration.AiLayer
 	// BlocklistFile is the path to the operator's own list of refused passwords, read offline.
 	// Instance-only and deliberately not a workspace switch: the file is on the operator's disk,
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth

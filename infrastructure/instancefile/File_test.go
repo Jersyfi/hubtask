@@ -90,6 +90,7 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	  "legal": {"imprint": {"value": "https://example.org/imprint"}},
 	  "localisation": {"locale": {"value": "de"}},
 	  "quotas": {"export_jobs": {"value": 9}},
+	  "ai": {"sources": {"value": "OFFERED", "locked": true}},
 	  "blocklist_file": "/etc/hubtask/passwords.txt"
 	}`
 	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
@@ -100,7 +101,7 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	if err != nil || !found {
 		t.Fatalf("a well-formed file answered %v (found %v)", err, found)
 	}
-	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "blocklist_file"} {
+	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "blocklist_file"} {
 		if _, held := body[area]; !held {
 			t.Errorf("%s did not survive the read", area)
 		}
@@ -109,5 +110,36 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	minLength, _ := signIn["min_length"].(map[string]any)
 	if minLength["value"] != float64(16) || minLength["locked"] != true {
 		t.Errorf("the switch reads %v", minLength)
+	}
+}
+
+// The file names its offered AI models with the key's variable, never the key.
+func TestTheFilesAiModelsTakeTheirKeyFromTheEnvironment(t *testing.T) {
+	document := map[string]any{"ai_models": []any{
+		map[string]any{"display_name": "Large (EU)", "processor": "A processor", "kind": "OPENAI_COMPATIBLE",
+			"base_url": "https://offered.example/v1", "jurisdiction": "EEA", "api_key_env": "OFFERED_KEY"},
+		map[string]any{"display_name": "Local", "processor": "Us", "kind": "OLLAMA",
+			"base_url": "http://ollama:11434", "jurisdiction": "SELF_HOSTED"},
+	}}
+	lookup := func(name string) (string, bool) {
+		if name == "OFFERED_KEY" {
+			return "the-key", true
+		}
+		return "", false
+	}
+	models, present, err := AiModels(document, lookup, "instance.json")
+	if err != nil || !present || len(models) != 2 {
+		t.Fatalf("read %v %v %v", models, present, err)
+	}
+	if models[0].APIKey != "the-key" || !models[0].HasKey || models[1].HasKey {
+		t.Errorf("keys %+v", models)
+	}
+
+	_, _, err = AiModels(document, func(string) (string, bool) { return "", false }, "instance.json")
+	if got := shared.AsError(err); got == nil || got.DetailCode != "config.instance_file_ai_key_missing" {
+		t.Errorf("a missing variable answered %v", err)
+	}
+	if _, present, _ := AiModels(map[string]any{}, lookup, "instance.json"); present {
+		t.Error("a file without the key claims to name models")
 	}
 }

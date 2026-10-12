@@ -75,6 +75,7 @@ import (
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	secretvalue "github.com/Jersyfi/hubtask/core/shared/secret"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
@@ -1028,6 +1029,30 @@ func run() error {
 		ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
+	// Which AI source answers a workspace (ADR-0072 §2): the installation's level, the
+	// workspace's narrowing, the offered models and the workspace's choice, read in one
+	// transaction by every reader of the rule - the source's own use cases, the resolver and the
+	// own model's configuration.
+	aiRules := integrationservice.AiRules{
+		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
+		Own: postgres.NewAiProviderRepository(),
+	}
+	// The own model's configuration asks the same rule: a source the installation does not allow
+	// is not configured, and an own model below the minimum is refused naming it.
+	aiProviderWriter.Rules = &aiRules
+	// A change of the model behind search seeds its rebuild in the same transaction, with the
+	// delay the entries' own writes use (ADR-0072 §6).
+	embeddingSeeder := integrationservice.EmbeddingSeeder{
+		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
+	}
+	aiProviderWriter.Reindex = embeddingSeeder
+	aiSourceWriter := integrationservice.AiSourceWriter{
+		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
+		Spaces: postgres.NewEmbeddingRepository(),
+	}
+
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
 	// no one adapter to wire: this answers "which provider does this workspace use" and produces
 	// NoopAi for the three cases that are not "configured and consented".
@@ -1059,6 +1084,7 @@ func run() error {
 		Providers: postgres.NewAiProviderRepository(), UnitOfWork: unitOfWork,
 		Encryptor: encryptor, Client: outboundClient, Clock: clockadapter.System{},
 		Meter: metrics, Breakers: aiBreakers, Widths: aiWidths,
+		Sources: aiRules,
 	}
 	registry.Register(aiadapter.NewProbe(aiBreakers, aiWidths, workrepo.EmbeddingWidth, clockadapter.System{}))
 	// The per-tenant budget ai-first.md §2 asks for, around the resolver rather than inside
@@ -1194,6 +1220,14 @@ func run() error {
 		Instance:  instanceWriter,
 		Providers: postgres.NewIdentityProviderRepository(),
 		Configure: identityProviderWriter,
+	}
+
+	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the
+	// installation's own journal, and the third-country confirmation a workspace's own model is
+	// held to as well.
+	instanceAiWriter := adminservice.InstanceAiWriter{
+		Instance: instanceWriter, Offered: postgres.NewOfferedAiRepository(),
+		Encryptor: encryptor, ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
@@ -1451,7 +1485,12 @@ func run() error {
 		adminservice.RemoveInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.WithdrawInstanceIdentityProvider{Writer: instanceProviderWriter}.Descriptor(),
 		adminservice.CancelInstanceIdentityProviderWithdrawal{Writer: instanceProviderWriter}.Descriptor(),
+		adminservice.ListInstanceAiProviders{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
+		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1986,6 +2025,7 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -1997,6 +2037,16 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy,
+		}.Descriptor(),
+		// The edge back from a pending deletion: the rules the request switched off come back
+		// on through the automation package, which owns how a schedule's next moment is found.
+		adminservice.CancelTenantDeletion{
+			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+			Automations: automationservice.PausedRules{
+				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
+			},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -3164,6 +3214,7 @@ func run() error {
 		path: cfg.InstanceFile, mode: instanceFileMode,
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
+		ai:         instanceAiWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -3799,8 +3850,11 @@ type applyingInstanceFile struct {
 	mode instancefile.Mode
 	// settings is the plain repository, used to ask whether the level is already there. `seed`
 	// turns on that question and nothing else.
-	settings   identityrepository.InstanceSettings
-	write      adminservice.WriteInstanceSettings
+	settings identityrepository.InstanceSettings
+	write    adminservice.WriteInstanceSettings
+	// ai offers the models the file names, through the operator's writer without its
+	// authorisation: the file is the operator's own configuration.
+	ai         adminservice.InstanceAiWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -3811,6 +3865,34 @@ type applyingInstanceFile struct {
 // API's refusal honest rather than an inconvenience: the file really is the source.
 //
 // No file configured is the ordinary case and does nothing at all.
+// applyAiModels offers the models the file names (ADR-0072 §1). The keys come from the variables
+// the file names, never from the file itself.
+func applyAiModels(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	models, present, err := instancefile.AiModels(document, os.LookupEnv, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	commands := make([]adminservice.ConfigureInstanceAiCommand, 0, len(models))
+	for _, model := range models {
+		cmd := adminservice.ConfigureInstanceAiCommand{
+			DisplayName: model.DisplayName, Processor: model.Processor,
+			Kind: integrationmodel.AiProviderKind(model.Kind), BaseURL: model.BaseURL,
+			CompletionModel: model.CompletionModel, EmbeddingModel: model.EmbeddingModel,
+			Jurisdiction: integrationmodel.AiJurisdiction(model.Jurisdiction),
+		}
+		if model.HasKey {
+			cmd.APIKey, cmd.APIKeyPresent = secretvalue.New(model.APIKey), true
+		}
+		commands = append(commands, cmd)
+	}
+	if err := applying.ai.ApplyFile(ctx, commands, applying.mode == instancefile.ModeEnforce, applying.path); err != nil {
+		return err
+	}
+	slog.Info("the offered AI models were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "models", len(commands))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -3828,6 +3910,12 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 		return nil
 	}
 
+	// The offered AI models first, and on their own terms: they are rows rather than values of the
+	// level, so `seed` asks whether any is offered rather than whether the level is set.
+	if err := applyAiModels(ctx, applying, document); err != nil {
+		return err
+	}
+
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),
@@ -3837,7 +3925,7 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 					return err
 				}
 				already = !level.Policy.Patch.IsEmpty() || !level.Legal.Links.IsEmpty() ||
-					!level.Localisation.IsZero() || !level.Quotas.IsZero()
+					!level.Localisation.IsZero() || !level.Quotas.IsZero() || !level.Ai.IsZero()
 				return nil
 			}); err != nil {
 			return err

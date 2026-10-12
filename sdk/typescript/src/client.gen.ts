@@ -806,6 +806,11 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:resume", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Call off a workspace's pending deletion */
+  cancelTenantDeletion(tenantId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/admin/tenants/{tenantId}:cancel-deletion", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Request a workspace's deletion */
   requestTenantDeletion(tenantId: string, body: NonNullable<operations["requestTenantDeletion"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["requestTenantDeletion"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:delete", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
@@ -864,6 +869,26 @@ export class HubtaskClient {
   /** The installation's own record */
   listInstanceJournal(options: CallOptions & { readonly query?: NonNullable<operations["listInstanceJournal"]['parameters']['query']> } = {}): Promise<operations["listInstanceJournal"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The AI models this installation offers every workspace */
+  listInstanceAiProviders(options: CallOptions = {}): Promise<operations["listInstanceAiProviders"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/ai-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Offer an AI model to every workspace */
+  createInstanceAiProvider(body: NonNullable<operations["createInstanceAiProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createInstanceAiProvider"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/ai-providers", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change an offered AI model */
+  configureInstanceAiProvider(providerId: string, body: NonNullable<operations["configureInstanceAiProvider"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["configureInstanceAiProvider"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/ai-providers/{providerId}", { "providerId": providerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Withdraw an offered AI model */
+  removeInstanceAiProvider(providerId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/ai-providers/{providerId}", { "providerId": providerId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** The providers this installation offers every workspace */
@@ -1044,6 +1069,16 @@ export class HubtaskClient {
   /** Remove the workspace's AI provider */
   removeAiProvider(options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/ai-provider", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Which AI answers this workspace, and what it may use */
+  readAiSource(options: CallOptions = {}): Promise<operations["readAiSource"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ai-source", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Choose which AI answers this workspace */
+  chooseAiSource(body: NonNullable<operations["chooseAiSource"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["chooseAiSource"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The workspace's registered third-party apps */

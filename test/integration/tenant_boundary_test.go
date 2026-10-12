@@ -655,6 +655,8 @@ func TestTheTablesOutsideTheRuleAreTheDocumentedOnes(t *testing.T) {
 		"identity_provider": "NULL is the installation's own provider, which every workspace reads " +
 			"and none writes - the read policy admits it and the write policy does not " +
 			"(migration 0103)",
+		"ai_provider": "NULL is a model the installation offers, which a workspace that chose it " +
+			"reads for the call and none writes - identity_provider's three policies (migration 0129)",
 	}
 
 	rows, err := admin.Query(ctx, `

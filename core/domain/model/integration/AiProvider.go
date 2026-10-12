@@ -24,6 +24,11 @@ import (
 // a service can log, and the one caller that needs the plaintext asks the repository for it by name
 // (security.md §8, the discipline the identity provider's client secret follows).
 type AiProvider struct {
+	// ID names the row. A workspace's own provider is still found by its workspace; the id is what
+	// a workspace's choice of an offered model points at (ADR-0072 §1).
+	ID shared.ID
+	// TenantID is the workspace whose provider this is, and zero for a model the installation
+	// offers to every workspace.
 	TenantID        shared.ID
 	Kind            AiProviderKind
 	BaseURL         string
@@ -36,10 +41,18 @@ type AiProvider struct {
 	// provider and consenting to send this workspace's content to it are two decisions, and this
 	// is the second one.
 	ProcessingAllowed bool
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	Version           int
+	// DisplayName and Processor are what a workspace is shown of an offered model: its name and who
+	// processes what is sent to it, as the operator declares them. Empty on a workspace's own row.
+	DisplayName string
+	Processor   string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Version     int
 }
+
+// Installation reports whether the installation offers this model rather than one workspace
+// configuring it.
+func (p AiProvider) Installation() bool { return p.TenantID.IsZero() }
 
 // AiProviderKind is which adapter answers (ADR-0049).
 type AiProviderKind string
@@ -212,4 +225,67 @@ func modelName(path, raw string) (string, error) {
 		return "", fieldError(path, "ai.model_name_too_long")
 	}
 	return name, nil
+}
+
+// maxOfferedText bounds an offered model's display name and processor, matching the columns.
+const maxOfferedText = 200
+
+// NewOfferedAiProviderInput is what offering a model to every workspace needs: a workspace row's
+// configuration, without a workspace and without consent, plus what each workspace is shown.
+type NewOfferedAiProviderInput struct {
+	ID              shared.ID
+	DisplayName     string
+	Processor       string
+	Kind            AiProviderKind
+	BaseURL         string
+	CompletionModel string
+	EmbeddingModel  string
+	Jurisdiction    AiJurisdiction
+	Now             time.Time
+}
+
+// NewOfferedAiProvider validates a model the installation offers (ADR-0072 §1).
+//
+// The configuration is checked by the same rules as a workspace's own, through NewAiProvider, so
+// that an offered model cannot be one a workspace would have been refused. Three things differ:
+// a workspace is shown a name and a processor, so both are required; offering NOOP offers nothing;
+// and consent is never set here, because switching an offered model on is each workspace's own
+// act (ADR-0072 §3) - the row carries `processing_allowed = false` for good.
+func NewOfferedAiProvider(in NewOfferedAiProviderInput) (AiProvider, error) {
+	if in.ID.IsZero() {
+		return AiProvider{}, shared.ErrInternal.WithDetail("ai.provider_incomplete")
+	}
+	name := strings.TrimSpace(in.DisplayName)
+	switch {
+	case name == "":
+		return AiProvider{}, fieldError("/display_name", "ai.display_name_required")
+	case len(name) > maxOfferedText:
+		return AiProvider{}, fieldError("/display_name", "ai.display_name_too_long")
+	}
+	processor := strings.TrimSpace(in.Processor)
+	switch {
+	case processor == "":
+		return AiProvider{}, fieldError("/processor", "ai.processor_required")
+	case len(processor) > maxOfferedText:
+		return AiProvider{}, fieldError("/processor", "ai.processor_too_long")
+	}
+	if in.Kind == AiNoop {
+		return AiProvider{}, fieldError("/kind", "ai.offered_needs_a_model")
+	}
+
+	// The workspace-level rules, run with a placeholder workspace: NewAiProvider asks for one, and
+	// the rules it applies do not depend on which.
+	checked, err := NewAiProvider(NewAiProviderInput{
+		TenantID: in.ID, Kind: in.Kind, BaseURL: in.BaseURL,
+		CompletionModel: in.CompletionModel, EmbeddingModel: in.EmbeddingModel,
+		Jurisdiction: in.Jurisdiction, Now: in.Now,
+	})
+	if err != nil {
+		return AiProvider{}, err
+	}
+	checked.ID = in.ID
+	checked.TenantID = ""
+	checked.DisplayName = name
+	checked.Processor = processor
+	return checked, nil
 }

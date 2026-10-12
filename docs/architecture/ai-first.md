@@ -78,16 +78,28 @@ uses `infrastructure/httpclient.GuardedClient` (timeout, retry, SSRF refusal) an
 dependency. A refusal is always `ErrUnavailable` with `ai.unavailable`, never an empty result: "the
 model said nothing" and "there is no model" must differ.
 
-**Models the installation offers — decided, not yet built**
-([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md); UC-AI-05, UC-AI-06). Operators may
-offer models as `ai_provider` rows with no workspace, visible to a workspace only as name, processor
-and jurisdiction. `ai.sources` (`NONE`, `OFFERED`, `OWN`, `EITHER`; default `OWN`) says which sources
-a workspace may use; a lock can hold a workspace out of a source, never in, and `NONE` is always
-allowed. `ai.min_jurisdiction` bounds a workspace's own model. Switching on an offered model is the
-consent act. Budgets count per source: `ai_tokens_per_day` (offered), optional
-`ai_own_tokens_per_day` (own). A narrowed rule stops calls with `ai.source_not_allowed` and deletes
-nothing. Changing the search model queues a re-embedding seeded by that write. With no offered
-model, none of this is visible.
+**Models the installation offers** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md);
+UC-AI-05, UC-AI-06). Operators offer models as `ai_provider` rows with no workspace
+(`/admin/ai-providers`, `hubctl admin ai`, the instance file's `ai_models` with each key named by
+an environment variable). Every workspace transaction reads them for the call - the read policy
+admits them, the write policies only in the installation's own scope - and every statement about
+a workspace's own row names its workspace. A workspace is *answered* an offered model's name,
+processor and jurisdiction only (`/ai-source`). `ai.sources` (`NONE`, `OFFERED`, `OWN`, `EITHER`;
+default `OWN`) and `ai.min_jurisdiction` (`ANY` < `ADEQUACY` < `EEA` < `SELF_HOSTED`) are the `ai`
+area of the instance level, each with a lock; a workspace narrows `ai.sources` in its archived
+settings where nothing is locked, and `NONE` is always its own - a lock holds a workspace out of a
+source, never in. The workspace's choice (`ai_source`: `OWN`, `OFFERED` with the model, or `NONE`) is
+outside the archive: choosing an offered model is the consent act, choosing its own or none
+withdraws it; the own model's consent stays `processing_allowed`. The application selects what may
+be called (`AiRules.Select`) and the resolver builds the adapter for it; a source the rule no
+longer allows, an own model below the minimum or a withdrawn offered model answers
+`ai.source_not_allowed` on every call and deletes nothing. An offered model's vectors are stored
+under `offered:<id>/<model>`, so an own model of the same name is another space; a source switch or
+a changed own embedding model seeds the embedding pass in the same transaction, an operator's change
+to an offered model is picked up by each workspace's repeating pass, and `/ai-source` answers
+`search_rebuilding` while another model's vectors remain. Budgets will count per source (milestone
+SC's next task): `ai_tokens_per_day` (offered), optional `ai_own_tokens_per_day` (own). With no
+offered model, none of this is visible.
 
 **Every AI answer is a suggestion record** unless the table says otherwise: kind, target, payload and
 provenance. Accepting performs the ordinary use cases as the accepting person, with their rights and
@@ -146,7 +158,7 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
 | Expected development | Preparation today |
 |---|---|
 | Agents take over routine task maintenance | Full API parity, actor type `AI_AGENT`, granular scopes, audit |
-| Several competing model providers | Provider behind a port, configured per workspace; offered models decided (ADR-0072) |
+| Several competing model providers | Provider behind a port, configured per workspace or offered by the installation (ADR-0072) |
 | Local models become the norm in self-hosting | The Ollama adapter |
 | Agent protocols keep evolving | MCP is a presentation adapter — another protocol is another adapter, not a rebuild |
 | Semantic search becomes expected | A `search` port with a lexical and a vector implementation |

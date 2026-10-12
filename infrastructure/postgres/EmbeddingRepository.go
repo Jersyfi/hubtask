@@ -302,3 +302,33 @@ func vectorLiteralOrEmpty(values []float32) string {
 	}
 	return vectorLiteral(values)
 }
+
+// otherSpaceRemains asks whether any vector of another model than the one in use is still stored -
+// a workspace whose search by meaning is being rebuilt for a new model. One row is enough to say
+// so. The table exists only where pgvector does (migration 0075), which is asked first, in a
+// statement of its own: a statement naming a missing table fails when it is planned.
+const otherSpaceRemains = `SELECT EXISTS (SELECT 1 FROM item_embedding WHERE model <> $1)`
+
+var _ repository.EmbeddingSpaces = EmbeddingRepository{}
+
+// OtherSpaceRemains reports whether vectors of another model than space are still stored.
+func (EmbeddingRepository) OtherSpaceRemains(ctx context.Context, space string) (bool, error) {
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return false, err
+	}
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT to_regclass('item_embedding') IS NOT NULL`).Scan(&exists); err != nil || !exists {
+		if err != nil {
+			return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("asking for the embedding store: %w", err))
+		}
+		return false, nil
+	}
+	var remains bool
+	if err := tx.QueryRow(ctx, otherSpaceRemains, space).Scan(&remains); err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether another model's vectors remain: %w", err))
+	}
+	return remains, nil
+}

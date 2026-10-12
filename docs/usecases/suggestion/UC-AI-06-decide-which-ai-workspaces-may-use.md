@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-operator, PE-platform]
 deployments: [D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-14, P-15]
-state: specified
+state: partial
 tasks: [SC-11, SC-12]
-checked_by: []
+checked_by: [core/domain/model/integration/AiSource_test.go, core/application/service/admin/InstanceAi_test.go, core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, apps/webapp/e2e/instanceai.test.mjs]
 ---
 
 # Decide as a provider which AI our workspaces may use
@@ -57,9 +57,5 @@ it. A B2B provider offers the same model, chooses "either" and requires "in the 
 
 ## Today
 
-* Check 1: not met — the operator cannot offer installation models from any door, tracked in #1067.
-* Check 2: not met — there is no *Workspaces may use* rule at any level, tracked in #1067.
-* Check 3: not met — a workspace's AI screen offers its own provider regardless of any rule, tracked in #1067.
-* Check 4: not met — there is no minimum processing location to refuse an own model against, tracked in #1067.
-* Check 5: not met — there is no rule whose narrowing could stop a source, tracked in #1067.
-* Check 6: not met — there is no offered model the budget could apply to, and no own optional budget, tracked in #1068.
+* Check 1: not met in part — offered models are offered, changed and withdrawn from every door and sealed, and not yet re-sealed with the installation's keys, tracked in #1068.
+* Check 6: not met — use is not yet counted per source, and there is no own optional budget, tracked in #1068.

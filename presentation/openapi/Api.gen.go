@@ -230,22 +230,46 @@ func (e AdminTenantStatus) Valid() bool {
 
 // Defines values for AiJurisdiction.
 const (
-	ADEQUACY     AiJurisdiction = "ADEQUACY"
-	EEA          AiJurisdiction = "EEA"
-	SELFHOSTED   AiJurisdiction = "SELF_HOSTED"
-	THIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
+	AiJurisdictionADEQUACY     AiJurisdiction = "ADEQUACY"
+	AiJurisdictionEEA          AiJurisdiction = "EEA"
+	AiJurisdictionSELFHOSTED   AiJurisdiction = "SELF_HOSTED"
+	AiJurisdictionTHIRDCOUNTRY AiJurisdiction = "THIRD_COUNTRY"
 )
 
 // Valid indicates whether the value is a known member of the AiJurisdiction enum.
 func (e AiJurisdiction) Valid() bool {
 	switch e {
-	case ADEQUACY:
+	case AiJurisdictionADEQUACY:
 		return true
-	case EEA:
+	case AiJurisdictionEEA:
 		return true
-	case SELFHOSTED:
+	case AiJurisdictionSELFHOSTED:
 		return true
-	case THIRDCOUNTRY:
+	case AiJurisdictionTHIRDCOUNTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiMinJurisdiction.
+const (
+	AiMinJurisdictionADEQUACY   AiMinJurisdiction = "ADEQUACY"
+	AiMinJurisdictionANY        AiMinJurisdiction = "ANY"
+	AiMinJurisdictionEEA        AiMinJurisdiction = "EEA"
+	AiMinJurisdictionSELFHOSTED AiMinJurisdiction = "SELF_HOSTED"
+)
+
+// Valid indicates whether the value is a known member of the AiMinJurisdiction enum.
+func (e AiMinJurisdiction) Valid() bool {
+	switch e {
+	case AiMinJurisdictionADEQUACY:
+		return true
+	case AiMinJurisdictionANY:
+		return true
+	case AiMinJurisdictionEEA:
+		return true
+	case AiMinJurisdictionSELFHOSTED:
 		return true
 	default:
 		return false
@@ -267,6 +291,162 @@ func (e AiProviderKind) Valid() bool {
 	case OLLAMA:
 		return true
 	case OPENAICOMPATIBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceMinJurisdictionLock.
+const (
+	AiSourceMinJurisdictionLockINSTANCE AiSourceMinJurisdictionLock = "INSTANCE"
+	AiSourceMinJurisdictionLockPLAN     AiSourceMinJurisdictionLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceMinJurisdictionLock enum.
+func (e AiSourceMinJurisdictionLock) Valid() bool {
+	switch e {
+	case AiSourceMinJurisdictionLockINSTANCE:
+		return true
+	case AiSourceMinJurisdictionLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceMinJurisdictionOrigin.
+const (
+	AiSourceMinJurisdictionOriginDEFAULT   AiSourceMinJurisdictionOrigin = "DEFAULT"
+	AiSourceMinJurisdictionOriginINSTANCE  AiSourceMinJurisdictionOrigin = "INSTANCE"
+	AiSourceMinJurisdictionOriginPLAN      AiSourceMinJurisdictionOrigin = "PLAN"
+	AiSourceMinJurisdictionOriginWORKSPACE AiSourceMinJurisdictionOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceMinJurisdictionOrigin enum.
+func (e AiSourceMinJurisdictionOrigin) Valid() bool {
+	switch e {
+	case AiSourceMinJurisdictionOriginDEFAULT:
+		return true
+	case AiSourceMinJurisdictionOriginINSTANCE:
+		return true
+	case AiSourceMinJurisdictionOriginPLAN:
+		return true
+	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceSourcesLock.
+const (
+	AiSourceSourcesLockINSTANCE AiSourceSourcesLock = "INSTANCE"
+	AiSourceSourcesLockPLAN     AiSourceSourcesLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceSourcesLock enum.
+func (e AiSourceSourcesLock) Valid() bool {
+	switch e {
+	case AiSourceSourcesLockINSTANCE:
+		return true
+	case AiSourceSourcesLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceSourcesOrigin.
+const (
+	AiSourceSourcesOriginDEFAULT   AiSourceSourcesOrigin = "DEFAULT"
+	AiSourceSourcesOriginINSTANCE  AiSourceSourcesOrigin = "INSTANCE"
+	AiSourceSourcesOriginPLAN      AiSourceSourcesOrigin = "PLAN"
+	AiSourceSourcesOriginWORKSPACE AiSourceSourcesOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceSourcesOrigin enum.
+func (e AiSourceSourcesOrigin) Valid() bool {
+	switch e {
+	case AiSourceSourcesOriginDEFAULT:
+		return true
+	case AiSourceSourcesOriginINSTANCE:
+		return true
+	case AiSourceSourcesOriginPLAN:
+		return true
+	case AiSourceSourcesOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceChoiceSources.
+const (
+	AiSourceChoiceSourcesEITHER  AiSourceChoiceSources = "EITHER"
+	AiSourceChoiceSourcesINHERIT AiSourceChoiceSources = "INHERIT"
+	AiSourceChoiceSourcesNONE    AiSourceChoiceSources = "NONE"
+	AiSourceChoiceSourcesOFFERED AiSourceChoiceSources = "OFFERED"
+	AiSourceChoiceSourcesOWN     AiSourceChoiceSources = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceChoiceSources enum.
+func (e AiSourceChoiceSources) Valid() bool {
+	switch e {
+	case AiSourceChoiceSourcesEITHER:
+		return true
+	case AiSourceChoiceSourcesINHERIT:
+		return true
+	case AiSourceChoiceSourcesNONE:
+		return true
+	case AiSourceChoiceSourcesOFFERED:
+		return true
+	case AiSourceChoiceSourcesOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourceKind.
+const (
+	AiSourceKindNONE    AiSourceKind = "NONE"
+	AiSourceKindOFFERED AiSourceKind = "OFFERED"
+	AiSourceKindOWN     AiSourceKind = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourceKind enum.
+func (e AiSourceKind) Valid() bool {
+	switch e {
+	case AiSourceKindNONE:
+		return true
+	case AiSourceKindOFFERED:
+		return true
+	case AiSourceKindOWN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSources.
+const (
+	AiSourcesEITHER  AiSources = "EITHER"
+	AiSourcesNONE    AiSources = "NONE"
+	AiSourcesOFFERED AiSources = "OFFERED"
+	AiSourcesOWN     AiSources = "OWN"
+)
+
+// Valid indicates whether the value is a known member of the AiSources enum.
+func (e AiSources) Valid() bool {
+	switch e {
+	case AiSourcesEITHER:
+		return true
+	case AiSourcesNONE:
+		return true
+	case AiSourcesOFFERED:
+		return true
+	case AiSourcesOWN:
 		return true
 	default:
 		return false
@@ -1595,19 +1775,19 @@ func (e IdentityProviderKind) Valid() bool {
 
 // Defines values for IdentityProviderProvisioning.
 const (
-	ANY         IdentityProviderProvisioning = "ANY"
-	DOMAINS     IdentityProviderProvisioning = "DOMAINS"
-	INVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
+	IdentityProviderProvisioningANY         IdentityProviderProvisioning = "ANY"
+	IdentityProviderProvisioningDOMAINS     IdentityProviderProvisioning = "DOMAINS"
+	IdentityProviderProvisioningINVITEDONLY IdentityProviderProvisioning = "INVITED_ONLY"
 )
 
 // Valid indicates whether the value is a known member of the IdentityProviderProvisioning enum.
 func (e IdentityProviderProvisioning) Valid() bool {
 	switch e {
-	case ANY:
+	case IdentityProviderProvisioningANY:
 		return true
-	case DOMAINS:
+	case IdentityProviderProvisioningDOMAINS:
 		return true
-	case INVITEDONLY:
+	case IdentityProviderProvisioningINVITEDONLY:
 		return true
 	default:
 		return false
@@ -3962,9 +4142,12 @@ type AdminTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time        `json:"purge_after,omitempty"`
-	Slug       string            `json:"slug"`
-	Status     AdminTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
+	Slug           string            `json:"slug"`
+	Status         AdminTenantStatus `json:"status"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -3980,6 +4163,9 @@ type AiAsk struct {
 // AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
 // `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 type AiJurisdiction string
+
+// AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
+type AiMinJurisdiction string
 
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
@@ -4034,6 +4220,74 @@ type AiProviderConfiguration struct {
 
 // AiProviderKind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
 type AiProviderKind string
+
+// AiSource defines model for AiSource.
+type AiSource struct {
+	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	InstallationSources AiSources `json:"installation_sources"`
+
+	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
+	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
+	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
+	MinJurisdictionOrigin AiSourceMinJurisdictionOrigin `json:"min_jurisdiction_origin"`
+
+	// Narrowing Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	Narrowing *AiSources `json:"narrowing,omitempty"`
+
+	// Offered The models the installation offers, where it allows them at all: name, processor and jurisdiction, never an address, a model name or a key.
+	Offered []OfferedAiModelSummary `json:"offered"`
+
+	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
+	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
+	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
+
+	// Source Which source answers a workspace.
+	Source AiSourceKind `json:"source"`
+
+	// Sources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	Sources AiSources `json:"sources"`
+
+	// SourcesLock Present where a level above locked what the workspace may use.
+	SourcesLock   *AiSourceSourcesLock  `json:"sources_lock,omitempty"`
+	SourcesOrigin AiSourceSourcesOrigin `json:"sources_origin"`
+	UpdatedAt     *time.Time            `json:"updated_at,omitempty"`
+	Version       int                   `json:"version"`
+}
+
+// AiSourceMinJurisdictionLock defines model for AiSource.MinJurisdictionLock.
+type AiSourceMinJurisdictionLock string
+
+// AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
+type AiSourceMinJurisdictionOrigin string
+
+// AiSourceSourcesLock Present where a level above locked what the workspace may use.
+type AiSourceSourcesLock string
+
+// AiSourceSourcesOrigin defines model for AiSource.SourcesOrigin.
+type AiSourceSourcesOrigin string
+
+// AiSourceChoice defines model for AiSourceChoice.
+type AiSourceChoice struct {
+	// OfferedModelId The offered model, with `OFFERED` only.
+	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// Source Which source answers a workspace.
+	Source AiSourceKind `json:"source"`
+
+	// Sources This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes what the installation allows, absent keeps it.
+	Sources *AiSourceChoiceSources `json:"sources,omitempty"`
+}
+
+// AiSourceChoiceSources This workspace's own narrowing of what it may use: a value narrows, `INHERIT` takes what the installation allows, absent keeps it.
+type AiSourceChoiceSources string
+
+// AiSourceKind Which source answers a workspace.
+type AiSourceKind string
+
+// AiSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+type AiSources string
 
 // AiTranslateRequest Which language to read the entry in.
 type AiTranslateRequest struct {
@@ -5793,9 +6047,13 @@ type InstanceSetting struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-// InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults and the quota ceilings.
+// InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
+	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.
+	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
+	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
+
 	// BlocklistFile The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.
 	BlocklistFile *string `json:"blocklist_file,omitempty"`
 
@@ -6546,6 +6804,62 @@ type OauthTokenRequest struct {
 // OauthTokenRequestGrantType defines model for OauthTokenRequest.GrantType.
 type OauthTokenRequestGrantType string
 
+// OfferedAiModel An AI model the installation offers every workspace, as the operator reads it. A workspace is answered only its name, processor and jurisdiction (`AiSource.offered`).
+type OfferedAiModel struct {
+	BaseUrl         *string   `json:"base_url,omitempty"`
+	CompletionModel *string   `json:"completion_model,omitempty"`
+	CreatedAt       time.Time `json:"created_at"`
+	DisplayName     string    `json:"display_name"`
+	EmbeddingModel  *string   `json:"embedding_model,omitempty"`
+
+	// HasApiKey Whether a key is stored. The key itself is answered by nothing.
+	HasApiKey bool               `json:"has_api_key"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind      AiProviderKind `json:"kind"`
+	Processor string         `json:"processor"`
+	UpdatedAt *time.Time     `json:"updated_at,omitempty"`
+	Version   int            `json:"version"`
+}
+
+// OfferedAiModelConfiguration An offered model, set whole. Consent is not here: switching an offered model on is each workspace's own act.
+type OfferedAiModelConfiguration struct {
+	// ApiKey Sealed on the way in and answered by nothing afterwards. Omit it on a change to keep the key already stored; send an empty string to clear it.
+	ApiKey          *string `json:"api_key,omitempty"`
+	BaseUrl         string  `json:"base_url"`
+	CompletionModel *string `json:"completion_model,omitempty"`
+
+	// DisplayName The name workspaces choose it by. Unique among offered models.
+	DisplayName    string  `json:"display_name"`
+	EmbeddingModel *string `json:"embedding_model,omitempty"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+
+	// Kind Which adapter answers. `OPENAI_COMPATIBLE` covers OpenAI, Azure, Mistral, vLLM and LiteLLM, which agree on a wire format; `OLLAMA` is a local model; `NOOP` calls nothing and is what an installation has until somebody chooses otherwise.
+	Kind AiProviderKind `json:"kind"`
+
+	// Processor Who processes what is sent to it, as the operator declares it.
+	Processor string `json:"processor"`
+}
+
+// OfferedAiModelSummary defines model for OfferedAiModelSummary.
+type OfferedAiModelSummary struct {
+	DisplayName string             `json:"display_name"`
+	Id          openapi_types.UUID `json:"id"`
+
+	// Jurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
+	// `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
+	Jurisdiction AiJurisdiction `json:"jurisdiction"`
+	Processor    string         `json:"processor"`
+}
+
 // OidcAuthorization Where to send the browser, and the handle to finish with.
 type OidcAuthorization struct {
 	// AuthorizationUrl The provider's authorization endpoint with this flow's parameters, including the PKCE challenge. The verifier that answers it stays on the server.
@@ -6895,9 +7209,12 @@ type ProvisionedTenant struct {
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
-	PurgeAfter *time.Time              `json:"purge_after,omitempty"`
-	Slug       string                  `json:"slug"`
-	Status     ProvisionedTenantStatus `json:"status"`
+	PurgeAfter *time.Time `json:"purge_after,omitempty"`
+
+	// PurgeStartedAt Set once the hard delete has begun removing the workspace. From then on its deletion can no longer be called off.
+	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
+	Slug           string                  `json:"slug"`
+	Status         ProvisionedTenantStatus `json:"status"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -9943,6 +10260,12 @@ type CreateManagedAccountJSONRequestBody = ManagedAccountCreate
 // InviteAccountJSONRequestBody defines body for InviteAccount for application/json ContentType.
 type InviteAccountJSONRequestBody = AccountInvite
 
+// CreateInstanceAiProviderJSONRequestBody defines body for CreateInstanceAiProvider for application/json ContentType.
+type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
+// ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
+type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -9978,6 +10301,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
+
+// ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
+type ChooseAiSourceJSONRequestBody = AiSourceChoice
 
 // ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
 type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
@@ -10338,6 +10664,18 @@ type ServerInterface interface {
 	// InviteAccount Invite a person into this workspace
 	// (POST /accounts:invite)
 	InviteAccount(w http.ResponseWriter, r *http.Request, params InviteAccountParams)
+	// ListInstanceAiProviders The AI models this installation offers every workspace
+	// (GET /admin/ai-providers)
+	ListInstanceAiProviders(w http.ResponseWriter, r *http.Request)
+	// CreateInstanceAiProvider Offer an AI model to every workspace
+	// (POST /admin/ai-providers)
+	CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request)
+	// RemoveInstanceAiProvider Withdraw an offered AI model
+	// (DELETE /admin/ai-providers/{providerId})
+	RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ConfigureInstanceAiProvider Change an offered AI model
+	// (PUT /admin/ai-providers/{providerId})
+	ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
 	// ReadEncryptionStatus The keyring, and what still names each key
 	// (GET /admin/encryption)
 	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
@@ -10392,6 +10730,9 @@ type ServerInterface interface {
 	// UpdateTenantQuotas Set a workspace's quotas
 	// (PATCH /admin/tenants/{tenantId}/quotas)
 	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// CancelTenantDeletion Call off a workspace's pending deletion
+	// (POST /admin/tenants/{tenantId}:cancel-deletion)
+	CancelTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
 	// CloseTenantPassword Close an operator's opening of the password early
 	// (POST /admin/tenants/{tenantId}:close-password)
 	CloseTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -10422,6 +10763,12 @@ type ServerInterface interface {
 	// ConfigureAiProvider Configure the workspace's AI provider
 	// (PUT /ai-provider)
 	ConfigureAiProvider(w http.ResponseWriter, r *http.Request)
+	// ReadAiSource Which AI answers this workspace, and what it may use
+	// (GET /ai-source)
+	ReadAiSource(w http.ResponseWriter, r *http.Request)
+	// ChooseAiSource Choose which AI answers this workspace
+	// (PUT /ai-source)
+	ChooseAiSource(w http.ResponseWriter, r *http.Request)
 	// ListAuditEntries Query audit entries
 	// (GET /audit)
 	ListAuditEntries(w http.ResponseWriter, r *http.Request, params ListAuditEntriesParams)
@@ -11421,6 +11768,86 @@ func (siw *ServerInterfaceWrapper) InviteAccount(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListInstanceAiProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceAiProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceAiProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) RemoveInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveInstanceAiProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfigureInstanceAiProvider operation middleware
+func (siw *ServerInterfaceWrapper) ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "providerId" -------------
+	var providerId ProviderId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "providerId", r.PathValue("providerId"), &providerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "providerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfigureInstanceAiProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadEncryptionStatus operation middleware
 func (siw *ServerInterfaceWrapper) ReadEncryptionStatus(w http.ResponseWriter, r *http.Request) {
 
@@ -11927,6 +12354,32 @@ func (siw *ServerInterfaceWrapper) UpdateTenantQuotas(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// CancelTenantDeletion operation middleware
+func (siw *ServerInterfaceWrapper) CancelTenantDeletion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CancelTenantDeletion(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseTenantPassword operation middleware
 func (siw *ServerInterfaceWrapper) CloseTenantPassword(w http.ResponseWriter, r *http.Request) {
 
@@ -12190,6 +12643,34 @@ func (siw *ServerInterfaceWrapper) ConfigureAiProvider(w http.ResponseWriter, r 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureAiProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAiSource operation middleware
+func (siw *ServerInterfaceWrapper) ReadAiSource(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAiSource(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChooseAiSource operation middleware
+func (siw *ServerInterfaceWrapper) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChooseAiSource(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -21659,6 +22140,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:cancel-deletion", wrapper.CancelTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:delete", wrapper.RequestTenantDeletion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
@@ -21671,6 +22153,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.RemoveInstanceAiProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.ConfigureInstanceAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/identity-providers", wrapper.ListInstanceIdentityProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/identity-providers", wrapper.CreateInstanceIdentityProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/identity-providers/{providerId}", wrapper.RemoveInstanceIdentityProvider)
@@ -21707,6 +22193,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/ai-provider", wrapper.RemoveAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-provider", wrapper.ReadAiProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/oauth/clients/{clientId}", wrapper.DeleteOauthClient)
