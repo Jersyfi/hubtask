@@ -106,8 +106,9 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 	return g.check(ctx, tenant, ExportJobs, limits.ExportJobs, g.Usage.LiveExports, 1)
 }
 
-// AiTokens reports whether the workspace's daily AI budget still has room, and meters what a call
-// cost.
+// AiTokens reports whether the workspace's daily AI budget for one source still has room - the
+// offered model's (`ai_tokens_per_day`) or, when `own`, the workspace's own model's
+// (`ai_own_tokens_per_day`) - and MeterAi meters what a call cost against the same one.
 //
 // Two calls rather than one, and in that order: `AiTokens` before the provider is asked, `MeterAi`
 // after it answers. A budget cannot be reserved up front because nobody knows what a call will
@@ -118,44 +119,80 @@ func (g Guard) ExportJobs(ctx context.Context, tenant string) error {
 // Not a refusal error, for `AutomationRuns`' reason: the caller's vocabulary for "out of budget" is
 // already `ai.unavailable` - the one refusal the provider port answers for every reason a provider is out
 // of reach - and a second shape would be a second thing for every caller to handle.
-func (g Guard) AiTokens(ctx context.Context, tenant string, now time.Time) (bool, error) {
+func (g Guard) AiTokens(ctx context.Context, tenant string, own bool, now time.Time) (bool, error) {
 	limits, err := g.limits(ctx)
 	if err != nil {
 		return false, err
 	}
-	if limits.AiTokensPerDay == Unlimited {
+	quota := aiQuota(own)
+	limit := limits.Of(quota)
+	if limit == Unlimited {
 		return true, nil
 	}
 
-	spent, err := g.Usage.MeteredSince(ctx, AiTokensPerDay, startOfDay(now))
+	day, err := g.day(ctx, now)
+	if err != nil {
+		return false, err
+	}
+	spent, err := g.Usage.MeteredSince(ctx, quota, day)
 	if err != nil {
 		return false, err
 	}
 	if g.Signals != nil {
-		g.Signals.QuotaUsage(ctx, AiTokensPerDay, tenant, Ratio(limits.AiTokensPerDay, spent))
+		g.Signals.QuotaUsage(ctx, quota, tenant, Ratio(limit, spent))
 	}
-	return spent < limits.AiTokensPerDay, nil
+	return spent < limit, nil
 }
 
-// MeterAi records what one call cost. Called after the provider answered, with what it reported.
+// MeterAi records what one call to one source cost, on the workspace's day. Called after the
+// provider answered, with what it reported.
 //
 // Nothing is metered for a call that failed, and that is deliberate: a provider that refused
 // charged nothing, and a budget that counted refusals would tighten on itself the way the
 // automation bound would if it counted its own throttles.
-func (g Guard) MeterAi(ctx context.Context, at time.Time, tokens int64) error {
+func (g Guard) MeterAi(ctx context.Context, own bool, at time.Time, tokens int64) error {
 	if g.Meter == nil || tokens <= 0 {
 		return nil
 	}
-	return g.Meter.Add(ctx, AiTokensPerDay, at, tokens)
+	day, err := g.day(ctx, at)
+	if err != nil {
+		return err
+	}
+	return g.Meter.Add(ctx, aiQuota(own), day, tokens)
 }
 
-// startOfDay is the period the ledger tallies by: a UTC calendar day, which is what
-// `usage_record.period` is keyed on. The budget therefore resets at midnight UTC for everybody
-// rather than per workspace - one boundary an operator can reason about, and the same one the
-// ledger already uses for capacity planning.
-func startOfDay(now time.Time) time.Time {
-	utc := now.UTC()
-	return time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
+func aiQuota(own bool) string {
+	if own {
+		return AiOwnTokensPerDay
+	}
+	return AiTokensPerDay
+}
+
+// day is the calendar day `now` falls on in the workspace's time zone, as midnight there
+// (UC-AI-07 check 2: the budget renews at the workspace's midnight). The ledger's AI rows are
+// dated by that day; every other metric keeps the UTC day.
+func (g Guard) day(ctx context.Context, now time.Time) (time.Time, error) {
+	zone, err := g.Store.TimeZone(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return StartOfDay(now, zone), nil
+}
+
+// StartOfDay is midnight of the day `now` falls on in the named zone, carrying that zone. An
+// unknown or empty zone is UTC: the workspace's zone is validated when it is set, and a budget that
+// refused every call over a zone name would be the worse failure.
+//
+// A zone changed in the middle of a day takes effect from the next call: the call is dated by the
+// day it falls on in the new zone, which may be a day that already carries spend, or a fresh one.
+// The ledger never moves or splits a row.
+func StartOfDay(now time.Time, zone string) time.Time {
+	location, err := time.LoadLocation(zone)
+	if zone == "" || err != nil {
+		location = time.UTC
+	}
+	local := now.In(location)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)
 }
 
 // AutomationRuns reports whether the workspace's hourly budget still has room, and meters the
@@ -170,7 +207,7 @@ func (g Guard) AutomationRuns(ctx context.Context, tenant string, now time.Time)
 	if g.Meter != nil {
 		// The billing ledger's daily tally (usage_record) - capacity planning's number, never
 		// the enforcement's source: the enforcement counts live from the run log.
-		if err := g.Meter.Add(ctx, AutomationRunsPerHour, now, 1); err != nil {
+		if err := g.Meter.Add(ctx, AutomationRunsPerHour, now.UTC(), 1); err != nil {
 			return false, err
 		}
 	}

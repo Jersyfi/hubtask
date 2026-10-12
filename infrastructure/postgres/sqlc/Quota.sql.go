@@ -70,6 +70,33 @@ func (q *Queries) CountWebhookTargets(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const setTenantOwnAiBudget = `-- name: SetTenantOwnAiBudget :execrows
+UPDATE tenant
+SET settings = CASE
+      WHEN $1::bigint IS NULL THEN settings - 'ai_own_tokens_per_day'
+      ELSE jsonb_set(settings, '{ai_own_tokens_per_day}', to_jsonb($1::bigint), true)
+    END,
+    updated_at = $2, version = version + 1
+WHERE id = current_tenant_id() AND deleted_at IS NULL
+`
+
+type SetTenantOwnAiBudgetParams struct {
+	Tokens *int64
+	Now    pgtype.Timestamptz
+}
+
+// The workspace's own budget for its own AI model, beside the quotas key rather than in it: the
+// operator's write replaces that key whole, and this budget is not the operator's. NULL removes it.
+// Last write wins, as for every setting a workspace's administrators share; the version moves so
+// an operator's write guarded on the old one sees it.
+func (q *Queries) SetTenantOwnAiBudget(ctx context.Context, arg SetTenantOwnAiBudgetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTenantOwnAiBudget, arg.Tokens, arg.Now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setTenantQuotas = `-- name: SetTenantQuotas :execrows
 UPDATE tenant
 SET settings = jsonb_set(settings, '{quotas}', $1::jsonb, true),
@@ -133,18 +160,38 @@ func (q *Queries) SumTenantUsageSince(ctx context.Context, arg SumTenantUsageSin
 
 const tenantQuotaOverrides = `-- name: TenantQuotaOverrides :one
 
-SELECT coalesce(settings->'quotas', '{}'::jsonb)::text FROM tenant WHERE id = current_tenant_id()
+SELECT coalesce(settings->'quotas', '{}'::jsonb)::text AS quotas,
+       coalesce(settings->'ai_own_tokens_per_day', 'null'::jsonb)::text AS own_ai_budget
+FROM tenant WHERE id = current_tenant_id()
 `
+
+type TenantQuotaOverridesRow struct {
+	Quotas      string
+	OwnAiBudget string
+}
 
 // The §4 limits (multi-tenancy.md): the overrides in the tenant's own settings document,
 // the live counts the capacity quotas are measured against, and the billing ledger's first
 // writer. Every statement is bounded to the transaction's tenant by row level security; the one
 // naming a tenant column explicitly says why in place.
 // The quotas key of the settings document, whole: the adapter parses it, the application layer
-// never learns the document's shape (TenantPolicy's discipline).
-func (q *Queries) TenantQuotaOverrides(ctx context.Context) (string, error) {
+// never learns the document's shape (TenantPolicy's discipline). Beside it the workspace's own AI
+// budget, which lives outside that key because the operator's write replaces the key whole.
+func (q *Queries) TenantQuotaOverrides(ctx context.Context) (TenantQuotaOverridesRow, error) {
 	row := q.db.QueryRow(ctx, tenantQuotaOverrides)
-	var column_1 string
-	err := row.Scan(&column_1)
-	return column_1, err
+	var i TenantQuotaOverridesRow
+	err := row.Scan(&i.Quotas, &i.OwnAiBudget)
+	return i, err
+}
+
+const tenantTimeZone = `-- name: TenantTimeZone :one
+SELECT default_time_zone FROM tenant WHERE id = current_tenant_id()
+`
+
+// The zone the workspace's AI budget's day ends in (UC-AI-07 check 2).
+func (q *Queries) TenantTimeZone(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, tenantTimeZone)
+	var default_time_zone string
+	err := row.Scan(&default_time_zone)
+	return default_time_zone, err
 }

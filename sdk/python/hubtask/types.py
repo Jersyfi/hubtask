@@ -365,6 +365,9 @@ class OfferedAiModelSummary(TypedDict, total=False):
     processor: Required[str]
     jurisdiction: Required["AiJurisdiction"]
 
+class OwnAiBudget(TypedDict, total=False):
+    own_tokens_per_day: Required[int | None]
+
 class AiSourceChoice(TypedDict, total=False):
     source: Required["AiSourceKind"]
     offered_model_id: str
@@ -840,6 +843,11 @@ class EncryptionKeyUsage(TypedDict, total=False):
     active: Required[bool]
     in_ring: Required[bool]
     sealed_values: Required[int]
+    stores: Required[list["EncryptionStoreCount"]]
+
+class EncryptionStoreCount(TypedDict, total=False):
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule"]]
+    sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
@@ -877,7 +885,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day"]]
     limit: Required[int]
     used: int | None
     ratio: float | None

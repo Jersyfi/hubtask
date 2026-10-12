@@ -11,29 +11,62 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// SealingRepository is the census a rotation ends on (ADR-0045): one statement over the five
-// places a sealed value lives, bounded to the transaction's tenant by row level security like
-// every other statement here.
+// SealingRepository is the census a rotation ends on (ADR-0045): one statement over the places a
+// sealed value lives, bounded to the transaction's tenant by row level security like every other
+// statement here, and one more over the installation's own rows.
 type SealingRepository struct{}
 
 func NewSealingRepository() SealingRepository { return SealingRepository{} }
 
 var _ repository.Census = SealingRepository{}
 
-func (SealingRepository) CountByKey(ctx context.Context) (map[string]int64, error) {
+type censusRow struct {
+	Store, KeyID string
+	SealedValues int64
+}
+
+func (SealingRepository) Count(ctx context.Context) (repository.Counts, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.CountSealedValuesByKey(ctx)
+	rows, err := queries.CountSealedValuesByStoreAndKey(ctx)
 	if err != nil {
-		return nil, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("counting the sealed values by key: %w", err))
+		return nil, censusFailed(err)
 	}
-	counts := make(map[string]int64, len(rows))
+	counted := make([]censusRow, 0, len(rows))
 	for _, row := range rows {
-		counts[row.KeyID] = row.SealedValues
+		counted = append(counted, censusRow(row))
 	}
-	return counts, nil
+	return countsOf(counted), nil
+}
+
+func (SealingRepository) CountInstallation(ctx context.Context) (repository.Counts, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.CountInstallationSealedValuesByStoreAndKey(ctx)
+	if err != nil {
+		return nil, censusFailed(err)
+	}
+	counted := make([]censusRow, 0, len(rows))
+	for _, row := range rows {
+		counted = append(counted, censusRow(row))
+	}
+	return countsOf(counted), nil
+}
+
+func countsOf(rows []censusRow) repository.Counts {
+	counts := repository.Counts{}
+	for _, row := range rows {
+		counts.Add(row.KeyID, row.Store, row.SealedValues)
+	}
+	return counts
+}
+
+func censusFailed(err error) error {
+	return shared.ErrUnavailable.
+		WithDetail("postgres.query_failed").
+		WithCause(fmt.Errorf("counting the sealed values by key: %w", err))
 }

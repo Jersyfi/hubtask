@@ -49,3 +49,33 @@ func TestTheAiSourceIsChosenAndAnsweredOverRest(t *testing.T) {
 		t.Errorf("answered %v", body)
 	}
 }
+
+// The own model's budget over REST: a number travels in, a null travels in as nothing - which is
+// "no budget" - and the two AI standings come back.
+func TestTheOwnAiBudgetIsSetOverRest(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{
+		{"quota": "ai_tokens_per_day", "limit": int64(200000), "used": int64(10), "configured": false},
+		{"quota": "ai_own_tokens_per_day", "limit": int64(5000), "used": int64(40), "configured": true},
+	}}}
+
+	recorder := callBackup(t, registry, http.MethodPut, "/ai-budget", `{"own_tokens_per_day": 5000}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SetOwnAiBudget" || registry.in["own_tokens_per_day"] != int64(5000) {
+		t.Errorf("the use case received %s %v", registry.name, registry.in)
+	}
+	var body []map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil || len(body) != 2 ||
+		body[1]["quota"] != "ai_own_tokens_per_day" || body[1]["limit"] != float64(5000) {
+		t.Errorf("answered %s (%v)", recorder.Body, err)
+	}
+
+	recorder = callBackup(t, registry, http.MethodPut, "/ai-budget", `{"own_tokens_per_day": null}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if _, sent := registry.in["own_tokens_per_day"]; sent {
+		t.Errorf("a null reached the use case as %v", registry.in)
+	}
+}

@@ -301,6 +301,8 @@ export type AiSource = components['schemas']['AiSource'];
 export type AiSourceChoice = components['schemas']['AiSourceChoice'];
 export type AiSourceKind = components['schemas']['AiSourceKind'];
 export type AiSources = components['schemas']['AiSources'];
+/** The workspace's own budget for its own AI model; null is no budget. */
+export type OwnAiBudget = components['schemas']['OwnAiBudget'];
 export type AiMinJurisdiction = components['schemas']['AiMinJurisdiction'];
 export type OfferedAiModelSummary = components['schemas']['OfferedAiModelSummary'];
 

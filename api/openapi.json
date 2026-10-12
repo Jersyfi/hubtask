@@ -6006,7 +6006,7 @@
         ],
         "operationId": "readEncryptionStatus",
         "summary": "The keyring, and what still names each key",
-        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key is what an operator needs, and which workspace holds a webhook secret is not.\n",
+        "description": "What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.\nInstallation-scoped, behind the `admin:tenants` scope, and it names no workspace: a count per key and kind is what an operator needs, and which workspace holds a webhook secret is not. The installation's own secrets - its sign-in providers' and its offered AI models' - are counted once, beside the workspaces'.\n",
         "responses": {
           "200": {
             "description": "The keyring",
@@ -6031,7 +6031,7 @@
         ],
         "operationId": "resealSecrets",
         "summary": "Re-seal what older keys still hold",
-        "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
+        "description": "Rewraps every stored value that names a key other than the current one, so that the older key can finally leave the ring. The plaintext is untouched: the data key is unwrapped under the key its row names and wrapped again under the current one, and nothing above the port can tell the difference.\nOne job per workspace rather than one sweep over the installation - nothing enumerates tenants for its own purposes, and this is an operator asking rather than a schedule - and one more for the installation's own sign-in providers and offered AI models. The call returns once the work is queued; progress is read back from `GET /admin/encryption` until every count but the active key's is zero. Asking twice before the first round has run queues nothing new.\n",
         "responses": {
           "202": {
             "description": "The re-sealing was queued",
@@ -7143,6 +7143,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/ai-budget": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setOwnAiBudget",
+        "summary": "Set the daily budget of this workspace's own AI model",
+        "description": "How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAiBudget"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The two AI standings after the write",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QuotaStanding"
+                  }
                 }
               }
             }
@@ -13181,6 +13219,23 @@
           }
         }
       },
+      "OwnAiBudget": {
+        "type": "object",
+        "required": [
+          "own_tokens_per_day"
+        ],
+        "properties": {
+          "own_tokens_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 1,
+            "description": "Tokens a day for the workspace's own model; null for no budget."
+          }
+        }
+      },
       "AiSourceChoice": {
         "type": "object",
         "required": [
@@ -15420,7 +15475,8 @@
           "key_id",
           "active",
           "in_ring",
-          "sealed_values"
+          "sealed_values",
+          "stores"
         ],
         "properties": {
           "key_id": {
@@ -15438,7 +15494,40 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "description": "How many stored values name this key, across every workspace. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+            "description": "How many stored values name this key, across every workspace and the installation's own sign-in providers and offered AI models, each counted once. Zero on a key that is not the active one is what says it may be removed from the ring.\n"
+          },
+          "stores": {
+            "type": "array",
+            "description": "The same count by the kind of value that holds it, so a key the ring no longer holds says what would stay unreadable. Kinds with no value under this key are absent; no entry names a workspace.\n",
+            "items": {
+              "$ref": "#/components/schemas/EncryptionStoreCount"
+            }
+          }
+        }
+      },
+      "EncryptionStoreCount": {
+        "type": "object",
+        "required": [
+          "store",
+          "sealed_values"
+        ],
+        "properties": {
+          "store": {
+            "type": "string",
+            "enum": [
+              "account_mfa",
+              "identity_provider",
+              "webhook_subscription",
+              "backup_target",
+              "ai_provider",
+              "automation_rule"
+            ],
+            "description": "The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets.\n"
+          },
+          "sealed_values": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1
           }
         }
       },
@@ -15578,8 +15667,10 @@
               "automation_runs_per_hour",
               "webhook_targets",
               "export_jobs",
-              "ai_tokens_per_day"
-            ]
+              "ai_tokens_per_day",
+              "ai_own_tokens_per_day"
+            ],
+            "description": "The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.\n"
           },
           "limit": {
             "type": "integer",
@@ -15666,7 +15757,7 @@
             ],
             "format": "int64",
             "minimum": 0,
-            "description": "What the workspace may spend on AI in a day, counted in the tokens every provider reports. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
+            "description": "What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
           }
         }
       },

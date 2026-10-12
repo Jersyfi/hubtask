@@ -117,6 +117,7 @@ export type {
   AiSourceChoice,
   AiSourceKind,
   AiSources,
+  OwnAiBudget,
   AiMinJurisdiction,
   OfferedAiModel,
   OfferedAiModelConfiguration,

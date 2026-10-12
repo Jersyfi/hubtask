@@ -580,7 +580,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	// Every quota, decided or not, for the switches' reason: a screen that drew only the ceilings
 	// somebody set could not show that the others exist and are each workspace's.
 	quotas := usecase.Output{}
-	for _, name := range quota.Names() {
+	for _, name := range quota.OperatorNames() {
 		ceiling, decided := level.Quotas.Of(name)
 		entry := usecase.Output{"set": decided, "locked": level.Quotas.Locked(name)}
 		if decided {
@@ -654,7 +654,7 @@ func applyQuotaDefaults(level *identityrepo.InstanceLevel, raw any) error {
 		return nil
 	}
 	known := map[string]bool{}
-	for _, name := range quota.Names() {
+	for _, name := range quota.OperatorNames() {
 		known[name] = true
 	}
 	for name, entry := range sent {

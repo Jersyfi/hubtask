@@ -25,7 +25,10 @@ type OfferedAiRepository struct{}
 
 func NewOfferedAiRepository() OfferedAiRepository { return OfferedAiRepository{} }
 
-var _ repository.OfferedAiProviders = OfferedAiRepository{}
+var (
+	_ repository.OfferedAiProviders = OfferedAiRepository{}
+	_ repository.OfferedAiSealings  = OfferedAiRepository{}
+)
 
 func offeredNotFound() error {
 	return shared.ErrNotFound.WithDetail("ai.offered_model_unknown")
@@ -234,6 +237,53 @@ func (OfferedAiRepository) Delete(ctx context.Context, id shared.ID) (bool, erro
 		return false, writeFailed(err)
 	}
 	return removed > 0, nil
+}
+
+// ListSealed answers every offered model's wrapped key, for the installation's re-seal.
+func (OfferedAiRepository) ListSealed(ctx context.Context) ([]repository.SealedOfferedKey, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ListOfferedAiProviderSecrets(ctx)
+	if err != nil {
+		return nil, readFailed(err)
+	}
+	sealed := make([]repository.SealedOfferedKey, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		if row.ApiKeyKeyID == nil {
+			continue
+		}
+		sealed = append(sealed, repository.SealedOfferedKey{
+			ProviderID: id, Sealed: crypto.Sealed{KeyID: *row.ApiKeyKeyID, Ciphertext: row.ApiKeyEnc},
+		})
+	}
+	return sealed, nil
+}
+
+// RewrapKey puts a moved key back where the row still names the key it was read under.
+func (OfferedAiRepository) RewrapKey(
+	ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(providerID)
+	if err != nil {
+		return false, err
+	}
+	moved, err := queries.RewrapOfferedAiProviderKey(ctx, sqlc.RewrapOfferedAiProviderKeyParams{
+		ApiKeyEnc: sealed.Ciphertext, ApiKeyKeyID: &sealed.KeyID, ID: id, ExpectedKeyID: &expectedKeyID,
+	})
+	if err != nil {
+		return false, writeFailed(err)
+	}
+	return moved > 0, nil
 }
 
 // AiChoiceRepository is the workspace's choice of AI source, under row level security.

@@ -6,10 +6,12 @@ package sealing
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	sealingrepo "github.com/Jersyfi/hubtask/core/application/repository/sealing"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -98,15 +100,35 @@ func (tenants) ClosePassword(context.Context, time.Time, time.Time) (bool, error
 	return false, nil
 }
 
-// census answers a different count per tenant, keyed by the scope the unit of work opened.
+// census answers a different count per tenant, keyed by the scope the unit of work opened, and
+// the installation's own when asked in the installation's scope.
 type census struct {
-	work   *unitOfWork
-	counts map[shared.ID]map[string]int64
+	work         *unitOfWork
+	counts       map[shared.ID]sealingrepo.Counts
+	installation sealingrepo.Counts
 }
 
-func (c census) CountByKey(context.Context) (map[string]int64, error) {
-	current := c.work.scopes[len(c.work.scopes)-1].TenantID
-	return c.counts[current], nil
+func (c census) Count(context.Context) (sealingrepo.Counts, error) {
+	current := c.work.scopes[len(c.work.scopes)-1]
+	if current.Installation || current.System {
+		return nil, errors.New("a workspace's census outside a workspace")
+	}
+	return c.counts[current.TenantID], nil
+}
+
+func (c census) CountInstallation(context.Context) (sealingrepo.Counts, error) {
+	if !c.work.scopes[len(c.work.scopes)-1].Installation {
+		return nil, errors.New("the installation's census outside the installation's scope")
+	}
+	return c.installation, nil
+}
+
+func counts(entries ...any) sealingrepo.Counts {
+	counted := sealingrepo.Counts{}
+	for i := 0; i+2 < len(entries); i += 3 {
+		counted.Add(entries[i].(string), entries[i+1].(string), int64(entries[i+2].(int)))
+	}
+	return counted
 }
 
 type jobs struct{ requests []queue.Request }
@@ -149,10 +171,10 @@ func TestTheStatusSumsTheCensusOverEveryWorkspaceAndListsTheRingFirst(t *testing
 	work := &unitOfWork{}
 	status := ReadEncryptionStatus{
 		Tenants: tenants{listed: []adminrepo.TenantRecord{{ID: tenantOne}, {ID: tenantTwo}}},
-		Census: census{work: work, counts: map[shared.ID]map[string]int64{
-			tenantOne: {"k1": 3, "gone": 1},
-			tenantTwo: {"k1": 2, "k2": 5},
-		}},
+		Census: census{work: work, counts: map[shared.ID]sealingrepo.Counts{
+			tenantOne: counts("k1", "webhook_subscription", 3, "gone", "account_mfa", 1),
+			tenantTwo: counts("k1", "webhook_subscription", 2, "k2", "ai_provider", 5),
+		}, installation: counts("k1", "identity_provider", 1, "k2", "ai_provider", 1)},
 		Encryptor: ring{keys: []string{"k2", "k1"}}, UnitOfWork: work,
 	}
 
@@ -164,21 +186,20 @@ func TestTheStatusSumsTheCensusOverEveryWorkspaceAndListsTheRingFirst(t *testing
 		t.Errorf("active key %q", answer.ActiveKeyID)
 	}
 	want := []KeyUsage{
-		{KeyID: "k2", Active: true, InRing: true, SealedValues: 5},
-		{KeyID: "k1", InRing: true, SealedValues: 5},
-		{KeyID: "gone", SealedValues: 1},
+		{KeyID: "k2", Active: true, InRing: true, SealedValues: 6, Stores: []sealingrepo.StoreCount{
+			{Store: "ai_provider", Count: 6}}},
+		{KeyID: "k1", InRing: true, SealedValues: 6, Stores: []sealingrepo.StoreCount{
+			{Store: "identity_provider", Count: 1}, {Store: "webhook_subscription", Count: 5}}},
+		{KeyID: "gone", SealedValues: 1, Stores: []sealingrepo.StoreCount{{Store: "account_mfa", Count: 1}}},
 	}
-	if len(answer.Keys) != len(want) {
-		t.Fatalf("keys %+v", answer.Keys)
+	if !reflect.DeepEqual(answer.Keys, want) {
+		t.Errorf("keys %+v, want %+v", answer.Keys, want)
 	}
-	for i := range want {
-		if answer.Keys[i] != want[i] {
-			t.Errorf("key %d: %+v, want %+v", i, answer.Keys[i], want[i])
-		}
-	}
-	// The enumerator ran installation-scoped, and every count in the tenant's own transaction.
-	if len(work.scopes) != 3 || !work.scopes[0].Installation ||
-		work.scopes[1].TenantID != tenantOne || work.scopes[2].TenantID != tenantTwo {
+	// The enumerator ran installation-scoped, every count in the tenant's own transaction, and the
+	// installation's own rows once more in its own scope.
+	if len(work.scopes) != 4 || !work.scopes[0].Installation ||
+		work.scopes[1].TenantID != tenantOne || work.scopes[2].TenantID != tenantTwo ||
+		!work.scopes[3].Installation {
 		t.Errorf("scopes %+v", work.scopes)
 	}
 }
@@ -211,8 +232,14 @@ func TestTheRequestQueuesOneRoundPerWorkspaceAndRecordsTheAsk(t *testing.T) {
 	if accepted.ActiveKeyID != "k2" || accepted.QueuedTenants != 2 {
 		t.Errorf("accepted %+v", accepted)
 	}
-	if len(queued.requests) != 2 {
+	if len(queued.requests) != 3 {
 		t.Fatalf("jobs %+v", queued.requests)
+	}
+	// The installation's own round: no tenant, queued in the scope with none, deduplicated too.
+	if job := queued.requests[2]; job.Kind != queue.KindSecretReseal || !job.TenantID.IsZero() ||
+		job.DedupeKey != "reseal:installation" || job.Payload["active_key_id"] != "k2" ||
+		!work.scopes[3].System {
+		t.Errorf("the installation's job %+v in %+v", job, work.scopes[3])
 	}
 	for i, tenant := range []shared.ID{tenantOne, tenantTwo} {
 		job := queued.requests[i]
@@ -279,6 +306,56 @@ func TestARoundRunsEveryResealerReportsAndLeavesEvidenceOnlyWhenSomethingMoved(t
 	}
 	if len(trail.entries) != 1 {
 		t.Errorf("a round that moved nothing left an entry: %+v", trail.entries)
+	}
+}
+
+type journal struct{ entries []adminrepo.InstanceEvent }
+
+func (j *journal) Record(_ context.Context, entry adminrepo.InstanceEvent) error {
+	j.entries = append(j.entries, entry)
+	return nil
+}
+
+func (j *journal) Page(context.Context, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+	return nil, adminrepo.PageInfo{}, nil
+}
+
+type ids struct{}
+
+func (ids) NewID() shared.ID { return shared.MustParseID("018f2a1b-0000-7000-8000-0000000000c1") }
+
+// The installation's round is told no tenant, and records in the installation's own journal -
+// counts and the key's name only - and only when something moved.
+func TestTheInstallationsRoundRecordsInItsOwnJournal(t *testing.T) {
+	providers := &resealer{store: "identity_provider", outcome: Outcome{Rewrapped: 1}}
+	models := &resealer{store: "ai_provider", outcome: Outcome{Rewrapped: 2, Skipped: 1}}
+	record := &journal{}
+	round := RunInstallationReseal{
+		Resealers: []Resealer{providers, models}, Encryptor: ring{keys: []string{"k2", "k1"}},
+		Journal: record, Clock: clock.Fixed(now), IDs: ids{}, Signals: &signals{},
+	}
+
+	outcome, err := round.Execute(t.Context())
+	if err != nil || outcome != (Outcome{Rewrapped: 3, Skipped: 1}) {
+		t.Fatalf("outcome %+v, %v", outcome, err)
+	}
+	if !providers.tenants[0].IsZero() || !models.tenants[0].IsZero() {
+		t.Error("the installation's round named a tenant")
+	}
+	if len(record.entries) != 1 || record.entries[0].Action != InstallationResealedAction ||
+		!record.entries[0].TenantID.IsZero() || record.entries[0].Details["rewrapped"] != int64(3) ||
+		record.entries[0].Details["active_key_id"] != "k2" || len(record.entries[0].Details) != 3 {
+		t.Errorf("journal %+v", record.entries)
+	}
+
+	providers.outcome, models.outcome = Outcome{}, Outcome{}
+	if _, err := round.Execute(t.Context()); err != nil || len(record.entries) != 1 {
+		t.Errorf("a round that moved nothing left an entry (%v): %+v", err, record.entries)
+	}
+
+	round.Encryptor = ring{}
+	if _, err := round.Execute(t.Context()); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("an installation without keys answered %v", err)
 	}
 }
 
