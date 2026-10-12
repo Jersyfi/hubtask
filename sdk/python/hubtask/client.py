@@ -523,6 +523,10 @@ class Client:
         """Redeem an invitation and set the first password"""
         return self._call("POST", "/auth/invitations:redeem", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_up_installation(self, body: "InstallationSetUp") -> "SessionTokens":
+        """Set up a fresh installation with the code its first start printed"""
+        return self._call("POST", "/auth/installation:set-up", {}, None, {}, body, "json", "application/json", "json")
+
     def complete_sign_in(self, body: "SignInCompletion") -> "SessionTokens":
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
