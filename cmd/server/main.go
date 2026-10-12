@@ -1032,9 +1032,16 @@ func run() error {
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
 	aiProviderWriter.Rules = &aiRules
+	// A change of the model behind search seeds its rebuild in the same transaction, with the
+	// delay the entries' own writes use (ADR-0072 §6).
+	embeddingSeeder := integrationservice.EmbeddingSeeder{
+		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
+	}
+	aiProviderWriter.Reindex = embeddingSeeder
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{},
+		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
+		Spaces: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is

@@ -6,9 +6,11 @@ package integration
 import (
 	"context"
 	"errors"
+	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -18,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -64,6 +67,9 @@ type AiState struct {
 	Offered []domain.AiProvider
 	// Narrowing is the workspace's own narrowing, empty where it narrowed nothing.
 	Narrowing domain.AiSources
+	// SearchRebuilding is true while vectors of another model than the one now in use are still
+	// stored: search by meaning is being rebuilt, and search by words works meanwhile.
+	SearchRebuilding bool
 }
 
 // ChosenOffered answers the offered model the choice names, when it still exists.
@@ -119,11 +125,50 @@ type AiSourceWriter struct {
 	// Reindex seeds the re-embedding a change of the model behind search needs. Nil where the
 	// installation has no semantic search to rebuild.
 	Reindex EmbeddingReseeder
+	// Spaces answers whether search by meaning is being rebuilt. Nil answers never.
+	Spaces workrepo.EmbeddingSpaces
 }
 
 // EmbeddingReseeder queues a re-embedding pass in the transaction's workspace.
 type EmbeddingReseeder interface {
 	Reseed(ctx context.Context, tenantID shared.ID) error
+}
+
+// EmbeddingSeeder seeds the embedding pass in the transaction's workspace: the write that changed
+// the model behind search seeds it, and nothing visits workspaces (ADR-0072 §6). The same job and
+// the same deduplication key the entries' own writes use, so a burst of changes is one pass.
+type EmbeddingSeeder struct {
+	Jobs  EmbeddingJobs
+	Delay time.Duration
+	Clock clock.Clock
+}
+
+// EmbeddingJobs is the queue's one method this needs.
+type EmbeddingJobs interface {
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
+}
+
+// Reseed queues the pass.
+func (s EmbeddingSeeder) Reseed(ctx context.Context, tenantID shared.ID) error {
+	_, err := s.Jobs.Enqueue(ctx, queue.Request{
+		Kind: queue.KindAiEmbed, TenantID: tenantID,
+		DedupeKey: string(queue.KindAiEmbed) + ":" + tenantID.String(),
+		RunAt:     s.Clock.Now().Add(s.Delay),
+	})
+	return err
+}
+
+// rebuilding asks, inside the caller's transaction, whether the model in use still has entries
+// embedded under another one.
+func (w AiSourceWriter) rebuilding(ctx context.Context, tenantID shared.ID) (bool, error) {
+	if w.Spaces == nil || w.Rules.Own == nil {
+		return false, nil
+	}
+	selection, err := w.Rules.Select(ctx, tenantID)
+	if err != nil || selection.Refusal != "" || selection.EmbeddingSpace == "" {
+		return false, err
+	}
+	return w.Spaces.OtherSpaceRemains(ctx, selection.EmbeddingSpace)
 }
 
 // ReadAiSource answers the workspace's AI: what it may use, what it chose, and what is offered.
@@ -140,7 +185,10 @@ func (h ReadAiSource) Execute(ctx context.Context, actor appshared.ActorContext)
 	var state AiState
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		state, err = w.Rules.Resolve(ctx, actor.TenantID)
+		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
+			return err
+		}
+		state.SearchRebuilding, err = w.rebuilding(ctx, actor.TenantID)
 		return err
 	})
 	return state, err
@@ -303,6 +351,7 @@ func AiSourceOutput(state AiState) usecase.Output {
 		"min_jurisdiction":        string(rule.MinJurisdiction),
 		"min_jurisdiction_origin": string(rule.OriginOf(domain.AiSwitchMinJurisdiction)),
 		"version":                 state.Choice.Version,
+		"search_rebuilding":       state.SearchRebuilding,
 	}
 	if lock := rule.LockOf(domain.AiSwitchSources); lock != "" {
 		out["sources_lock"] = string(lock)

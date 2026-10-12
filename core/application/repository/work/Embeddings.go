@@ -137,3 +137,10 @@ type Neighbour struct {
 	// the number the floor is compared against and the one a person reads as "how alike".
 	Similarity float64
 }
+
+// EmbeddingSpaces answers whether a workspace's search by meaning is being rebuilt: vectors of
+// another model than the one now in use are still stored (ADR-0072 §6). Its own interface rather
+// than a method of Embeddings, because the AI source's screen asks it and nothing that embeds does.
+type EmbeddingSpaces interface {
+	OtherSpaceRemains(ctx context.Context, space string) (bool, error)
+}

@@ -17,6 +17,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // A workspace's choice of AI source (ADR-0072 §2, §3; UC-AI-05 checks 1, 3, 6, 7; UC-AI-06 checks
@@ -369,5 +370,60 @@ func TestTheOwnModelIsConfiguredOnlyWhereTheRuleAllowsIt(t *testing.T) {
 				t.Errorf("the refusal names %v", got.Params)
 			}
 		})
+	}
+}
+
+type countingReseeder struct{ seeded int }
+
+func (c *countingReseeder) Reseed(context.Context, shared.ID) error {
+	c.seeded++
+	return nil
+}
+
+// ADR-0072 §6: a change of the own embedding model seeds the rebuild; a change of anything else
+// does not.
+func TestChangingTheOwnEmbeddingModelSeedsTheRebuild(t *testing.T) {
+	writer, _ := providerWriter()
+	reseeder := &countingReseeder{}
+	writer.Reindex = reseeder
+
+	command := providerCommand()
+	command.EmbeddingModel = "embed-1"
+	for _, step := range []struct {
+		embedding  string
+		completion string
+		want       int
+	}{
+		{"embed-1", "a-model", 1},
+		{"embed-1", "another-model", 1},
+		{"embed-2", "another-model", 2},
+	} {
+		command.EmbeddingModel, command.CompletionModel = step.embedding, step.completion
+		if _, err := (ConfigureAiProvider{Writer: writer}).Execute(t.Context(), providerActor(), command); err != nil {
+			t.Fatalf("configuring: %v", err)
+		}
+		if reseeder.seeded != step.want {
+			t.Errorf("after %s/%s seeded %d, want %d", step.embedding, step.completion, reseeder.seeded, step.want)
+		}
+	}
+}
+
+type recordedJobs struct{ requests []queue.Request }
+
+func (r *recordedJobs) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
+	r.requests = append(r.requests, request)
+	return "", nil
+}
+
+func TestTheSeederQueuesTheEmbeddingPassOncePerWorkspace(t *testing.T) {
+	jobs := &recordedJobs{}
+	seeder := EmbeddingSeeder{Jobs: jobs, Delay: time.Minute, Clock: providerClock{}}
+	if err := seeder.Reseed(t.Context(), providerActor().TenantID); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	request := jobs.requests[0]
+	if request.Kind != queue.KindAiEmbed || request.TenantID != providerActor().TenantID ||
+		request.DedupeKey != "ai.embed:"+providerActor().TenantID.String() {
+		t.Errorf("queued %+v", request)
 	}
 }

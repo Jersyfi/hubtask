@@ -5,6 +5,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -67,6 +68,9 @@ type AiProviderWriter struct {
 	// Rules is the installation's rule about AI sources (ADR-0072 §2). Nil is an installation
 	// without one, where the own model is always allowed.
 	Rules *AiRules
+	// Reindex seeds re-embedding when the own embedding model changes (ADR-0072 §6). Nil seeds
+	// nothing.
+	Reindex EmbeddingReseeder
 }
 
 // ConfigureAiProvider points a workspace at its AI provider, or switches it off.
@@ -135,7 +139,10 @@ func (h ConfigureAiProvider) Execute(
 
 	var stored domain.AiProvider
 	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
+		previous, err := w.Providers.Find(ctx)
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return err
+		}
 		if cmd.APIKeyPresent {
 			stored, err = w.Providers.Upsert(ctx, configured, sealed, w.Clock.Now())
 		} else {
@@ -143,6 +150,12 @@ func (h ConfigureAiProvider) Execute(
 		}
 		if err != nil {
 			return err
+		}
+		// The model behind search changed: the write that changed it seeds the rebuild.
+		if w.Reindex != nil && previous.EmbeddingModel != stored.EmbeddingModel && stored.EmbeddingModel != "" {
+			if err := w.Reindex.Reseed(ctx, actor.TenantID); err != nil {
+				return err
+			}
 		}
 		return w.record(ctx, actor, AiProviderConfiguredAction, stored)
 	})
