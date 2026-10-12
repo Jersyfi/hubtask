@@ -863,6 +863,10 @@ class Client:
         """Choose which AI answers this workspace"""
         return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
+        """Whether each person may keep their own content out of AI"""
+        return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
     def list_oauth_clients(self) -> dict[str, Any]:
         """The workspace's registered third-party apps"""
         return self._call("GET", "/oauth/clients", {}, None, {}, None, "none", None, "json")

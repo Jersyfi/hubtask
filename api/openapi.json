@@ -7019,6 +7019,41 @@
         }
       }
     },
+    "/ai-person-opt-out": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setAiPersonOptOut",
+        "summary": "Whether each person may keep their own content out of AI",
+        "description": "`OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiPersonOptOutChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/oauth/clients": {
       "get": {
         "tags": [
@@ -12921,7 +12956,10 @@
           "min_jurisdiction",
           "min_jurisdiction_origin",
           "offered",
-          "version"
+          "version",
+          "person_opt_out",
+          "person_opt_out_origin",
+          "keeping_out_count"
         ],
         "properties": {
           "source": {
@@ -12988,12 +13026,85 @@
             "type": "boolean",
             "description": "True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.\n"
           },
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "person_opt_out_origin": {
+            "type": "string",
+            "enum": [
+              "DEFAULT",
+              "INSTANCE",
+              "PLAN",
+              "WORKSPACE"
+            ]
+          },
+          "person_opt_out_lock": {
+            "type": "string",
+            "enum": [
+              "INSTANCE",
+              "PLAN"
+            ],
+            "description": "Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.\n"
+          },
+          "person_opt_out_basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "person_opt_out_contact": {
+            "type": "string",
+            "description": "Whom people may ask about the basis. Absent for an administrator of this workspace."
+          },
+          "person_opt_out_since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the workspace made AI part of everybody's work. Absent with `OFFERED`."
+          },
+          "keeping_out_count": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.\n"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
           },
           "version": {
             "type": "integer"
+          }
+        }
+      },
+      "AiPersonOptOut": {
+        "type": "string",
+        "enum": [
+          "OFFERED",
+          "NOT_OFFERED"
+        ],
+        "description": "`OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.\n"
+      },
+      "AiOptOutBasis": {
+        "type": "string",
+        "enum": [
+          "EMPLOYMENT_CONTRACT",
+          "WORKS_AGREEMENT",
+          "LEGAL_OBLIGATION"
+        ],
+        "description": "The legal basis a workspace names for making AI part of everybody's work."
+      },
+      "AiPersonOptOutChoice": {
+        "type": "object",
+        "required": [
+          "person_opt_out"
+        ],
+        "properties": {
+          "person_opt_out": {
+            "$ref": "#/components/schemas/AiPersonOptOut"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/AiOptOutBasis"
+          },
+          "contact": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.\n"
           }
         }
       },

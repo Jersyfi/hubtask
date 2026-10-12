@@ -282,6 +282,45 @@ func (e AiMinJurisdiction) Valid() bool {
 	}
 }
 
+// Defines values for AiOptOutBasis.
+const (
+	EMPLOYMENTCONTRACT AiOptOutBasis = "EMPLOYMENT_CONTRACT"
+	LEGALOBLIGATION    AiOptOutBasis = "LEGAL_OBLIGATION"
+	WORKSAGREEMENT     AiOptOutBasis = "WORKS_AGREEMENT"
+)
+
+// Valid indicates whether the value is a known member of the AiOptOutBasis enum.
+func (e AiOptOutBasis) Valid() bool {
+	switch e {
+	case EMPLOYMENTCONTRACT:
+		return true
+	case LEGALOBLIGATION:
+		return true
+	case WORKSAGREEMENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiPersonOptOut.
+const (
+	AiPersonOptOutNOTOFFERED AiPersonOptOut = "NOT_OFFERED"
+	AiPersonOptOutOFFERED    AiPersonOptOut = "OFFERED"
+)
+
+// Valid indicates whether the value is a known member of the AiPersonOptOut enum.
+func (e AiPersonOptOut) Valid() bool {
+	switch e {
+	case AiPersonOptOutNOTOFFERED:
+		return true
+	case AiPersonOptOutOFFERED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiProviderKind.
 const (
 	NOOP             AiProviderKind = "NOOP"
@@ -339,6 +378,48 @@ func (e AiSourceMinJurisdictionOrigin) Valid() bool {
 	case AiSourceMinJurisdictionOriginPLAN:
 		return true
 	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutLock.
+const (
+	AiSourcePersonOptOutLockINSTANCE AiSourcePersonOptOutLock = "INSTANCE"
+	AiSourcePersonOptOutLockPLAN     AiSourcePersonOptOutLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutLock enum.
+func (e AiSourcePersonOptOutLock) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutLockINSTANCE:
+		return true
+	case AiSourcePersonOptOutLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutOrigin.
+const (
+	AiSourcePersonOptOutOriginDEFAULT   AiSourcePersonOptOutOrigin = "DEFAULT"
+	AiSourcePersonOptOutOriginINSTANCE  AiSourcePersonOptOutOrigin = "INSTANCE"
+	AiSourcePersonOptOutOriginPLAN      AiSourcePersonOptOutOrigin = "PLAN"
+	AiSourcePersonOptOutOriginWORKSPACE AiSourcePersonOptOutOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutOrigin enum.
+func (e AiSourcePersonOptOutOrigin) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutOriginDEFAULT:
+		return true
+	case AiSourcePersonOptOutOriginINSTANCE:
+		return true
+	case AiSourcePersonOptOutOriginPLAN:
+		return true
+	case AiSourcePersonOptOutOriginWORKSPACE:
 		return true
 	default:
 		return false
@@ -4152,6 +4233,24 @@ type AiJurisdiction string
 // AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 type AiMinJurisdiction string
 
+// AiOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+type AiOptOutBasis string
+
+// AiPersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+type AiPersonOptOut string
+
+// AiPersonOptOutChoice defines model for AiPersonOptOutChoice.
+type AiPersonOptOutChoice struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+}
+
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
 	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed.
@@ -4211,6 +4310,9 @@ type AiSource struct {
 	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 	InstallationSources AiSources `json:"installation_sources"`
 
+	// KeepingOutCount How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+	KeepingOutCount int `json:"keeping_out_count"`
+
 	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
 	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
@@ -4224,6 +4326,22 @@ type AiSource struct {
 
 	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
 	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// PersonOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+	PersonOptOutBasis *AiOptOutBasis `json:"person_opt_out_basis,omitempty"`
+
+	// PersonOptOutContact Whom people may ask about the basis. Absent for an administrator of this workspace.
+	PersonOptOutContact *string `json:"person_opt_out_contact,omitempty"`
+
+	// PersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+	PersonOptOutLock   *AiSourcePersonOptOutLock  `json:"person_opt_out_lock,omitempty"`
+	PersonOptOutOrigin AiSourcePersonOptOutOrigin `json:"person_opt_out_origin"`
+
+	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
+	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -4246,6 +4364,12 @@ type AiSourceMinJurisdictionLock string
 
 // AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
 type AiSourceMinJurisdictionOrigin string
+
+// AiSourcePersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+type AiSourcePersonOptOutLock string
+
+// AiSourcePersonOptOutOrigin defines model for AiSource.PersonOptOutOrigin.
+type AiSourcePersonOptOutOrigin string
 
 // AiSourceSourcesLock Present where a level above locked what the workspace may use.
 type AiSourceSourcesLock string
@@ -10278,6 +10402,9 @@ type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
+// SetAiPersonOptOutJSONRequestBody defines body for SetAiPersonOptOut for application/json ContentType.
+type SetAiPersonOptOutJSONRequestBody = AiPersonOptOutChoice
+
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
@@ -11273,6 +11400,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiPersonOptOut Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOut(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveAiProvider Remove the workspace's AI provider
 	//
@@ -15727,6 +15872,44 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuspendTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *Client) SetAiPersonOptOutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiPersonOptOutRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiPersonOptOut Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *Client) SetAiPersonOptOut(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiPersonOptOutRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -24322,6 +24505,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetAiPersonOptOutRequest calls the generic SetAiPersonOptOut builder with application/json body
+func NewSetAiPersonOptOutRequest(server string, body SetAiPersonOptOutJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAiPersonOptOutRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAiPersonOptOutRequestWithBody constructs an http.Request for the SetAiPersonOptOut method, with any body, and a specified content type
+func NewSetAiPersonOptOutRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-person-opt-out")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -37372,6 +37595,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
 
+	// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error)
+
+	// SetAiPersonOptOutWithResponse Whether each person may keep their own content out of AI
+	//
+	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+	SetAiPersonOptOutWithResponse(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error)
+
 	// RemoveAiProviderWithResponse Remove the workspace's AI provider
 	//
 	// The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.
@@ -42815,6 +43056,54 @@ func (r SuspendTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SuspendTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAiPersonOptOutResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAiPersonOptOutResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAiPersonOptOutResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAiPersonOptOutResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAiPersonOptOutResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAiPersonOptOutResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAiPersonOptOutResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -56328,6 +56617,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 	return ParseSuspendTenantResult(rsp)
 }
 
+// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *ClientWithResponses) SetAiPersonOptOutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error) {
+	rsp, err := c.SetAiPersonOptOutWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiPersonOptOutResult(rsp)
+}
+
+// SetAiPersonOptOutWithResponse Whether each person may keep their own content out of AI
+//
+// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-person-opt-out (the `SetAiPersonOptOut` operationId).
+func (c *ClientWithResponses) SetAiPersonOptOutWithResponse(ctx context.Context, body SetAiPersonOptOutJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiPersonOptOutResult, error) {
+	rsp, err := c.SetAiPersonOptOut(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiPersonOptOutResult(rsp)
+}
+
 // RemoveAiProviderWithResponse Remove the workspace's AI provider
 //
 // The configuration and its sealed key go, and the workspace is back to the installation's default, which calls nothing. Nothing else is affected: no suggestion already accepted is undone, because accepting one was a person's own write. Auditable.
@@ -63410,6 +63729,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAiPersonOptOutResult parses an HTTP response from a SetAiPersonOptOutWithResponse call
+func ParseSetAiPersonOptOutResult(rsp *http.Response) (*SetAiPersonOptOutResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAiPersonOptOutResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

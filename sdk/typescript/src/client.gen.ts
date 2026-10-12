@@ -1081,6 +1081,11 @@ export class HubtaskClient {
     return this.call("PUT", "/ai-source", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Whether each person may keep their own content out of AI */
+  setAiPersonOptOut(body: NonNullable<operations["setAiPersonOptOut"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiPersonOptOut"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-person-opt-out", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's registered third-party apps */
   listOauthClients(options: CallOptions = {}): Promise<operations["listOauthClients"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/oauth/clients", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -338,8 +338,24 @@ class AiSource(TypedDict, total=False):
     min_jurisdiction_lock: Literal["INSTANCE", "PLAN"]
     offered: Required[list["OfferedAiModelSummary"]]
     search_rebuilding: bool
+    person_opt_out: Required["AiPersonOptOut"]
+    person_opt_out_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    person_opt_out_lock: Literal["INSTANCE", "PLAN"]
+    person_opt_out_basis: "AiOptOutBasis"
+    person_opt_out_contact: str
+    person_opt_out_since: str
+    keeping_out_count: Required[int]
     updated_at: str
     version: Required[int]
+
+AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
+
+AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiPersonOptOutChoice(TypedDict, total=False):
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
 
 class OfferedAiModelSummary(TypedDict, total=False):
     id: Required[str]

@@ -50,6 +50,12 @@ func aiGroup() group {
 				summary: "which AI answers this workspace: its own model, one the installation offers, or none",
 				run:     aiSource,
 			},
+			{
+				name:    "opt-out",
+				usage:   "[show] | set --position OFFERED|NOT_OFFERED [--basis EMPLOYMENT_CONTRACT|WORKS_AGREEMENT|LEGAL_OBLIGATION] [--contact <whom to ask>]",
+				summary: "whether each person may keep their own content out of AI, or AI is part of everybody's work on a named basis",
+				run:     aiOptOut,
+			},
 		},
 	}
 }

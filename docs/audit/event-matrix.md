@@ -8,7 +8,7 @@ this file as the full matrix and gives an extract of it; this is the whole, and 
 from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than maintained
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
-**277 use cases, 238 distinct action codes, 198 of them recorded on every call.** A use case that
+**278 use cases, 239 distinct action codes, 199 of them recorded on every call.** A use case that
 writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
 same, because a *refused* read is recorded against the action that was refused.
 
@@ -54,6 +54,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |
 | `ai.fields_asked` | AiSuggestFields | `ai_suggestion` | NOTICE | Every time |
+| `ai.person_opt_out_set` | SetAiPersonOptOut | `ai_source` | NOTICE | Every time |
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |

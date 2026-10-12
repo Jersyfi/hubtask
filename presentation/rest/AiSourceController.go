@@ -19,6 +19,8 @@ import (
 const (
 	readAiSourceUseCase   = "ReadAiSource"
 	chooseAiSourceUseCase = "ChooseAiSource"
+
+	setAiPersonOptOutUseCase = "SetAiPersonOptOut"
 )
 
 // ReadAiSource answers GET /ai-source.
@@ -56,6 +58,33 @@ func (c *RestController) ChooseAiSource(w http.ResponseWriter, r *http.Request) 
 		in["sources"] = string(*body.Sources)
 	}
 	out, err := c.UseCases.Invoke(r.Context(), chooseAiSourceUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
+}
+
+// SetAiPersonOptOut answers PUT /ai-person-opt-out.
+func (c *RestController) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AiPersonOptOutChoice
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"person_opt_out": string(body.PersonOptOut)}
+	if body.Basis != nil {
+		in["basis"] = string(*body.Basis)
+	}
+	if body.Contact != nil {
+		in["contact"] = *body.Contact
+	}
+	out, err := c.UseCases.Invoke(r.Context(), setAiPersonOptOutUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -106,6 +135,25 @@ func aiSourceResponse(out usecase.Output) openapi.AiSource {
 	}
 	if version, held := out["version"].(int); held {
 		answer.Version = version
+	}
+	answer.PersonOptOut = openapi.AiPersonOptOut(out.String("person_opt_out"))
+	answer.PersonOptOutOrigin = openapi.AiSourcePersonOptOutOrigin(out.String("person_opt_out_origin"))
+	if lock := out.String("person_opt_out_lock"); lock != "" {
+		value := openapi.AiSourcePersonOptOutLock(lock)
+		answer.PersonOptOutLock = &value
+	}
+	if basis := out.String("person_opt_out_basis"); basis != "" {
+		value := openapi.AiOptOutBasis(basis)
+		answer.PersonOptOutBasis = &value
+	}
+	if contact := out.String("person_opt_out_contact"); contact != "" {
+		answer.PersonOptOutContact = &contact
+	}
+	if since, held := out["person_opt_out_since"].(time.Time); held && !since.IsZero() {
+		answer.PersonOptOutSince = &since
+	}
+	if count, held := out["keeping_out_count"].(int); held {
+		answer.KeepingOutCount = count
 	}
 	return answer
 }

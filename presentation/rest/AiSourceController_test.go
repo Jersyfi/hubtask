@@ -49,3 +49,33 @@ func TestTheAiSourceIsChosenAndAnsweredOverRest(t *testing.T) {
 		t.Errorf("answered %v", body)
 	}
 }
+
+// The workspace's position travels in with its basis and whom to ask, and comes back with the
+// count of people it affects - a number, never who.
+func TestThePersonOptOutIsSetOverRest(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"source": "OWN", "sources": "OWN", "installation_sources": "OWN", "sources_origin": "DEFAULT",
+		"min_jurisdiction": "ANY", "min_jurisdiction_origin": "DEFAULT", "version": 1,
+		"offered":        []usecase.Output{},
+		"person_opt_out": "NOT_OFFERED", "person_opt_out_origin": "WORKSPACE",
+		"person_opt_out_basis": "WORKS_AGREEMENT", "person_opt_out_contact": "The works council",
+		"keeping_out_count": 2,
+	}}
+	recorder := callBackup(t, registry, http.MethodPut, "/ai-person-opt-out",
+		`{"person_opt_out": "NOT_OFFERED", "basis": "WORKS_AGREEMENT", "contact": "The works council"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SetAiPersonOptOut" || registry.in["person_opt_out"] != "NOT_OFFERED" ||
+		registry.in["basis"] != "WORKS_AGREEMENT" || registry.in["contact"] != "The works council" {
+		t.Errorf("the use case received %s %v", registry.name, registry.in)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if body["person_opt_out"] != "NOT_OFFERED" || body["person_opt_out_basis"] != "WORKS_AGREEMENT" ||
+		body["keeping_out_count"] != float64(2) || body["person_opt_out_contact"] != "The works council" {
+		t.Errorf("answered %v", body)
+	}
+}
