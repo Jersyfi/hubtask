@@ -427,3 +427,43 @@ func TestTheSeederQueuesTheEmbeddingPassOncePerWorkspace(t *testing.T) {
 		t.Errorf("queued %+v", request)
 	}
 }
+
+// UC-AI-05 check 6: among several offered models the workspace's choice is the one it names, and
+// the model it then calls is that one; a model nobody offers is refused.
+func TestAWorkspaceChoosesOneOfSeveralOfferedModels(t *testing.T) {
+	world := &sourceWorld{
+		level:   instanceSays(domain.AiSourcesOffered, false),
+		offered: []domain.AiProvider{offeredModel(offeredLarge, "Large (EU)"), offeredModel(offeredSmall, "Small (EU)")},
+	}
+	registry := sourceRegistry(t, world)
+	rules := AiRules{
+		Instance: world, Workspaces: sourceWorkspaces{world},
+		Offered: sourceOffered{world}, Choices: sourceChoices{world},
+	}
+
+	for _, id := range []shared.ID{offeredSmall, offeredLarge} {
+		out, err := registry.Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{
+			"source": "OFFERED", "offered_model_id": id.String(),
+		})
+		if err != nil {
+			t.Fatalf("choosing %s: %v", id, err)
+		}
+		if out["offered_model_id"] != id.String() || world.choice.OfferedProviderID != id {
+			t.Errorf("chose %s, answered %v and stored %+v", id, out, world.choice)
+		}
+		selection, err := rules.Select(t.Context(), providerActor().TenantID)
+		if err != nil || selection.Provider.ID != id {
+			t.Errorf("chose %s, the call goes to %s (%v)", id, selection.Provider.ID, err)
+		}
+	}
+
+	_, err := registry.Invoke(t.Context(), ChooseAiSourceName, providerActor(), usecase.Input{
+		"source": "OFFERED", "offered_model_id": "0192f000-0000-7000-8000-0000000000e9",
+	})
+	if got := shared.AsError(err); got == nil || got.DetailCode != "ai.offered_model_unknown" {
+		t.Errorf("a model nobody offers answered %v", err)
+	}
+	if world.choice.OfferedProviderID != offeredLarge {
+		t.Errorf("the refused choice replaced the last one: %+v", world.choice)
+	}
+}
