@@ -5,7 +5,7 @@ context: identity
 actors: [PE-person, PE-member, PE-guest]
 deployments: [D3, D5, D6]
 serves: [P-02, P-05, P-10]
-state: partial
+state: built
 tasks: [SI-10, SI-11, SI-14, SC-14]
 checked_by: [core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, apps/webapp/e2e/signin.test.mjs, scripts/check-brand-marks.sh]
 ---
@@ -39,7 +39,3 @@ account is told they were not invited here.
 
 * Apple sign-in waits for its own task (its client secret is a signed, expiring key).
 * Linking the provider to an account that already has a password is UC-ID-10.
-
-## Today
-
-* Check 4: not met — the Google mark is a redraw, not the file Google publishes; tracked in #1070.
