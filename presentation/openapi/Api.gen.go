@@ -5552,7 +5552,7 @@ type IdentityProvider struct {
 	// OfferedHere Whether this provider is a way into **this** workspace. Always true for its own rows while they are enabled; for a row the installation offers, it is this workspace's own switch, and it is **false until somebody turns it on** — offering it is the installation's decision, taking it is the workspace's. False from the moment an announced withdrawal takes effect. True, whatever the workspace's own switch, where `installation_lock` is `TURNS_ON`.
 	OfferedHere *bool `json:"offered_here,omitempty"`
 
-	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.
+	// OfferedWorkspaces For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.
 	OfferedWorkspaces *int `json:"offered_workspaces,omitempty"`
 
 	// Position The order the buttons are drawn in.

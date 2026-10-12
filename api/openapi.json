@@ -13218,7 +13218,7 @@
             ],
             "minimum": 0,
             "readOnly": true,
-            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read. Absent from a workspace's listing.\n"
+            "description": "For a row the installation offers, answered to the operator only: how many workspaces have it switched on. A number, never names - counted from the workspaces' own switches when it is read, and every live workspace where `installation_lock` is `TURNS_ON`. Absent from a workspace's listing.\n"
           },
           "allowed_email_domains": {
             "type": "array",
