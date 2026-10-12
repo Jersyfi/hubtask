@@ -244,7 +244,13 @@ func (s *changesStore) Record(_ context.Context, change changelog.Change) error 
 
 type auditSink struct{ entries []audit.Entry }
 
+// Append refuses what the real sink refuses: an entry the trail could not stand behind aborts the
+// transaction there, and a fake that accepted it is how an installation-level write that recorded
+// an entry without a workspace passed every test here and failed on every real server.
 func (s *auditSink) Append(_ context.Context, entry audit.Entry) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
 	s.entries = append(s.entries, entry)
 	return nil
 }
