@@ -502,11 +502,15 @@ test('the rules under a password are the workspace’s, and the server’s lines
     assert.equal(new URL(page.url()).hash, '');
 
     const field = page.getByLabel('New password');
+    const states = async () => page.locator('li[data-state]').evaluateAll((nodes) => nodes.map((n) => n.dataset.state));
+    // UC-ID-04 check 3: the workspace's rules are listed before the first keystroke.
+    await page.locator('li[data-state]').first().waitFor();
+    assert.equal((await states()).length, 3, 'the rules are not listed before the first keystroke');
+
     await field.fill('short');
     await page.waitForTimeout(700);
     assert.deepEqual(asked, [], 'the server is not asked while the local rules are still open');
 
-    const states = async () => page.locator('li[data-state]').evaluateAll((nodes) => nodes.map((n) => n.dataset.state));
     // `short` is too short and holds no context word: one line open, one met, and the server's
     // line still waiting - which is the whole point, because a password this short is not worth a
     // round trip.
@@ -526,6 +530,40 @@ test('the rules under a password are the workspace’s, and the server’s lines
     await field.fill('a-long-enough-password');
     await page.waitForTimeout(700);
     assert.deepEqual(asked, ['a-long-enough-password'], 'a value already answered is not asked again');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-04 check 3, the language: the reset card's rules and every one a password breaks read in the
+// reader's language. (That the server names every rule broken, not only the first, is the domain's
+// TestARefusedPasswordNamesEveryRuleAgainstTheOneField.)
+test('the reset card names the broken rules in the reader\'s language', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'de-DE' });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/api/v1/meta/capabilities')) {
+      return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
+    }
+    return stubFor({ answer: refused, onCheck: () => [{ rule: 'common' }] })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/reset#token=e2e-reset`);
+    await page.getByRole('heading', { name: 'Wähle ein neues Passwort' }).waitFor();
+    await page.locator('li[data-state]').first().waitFor();
+    const text = await page.locator('ul:has(li[data-state])').innerText();
+    assert.match(text, /14/, 'the length rule is not listed');
+    assert.doesNotMatch(text, /At least|Not met|characters/, `a rule line is English: ${text}`);
+
+    // Too short: each rule it breaks is said in words, in German.
+    await page.locator('input[type="password"]').first().fill('walker');
+    const unmet = page.locator('li[data-state="unmet"]');
+    await page.waitForFunction(() => document.querySelectorAll('li[data-state="unmet"]').length >= 1);
+    for (const line of await unmet.allInnerTexts()) assert.match(line, /Nicht erfüllt/, line);
   } finally {
     await browser.close();
     await close();
