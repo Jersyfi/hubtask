@@ -215,7 +215,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(name))
 		}
 	}
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))
@@ -557,9 +557,14 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	// The four links, for the switches' reason: a screen that drew only the two somebody filled in
 	// is a screen that never mentions terms or an accessibility statement.
 	legal := usecase.Output{}
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		value := level.Legal.Links.Of(link)
-		entry := usecase.Output{"set": value != "", "locked": level.Legal.Locks[link]}
+		locked := level.Legal.Locks[link]
+		if link == identity.LinkTermsVersion {
+			// The version is locked exactly when its link is.
+			locked = level.Legal.Locks[identity.LinkTerms]
+		}
+		entry := usecase.Output{"set": value != "", "locked": locked}
 		if value != "" {
 			entry["value"] = value
 		}
@@ -760,9 +765,16 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			return identityrepo.InstanceLevel{}, err
 		}
 		level.Legal.Links = level.Legal.Links.With(link, checked)
-		if locked, _ := entry["locked"].(bool); locked {
+		if locked, _ := entry["locked"].(bool); locked && link != identity.LinkTermsVersion {
 			level.Legal.Locks[link] = true
 		}
+	}
+	// The version belongs to the terms link: never beside none, and locked exactly when it is.
+	if level.Legal.Links.TermsVersion != "" && level.Legal.Links.TermsURL == "" {
+		return identityrepo.InstanceLevel{}, identity.TermsVersionWithoutLink()
+	}
+	if level.Legal.Locks[identity.LinkTerms] {
+		level.Legal.Locks[identity.LinkTermsVersion] = true
 	}
 
 	level.BlocklistFile = in.String("blocklist_file")

@@ -93,6 +93,8 @@ type policyDocument struct {
 	PrivacyURL       *string `json:"privacy_url,omitempty"`
 	TermsURL         *string `json:"terms_url,omitempty"`
 	AccessibilityURL *string `json:"accessibility_url,omitempty"`
+	// TermsVersion is the version beside the workspace's own terms link (UC-ID-19).
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
 
 // signInPolicyOf reads the stored patch into the domain's.
@@ -119,6 +121,7 @@ func signInPolicyOf(stored *policyDocument) (identity.PolicyPatch, identity.Lega
 	for name, value := range map[identity.LegalLink]*string{
 		identity.LinkImprint: stored.ImprintURL, identity.LinkPrivacy: stored.PrivacyURL,
 		identity.LinkTerms: stored.TermsURL, identity.LinkAccessibility: stored.AccessibilityURL,
+		identity.LinkTermsVersion: stored.TermsVersion,
 	} {
 		if value != nil {
 			links = links.With(name, *value)
@@ -151,6 +154,7 @@ func signInDocumentOf(patch identity.PolicyPatch, links identity.LegalLinks) *po
 	for name, field := range map[identity.LegalLink]**string{
 		identity.LinkImprint: &stored.ImprintURL, identity.LinkPrivacy: &stored.PrivacyURL,
 		identity.LinkTerms: &stored.TermsURL, identity.LinkAccessibility: &stored.AccessibilityURL,
+		identity.LinkTermsVersion: &stored.TermsVersion,
 	} {
 		if value := links.Of(name); value != "" {
 			held := value

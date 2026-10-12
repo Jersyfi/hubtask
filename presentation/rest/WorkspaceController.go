@@ -110,6 +110,7 @@ func signInPolicyChange(sent openapi.SignInPolicyChange) map[string]any {
 	for name, value := range map[string]*string{
 		"imprint_url": sent.ImprintUrl, "privacy_url": sent.PrivacyUrl,
 		"terms_url": sent.TermsUrl, "accessibility_url": sent.AccessibilityUrl,
+		"terms_version": sent.TermsVersion,
 	} {
 		if value != nil {
 			change[name] = *value
@@ -264,6 +265,7 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 			PrivacyUrl:       word(legal, "privacy_url"),
 			TermsUrl:         word(legal, "terms_url"),
 			AccessibilityUrl: word(legal, "accessibility_url"),
+			TermsVersion:     word(legal, "terms_version"),
 		},
 	}
 	if _, held := out["managed_accounts"].(usecase.Output); held {

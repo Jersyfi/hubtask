@@ -491,7 +491,7 @@ class LegalPolicySettings(TypedDict, total=False):
     privacy_url: Required["SignInPolicyText"]
     terms_url: Required["SignInPolicyText"]
     accessibility_url: Required["SignInPolicyText"]
-    terms_version: "SignInPolicyText"
+    terms_version: Required["SignInPolicyText"]
 
 class WorkspaceUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here."""

@@ -123,6 +123,8 @@
   "auth.legal_url_invalid": "Das ist keine Webadresse. Gib die ganze Adresse an, beginnend mit https://.",
   "auth.legal_url_scheme": "Ein Link hier muss mit https:// oder http:// beginnen.",
   "auth.legal_url_too_long": "Diese Adresse ist zu lang.",
+  "auth.terms_version_invalid": "Eine Version ist eine Zeile mit höchstens 64 Zeichen.",
+  "auth.terms_version_without_link": "Eine Version gehört zu eigenen Nutzungsbedingungen. Gib zuerst den Link zu deinen Nutzungsbedingungen an.",
   "auth.password_rule.min_length": "{minimum, plural, one {Mindestens # Zeichen} other {Mindestens # Zeichen}}",
   "auth.password_rule.min_lowercase": "{count, plural, one {Mindestens ein Kleinbuchstabe} other {Mindestens # Kleinbuchstaben}}",
   "auth.password_rule.min_uppercase": "{count, plural, one {Mindestens ein Großbuchstabe} other {Mindestens # Großbuchstaben}}",

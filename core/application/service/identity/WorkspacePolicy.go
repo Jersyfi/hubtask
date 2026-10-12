@@ -230,6 +230,54 @@ func (WorkspaceWriter) applyLegal(
 		})
 		links = links.With(name, checked)
 	}
+	return applyTermsVersion(resolved, links, sent, moved)
+}
+
+// applyTermsVersion folds the terms' version in once the links are settled, because the version
+// belongs to the terms link the workspace holds after this patch, not to the one in force before
+// it: a workspace setting its own link and the installation's version number in one save means
+// its own link with that version.
+func applyTermsVersion(
+	resolved ResolvedPolicy, links domain.LegalLinks, sent map[domain.LegalLink]string,
+	moved []domain.FieldChange,
+) (domain.LegalLinks, []domain.FieldChange, error) {
+	if raw, held := sent[domain.LinkTermsVersion]; held {
+		checked, err := domain.ValidTermsVersion(raw)
+		if err != nil {
+			return domain.LegalLinks{}, nil, err
+		}
+		inForce := resolved.Legal.TermsVersion
+		switch origin := resolved.LegalLock[domain.LinkTermsVersion]; {
+		case origin != domain.LockNone:
+			if checked != inForce {
+				return domain.LegalLinks{}, nil, shared.ErrValidation.
+					WithDetail("auth.policy_locked").
+					WithParams(map[string]string{"switch": string(domain.LinkTermsVersion), "origin": string(origin)}).
+					WithFields(shared.FieldError{
+						Path:   "/sign_in_policy/" + string(domain.LinkTermsVersion),
+						Code:   "auth.policy_locked",
+						Params: map[string]string{"origin": string(origin)},
+					})
+			}
+		case links.TermsURL == "":
+			// No terms link of its own: the version on screen is the installation's, sent back.
+			if checked != "" && checked != inForce {
+				return domain.LegalLinks{}, nil, domain.TermsVersionWithoutLink()
+			}
+		case checked != links.TermsVersion:
+			moved = append(moved, domain.FieldChange{
+				Field: string(domain.LinkTermsVersion), From: links.TermsVersion, To: checked,
+			})
+			links.TermsVersion = checked
+		}
+	}
+	if links.TermsURL == "" && links.TermsVersion != "" {
+		// The workspace gave up its own terms: their version goes with them.
+		moved = append(moved, domain.FieldChange{
+			Field: string(domain.LinkTermsVersion), From: links.TermsVersion, To: "",
+		})
+		links.TermsVersion = ""
+	}
 	return links, moved, nil
 }
 
@@ -269,7 +317,7 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 	}
 
 	legal := usecase.Output{}
-	for _, name := range domain.LegalLinkNames() {
+	for _, name := range domain.LegalSettingNames() {
 		out := usecase.Output{
 			"value":        resolved.Legal.Of(name),
 			"installation": resolved.InstallationLegal.Of(name),
@@ -417,7 +465,7 @@ func policyPatchFrom(sent map[string]any) (WorkspacePolicyChange, error) {
 		change.Policy.Methods = &methods
 	}
 
-	for _, name := range domain.LegalLinkNames() {
+	for _, name := range domain.LegalSettingNames() {
 		if raw, held := sent[string(name)]; held && raw != nil {
 			value, isString := raw.(string)
 			if !isString {

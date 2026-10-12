@@ -403,6 +403,53 @@ func TestTheRegisterIsNotListedToSomebodyItDoesNotName(t *testing.T) {
 	}
 }
 
+// The terms' version belongs to the terms link: never beside none, locked exactly when the link is,
+// and answered with the link's lock whatever its own entry claimed (UC-ID-19).
+func TestTheInstallationsTermsVersionGoesWithItsLink(t *testing.T) {
+	level, err := instanceLevelFrom(usecase.Input{"legal": map[string]any{
+		"terms_url":     map[string]any{"value": "https://host.example/terms", "locked": true},
+		"terms_version": map[string]any{"value": " 3 ", "locked": false},
+	}})
+	if err != nil {
+		t.Fatalf("the document was refused: %v", err)
+	}
+	if level.Legal.Links.TermsVersion != "3" || !level.Legal.Locks[identity.LinkTermsVersion] {
+		t.Errorf("the version reads %q, locked %v", level.Legal.Links.TermsVersion,
+			level.Legal.Locks[identity.LinkTermsVersion])
+	}
+
+	open, err := instanceLevelFrom(usecase.Input{"legal": map[string]any{
+		"terms_url":     map[string]any{"value": "https://host.example/terms", "locked": false},
+		"terms_version": map[string]any{"value": "3", "locked": true},
+	}})
+	if err != nil {
+		t.Fatalf("the document was refused: %v", err)
+	}
+	if open.Legal.Locks[identity.LinkTermsVersion] {
+		t.Error("the version was locked on its own while its link is open")
+	}
+	projected, _ := instanceLevelOutput(open)["legal"].(usecase.Output)
+	if entry, _ := projected["terms_version"].(usecase.Output); entry["locked"] != false || entry["value"] != "3" {
+		t.Errorf("the version is projected as %v", entry)
+	}
+
+	for name, wrong := range map[string]usecase.Input{
+		"auth.terms_version_without_link": {"legal": map[string]any{
+			"terms_version": map[string]any{"value": "3"},
+		}},
+		"auth.terms_version_invalid": {"legal": map[string]any{
+			"terms_url":     map[string]any{"value": "https://host.example/terms"},
+			"terms_version": map[string]any{"value": "3\n4"},
+		}},
+	} {
+		_, err := instanceLevelFrom(wrong)
+		var problem *shared.Error
+		if !errors.As(err, &problem) || problem.DetailCode != name {
+			t.Errorf("%v answered %v, want %s", wrong, err, name)
+		}
+	}
+}
+
 // The document a `PUT` carries is read into the level, and a value of the wrong kind is refused
 // against its own field rather than silently dropped.
 func TestTheLevelIsReadFromTheDocument(t *testing.T) {
@@ -495,11 +542,11 @@ func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 		t.Errorf("an undecided switch carries a value: %v", undecided)
 	}
 
-	// The four legal links, for the same reason: a screen drawing only what somebody filled in
-	// never mentions terms or an accessibility statement.
+	// The four legal links and the terms' version, for the same reason: a screen drawing only what
+	// somebody filled in never mentions terms or an accessibility statement.
 	legal, _ := out["legal"].(usecase.Output)
-	if len(legal) != len(identity.LegalLinkNames()) {
-		t.Errorf("the projection answers %d links, want %d", len(legal), len(identity.LegalLinkNames()))
+	if len(legal) != len(identity.LegalSettingNames()) {
+		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LegalSettingNames()))
 	}
 
 	if _, held := out["blocklist_file"]; held {

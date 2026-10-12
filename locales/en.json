@@ -228,6 +228,8 @@
   "auth.legal_url_invalid": "That is not a web address. Use the whole address, starting with https://.",
   "auth.legal_url_scheme": "A link here has to start with https:// or http://.",
   "auth.legal_url_too_long": "That address is too long.",
+  "auth.terms_version_invalid": "A version is one line of at most 64 characters.",
+  "auth.terms_version_without_link": "A version belongs to terms of use of your own. Add the link to your terms first.",
   "auth.step_up_required": "This needs you to prove it is you first, with whatever your account has: your password, a code from your authenticator, a recovery code, or a fresh sign-in at your provider.",
   "auth.step_up_method_required": "Confirm one way: your password, a code from your authenticator, a recovery code, or your provider - one of them, never two.",
   "auth.step_up_no_provider": "This account is not connected to a provider that is switched on in this workspace, so it cannot confirm through one.",

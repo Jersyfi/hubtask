@@ -13727,7 +13727,8 @@
           "imprint_url",
           "privacy_url",
           "terms_url",
-          "accessibility_url"
+          "accessibility_url",
+          "terms_version"
         ],
         "properties": {
           "imprint_url": {

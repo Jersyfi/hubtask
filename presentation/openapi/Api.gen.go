@@ -6736,7 +6736,7 @@ type LegalPolicySettings struct {
 	TermsUrl         SignInPolicyText `json:"terms_url"`
 
 	// TermsVersion The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.
-	TermsVersion *SignInPolicyText `json:"terms_version,omitempty"`
+	TermsVersion SignInPolicyText `json:"terms_version"`
 }
 
 // LinkCompletion defines model for LinkCompletion.

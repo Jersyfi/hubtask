@@ -29,11 +29,22 @@ const (
 	LinkPrivacy       LegalLink = "privacy_url"
 	LinkTerms         LegalLink = "terms_url"
 	LinkAccessibility LegalLink = "accessibility_url"
+
+	// LinkTermsVersion is not a link but the terms link's version (UC-ID-19). It is set, stored
+	// and locked beside the four, and it resolves with the terms link rather than on its own:
+	// from the level that set the link, under the link's lock - a workspace never puts its own
+	// version on somebody else's terms.
+	LinkTermsVersion LegalLink = "terms_version"
 )
 
 // LegalLinkNames is the four, in the order a footer draws them.
 func LegalLinkNames() []LegalLink {
 	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkAccessibility}
+}
+
+// LegalSettingNames is the four links and the terms' version: everything a level sets about them.
+func LegalSettingNames() []LegalLink {
+	return append(LegalLinkNames(), LinkTermsVersion)
 }
 
 // MaxLegalURLLength bounds a stored link. Long enough for any real address, short enough that the
@@ -47,6 +58,11 @@ type LegalLinks struct {
 	PrivacyURL       string
 	TermsURL         string
 	AccessibilityURL string
+	// TermsVersion is the terms link's version, empty where none was given.
+	TermsVersion string
+	// TermsSetBy is who set the terms link in force - filled by EffectiveLegal, empty in a level's
+	// own layer and wherever no terms link is in force.
+	TermsSetBy TermsSetBy
 }
 
 // Of answers one link by name.
@@ -60,6 +76,8 @@ func (l LegalLinks) Of(name LegalLink) string {
 		return l.TermsURL
 	case LinkAccessibility:
 		return l.AccessibilityURL
+	case LinkTermsVersion:
+		return l.TermsVersion
 	}
 	return ""
 }
@@ -75,6 +93,8 @@ func (l LegalLinks) With(name LegalLink, value string) LegalLinks {
 		l.TermsURL = value
 	case LinkAccessibility:
 		l.AccessibilityURL = value
+	case LinkTermsVersion:
+		l.TermsVersion = value
 	}
 	return l
 }
@@ -82,7 +102,7 @@ func (l LegalLinks) With(name LegalLink, value string) LegalLinks {
 // IsEmpty reports whether there is nothing to draw at all - which is what a private installation
 // answers, and the reason the footer can have no line rather than an empty one.
 func (l LegalLinks) IsEmpty() bool {
-	for _, name := range LegalLinkNames() {
+	for _, name := range LegalSettingNames() {
 		if l.Of(name) != "" {
 			return false
 		}
@@ -117,12 +137,34 @@ func EffectiveLegal(instance, workspace LegalLayer) (LegalLinks, map[LegalLink]L
 		}
 		resolved = resolved.With(name, instance.Links.Of(name))
 	}
+
+	// The version is the terms link's, from wherever the link came from, and under its lock.
+	source := LegalSourceOf(LinkTerms, instance, workspace)
+	switch source {
+	case SourceInstance:
+		resolved.TermsVersion = instance.Links.TermsVersion
+	case SourceWorkspace:
+		resolved.TermsVersion = workspace.Links.TermsVersion
+	}
+	if resolved.TermsURL == "" {
+		// A lock that pinned "no link" pins no terms either.
+		resolved.TermsVersion = ""
+	} else {
+		resolved.TermsSetBy = termsSetByOf(source)
+	}
+	if instance.Locks[LinkTerms] {
+		locks[LinkTermsVersion] = LockInstance
+	}
 	return resolved, locks
 }
 
 // LegalSourceOf answers which level a link in force came from, EffectiveLegal's order (P-06). A
 // lock is the installation's decision even where it pinned "no link".
 func LegalSourceOf(name LegalLink, instance, workspace LegalLayer) PolicySource {
+	if name == LinkTermsVersion {
+		// The version has no source of its own: it is the terms link's.
+		name = LinkTerms
+	}
 	switch {
 	case instance.Locks[name]:
 		return SourceInstance
@@ -140,6 +182,9 @@ func LegalSourceOf(name LegalLink, instance, workspace LegalLayer) PolicySource 
 // `javascript:` in an administrator's hands is a cross-site script in everybody else's. The empty
 // string passes, because "no link" is an answer.
 func ValidLegalURL(name LegalLink, raw string) (string, error) {
+	if name == LinkTermsVersion {
+		return ValidTermsVersion(raw)
+	}
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return "", nil

@@ -10251,7 +10251,7 @@ components:
     LegalPolicySettings:
       type: object
       description: The four links, each with its own lock - B2C locks them, B2B leaves them open.
-      required: [imprint_url, privacy_url, terms_url, accessibility_url]
+      required: [imprint_url, privacy_url, terms_url, accessibility_url, terms_version]
       properties:
         imprint_url: { $ref: "#/components/schemas/SignInPolicyText" }
         privacy_url: { $ref: "#/components/schemas/SignInPolicyText" }
