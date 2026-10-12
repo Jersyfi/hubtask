@@ -62,6 +62,10 @@ What deliberately is **not** in this milestone:
     *Only people invited here* or *Anyone from these organisations* (Workspace domains from a
     verified `hd`), never *Anyone this provider knows*; a personal account is admitted only by
     invitation — UC-ID-09 check 1, UC-ID-11 check 2, ADR-0071 §2. Built by SC-02.
+13. **The Google and Microsoft marks are reproduced from their published files** (the owner,
+    2026-10-12, #1292): each file downloaded once from its owner's branding guidelines, its paths
+    copied unchanged, the file itself not committed; THIRD-PARTY-LICENSES names the file and the
+    guideline — ADR-0069 §2, UC-ID-09 check 4. Built by SC-14.
 
 ---
 
