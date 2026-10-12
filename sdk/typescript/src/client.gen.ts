@@ -672,6 +672,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:link", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Agree to the terms of use and finish the sign-in
+   * Public: sent without a bearer where the client holds none. */
+  agreeToTerms(body: NonNullable<operations["agreeToTerms"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["agreeToTerms"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:agree-terms", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Change the password of the signed-in account */
   changePassword(body: NonNullable<operations["changePassword"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
     return this.call("POST", "/auth/password", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "void", options.signal);

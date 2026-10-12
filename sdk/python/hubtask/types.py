@@ -180,6 +180,8 @@ class SessionRefresh(TypedDict, total=False):
 class InvitationRedemption(TypedDict, total=False):
     token: Required[str]
     password: Required[str]
+    terms_url: str | None
+    terms_version: str | None
 
 class InstallationSetUp(TypedDict, total=False):
     code: Required[str]
@@ -222,6 +224,8 @@ class OidcStart(TypedDict, total=False):
     login_hint: str | None
     invitation_token: str | None
     connect_token: str | None
+    terms_url: str | None
+    terms_version: str | None
 
 class OidcAuthorization(TypedDict, total=False):
     """Where to send the browser, and the handle to finish with."""
@@ -487,6 +491,7 @@ class LegalPolicySettings(TypedDict, total=False):
     privacy_url: Required["SignInPolicyText"]
     terms_url: Required["SignInPolicyText"]
     accessibility_url: Required["SignInPolicyText"]
+    terms_version: "SignInPolicyText"
 
 class WorkspaceUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here."""
@@ -519,6 +524,7 @@ class SignInPolicyChange(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    terms_version: str
     managed_accounts: bool
     rotation_from: Literal["now"]
 
@@ -712,6 +718,8 @@ class LegalLinks(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    terms_version: str
+    terms_set_by: Literal["INSTALLATION", "WORKSPACE"]
 
 class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
@@ -727,10 +735,22 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
     password_rules: "PasswordRules"
     email: str | None
     provider_name: str | None
+    terms: "TermsInForce"
+
+class TermsInForce(TypedDict, total=False):
+    """The terms of use a person is asked to agree to."""
+    url: Required[str]
+    version: str | None
+    set_by: Required[Literal["INSTALLATION", "WORKSPACE"]]
+
+class TermsAgreement(TypedDict, total=False):
+    pending_token: Required[str]
+    terms_url: Required[str]
+    terms_version: str | None
 
 class LinkCompletion(TypedDict, total=False):
     pending_token: Required[str]
