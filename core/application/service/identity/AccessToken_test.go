@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
 // The scopes this build would declare. Two of them, because the point of the check is that a
@@ -459,5 +460,49 @@ func TestTheAgentCapabilityIsRefusedWhereItIsNotDeclared(t *testing.T) {
 	_, err := CreateAccessToken{Writer: writer}.Execute(t.Context(), holder(), command)
 	if err == nil {
 		t.Fatal("a scope this build does not declare was accepted")
+	}
+}
+
+// UC-ID-17 check 3, the service's half: a token with an administrative scope is minted only behind
+// a fresh proof. Without one - or with one the verifier does not accept - nothing is stored and
+// nothing recorded; with one, the token is minted carrying the scope.
+func TestAnAdministrativeScopeIsMintedOnlyBehindAFreshProof(t *testing.T) {
+	accounts, auth, sink := newAccounts(), &authorizer{}, &auditSink{}
+	writer := tokenWriter(t, accounts, auth, sink)
+	writer.KnownScopes = append(slices.Clone(buildScopes), "admin:tenants")
+	proof := &stepUpFake{}
+	writer.StepUp = proof
+	command := validCommand()
+	command.Scopes = []string{"items:read", "admin:tenants"}
+	store := writer.Tokens.(*tokens)
+
+	for name, token := range map[string]string{"no proof": "", "a proof not accepted": "hbt_stu_stale"} {
+		command.StepUpToken = token
+		_, err := CreateAccessToken{Writer: writer}.Execute(t.Context(), holder(), command)
+		if !errors.Is(err, shared.ErrForbidden) || detailOf(err) != stepup.CodeRequired {
+			t.Errorf("%s answered %v, want the step-up demand", name, err)
+		}
+	}
+	if len(store.minted) != 0 || len(sink.entries) != 0 {
+		t.Fatalf("a refused mint stored %d rows and %d entries", len(store.minted), len(sink.entries))
+	}
+
+	proof.satisfied = true
+	command.StepUpToken = "hbt_stu_fresh"
+	minted, err := CreateAccessToken{Writer: writer}.Execute(t.Context(), holder(), command)
+	if err != nil {
+		t.Fatalf("minting with the proof: %v", err)
+	}
+	if !slices.Contains(minted.Token.Scopes, "admin:tenants") {
+		t.Errorf("the token carries %v", minted.Token.Scopes)
+	}
+	if got := proof.presented[len(proof.presented)-1]; got != "hbt_stu_fresh" {
+		t.Errorf("the proof presented was %q", got)
+	}
+
+	// An ordinary scope asks for nothing: the proof is the administrative scope's alone.
+	proof.satisfied = false
+	if _, err := (CreateAccessToken{Writer: writer}).Execute(t.Context(), holder(), validCommand()); err != nil {
+		t.Errorf("an ordinary token was refused: %v", err)
 	}
 }

@@ -5,6 +5,7 @@ package identity
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -437,6 +438,99 @@ func TestUnderDomainsAMemberConnectsWithThePasswordInsideAndOutsideTheList(t *te
 			})
 			if err != nil || next.Pair == nil || len(f.external.links) != 1 {
 				t.Errorf("the password answered (%+v, %v) with links %v", next, err, f.external.links)
+			}
+		})
+	}
+}
+
+// UC-ID-10 check 2: the connection is recorded in the trail as a link, naming the provider and
+// carrying no address - not in a change, not in a label, nowhere in the entry.
+func TestTheLinkEntryNamesTheProviderAndCarriesNoAddress(t *testing.T) {
+	f := linkFixture(t, false)
+	result, err := arrive(t, f)
+	if err != nil || result.Challenge == nil {
+		t.Fatalf("arriving: (%+v, %v)", result, err)
+	}
+	if _, err := (CompleteLink{Writer: f.writer}).Execute(t.Context(), CompleteLinkCommand{
+		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+	}); err != nil {
+		t.Fatalf("the right password was refused: %v", err)
+	}
+
+	linked := 0
+	for _, entry := range f.session.audit.entries {
+		if entry.Action != OidcLinkedAction {
+			continue
+		}
+		linked++
+		issuer, _ := entry.Changes["issuer"].(map[string]any)
+		if issuer["to"] != f.provider.Issuer {
+			t.Errorf("the link entry names the provider as %v, want %q", issuer["to"], f.provider.Issuer)
+		}
+		if entry.TargetID != account {
+			t.Errorf("the link entry targets %s, want the account", entry.TargetID)
+		}
+		if rendered := fmt.Sprintf("%+v", entry); strings.Contains(rendered, "bert@example.org") {
+			t.Errorf("the link entry carries the address: %s", rendered)
+		}
+	}
+	if linked != 1 {
+		t.Fatalf("the trail holds %d link entries, want one", linked)
+	}
+}
+
+// UC-ID-10 check 5: the LINK step is asked for an installation's provider a workspace took as much
+// as for its own - in every admission mode that lets the address through - and only the account's
+// password connects the installation's row to it.
+func TestAnInstallationsProviderMeetsTheLinkStepToo(t *testing.T) {
+	installationRow := shared.ID("01936f2a-7c1e-7000-8000-0000000000c5")
+	for _, mode := range []domain.Provisioning{
+		domain.ProvisionDomains, domain.ProvisionAny, domain.ProvisionInvitedOnly,
+	} {
+		t.Run(string(mode), func(t *testing.T) {
+			f := linkFixture(t, false)
+			// The installation's row is the workspace's only way in besides the password.
+			f.store.rows = nil
+			configureFixtureProvider(t, f, installationRow, "", "https://login.platform.example", now)
+			f.store.rows[0].Provisioning = mode
+			workspaces := &workspaceStore{row: domain.Workspace{
+				Tenant: domain.Tenant{ID: tenant, Slug: "acme", Status: domain.TenantActive},
+			}}
+			workspaces.row.Settings = workspaces.row.Settings.WithOffer(installationRow, true)
+			f.writer.Workspaces = workspaces
+
+			authorization, err := StartOidcSignIn{Writer: f.writer}.
+				Execute(t.Context(), StartOidcSignInCommand{ProviderID: installationRow})
+			if err != nil {
+				t.Fatalf("starting at the installation's provider: %v", err)
+			}
+			result, err := CompleteOidcSignIn{Writer: f.writer}.Execute(t.Context(),
+				CompleteOidcSignInCommand{Code: "x", State: authorization.State})
+			if err != nil {
+				t.Fatalf("the arrival was refused rather than asked for the account's proof: %v", err)
+			}
+			if result.Pair != nil {
+				t.Fatal("the installation's provider opened the account on its word alone")
+			}
+			if result.Challenge == nil || len(result.Challenge.Methods) != 1 ||
+				result.Challenge.Methods[0] != methodLink {
+				t.Fatalf("the arrival answered %+v, want one LINK challenge", result.Challenge)
+			}
+			if len(f.external.links) != 0 {
+				t.Fatalf("the provider was connected before the account's proof: %v", f.external.links)
+			}
+
+			done, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+			})
+			if err != nil {
+				t.Fatalf("the right password was refused: %v", err)
+			}
+			if done.Pair == nil || done.Pair.Session.AccountID != account {
+				t.Fatalf("the step answered %+v, want a session for the account", done)
+			}
+			if got := f.external.bySubject[linkKey(installationRow, "attacker-made-subject")]; got.ID != account {
+				t.Errorf("the installation's row is connected to %q, want the account", got.ID)
 			}
 		})
 	}

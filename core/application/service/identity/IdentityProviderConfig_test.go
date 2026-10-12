@@ -6,7 +6,9 @@ package identity
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -573,5 +575,103 @@ func TestChangingAWayInAsksForAFreshProof(t *testing.T) {
 	if err := (RemoveIdentityProvider{Writer: f.writer}).
 		Execute(t.Context(), providerActor(), stored.ID, ""); err == nil {
 		t.Error("a provider was removed without a fresh proof")
+	}
+}
+
+// UC-ID-10 check 7, the change and the switch: replacing a provider that is already configured, and
+// taking the installation's provider as a way in here, are refused without a fresh proof and change
+// nothing; with one they go through.
+func TestChangingAndOfferingAWayInAskForAFreshProof(t *testing.T) {
+	f := newOfferFixture(time.Date(2026, 9, 30, 10, 0, 0, 0, time.UTC))
+	own := f.own(t, true)
+	offered := f.installation(t)
+	proof := &stepUpFake{}
+	f.writer.StepUp = proof
+	f.offer.Writer.StepUp = proof
+
+	change := configureCommand()
+	change.ID = own
+	change.DisplayName = "Renamed"
+	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).
+		Execute(t.Context(), providerActor(), change); err == nil {
+		t.Error("a provider was changed without a fresh proof")
+	}
+	if _, err := f.offer.Execute(t.Context(), providerActor(), offered, true, ""); err == nil {
+		t.Error("the installation's provider was taken without a fresh proof")
+	}
+	for _, row := range f.store.rows {
+		if row.ID == own && (row.DisplayName != "Example" || row.Version != 1) {
+			t.Errorf("a refused change was written: %+v", row)
+		}
+	}
+	if f.workspaces.row.Settings.Offers(offered) || len(f.workspaces.updates) != 0 {
+		t.Error("a refused switch was written")
+	}
+	if len(f.session.audit.entries) != 0 {
+		t.Errorf("refused changes were recorded: %d entries", len(f.session.audit.entries))
+	}
+
+	proof.satisfied = true
+	change.StepUpToken = "hbt_stu_fresh"
+	changed, err := (ConfigureIdentityProvider{Writer: f.writer}).Execute(t.Context(), providerActor(), change)
+	if err != nil {
+		t.Fatalf("changing with the proof: %v", err)
+	}
+	if changed.DisplayName != "Renamed" {
+		t.Errorf("the change answered %q", changed.DisplayName)
+	}
+	if _, err := f.offer.Execute(t.Context(), providerActor(), offered, true, "hbt_stu_fresh"); err != nil {
+		t.Fatalf("taking the installation's provider with the proof: %v", err)
+	}
+	if !f.workspaces.row.Settings.Offers(offered) {
+		t.Error("the proven switch was not written")
+	}
+}
+
+// UC-ID-11 check 7, the trail's half: configuring and changing a provider are recorded with the
+// provider and its admission mode, and the client secret is in neither entry.
+func TestTheConfiguringEntryCarriesTheModeAndNeverTheSecret(t *testing.T) {
+	f := newProviderFixture(time.Date(2026, 9, 30, 10, 0, 0, 0, time.UTC))
+
+	command := configureCommand()
+	command.Provisioning = "INVITED_ONLY"
+	command.ClientSecret = secret.New("first-client-secret")
+	stored, err := (ConfigureIdentityProvider{Writer: f.writer}).Execute(t.Context(), providerActor(), command)
+	if err != nil {
+		t.Fatalf("configuring: %v", err)
+	}
+	change := configureCommand()
+	change.ID = stored.ID
+	change.Provisioning = "DOMAINS"
+	change.ClientSecret = secret.New("second-client-secret")
+	if _, err := (ConfigureIdentityProvider{Writer: f.writer}).Execute(t.Context(), providerActor(), change); err != nil {
+		t.Fatalf("changing: %v", err)
+	}
+
+	if len(f.session.audit.entries) != 2 {
+		t.Fatalf("the trail holds %d entries, want 2", len(f.session.audit.entries))
+	}
+	for i, want := range []string{"INVITED_ONLY", "DOMAINS"} {
+		entry := f.session.audit.entries[i]
+		if entry.Action != IdentityProviderConfiguredAction || entry.TargetID != stored.ID {
+			t.Errorf("entry %d is %q on %s", i, entry.Action, entry.TargetID)
+		}
+		mode, _ := entry.Changes["provisioning"].(map[string]any)
+		if mode["to"] != want {
+			t.Errorf("entry %d records the mode as %v, want %s", i, mode["to"], want)
+		}
+		issuer, _ := entry.Changes["issuer"].(map[string]any)
+		if issuer["to"] != "https://login.example.org" {
+			t.Errorf("entry %d names the provider as %v", i, issuer["to"])
+		}
+		for field := range entry.Changes {
+			if strings.Contains(field, "secret") {
+				t.Errorf("entry %d carries the field %q", i, field)
+			}
+		}
+		rendered := fmt.Sprintf("%+v", entry)
+		if strings.Contains(rendered, "first-client-secret") || strings.Contains(rendered, "second-client-secret") {
+			t.Errorf("entry %d carries the client secret: %s", i, rendered)
+		}
 	}
 }
