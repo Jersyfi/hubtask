@@ -1104,12 +1104,15 @@ export class SyncEngine {
     // a reload is invisible until it lands, and lands as `ready` like the first.
     if (entry.state.status !== 'ready') this.#publish(entry, { status: 'loading' });
     try {
-      const options = this.#options(request);
       // A document makes it a `POST`, and nothing else about it changes. It still reads: no cache
-      // is dropped here, because a read that invalidated would make a board reload itself.
-      const answer = await this.#attempt(() => (request.body === undefined
-        ? this.#transport.get<T>(request.path, options)
-        : this.#transport.send<T>('POST', request.path, request.body, options)));
+      // is dropped here, because a read that invalidated would make a board reload itself. The
+      // options are taken inside the call, so the retry after an exchange carries the new bearer.
+      const answer = await this.#attempt(() => {
+        const options = this.#options(request);
+        return request.body === undefined
+          ? this.#transport.get<T>(request.path, options)
+          : this.#transport.send<T>('POST', request.path, request.body, options);
+      });
       entry.etag = answer.etag;
       this.#publish(entry, {
         status: 'ready',
