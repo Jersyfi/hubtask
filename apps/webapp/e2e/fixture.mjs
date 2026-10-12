@@ -99,7 +99,7 @@ const preset = (kind, provisioning, extra = {}) => ({
 
 /** The three presets as `GET /identity-provider-presets` answers them today (UC-ID-11). */
 export const PROVIDER_PRESETS = [
-  preset('GOOGLE', ['INVITED_ONLY'], { directory_claim: 'hd', particular: 'identity_provider.preset.google.particular' }),
+  preset('GOOGLE', ['INVITED_ONLY', 'DOMAINS'], { directory_claim: 'hd', particular: 'identity_provider.preset.google.particular' }),
   preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid' }),
   preset('GENERIC', ['INVITED_ONLY', 'DOMAINS', 'ANY']),
 ];

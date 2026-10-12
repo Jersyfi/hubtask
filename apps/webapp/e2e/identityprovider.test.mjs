@@ -32,6 +32,7 @@ const WORDS = {
     newcomers: 'New people get', nothing: 'No access until an administrator gives it',
     group: 'Membership of the group Staff', redirect: 'Redirect address', copy: 'Copy the address',
     issuer: 'Issuer', client: 'Client id', secret: 'Client secret',
+    workspaceDomains: 'Google Workspace domains that may sign in',
   },
   de: {
     add: 'Anbieter hinzufügen', kind: 'Welcher Anbieter', save: 'Anbieter speichern',
@@ -40,6 +41,7 @@ const WORDS = {
     nothing: 'Keinen Zugang, bis eine Administratorin oder ein Administrator ihn gibt',
     group: 'Mitgliedschaft in der Gruppe Staff', redirect: 'Weiterleitungsadresse', copy: 'Adresse kopieren',
     issuer: 'Aussteller', client: 'Client-ID', secret: 'Client-Geheimnis',
+    workspaceDomains: 'Google-Workspace-Domänen, die sich anmelden dürfen',
   },
 };
 
@@ -110,9 +112,12 @@ for (const locale of ['en', 'de']) {
     await kind.selectOption('GENERIC');
     assert.deepEqual(await optionsOf(admission), words.modes);
 
-    // Google: only what the preset permits today (check 2).
+    // Google: never *Anyone this provider knows*; by organisation it asks for Workspace domains,
+    // which a personal account belongs to none of (checks 2 and 4).
     await kind.selectOption('GOOGLE');
-    assert.deepEqual(await optionsOf(admission), [words.modes[0]]);
+    assert.deepEqual(await optionsOf(admission), [words.modes[0], words.modes[1]]);
+    await admission.selectOption('DOMAINS');
+    assert.equal(await form.getByLabel(words.workspaceDomains).count(), 1);
 
     // The contract's values are never on screen, in any preset's form.
     for (const each of ['GENERIC', 'MICROSOFT', 'GOOGLE']) {
