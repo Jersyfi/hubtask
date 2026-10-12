@@ -235,6 +235,12 @@ func TestAnInvitationWithMailQueuesTheMailAndAnswersNoLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
+	// The queue is shared by the whole package: a mail left pending here would be claimed and
+	// sent by another test's worker.
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(),
+			`DELETE FROM job WHERE kind = 'notification.invitation' AND dedupe_key = $1`, out["id"].(string))
+	})
 	if _, linked := out["invitation_link"]; linked {
 		t.Error("a link answered where the mail carries the invitation")
 	}
