@@ -13,6 +13,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -220,10 +221,97 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(link))
 		}
 	}
+	for _, name := range integration.AiSwitches() {
+		if aiValueOf(before.Ai, name) != aiValueOf(after.Ai, name) ||
+			before.Ai.Locks[name] != after.Ai.Locks[name] {
+			moved = append(moved, "ai."+string(name))
+		}
+	}
 	if before.BlocklistFile != after.BlocklistFile {
 		moved = append(moved, "blocklist_file")
 	}
 	return moved
+}
+
+// aiValueOf is one key of the AI area as text, empty where the level decided nothing.
+func aiValueOf(layer integration.AiLayer, name integration.AiSwitch) string {
+	switch name {
+	case integration.AiSwitchSources:
+		if layer.Sources != nil {
+			return string(*layer.Sources)
+		}
+	case integration.AiSwitchMinJurisdiction:
+		if layer.MinJurisdiction != nil {
+			return string(*layer.MinJurisdiction)
+		}
+	}
+	return ""
+}
+
+// aiAreaOutput is the AI area, every key decided or not, for the switches' reason.
+func aiAreaOutput(layer integration.AiLayer) usecase.Output {
+	area := usecase.Output{}
+	for _, name := range integration.AiSwitches() {
+		value := aiValueOf(layer, name)
+		entry := usecase.Output{"set": value != "", "locked": layer.Locks[name]}
+		if value != "" {
+			entry["value"] = value
+		}
+		area[string(name)] = entry
+	}
+	return area
+}
+
+// applyAiArea reads the AI area. A value outside its closed set is refused, naming the key; an
+// unknown key is skipped, the `PUT`'s rule for a newer client.
+func applyAiArea(level *identityrepo.InstanceLevel, raw any) error {
+	sent, isObject := raw.(map[string]any)
+	if !isObject {
+		return nil
+	}
+	for name, entry := range sent {
+		field, isObject := entry.(map[string]any)
+		if !isObject {
+			return refusedAiValue(name)
+		}
+		locked, _ := field["locked"].(bool)
+		value, held := field["value"]
+		text, isText := value.(string)
+		if held && value != nil && !isText {
+			return refusedAiValue(name)
+		}
+		switch integration.AiSwitch(name) {
+		case integration.AiSwitchSources:
+			if isText {
+				sources := integration.AiSources(text)
+				if !sources.Valid() {
+					return refusedAiValue(name)
+				}
+				level.Ai.Sources = &sources
+			}
+		case integration.AiSwitchMinJurisdiction:
+			if isText {
+				floor := integration.AiMinJurisdiction(text)
+				if !floor.Valid() {
+					return refusedAiValue(name)
+				}
+				level.Ai.MinJurisdiction = &floor
+			}
+		default:
+			continue
+		}
+		if locked {
+			level.Ai.Locks[integration.AiSwitch(name)] = true
+		}
+	}
+	return nil
+}
+
+func refusedAiValue(name string) error {
+	return shared.ErrValidation.
+		WithDetail("auth.policy_value_invalid").
+		WithParams(map[string]string{"switch": "ai." + name}).
+		WithFields(shared.FieldError{Path: "/ai/" + name, Code: "auth.policy_value_invalid"})
 }
 
 // ListOperators answers the register.
@@ -487,6 +575,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		"legal":                 legal,
 		"localisation":          localisation,
 		"quotas":                quotas,
+		"ai":                    aiAreaOutput(level.Ai),
 		"source":                level.Source,
 		"is_enforced_from_file": level.IsEnforcedFromFile,
 	}
@@ -614,6 +703,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
 		Quotas: identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
+		Ai:     integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
 	}
 
 	sent, _ := in["sign_in"].(map[string]any)
@@ -635,6 +725,9 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		return identityrepo.InstanceLevel{}, err
 	}
 	if err := applyQuotaDefaults(&level, in["quotas"]); err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
+	if err := applyAiArea(&level, in["ai"]); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}
 
@@ -770,7 +863,7 @@ func (h ReadInstanceSettings) Descriptor() usecase.Descriptor {
 		Name: ReadInstanceSettingsName,
 		Summary: "Answers what this installation has decided for every workspace on it: the " +
 			"sign-in switches, which of them are locked, the legal links, the localisation " +
-			"defaults and the quota ceilings. Every key of every area, decided or not. Only " +
+			"defaults, the quota ceilings and which AI workspaces may use. Every key of every area, decided or not. Only " +
 			"what was decided - a level that answered the product's defaults for everything " +
 			"else would be one nobody could tell apart from an operator who had chosen them.",
 		SideEffects: "None. Reads only.",
@@ -830,6 +923,14 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Description: "One ceiling per quota, each `{value, locked}` - the middle level " +
 					"of Effective(product, instance, plan, workspace). A workspace's own still " +
 					"wins unless the ceiling is locked; 0 is unlimited and absent is undecided.",
+			},
+			{
+				Name: "ai", Kind: usecase.KindObject,
+				Description: "`sources` (NONE, OFFERED, OWN, EITHER) - which AI a workspace may " +
+					"use - and `min_jurisdiction` (ANY, ADEQUACY, EEA, SELF_HOSTED) - the least a " +
+					"workspace's own model must declare - each `{value, locked}`. A lock holds a " +
+					"workspace out of a source and never in one: no AI is always its own choice, " +
+					"and no value here switches processing on.",
 			},
 			{
 				Name: "blocklist_file", Kind: usecase.KindString,

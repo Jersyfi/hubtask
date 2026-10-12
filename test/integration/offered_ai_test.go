@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
@@ -198,4 +199,54 @@ func TestAWorkspacesChoiceIsItsOwnAndOutlivesAWithdrawnModelAsNothing(t *testing
 			t.Errorf("choosing a withdrawn model answered %v", err)
 		}
 	})
+}
+
+// The AI area through the real table: written, read back with its locks, and cleared by a write
+// that no longer decides it - the area is in the list a write empties.
+func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	instance := postgres.NewInstanceSettingRepository()
+
+	read := func() identityrepo.InstanceLevel {
+		var level identityrepo.InstanceLevel
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			var err error
+			level, err = instance.Read(ctx)
+			return err
+		}); err != nil {
+			t.Fatalf("reading the level: %v", err)
+		}
+		return level
+	}
+	write := func(level identityrepo.InstanceLevel) {
+		inSystem(t, uow, func(ctx context.Context) error {
+			return instance.Write(ctx, level, "", time.Now().UTC())
+		})
+	}
+	before := read()
+	t.Cleanup(func() { write(before) })
+
+	sources := domain.AiSourcesOffered
+	withAi := before
+	withAi.Ai = domain.AiLayer{
+		Sources: &sources,
+		Locks:   map[domain.AiSwitch]bool{domain.AiSwitchSources: true, domain.AiSwitchMinJurisdiction: true},
+	}
+	write(withAi)
+
+	got := read()
+	if got.Ai.Sources == nil || *got.Ai.Sources != domain.AiSourcesOffered || !got.Ai.Locks[domain.AiSwitchSources] {
+		t.Errorf("sources came back as %v %v", got.Ai.Sources, got.Ai.Locks)
+	}
+	// A lock with no value locks the product's default, which is written out.
+	if got.Ai.MinJurisdiction == nil || *got.Ai.MinJurisdiction != domain.AiMinAny ||
+		!got.Ai.Locks[domain.AiSwitchMinJurisdiction] {
+		t.Errorf("the locked minimum came back as %v", got.Ai.MinJurisdiction)
+	}
+
+	write(before)
+	if cleared := read(); cleared.Ai.Sources != nil || cleared.Ai.MinJurisdiction != nil {
+		t.Errorf("a write that no longer decides the area left it: %+v", cleared.Ai)
+	}
 }
