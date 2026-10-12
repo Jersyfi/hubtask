@@ -296,6 +296,9 @@ An unverified address comes in nowhere. Then:
 * **A preset with a directory claim ignores `allowed_email_domains`** — two lists that both admit are
   two doors. An empty list under `DOMAINS` admits nobody; domains without directories under such a
   preset admit nobody until a directory is named, and the screen says so.
+* **A directory list narrows `INVITED_ONLY`** for a preset with a directory claim: an
+  authoritative address from a directory not listed is not admitted on the provider's word. An
+  empty list does not narrow.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
 * An account created on arrival holds no role.
@@ -642,7 +645,6 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
 | I-5 | Invitations without mail, providers on the invitation card, terms of use with a `TERMS` step ([UC-ID-14](../usecases/identity/UC-ID-14-invite-people-with-a-role.md), [UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
-| I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
 | I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-9 | The installation's provider secret is not re-sealed by a key rotation ([security.md](./security.md) §16, S-6). |

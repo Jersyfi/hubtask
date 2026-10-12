@@ -243,3 +243,42 @@ func TestTheInvitationLinkAdmitsOnlyWhatInvitedOnlyNeeds(t *testing.T) {
 		t.Error("the invitation's link reads INVITED_ONLY differently from MayAdmitWithProof")
 	}
 }
+
+// A directory list under INVITED_ONLY narrows it (ADR-0071 §4): a platform offering one provider to
+// everybody may still refuse a directory. An empty list does not narrow - the mode's bound is the
+// accounts that already exist - and a second proof the person brings is not narrowed, exactly as
+// under DOMAINS: the list decides who comes in on the provider's word alone.
+func TestADirectoryListNarrowsInvitedOnly(t *testing.T) {
+	const ours = "72f988bf-86f1-41af-91ab-2d7cd011db47"
+	const theirs = "11111111-2222-3333-4444-555555555555"
+	from := func(directory string) Arriving {
+		return Arriving{
+			Email: "ada@acme.example", EmailVerified: true,
+			Directory: directory, AddressAuthoritative: true,
+		}
+	}
+
+	narrowed := microsoftProvider(t, string(ProvisionInvitedOnly), []string{ours}, nil)
+	cases := []struct {
+		name     string
+		provider IdentityProvider
+		arriving Arriving
+		admitted bool
+	}{
+		{"a listed directory", narrowed, from(ours), true},
+		{"a listed directory, written in another case", narrowed, from("72F988BF-86F1-41AF-91AB-2D7CD011DB47"), true},
+		{"a directory not listed", narrowed, from(theirs), false},
+		{"no directory at all", narrowed, from(""), false},
+		{"no list: every authoritative address", microsoftProvider(t, string(ProvisionInvitedOnly), nil, nil), from(theirs), true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.provider.MayAdmit(tc.arriving); got != tc.admitted {
+				t.Errorf("MayAdmit = %v, want %v", got, tc.admitted)
+			}
+			if !tc.provider.MayAdmitWithProof(tc.arriving) {
+				t.Error("the list narrowed an arrival that brings its own proof")
+			}
+		})
+	}
+}

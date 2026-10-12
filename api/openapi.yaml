@@ -9849,6 +9849,9 @@ components:
             `allowed_email_domains` is then not consulted at all. Both providers say why in their
             own documentation: an address is a name the provider reports, a directory is a fact it
             vouches for. Empty admits nobody, exactly as an empty domains list does.
+
+            Under `INVITED_ONLY` a list narrows the mode: somebody from a directory not listed is
+            not signed in on the provider's word. There an empty list narrows nothing.
         created_at: { type: string, format: date-time }
         updated_at: { type: [string, "null"], format: date-time }
         version:

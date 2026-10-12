@@ -26,7 +26,7 @@ const MaxAllowedEmailDomains = 10
 //
 //   - INVITED_ONLY - only somebody who was invited here first. A verified address must meet an
 //     account that already exists; anything else is refused and nothing is created. The mode a
-//     public provider is held to.
+//     public provider is held to. A directory list, where there is one, narrows it.
 //   - DOMAINS - only inside `AllowedEmailDomains`. A verified address in the list comes in - linked
 //     to the account that already holds it, or provisioned where there is none. An address outside
 //     the list is **refused**, which is what makes this different from ANY.
@@ -504,7 +504,12 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 		// Claiming an account that already exists is done on the strength of an address, so the
 		// address has to be one the provider owns the domain of. A personal account with a
 		// verified address at somebody else's domain is precisely the case this refuses.
-		return arriving.AddressAuthoritative
+		//
+		// A directory list narrows the mode (ADR-0071 §4): a platform that offers one provider to
+		// everybody may still refuse one directory. An empty list does not narrow - the bound of
+		// this mode is the accounts that already exist, not a list.
+		return arriving.AddressAuthoritative &&
+			(len(p.AllowedDirectories) == 0 || containsFold(p.AllowedDirectories, arriving.Directory))
 	case ProvisionAny:
 		return true
 	case ProvisionDomains:
