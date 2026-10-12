@@ -1125,7 +1125,7 @@
   "app.instance.suspend": "Stilllegen",
   "app.instance.resume": "Wieder aktivieren",
   "app.instance.providers": "Anmeldeanbieter",
-  "app.instance.providers_intro": "Die Wege hinein, die diese Installation jedem Arbeitsbereich auf ihr anbietet. Angeboten heißt nicht an: Jede Inhaberin entscheidet selbst, ob sie einen davon nimmt, und dieser Bildschirm kann das nicht für sie entscheiden.",
+  "app.instance.providers_intro": "Die Wege hinein, die diese Installation jedem Arbeitsbereich auf ihr anbietet. Angeboten heißt nicht an: Jede Inhaberin entscheidet selbst, ob sie einen davon nimmt - außer wenn die Anmeldewege der Installation mit Anbietern festgelegt sind; dann ist jeder Anbieter eingeschaltet, der nur Eingeladene hereinlässt. Jede Zeile sagt, was gilt.",
   "app.instance.providers_none": "Diese Installation bietet keinen eigenen Anbieter an. Jeder Arbeitsbereich richtet seinen eigenen ein – oder keinen.",
   "app.instance.provider_add": "Anbieter anbieten",
   "app.instance.provider_add_title": "Anbieter anbieten",

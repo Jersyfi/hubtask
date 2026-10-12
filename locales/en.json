@@ -1774,7 +1774,7 @@
   "app.instance.suspend": "Suspend",
   "app.instance.resume": "Resume",
   "app.instance.providers": "Sign-in providers",
-  "app.instance.providers_intro": "The ways in this installation offers every workspace on it. Offered is not on: each workspace's owner decides whether to take one, and this screen cannot decide it for them.",
+  "app.instance.providers_intro": "The ways in this installation offers every workspace on it. Offered is not on: each workspace's owner decides whether to take one - except where the installation's ways to sign in are locked with providers among them, which turns on every provider that admits only invited people. Each row says which applies.",
   "app.instance.providers_none": "This installation offers no provider of its own. Every workspace configures its own, or none.",
   "app.instance.provider_add": "Offer a provider",
   "app.instance.provider_add_title": "Offer a provider",
