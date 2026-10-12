@@ -71,6 +71,9 @@ type CLI struct {
 	JSON bool
 	// Timeout bounds each command's call.
 	Timeout time.Duration
+	// agreeTerms is `login --agree-terms`: the terms of use a sign-in asks for are agreed to
+	// without the question, for a script (UC-ID-19).
+	agreeTerms bool
 }
 
 // command is one verb. It parses its own flags, because a command that declared them somewhere
