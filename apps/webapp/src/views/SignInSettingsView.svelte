@@ -31,6 +31,11 @@
   // the one verb for both kinds - and the provider screen switches nothing. The last way in
   // that is on cannot be switched off, here and at the server.
   //
+  // **A provider the installation's lock turns on is shown on and set by the installation**
+  // (UC-INS-11 check 4, identity.md §18): its switch stays in the list, on, switched off with the
+  // reason, as every locked rule is drawn. Which rows that is, the server says per row
+  // (`installation_lock`), so the screen never re-derives the rule.
+  //
   // **A withdrawal is said where the switch is** (ADR-0076 §2, §4). A provider the installation
   // withdraws carries its date under its switch until then; from the date it has no switch, like
   // one switched off above. And a workspace that the withdrawal left with no way in is told that the
@@ -495,12 +500,17 @@
                       <span class="name">{one.display_name}</span>
                       <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
                     {:else}
+                      {@const mandated = one.installation_lock === 'TURNS_ON'}
                       <Switch
                         label={one.display_name}
-                        hint={one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
+                        hint={mandated
+                          ? t('app.signin_settings.way_mandated')
+                          : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
                         checked={one.offered_here === true}
                         onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
-                        disabledReason={switching === one.id ? t('app.signin_settings.switching') : lastWay(one.offered_here === true)}
+                        disabledReason={switching === one.id
+                          ? t('app.signin_settings.switching')
+                          : mandated ? t('app.signin_settings.locked_installation') : lastWay(one.offered_here === true)}
                       />
                       {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
                         <!-- Said under the switch it is about, while there is still time to act. -->
