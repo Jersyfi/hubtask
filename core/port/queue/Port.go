@@ -76,6 +76,19 @@ const (
 	// transaction holds a database connection for as long as somebody else's machine takes (§8).
 	KindNotificationDeliver Kind = "notification.deliver"
 
+	// KindEmergencyAccessEmail sends one notification of the category EMERGENCY_ACCESS: a member
+	// told that the workspace's owner opened their private hub (ADR-0073 §4). The same delivery
+	// as KindNotificationDeliver, under a kind of its own for the rolling update's sake: a process
+	// of the previous release would claim a `notification.deliver` job for a category it does not
+	// know and send it with the assignment's words, while a kind it has no handler for goes back to
+	// the queue for a process that has one (presentation/worker.Runner).
+	KindEmergencyAccessEmail Kind = "notification.emergency_access"
+
+	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
+	// rollout's old processes may claim and return it a few times before a new one runs it, and
+	// each claim spends an attempt.
+	EmergencyAccessAttempts = 20
+
 	// KindReminderFire is the first job in this system that exists because of a stored future
 	// timestamp rather than because something just happened.
 	//

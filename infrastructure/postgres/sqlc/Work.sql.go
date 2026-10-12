@@ -258,7 +258,7 @@ func (q *Queries) CountOpenItemsByAssignee(ctx context.Context, accountIds []pgt
 }
 
 const emergencyNoticesFor = `-- name: EmergencyNoticesFor :many
-SELECT x.id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
 FROM notification n
 JOIN private_hub_access x ON x.id = n.private_hub_access_id
 WHERE n.recipient_id = $1::uuid
@@ -272,28 +272,20 @@ type EmergencyNoticesForParams struct {
 	Since       pgtype.Timestamptz
 }
 
-type EmergencyNoticesForRow struct {
-	ID       pgtype.UUID
-	HubID    pgtype.UUID
-	OpenedBy pgtype.UUID
-	Reason   string
-	OpenedAt pgtype.Timestamptz
-	EndsAt   pgtype.Timestamptz
-}
-
 // The emergency accesses a person was told of since a moment, from their own notification
 // records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
-func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesForParams) ([]EmergencyNoticesForRow, error) {
+func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesForParams) ([]PrivateHubAccess, error) {
 	rows, err := q.db.Query(ctx, emergencyNoticesFor, arg.RecipientID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []EmergencyNoticesForRow{}
+	items := []PrivateHubAccess{}
 	for rows.Next() {
-		var i EmergencyNoticesForRow
+		var i PrivateHubAccess
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.HubID,
 			&i.OpenedBy,
 			&i.Reason,
@@ -404,6 +396,41 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Private,
+	)
+	return i, err
+}
+
+const findPrivateHubAccess = `-- name: FindPrivateHubAccess :one
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at, h.name AS hub_name
+FROM private_hub_access x
+JOIN container h ON h.id = x.hub_id
+WHERE x.id = $1::uuid
+`
+
+type FindPrivateHubAccessRow struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	HubID    pgtype.UUID
+	OpenedBy pgtype.UUID
+	Reason   string
+	OpenedAt pgtype.Timestamptz
+	EndsAt   pgtype.Timestamptz
+	HubName  string
+}
+
+// One emergency access with its hub's name: what the members' mail says at delivery.
+func (q *Queries) FindPrivateHubAccess(ctx context.Context, id pgtype.UUID) (FindPrivateHubAccessRow, error) {
+	row := q.db.QueryRow(ctx, findPrivateHubAccess, id)
+	var i FindPrivateHubAccessRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.HubID,
+		&i.OpenedBy,
+		&i.Reason,
+		&i.OpenedAt,
+		&i.EndsAt,
+		&i.HubName,
 	)
 	return i, err
 }
@@ -1134,7 +1161,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 }
 
 const listPrivateHubAccesses = `-- name: ListPrivateHubAccesses :many
-SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
 FROM private_hub_access
 WHERE hub_id = $1::uuid
 ORDER BY opened_at DESC, id DESC
@@ -1146,27 +1173,19 @@ type ListPrivateHubAccessesParams struct {
 	PageSize int32
 }
 
-type ListPrivateHubAccessesRow struct {
-	ID       pgtype.UUID
-	HubID    pgtype.UUID
-	OpenedBy pgtype.UUID
-	Reason   string
-	OpenedAt pgtype.Timestamptz
-	EndsAt   pgtype.Timestamptz
-}
-
 // Every emergency access to one hub, newest first: the members' record of who opened it and why.
-func (q *Queries) ListPrivateHubAccesses(ctx context.Context, arg ListPrivateHubAccessesParams) ([]ListPrivateHubAccessesRow, error) {
+func (q *Queries) ListPrivateHubAccesses(ctx context.Context, arg ListPrivateHubAccessesParams) ([]PrivateHubAccess, error) {
 	rows, err := q.db.Query(ctx, listPrivateHubAccesses, arg.HubID, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ListPrivateHubAccessesRow{}
+	items := []PrivateHubAccess{}
 	for rows.Next() {
-		var i ListPrivateHubAccessesRow
+		var i PrivateHubAccess
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.HubID,
 			&i.OpenedBy,
 			&i.Reason,
@@ -1713,7 +1732,7 @@ func (q *Queries) PrivateHubsHeldBy(ctx context.Context, accountID pgtype.UUID) 
 }
 
 const runningPrivateHubAccess = `-- name: RunningPrivateHubAccess :many
-SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
 FROM private_hub_access
 WHERE hub_id = $1::uuid
   AND opened_by = $2::uuid
@@ -1728,28 +1747,20 @@ type RunningPrivateHubAccessParams struct {
 	Now      pgtype.Timestamptz
 }
 
-type RunningPrivateHubAccessRow struct {
-	ID       pgtype.UUID
-	HubID    pgtype.UUID
-	OpenedBy pgtype.UUID
-	Reason   string
-	OpenedAt pgtype.Timestamptz
-	EndsAt   pgtype.Timestamptz
-}
-
 // The access this person opened on this hub that has not ended. At most one: a second is refused
 // while the first runs, under the hub's row (LockHubOf).
-func (q *Queries) RunningPrivateHubAccess(ctx context.Context, arg RunningPrivateHubAccessParams) ([]RunningPrivateHubAccessRow, error) {
+func (q *Queries) RunningPrivateHubAccess(ctx context.Context, arg RunningPrivateHubAccessParams) ([]PrivateHubAccess, error) {
 	rows, err := q.db.Query(ctx, runningPrivateHubAccess, arg.HubID, arg.OpenedBy, arg.Now)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []RunningPrivateHubAccessRow{}
+	items := []PrivateHubAccess{}
 	for rows.Next() {
-		var i RunningPrivateHubAccessRow
+		var i PrivateHubAccess
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.HubID,
 			&i.OpenedBy,
 			&i.Reason,

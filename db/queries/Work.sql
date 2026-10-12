@@ -949,7 +949,7 @@ VALUES (
 -- name: RunningPrivateHubAccess :many
 -- The access this person opened on this hub that has not ended. At most one: a second is refused
 -- while the first runs, under the hub's row (LockHubOf).
-SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
 FROM private_hub_access
 WHERE hub_id = sqlc.arg('hub_id')::uuid
   AND opened_by = sqlc.arg('opened_by')::uuid
@@ -968,7 +968,7 @@ WHERE opened_by = sqlc.arg('account_id')::uuid
 
 -- name: ListPrivateHubAccesses :many
 -- Every emergency access to one hub, newest first: the members' record of who opened it and why.
-SELECT id, hub_id, opened_by, reason, opened_at, ends_at
+SELECT id, tenant_id, hub_id, opened_by, reason, opened_at, ends_at
 FROM private_hub_access
 WHERE hub_id = sqlc.arg('hub_id')::uuid
 ORDER BY opened_at DESC, id DESC
@@ -996,10 +996,17 @@ ORDER BY a.id;
 -- name: EmergencyNoticesFor :many
 -- The emergency accesses a person was told of since a moment, from their own notification
 -- records, whatever the mail did: what the web app shows a person without a mailbox (ADR-0073 §4).
-SELECT x.id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at
 FROM notification n
 JOIN private_hub_access x ON x.id = n.private_hub_access_id
 WHERE n.recipient_id = sqlc.arg('recipient_id')::uuid
   AND n.category = 'EMERGENCY_ACCESS'
   AND x.opened_at >= sqlc.arg('since')::timestamptz
 ORDER BY x.opened_at DESC, x.id DESC;
+
+-- name: FindPrivateHubAccess :one
+-- One emergency access with its hub's name: what the members' mail says at delivery.
+SELECT x.id, x.tenant_id, x.hub_id, x.opened_by, x.reason, x.opened_at, x.ends_at, h.name AS hub_name
+FROM private_hub_access x
+JOIN container h ON h.id = x.hub_id
+WHERE x.id = sqlc.arg('id')::uuid;

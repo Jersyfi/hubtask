@@ -2683,6 +2683,8 @@ func run() error {
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+			// The emergency access a member is told of: opener, times, reason and hub.
+			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
@@ -3012,11 +3014,14 @@ func run() error {
 			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
-		queueport.KindWebhookDeliver:      webhookDelivery,
-		queueport.KindAutomationRun:       automationRun,
-		queueport.KindAutomationHTTP:      outboundCall,
-		queueport.KindBackupRun:           backupRun,
-		queueport.KindBackupVerify:        worker.BackupVerify{Performer: backupPerformer},
+		// The same delivery under its own kind, which a process of the previous release leaves alone
+		// (queue.KindEmergencyAccessEmail).
+		queueport.KindEmergencyAccessEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:       webhookDelivery,
+		queueport.KindAutomationRun:        automationRun,
+		queueport.KindAutomationHTTP:       outboundCall,
+		queueport.KindBackupRun:            backupRun,
+		queueport.KindBackupVerify:         worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},
