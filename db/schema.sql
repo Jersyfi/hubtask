@@ -2574,26 +2574,37 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- The installation at a glance (migration 0105). Counts, states and limits - never rows,
+-- The installation at a glance (migrations 0105, 0128). Counts, states and limits - never rows,
 -- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
 -- behind row level security and FORCE, so the application role cannot count across workspaces at
--- all, and narrow by construction is what makes the exception acceptable - five integers, and no way
--- to ask for anybody's data.
+-- all, and narrow by construction is what makes the exception acceptable - six integers, and no way
+-- to ask for anybody's data. A workspace that holds no person - only a service account - is not a
+-- customer: the status counts leave it out, and the sixth number says how many there are.
 CREATE OR REPLACE FUNCTION instance_census()
 RETURNS TABLE (
   workspaces_active           bigint,
   workspaces_suspended        bigint,
   workspaces_pending_deletion bigint,
   accounts_active             bigint,
-  accounts_total              bigint
+  accounts_total              bigint,
+  workspaces_service_only     bigint
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  WITH customer AS (
+    SELECT t.status
+    FROM tenant t
+    WHERE EXISTS (
+      SELECT 1 FROM account a
+      WHERE a.tenant_id = t.id AND a.kind = 'USER' AND a.deleted_at IS NULL
+    )
+  )
   SELECT
-    (SELECT count(*) FROM tenant WHERE status = 'ACTIVE'),
-    (SELECT count(*) FROM tenant WHERE status = 'SUSPENDED'),
-    (SELECT count(*) FROM tenant WHERE status = 'PENDING_DELETION'),
+    (SELECT count(*) FROM customer WHERE status = 'ACTIVE'),
+    (SELECT count(*) FROM customer WHERE status = 'SUSPENDED'),
+    (SELECT count(*) FROM customer WHERE status = 'PENDING_DELETION'),
     (SELECT count(*) FROM account WHERE deleted_at IS NULL AND status = 'ACTIVE'),
-    (SELECT count(*) FROM account WHERE deleted_at IS NULL)
+    (SELECT count(*) FROM account WHERE deleted_at IS NULL),
+    (SELECT count(*) FROM tenant) - (SELECT count(*) FROM customer)
 $$;
 REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
@@ -2711,6 +2722,79 @@ GRANT EXECUTE ON FUNCTION operator_register() TO hubtask_app;
 GRANT EXECUTE ON FUNCTION add_operator(uuid, uuid) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION drop_operator(uuid) TO hubtask_app;
 
+-- ============ The first start (migration 0128, UC-INS-01) ===================
+-- A one-time setup code, issued at start while the installation is empty - no tenant row at all and
+-- nobody in the operator register - and claimed by the setup that creates the first workspace. Only
+-- the code's hash is stored. No row-level policy and no grant to the application role: the operator
+-- register's precedent, reached only through the functions below.
+CREATE TABLE instance_setup_code (
+  id         uuid PRIMARY KEY,
+  code_hash  bytea NOT NULL UNIQUE,
+  issued_at  timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL
+);
+REVOKE ALL ON instance_setup_code FROM PUBLIC;
+
+CREATE OR REPLACE FUNCTION installation_unset() RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT NOT EXISTS (SELECT 1 FROM tenant) AND NOT EXISTS (SELECT 1 FROM operator)
+$$;
+
+-- Lands only on an empty installation, and clears the codes that have run out on the way.
+CREATE OR REPLACE FUNCTION issue_setup_code(
+  p_id uuid, p_hash bytea, p_issued timestamptz, p_expires timestamptz
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE issued integer;
+BEGIN
+  IF NOT installation_unset() THEN
+    RETURN false;
+  END IF;
+  DELETE FROM instance_setup_code WHERE expires_at <= p_issued;
+  INSERT INTO instance_setup_code (id, code_hash, issued_at, expires_at)
+  VALUES (p_id, p_hash, p_issued, p_expires)
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS issued = ROW_COUNT;
+  RETURN issued > 0;
+END $$;
+
+-- Inside the setup's own transaction: an advisory lock serialises two setups, the emptiness is read
+-- after it, and spending a code deletes every code. One word out, never a row.
+CREATE OR REPLACE FUNCTION claim_setup_code(p_hash bytea, p_now timestamptz) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE expires timestamptz;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('hubtask.installation_setup'));
+  IF NOT installation_unset() THEN
+    RETURN 'ALREADY_DONE';
+  END IF;
+  SELECT expires_at INTO expires FROM instance_setup_code WHERE code_hash = p_hash;
+  IF NOT FOUND THEN
+    RETURN 'WRONG';
+  END IF;
+  IF expires <= p_now THEN
+    RETURN 'EXPIRED';
+  END IF;
+  DELETE FROM instance_setup_code;
+  RETURN 'CLAIMED';
+END $$;
+
+-- Two numbers for the health report: workspaces and operators, counted as `is_operator` counts.
+CREATE OR REPLACE FUNCTION operator_register_state()
+RETURNS TABLE (workspaces bigint, operators bigint)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT (SELECT count(*) FROM tenant), (SELECT count(*) FROM operator)
+$$;
+
+REVOKE ALL ON FUNCTION installation_unset() FROM PUBLIC;
+REVOKE ALL ON FUNCTION issue_setup_code(uuid, bytea, timestamptz, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION claim_setup_code(bytea, timestamptz) FROM PUBLIC;
+REVOKE ALL ON FUNCTION operator_register_state() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION installation_unset() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION issue_setup_code(uuid, bytea, timestamptz, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION claim_setup_code(bytea, timestamptz) TO hubtask_app;
+GRANT EXECUTE ON FUNCTION operator_register_state() TO hubtask_app;
+
 -- ============ Tenant resolution before a credential exists ==========
 -- Sign-in needs a tenant before it can check a password (multi-tenancy.md §3). One identifier or
 -- none, never a listing: a slug names its tenant, NULL answers the single-mode installation's
@@ -2729,6 +2813,20 @@ $$;
 
 REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
+
+-- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
+-- account by address, nothing when there is not exactly one workspace.
+CREATE OR REPLACE FUNCTION resolve_single_operator_account(p_email text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT a.id
+  FROM account a
+  WHERE a.tenant_id = resolve_tenant(NULL)
+    AND lower(a.email) = lower(btrim(p_email))
+    AND a.deleted_at IS NULL
+  LIMIT 1
+$$;
+REVOKE ALL ON FUNCTION resolve_single_operator_account(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_single_operator_account(text) TO hubtask_app;
 
 -- ============ An offered provider's count (ADR-0076 §1) ====================
 -- A workspace's switch moves the installation row's count by one step, and nothing else.

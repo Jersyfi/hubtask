@@ -945,6 +945,13 @@ type InstanceSetting struct {
 	UpdatedAt  pgtype.Timestamptz
 }
 
+type InstanceSetupCode struct {
+	ID        pgtype.UUID
+	CodeHash  []byte
+	IssuedAt  pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
 type ItemAttachment struct {
 	TenantID pgtype.UUID
 	ItemID   pgtype.UUID
