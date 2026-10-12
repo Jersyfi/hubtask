@@ -428,6 +428,8 @@ class Workspace(TypedDict, total=False):
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: Required[str]
     default_time_zone: Required[str]
+    default_week_start: Literal["MONDAY", "SATURDAY", "SUNDAY"] | None
+    installation_defaults: "InstallationDefaults"
     require_admin_totp: Required[bool]
     audit_anchor_target_id: str | None
     created_at: Required[str]
@@ -520,11 +522,18 @@ class LegalPolicySettings(TypedDict, total=False):
     terms_url: Required["SignInPolicyText"]
     accessibility_url: Required["SignInPolicyText"]
 
+class InstallationDefaults(TypedDict, total=False):
+    """What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none."""
+    locale: str
+    time_zone: str
+    week_start: Literal["MONDAY", "SATURDAY", "SUNDAY"]
+
 class WorkspaceUpdate(TypedDict, total=False):
-    """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here."""
+    """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question."""
     display_name: str
     default_locale: str
     default_time_zone: str
+    default_week_start: str
     require_admin_totp: bool
     sign_in_policy: "SignInPolicyChange"
 
@@ -681,6 +690,12 @@ class InstanceSetting(TypedDict, total=False):
     set: Required[bool]
     value: Any
     locked: Required[bool]
+    kind: Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "LOCALE", "TIME_ZONE"]
+    options: list[Any]
+    minimum: int
+    maximum: int
+    position: int
+    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE"]
 
 class InstanceSettings(TypedDict, total=False):
     """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""

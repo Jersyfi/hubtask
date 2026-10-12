@@ -47,6 +47,28 @@ type RestrictProcessing struct {
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Embeddings forgets, in the restricting transaction, the vectors of what the person created and
+	// of what they are on: a vector is their content, or about them, in another form. Lifting needs
+	// nothing - the next embedding pass owes those entries again. Nil in a build without the store.
+	Embeddings RestrictedForgetter
+}
+
+// RestrictedForgetter removes the vectors a restriction keeps out of AI (data-protection.md §4).
+type RestrictedForgetter interface {
+	Forget(ctx context.Context, creators []shared.ID) (int, error)
+	ForgetAssigned(ctx context.Context, assignees []shared.ID) (int, error)
+}
+
+// forgetRestricted removes one restricted person's vectors, inside the caller's transaction.
+func forgetRestricted(ctx context.Context, embeddings RestrictedForgetter, accountID shared.ID) error {
+	if embeddings == nil || accountID.IsZero() {
+		return nil
+	}
+	if _, err := embeddings.Forget(ctx, []shared.ID{accountID}); err != nil {
+		return err
+	}
+	_, err := embeddings.ForgetAssigned(ctx, []shared.ID{accountID})
+	return err
 }
 
 // RestrictCommand is the input, typed.
@@ -107,6 +129,11 @@ func (h RestrictProcessing) Execute(
 		if !written {
 			return shared.ErrNotFound.WithDetail("accounts.not_found").
 				WithParams(map[string]string{"account_id": cmd.AccountID.String()})
+		}
+		if cmd.Restricted {
+			if err := forgetRestricted(ctx, h.Embeddings, cmd.AccountID); err != nil {
+				return err
+			}
 		}
 
 		return h.Audit.Append(ctx, audit.Entry{

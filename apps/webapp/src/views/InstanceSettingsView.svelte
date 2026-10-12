@@ -1,37 +1,41 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The installation's own values, and where each lock came from (ADR-0070 §2, §5).
+  // The installation's defaults: what every workspace starts with, and whether it may change it
+  // (ADR-0070 §2, §5; UC-INS-09).
   //
   // **Read and written here**, because the API is the product and this is one of its three doors:
   // "hubctl und das Dashboard sind zwei Clients davon — dieselbe Regel, die für die Anwendung gilt".
-  // An operator who can see a switch and has to reach for a terminal to move it is an operator for
+  // An operator who can see a value and has to reach for a terminal to move it is an operator for
   // whom the dashboard is a status page.
   //
-  // **Except where the configuration says otherwise**, which is the other half of the same section:
-  // a file in `enforce` mode is the source, the writing routes refuse, and this screen then offers
-  // no controls at all rather than offering a refusal. `is_enforced_from_file` is what says so, and
-  // it is the server's answer rather than this screen's guess.
+  // **Except where the configuration says otherwise**: a file in `enforce` mode is the source, the
+  // writing routes refuse, and this screen then offers no controls at all rather than offering a
+  // refusal (check 7). `is_enforced_from_file` is what says so, and it is the server's answer.
   //
-  // **Every switch is drawn, decided or not.** The server answers the whole catalogue with a `set`
-  // flag — eighteen sign-in switches and four legal links — because a reader has to be able to see
-  // that a switch exists and that this installation has left it to each workspace. That is a
-  // different fact from the switch not existing, and the screen keeps no list of its own: one here
-  // would be wrong on somebody's installation the day a switch is added.
+  // **Every key is drawn, decided or not, with the control of its kind.** The server answers the
+  // whole level, each key with its kind, its closed set and its bounds, so the screen keeps no
+  // list of its own: a key added tomorrow is drawn by the control of its kind, in the words the
+  // catalogue gives it (checks 1 and 2). Nothing is guessed from a current value, which an
+  // undecided key does not have.
   //
-  // **Every switch carries its lock.** Open means a workspace may tighten it; locked means the value
-  // applies and the workspace's control is off — "ein geschlossenes Feld ist sichtbar mit Wert,
-  // Schloss und 'Set by the installation' — nie unsichtbar" (§5.3). A workspace sees the same fact
-  // from the other side on its own sign-in screen.
+  // **Every value says what a workspace may still do**, in the words of its kind: make a rule
+  // stricter, go higher than a limit, use its own link - or not (check 3). A language, a zone and a
+  // week start are defaults and never locked, so they say nothing there (check 4). A workspace sees
+  // the same fact from the other side on its own screens.
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
+  import { AREAS, choiceCode, documentOf, fieldOf, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -62,62 +66,47 @@
   /** A file that is written at every start makes this level read-only, and says so. */
   const enforced = $derived(settings?.is_enforced_from_file === true);
 
+  const rows = $derived(rowsOf(settings));
+  /** The areas the server answered keys for, each with its rows, in the screen's order. */
+  const groups = $derived(
+    AREAS.map((area) => ({ area, rows: rows.filter((row) => row.area === area) })).filter(
+      (group) => group.rows.length > 0,
+    ),
+  );
+
+  const locales = $derived(localesOf(manifest.value).map((each) => each.locale));
+
   const columns = $derived([
-    { id: 'switch', label: t('app.instance.column_switch') },
+    { id: 'setting', label: t('app.instance.column_setting') },
     { id: 'value', label: t('app.instance.column_value') },
-    { id: 'lock', label: t('app.instance.column_lock') },
+    { id: 'lock', label: t('app.instance.workspaces_may') },
   ]);
 
-  /** The two areas as one list of rows, each carrying which area it came from. */
-  const rows = $derived([
-    ...Object.entries(settings?.sign_in ?? {}).map(([key, setting]) => ({ area: 'sign_in', key, setting })),
-    ...Object.entries(settings?.legal ?? {}).map(([key, setting]) => ({ area: 'legal', key, setting })),
-    // The two areas of the installation: the defaults a workspace inherits, and the ceilings it falls back
-    // to. Drawn in the same table because they are the same model — a value, and who may change it.
-    ...Object.entries(settings?.localisation ?? {}).map(([key, setting]) => ({ area: 'localisation', key, setting })),
-    ...Object.entries(settings?.quotas ?? {}).map(([key, setting]) => ({ area: 'quotas', key, setting })),
-    // Which AI workspaces may use (ADR-0072 §2): closed sets, so they are chosen and shown in words.
-    ...Object.entries(settings?.ai ?? {}).map(([key, setting]) => ({ area: 'ai', key, setting })),
-  ]);
-
-  /** The AI area's closed sets, each value with its words, in the order of strictness. */
-  const aiChoices: Record<string, readonly { value: string; label: string }[]> = $derived({
-    sources: [
-      { value: 'EITHER', label: t('app.instance.ai_sources_either') },
-      { value: 'OFFERED', label: t('app.instance.ai_sources_offered') },
-      { value: 'OWN', label: t('app.instance.ai_sources_own') },
-      { value: 'NONE', label: t('app.instance.ai_sources_none') },
-    ],
-    min_jurisdiction: [
-      { value: 'ANY', label: t('app.instance.ai_min_any') },
-      { value: 'ADEQUACY', label: t('app.instance.ai_min_adequacy') },
-      { value: 'EEA', label: t('app.instance.ai_min_eea') },
-      { value: 'SELF_HOSTED', label: t('app.instance.ai_min_self_hosted') },
-    ],
-    // One value: an installation holds a workspace at letting each person keep their own content
-    // out, or leaves it alone - it cannot name the legal basis AI for everybody needs.
-    person_opt_out: [{ value: 'OFFERED', label: t('app.instance.ai_opt_out_offered') }],
-  });
-
-  /** A row's name: the AI area's keys in words, the others as the contract spells them. */
-  function nameOf(area: string, key: string): string {
-    return area === 'ai' ? t(`app.instance.ai_key_${key}`) : `${area}.${key}`;
+  /** A value as the table says it: a choice in words, a flag as on or off, a list joined. */
+  function said(row: Row): string {
+    const { area, key, setting } = row;
+    const value = setting.value;
+    if (Array.isArray(value)) return value.map((each) => t(choiceCode(area, key, String(each)))).join(', ');
+    switch (setting.kind) {
+      case 'CHOICE':
+        return t(choiceCode(area, key, String(value)));
+      case 'FLAG':
+        return value === true ? t('app.instance.flag_on') : t('app.instance.flag_off');
+      case 'COUNT':
+        // Zero is a limit's "unlimited", which is a decision and not a number anybody counts to.
+        return value === 0 && area === 'quotas' ? t('app.instance.value_unlimited') : String(value);
+      default:
+        return String(value ?? '');
+    }
   }
 
-  /** A value as the screen says it: the AI area's in words. */
-  function said(area: string, key: string, value: unknown): string {
-    if (area === 'ai') return aiChoices[key]?.find((each) => each.value === value)?.label ?? shown(value);
-    return shown(value);
+  /** What a workspace may still do with the key, in words; nothing for a default that is never locked. */
+  function mayOf(setting: InstanceSetting): string {
+    const code = lockCode(setting, setting.locked);
+    return code ? t(code) : '';
   }
 
-  /** A value as one line. The switches are numbers, flags, strings and lists of strings. */
-  function shown(value: unknown): string {
-    if (Array.isArray(value)) return value.join(', ');
-    if (value === null || value === undefined) return '';
-    return String(value);
-  }
-
-  /** How many of the catalogue this installation has actually decided, for the line above it. */
+  /** How many of the level this installation has actually decided, for the line above it. */
   const decided = $derived(rows.filter((row) => row.setting.set).length);
 
   /**
@@ -133,31 +122,22 @@
     saved = false;
   }
 
-  /** The areas the level is written in, which is what a row's `area` is. */
-  type SettingArea = 'sign_in' | 'legal' | 'localisation' | 'quotas' | 'ai';
-
-  /** Reads one switch out of the draft, and writes it back whole. */
-  function setting(area: SettingArea, key: string): InstanceSetting | undefined {
-    return draft?.[area]?.[key];
-  }
-
-  function put(area: SettingArea, key: string, next: InstanceSetting): void {
-    if (!draft) return;
-    draft = { ...draft, [area]: { ...(draft[area] ?? {}), [key]: next } };
+  /** Reads one key out of the draft. */
+  function current(area: Area, key: string): InstanceSetting | undefined {
+    const held = draft?.[area]?.[key];
+    return held?.set ? held : undefined;
   }
 
   /**
-   * Removes a switch from the draft.
+   * Writes one key back whole, or marks it undecided.
    *
-   * `PUT` replaces the level whole, so a switch the operator cleared is one the installation stops
-   * deciding — and a workspace that had been told the value goes back to deciding for itself. That
-   * is what "the write replaces" means and why clearing has a control of its own.
+   * `PUT` replaces the level whole, so a key the operator cleared is one the installation stops
+   * deciding - and a workspace that had been told the value goes back to deciding for itself.
    */
-  function clear(area: SettingArea, key: string): void {
+  function put(area: Area, key: string, declared: InstanceSetting, next: InstanceSetting | undefined): void {
     if (!draft) return;
-    const kept = { ...(draft[area] ?? {}) };
-    delete kept[key];
-    draft = { ...draft, [area]: kept };
+    const entry: InstanceSetting = next ?? { ...declared, set: false, value: undefined, locked: false };
+    draft = { ...draft, [area]: { ...(draft[area] ?? {}), [key]: entry } };
   }
 
   async function save(): Promise<void> {
@@ -166,14 +146,7 @@
     failure = undefined;
     saved = false;
     try {
-      await instance.writeSettings({
-        sign_in: draft.sign_in,
-        legal: draft.legal,
-        localisation: draft.localisation,
-        quotas: draft.quotas,
-        ai: draft.ai,
-        blocklist_file: draft.blocklist_file,
-      });
+      await instance.writeSettings(documentOf(draft));
       draft = undefined;
       saved = true;
     } catch (cause) {
@@ -227,6 +200,7 @@
         {/if}
 
         {#if draft}
+          {@const editing = draft}
           <form
             class="panel"
             onsubmit={(event) => {
@@ -234,79 +208,39 @@
               void save();
             }}
           >
-            <Stack gap="200">
-              <h2 class="section">{t('app.instance.settings_edit_title')}</h2>
-              <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
+            <Stack gap="300">
+              <Stack gap="100">
+                <h2 class="section">{t('app.instance.settings_edit_title')}</h2>
+                <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
+              </Stack>
 
-              {#each rows as row (row.area + '.' + row.key)}
-                {@const current = setting(row.area as SettingArea, row.key)}
-                <div class="field">
-                  {#if row.area === 'ai'}
-                    <Select
-                      label={nameOf(row.area, row.key)}
-                      value={current?.set ? String(current.value) : ''}
-                      placeholder={t('app.instance.value_undecided')}
-                      options={aiChoices[row.key] ?? []}
-                      onchange={(event) => {
-                        const chosen = (event.currentTarget as HTMLSelectElement).value;
-                        if (chosen === '') {
-                          clear('ai', row.key);
-                          return;
-                        }
-                        put('ai', row.key, { set: true, value: chosen, locked: current?.locked ?? false });
-                      }}
-                    />
-                  {:else}
-                  <Input
-                    label={row.area + '.' + row.key}
-                    value={current?.set ? shown(current.value) : ''}
-                    oninput={(event) => {
-                      const raw = (event.currentTarget as HTMLInputElement).value;
-                      if (raw.trim() === '') {
-                        clear(row.area as SettingArea, row.key);
-                        return;
-                      }
-                      // The value keeps the kind the server answered: a number stays a number, a
-                      // flag a flag. A switch retyped into a string would be a switch the domain
-                      // refuses on the way back in.
-                      const was = row.setting.set ? row.setting.value : '';
-                      const value =
-                        typeof was === 'number'
-                          ? Number(raw)
-                          : typeof was === 'boolean'
-                            ? raw === 'true'
-                            : raw;
-                      put(row.area as SettingArea, row.key, {
-                        set: true,
-                        value,
-                        locked: current?.locked ?? false,
-                      });
-                    }}
-                    autocomplete="off"
-                    spellcheck={false}
-                  />
-                  {/if}
-                  <Switch
-                    label={t('app.instance.locked_label')}
-                    hint={t('app.instance.locked_hint')}
-                    checked={current?.locked === true}
-                    disabledReason={row.area === 'localisation'
-                      ? t('app.instance.locked_never_localisation')
-                      : undefined}
-                    onchange={(event) =>
-                      put(row.area as SettingArea, row.key, {
-                        set: current?.set ?? row.setting.set,
-                        value: current?.value ?? row.setting.value,
-                        locked: (event.currentTarget as HTMLInputElement).checked,
-                      })}
-                  />
-                </div>
+              {#each groups as group (group.area)}
+                <section class="group" aria-labelledby={`area-${group.area}`}>
+                  <Stack gap="150">
+                    <h3 id={`area-${group.area}`} class="area">{t(`app.instance.area_${group.area}`)}</h3>
+                    {#if group.area === 'localisation'}
+                      <p class="quiet-line">{t('app.instance.locked_never_localisation')}</p>
+                    {/if}
+                    {#each group.rows as row (row.key)}
+                      <InstanceValueField
+                        area={row.area}
+                        key={row.key}
+                        declared={row.setting}
+                        current={current(row.area, row.key)}
+                        {locales}
+                        zones={zoneOptions(String(editing.localisation?.time_zone?.value ?? ''))}
+                        error={failure?.fields.get(fieldOf(row.area, row.key))}
+                        onchange={(next) => put(row.area, row.key, row.setting, next)}
+                      />
+                    {/each}
+                  </Stack>
+                </section>
               {/each}
 
               <Input
                 label={t('app.instance.blocklist_label')}
                 hint={t('app.instance.blocklist_hint')}
-                value={draft.blocklist_file ?? ''}
+                value={editing.blocklist_file ?? ''}
                 oninput={(event) => {
                   if (!draft) return;
                   draft = { ...draft, blocklist_file: (event.currentTarget as HTMLInputElement).value };
@@ -328,27 +262,30 @@
         {:else if rows.length === 0}
           <Banner tone="info">{t('app.instance.settings_none')}</Banner>
         {:else}
-          <Table label={t('app.instance.settings')} isLabelHidden columns={columns}>
-            {#each rows as row (row.area + '.' + row.key)}
-              <tr>
-                <td class={row.area === 'ai' ? '' : 'mono'}>{nameOf(row.area, row.key)}</td>
-                <td>
-                  {#if row.setting.set}
-                    {said(row.area, row.key, row.setting.value)}
-                  {:else}
-                    <!-- Not a blank cell: "this installation decided nothing here" is a fact worth
-                         a sentence, and the workspace is who decides it instead. -->
-                    <span class="undecided">{t('app.instance.value_undecided')}</span>
-                  {/if}
-                </td>
-                <td>
-                  <Badge tone={row.setting.locked ? 'warning' : 'neutral'}>
-                    {row.setting.locked ? t('app.instance.lock_locked') : t('app.instance.lock_open')}
-                  </Badge>
-                </td>
-              </tr>
-            {/each}
-          </Table>
+          {#each groups as group (group.area)}
+            <section aria-labelledby={`read-${group.area}`}>
+              <Stack gap="100">
+                <h2 id={`read-${group.area}`} class="section">{t(`app.instance.area_${group.area}`)}</h2>
+                <Table label={t(`app.instance.area_${group.area}`)} isLabelHidden {columns}>
+                  {#each group.rows as row (row.key)}
+                    <tr>
+                      <td>{t(nameCode(row.area, row.key))}</td>
+                      <td class={row.setting.kind === 'LINK' ? 'link' : ''}>
+                        {#if row.setting.set}
+                          {said(row)}
+                        {:else}
+                          <!-- Not a blank cell: "this installation decided nothing here" is a fact
+                               worth a sentence, and the workspace is who decides it instead. -->
+                          <span class="undecided">{t('app.instance.value_undecided')}</span>
+                        {/if}
+                      </td>
+                      <td>{mayOf(row.setting)}</td>
+                    </tr>
+                  {/each}
+                </Table>
+              </Stack>
+            </section>
+          {/each}
         {/if}
 
         {#if !draft && !enforced}
@@ -365,14 +302,14 @@
   .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
-  .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
+  .link { overflow-wrap: anywhere; }
   .undecided { color: var(--text-secondary); font-size: var(--fs-100); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  .area { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
 
   /* A form is neither prose nor a table (ADR-0065 decision 2): the fields carry a measure of their
-     own while the table beside them takes the width. */
-  form { margin: 0; max-inline-size: 60ch; }
-  .field { display: grid; gap: var(--sp-050); padding-block-end: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+     own while the tables take the width. */
+  form { margin: 0; max-inline-size: 80ch; }
 
   .panel {
     padding: var(--sp-200);

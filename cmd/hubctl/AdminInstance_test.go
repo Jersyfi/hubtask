@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // The second of ADR-0070 §5's three doors, at the terminal.
@@ -19,13 +21,15 @@ import (
 
 const wholeLevel = `{
   "sign_in": {
-    "min_length": {"set": true, "value": 16, "locked": true},
-    "min_digits": {"set": false, "locked": false}
+    "min_length": {"set": true, "value": 16, "locked": true, "kind": "COUNT"},
+    "min_digits": {"set": false, "locked": false, "kind": "COUNT"},
+    "methods": {"set": false, "locked": false, "kind": "CHOICES"},
+    "breach_check": {"set": false, "locked": false, "kind": "FLAG"}
   },
-  "legal": {"imprint": {"set": false, "locked": false}},
+  "legal": {"imprint_url": {"set": false, "locked": false, "kind": "LINK"}},
   "localisation": {"locale": {"set": true, "value": "de", "locked": false}},
   "quotas": {"export_jobs": {"set": true, "value": 9, "locked": true}},
-  "ai": {"sources": {"set": true, "value": "EITHER", "locked": false}, "min_jurisdiction": {"set": false, "locked": false}},
+  "ai": {"sources": {"set": true, "value": "EITHER", "locked": false}, "min_jurisdiction": {"set": false, "locked": false}, "person_opt_out": {"set": false, "locked": false, "kind": "CHOICE"}},
   "source": "database",
   "is_enforced_from_file": false
 }`
@@ -44,7 +48,7 @@ func TestTheSettingsTableShowsTheWholeLevelDecidedOrNot(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"sign_in.min_length", "sign_in.min_digits",
-		"legal.imprint", "localisation.locale", "quotas.export_jobs",
+		"legal.imprint_url", "localisation.locale", "quotas.export_jobs",
 		"ai.sources", "ai.min_jurisdiction",
 	} {
 		if !strings.Contains(out, expected) {
@@ -141,34 +145,65 @@ func TestAKeyWithoutAnAreaIsAUsageError(t *testing.T) {
 	}
 }
 
-// The value keeps the kind a terminal cannot type: a flag, a whole number, a list. Guessed in the
-// order that cannot surprise, because `12` is never meant as the word "12".
-func TestAValueKeepsItsKind(t *testing.T) {
-	cases := map[string]any{
-		"true":          true,
-		"false":         false,
-		"14":            14,
-		"ADMINS":        "ADMINS",
-		"PASSWORD,OIDC": []any{"PASSWORD", "OIDC"},
+// The word is typed by the kind the level declares for the key, not guessed from the word: a link
+// with a comma in it stays one address, and a word that is not of the declared kind travels as the
+// word, for the server to refuse as it refuses the same word from the file (UC-INS-09 check 6).
+func TestAValueIsTypedByItsDeclaredKind(t *testing.T) {
+	kind := func(k openapi.InstanceSettingKind) *openapi.InstanceSettingKind { return &k }
+	cases := []struct {
+		kind *openapi.InstanceSettingKind
+		raw  string
+		want any
+	}{
+		{kind(openapi.InstanceSettingKindCOUNT), "14", 14},
+		{kind(openapi.InstanceSettingKindCOUNT), "fourteen", "fourteen"},
+		{kind(openapi.InstanceSettingKindCOUNT), "3.5", "3.5"},
+		{kind(openapi.InstanceSettingKindFLAG), "true", true},
+		{kind(openapi.InstanceSettingKindFLAG), "false", false},
+		{kind(openapi.InstanceSettingKindFLAG), "yes", "yes"},
+		{kind(openapi.InstanceSettingKindCHOICE), "ADMINS", "ADMINS"},
+		{kind(openapi.InstanceSettingKindCHOICE), "7", "7"},
+		{kind(openapi.InstanceSettingKindLINK), "https://example.org/a,b", "https://example.org/a,b"},
+		{kind(openapi.InstanceSettingKindLOCALE), "true", "true"},
+		{kind(openapi.InstanceSettingKindCHOICES), "PASSWORD,OIDC", []any{"PASSWORD", "OIDC"}},
+		{kind(openapi.InstanceSettingKindCHOICES), "PASSWORD", []any{"PASSWORD"}},
 	}
-	for raw, want := range cases {
-		got := settingValue(raw)
-		if list, isList := want.([]any); isList {
+	for _, c := range cases {
+		got := settingValue(c.kind, c.raw)
+		if list, isList := c.want.([]any); isList {
 			asList, isList := got.([]any)
 			if !isList || len(asList) != len(list) {
-				t.Errorf("%q read as %v", raw, got)
+				t.Errorf("%s %q read as %v", *c.kind, c.raw, got)
 				continue
 			}
 			for i := range list {
 				if asList[i] != list[i] {
-					t.Errorf("%q read as %v", raw, got)
+					t.Errorf("%s %q read as %v", *c.kind, c.raw, got)
 				}
 			}
 			continue
 		}
-		if got != want {
-			t.Errorf("%q read as %v (%T), want %v", raw, got, got, want)
+		if got != c.want {
+			t.Errorf("%s %q read as %v (%T), want %v", *c.kind, c.raw, got, got, c.want)
 		}
+	}
+}
+
+// A key the read did not answer is a typo, refused before anything is sent: the server would skip
+// it as a newer client's key and save nothing, which a person at a terminal would read as done.
+func TestAnUnknownKeyIsRefusedBeforeAnythingIsSent(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, wholeLevel)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "sign_in.min_size", "12")
+	if code == exitOK {
+		t.Fatal("an unknown key was accepted")
+	}
+	if stub.request.Method == http.MethodPut {
+		t.Error("an unknown key was sent")
+	}
+	if !strings.Contains(errOut, "admin settings show") {
+		t.Errorf("the refusal does not say where the keys are: %q", errOut)
 	}
 }
 

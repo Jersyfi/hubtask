@@ -13683,6 +13683,22 @@
             "type": "string",
             "description": "An IANA zone, for the same position in the same chain."
           },
+          "default_week_start": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "MONDAY",
+              "SATURDAY",
+              "SUNDAY",
+              null
+            ],
+            "description": "The day a member's week starts on when they chose none of their own, or null where this workspace decided nothing and the installation's day, then the language's, applies.\n"
+          },
+          "installation_defaults": {
+            "$ref": "#/components/schemas/InstallationDefaults"
+          },
           "require_admin_totp": {
             "type": "boolean",
             "description": "Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.\n"
@@ -14074,9 +14090,30 @@
           }
         }
       },
+      "InstallationDefaults": {
+        "type": "object",
+        "readOnly": true,
+        "description": "What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none.\n",
+        "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "time_zone": {
+            "type": "string"
+          },
+          "week_start": {
+            "type": "string",
+            "enum": [
+              "MONDAY",
+              "SATURDAY",
+              "SUNDAY"
+            ]
+          }
+        }
+      },
       "WorkspaceUpdate": {
         "type": "object",
-        "description": "Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as \"clear it\", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.\n",
+        "description": "Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as \"clear it\". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.\n",
         "properties": {
           "display_name": {
             "type": "string",
@@ -14090,6 +14127,11 @@
           "default_time_zone": {
             "type": "string",
             "description": "An IANA zone. One that does not load is a field error."
+          },
+          "default_week_start": {
+            "type": "string",
+            "maxLength": 8,
+            "description": "`MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.\n"
           },
           "require_admin_totp": {
             "type": "boolean",
@@ -14815,6 +14857,51 @@
           "locked": {
             "type": "boolean",
             "description": "Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.\n"
+          },
+          "kind": {
+            "type": "string",
+            "readOnly": true,
+            "enum": [
+              "COUNT",
+              "FLAG",
+              "CHOICE",
+              "CHOICES",
+              "LINK",
+              "LOCALE",
+              "TIME_ZONE"
+            ],
+            "description": "What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.\n"
+          },
+          "options": {
+            "type": "array",
+            "readOnly": true,
+            "items": {},
+            "description": "For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the strictest. Absent for the other kinds.\n"
+          },
+          "minimum": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "For `COUNT`, the least value the product applies. A value past either bound is held at it, at every level. Where the least is `0`, it means off or unlimited for the keys that say so.\n"
+          },
+          "maximum": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "For `COUNT`, the most the product applies. Absent where there is no bound."
+          },
+          "position": {
+            "type": "integer",
+            "readOnly": true,
+            "description": "The key's place within its area, from 0: the order a screen draws the keys in, which an object's own key order does not carry.\n"
+          },
+          "workspace_may": {
+            "type": "string",
+            "readOnly": true,
+            "enum": [
+              "TIGHTEN",
+              "RAISE",
+              "REPLACE"
+            ],
+            "description": "What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.\n"
           }
         }
       },
@@ -14841,7 +14928,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "`locale`, `time_zone` and `week_start`: what a workspace that has set none of its own inherits.\n**A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — \"eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler\".\n"
+            "description": "`locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.\n**A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — \"eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler\".\n"
           },
           "quotas": {
             "type": "object",

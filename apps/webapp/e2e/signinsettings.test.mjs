@@ -585,3 +585,38 @@ test('chromium: a provider the installation\'s lock turns on is shown on and set
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.deepEqual(sent, ['/identity-providers/entra:offer']);
 });
+
+// UC-ID-18 check 3 and UC-INS-09 check 5: each link field holds the workspace's own, and the
+// installation's link is said beside it - inherited where the workspace set none, beside its own
+// where both are set, with the lock where the installation fixed it, and nothing where nobody set one.
+test('chromium: a link field holds the workspace\'s own, with the installation\'s beside it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const answer = policy();
+  answer.legal = {
+    imprint_url: rule('https://provider.example/imprint', 'https://provider.example/imprint', { source: 'INSTANCE', above: 'INSTANCE' }),
+    privacy_url: rule('https://acme.example/privacy', 'https://provider.example/privacy', { source: 'WORKSPACE', above: 'INSTANCE' }),
+    terms_url: rule('', ''),
+    accessibility_url: rule('https://provider.example/a11y', 'https://provider.example/a11y', { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' }),
+  };
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: answer } }) : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Imprint', { exact: true }).waitFor();
+
+  // Inherited: the workspace's own field is empty, and the installation's link is said under it.
+  assert.equal(await page.getByLabel('Imprint', { exact: true }).inputValue(), '');
+  assert.match(await originOf(page, 'Imprint'), /installation.s applies: https:\/\/provider\.example\/imprint/);
+  // Both set: the workspace's own in the field, the installation's beside it.
+  assert.equal(await page.getByLabel('Privacy', { exact: true }).inputValue(), 'https://acme.example/privacy');
+  assert.match(await originOf(page, 'Privacy'), /Set here\. Installation: https:\/\/provider\.example\/privacy/);
+  // Nobody set one: said, not left blank.
+  assert.match(await originOf(page, 'Terms'), /shows none/);
+  // Locked: the installation's link, the lock, and no way to change it.
+  const statement = page.getByLabel('Accessibility', { exact: true });
+  assert.equal(await statement.inputValue(), 'https://provider.example/a11y');
+  assert.equal(await statement.isDisabled(), true);
+  assert.match(await originOf(page, 'Accessibility'), /Set by the installation/);
+});

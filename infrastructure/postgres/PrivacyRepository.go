@@ -32,11 +32,12 @@ func NewPrivacyRepository(cursors security.CursorCodec) PrivacyRepository {
 }
 
 var (
-	_ repository.Requests   = PrivacyRepository{}
-	_ repository.Consents   = PrivacyRepository{}
-	_ repository.Subjects   = PrivacyRepository{}
-	_ repository.Pseudonyms = PrivacyRepository{}
-	_ repository.Erasure    = PrivacyRepository{}
+	_ repository.Requests     = PrivacyRepository{}
+	_ repository.Consents     = PrivacyRepository{}
+	_ repository.Subjects     = PrivacyRepository{}
+	_ repository.Pseudonyms   = PrivacyRepository{}
+	_ repository.Erasure      = PrivacyRepository{}
+	_ repository.Restrictions = PrivacyRepository{}
 )
 
 // Insert records a new case.
@@ -747,6 +748,32 @@ func (r PrivacyRepository) Standing(ctx context.Context, purpose string) ([]repo
 		})
 	}
 	return objectors, nil
+}
+
+// RestrictedPeople answers whose processing is restricted.
+func (r PrivacyRepository) RestrictedPeople(ctx context.Context) ([]domain.RestrictedPerson, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.RestrictedPeople(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whose processing is restricted: %w", err))
+	}
+	people := make([]domain.RestrictedPerson, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		people = append(people, domain.RestrictedPerson{
+			AccountID: id, DisplayName: row.DisplayName,
+			Email: stringFrom(row.Email), SignInName: stringFrom(row.SignInName),
+		})
+	}
+	return people, nil
 }
 
 // NoticedAt answers when a person last acknowledged that their objection stopped taking effect.

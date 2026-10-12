@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	privacydomain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -46,6 +47,54 @@ func TestAnObjectionKeepsContentOutOnlyWhereItTakesEffect(t *testing.T) {
 				t.Errorf("the name was not replaced: %q", kept.Scrub("ask Kim Keeper"))
 			}
 		})
+	}
+}
+
+type restrictedBook []privacydomain.RestrictedPerson
+
+func (b restrictedBook) RestrictedPeople(context.Context) ([]privacydomain.RestrictedPerson, error) {
+	return b, nil
+}
+
+// The second reason (UC-PRV-03 check 10, UC-PRV-04 check 5): a restriction keeps a person out
+// where an objection would not take effect - alone, or where AI is part of everybody's work - and
+// wins over an objection of the same person.
+func TestARestrictionKeepsContentOutWhereverItStands(t *testing.T) {
+	book := &consentBook{}
+	book.withdraw(objectorID, providerClock{}.Now())
+	for _, testCase := range []struct {
+		name     string
+		people   int
+		position string
+	}{
+		{"offered, two people", 2, ""},
+		{"alone", 1, ""},
+		{"AI part of everybody's work", 2, "NOT_OFFERED"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			world := &sourceWorld{}
+			world.workspace.Settings.AiPersonOptOut = testCase.position
+			world.workspace.Settings.AiOptOutBasis = "WORKS_AGREEMENT"
+			rules := &AiRules{Instance: world, Workspaces: sourceWorkspaces{world}, Offered: sourceOffered{world}, Choices: sourceChoices{world}}
+			exclusion := Exclusion{Sources: []KeptOutSource{
+				RestrictionSource{Restrictions: restrictedBook{{AccountID: objectorID, DisplayName: "Kim Keeper"}}},
+				ObjectionSource{Rules: rules, People: headcount(testCase.people), Consents: book},
+			}}
+			kept, err := exclusion.Read(t.Context(), providerActor().TenantID)
+			if err != nil {
+				t.Fatalf("reading: %v", err)
+			}
+			if !kept.Has(objectorID) || kept.ReasonOf(objectorID) != domain.KeptOutRestricted || kept.Has(colleagueID) {
+				t.Errorf("kept out: %v (%q), colleague %v", kept.Has(objectorID), kept.ReasonOf(objectorID), kept.Has(colleagueID))
+			}
+			if kept.Scrub("ask Kim Keeper") != "ask "+domain.Placeholder {
+				t.Errorf("the name was not replaced: %q", kept.Scrub("ask Kim Keeper"))
+			}
+		})
+	}
+	// Unwired, it keeps nobody out rather than failing.
+	if people, err := (RestrictionSource{}).KeptOut(t.Context(), ""); err != nil || len(people) != 0 {
+		t.Errorf("an unwired source answered %v, %v", people, err)
 	}
 }
 

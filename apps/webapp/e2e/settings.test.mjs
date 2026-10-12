@@ -606,3 +606,47 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   // Nothing else to end: the control is gone with the sessions it ended.
   assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
 });
+
+// UC-INS-09 checks 4 and 5: the workspace screen says the installation's language and zone beside
+// its own, and offers a week start of its own whose empty choice names the installation's day.
+test('chromium: 1280 px — the workspace screen names the installation\'s defaults and takes its own week start', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  const tenant = {
+    id: 'w1', slug: 'acme', display_name: 'Acme', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'Europe/Berlin',
+    require_admin_totp: false, created_at: '2026-09-01T00:00:00Z', version: 3,
+    installation_defaults: { locale: 'de', time_zone: 'Europe/Vienna', week_start: 'SUNDAY' },
+  };
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/tenant' && request.method() === 'PATCH') {
+      sent.push(request.postDataJSON());
+      return route.fulfill({ json: { ...tenant, default_week_start: 'MONDAY', version: 4 } });
+    }
+    if (path === '/tenant') return route.fulfill({ json: tenant });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workspace`);
+  const weekStart = page.getByLabel('A week starts on', { exact: true });
+  await weekStart.waitFor({ timeout: 15_000 });
+
+  const text = (await page.locator('main').textContent()) ?? '';
+  assert.match(text, /The installation's default: de\./);
+  assert.match(text, /The installation's default: Europe\/Vienna\./);
+  const choices = await weekStart.locator('option').allTextContents();
+  assert.equal(choices[0], 'As the installation says: Sunday', choices.join(', '));
+
+  await weekStart.selectOption('MONDAY');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByText('Saved.').waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent.at(-1), { default_week_start: 'MONDAY' });
+});

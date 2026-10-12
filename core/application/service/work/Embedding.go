@@ -95,6 +95,8 @@ func (h EmbedItems) Execute(
 		available bool
 		owed      []repository.OwedEmbedding
 		skip      []shared.ID
+		// restricted are kept out further: the entries they are on are about them.
+		restricted []shared.ID
 	)
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
@@ -107,9 +109,9 @@ func (h EmbedItems) Execute(
 				if err != nil {
 					return err
 				}
-				skip = kept.Accounts()
+				skip, restricted = kept.Accounts(), kept.Restricted()
 			}
-			owed, err = h.Embeddings.Owed(ctx, capabilities.EmbeddingModel, batch, skip)
+			owed, err = h.Embeddings.Owed(ctx, capabilities.EmbeddingModel, batch, skip, restricted)
 			return err
 		}); err != nil {
 		return EmbedOutcome{}, err
@@ -118,7 +120,10 @@ func (h EmbedItems) Execute(
 		// What a kept-out person created leaves the store with every pass: an objection recorded
 		// while the workspace was a person alone, or the position moved back, takes effect here.
 		if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-			_, err := h.Embeddings.Forget(ctx, skip)
+			if _, err := h.Embeddings.Forget(ctx, skip); err != nil {
+				return err
+			}
+			_, err := h.Embeddings.ForgetAssigned(ctx, restricted)
 			return err
 		}); err != nil {
 			return EmbedOutcome{}, err
