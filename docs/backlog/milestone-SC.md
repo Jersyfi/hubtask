@@ -266,7 +266,7 @@ provider and an installation AI model present.
 
 ---
 
-## SC-13 — Invitations that reach people without mail
+## SC-13 — Invitations that reach people without mail · built
 
 *Depends on: nothing.*
 

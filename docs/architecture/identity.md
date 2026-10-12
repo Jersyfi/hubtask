@@ -342,6 +342,14 @@ safeguard belongs to connecting, not to the provider kind.
 
 * `POST /accounts:invite` creates an `INVITED` account and queues the mail. The token (`hbt_inv_…`)
   is hashed under a purpose label, shown once, lives fourteen days, redeemed once.
+* **Without mail** (`features.mail` false, no `HUBTASK_SMTP_HOST`) nothing is queued: the token is
+  minted in the invitation's transaction and the answer carries `invitation_link`, the link the
+  mail would carry, shown once (no-store, no idempotency replay body). Never both: the mail's
+  delivery mints a token of its own on every attempt and would kill a handed-over link. A rule's run
+  is refused there (`accounts.invitation_needs_a_person`).
+* `POST /accounts/{id}:renew-invitation` gives an invitation not yet accepted a new way to arrive -
+  the mail again, or a new link shown once; the earlier link dies. An address already invited is
+  `accounts.already_invited`, one already here `accounts.email_taken`.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
   the account.
@@ -350,7 +358,7 @@ safeguard belongs to connecting, not to the provider kind.
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
   link admits even a non-authoritative provider, for that account and the invited address only.
 * Unknown, expired, accepted and foreign invitations are one refusal.
-* Not built: §21 I-5.
+* Not built: §21 I-5 (terms at the invitation).
 
 ---
 
@@ -641,7 +649,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-3 | A role for newcomers under `DOMAINS` and `ANY` ([UC-ID-11](../usecases/identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md)). Not built. |
 | I-4 | The first start and the locked installation: a setup code, `HUBTASK_OPERATORS`, a server command ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md), [UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Not built. |
-| I-5 | Invitations without mail, providers on the invitation card, terms of use with a `TERMS` step ([UC-ID-14](../usecases/identity/UC-ID-14-invite-people-with-a-role.md), [UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
+| I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-7 | A directory list under `INVITED_ONLY` is stored and not read; [ADR-0071](../adr/ADR-0071-provider-admission.md) §4 intends it to narrow the mode. |
 | I-9 | An installation lock turning an invite-only offered provider on everywhere (§18; [UC-INS-11](../usecases/admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) check 4). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
