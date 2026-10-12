@@ -1848,6 +1848,75 @@ func (e ImportRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for InvitedAccountKind.
+const (
+	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
+	InvitedAccountKindUSER           InvitedAccountKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountKind enum.
+func (e InvitedAccountKind) Valid() bool {
+	switch e {
+	case InvitedAccountKindSERVICEACCOUNT:
+		return true
+	case InvitedAccountKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountStatus.
+const (
+	InvitedAccountStatusACTIVE     InvitedAccountStatus = "ACTIVE"
+	InvitedAccountStatusANONYMIZED InvitedAccountStatus = "ANONYMIZED"
+	InvitedAccountStatusDISABLED   InvitedAccountStatus = "DISABLED"
+	InvitedAccountStatusINVITED    InvitedAccountStatus = "INVITED"
+	InvitedAccountStatusRESTRICTED InvitedAccountStatus = "RESTRICTED"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountStatus enum.
+func (e InvitedAccountStatus) Valid() bool {
+	switch e {
+	case InvitedAccountStatusACTIVE:
+		return true
+	case InvitedAccountStatusANONYMIZED:
+		return true
+	case InvitedAccountStatusDISABLED:
+		return true
+	case InvitedAccountStatusINVITED:
+		return true
+	case InvitedAccountStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountWeekStart.
+const (
+	InvitedAccountWeekStartLessThannil InvitedAccountWeekStart = "<nil>"
+	InvitedAccountWeekStartMONDAY      InvitedAccountWeekStart = "MONDAY"
+	InvitedAccountWeekStartSATURDAY    InvitedAccountWeekStart = "SATURDAY"
+	InvitedAccountWeekStartSUNDAY      InvitedAccountWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountWeekStart enum.
+func (e InvitedAccountWeekStart) Valid() bool {
+	switch e {
+	case InvitedAccountWeekStartLessThannil:
+		return true
+	case InvitedAccountWeekStartMONDAY:
+		return true
+	case InvitedAccountWeekStartSATURDAY:
+		return true
+	case InvitedAccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -6093,6 +6162,62 @@ type InvitationRedemption struct {
 	Token string `json:"token"`
 }
 
+// InvitedAccount defines model for InvitedAccount.
+type InvitedAccount struct {
+	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
+	Celebrations *bool                `json:"celebrations,omitempty"`
+	DisplayName  string               `json:"display_name"`
+	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
+	HasPassword *bool `json:"has_password,omitempty"`
+
+	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
+	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// InvitationLink Present only where this installation sends no mail: the link that accepts the invitation, the same one a mail would carry. Shown here and never again - only its hash is kept. It works once, for fourteen days.
+	InvitationLink *string            `json:"invitation_link,omitempty"`
+	Kind           InvitedAccountKind `json:"kind"`
+	Locale         *string            `json:"locale,omitempty"`
+
+	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
+	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
+
+	// SignInName What a managed account signs in with instead of an address: unique in the workspace, stored folded (compatibility form, lower case). Absent on an account that signs in with its address.
+	SignInName *string `json:"sign_in_name,omitempty"`
+
+	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+	// stays, and what stops is this system deciding anything about the person by machine.
+	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+	// stays so that the workspace's own content is still readable, and everything of the
+	// person's in it is gone.
+	Status    InvitedAccountStatus     `json:"status"`
+	TimeZone  *string                  `json:"time_zone,omitempty"`
+	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+}
+
+// InvitedAccountKind defines model for InvitedAccount.Kind.
+type InvitedAccountKind string
+
+// InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+// stays, and what stops is this system deciding anything about the person by machine.
+// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+// stays so that the workspace's own content is still readable, and everything of the
+// person's in it is gone.
+type InvitedAccountStatus string
+
+// InvitedAccountWeekStart defines model for InvitedAccount.WeekStart.
+type InvitedAccountWeekStart string
+
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
@@ -9205,6 +9330,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// RenewInvitationParams defines parameters for RenewInvitation.
+type RenewInvitationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CreateManagedAccountParams defines parameters for CreateManagedAccount.
 type CreateManagedAccountParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -10826,6 +10957,22 @@ type ClientInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RenewInvitation Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RestrictProcessingWithBody Restrict the processing of an account's data (Art. 18)
 	//
 	// A technical state rather than a lock: the account stays readable and its content stays
@@ -10910,7 +11057,21 @@ type ClientInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -10921,7 +11082,21 @@ type ClientInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -14801,6 +14976,32 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 	return c.Client.Do(req)
 }
 
+// RenewInvitation Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenewInvitationRequest(c.Server, accountId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RestrictProcessingWithBody Restrict the processing of an account's data (Art. 18)
 //
 // A technical state rather than a lock: the account stays readable and its content stays
@@ -14925,7 +15126,21 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes any type of body and a specified content type.
 //
@@ -14946,7 +15161,21 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -22946,6 +23175,55 @@ func NewUpdateAccountPreferencesRequestWithBody(server string, accountId Account
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRenewInvitationRequest constructs an http.Request for the RenewInvitation method
+func NewRenewInvitationRequest(server string, accountId AccountId, params *RenewInvitationParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "accountId", accountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/%s:renew-invitation", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -36894,6 +37172,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/{accountId}/preferences (the `UpdateAccountPreferences` operationId).
 	UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, accountId AccountId, body UpdateAccountPreferencesApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateAccountPreferencesResult, error)
 
+	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
+	//
+	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+	// any other is `409 accounts.not_invited`.
+	//
+	// **Where this installation sends mail**, the invitation mail is queued again and the answer
+	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+	// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+	// with `accounts.invitation_needs_a_person`.
+	//
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+	RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error)
+
 	// RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 	//
 	// A technical state rather than a lock: the account stays readable and its content stays
@@ -36978,7 +37274,21 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -36989,7 +37299,21 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 	// it cannot act until the invitation is accepted.
-	// The notification is queued as a job — this call does not wait for an email.
+	//
+	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+	// invitation mail is queued as a job - this call does not wait for it - and the answer
+	// carries no link.
+	//
+	// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+	// same link the mail would have carried, **shown here and never again**, to be handed over by
+	// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+	// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+	// replaced with `POST /accounts/{accountId}:renew-invitation`.
+	//
+	// An address that already has an account here is `409 accounts.email_taken`; one whose
+	// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+	// sent for either. Without mail, an act an automation rule runs is refused with
+	// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -41319,6 +41643,54 @@ func (r UpdateAccountPreferencesResult) ContentType() string {
 	return ""
 }
 
+type RenewInvitationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InvitedAccount
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RenewInvitationResult) GetJSON200() *InvitedAccount {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RenewInvitationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RenewInvitationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenewInvitationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenewInvitationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenewInvitationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RestrictProcessingResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -41419,13 +41791,13 @@ type InviteAccountResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
-	JSON201 *Account
+	JSON201 *InvitedAccount
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
-func (r InviteAccountResult) GetJSON201() *Account {
+func (r InviteAccountResult) GetJSON201() *InvitedAccount {
 	return r.JSON201
 }
 
@@ -55558,6 +55930,30 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 	return ParseUpdateAccountPreferencesResult(rsp)
 }
 
+// RenewInvitationWithResponse Give an invitation not yet accepted a new link
+//
+// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
+// any other is `409 accounts.not_invited`.
+//
+// **Where this installation sends mail**, the invitation mail is queued again and the answer
+// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
+// no mail**, the answer carries a new `invitation_link`, shown here and never again, and the
+// earlier link stops working at once. Without mail, an act an automation rule runs is refused
+// with `accounts.invitation_needs_a_person`.
+//
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
+func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*RenewInvitationResult, error) {
+	rsp, err := c.RenewInvitation(ctx, accountId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenewInvitationResult(rsp)
+}
+
 // RestrictProcessingWithBodyWithResponse Restrict the processing of an account's data (Art. 18)
 //
 // A technical state rather than a lock: the account stays readable and its content stays
@@ -55666,7 +56062,21 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -55683,7 +56093,21 @@ func (c *ClientWithResponses) InviteAccountWithBodyWithResponse(ctx context.Cont
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
 // it cannot act until the invitation is accepted.
-// The notification is queued as a job — this call does not wait for an email.
+//
+// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
+// invitation mail is queued as a job - this call does not wait for it - and the answer
+// carries no link.
+//
+// **Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the
+// same link the mail would have carried, **shown here and never again**, to be handed over by
+// any other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a
+// repeat with the same `Idempotency-Key` answers the status without the body. A lost link is
+// replaced with `POST /accounts/{accountId}:renew-invitation`.
+//
+// An address that already has an account here is `409 accounts.email_taken`; one whose
+// invitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or
+// sent for either. Without mail, an act an automation rule runs is refused with
+// `accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -62397,6 +62821,39 @@ func ParseUpdateAccountPreferencesResult(rsp *http.Response) (*UpdateAccountPref
 	return response, nil
 }
 
+// ParseRenewInvitationResult parses an HTTP response from a RenewInvitationWithResponse call
+func ParseRenewInvitationResult(rsp *http.Response) (*RenewInvitationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenewInvitationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InvitedAccount
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRestrictProcessingResult parses an HTTP response from a RestrictProcessingWithResponse call
 func ParseRestrictProcessingResult(rsp *http.Response) (*RestrictProcessingResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -62478,7 +62935,7 @@ func ParseInviteAccountResult(rsp *http.Response) (*InviteAccountResult, error) 
 
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
-		var dest Account
+		var dest InvitedAccount
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

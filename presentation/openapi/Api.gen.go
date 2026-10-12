@@ -1842,6 +1842,75 @@ func (e ImportRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for InvitedAccountKind.
+const (
+	InvitedAccountKindSERVICEACCOUNT InvitedAccountKind = "SERVICE_ACCOUNT"
+	InvitedAccountKindUSER           InvitedAccountKind = "USER"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountKind enum.
+func (e InvitedAccountKind) Valid() bool {
+	switch e {
+	case InvitedAccountKindSERVICEACCOUNT:
+		return true
+	case InvitedAccountKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountStatus.
+const (
+	InvitedAccountStatusACTIVE     InvitedAccountStatus = "ACTIVE"
+	InvitedAccountStatusANONYMIZED InvitedAccountStatus = "ANONYMIZED"
+	InvitedAccountStatusDISABLED   InvitedAccountStatus = "DISABLED"
+	InvitedAccountStatusINVITED    InvitedAccountStatus = "INVITED"
+	InvitedAccountStatusRESTRICTED InvitedAccountStatus = "RESTRICTED"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountStatus enum.
+func (e InvitedAccountStatus) Valid() bool {
+	switch e {
+	case InvitedAccountStatusACTIVE:
+		return true
+	case InvitedAccountStatusANONYMIZED:
+		return true
+	case InvitedAccountStatusDISABLED:
+		return true
+	case InvitedAccountStatusINVITED:
+		return true
+	case InvitedAccountStatusRESTRICTED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InvitedAccountWeekStart.
+const (
+	InvitedAccountWeekStartLessThannil InvitedAccountWeekStart = "<nil>"
+	InvitedAccountWeekStartMONDAY      InvitedAccountWeekStart = "MONDAY"
+	InvitedAccountWeekStartSATURDAY    InvitedAccountWeekStart = "SATURDAY"
+	InvitedAccountWeekStartSUNDAY      InvitedAccountWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the InvitedAccountWeekStart enum.
+func (e InvitedAccountWeekStart) Valid() bool {
+	switch e {
+	case InvitedAccountWeekStartLessThannil:
+		return true
+	case InvitedAccountWeekStartMONDAY:
+		return true
+	case InvitedAccountWeekStartSATURDAY:
+		return true
+	case InvitedAccountWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemAccess.
 const (
 	ItemAccessALL      ItemAccess = "ALL"
@@ -6087,6 +6156,62 @@ type InvitationRedemption struct {
 	Token string `json:"token"`
 }
 
+// InvitedAccount defines model for InvitedAccount.
+type InvitedAccount struct {
+	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
+	Celebrations *bool                `json:"celebrations,omitempty"`
+	DisplayName  string               `json:"display_name"`
+	Email        *openapi_types.Email `json:"email,omitempty"`
+
+	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
+	HasPassword *bool `json:"has_password,omitempty"`
+
+	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
+	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
+	Id              openapi_types.UUID `json:"id"`
+
+	// InvitationLink Present only where this installation sends no mail: the link that accepts the invitation, the same one a mail would carry. Shown here and never again - only its hash is kept. It works once, for fourteen days.
+	InvitationLink *string            `json:"invitation_link,omitempty"`
+	Kind           InvitedAccountKind `json:"kind"`
+	Locale         *string            `json:"locale,omitempty"`
+
+	// OnboardingCompletedAt When the person finished or skipped the first-run tour. Absent or null means the tour has not been taken - or was asked for again.
+	OnboardingCompletedAt *time.Time `json:"onboarding_completed_at,omitempty"`
+
+	// RecoveryCodesRemaining How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not "zero left" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.
+	// The same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.
+	RecoveryCodesRemaining *int `json:"recovery_codes_remaining,omitempty"`
+
+	// SecondFactorRequired Whether the workspace's sign-in rule in force demands a second factor of this person, answered on `GET /accounts/me` and on nothing else. The same reading signing in and turning the factor off make, so a screen can say "your workspace requires it" instead of offering a control the server would refuse.
+	SecondFactorRequired *bool `json:"second_factor_required,omitempty"`
+
+	// SignInName What a managed account signs in with instead of an address: unique in the workspace, stored folded (compatibility form, lower case). Absent on an account that signs in with its address.
+	SignInName *string `json:"sign_in_name,omitempty"`
+
+	// Status `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+	// stays, and what stops is this system deciding anything about the person by machine.
+	// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+	// stays so that the workspace's own content is still readable, and everything of the
+	// person's in it is gone.
+	Status    InvitedAccountStatus     `json:"status"`
+	TimeZone  *string                  `json:"time_zone,omitempty"`
+	WeekStart *InvitedAccountWeekStart `json:"week_start,omitempty"`
+}
+
+// InvitedAccountKind defines model for InvitedAccount.Kind.
+type InvitedAccountKind string
+
+// InvitedAccountStatus `RESTRICTED` is Art. 18 GDPR as a technical state: the account works and its content
+// stays, and what stops is this system deciding anything about the person by machine.
+// `ANONYMIZED` is an erasure carried out in the mode that keeps the authorship - the row
+// stays so that the workspace's own content is still readable, and everything of the
+// person's in it is gone.
+type InvitedAccountStatus string
+
+// InvitedAccountWeekStart defines model for InvitedAccount.WeekStart.
+type InvitedAccountWeekStart string
+
 // ItemAccess How far a role reaches into one entry.
 // `ALL` is unqualified. `ASSIGNED` is only where the actor is the entry's assignee - which is what the matrix's "assigned only" cell means, and why a contributor's `create` is `ALL` while their `change` is not: a created entry is assigned to its creator, so the qualifier holds at every moment rather than being suspended for the one call that would break it. `NONE` is never, whatever the membership.
 type ItemAccess string
@@ -9199,6 +9324,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// RenewInvitationParams defines parameters for RenewInvitation.
+type RenewInvitationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CreateManagedAccountParams defines parameters for CreateManagedAccount.
 type CreateManagedAccountParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -10655,6 +10786,9 @@ type ServerInterface interface {
 	// UpdateAccountPreferences Set how the product speaks to an account
 	// (PATCH /accounts/{accountId}/preferences)
 	UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, accountId AccountId)
+	// RenewInvitation Give an invitation not yet accepted a new link
+	// (POST /accounts/{accountId}:renew-invitation)
+	RenewInvitation(w http.ResponseWriter, r *http.Request, accountId AccountId, params RenewInvitationParams)
 	// RestrictProcessing Restrict the processing of an account's data (Art. 18)
 	// (POST /accounts/{accountId}:restrict)
 	RestrictProcessing(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11651,6 +11785,56 @@ func (siw *ServerInterfaceWrapper) UpdateAccountPreferences(w http.ResponseWrite
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateAccountPreferences(w, r, accountId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenewInvitation operation middleware
+func (siw *ServerInterfaceWrapper) RenewInvitation(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "accountId" -------------
+	var accountId AccountId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "accountId", r.PathValue("accountId"), &accountId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "accountId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RenewInvitationParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenewInvitation(w, r, accountId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22098,6 +22282,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sync/devices", wrapper.ListSyncDevices)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/sync/devices/{deviceId}", wrapper.ForgetSyncDevice)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:invite", wrapper.InviteAccount)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:renew-invitation", wrapper.RenewInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
