@@ -66,6 +66,7 @@ class Account(TypedDict, total=False):
     recovery_codes_remaining: int
     second_factor_required: bool
     has_password: bool
+    has_access: bool
 
 class Actor(TypedDict, total=False):
     """Who did something. The label is not here: the account is one request away (`GET /accounts/{accountId}`) and the records that carry an actor are deleted with the thing they are about, so there is nothing for a copy of somebody's name to outlive."""

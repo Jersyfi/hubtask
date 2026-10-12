@@ -1285,6 +1285,8 @@ func run() error {
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
+			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
+			Access: postgres.NewMembershipRepository(),
 		}.Descriptor(),
 		identity.GetAccount{Accounts: accounts, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateManagedAccount{
