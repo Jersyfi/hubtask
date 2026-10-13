@@ -137,6 +137,37 @@ func serviceWith(held []identity.Membership) (Service, *memberships, *sink, *uni
 		store, trail, uow
 }
 
+// writableUnitOfWork can write beside a read-only transaction, as the PostgreSQL one can.
+type writableUnitOfWork struct {
+	unitOfWork
+	beside int
+}
+
+func (u *writableUnitOfWork) WithinWritable(ctx context.Context, _ persistence.Scope, fn func(context.Context) error) error {
+	u.beside++
+	return fn(ctx)
+}
+
+// A refusal asked from inside a read-only transaction - a reader that reads its target through
+// another reader - is written where it can be stored: beside the read, when the unit of work can.
+// Joining the read would make the insert fail and the entry vanish. The PostgreSQL half is
+// test/integration's TestARefusalInsideAReadOnlyReadIsInTheTrail.
+func TestARefusalIsWrittenWhereItCanBeStored(t *testing.T) {
+	authorize, _, trail, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleMember},
+	})
+	uow := &writableUnitOfWork{}
+	authorize.UnitOfWork = uow
+
+	if err := authorize.Authorize(context.Background(), actorWithScopes("containers:write"), request()); err == nil {
+		t.Fatal("a member was let in")
+	}
+	if uow.beside != 1 || uow.writes != 0 || len(trail.entries) != 1 {
+		t.Errorf("written beside %d times, joined %d, entries %d; want the one entry through WithinWritable",
+			uow.beside, uow.writes, len(trail.entries))
+	}
+}
+
 func TestAnAdministratorMayCreateAContainer(t *testing.T) {
 	authorize, store, trail, uow := serviceWith([]identity.Membership{
 		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleAdmin},

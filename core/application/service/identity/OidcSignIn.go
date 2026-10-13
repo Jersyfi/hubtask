@@ -415,9 +415,30 @@ func (h CompleteOidcSignIn) Execute(
 		return w.connectByMail(ctx, scope, configured, identity, flow, cmd)
 	}
 
-	account, owed, err := w.settleAccount(ctx, scope, configured, identity, flow.InvitedAccountID)
+	// Where terms are in force, a newcomer is made only once they are agreed (UC-ID-19 check 1): the
+	// arrival waits on the TERMS step instead of becoming an account a person who declines would
+	// leave behind. Read only where this arrival could be made an account at all.
+	var owedByNewcomers domain.TermsInForce
+	if flow.InvitedAccountID.IsZero() && configured.MayProvision(admissionOf(identity)) {
+		if owedByNewcomers, err = w.Session.newcomerTerms(ctx, scope); err != nil {
+			return SignInResult{}, err
+		}
+	}
+
+	account, owed, newcomer, err := w.settleAccount(
+		ctx, scope, configured, identity, flow.InvitedAccountID, owedByNewcomers.IsSet())
 	if err != nil {
 		return SignInResult{}, err
+	}
+	if newcomer != nil {
+		challenge, err := w.Session.newcomerStep(ctx, scope, *newcomer, SessionHint{
+			UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+			Method: domain.SignedInWithOidc, Via: configured.ID,
+		}, owedByNewcomers)
+		if err != nil {
+			return SignInResult{}, err
+		}
+		return SignInResult{Challenge: &challenge}, nil
 	}
 
 	// The same check every other way in makes, and the acceptance criterion names it: a
@@ -454,7 +475,7 @@ func (h CompleteOidcSignIn) Execute(
 	}
 	// The terms of use in force, where not yet agreed, are the step after the provider's word
 	// (UC-ID-19 check 6).
-	return w.Session.openOrAgree(ctx, scope, account, SessionHint{
+	return w.Session.openOrAgreeNaming(ctx, scope, account, SessionHint{
 		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
 		Method: domain.SignedInWithOidc, Via: configured.ID,
 	}, bounds)
@@ -468,6 +489,9 @@ func (h CompleteOidcSignIn) Execute(
 // The second answer is whether the account the arrival matched still owes its own proof before the
 // provider may be connected to it (ADR-0071's addendum, E2). Then nothing is linked yet.
 //
+// The third is the newcomer to carry through the TERMS step instead of making the account now,
+// where `deferNewcomer` asks for that (terms are in force). Then nothing is written.
+//
 // `invitedID` is the invited account the flow started from, zero for every other sign-in. It is
 // one of the two second proofs that activate an invited account; the provider being authoritative
 // for the address is the other (ADR-0078 §1). Without either, a provider's word activates nothing
@@ -475,10 +499,12 @@ func (h CompleteOidcSignIn) Execute(
 func (w OidcWriter) settleAccount(
 	ctx context.Context, scope persistence.Scope,
 	configured domain.IdentityProvider, arriving provider.Identity, invitedID shared.ID,
-) (domain.Account, bool, error) {
+	deferNewcomer bool,
+) (domain.Account, bool, *domain.ArrivalIntent, error) {
 	var (
-		account domain.Account
-		owed    bool
+		account  domain.Account
+		owed     bool
+		newcomer *domain.ArrivalIntent
 	)
 	err := w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		// The subject first: on every arrival after the first, this is the whole of it.
@@ -614,24 +640,23 @@ func (w OidcWriter) settleAccount(
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_invited"))
 		}
 
-		provisioned, err := domain.ProvisionExternal(
-			w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
-		if err != nil {
-			return err
+		if deferNewcomer {
+			// Validated now, so that an address or a name the account could not take fails before
+			// the person agrees rather than after.
+			valid, err := domain.ProvisionExternal(
+				w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
+			if err != nil {
+				return err
+			}
+			newcomer = &domain.ArrivalIntent{
+				ProviderID: configured.ID, Subject: arriving.Subject,
+				Email: valid.Email, DisplayName: valid.DisplayName, Directory: arriving.Directory,
+			}
+			return nil
 		}
-		if err := w.Accounts.Insert(ctx, provisioned); err != nil {
-			return err
-		}
-		if _, err := w.External.LinkSubject(
-			ctx, configured.ID, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
-			return err
-		}
-		given, err := w.welcome(ctx, configured, provisioned)
-		if err != nil {
-			return err
-		}
+		provisioned, err := w.provisionNewcomer(ctx, scope, configured, arriving)
 		account = provisioned
-		return w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving, given...)
+		return err
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
 	// that transaction wrote is rolled back with the refusal, and the entry is what an operator
@@ -639,14 +664,86 @@ func (w OidcWriter) settleAccount(
 	var refusal turnedAwayError
 	if errors.As(err, &refusal) {
 		if recordErr := w.recordRefusal(ctx, scope, configured); recordErr != nil {
-			return domain.Account{}, false, recordErr
+			return domain.Account{}, false, nil, recordErr
 		}
-		return domain.Account{}, false, refusal.cause
+		return domain.Account{}, false, nil, refusal.cause
 	}
 	if err != nil {
-		return domain.Account{}, false, err
+		return domain.Account{}, false, nil, err
 	}
-	return account, owed, nil
+	return account, owed, newcomer, nil
+}
+
+// provisionNewcomer makes the account of an admitted first arrival, connects the provider, gives
+// what the provider names for newcomers and records it, in the caller's transaction.
+func (w OidcWriter) provisionNewcomer(
+	ctx context.Context, scope persistence.Scope,
+	configured domain.IdentityProvider, arriving provider.Identity,
+) (domain.Account, error) {
+	provisioned, err := domain.ProvisionExternal(
+		w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	if err := w.Accounts.Insert(ctx, provisioned); err != nil {
+		return domain.Account{}, err
+	}
+	if _, err := w.External.LinkSubject(
+		ctx, configured.ID, provisioned.ID, arriving.Subject, w.Session.Clock.Now()); err != nil {
+		return domain.Account{}, err
+	}
+	given, err := w.welcome(ctx, configured, provisioned)
+	if err != nil {
+		return domain.Account{}, err
+	}
+	return provisioned, w.record(ctx, OidcProvisionedAction, provisioned, configured, arriving, given...)
+}
+
+// ArrivalProvider opens the provider a newcomer's TERMS step names, as every sign-in opens it: a
+// provider switched off or removed meanwhile is refused here.
+func (w OidcWriter) ArrivalProvider(
+	ctx context.Context, scope persistence.Scope, providerID shared.ID,
+) (domain.IdentityProvider, error) {
+	configured, _, err := w.provider(ctx, scope, providerID)
+	return configured, err
+}
+
+// Arrive makes the newcomer a TERMS step carried, once the terms are agreed, in the agreement's
+// transaction. The arrival is admitted again against the provider as it is now - an administrator
+// who narrowed it while the step was open gets no new account - and an address somebody took
+// meanwhile is refused rather than claimed. A second agreement of the same arrival (another tab)
+// finds the account the first one made and signs that in.
+//
+// The arrival was admitted with a verified address, which is what the provisioning entry records.
+func (w OidcWriter) Arrive(
+	ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
+	arrival domain.ArrivalIntent,
+) (domain.Account, error) {
+	arriving := provider.Identity{
+		Subject: arrival.Subject, Email: arrival.Email, EmailVerified: true,
+		DisplayName: arrival.DisplayName, Directory: arrival.Directory,
+	}
+	found, err := w.External.FindBySubject(ctx, configured.ID, arrival.Subject)
+	switch {
+	case err == nil:
+		if err := found.Verify(); err != nil {
+			return domain.Account{}, err
+		}
+		return found, nil
+	case !errors.Is(err, shared.ErrNotFound):
+		return domain.Account{}, err
+	}
+	if !configured.MayAdmit(admissionOf(arriving)) || !configured.MayProvision(admissionOf(arriving)) {
+		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.not_invited")
+	}
+	_, err = w.Accounts.FindByEmail(ctx, domain.LookupAddress(arrival.Email, w.Domains))
+	switch {
+	case err == nil:
+		return domain.Account{}, shared.ErrConflict.WithDetail("identity_provider.account_taken")
+	case !errors.Is(err, shared.ErrNotFound):
+		return domain.Account{}, err
+	}
+	return w.provisionNewcomer(ctx, scope, configured, arriving)
 }
 
 // welcome gives an account created on arrival what the provider names for newcomers (UC-ID-11
@@ -851,7 +948,7 @@ func (w OidcWriter) connectByMail(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	return s.openOrAgree(ctx, scope, account, SessionHint{
+	return s.openOrAgreeNaming(ctx, scope, account, SessionHint{
 		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
 		Method: domain.SignedInWithOidc, Via: configured.ID,
 	}, bounds)

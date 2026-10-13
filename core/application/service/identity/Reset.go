@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -66,11 +67,20 @@ type ForgetPassword struct {
 	Tenants repository.TenantDirectory
 }
 
-// Execute queues a link where there is somewhere to send one, and answers nothing either way.
+// Execute hands the request to a job and answers nothing either way.
 //
-// Every failure behind the answer is swallowed deliberately: an address nobody holds, an account
-// that signs in through a provider, a queue that refused the job. What a caller learns is that the
-// request arrived, which is all there is to learn.
+// **The same work for every address** (T-02, UC-ID-04 check 1). The answer was always the same
+// bytes, but the time behind it was not: an active account used to be recorded and its mail queued
+// inside the request, and that write was the difference a probe could time. Now every address costs
+// one read-only lookup and one transaction that queues one request job, whose payload names the
+// account it found or nobody; the job decides whether there is anybody to record and to mail
+// (RecordResetRequest). What still differs at the request is the lookup itself - an index hit
+// against a miss - which is as small as the work can be without carrying the address into the
+// queue, where nothing would ever delete it.
+//
+// Every failure behind the answer is swallowed deliberately: an address nobody holds, a lookup that
+// failed, a queue that refused the job. What a caller learns is that the request arrived, which is
+// all there is to learn.
 func (h ForgetPassword) Execute(ctx context.Context, cmd ForgetPasswordCommand) error {
 	tenantID, err := h.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
 	if err != nil || tenantID.IsZero() {
@@ -83,80 +93,148 @@ func (h ForgetPassword) Execute(ctx context.Context, cmd ForgetPasswordCommand) 
 		return nil
 	}
 
-	var found repository.PasswordAccount
-	err = h.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+	// The account's identifier, or nobody. A lookup that failed goes on as nobody rather than
+	// returning early: an early return would be a shorter request, which is the difference this
+	// method exists to remove.
+	var accountID shared.ID
+	_ = h.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
 			read, err := h.Writer.Accounts.FindByEmailForPassword(ctx, address)
 			if err != nil {
-				if errors.Is(err, shared.ErrNotFound) {
-					return nil
-				}
 				return err
 			}
-			found = read
+			accountID = read.Account.ID
 			return nil
 		})
-	if err != nil || found.Account.ID.IsZero() {
-		return nil //nolint:nilerr // the answer is the same whatever went wrong behind it (T-02)
-	}
-	if err := found.Account.Verify(); err != nil {
-		// A disabled account gets no link. Silently: whether an address is disabled is as much a
-		// probe's question as whether it exists.
-		return nil //nolint:nilerr // same answer, same reason
-	}
 
-	// The trail entry and the job in one transaction: a request recorded without a mail queued
-	// would be a trail saying somebody asked and nothing happening, and the other way round would
-	// be a mail with no record of who asked for it.
-	if err := h.queue(ctx, tenantID, found.Account); err != nil {
+	if err := h.handOver(ctx, tenantID, accountID); err != nil {
 		// Logged and swallowed. The caller's answer must not depend on this - it is the same `202`
 		// either way - but an operator whose queue is refusing jobs has to be able to find out,
 		// and silence at both ends is how a mail server nobody noticed stays unnoticed.
-		slog.WarnContext(ctx, "queueing a password reset failed",
+		slog.WarnContext(ctx, "queueing a password reset request failed",
 			slog.String("error", err.Error()))
 	}
 	return nil
 }
 
-// queue writes the trail entry and the job together.
-func (h ForgetPassword) queue(
-	ctx context.Context, tenantID shared.ID, account domain.Account,
-) error {
+// handOver queues the request job. Not deduplicated: an empty account must not collapse into
+// somebody else's request, and the mail job the request job queues is deduplicated per account
+// already - a person who presses the button twice still gets one mail.
+func (h ForgetPassword) handOver(ctx context.Context, tenantID, accountID shared.ID) error {
+	if h.Notifier == nil {
+		return nil
+	}
+	payload := map[string]any{
+		"account_id":   accountID.String(),
+		"requested_at": h.Writer.Clock.Now().UTC().Format(time.RFC3339Nano),
+		"request_id":   correlation.RequestIDFrom(ctx),
+	}
 	return h.Writer.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
-			if err := h.record(ctx, tenantID, account); err != nil {
+			_, err := h.Notifier.Enqueue(ctx, queue.Request{
+				Kind: queue.KindPasswordResetRequest, TenantID: tenantID, Payload: payload,
+			})
+			return err
+		})
+}
+
+// RecordResetRequest is the request job's work (queue.KindPasswordResetRequest): what the request
+// itself did before it had to do the same for every address.
+type RecordResetRequest struct {
+	Writer PasswordWriter
+	// Notifier is the queue the mail job goes on. Nil records the request and sends nothing.
+	Notifier Notifier
+}
+
+// Execute records the request and queues the mail where the account is there and active, and does
+// nothing for an address nobody held or an account that is disabled or gone since. Silently: whether
+// an address is disabled is as much a probe's question as whether it exists.
+func (h RecordResetRequest) Execute(ctx context.Context, tenantID shared.ID, payload map[string]any) error {
+	accountID, requestedAt, requestID, err := resetRequestFrom(payload)
+	if err != nil {
+		return err
+	}
+	if accountID.IsZero() {
+		return nil
+	}
+	// The entry names the request that asked, not the job that runs it.
+	ctx = correlation.ContextWithRequestID(ctx, requestID)
+
+	// The trail entry and the mail job in one transaction - the runner's, which this joins: a
+	// request recorded without a mail queued would be a trail saying somebody asked and nothing
+	// happening, and the other way round would be a mail with no record of who asked for it.
+	return h.Writer.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenantID, ActorID: accountID},
+		func(ctx context.Context) error {
+			held, err := h.Writer.Accounts.FindForPassword(ctx, accountID)
+			if err != nil {
+				if errors.Is(err, shared.ErrNotFound) {
+					// Gone between the request and the job: finished business, not a failure.
+					return nil
+				}
+				return err
+			}
+			if err := held.Account.Verify(); err != nil {
+				// A disabled account gets no link.
+				return nil //nolint:nilerr // same silence, same reason
+			}
+			if err := recordResetRequest(ctx, h.Writer, tenantID, held.Account, requestedAt); err != nil {
 				return err
 			}
 			if h.Notifier == nil {
 				return nil
 			}
-			_, enqueued := h.Notifier.Enqueue(ctx, queue.Request{
+			_, err = h.Notifier.Enqueue(ctx, queue.Request{
 				Kind:     queue.KindPasswordResetEmail,
 				TenantID: tenantID,
 				// One pending link per account: a person who presses the button twice gets one
 				// mail, and the job already waiting is the one that sends it.
-				DedupeKey: account.ID.String(),
+				DedupeKey: accountID.String(),
 				// Identifiers only (rule 10). The address is on the row the job reads, and a
 				// payload carrying one would put it in the queue table and in every log line
 				// about the job.
-				Payload: map[string]any{"account_id": account.ID.String()},
+				Payload: map[string]any{"account_id": accountID.String()},
 			})
-			return enqueued
+			return err
 		})
 }
 
-// record writes the trail entry, inside the caller's transaction. Nothing is written for an address
-// nobody holds, and the reason is the same one the answer gives: there is no workspace to write it in.
-func (h ForgetPassword) record(
-	ctx context.Context, tenantID shared.ID, account domain.Account,
+// resetRequestFrom reads the request job's payload. A payload of another shape is a defect, not an
+// address nobody holds.
+func resetRequestFrom(payload map[string]any) (shared.ID, time.Time, string, error) {
+	malformed := shared.ErrInternal.WithDetail("auth.reset_request_malformed")
+	rawAccount, accountOK := payload["account_id"].(string)
+	rawMoment, momentOK := payload["requested_at"].(string)
+	requestID, _ := payload["request_id"].(string)
+	if !accountOK || !momentOK {
+		return "", time.Time{}, "", malformed
+	}
+	at, err := time.Parse(time.RFC3339Nano, rawMoment)
+	if err != nil {
+		return "", time.Time{}, "", malformed
+	}
+	if rawAccount == "" {
+		return "", at, requestID, nil
+	}
+	accountID, err := shared.ParseID(rawAccount)
+	if err != nil {
+		return "", time.Time{}, "", malformed
+	}
+	return accountID, at, requestID, nil
+}
+
+// recordResetRequest writes the trail entry inside the caller's transaction, at the moment the
+// request was made rather than the moment its job ran. Nothing is written for an address nobody
+// holds, and the reason is the same one the answer gives: there is no workspace to write it in.
+func recordResetRequest(
+	ctx context.Context, w PasswordWriter, tenantID shared.ID, account domain.Account, at time.Time,
 ) error {
-	sink := h.Writer.Session.Audit
+	sink := w.Session.Audit
 	if sink == nil {
 		return nil
 	}
 	return sink.Append(ctx, audit.Entry{
 		TenantID:   tenantID,
-		OccurredAt: h.Writer.Clock.Now(),
+		OccurredAt: at,
 		Action:     PasswordResetRequestedAction,
 		Outcome:    audit.OutcomeSuccess,
 		Severity:   audit.SeverityNotice,
@@ -200,8 +278,9 @@ func (h ForgetPassword) Descriptor() usecase.Descriptor {
 			"holds an account and for one that does not - which addresses have accounts is " +
 			"exactly what a probe is after. Behind that one answer sits a job on the queue the " +
 			"invitation already uses, so an unreachable mail server never fails the request.",
-		SideEffects: "Queues a mail where there is somewhere to send one. Nothing is written to " +
-			"the account, and nothing about the outcome reaches the caller.",
+		SideEffects: "Queues a job for every address; the job records the request and queues a " +
+			"mail where there is somewhere to send one. Nothing is written to the account, and " +
+			"nothing about the outcome reaches the caller.",
 		Input: []usecase.Field{
 			{
 				Name: "email", Kind: usecase.KindString, Required: true,

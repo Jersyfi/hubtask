@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	queueport "github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
@@ -148,10 +150,7 @@ func TestAResetEndsTheSessionsKeepsTheTokensAndTrailsNoAddress(t *testing.T) {
 		resetTokensPAT, 0x51, resetTokensPhone, resetTokensTablet)
 	since := time.Now().Add(-time.Second)
 
-	if err := (identityservice.ForgetPassword{Writer: passwords, Tenants: signIn, Multi: true}).Execute(ctx,
-		identityservice.ForgetPasswordCommand{Email: address, TenantHeader: tenantA.String()}); err != nil {
-		t.Fatalf("asking for a link: %v", err)
-	}
+	forgetAndRunTheRequestJob(ctx, t, passwords, signIn, address, resetTokensAccount)
 	link, err := identityservice.MintResetToken{Writer: passwords}.MintResetToken(ctx, tenantA, resetTokensAccount)
 	if err != nil || link.Token.IsEmpty() {
 		t.Fatalf("minting the link: %+v (%v)", link, err)
@@ -202,6 +201,61 @@ func TestAResetEndsTheSessionsKeepsTheTokensAndTrailsNoAddress(t *testing.T) {
 		if !seen[want] {
 			t.Errorf("the trail holds %v, want %s", seen, want)
 		}
+	}
+}
+
+// forgetAndRunTheRequestJob asks for a link through the real queue, reads the request job back from
+// the job table - the payload as it was stored, not as it was built - and runs it as the worker
+// would, in a real transaction. It leaves the account's mail job queued, which the test then stands
+// in for by minting the link itself; both rows go with the test.
+func forgetAndRunTheRequestJob(
+	ctx context.Context, t *testing.T, passwords identityservice.PasswordWriter,
+	signIn postgres.SignInRepository, address string, account shared.ID,
+) {
+	t.Helper()
+	jobs := postgres.NewQueue(passwords.IDs, clockadapter.System{})
+	admin := adminPool(ctx, t)
+	forget := func() {
+		if _, err := admin.Exec(ctx, `DELETE FROM job WHERE tenant_id = $1 AND payload->>'account_id' = $2`,
+			tenantA.String(), account.String()); err != nil {
+			t.Fatalf("clearing the jobs: %v", err)
+		}
+	}
+	forget()
+	t.Cleanup(forget)
+
+	if err := (identityservice.ForgetPassword{
+		Writer: passwords, Notifier: jobs, Tenants: signIn, Multi: true,
+	}).Execute(ctx, identityservice.ForgetPasswordCommand{Email: address, TenantHeader: tenantA.String()}); err != nil {
+		t.Fatalf("asking for a link: %v", err)
+	}
+
+	var stored []byte
+	if err := admin.QueryRow(ctx, `
+		SELECT payload FROM job WHERE tenant_id = $1 AND kind = $2 AND payload->>'account_id' = $3`,
+		tenantA.String(), string(queueport.KindPasswordResetRequest), account.String()).Scan(&stored); err != nil {
+		t.Fatalf("reading the request job: %v", err)
+	}
+	if strings.Contains(strings.ToLower(string(stored)), address) {
+		t.Errorf("the request job carries the address: %s", stored)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(stored, &payload); err != nil {
+		t.Fatalf("decoding the request job: %v", err)
+	}
+
+	if err := (identityservice.RecordResetRequest{Writer: passwords, Notifier: jobs}).Execute(
+		ctx, tenantA, payload); err != nil {
+		t.Fatalf("running the request job: %v", err)
+	}
+	var mails int
+	if err := admin.QueryRow(ctx, `
+		SELECT count(*) FROM job WHERE tenant_id = $1 AND kind = $2 AND dedupe_key = $3`,
+		tenantA.String(), string(queueport.KindPasswordResetEmail), account.String()).Scan(&mails); err != nil {
+		t.Fatalf("counting the mail jobs: %v", err)
+	}
+	if mails != 1 {
+		t.Errorf("%d mail jobs for the account, want one", mails)
 	}
 }
 

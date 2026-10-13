@@ -326,6 +326,11 @@ type PendingCredentials interface {
 	// shared.ErrNotFound.
 	FindByToken(ctx context.Context, token identity.Token) (PendingLookup, error)
 
+	// FindArrivalByToken answers a TERMS credential that carries a provider's newcomer instead of
+	// an account (Credential.Arrival set, Account zero), or an error wrapping shared.ErrNotFound.
+	// FindByToken never answers such a credential, so only the agreement meets one.
+	FindArrivalByToken(ctx context.Context, token identity.Token) (PendingLookup, error)
+
 	// FindByID answers the credential a provider flow remembered by its identifier - the CONNECT
 	// link it started from (ADR-0078 §1) - in the transaction's workspace, or an error wrapping
 	// shared.ErrNotFound.

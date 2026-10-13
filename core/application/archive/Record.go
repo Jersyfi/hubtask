@@ -321,6 +321,11 @@ type Reference struct {
 	// Table is what it points at, in the schema's vocabulary - the same word the entity's own
 	// Table is written in.
 	Table string
+	// Clearable marks a reference the row can lose and still be itself - a nullable column the
+	// row merely uses, like an entry's cover. A restore that withholds the target clears such a
+	// reference instead of withholding the row; a reference the row's identity rests on (a join
+	// row, an attachment) keeps the row out with what it points at (backup-restore.md §7).
+	Clearable bool
 }
 
 // entities is the archive's content, in restore order: a row's parents come before it, so that a
@@ -380,7 +385,7 @@ var entities = []Entity{
 			{Field: "parent_id", Table: "work_item"},
 			{Field: "bucket_id", Table: "bucket"},
 			{Field: "assignee_id", Table: "account"},
-			{Field: "cover_media_id", Table: "media_object"},
+			{Field: "cover_media_id", Table: "media_object", Clearable: true},
 			// No foreign key in the schema, and a reference all the same: the column holds a
 			// recurrence rule's identity, and a duplicate that kept the original's would make two
 			// items claim one series.

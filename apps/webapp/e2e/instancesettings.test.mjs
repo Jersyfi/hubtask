@@ -141,6 +141,40 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   assert.equal(body.sign_in.min_length.kind, undefined);
 });
 
+// The terms' version sits beside its link, and its lock - which is the link's - reads the link's
+// while the form is open, not the one the server last answered.
+test("chromium: the terms' version follows its link, in place and in its lock", async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const replace = { kind: 'LINK', workspace_may: 'REPLACE' };
+  const level = {
+    ...LEVEL,
+    legal: {
+      imprint_url: { set: false, locked: false, ...replace, position: 0 },
+      privacy_url: { set: false, locked: false, ...replace, position: 1 },
+      terms_url: { set: true, value: 'https://provider.example/terms', locked: false, ...replace, position: 2 },
+      terms_version: { set: true, value: '3', locked: false, kind: 'TEXT', workspace_may: 'REPLACE', position: 3 },
+      accessibility_url: { set: false, locked: false, ...replace, position: 4 },
+    },
+  };
+  const { page, close } = await open(browser, { level });
+  t.after(close);
+
+  await page.getByRole('button', { name: 'Change these values' }).click();
+  const form = page.locator('form');
+  const order = await form.locator('[data-value^="legal."]').evaluateAll(
+    (rows) => rows.map((row) => row.getAttribute('data-value')),
+  );
+  assert.deepEqual(order, ['legal.imprint_url', 'legal.privacy_url', 'legal.terms_url', 'legal.terms_version', 'legal.accessibility_url']);
+
+  const lockOf = (key) => form.locator(`[data-value="legal.${key}"]`).getByRole('combobox', { name: 'Workspaces may' });
+  await lockOf('terms_url').selectOption('locked');
+  assert.equal(await lockOf('terms_version').inputValue(), 'locked');
+  assert.equal(await lockOf('terms_version').locator('option:checked').textContent(), 'not change it');
+  await lockOf('terms_url').selectOption('open');
+  assert.equal(await lockOf('terms_version').inputValue(), 'open');
+});
+
 test('chromium: a refusal lands at the value it is about', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

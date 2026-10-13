@@ -55,6 +55,20 @@ export function lockCode(setting: InstanceSetting, locked: boolean): string | un
 }
 
 /**
+ * One key as the draft holds it, or undefined where it is undecided. The terms' version has no lock
+ * of its own: it is locked exactly when the terms link is, so while the form is open it reads the
+ * link's lock in the draft - not the one the server last answered.
+ */
+export function draftEntry(draft: InstanceSettings | undefined, area: Area, key: string): InstanceSetting | undefined {
+  const held = draft?.[area]?.[key];
+  if (!held?.set) return undefined;
+  if (area === 'legal' && key === 'terms_version') {
+    return { ...held, locked: draft?.legal?.terms_url?.locked === true };
+  }
+  return held;
+}
+
+/**
  * Reads what was typed into a count. Empty is undecided; a whole number is a number; anything else
  * travels as it was typed, for the server to refuse at the row rather than for this screen to
  * swallow.
