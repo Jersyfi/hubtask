@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   deep:
-    name: Fuzzing, load, resilience
+    name: Load, resilience
     runs-on: ubuntu-latest
     timeout-minutes: 120
     services:
@@ -37,7 +37,6 @@ jobs:
           go-version: "1.27.2"
           cache: true
       - run: make tools
-      - run: make gate-fuzz
       # Re-run on the nightly hardware as well: RT-2 and RT-3 are timing-sensitive, and a
       # second run under different load is how a flake announces itself before it fails a
       # pull request.
@@ -64,6 +63,47 @@ jobs:
           name: load-evidence
           path: load-evidence/
           if-no-files-found: ignore
+
+  # SG-8 (security.md §4): every fuzz target in a job of its own, so a crash names its target and
+  # fails the nightly, and the reporter files it. The list is found, not written down: a target
+  # added to the code is in tonight's matrix.
+  fuzz-targets:
+    name: The fuzz targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      targets: ${{ steps.list.outputs.targets }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: list
+        run: |
+          targets="$(make --no-print-directory -s fuzz-targets FORMAT=json)"
+          [ "$targets" != "[]" ] || { echo "::error::no fuzz target found - SG-8 would pass on nothing"; exit 1; }
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    needs: fuzz-targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.fuzz-targets.outputs.targets) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.2"
+          cache: true
+      - run: make gate-fuzz FUZZ_TARGET=${{ matrix.target }} FUZZ_PKG=${{ matrix.package }}
+      # The input that crashed is what makes the finding reproducible: go writes it under the
+      # package's testdata/fuzz, and the run keeps it.
+      - if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: "**/testdata/fuzz/${{ matrix.target }}/"
 
   matrix-arm64:
     name: Support matrix - the full suite on arm64
@@ -323,8 +363,8 @@ jobs:
     # proven by a job whose failure nobody would have heard about. checkdocs now reconciles the
     # two (tools/checkdocs/matrix.go).
     needs:
-      [deep, matrix-arm64, matrix-postgres, matrix-podman, matrix-hubctl, matrix-kind, pitr,
-       vulnerabilities, action-pins]
+      [deep, fuzz-targets, fuzz, matrix-arm64, matrix-postgres, matrix-podman, matrix-hubctl,
+       matrix-kind, pitr, vulnerabilities, action-pins]
     # Not `always()`: a cancelled run says nothing about any job, and closing an issue on the
     # strength of a job that never finished would be the pessimistic lie's mirror image.
     if: ${{ !cancelled() }}
