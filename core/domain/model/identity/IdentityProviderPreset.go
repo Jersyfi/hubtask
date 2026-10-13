@@ -109,6 +109,20 @@ type ProviderPreset struct {
 	// personal account comes in only by invitation.
 	Public bool
 
+	// PersonalDirectories and PersonalIssuerPaths are where this provider's personal accounts live
+	// (milestone SC, decision 12): the directory its tokens name for one, and the first path
+	// segments of the issuers that serve them. A personal account comes in only by invitation, so a
+	// mode that creates accounts may neither list such a directory nor be ANY on such an issuer,
+	// and an arrival from one is read as under INVITED_ONLY whatever a stored row says
+	// (identity.md §10.4).
+	//
+	// Microsoft documents both: `9188040d-6c67-4c5b-b112-36a304b66dad` is the directory of every
+	// personal Microsoft account, `consumers` the issuer that serves only them and `common` the one
+	// that serves them beside every organisation. Google needs neither: a personal Google account
+	// is the one whose token carries no `hd`, and Google is Public.
+	PersonalDirectories []string
+	PersonalIssuerPaths []string
+
 	// Particular is the message code of the one thing about this provider that is not like the
 	// others - `hd` for Google, the directory-specific issuer for Microsoft. Empty where there is
 	// none.
@@ -158,7 +172,9 @@ var providerPresets = []ProviderPreset{
 		// Microsoft says it in a claim of its own, documented as whether the domain owner of the
 		// address was verified. The `email` claim alone never is: Microsoft calls it mutable and
 		// unverified, and says never to authorise on it.
-		AuthorityClaim: "xms_edov",
+		AuthorityClaim:      "xms_edov",
+		PersonalDirectories: []string{"9188040d-6c67-4c5b-b112-36a304b66dad"},
+		PersonalIssuerPaths: []string{"common", "consumers"},
 		// `common` and `organizations` are the multi-directory endpoints, and a token minted behind
 		// one names the *directory* in `iss` - never `common`. Microsoft publishes the issuer as a
 		// template and documents the rule: substitute the token's `tid` and compare exactly. That
@@ -201,7 +217,8 @@ func PresetOf(kind ProviderKind) (ProviderPreset, bool) {
 // `/consumers` is deliberately not among them: it publishes one fixed directory - the one personal
 // Microsoft accounts live in - so a row pointed at it is already bounded to exactly that, and
 // asking for a list on top would be asking somebody to type a GUID the endpoint already answered.
-// It is the configuration for "a private person signs in with their own Microsoft account".
+// It is the configuration for "a private person signs in with their own Microsoft account" - one
+// who was invited, since a personal account is never admitted new (PersonalIssuerPaths).
 var microsoftMultiDirectorySegments = []string{"/common", "/organizations"}
 
 // ParseProviderKind reads a kind and refuses what is not one.
