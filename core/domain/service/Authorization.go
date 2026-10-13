@@ -195,3 +195,35 @@ func Allows(
 	}
 	return false
 }
+
+// MayGrant is whether what the account holds along the path lets it hand out the role there:
+// MANAGE_MEMBERS, and a role along the path at least as strong as the one handed out
+// (domain-model.md §3.2). An owner gives any role, an administrator any but OWNER.
+//
+// Without the second half MANAGE_MEMBERS would be a way to every right: an administrator who may
+// hand out OWNER may make an account they control an owner. Held along the path rather than at the
+// workspace, so the owner of a hub hands out OWNER on that hub and nowhere above it.
+func MayGrant(
+	memberships []identity.Membership, path []identity.Scope, privacy Privacy, role identity.Role,
+) bool {
+	if !role.Valid() || !Allows(memberships, path, privacy, PermissionManageMembers) {
+		return false
+	}
+	held, found := EffectiveRole(memberships, path, privacy)
+	return found && held.AtLeast(role)
+}
+
+// GrantableRoles is every role MayGrant permits along the path, strongest first, and empty where
+// it permits none. It is the list a client offers, decided by the function the grant is decided
+// by, so a role offered is never one the grant refuses (P-05).
+func GrantableRoles(
+	memberships []identity.Membership, path []identity.Scope, privacy Privacy,
+) []identity.Role {
+	grantable := []identity.Role{}
+	for _, role := range identity.Roles() {
+		if MayGrant(memberships, path, privacy, role) {
+			grantable = append(grantable, role)
+		}
+	}
+	return grantable
+}

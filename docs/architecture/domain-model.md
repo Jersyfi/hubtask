@@ -120,6 +120,13 @@ subscriptions — never a secret. Every configuration read also accepts `STRUCTU
 a rung on the ladder: without `READ`, every use case over containers, entries and comments refuses
 it ([audit.md](./audit.md) §5, §9).
 
+**Nobody grants above their own role.** Handing out a role at a scope needs `MANAGE_MEMBERS` there
+**and** a role along the scope's path at least as strong as the one handed out, in the order of the
+table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub
+gives `OWNER` on that hub and below it. A grant above is refused with `access.role_above_own` (403)
+and recorded, before any step-up is asked; this holds for every door that places a role, the
+managed account's creation included (`service.MayGrant`).
+
 The two qualifiers are decided in one place in the application layer
 ([ADR-0005](../adr/ADR-0005-authn-authz.md)), from the entry, the act and whose the entry is:
 
