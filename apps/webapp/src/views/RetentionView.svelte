@@ -27,9 +27,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, SearchField, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
-  import type { RetentionDataKind as DataKind } from '@hubtask/sync-engine';
+  import type { RetentionDataKind as DataKind, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -37,6 +37,9 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { itemPath } from '../lib/data/item.svelte.ts';
+  import { search } from '../lib/data/search.svelte.ts';
   import { policies, type Policy, type RetentionAction } from '../lib/data/policies.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -63,6 +66,9 @@
 
   let holdScope = $state('TENANT');
   let holdTarget = $state('');
+  /** The entry a hold on one entry names, found by its title rather than typed as an identifier (P-08). */
+  let holdTerm = $state('');
+  let holdEntry = $state<{ id: string; title: string } | undefined>(undefined);
   let holdReason = $state('');
   let showReleased = $state(false);
   let releasing = $state('');
@@ -88,8 +94,8 @@
   );
   const mayHold = $derived(roleHolds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
 
-  // What a hold can name, picked rather than typed (P-12): the people of the workspace, and its hubs
-  // with their collections. An entry is still named by its identifier.
+  // What a hold can name, picked rather than typed (P-12): the people of the workspace, its hubs
+  // with their collections, and an entry found by its title.
   const holdPeople = $derived(people.candidates({}));
   $effect(() => {
     const hubs = containers.hubs;
@@ -111,7 +117,35 @@
     untrack(() => accounts.resolve(named));
   });
 
-  /** What a hold covers, in words: the workspace, a person's name, a hub's or an identifier. */
+  $effect(() => {
+    const question = holdScope === 'ITEM' ? holdTerm.trim() : '';
+    if (question === '') {
+      untrack(() => search.reset());
+      return;
+    }
+    const timer = setTimeout(() => void search.run({ q: question }), 250);
+    return () => clearTimeout(timer);
+  });
+
+  /**
+   * The titles of the entries a hold names, each read by its own address. A hold names few, and an
+   * entry the reader cannot open stays unnamed rather than shown as its identifier.
+   */
+  let entryTitles = $state<Record<string, string>>({});
+  $effect(() => {
+    const placed = Array.isArray(policies.placed) ? policies.placed : [];
+    const ids = [...new Set(placed.filter((hold) => hold.scope.kind === 'ITEM' && hold.scope.id).map((hold) => hold.scope.id as string))];
+    return untrack(() => {
+      const stops = ids.map((id) =>
+        engine.subscribe<WorkItem>({ path: itemPath(id) }, (next) => {
+          if (next.status === 'ready') entryTitles = { ...entryTitles, [id]: next.data.title };
+        }),
+      );
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+
+  /** What a hold covers, in words: the workspace, a person's name, a hub's, an entry's title. */
   const holdCovers = (scope: { kind: string; id?: string | null }) => {
     switch (scope.kind) {
       case 'TENANT':
@@ -120,8 +154,10 @@
         return t('app.retention.hold_covers_person', { name: accounts.nameOf(scope.id) ?? scope.id ?? '' });
       case 'CONTAINER':
         return holdContainers.find((option) => option.value === scope.id)?.label ?? scope.id ?? '';
-      default:
-        return t('app.retention.hold_covers_entry', { id: scope.id ?? '' });
+      default: {
+        const title = scope.id ? entryTitles[scope.id] : undefined;
+        return title ? t('app.retention.hold_covers_entry', { title }) : t('app.retention.hold_covers_entry_unnamed');
+      }
     }
   };
   $effect(() => {
@@ -534,6 +570,8 @@
             );
             holdReason = '';
             holdTarget = '';
+            holdTerm = '';
+            holdEntry = undefined;
           }, t('app.retention.placed_announced'));
         }}
       >
@@ -542,7 +580,10 @@
           <Select
             label={t('app.retention.hold_scope')}
             bind:value={holdScope}
-            onchange={() => (holdTarget = '')}
+            onchange={() => {
+              holdTarget = '';
+              holdEntry = undefined;
+            }}
             options={HOLD_SCOPES.map((kind) => ({
               value: kind,
               label: t(`app.retention.hold_scope_${kind.toLowerCase()}`),
@@ -563,12 +604,43 @@
               placeholder={t('app.retention.choose_container')}
               options={holdContainers}
             />
-          {:else if holdScope !== 'TENANT'}
-            <Input
-              label={t('app.retention.hold_target')}
-              hint={t('app.retention.hold_target_hint')}
-              bind:value={holdTarget}
-            />
+          {:else if holdScope === 'ITEM'}
+            <Stack gap="050">
+              <SearchField
+                label={t('app.retention.hold_entry')}
+                clearLabel={t('app.search.clear')}
+                bind:value={holdTerm}
+                onclear={() => {
+                  holdTarget = '';
+                  holdEntry = undefined;
+                }}
+              />
+              <span class="quiet small">{t('app.retention.hold_entry_hint')}</span>
+              {#if holdEntry}
+                <span class="name">{t('app.retention.hold_entry_chosen', { title: holdEntry.title })}</span>
+              {/if}
+              {#if holdTerm.trim() !== '' && search.status === 'done'}
+                {#if search.hits.length === 0}
+                  <span class="quiet small">{t('app.retention.hold_entry_none')}</span>
+                {:else}
+                  <ul class="hits">
+                    {#each search.hits.slice(0, 8) as hit (hit.id)}
+                      <li>
+                        <button
+                          class="hit"
+                          type="button"
+                          aria-pressed={holdEntry?.id === hit.id}
+                          onclick={() => {
+                            holdEntry = { id: hit.id, title: hit.title };
+                            holdTarget = hit.id;
+                          }}>{hit.title}</button
+                        >
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              {/if}
+            </Stack>
           {/if}
           <Textarea
             label={t('app.retention.hold_reason_field')}
@@ -649,4 +721,15 @@
   .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .samples { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+
+  /* An entry found for a hold: the same list of titles the probe's subject search draws. */
+  .hits { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-025); }
+
+  .hit { inline-size: 100%; text-align: start; padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-sm); background: var(--bg-surface); color: var(--text-primary); font-size: var(--fs-075); }
+
+  .hit:hover { background: var(--bg-surface-hover); }
+
+  .hit[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
+
+  .hit:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>
