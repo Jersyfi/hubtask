@@ -125,8 +125,9 @@ issue is never reopened for the same question; a follow-up names the new fact.
 
 Something found outside a task, by a worker, a check, a scheduled run or anyone in the community,
 is a GitHub issue labelled `finding` (bug reports from the community arrive through the bug form and
-are labelled the same). It has no milestone. Each cut takes the findings of its area in as tasks or
-closes them with a reason. A finding that blocks a running milestone's `Delivers` is taken in at
+are labelled the same). It has no milestone of its own: each cut takes the findings of its area in as
+tasks or closes them with a reason, and a sweep may collect bounded fixes in a GitHub milestone that
+is a bucket rather than a cut — no `Delivers`, no milestone file, each fix closing its own issue. A finding that blocks a running milestone's `Delivers` is taken in at
 once (§ "While a milestone runs").
 
 ## Contributions from outside

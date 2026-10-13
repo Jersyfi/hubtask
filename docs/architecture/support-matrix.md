@@ -113,7 +113,7 @@ the features are years old in every engine.
 
 ## 7. The installed clients
 
-The installable clients are **Tauri 2 shells** for Windows, macOS, Linux, iOS and Android, wrapping
+The installable clients are **Tauri 2 shells** — up to `2.0` for Windows, Linux and Android as direct downloads outside every store, with macOS, iOS and the store listings in `2.0` ([ADR-0084](../adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)); in the end for Windows, macOS, Linux, iOS and Android, wrapping
 the one web codebase ([ADR-0031](../adr/ADR-0031-tauri-app-shell.md)) — the one install path per
 platform. The web app is a browser application only: no manifest-based install, no install prompt,
 no service-worker install. The installed clients carry the offline promise; the browser holds a

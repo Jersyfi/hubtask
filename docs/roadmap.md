@@ -17,11 +17,19 @@ are finished together.
 
 ## Running now
 
-No milestone runs. The next is cut from the order below.
+**CL — A clean slate.** Every open finding a bounded fix settles, worked off in one sweep: security
+first, then the web app, then the core and CI. CL is a bucket of findings on GitHub, not a cut
+milestone: it has no `Delivers` line, and each fix closes its own issue.
 
-**After SC and PH**, in this order: passkeys, then plans, then custom domains. SI prepared all
-three without building any. Each is cut against its use cases like every milestone
-([`backlog/README.md`](./backlog/README.md)).
+**Then, in this order** — each a GitHub milestone today, each cut against its use cases like every
+milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
+
+1. **CP — The open promises**: the findings that leave a use case check unmet and need a task of
+   their own (retention, backup, privacy requests, `hubctl` and people, webhook filters,
+   concurrent saves, the multi-mode host) and the decided sign-in tasks SC-30, SC-36 and SC-37.
+2. **PK — Passkeys**, **PL — Plans**, **CD — Custom domains**: SI prepared all three without
+   building any.
+3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.
 
 ---
 
@@ -57,14 +65,18 @@ fix (ADR-0035 §4).
 **Client milestones are letters, not versions.** They are planning buckets holding the client
 issues; nothing is released by them.
 
-### F7 — The shells
+### F7 — The shells, free to install
 
-Not cut. The owner cuts it when the developer accounts and the signing certificates exist, because
-no shell task can close without them.
+Not cut yet. Up to `2.0` the shells are the ones that cost nothing to build and install —
+**Windows, Linux and Android, outside every store** — and macOS, iOS and the store listings wait
+for `2.0` ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)). So F7 needs
+no developer account and no paid certificate.
 
-* **The Tauri desktop shell**: SQLite and the keystore behind the `Storage` port, the updater,
-  signed distribution, the webview smoke matrix (`1.0.0` prerequisite 18).
-* **The mobile shell** after it: signing, the store pipeline, what is left of platform adaptation
+* **The Tauri desktop shell for Windows and Linux**: SQLite and the keystore behind the `Storage`
+  port, the updater, installers published as direct downloads with checksums and the updater's
+  signature, the webview smoke matrix on WebView2 and WebKitGTK (`1.0.0` prerequisite 18).
+* **The Android shell** after it: an APK signed with the project's own key, published as a direct
+  download, what is left of platform adaptation
   once the web app's phone layout exists ([`design-system.md`](./design/design-system.md) §9: the
   system conventions only a shell can follow), and the capability matrix made real in the build —
   the administration routes and the navigation row tagged for it are excluded, and each appears as
@@ -116,8 +128,8 @@ statement. Because it is unversioned and continuously deployed
 ([ADR-0035](./adr/ADR-0035-one-product-version.md)), its content can move as often as the message
 does without touching a release.
 
-What switches on at `0.9.5`, and not before it has happened: the desktop and mobile clients with
-their signed installers and store listings, full offline operation, the formal accessibility
+What switches on at `0.9.5`, and not before it has happened: the Windows, Linux and Android clients
+as direct downloads, full offline operation, the formal accessibility
 statement, and the SDKs and connectors as *available* — until they are published, the site says
 they exist and are not yet published.
 
@@ -186,9 +198,9 @@ Not a feature milestone. It holds exactly the work that can be done neither earl
 * **The maturity stage goes to `stable`.** The preview banner comes off, and from that moment a
   client regression blocks a release exactly as an API regression does (ADR-0035 §2).
 * **The scope window closes**, per rule 4 above, on the day this milestone opens.
-* **Everything with external lead time starts here**: the shells cut release candidates, installers
-  are signed, store listings are submitted. Store review is a queue somebody else owns, which is
-  precisely why it cannot be a week inside `1.0.0`.
+* **Everything with external lead time starts here**: the shells cut release candidates and their
+  direct downloads are published for testing. Store listings are not part of the first major
+  ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)).
 * **The website switches to its 1.0 content**, and the arc42 client-architecture chapter is
   current rather than promised.
 * **The two backlogs become one.** From here there is no core track and no client track, only a
@@ -212,11 +224,11 @@ Prerequisites for `1.0.0`:
 12. Backup and restore verified: BK-1…BK-10 green, a documented restore drill from every released target type, and the golden archives of every major version importable.
 13. Retention rules exercised: RE-1…RE-9 green, and at least one complete run of a multi-stage chain in a production environment.
 14. Offline synchronisation accepted: SY-1…SY-12 green, and the conformance test passed against at least one real client.
-15. Client parity demonstrated: end-user features and profile configuration on web, desktop and mobile, administration on web and desktop; the mobile administration exclusion is the only restriction, and it behaves as [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) describes — the capability is named and linked to the web app, never silently absent.
+15. Client parity demonstrated: end-user features and profile configuration on web, Windows, Linux and Android, administration on web and desktop; the mobile administration exclusion is the only restriction, and it behaves as [ADR-0032](./adr/ADR-0032-client-capability-matrix.md) describes — the capability is named and linked to the web app, never silently absent.
 16. Accessibility demonstrated: WCAG 2.2 AA for the web app and the shells that render it, with the accessibility statement published (European Accessibility Act, [data-protection.md](./architecture/data-protection.md) §7).
 17. Offline conformance from a first-party client: `hubctl sync-conformance` passed by `packages/sync-engine` against a real instance — criterion 14's "at least one real client" is named rather than hoped for.
-18. The webview matrix green: the smoke suite passes on WebView2, WKWebView and WebKitGTK. One codebase across three engines is where a rendering defect hides.
-19. The clients distributed: signed installers for Windows, macOS and Linux, live store listings for iOS and Android, and one updater run exercised end to end from a released version to its successor.
+18. The webview matrix green: the smoke suite passes on WebView2, WebKitGTK and Android's system WebView. One codebase across three engines is where a rendering defect hides. WKWebView joins with the macOS and iOS shells in `2.0`.
+19. The clients distributed: installers for Windows and Linux and an APK for Android as direct downloads with checksums, outside every store, and one updater run exercised end to end from a released version to its successor ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)).
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
@@ -224,6 +236,13 @@ Prerequisites for `1.0.0`:
 
 SAML and SCIM ([`security.md`](./architecture/security.md)), and every requirement that arrives
 after the `0.9.5` window closes, wait for `1.1.0`.
+
+### `2.0.0` — The shells in the stores
+
+The macOS and iOS shells with Apple's signing and notarisation, WKWebView in the webview matrix,
+and the store listings — App Store, Google Play, Microsoft Store — with the store pipeline and its
+review queue ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)). The
+major follows the same three movements as `1.0.0`.
 
 ---
 

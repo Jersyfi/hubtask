@@ -158,7 +158,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 |---|---|---|---|
 | [UC-ID-01](./identity/UC-ID-01-sign-in-with-a-password.md) | Sign in with my address and password | identity | built |
 | [UC-ID-02](./identity/UC-ID-02-prove-it-is-me-with-a-second-factor.md) | Prove it is me with a second factor when I sign in | identity | built |
-| [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | built |
+| [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | partial |
 | [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | partial |
 | [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | partial |
 | [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | built |
@@ -243,7 +243,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INT-09](./integration/UC-INT-09-let-an-ai-agent-work-in-my-workspace.md) | Let an AI agent work in my workspace | integration | built |
 | [UC-INT-10](./integration/UC-INT-10-script-my-workspace-with-a-token.md) | Script my workspace with hubctl or the API | integration | built |
 | [UC-INT-11](./integration/UC-INT-11-connect-hubtask-to-n8n-or-zapier.md) | Connect Hubtask to n8n or Zapier | integration | partial |
-| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | built |
+| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | partial |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification | built |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification | built |
 | [UC-NOT-04](./notification/UC-NOT-04-hear-when-something-i-set-up-stops-working.md) | Hear when something I set up stops working | notification | built |
