@@ -410,13 +410,13 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed)
+   link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
   sqlc.arg('created_at'), sqlc.arg('expires_at'),
   sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof'),
-  sqlc.arg('password_change_owed')
+  sqlc.arg('password_change_owed'), sqlc.narg('signed_in_with')
 );
 
 -- name: FindPendingByHash :one
@@ -424,7 +424,7 @@ VALUES (
 -- FindSessionForAuth's shape.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.signed_in_with,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -444,7 +444,7 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 -- transaction is bound to.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.signed_in_with,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,

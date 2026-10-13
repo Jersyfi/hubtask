@@ -908,9 +908,15 @@ func (h SetPasswordAndSignIn) Execute(
 		return SessionPair{}, err
 	}
 
+	// A change a factor's step handed on to says how that step was proven; a change owed by the
+	// password alone was opened with the password.
+	method := domain.SignedInWithPassword
+	if lookup.Credential.SignedInWith != "" {
+		method = lookup.Credential.SignedInWith
+	}
 	return w.Session.openSessionWithHint(ctx, scope, tenantID, lookup.Account,
 		lookup.Credential.UserAgent, lookup.Credential.IPClass, SignedInAction,
-		rules.Effective.Policy.Sessions, domain.SignedInWithPassword, "")
+		rules.Effective.Policy.Sessions, method, "")
 }
 
 // Descriptor is the catalogue entry.

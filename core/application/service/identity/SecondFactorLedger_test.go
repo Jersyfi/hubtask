@@ -133,3 +133,36 @@ func TestAWrongPasswordTurningTheFactorOffCounts(t *testing.T) {
 		t.Errorf("the ledger stands at %d, want 1", got)
 	}
 }
+
+// UC-ID-10 check 3, the code's half: after the LINK step's right password, a wrong code connects
+// nothing and counts on the second factor's ledger, the one a wrong code at the sign-in's second
+// step meets.
+func TestAWrongCodeAfterTheLinkStepsPasswordCounts(t *testing.T) {
+	f := linkFixture(t, true)
+	result, err := arrive(t, f)
+	if err != nil || result.Challenge == nil {
+		t.Fatalf("arriving: (%+v, %v)", result, err)
+	}
+	next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
+	})
+	if err != nil || next.Challenge == nil {
+		t.Fatalf("the right password answered (%+v, %v), want the second factor's step", next, err)
+	}
+
+	_, _, err = CompleteSignIn{Writer: f.session.writer}.Execute(t.Context(), CompleteSignInCommand{
+		PendingToken: next.Challenge.Token, Code: "000000",
+	})
+	if err == nil || !strings.Contains(err.Error(), "auth.mfa_code_invalid") {
+		t.Fatalf("a wrong code answered %v", err)
+	}
+	if len(f.external.links) != 0 {
+		t.Errorf("a wrong code connected the provider: %v", f.external.links)
+	}
+	if containsAction(auditActions(f.session.audit.entries), OidcLinkedAction) {
+		t.Error("a wrong code was recorded as a link")
+	}
+	if got := ledger(f.session, mfaSubject(account)); got != 1 {
+		t.Errorf("the ledger stands at %d, want 1", got)
+	}
+}

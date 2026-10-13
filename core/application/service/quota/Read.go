@@ -42,6 +42,9 @@ type Standing struct {
 	// limiter's own headers.
 	Used       *int64
 	Configured bool
+	// Locked is true where the installation locked this ceiling: the workspace's screen says
+	// "set by the installation" there rather than "the installation's default" (UC-INS-09 check 5).
+	Locked bool
 }
 
 // Ratio answers used/limit for the metric and the response, nil while either half is missing.
@@ -106,6 +109,10 @@ func Standings(
 	if err != nil {
 		return nil, err
 	}
+	locks, err := store.InstanceLocks(ctx)
+	if err != nil {
+		return nil, err
+	}
 	limits := Resolve(overrides, instance, mode)
 	zone, err := store.TimeZone(ctx)
 	if err != nil {
@@ -144,7 +151,10 @@ func Standings(
 
 	standings := make([]Standing, 0, len(Names()))
 	for _, name := range Names() {
-		standing := Standing{Quota: name, Limit: limits.Of(name), Configured: configured[name]}
+		standing := Standing{
+			Quota: name, Limit: limits.Of(name), Configured: configured[name],
+			Locked: locks[name] && !configured[name],
+		}
 		if counter := counters[name]; counter != nil {
 			used, err := counter(ctx)
 			if err != nil {
@@ -167,6 +177,7 @@ func StandingOutputs(standings []Standing) []usecase.Output {
 			"used":       nil,
 			"ratio":      nil,
 			"configured": standing.Configured,
+			"locked":     standing.Locked,
 		}
 		if standing.Used != nil {
 			row["used"] = *standing.Used

@@ -373,5 +373,5 @@ func (h OfferIdentityProvider) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ProviderOutput(switched), nil
+	return WorkspaceProviderOutput(switched), nil
 }

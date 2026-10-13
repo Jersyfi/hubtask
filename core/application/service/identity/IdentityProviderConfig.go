@@ -553,6 +553,12 @@ func (w IdentityProviderWriter) record(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 	action audit.Action, configured domain.IdentityProvider,
 ) error {
+	if tenantID.IsZero() {
+		// The installation's own provider belongs to no workspace's trail, and the trail refuses
+		// an entry without one - which rolled every installation-level write back. Its evidence is
+		// the installation's journal, which the operator's use case writes beside this call.
+		return nil
+	}
 	changes := []audit.Change{}
 	if configured.Issuer != "" {
 		changes = append(changes,
@@ -643,6 +649,18 @@ func ProviderOutput(configured domain.IdentityProvider) usecase.Output {
 	}
 	if configured.InstallationLock != "" {
 		out["installation_lock"] = string(configured.InstallationLock)
+	}
+	return out
+}
+
+// WorkspaceProviderOutput is the read shape a workspace is answered: ProviderOutput, without the
+// installation's client ID on a row the installation offers. That registration is the operator's;
+// a workspace sees such a provider by name, kind and admission rule only (UC-INS-11 check 2). The
+// operator's own reads keep ProviderOutput.
+func WorkspaceProviderOutput(configured domain.IdentityProvider) usecase.Output {
+	out := ProviderOutput(configured)
+	if configured.Installation() {
+		out["client_id"] = ""
 	}
 	return out
 }
@@ -765,7 +783,7 @@ func (h ListIdentityProviders) invoke(
 	}
 	rows := make([]usecase.Output, 0, len(found))
 	for _, configured := range found {
-		rows = append(rows, ProviderOutput(configured))
+		rows = append(rows, WorkspaceProviderOutput(configured))
 	}
 	return usecase.Output{"data": rows}, nil
 }

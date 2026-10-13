@@ -126,6 +126,29 @@ test('chromium: every rule says where it comes from, and looser choices are not 
 
   // The eighteenth rule has its control.
   assert.ok(await page.getByLabel('Earliest change after, in hours', { exact: true }).isVisible());
+
+  // UC-ID-12 check 7: every rule ADR-0068 lets a workspace set has a control of its own, found by its
+  // label - the password's thirteen, the second factor, both session bounds - with the ways to sign
+  // in as one list and the rotation as its action. (`blocklist_file` is the installation's alone.)
+  for (const label of [
+    'Minimum length', 'Lowercase', 'Uppercase', 'Digits', 'Other', 'At least this many of the four kinds',
+    'Most of the same character in a row', 'Refuse commonly used passwords',
+    'Refuse the address, the name and the workspace name inside a password', 'Check against known breaches',
+    'Expires after, in days', 'Remember previous passwords', 'Earliest change after, in hours', 'Required of',
+  ]) {
+    assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `no control for "${label}"`);
+  }
+  assert.equal(await page.getByLabel(/^End a session after, in days/).count(), 1, 'no control for the session\'s maximum age');
+  assert.equal(await idle.count(), 1, 'no control for the idle time');
+  assert.ok(await page.locator('ul.ways li').count() >= 1, 'no list of the ways to sign in');
+  assert.equal(await page.getByRole('button', { name: 'Require a new password from everyone' }).count(), 1, 'no rotation action');
+
+  // A switch kept on by Hubtask's own default says so, not that the installation required it: the
+  // origin line beside it says "Hubtask's default", and the reason must not contradict it (check 4).
+  const common = await page.getByLabel('Refuse commonly used passwords', { exact: true }).evaluate((input) =>
+    input.closest('[data-rule]')?.textContent ?? '');
+  assert.match(common, /Hubtask requires this of every workspace/, common);
+  assert.doesNotMatch(common, /The installation requires this/, common);
 });
 
 test('chromium: a refusal is shown at the rule it is about', async (t) => {

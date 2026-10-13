@@ -22,6 +22,11 @@ export const ENROLLMENT = {
 export async function walkSetup(page, sent) {
   await page.getByRole('button', { name: 'Set up a second factor' }).click();
   await page.getByText('JBSW Y3DP').waitFor();
+  // The QR code beside the secret written out: an image that says what it is, drawn from the URI.
+  const qr = page.getByRole('img', { name: /A code for your authenticator to scan/ });
+  assert.equal(await qr.count(), 1, 'setup shows no QR code');
+  assert.ok(await qr.isVisible(), 'the QR code is not visible');
+  assert.ok(((await qr.locator('path').getAttribute('d')) ?? '').length > 100, 'the QR code draws no modules');
 
   // The sign-in's code field: one native input drawn as six places, numeric, one-time-code.
   const code = page.getByLabel('Code from your authenticator');

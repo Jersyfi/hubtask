@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { SOURCE } from './i18n/catalogue.ts';
-import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, installationPlace, primary } from './navigation.ts';
+import { ADMINISTRATION, DESTINATIONS, INSTANCE, KEEPING, TRASH, YOU_CODE, account, administration, currentDestination, firstScreen, installationPlace, instanceSection, primary } from './navigation.ts';
 import { ROUTES } from './routes.ts';
 import { resolve } from './router.ts';
 
@@ -217,4 +217,13 @@ test('on a single-workspace installation the installation is the administration\
   assert.equal(groups.at(-1)?.id, 'installation', 'the installation is not the last group');
   assert.deepEqual(groups.at(-1)?.rows.map((row) => row.path), ['/instance']);
   assert.ok(!administration({ hasPrivateHubs: true }).some((group) => group.id === 'installation'));
+});
+
+// UC-AI-06 check 8: a single-workspace installation has no model to offer anybody, so its
+// installation section has no *AI*; a multi-workspace one keeps it.
+test('the installation offers no AI row where it runs one workspace', () => {
+  const rowsOf = (single: boolean) => instanceSection({ isSingleWorkspace: single }).flatMap((group) => group.rows.map((row) => row.id));
+  assert.ok(!rowsOf(true).includes('ai'), 'a private installation is offered an AI row');
+  assert.ok(rowsOf(false).includes('ai'), 'a multi-workspace installation lost its AI row');
+  assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => id !== 'ai'), 'more than the AI row went');
 });

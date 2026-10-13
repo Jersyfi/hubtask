@@ -227,9 +227,11 @@ func (h ListAuditEntries) Descriptor() usecase.Descriptor {
 				Description: "One object's whole history, whatever was done to it.",
 			},
 			{
+				// No Enum here: the registry would refuse an unknown value with its generic
+				// code before Execute could answer `audit.outcome_invalid`, the refusal the
+				// trail promises (UC-AUD-01 check 7). Execute holds the closed set.
 				Name: "outcome", Kind: usecase.KindString,
-				Enum:        []string{string(port.OutcomeSuccess), string(port.OutcomeDenied), string(port.OutcomeFailed)},
-				Description: "Whether the attempt succeeded, was refused, or failed.",
+				Description: "Whether the attempt succeeded, was refused, or failed: SUCCESS, DENIED or FAILED.",
 			},
 			{
 				Name: "cursor", Kind: usecase.KindString,

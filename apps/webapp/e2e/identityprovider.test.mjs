@@ -33,6 +33,9 @@ const WORDS = {
     group: 'Membership of the group Staff', redirect: 'Redirect address', copy: 'Copy the address',
     issuer: 'Issuer', client: 'Client id', secret: 'Client secret',
     workspaceDomains: 'Google Workspace domains that may sign in',
+    entraDirectories: 'Microsoft directories that may sign in',
+    mailDomains: 'Email domains this provider admits',
+    emptyAdmitsNobody: /An empty list (admits|lets) nobody/,
   },
   de: {
     add: 'Anbieter hinzufügen', kind: 'Welcher Anbieter', save: 'Anbieter speichern',
@@ -42,6 +45,9 @@ const WORDS = {
     group: 'Mitgliedschaft in der Gruppe Staff', redirect: 'Weiterleitungsadresse', copy: 'Adresse kopieren',
     issuer: 'Aussteller', client: 'Client-ID', secret: 'Client-Geheimnis',
     workspaceDomains: 'Google-Workspace-Domänen, die sich anmelden dürfen',
+    entraDirectories: 'Microsoft-Verzeichnisse, die sich anmelden dürfen',
+    mailDomains: 'E-Mail-Domänen, die dieser Anbieter hereinlässt',
+    emptyAdmitsNobody: /Eine leere Liste lässt niemanden herein/,
   },
 };
 
@@ -118,6 +124,20 @@ for (const locale of ['en', 'de']) {
     assert.deepEqual(await optionsOf(admission), [words.modes[0], words.modes[1]]);
     await admission.selectOption('DOMAINS');
     assert.equal(await form.getByLabel(words.workspaceDomains).count(), 1);
+    assert.match(await form.innerText(), words.emptyAdmitsNobody);
+    // Microsoft by organisation asks for Entra directories; any other provider for mail domains -
+    // and each says that an empty list admits nobody (check 4).
+    await kind.selectOption('MICROSOFT');
+    await admission.selectOption('DOMAINS');
+    assert.equal(await form.getByLabel(words.entraDirectories).count(), 1);
+    assert.equal(await form.getByLabel(words.mailDomains).count(), 0);
+    assert.match(await form.innerText(), words.emptyAdmitsNobody);
+    await kind.selectOption('GENERIC');
+    await admission.selectOption('DOMAINS');
+    assert.equal(await form.getByLabel(words.mailDomains).count(), 1);
+    assert.equal(await form.getByLabel(words.entraDirectories).count(), 0);
+    assert.equal(await form.getByLabel(words.workspaceDomains).count(), 0);
+    assert.match(await form.innerText(), words.emptyAdmitsNobody);
 
     // The contract's values are never on screen, in any preset's form.
     for (const each of ['GENERIC', 'MICROSOFT', 'GOOGLE']) {

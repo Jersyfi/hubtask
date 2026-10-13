@@ -521,7 +521,7 @@ func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.signed_in_with,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -548,6 +548,7 @@ type FindPendingByHashRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -577,6 +578,7 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SignedInWith,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -593,7 +595,7 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 const findPendingByID = `-- name: FindPendingByID :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed,
+       p.password_change_owed, p.signed_in_with,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -620,6 +622,7 @@ type FindPendingByIDRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 	AccountKind        AccountKind
 	AccountStatus      AccountStatus
 	AccountDisplayName string
@@ -651,6 +654,7 @@ func (q *Queries) FindPendingByID(ctx context.Context, id pgtype.UUID) (FindPend
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SignedInWith,
 		&i.AccountKind,
 		&i.AccountStatus,
 		&i.AccountDisplayName,
@@ -868,13 +872,13 @@ const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed)
+   link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
   $9, $10, $11,
-  $12
+  $12, $13
 )
 `
 
@@ -891,6 +895,7 @@ type InsertPendingCredentialParams struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 }
 
 // ====================== The pending credential ======================
@@ -908,6 +913,7 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.LinkSubject,
 		arg.LinkProof,
 		arg.PasswordChangeOwed,
+		arg.SignedInWith,
 	)
 	return err
 }

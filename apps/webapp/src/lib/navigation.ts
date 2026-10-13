@@ -376,6 +376,16 @@ export const INSTANCE: readonly SectionGroup[] = [
   },
 ];
 
+/**
+ * The instance area's navigation as this installation draws it: without *AI* on a single-workspace
+ * installation, where there is no model to offer anybody - the one workspace configures its own
+ * (UC-AI-06 check 8).
+ */
+export function instanceSection(options: { readonly isSingleWorkspace: boolean }): readonly SectionGroup[] {
+  if (!options.isSingleWorkspace) return INSTANCE;
+  return INSTANCE.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'ai') }));
+}
+
 /** Kept as the name the rest of the client uses for the trash's row. */
 export const TRASH = TRASH_ROW;
 

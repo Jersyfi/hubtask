@@ -90,7 +90,7 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 }
 
 const accountsOfKind = `-- name: AccountsOfKind :many
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE kind = $1 AND deleted_at IS NULL
@@ -99,6 +99,7 @@ ORDER BY id DESC
 
 type AccountsOfKindRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -127,6 +128,7 @@ func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]Accou
 		var i AccountsOfKindRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.Kind,
 			&i.Email,
 			&i.SignInName,
@@ -369,7 +371,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 
 const findAccount = `-- name: FindAccount :one
 
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
@@ -377,6 +379,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 type FindAccountRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -398,6 +401,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 	var i FindAccountRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,
@@ -413,7 +417,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 }
 
 const findAccountByEmail = `-- name: FindAccountByEmail :one
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower($1) AND deleted_at IS NULL
@@ -421,6 +425,7 @@ WHERE lower(email) = lower($1) AND deleted_at IS NULL
 
 type FindAccountByEmailRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -440,6 +445,7 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 	var i FindAccountByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,
@@ -455,7 +461,7 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 }
 
 const findAccountBySignInName = `-- name: FindAccountBySignInName :one
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE sign_in_name = $1 AND deleted_at IS NULL
@@ -463,6 +469,7 @@ WHERE sign_in_name = $1 AND deleted_at IS NULL
 
 type FindAccountBySignInNameRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -481,6 +488,7 @@ func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *strin
 	var i FindAccountBySignInNameRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,

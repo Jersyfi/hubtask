@@ -6214,7 +6214,7 @@ type IdentityProvider struct {
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
-	// ClientId This installation's registration with the provider.
+	// ClientId This installation's registration with the provider. Empty on a row of `scope` `installation` when a workspace reads it: the installation's registration is its operator's, and a workspace sees that provider by name, kind and admission rule only.
 	ClientId  string    `json:"client_id"`
 	CreatedAt time.Time `json:"created_at"`
 
@@ -7878,6 +7878,9 @@ type QuotaStanding struct {
 
 	// Limit The resolved ceiling. 0 means unlimited.
 	Limit int64 `json:"limit"`
+
+	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
+	Locked *bool `json:"locked,omitempty"`
 
 	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
