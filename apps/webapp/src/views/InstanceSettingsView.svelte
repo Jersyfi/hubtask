@@ -32,7 +32,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
-  import { AREAS, choiceCode, documentOf, fieldOf, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { AREAS, choiceCode, documentOf, draftEntry, fieldOf, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
@@ -127,8 +127,7 @@
 
   /** Reads one key out of the draft. */
   function current(area: Area, key: string): InstanceSetting | undefined {
-    const held = draft?.[area]?.[key];
-    return held?.set ? held : undefined;
+    return draftEntry(draft, area, key);
   }
 
   /**

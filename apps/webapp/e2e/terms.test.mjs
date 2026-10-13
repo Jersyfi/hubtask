@@ -101,6 +101,44 @@ test('a sign-in owed the terms shows them and agreeing opens the session', async
   }
 });
 
+// Check 6: after a provider's return the step names the account the server answered - the person
+// typed no address.
+test("the step after a provider's return names the account", async () => {
+  const sent = [];
+  const { page, done } = await openAt('/auth/callback?code=the-code&state=the-state', stubFor(RULES, sent, {
+    '/auth/oidc:callback': () => ({ ...TERMS_STEP, json: { ...TERMS_STEP.json, email: 'nora@example.invalid' } }),
+  }));
+  try {
+    await page.getByRole('heading', { name: 'Terms of use' }).waitFor();
+    await page.getByText('nora@example.invalid').waitFor();
+  } finally {
+    await done();
+  }
+});
+
+// A step that names nobody after one that did - the code step a connect link answers, then the
+// terms - keeps the name the card already shows.
+test('the step after a named one keeps the name', async () => {
+  const sent = [];
+  const { page, done } = await openAt('/auth/callback?code=the-code&state=the-state', stubFor(RULES, sent, {
+    '/auth/oidc:callback': () => ({
+      status: 202,
+      json: { pending_token: 'totp-1', methods: ['TOTP', 'RECOVERY'], expires_at: '2099-01-01T00:00:00Z', email: 'nora@example.invalid' },
+    }),
+    '/auth/sessions:verify': () => TERMS_STEP,
+  }));
+  try {
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    await page.getByText('nora@example.invalid').waitFor();
+    await page.locator('input[autocomplete="one-time-code"]').fill('123456');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('heading', { name: 'Terms of use' }).waitFor();
+    await page.getByText('nora@example.invalid').waitFor();
+  } finally {
+    await done();
+  }
+});
+
 // Check 3: declining opens no session and says whom to ask.
 test('declining the terms opens no session and says whom to ask', async () => {
   const sent = [];
