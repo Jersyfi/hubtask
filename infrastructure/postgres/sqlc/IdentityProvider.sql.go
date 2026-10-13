@@ -59,7 +59,8 @@ WHERE state_hash = $2
   AND session_id IS NULL
   AND consumed_at IS NULL
   AND expires_at > $1
-RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at
+RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id, created_at,
+  terms_url, terms_version
 `
 
 type ConsumeOidcFlowParams struct {
@@ -75,6 +76,8 @@ type ConsumeOidcFlowRow struct {
 	InvitedAccountID pgtype.UUID
 	PendingID        pgtype.UUID
 	CreatedAt        pgtype.Timestamptz
+	TermsUrl         *string
+	TermsVersion     *string
 }
 
 // Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
@@ -91,6 +94,8 @@ func (q *Queries) ConsumeOidcFlow(ctx context.Context, arg ConsumeOidcFlowParams
 		&i.InvitedAccountID,
 		&i.PendingID,
 		&i.CreatedAt,
+		&i.TermsUrl,
+		&i.TermsVersion,
 	)
 	return i, err
 }
@@ -493,11 +498,12 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id, pending_id)
+   invited_account_id, pending_id, terms_url, terms_version)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8, $9, $10
+  $8, $9, $10,
+  $11, $12
 )
 `
 
@@ -512,6 +518,8 @@ type InsertOidcFlowParams struct {
 	SessionID        pgtype.UUID
 	InvitedAccountID pgtype.UUID
 	PendingID        pgtype.UUID
+	TermsUrl         *string
+	TermsVersion     *string
 }
 
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
@@ -530,6 +538,8 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.SessionID,
 		arg.InvitedAccountID,
 		arg.PendingID,
+		arg.TermsUrl,
+		arg.TermsVersion,
 	)
 	return err
 }

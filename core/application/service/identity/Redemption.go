@@ -93,6 +93,10 @@ type RedeemInvitationCommand struct {
 	RemoteAddr string
 	// TenantHeader may confirm the token's tenant, never overrule it.
 	TenantHeader string
+	// TermsURL and TermsVersion are the terms of use the person agreed to on the invitation card,
+	// as they were shown (UC-ID-19 check 1). Required where terms are in force.
+	TermsURL     string
+	TermsVersion string
 }
 
 // RedeemInvitation closes the invitation loop: the token from the mail, a password under
@@ -154,6 +158,12 @@ func (h RedeemInvitation) Execute(
 			WorkspaceName: rules.Workspace.DisplayName, WorkspaceHost: rules.Workspace.Slug,
 		},
 	); err != nil {
+		return SessionPair{}, err
+	}
+	// The terms of use in force are agreed on the card or the invitation is not accepted - checked,
+	// like the policy, before the token is looked up, so nothing is spent and nothing disclosed.
+	terms, err := w.termsToAgree(ctx, token.TenantID(), cmd.TermsURL, cmd.TermsVersion)
+	if err != nil {
 		return SessionPair{}, err
 	}
 
@@ -226,6 +236,12 @@ func (h RedeemInvitation) Execute(
 			}),
 		}); err != nil {
 			return err
+		}
+		if terms.IsSet() {
+			// In the redemption's transaction: the account is active and has agreed, or neither.
+			if err := w.recordTermsAgreement(ctx, token.TenantID(), account, terms, now); err != nil {
+				return err
+			}
 		}
 		if !fallback.Opens() {
 			return nil
@@ -313,6 +329,15 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it.",
 			},
+			{
+				Name: "terms_url", Kind: usecase.KindString,
+				Description: "The terms of use agreed to on the invitation card, as shown. " +
+					"Required where terms are in force; ignored where none are.",
+			},
+			{
+				Name: "terms_version", Kind: usecase.KindString,
+				Description: "Their version as shown, where they carry one.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: InvitationRedeemedAction, TargetType: accountTarget,
@@ -334,6 +359,8 @@ func (h RedeemInvitation) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		TermsURL:     in.String("terms_url"),
+		TermsVersion: in.String("terms_version"),
 	})
 	if err != nil {
 		return nil, err

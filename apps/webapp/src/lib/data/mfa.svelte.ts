@@ -51,14 +51,20 @@ export interface Enrollment {
 }
 
 /**
- * The change step a sign-in still owes after the enrolment: the password it began with must be
- * replaced first - one the rule refuses, or a start password (ADR-0074 §2).
+ * The step a sign-in still owes after the enrolment: the password it began with must be replaced
+ * first - one the rule refuses, or a start password (ADR-0074 §2) - or the terms of use in force
+ * are still to be agreed (UC-ID-19).
  */
 export interface OwedChange {
   readonly pending_token: string;
   readonly methods: readonly string[];
   readonly expires_at: string;
   readonly password_rules?: unknown;
+  readonly terms?: {
+    readonly url: string;
+    readonly version?: string | null;
+    readonly set_by: 'INSTALLATION' | 'WORKSPACE';
+  } | null;
 }
 
 /** What `:confirm` answers. The pair is there only when a pending credential completed a sign-in. */

@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-guest, PE-child, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
-state: partial
-tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32]
-checked_by: [apps/webapp/e2e/signin.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go]
+state: built
+tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go]
 ---
 
 # Accept an invitation and set up my account
@@ -44,8 +44,3 @@ invitation used twice, or after it expired, gets one plain sentence and the name
 * Handing an invitation over without mail is its own use case (UC-ID-14 check 5).
 * No self-registration: somebody gets in because somebody invited them, or because a provider
   admits them.
-
-## Today
-
-* Check 1: not met - the card is titled "Set your password" and names neither the workspace nor the invited address; tracked in #1289.
-* Check 4: not met — there is no terms agreement at all (UC-ID-19), tracked in #1066.

@@ -51,7 +51,19 @@ const ACCOUNTS = {
     mfa: false,
     stale: true,
   },
+  // Right password, terms of use not yet agreed: the `TERMS` step (UC-ID-19).
+  'anna@example.eu': {
+    id: '01a0e2e0-0000-7000-8000-000000000031',
+    display_name: 'Anna Berg',
+    password: 'correct-horse-battery',
+    mfa: false,
+    stale: false,
+    terms: true,
+  },
 };
+
+/** The terms of use the `TERMS` step names. */
+const TERMS = { url: 'https://example.invalid/terms', version: '4', set_by: 'WORKSPACE' };
 
 /** The eighteen, as the settings screen writes them and the sign-in screen reads them. */
 const setting = (value, installation = value, lock = null) => ({ value, installation, lock });
@@ -233,6 +245,24 @@ const server = createServer(async (request, response) => {
         password_rules: passwordRules(true),
       });
     }
+    if (account.terms) {
+      const handle = token();
+      pending.set(handle, { email: account.email ?? '', kind: 'TERMS' });
+      return json(response, 202, {
+        pending_token: handle,
+        methods: ['TERMS'],
+        expires_at: new Date(Date.now() + 300_000).toISOString(),
+        terms: TERMS,
+      });
+    }
+    return json(response, 201, SESSION);
+  }
+
+  if (path === '/auth/sessions:agree-terms' && method === 'POST') {
+    if (!pending.has(String(body.pending_token))) {
+      return problem(response, 401, 'errors.unauthenticated', 'auth.mfa_challenge_failed');
+    }
+    pending.delete(String(body.pending_token));
     return json(response, 201, SESSION);
   }
 

@@ -25,6 +25,8 @@ const (
 	KindChoices ValueKind = "CHOICES"
 	// KindLink is an https address.
 	KindLink ValueKind = "LINK"
+	// KindText is one short line: the terms' version (UC-ID-19).
+	KindText ValueKind = "TEXT"
 	// KindLocale is a BCP 47 tag.
 	KindLocale ValueKind = "LOCALE"
 	// KindTimeZone is an IANA zone.
@@ -105,8 +107,12 @@ func DeclarationOfSwitch(name PolicySwitch) (ValueDeclaration, bool) {
 	return ValueDeclaration{}, false
 }
 
-// DeclarationOfLink is every legal link's: an address a workspace may replace with its own.
-func DeclarationOfLink(LegalLink) ValueDeclaration {
+// DeclarationOfLink is every legal link's: an address a workspace may replace with its own. The
+// terms' version beside them is one short line, replaced only together with its link.
+func DeclarationOfLink(link LegalLink) ValueDeclaration {
+	if link == LinkTermsVersion {
+		return ValueDeclaration{Kind: KindText, May: MayReplace}
+	}
 	return ValueDeclaration{Kind: KindLink, May: MayReplace}
 }
 

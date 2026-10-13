@@ -75,6 +75,14 @@ export interface StartRequest {
   readonly provider_id?: string;
   readonly invitation_token?: string;
   readonly connect_token?: string;
+  readonly terms_url?: string;
+  readonly terms_version?: string;
+}
+
+/** The terms of use agreed on the invitation card, as `:start` carries them (UC-ID-19 check 1). */
+export interface AgreedTerms {
+  readonly url: string;
+  readonly version?: string | null;
 }
 
 /**
@@ -95,6 +103,7 @@ export function startRequest(
   providerId?: string,
   invitationToken?: string,
   connectToken?: string,
+  terms?: AgreedTerms,
 ): StartRequest {
   const hint = loginHint?.trim();
   return {
@@ -104,5 +113,9 @@ export function startRequest(
     ...(providerId ? { provider_id: providerId } : {}),
     ...(invitationToken ? { invitation_token: invitationToken } : {}),
     ...(connectToken ? { connect_token: connectToken } : {}),
+    // The agreement rides with the invitation only: the arrival that activates the invited account
+    // stores it, and every other sign-in meets the TERMS step instead.
+    ...(invitationToken && terms ? { terms_url: terms.url } : {}),
+    ...(invitationToken && terms?.version ? { terms_version: terms.version } : {}),
   };
 }

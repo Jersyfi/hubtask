@@ -43,8 +43,10 @@ workspace's trail is the workspace's.
    actor, never the former name or address.
 4. A request for another tenant's entries answers nothing of that tenant; one workspace never sees
    another's trail.
-5. A plain member who asks for the whole trail, or for a colleague's events, is refused with
-   `access.not_permitted`, and the refusal itself appears in the trail as a *denied* entry.
+5. A plain member who asks for the trail without naming anyone gets only their own events
+   ([UC-AUD-06](./UC-AUD-06-see-what-the-workspace-recorded-about-me.md)); one who asks for a colleague's
+   events is refused with `access.not_permitted`, and the refusal itself appears in the trail as a
+   *denied* entry.
 6. Reading the trail adds no entry; the screen says so in words.
 7. A period whose end is before its start is refused with `audit.period_invalid`; an unknown
    outcome with `audit.outcome_invalid`.

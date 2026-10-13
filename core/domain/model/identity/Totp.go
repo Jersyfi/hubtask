@@ -181,6 +181,11 @@ const (
 	// holds the address it confirms, proves the mailbox and nothing else - it never signs anybody
 	// in - and lives a day (AddressLifetime); the newest request wins.
 	PendingAddress PendingPurpose = "ADDRESS"
+	// PendingTerms is the step a sign-in ends in while the account has not agreed to the terms of
+	// use in force (UC-ID-19): after every proof, so it never stands in for one. It completes by
+	// agreeing, and then opens the session the sign-in would have opened - which is why it carries
+	// SessionMethod and SessionVia.
+	PendingTerms PendingPurpose = "TERMS"
 )
 
 // ParsePendingToken and NewPendingToken are the credential's shape, ParseToken's discipline.
@@ -213,6 +218,10 @@ type PendingCredential struct {
 	// so that the session the change opens says so (UC-ID-06 check 2). Empty on every other
 	// credential.
 	SignedInWith string
+	// SessionMethod and SessionVia are the session a TERMS credential opens once agreed: how the
+	// sign-in proved the account, and the provider that did (zero for none).
+	SessionMethod string
+	SessionVia    shared.ID
 }
 
 // LinkIntent is a provider identity waiting for the account's own proof: which provider, and the

@@ -66,6 +66,9 @@ What deliberately is **not** in this milestone:
     2026-10-12, #1292): each file downloaded once from its owner's branding guidelines, its paths
     copied unchanged, the file itself not committed; THIRD-PARTY-LICENSES names the file and the
     guideline — ADR-0069 §2, UC-ID-09 check 4. Built by SC-14.
+14. **A member asking for the trail sees their own events** (the owner, 2026-10-13, #1333): without
+    naming anyone a member gets only their own events, as UC-AUD-06 and audit.md §5 promise; naming a
+    colleague is refused and recorded as denied — UC-AUD-01 check 5. The code stands as built.
 
 ---
 
@@ -234,7 +237,7 @@ label, absent when unset. A terminology pass: "second factor" everywhere, no fie
 
 ---
 
-## SC-10 — Terms of use, agreed and re-agreed
+## SC-10 — Terms of use, agreed and re-agreed · built
 
 *Depends on: SC-03.*
 

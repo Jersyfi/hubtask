@@ -62,6 +62,10 @@ export interface LegalLinks {
   readonly privacy_url?: string;
   readonly terms_url?: string;
   readonly accessibility_url?: string;
+  /** The terms' version, from the level that set `terms_url`; absent where they carry none. */
+  readonly terms_version?: string;
+  /** Present with `terms_url`: who set the terms, which is whom to ask about them. */
+  readonly terms_set_by?: 'INSTALLATION' | 'WORKSPACE';
 }
 
 /** What `GET /auth/sign-in-rules` answers. Deliberately the least a sign-in screen needs. */

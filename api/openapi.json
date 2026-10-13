@@ -4340,6 +4340,42 @@
         }
       }
     },
+    "/auth/invitations:inspect": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "inspectInvitation",
+        "security": [],
+        "summary": "Name the workspace and the address an invitation is for",
+        "description": "What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationInspection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The invitation, named",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationSummary"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/installation:set-up": {
       "post": {
         "tags": [
@@ -4458,6 +4494,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MfaChallenge"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/sessions:agree-terms": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "agreeToTerms",
+        "security": [],
+        "summary": "Agree to the terms of use and finish the sign-in",
+        "description": "The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.\nThe request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.\nDeclining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TermsAgreement"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agreed, and signed in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionTokens"
                 }
               }
             }
@@ -4672,6 +4744,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Set; the terms of use in force are still to be agreed to (`TERMS`), and the session opens at `/auth/sessions:agree-terms`\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
                 }
               }
             }
@@ -12728,6 +12810,52 @@
             "minLength": 12,
             "maxLength": 1024,
             "description": "The first password, under the workspace's password policy."
+          },
+          "terms_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "The terms of use the person agreed to on the invitation card - the `terms_url` of `GET /auth/sign-in-rules` as it was shown. Required where terms of use are in force: without it the redemption is refused with `auth.terms_not_agreed`, and with a link or a version other than the ones in force with `auth.terms_changed`; neither spends the invitation. Ignored where no terms are in force.\n"
+          },
+          "terms_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "description": "The version of those terms as it was shown, where the terms carry one.\n"
+          }
+        }
+      },
+      "InvitationInspection": {
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {
+            "type": "string",
+            "description": "The redemption token from the invitation. Read, not spent."
+          }
+        }
+      },
+      "InvitationSummary": {
+        "type": "object",
+        "description": "What the invitation card names before anything is typed.",
+        "required": [
+          "workspace_name",
+          "email"
+        ],
+        "properties": {
+          "workspace_name": {
+            "type": "string",
+            "description": "The display name of the workspace the person was invited to."
+          },
+          "email": {
+            "type": "string",
+            "description": "The address the invitation went to - the one a provider has to confirm."
           }
         }
       },
@@ -12942,6 +13070,22 @@
               "null"
             ],
             "description": "The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account. It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.\n"
+          },
+          "terms_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000,
+            "description": "With `invitation_token`: the terms of use the person agreed to on the invitation card, as `GET /auth/sign-in-rules` showed them. The flow keeps the agreement, and the arrival that activates the invited account stores it. Without it, or where the terms changed in the meantime, the arrival ends in the `TERMS` step instead of a session.\n"
+          },
+          "terms_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "description": "The version of those terms as it was shown, where they carry one."
           }
         }
       },
@@ -14266,7 +14410,8 @@
           "imprint_url",
           "privacy_url",
           "terms_url",
-          "accessibility_url"
+          "accessibility_url",
+          "terms_version"
         ],
         "properties": {
           "imprint_url": {
@@ -14280,6 +14425,10 @@
           },
           "accessibility_url": {
             "$ref": "#/components/schemas/SignInPolicyText"
+          },
+          "terms_version": {
+            "$ref": "#/components/schemas/SignInPolicyText",
+            "description": "The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.\n"
           }
         }
       },
@@ -14417,6 +14566,10 @@
           },
           "accessibility_url": {
             "type": "string"
+          },
+          "terms_version": {
+            "type": "string",
+            "description": "The terms' version, at most 64 characters without control characters; empty clears it. Refused with `auth.terms_version_without_link` where the workspace has no terms link of its own, and with `auth.terms_version_invalid` when it is too long or holds a control character.\n"
           },
           "managed_accounts": {
             "type": "boolean"
@@ -15063,10 +15216,11 @@
               "CHOICE",
               "CHOICES",
               "LINK",
+              "TEXT",
               "LOCALE",
               "TIME_ZONE"
             ],
-            "description": "What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.\n"
+            "description": "What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.\n"
           },
           "options": {
             "type": "array",
@@ -15117,7 +15271,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "The four links, by name."
+            "description": "The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).\n"
           },
           "localisation": {
             "type": "object",
@@ -15393,6 +15547,18 @@
           },
           "accessibility_url": {
             "type": "string"
+          },
+          "terms_version": {
+            "type": "string",
+            "description": "The version of the terms of use in force, from the level that set `terms_url`; absent where the terms carry none. Where `terms_url` is present, a person agrees to the terms when accepting an invitation and again at the first sign-in after the link or the version changed.\n"
+          },
+          "terms_set_by": {
+            "type": "string",
+            "enum": [
+              "INSTALLATION",
+              "WORKSPACE"
+            ],
+            "description": "Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.\n"
           }
         }
       },
@@ -15466,10 +15632,11 @@
                 "RECOVERY",
                 "ENROLL",
                 "PASSWORD_CHANGE",
-                "LINK"
+                "LINK",
+                "TERMS"
               ]
             },
-            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`. Each is a step the pending credential can complete and nothing else.\n"
+            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.\n"
           },
           "password_rules": {
             "$ref": "#/components/schemas/PasswordRules",
@@ -15488,6 +15655,65 @@
               "null"
             ],
             "description": "Present with `LINK`: the name of the provider that will sign the person in once the account is proven.\n"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/TermsInForce",
+            "description": "Present with `TERMS` and with no other step - the terms to agree to."
+          }
+        }
+      },
+      "TermsInForce": {
+        "type": "object",
+        "description": "The terms of use a person is asked to agree to.",
+        "required": [
+          "url",
+          "set_by"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Where the terms are kept. Hubtask holds no text of them."
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Their version, where the level that set them gave one."
+          },
+          "set_by": {
+            "type": "string",
+            "enum": [
+              "INSTALLATION",
+              "WORKSPACE"
+            ],
+            "description": "Who set them - whom a person who does not agree can ask."
+          }
+        }
+      },
+      "TermsAgreement": {
+        "type": "object",
+        "required": [
+          "pending_token",
+          "terms_url"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string",
+            "description": "The `TERMS` challenge's credential. It dies on use."
+          },
+          "terms_url": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "The link of the terms agreed to, as the challenge showed it."
+          },
+          "terms_version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64,
+            "description": "Their version as the challenge showed it, where they carry one."
           }
         }
       },

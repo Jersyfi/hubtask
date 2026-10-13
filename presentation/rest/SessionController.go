@@ -25,8 +25,36 @@ const (
 	// revokeOtherSessionsUseCase is *Sign out everywhere else* (UC-ID-06 check 4).
 	revokeOtherSessionsUseCase = "RevokeOtherSessions"
 	redeemInvitationUseCase    = "RedeemInvitation"
+	inspectInvitationUseCase   = "InspectInvitation"
 	setUpInstallationUseCase   = "SetUpInstallation"
 )
+
+// InspectInvitation answers POST /auth/invitations:inspect: the workspace and the address an
+// invitation is for (UC-ID-07 check 1). Public, for the redemption's reason: the token in the body
+// is the whole of what the call carries.
+func (c *RestController) InspectInvitation(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.InvitationInspection
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), inspectInvitationUseCase, actorOf(r), usecase.Input{
+		"token":         body.Token,
+		"tenant_header": r.Header.Get(TenantHeader),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, openapi.InvitationSummary{
+		WorkspaceName: out.String("workspace_name"), Email: out.String("email"),
+	})
+}
 
 // SignIn answers POST /auth/sessions.
 //
@@ -188,6 +216,8 @@ func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"terms_url":     optionalStringField(body.TermsUrl),
+		"terms_version": optionalStringField(body.TermsVersion),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

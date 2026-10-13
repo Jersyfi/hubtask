@@ -302,7 +302,7 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 }
 
 func legalLinkOf(key string) (identity.LegalLink, bool) {
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		if key == legalArea+"."+string(link) {
 			return link, true
 		}
@@ -473,9 +473,10 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		rows = append(rows, settingRow{key: key, value: encoded, lock: lockOf(level.Policy.Locks[name], "")})
 	}
 
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		value := level.Legal.Links.Of(link)
-		if value == "" && !level.Legal.Locks[link] {
+		if value == "" && (!level.Legal.Locks[link] || link == identity.LinkTermsVersion) {
+			// The version's lock is the terms link's own row; an empty version is no row at all.
 			continue
 		}
 		encoded, err := json.Marshal(value)

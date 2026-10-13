@@ -215,7 +215,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(name))
 		}
 	}
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))

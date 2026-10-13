@@ -121,6 +121,10 @@ func mfaConfirm(ctx context.Context, cli *CLI, args []string) error {
 	}
 
 	printf(cli.Err, "the second factor is armed; sign-in asks for a code from now on\n")
+	if confirmed.Challenge != nil {
+		// The sign-in this enrolment completes still owes the change of its password or the terms.
+		return cli.owedStep(ctx, client, cli.Profile.BaseURL, cli.Profile.Tenant, *confirmed.Challenge)
+	}
 	if confirmed.Tokens == nil {
 		return nil
 	}

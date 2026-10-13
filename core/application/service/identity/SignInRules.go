@@ -488,10 +488,14 @@ func passwordRulesOutput(view PasswordRulesView) usecase.Output {
 // owes nobody an imprint, and a footer with four empty links is four links pointing nowhere.
 func legalOutput(links domain.LegalLinks) usecase.Output {
 	out := usecase.Output{}
-	for _, name := range domain.LegalLinkNames() {
+	for _, name := range domain.LegalSettingNames() {
 		if value := links.Of(name); value != "" {
 			out[string(name)] = value
 		}
+	}
+	if links.TermsSetBy != "" {
+		// Whom a person who does not agree can ask (UC-ID-19 check 3).
+		out["terms_set_by"] = string(links.TermsSetBy)
 	}
 	return out
 }

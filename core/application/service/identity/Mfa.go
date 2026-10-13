@@ -316,13 +316,14 @@ func (h ConfirmTotp) Execute(
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}
-	pair, err := w.openSessionWithHint(ctx, scope, caller.tenantID, caller.account,
-		caller.pending.UserAgent, caller.pending.IPClass, SignedInAction,
-		bounds, domain.SignedInWithPasswordTotp, "")
+	result, err := w.openOrAgree(ctx, scope, caller.account, SessionHint{
+		UserAgent: caller.pending.UserAgent, IPClass: caller.pending.IPClass,
+		Method: domain.SignedInWithPasswordTotp,
+	}, bounds)
 	if err != nil {
 		return ConfirmedEnrollment{}, err
 	}
-	return ConfirmedEnrollment{Pair: &pair}, nil
+	return ConfirmedEnrollment(result), nil
 }
 
 // DisableTotpCommand carries the proof: the step-up, like every privileged action (ADR-0075 §3).

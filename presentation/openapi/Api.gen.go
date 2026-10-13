@@ -2003,6 +2003,7 @@ const (
 	InstanceSettingKindFLAG     InstanceSettingKind = "FLAG"
 	InstanceSettingKindLINK     InstanceSettingKind = "LINK"
 	InstanceSettingKindLOCALE   InstanceSettingKind = "LOCALE"
+	InstanceSettingKindTEXT     InstanceSettingKind = "TEXT"
 	InstanceSettingKindTIMEZONE InstanceSettingKind = "TIME_ZONE"
 )
 
@@ -2020,6 +2021,8 @@ func (e InstanceSettingKind) Valid() bool {
 	case InstanceSettingKindLINK:
 		return true
 	case InstanceSettingKindLOCALE:
+		return true
+	case InstanceSettingKindTEXT:
 		return true
 	case InstanceSettingKindTIMEZONE:
 		return true
@@ -2382,6 +2385,24 @@ func (e LegalHoldReplaceResultHoldsOutcome) Valid() bool {
 	}
 }
 
+// Defines values for LegalLinksTermsSetBy.
+const (
+	LegalLinksTermsSetByINSTALLATION LegalLinksTermsSetBy = "INSTALLATION"
+	LegalLinksTermsSetByWORKSPACE    LegalLinksTermsSetBy = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the LegalLinksTermsSetBy enum.
+func (e LegalLinksTermsSetBy) Valid() bool {
+	switch e {
+	case LegalLinksTermsSetByINSTALLATION:
+		return true
+	case LegalLinksTermsSetByWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -2523,6 +2544,7 @@ const (
 	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTERMS          MfaChallengeMethods = "TERMS"
 	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
 )
 
@@ -2536,6 +2558,8 @@ func (e MfaChallengeMethods) Valid() bool {
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
 	case MfaChallengeMethodsRECOVERY:
+		return true
+	case MfaChallengeMethodsTERMS:
 		return true
 	case MfaChallengeMethodsTOTP:
 		return true
@@ -3900,6 +3924,24 @@ func (e TemplateScope) Valid() bool {
 	case TemplateScopeHUB:
 		return true
 	case TemplateScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TermsInForceSetBy.
+const (
+	TermsInForceSetByINSTALLATION TermsInForceSetBy = "INSTALLATION"
+	TermsInForceSetByWORKSPACE    TermsInForceSetBy = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the TermsInForceSetBy enum.
+func (e TermsInForceSetBy) Valid() bool {
+	switch e {
+	case TermsInForceSetByINSTALLATION:
+		return true
+	case TermsInForceSetByWORKSPACE:
 		return true
 	default:
 		return false
@@ -6489,7 +6531,7 @@ type InstanceReach struct {
 // InstanceSetting One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it.
 // **Every switch is answered, decided or not.** A reader has to be able to see that a switch exists and that this installation has left it to each workspace — which is a different fact from the switch not existing, and the only way a screen can draw the whole level without keeping a list of its own that would be wrong the day one is added.
 type InstanceSetting struct {
-	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 	Kind *InstanceSettingKind `json:"kind,omitempty"`
 
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
@@ -6517,7 +6559,7 @@ type InstanceSetting struct {
 	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
 
-// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 type InstanceSettingKind string
 
 // InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
@@ -6536,7 +6578,7 @@ type InstanceSettings struct {
 	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
 	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
 
-	// Legal The four links, by name.
+	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
@@ -6554,13 +6596,34 @@ type InstanceSettings struct {
 	Source *string `json:"source,omitempty"`
 }
 
+// InvitationInspection defines model for InvitationInspection.
+type InvitationInspection struct {
+	// Token The redemption token from the invitation. Read, not spent.
+	Token string `json:"token"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the workspace's password policy.
 	Password string `json:"password"`
 
+	// TermsUrl The terms of use the person agreed to on the invitation card - the `terms_url` of `GET /auth/sign-in-rules` as it was shown. Required where terms of use are in force: without it the redemption is refused with `auth.terms_not_agreed`, and with a link or a version other than the ones in force with `auth.terms_changed`; neither spends the invitation. Ignored where no terms are in force.
+	TermsUrl *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of those terms as it was shown, where the terms carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
+
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
+}
+
+// InvitationSummary What the invitation card names before anything is typed.
+type InvitationSummary struct {
+	// Email The address the invitation went to - the one a provider has to confirm.
+	Email string `json:"email"`
+
+	// WorkspaceName The display name of the workspace the person was invited to.
+	WorkspaceName string `json:"workspace_name"`
 }
 
 // InvitedAccount defines model for InvitedAccount.
@@ -7016,8 +7079,17 @@ type LegalLinks struct {
 	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
 	ImprintUrl       *string `json:"imprint_url,omitempty"`
 	PrivacyUrl       *string `json:"privacy_url,omitempty"`
-	TermsUrl         *string `json:"terms_url,omitempty"`
+
+	// TermsSetBy Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.
+	TermsSetBy *LegalLinksTermsSetBy `json:"terms_set_by,omitempty"`
+	TermsUrl   *string               `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of the terms of use in force, from the level that set `terms_url`; absent where the terms carry none. Where `terms_url` is present, a person agrees to the terms when accepting an invitation and again at the first sign-in after the link or the version changed.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
+
+// LegalLinksTermsSetBy Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.
+type LegalLinksTermsSetBy string
 
 // LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
 type LegalPolicySettings struct {
@@ -7025,6 +7097,9 @@ type LegalPolicySettings struct {
 	ImprintUrl       SignInPolicyText `json:"imprint_url"`
 	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
 	TermsUrl         SignInPolicyText `json:"terms_url"`
+
+	// TermsVersion The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.
+	TermsVersion SignInPolicyText `json:"terms_version"`
 }
 
 // LinkCompletion defines model for LinkCompletion.
@@ -7186,7 +7261,7 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`. Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
@@ -7197,6 +7272,9 @@ type MfaChallenge struct {
 
 	// ProviderName Present with `LINK`: the name of the provider that will sign the person in once the account is proven.
 	ProviderName *string `json:"provider_name,omitempty"`
+
+	// Terms Present with `TERMS` and with no other step - the terms to agree to.
+	Terms *TermsInForce `json:"terms,omitempty"`
 }
 
 // MfaChallengeMethods defines model for MfaChallenge.Methods.
@@ -7429,6 +7507,12 @@ type OidcStart struct {
 
 	// ProviderId Which way in to use, from `GET /auth/sign-in-rules`. Omitting it is allowed while the workspace has exactly one provider switched on; with a choice to make, not making it is refused rather than guessed.
 	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
+
+	// TermsUrl With `invitation_token`: the terms of use the person agreed to on the invitation card, as `GET /auth/sign-in-rules` showed them. The flow keeps the agreement, and the arrival that activates the invited account stores it. Without it, or where the terms changed in the meantime, the arrival ends in the `TERMS` step instead of a session.
+	TermsUrl *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of those terms as it was shown, where they carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
 
 // Operator One row of the register: an account of some workspace that operates this installation.
@@ -8710,6 +8794,9 @@ type SignInPolicyChange struct {
 	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
 	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
 	TermsUrl           *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The terms' version, at most 64 characters without control characters; empty clears it. Refused with `auth.terms_version_without_link` where the workspace has no terms link of its own, and with `auth.terms_version_invalid` when it is too long or holds a control character.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
 
 // SignInPolicyChangeMfaRequiredFor defines model for SignInPolicyChange.MfaRequiredFor.
@@ -9261,6 +9348,33 @@ type TenantQuotas struct {
 	MediaBytes            *int64 `json:"media_bytes,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 }
+
+// TermsAgreement defines model for TermsAgreement.
+type TermsAgreement struct {
+	// PendingToken The `TERMS` challenge's credential. It dies on use.
+	PendingToken string `json:"pending_token"`
+
+	// TermsUrl The link of the terms agreed to, as the challenge showed it.
+	TermsUrl string `json:"terms_url"`
+
+	// TermsVersion Their version as the challenge showed it, where they carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
+}
+
+// TermsInForce The terms of use a person is asked to agree to.
+type TermsInForce struct {
+	// SetBy Who set them - whom a person who does not agree can ask.
+	SetBy TermsInForceSetBy `json:"set_by"`
+
+	// Url Where the terms are kept. Hubtask holds no text of them.
+	Url string `json:"url"`
+
+	// Version Their version, where the level that set them gave one.
+	Version *string `json:"version,omitempty"`
+}
+
+// TermsInForceSetBy Who set them - whom a person who does not agree can ask.
+type TermsInForceSetBy string
 
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
@@ -11004,6 +11118,9 @@ type ConfirmAddressJSONRequestBody = AddressConfirm
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
+// InspectInvitationJSONRequestBody defines body for InspectInvitation for application/json ContentType.
+type InspectInvitationJSONRequestBody = InvitationInspection
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -11042,6 +11159,9 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
 // SignInJSONRequestBody defines body for SignIn for application/json ContentType.
 type SignInJSONRequestBody = SignIn
+
+// AgreeToTermsJSONRequestBody defines body for AgreeToTerms for application/json ContentType.
+type AgreeToTermsJSONRequestBody = TermsAgreement
 
 // CompleteLinkJSONRequestBody defines body for CompleteLink for application/json ContentType.
 type CompleteLinkJSONRequestBody = LinkCompletion
@@ -11498,6 +11618,9 @@ type ServerInterface interface {
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
+	// InspectInvitation Name the workspace and the address an invitation is for
+	// (POST /auth/invitations:inspect)
+	InspectInvitation(w http.ResponseWriter, r *http.Request)
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
@@ -11555,6 +11678,9 @@ type ServerInterface interface {
 	// RevokeSession End one session
 	// (DELETE /auth/sessions/{sessionId})
 	RevokeSession(w http.ResponseWriter, r *http.Request, sessionId SessionId)
+	// AgreeToTerms Agree to the terms of use and finish the sign-in
+	// (POST /auth/sessions:agree-terms)
+	AgreeToTerms(w http.ResponseWriter, r *http.Request)
 	// ElevateSession Raise this session to the control plane for an hour
 	// (POST /auth/sessions:elevate)
 	ElevateSession(w http.ResponseWriter, r *http.Request, params ElevateSessionParams)
@@ -13787,6 +13913,20 @@ func (siw *ServerInterfaceWrapper) SetUpInstallation(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// InspectInvitation operation middleware
+func (siw *ServerInterfaceWrapper) InspectInvitation(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InspectInvitation(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RedeemInvitation operation middleware
 func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *http.Request) {
 
@@ -14218,6 +14358,20 @@ func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevokeSession(w, r, sessionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AgreeToTerms operation middleware
+func (siw *ServerInterfaceWrapper) AgreeToTerms(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AgreeToTerms(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23179,9 +23333,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:refresh", wrapper.RefreshSession)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/auth/sessions/{sessionId}", wrapper.RevokeSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:redeem", wrapper.RedeemInvitation)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:inspect", wrapper.InspectInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/installation:set-up", wrapper.SetUpInstallation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:link", wrapper.CompleteLink)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:agree-terms", wrapper.AgreeToTerms)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:forgot", wrapper.ForgetPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password:reset", wrapper.ResetPassword)

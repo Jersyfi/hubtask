@@ -24,8 +24,8 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { navigableUrl, startRequest, type Handoff } from './oidc.ts';
-import { session } from '../session.svelte.ts';
+import { navigableUrl, startRequest, type AgreedTerms, type Handoff } from './oidc.ts';
+import { session, type TermsInForce } from '../session.svelte.ts';
 
 const START = '/auth/oidc:start';
 const CALLBACK = '/auth/oidc:callback';
@@ -54,6 +54,7 @@ interface LinkOwed {
   readonly expires_at?: string;
   readonly email?: string | null;
   readonly provider_name?: string | null;
+  readonly terms?: TermsInForce | null;
 }
 
 class Oidc {
@@ -95,6 +96,7 @@ class Oidc {
     providerId?: string,
     invitationToken?: string,
     connectToken?: string,
+    terms?: AgreedTerms,
   ): Promise<string | undefined> {
     this.#working = true;
     this.#handingOver = providerId;
@@ -103,7 +105,7 @@ class Oidc {
       const answer = await engine.mutate<Authorization>(
         'POST',
         START,
-        startRequest(loginHint, providerId, invitationToken, connectToken),
+        startRequest(loginHint, providerId, invitationToken, connectToken, terms),
       );
       const url = navigableUrl(answer.authorization_url);
       // An answer that is not a navigation is this installation's own defect rather than a
@@ -142,6 +144,8 @@ class Oidc {
           expiresAt: answer.expires_at,
           email: answer.email ?? undefined,
           providerName: answer.provider_name ?? undefined,
+          // The terms of use in force, where the provider's return ends in the TERMS step.
+          terms: answer.terms ?? undefined,
         });
         return true;
       }

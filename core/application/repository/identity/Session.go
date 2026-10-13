@@ -91,6 +91,8 @@ type RedemptionAccount struct {
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
+	// TenantName is the workspace's display name, which the invitation card names (UC-ID-07 check 1).
+	TenantName string
 }
 
 // AuthAttempt is one subject's standing in the attempt ledger (T-02).
@@ -191,6 +193,18 @@ type SignInAccounts interface {
 	// password afresh of somebody already signed in - disabling the second factor is the first
 	// (identity.md §16). Empty for an account that signs in some other way.
 	PasswordHashOf(ctx context.Context, accountID shared.ID) (secret.Secret, error)
+}
+
+// TermsAgreements is the account's latest agreement to the terms of use (UC-ID-19). Every
+// agreement is also in the workspace's trail; the account keeps only the latest.
+type TermsAgreements interface {
+	// TermsAgreementOf answers the account's latest agreement, the zero value where it never
+	// agreed, or an error wrapping shared.ErrNotFound for an account this workspace does not hold.
+	TermsAgreementOf(ctx context.Context, accountID shared.ID) (identity.TermsAgreement, error)
+
+	// RecordTermsAgreement replaces the account's agreement. False where this workspace holds no
+	// such account.
+	RecordTermsAgreement(ctx context.Context, accountID shared.ID, agreement identity.TermsAgreement) (bool, error)
 }
 
 // AuthAttempts is the attempt ledger (T-02). Subjects travel in clear and are stored only as

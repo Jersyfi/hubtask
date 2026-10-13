@@ -483,6 +483,15 @@ func run() error {
 		Memberships:  postgres.NewMembershipRepository(),
 		People:       postgres.NewAccountRepository(),
 		Issuer:       "Hubtask",
+		// The terms of use at sign-in (UC-ID-19). In the literal, for the step-up's reason above:
+		// every writer that opens a session is a copy of this one, and a copy taken before an
+		// assignment would open sessions without the TERMS step.
+		TermsIn: identity.SignInPolicyResolver{
+			Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Instance:   postgres.NewInstanceSettingRepository(),
+			UnitOfWork: unitOfWork,
+		},
+		Terms: signInStore,
 	}
 
 	backupRestores := postgres.NewRestoreRunRepository()
@@ -1624,6 +1633,8 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
+		identity.AgreeToTerms{Writer: sessionWriter}.Descriptor(),
+		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
 		identity.RevokeAccessToken{Writer: accessTokenWriter}.Descriptor(),

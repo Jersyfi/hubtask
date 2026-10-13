@@ -135,6 +135,10 @@ type SessionWriter struct {
 	// what bounds the session it is about to open. Nil switches the PASSWORD_CHANGE step off
 	// wholesale and falls back to `require_admin_totp`.
 	Rule SignInRuleReader
+	// TermsIn and Terms are the terms of use at sign-in (UC-ID-19): the terms in force, and each
+	// account's agreement to them. Either nil switches the TERMS step off wholesale.
+	TermsIn TermsReader
+	Terms   repository.TermsAgreements
 }
 
 // SignInRuleReader is the seam between the sign-in path and the rule. One method, because the
@@ -183,6 +187,9 @@ type SignInChallenge struct {
 	// arrived from the mail's link.
 	Email        string
 	ProviderName string
+	// Terms travels with a TERMS challenge and with no other: the terms of use the person is asked
+	// to agree to, and who set them (UC-ID-19).
+	Terms *domain.TermsInForce
 }
 
 // SignInResult is one of two answers: the pair, or the challenge that stands between the
@@ -341,12 +348,10 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{Challenge: challenge}, nil
 	}
 
-	pair, err := w.openSessionWith(ctx, scope, tenantID, found.Account, cmd.UserAgent,
-		cmd.RemoteAddr, SignedInAction, subjects, verdict.Sessions, domain.SignedInWithPassword)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	return w.openOrAgree(ctx, scope, found.Account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		Method: domain.SignedInWithPassword, Subjects: subjects,
+	}, verdict.Sessions)
 }
 
 // RefreshSessionCommand carries the exchange's input.

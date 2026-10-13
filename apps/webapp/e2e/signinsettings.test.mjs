@@ -42,6 +42,7 @@ function policy() {
     session: { max_days: rule(30, 30), idle_minutes: rule(30, 30, { source: 'INSTANCE', above: 'INSTANCE' }) },
     legal: {
       imprint_url: rule('', ''), privacy_url: rule('', ''), terms_url: rule('', ''), accessibility_url: rule('', ''),
+      terms_version: rule('', ''),
     },
     rotation_from: null,
   };
@@ -177,6 +178,40 @@ test('chromium: a refusal is shown at the rule it is about', async (t) => {
 
   await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]') !== null);
   assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the rule');
+});
+
+// UC-ID-19: the terms' version sits beside their link, says what changing it does, travels in the
+// patch, and a refusal of it lands at its field.
+test('chromium: the terms version is set beside the link and its refusal lands there', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let patched;
+  const { page, close } = await open(browser, (route, path) => {
+    if (path !== '/tenant') return undefined;
+    if (route.request().method() === 'PATCH') {
+      patched = route.request().postDataJSON();
+      return route.fulfill({
+        status: 422,
+        json: {
+          code: 'errors.validation', detail_code: 'auth.terms_version_without_link', status: 422, request_id: 'req_t',
+          field_errors: [{ path: '/sign_in_policy/terms_version', code: 'auth.terms_version_without_link' }],
+        },
+      });
+    }
+    return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const field = page.getByLabel('Version of the terms', { exact: true });
+  await field.waitFor();
+  await page.getByText(/asks every person to agree again at their next sign-in/).waitFor();
+  await field.fill('4');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+  await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]') !== null);
+  assert.equal(patched?.sign_in_policy?.terms_version, '4', 'the version was not sent');
+  assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the version');
 });
 
 test('chromium: a rule that cannot be read is a sentence and a retry', async (t) => {

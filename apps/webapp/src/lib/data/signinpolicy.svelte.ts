@@ -85,6 +85,11 @@ export interface SignInPolicy {
     readonly privacy_url: Setting<string>;
     readonly terms_url: Setting<string>;
     readonly accessibility_url: Setting<string>;
+    /**
+     * The terms' version (UC-ID-19). It belongs to the terms link - same level, same lock - and
+     * absent from a server that predates it.
+     */
+    readonly terms_version?: Setting<string>;
   };
   /**
    * Whether owners and administrators may give somebody an account without a mail address

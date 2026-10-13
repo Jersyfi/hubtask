@@ -133,6 +133,8 @@
       privacy_url: ownLink(policy.legal.privacy_url),
       terms_url: ownLink(policy.legal.terms_url),
       accessibility_url: ownLink(policy.legal.accessibility_url),
+      // The terms' version, own where the workspace's own terms carry one (UC-ID-19).
+      ...(policy.legal.terms_version ? { terms_version: ownLink(policy.legal.terms_version) } : {}),
       // Absent from a server that predates it, and then not a row this form sends.
       ...(policy.managed_accounts ? { managed_accounts: policy.managed_accounts.value } : {}),
     };
@@ -604,6 +606,25 @@
               {@render linkRow('imprint_url', t('app.legal.imprint'))}
               {@render linkRow('privacy_url', t('app.legal.privacy'))}
               {@render linkRow('terms_url', t('app.legal.terms'))}
+              {#if policy.legal.terms_version}
+                <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every
+                     person to agree again at their next sign-in, which the hint says before it is
+                     saved. Under the link's lock, from the link's level. -->
+                <div data-rule>
+                  <Input
+                    label={t('app.signin_settings.terms_version')}
+                    hint={t('app.signin_settings.terms_version_hint')}
+                    value={policy.legal.terms_version.lock !== null
+                      ? policy.legal.terms_version.value
+                      : String(draft['terms_version'] ?? '')}
+                    oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
+                    disabledReason={lockedBecause(policy.legal.terms_version.lock)}
+                    error={refusalOf('terms_version')}
+                    maxlength={64}
+                  />
+                  {@render origin(linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
+                </div>
+              {/if}
               <!-- The fourth link, which the sign-in footer shows: without this row a workspace
                    could only have the installation's, whatever its own statement said. -->
               {@render linkRow('accessibility_url', t('app.legal.accessibility'))}

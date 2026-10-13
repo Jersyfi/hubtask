@@ -561,13 +561,17 @@ func (h ResetPassword) answer(
 		return SignInResult{Challenge: challenge}, nil
 	}
 
-	pair, err := session.openSessionWith(ctx, scope, tenantID, account,
-		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil,
-		verdict.Sessions, domain.SignedInWithReset)
+	result, err := session.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr, Method: domain.SignedInWithReset,
+	}, verdict.Sessions)
 	if err != nil {
 		return SignInResult{}, err
 	}
-	return SignInResult{Pair: &pair}, nil
+	if result.Challenge != nil {
+		// The terms step after a reset names the account for the reason the factor's step does.
+		result.Challenge.Email = address
+	}
+	return result, nil
 }
 
 // resetRefused is the reset's one probe-facing refusal.

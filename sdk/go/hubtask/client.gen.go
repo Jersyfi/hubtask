@@ -2009,6 +2009,7 @@ const (
 	InstanceSettingKindFLAG     InstanceSettingKind = "FLAG"
 	InstanceSettingKindLINK     InstanceSettingKind = "LINK"
 	InstanceSettingKindLOCALE   InstanceSettingKind = "LOCALE"
+	InstanceSettingKindTEXT     InstanceSettingKind = "TEXT"
 	InstanceSettingKindTIMEZONE InstanceSettingKind = "TIME_ZONE"
 )
 
@@ -2026,6 +2027,8 @@ func (e InstanceSettingKind) Valid() bool {
 	case InstanceSettingKindLINK:
 		return true
 	case InstanceSettingKindLOCALE:
+		return true
+	case InstanceSettingKindTEXT:
 		return true
 	case InstanceSettingKindTIMEZONE:
 		return true
@@ -2388,6 +2391,24 @@ func (e LegalHoldReplaceResultHoldsOutcome) Valid() bool {
 	}
 }
 
+// Defines values for LegalLinksTermsSetBy.
+const (
+	LegalLinksTermsSetByINSTALLATION LegalLinksTermsSetBy = "INSTALLATION"
+	LegalLinksTermsSetByWORKSPACE    LegalLinksTermsSetBy = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the LegalLinksTermsSetBy enum.
+func (e LegalLinksTermsSetBy) Valid() bool {
+	switch e {
+	case LegalLinksTermsSetByINSTALLATION:
+		return true
+	case LegalLinksTermsSetByWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -2529,6 +2550,7 @@ const (
 	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
+	MfaChallengeMethodsTERMS          MfaChallengeMethods = "TERMS"
 	MfaChallengeMethodsTOTP           MfaChallengeMethods = "TOTP"
 )
 
@@ -2542,6 +2564,8 @@ func (e MfaChallengeMethods) Valid() bool {
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
 	case MfaChallengeMethodsRECOVERY:
+		return true
+	case MfaChallengeMethodsTERMS:
 		return true
 	case MfaChallengeMethodsTOTP:
 		return true
@@ -3906,6 +3930,24 @@ func (e TemplateScope) Valid() bool {
 	case TemplateScopeHUB:
 		return true
 	case TemplateScopeTENANT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TermsInForceSetBy.
+const (
+	TermsInForceSetByINSTALLATION TermsInForceSetBy = "INSTALLATION"
+	TermsInForceSetByWORKSPACE    TermsInForceSetBy = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the TermsInForceSetBy enum.
+func (e TermsInForceSetBy) Valid() bool {
+	switch e {
+	case TermsInForceSetByINSTALLATION:
+		return true
+	case TermsInForceSetByWORKSPACE:
 		return true
 	default:
 		return false
@@ -6495,7 +6537,7 @@ type InstanceReach struct {
 // InstanceSetting One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it.
 // **Every switch is answered, decided or not.** A reader has to be able to see that a switch exists and that this installation has left it to each workspace — which is a different fact from the switch not existing, and the only way a screen can draw the whole level without keeping a list of its own that would be wrong the day one is added.
 type InstanceSetting struct {
-	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 	Kind *InstanceSettingKind `json:"kind,omitempty"`
 
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
@@ -6523,7 +6565,7 @@ type InstanceSetting struct {
 	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
 
-// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 type InstanceSettingKind string
 
 // InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
@@ -6542,7 +6584,7 @@ type InstanceSettings struct {
 	// IsEnforcedFromFile Whether a file is the source. The writing routes refuse while it is, because a write through the API would be overwritten at the next start.
 	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
 
-	// Legal The four links, by name.
+	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
@@ -6560,13 +6602,34 @@ type InstanceSettings struct {
 	Source *string `json:"source,omitempty"`
 }
 
+// InvitationInspection defines model for InvitationInspection.
+type InvitationInspection struct {
+	// Token The redemption token from the invitation. Read, not spent.
+	Token string `json:"token"`
+}
+
 // InvitationRedemption defines model for InvitationRedemption.
 type InvitationRedemption struct {
 	// Password The first password, under the workspace's password policy.
 	Password string `json:"password"`
 
+	// TermsUrl The terms of use the person agreed to on the invitation card - the `terms_url` of `GET /auth/sign-in-rules` as it was shown. Required where terms of use are in force: without it the redemption is refused with `auth.terms_not_agreed`, and with a link or a version other than the ones in force with `auth.terms_changed`; neither spends the invitation. Ignored where no terms are in force.
+	TermsUrl *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of those terms as it was shown, where the terms carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
+
 	// Token The redemption token from the invitation, shown once and usable once.
 	Token string `json:"token"`
+}
+
+// InvitationSummary What the invitation card names before anything is typed.
+type InvitationSummary struct {
+	// Email The address the invitation went to - the one a provider has to confirm.
+	Email string `json:"email"`
+
+	// WorkspaceName The display name of the workspace the person was invited to.
+	WorkspaceName string `json:"workspace_name"`
 }
 
 // InvitedAccount defines model for InvitedAccount.
@@ -7022,8 +7085,17 @@ type LegalLinks struct {
 	AccessibilityUrl *string `json:"accessibility_url,omitempty"`
 	ImprintUrl       *string `json:"imprint_url,omitempty"`
 	PrivacyUrl       *string `json:"privacy_url,omitempty"`
-	TermsUrl         *string `json:"terms_url,omitempty"`
+
+	// TermsSetBy Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.
+	TermsSetBy *LegalLinksTermsSetBy `json:"terms_set_by,omitempty"`
+	TermsUrl   *string               `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of the terms of use in force, from the level that set `terms_url`; absent where the terms carry none. Where `terms_url` is present, a person agrees to the terms when accepting an invitation and again at the first sign-in after the link or the version changed.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
+
+// LegalLinksTermsSetBy Present with `terms_url`: whether the workspace or the installation set the terms, so that a screen can say whom to ask about them.
+type LegalLinksTermsSetBy string
 
 // LegalPolicySettings The four links, each with its own lock - B2C locks them, B2B leaves them open.
 type LegalPolicySettings struct {
@@ -7031,6 +7103,9 @@ type LegalPolicySettings struct {
 	ImprintUrl       SignInPolicyText `json:"imprint_url"`
 	PrivacyUrl       SignInPolicyText `json:"privacy_url"`
 	TermsUrl         SignInPolicyText `json:"terms_url"`
+
+	// TermsVersion The version of the terms of use. It belongs to the terms link and resolves with it - from the same level, under the same lock: a workspace sets a version only beside a terms link of its own. Changing the link or the version asks every person to agree again at their next sign-in.
+	TermsVersion SignInPolicyText `json:"terms_version"`
 }
 
 // LinkCompletion defines model for LinkCompletion.
@@ -7192,7 +7267,7 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`. Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
@@ -7203,6 +7278,9 @@ type MfaChallenge struct {
 
 	// ProviderName Present with `LINK`: the name of the provider that will sign the person in once the account is proven.
 	ProviderName *string `json:"provider_name,omitempty"`
+
+	// Terms Present with `TERMS` and with no other step - the terms to agree to.
+	Terms *TermsInForce `json:"terms,omitempty"`
 }
 
 // MfaChallengeMethods defines model for MfaChallenge.Methods.
@@ -7435,6 +7513,12 @@ type OidcStart struct {
 
 	// ProviderId Which way in to use, from `GET /auth/sign-in-rules`. Omitting it is allowed while the workspace has exactly one provider switched on; with a choice to make, not making it is refused rather than guessed.
 	ProviderId *openapi_types.UUID `json:"provider_id,omitempty"`
+
+	// TermsUrl With `invitation_token`: the terms of use the person agreed to on the invitation card, as `GET /auth/sign-in-rules` showed them. The flow keeps the agreement, and the arrival that activates the invited account stores it. Without it, or where the terms changed in the meantime, the arrival ends in the `TERMS` step instead of a session.
+	TermsUrl *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The version of those terms as it was shown, where they carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
 
 // Operator One row of the register: an account of some workspace that operates this installation.
@@ -8716,6 +8800,9 @@ type SignInPolicyChange struct {
 	SessionIdleMinutes *int    `json:"session_idle_minutes,omitempty"`
 	SessionMaxDays     *int    `json:"session_max_days,omitempty"`
 	TermsUrl           *string `json:"terms_url,omitempty"`
+
+	// TermsVersion The terms' version, at most 64 characters without control characters; empty clears it. Refused with `auth.terms_version_without_link` where the workspace has no terms link of its own, and with `auth.terms_version_invalid` when it is too long or holds a control character.
+	TermsVersion *string `json:"terms_version,omitempty"`
 }
 
 // SignInPolicyChangeMfaRequiredFor defines model for SignInPolicyChange.MfaRequiredFor.
@@ -9267,6 +9354,33 @@ type TenantQuotas struct {
 	MediaBytes            *int64 `json:"media_bytes,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 }
+
+// TermsAgreement defines model for TermsAgreement.
+type TermsAgreement struct {
+	// PendingToken The `TERMS` challenge's credential. It dies on use.
+	PendingToken string `json:"pending_token"`
+
+	// TermsUrl The link of the terms agreed to, as the challenge showed it.
+	TermsUrl string `json:"terms_url"`
+
+	// TermsVersion Their version as the challenge showed it, where they carry one.
+	TermsVersion *string `json:"terms_version,omitempty"`
+}
+
+// TermsInForce The terms of use a person is asked to agree to.
+type TermsInForce struct {
+	// SetBy Who set them - whom a person who does not agree can ask.
+	SetBy TermsInForceSetBy `json:"set_by"`
+
+	// Url Where the terms are kept. Hubtask holds no text of them.
+	Url string `json:"url"`
+
+	// Version Their version, where the level that set them gave one.
+	Version *string `json:"version,omitempty"`
+}
+
+// TermsInForceSetBy Who set them - whom a person who does not agree can ask.
+type TermsInForceSetBy string
 
 // TotpConfirmation defines model for TotpConfirmation.
 type TotpConfirmation struct {
@@ -11010,6 +11124,9 @@ type ConfirmAddressJSONRequestBody = AddressConfirm
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
+// InspectInvitationJSONRequestBody defines body for InspectInvitation for application/json ContentType.
+type InspectInvitationJSONRequestBody = InvitationInspection
+
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
@@ -11048,6 +11165,9 @@ type CreateServiceAccountJSONRequestBody = ServiceAccountCreate
 
 // SignInJSONRequestBody defines body for SignIn for application/json ContentType.
 type SignInJSONRequestBody = SignIn
+
+// AgreeToTermsJSONRequestBody defines body for AgreeToTerms for application/json ContentType.
+type AgreeToTermsJSONRequestBody = TermsAgreement
 
 // CompleteLinkJSONRequestBody defines body for CompleteLink for application/json ContentType.
 type CompleteLinkJSONRequestBody = LinkCompletion
@@ -12356,6 +12476,24 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
 	SetUpInstallation(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// InspectInvitationWithBody Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// InspectInvitation Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitation(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -12685,6 +12823,28 @@ type ClientInterface interface {
 	//
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSession(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AgreeToTermsWithBody Agree to the terms of use and finish the sign-in
+	//
+	// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+	// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+	// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+	AgreeToTermsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AgreeToTerms Agree to the terms of use and finish the sign-in
+	//
+	// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+	// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+	// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+	AgreeToTerms(ctx context.Context, body AgreeToTermsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ElevateSession Raise this session to the control plane for an hour
 	//
@@ -17354,6 +17514,44 @@ func (c *Client) SetUpInstallation(ctx context.Context, body SetUpInstallationJS
 	return c.Client.Do(req)
 }
 
+// InspectInvitationWithBody Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *Client) InspectInvitationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInspectInvitationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// InspectInvitation Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *Client) InspectInvitation(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewInspectInvitationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RedeemInvitationWithBody Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -17994,6 +18192,48 @@ func (c *Client) SignIn(ctx context.Context, body SignInJSONRequestBody, reqEdit
 // Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 func (c *Client) RevokeSession(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRevokeSessionRequest(c.Server, sessionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AgreeToTermsWithBody Agree to the terms of use and finish the sign-in
+//
+// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+func (c *Client) AgreeToTermsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAgreeToTermsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AgreeToTerms Agree to the terms of use and finish the sign-in
+//
+// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+func (c *Client) AgreeToTerms(ctx context.Context, body AgreeToTermsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAgreeToTermsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -26529,6 +26769,46 @@ func NewSetUpInstallationRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewInspectInvitationRequest calls the generic InspectInvitation builder with application/json body
+func NewInspectInvitationRequest(server string, body InspectInvitationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewInspectInvitationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewInspectInvitationRequestWithBody constructs an http.Request for the InspectInvitation method, with any body, and a specified content type
+func NewInspectInvitationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/invitations:inspect")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRedeemInvitationRequest calls the generic RedeemInvitation builder with application/json body
 func NewRedeemInvitationRequest(server string, body RedeemInvitationJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -27304,6 +27584,46 @@ func NewRevokeSessionRequest(server string, sessionId SessionId) (*http.Request,
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewAgreeToTermsRequest calls the generic AgreeToTerms builder with application/json body
+func NewAgreeToTermsRequest(server string, body AgreeToTermsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAgreeToTermsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAgreeToTermsRequestWithBody constructs an http.Request for the AgreeToTerms method, with any body, and a specified content type
+func NewAgreeToTermsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:agree-terms")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -39720,6 +40040,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/installation:set-up (the `SetUpInstallation` operationId).
 	SetUpInstallationWithResponse(ctx context.Context, body SetUpInstallationJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpInstallationResult, error)
 
+	// InspectInvitationWithBodyWithResponse Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error)
+
+	// InspectInvitationWithResponse Name the workspace and the address an invitation is for
+	//
+	// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+	InspectInvitationWithResponse(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error)
+
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
 	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -40061,6 +40399,28 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with DELETE /auth/sessions/{sessionId} (the `RevokeSession` operationId).
 	RevokeSessionWithResponse(ctx context.Context, sessionId SessionId, reqEditors ...RequestEditorFn) (*RevokeSessionResult, error)
+
+	// AgreeToTermsWithBodyWithResponse Agree to the terms of use and finish the sign-in
+	//
+	// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+	// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+	// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+	AgreeToTermsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AgreeToTermsResult, error)
+
+	// AgreeToTermsWithResponse Agree to the terms of use and finish the sign-in
+	//
+	// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+	// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+	// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+	AgreeToTermsWithResponse(ctx context.Context, body AgreeToTermsJSONRequestBody, reqEditors ...RequestEditorFn) (*AgreeToTermsResult, error)
 
 	// ElevateSessionWithResponse Raise this session to the control plane for an hour
 	//
@@ -45952,6 +46312,54 @@ func (r SetUpInstallationResult) ContentType() string {
 	return ""
 }
 
+type InspectInvitationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InvitationSummary
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r InspectInvitationResult) GetJSON200() *InvitationSummary {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r InspectInvitationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r InspectInvitationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r InspectInvitationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r InspectInvitationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r InspectInvitationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RedeemInvitationResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -46850,6 +47258,54 @@ func (r RevokeSessionResult) ContentType() string {
 	return ""
 }
 
+type AgreeToTermsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AgreeToTermsResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AgreeToTermsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AgreeToTermsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AgreeToTermsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AgreeToTermsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AgreeToTermsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ElevateSessionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -47047,6 +47503,8 @@ type SetPasswordAndSignInResult struct {
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
@@ -47054,6 +47512,11 @@ type SetPasswordAndSignInResult struct {
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
 func (r SetPasswordAndSignInResult) GetJSON201() *SessionTokens {
 	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r SetPasswordAndSignInResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -59738,6 +60201,36 @@ func (c *ClientWithResponses) SetUpInstallationWithResponse(ctx context.Context,
 	return ParseSetUpInstallationResult(rsp)
 }
 
+// InspectInvitationWithBodyWithResponse Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *ClientWithResponses) InspectInvitationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error) {
+	rsp, err := c.InspectInvitationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseInspectInvitationResult(rsp)
+}
+
+// InspectInvitationWithResponse Name the workspace and the address an invitation is for
+//
+// What the invitation card says before anything is typed: the name of the workspace the person was invited to and the address the invitation went to. Answered only for a token that would redeem - an unknown, expired or accepted one is the redemption's one refusal, `auth.redemption_failed` - and nothing is spent: the token stays exactly as redeemable as it was. The token travels in the body, never in the address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/invitations:inspect (the `InspectInvitation` operationId).
+func (c *ClientWithResponses) InspectInvitationWithResponse(ctx context.Context, body InspectInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*InspectInvitationResult, error) {
+	rsp, err := c.InspectInvitation(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseInspectInvitationResult(rsp)
+}
+
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
 // The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
@@ -60270,6 +60763,40 @@ func (c *ClientWithResponses) RevokeSessionWithResponse(ctx context.Context, ses
 		return nil, err
 	}
 	return ParseRevokeSessionResult(rsp)
+}
+
+// AgreeToTermsWithBodyWithResponse Agree to the terms of use and finish the sign-in
+//
+// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+func (c *ClientWithResponses) AgreeToTermsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AgreeToTermsResult, error) {
+	rsp, err := c.AgreeToTermsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAgreeToTermsResult(rsp)
+}
+
+// AgreeToTermsWithResponse Agree to the terms of use and finish the sign-in
+//
+// The `TERMS` step. Where terms of use are in force - a terms link set by the workspace or the installation - and the account has not agreed to the link and version in force, every sign-in ends here instead of in a session: after the password, the second factor, the change of an old password, a provider's return or a reset, whichever were owed. The step asks for nothing the account's proof would need; it comes after the whole proof.
+// The request repeats the link and the version the person was shown. Where the terms changed while the step was open, the answer is `409` `auth.terms_changed` with the terms now in force as parameters, and the pending credential is **not** spent, so the card shows the new terms and the person agrees to those. Agreeing stores the link, the version and the moment on the account, records `auth.terms_agreed` in the workspace's trail with the version and the link - never the text, which Hubtask does not hold - and opens the session the sign-in would have opened, with the same method and provider.
+// Declining needs no request: the pending credential can do nothing else and dies within five minutes. No session is opened.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:agree-terms (the `AgreeToTerms` operationId).
+func (c *ClientWithResponses) AgreeToTermsWithResponse(ctx context.Context, body AgreeToTermsJSONRequestBody, reqEditors ...RequestEditorFn) (*AgreeToTermsResult, error) {
+	rsp, err := c.AgreeToTerms(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAgreeToTermsResult(rsp)
 }
 
 // ElevateSessionWithResponse Raise this session to the control plane for an hour
@@ -67287,6 +67814,39 @@ func ParseSetUpInstallationResult(rsp *http.Response) (*SetUpInstallationResult,
 	return response, nil
 }
 
+// ParseInspectInvitationResult parses an HTTP response from a InspectInvitationWithResponse call
+func ParseInspectInvitationResult(rsp *http.Response) (*InspectInvitationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &InspectInvitationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InvitationSummary
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRedeemInvitationResult parses an HTTP response from a RedeemInvitationWithResponse call
 func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -67915,6 +68475,39 @@ func ParseRevokeSessionResult(rsp *http.Response) (*RevokeSessionResult, error) 
 	return response, nil
 }
 
+// ParseAgreeToTermsResult parses an HTTP response from a AgreeToTermsWithResponse call
+func ParseAgreeToTermsResult(rsp *http.Response) (*AgreeToTermsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AgreeToTermsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseElevateSessionResult parses an HTTP response from a ElevateSessionWithResponse call
 func ParseElevateSessionResult(rsp *http.Response) (*ElevateSessionResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -68070,6 +68663,13 @@ func ParseSetPasswordAndSignInResult(rsp *http.Response) (*SetPasswordAndSignInR
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
