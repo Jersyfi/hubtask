@@ -552,6 +552,15 @@ func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 	if len(legal) != len(identity.LegalSettingNames()) {
 		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LegalSettingNames()))
 	}
+	// The version is drawn beside the link it belongs to, not after an unrelated one.
+	positionOf := func(key identity.LegalLink) any {
+		entry, _ := legal[string(key)].(usecase.Output)
+		return entry["position"]
+	}
+	terms, _ := positionOf(identity.LinkTerms).(int)
+	if version := positionOf(identity.LinkTermsVersion); version != terms+1 {
+		t.Errorf("the terms' version sits at %v, want %d, right after the terms link", version, terms+1)
+	}
 
 	if _, held := out["blocklist_file"]; held {
 		t.Error("a file nobody configured was answered")
