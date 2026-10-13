@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-11, P-12]
 state: partial
 tasks: [B-11, C-03, F2-15, F3-08]
-checked_by: [test/integration/comment_test.go, test/integration/activity_test.go, core/domain/model/work/Comment_test.go, core/application/service/work/AddComment_test.go, core/application/service/work/ChangeComment_test.go, core/application/service/work/ReadActivity_test.go]
+checked_by: [test/integration/comment_test.go, test/integration/activity_test.go, core/domain/model/work/Comment_test.go, core/application/service/work/AddComment_test.go, core/application/service/work/ChangeComment_test.go, core/application/service/work/ReadActivity_test.go, apps/webapp/e2e/entrybyrole.test.mjs]
 ---
 
 # Discuss an entry and see what happened to it
@@ -57,4 +57,3 @@ to 5 May", "Notes changed".
 ## Today
 
 * Check 3: not met — edit and remove are drawn on every comment and disabled with "not yours" for somebody who may do neither.
-* Check 4: not met in the web app — the comment field is drawn for every reader, including a viewer, whose comment the server then refuses, tracked in #1080.

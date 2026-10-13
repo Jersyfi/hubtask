@@ -579,15 +579,27 @@
    * and trash - last and alone. A reason stays a reason: the rank at the top of its level and
    * the move of a hub are offered with why they cannot be used, not left out.
    */
+  /** Whether the reader may change any entry here at all - what selecting entries is for. */
+  const mayChangeSome = $derived(mayDo(myRole, 'change', true) === true);
+  /** Whether the reader may put this container in the trash: `DELETE_CONTAINER`, the owner's alone. */
+  const mayDelete = $derived(holds(structureRole, 'DELETE_CONTAINER').status === 'permitted');
+  /** The menu rows that change the workspace's shape, or none where the reader's role may not. */
+  function shaping<T>(rows: readonly T[]): readonly T[] {
+    return mayShape ? rows : [];
+  }
+
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
       : [
           // The way into the selection mode, where a screen's verbs are (ADR-0063 decision 8).
           // Only on a collection: a hub holds collections, and nothing acts on those in bulk.
-          ...(container.type === 'COLLECTION'
+          ...(container.type === 'COLLECTION' && mayChangeSome
             ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, hasSeparatorBefore: false }]
             : []),
+          // What changes the shape of the workspace - its name, its place, its order, its archive -
+          // only for a role that may (UC-WRK-01 check 6, P-05); `shaping` drops the rest.
+          ...shaping([
           {
             id: 'rename',
             label: t('app.workspace.rename'),
@@ -608,13 +620,19 @@
             : []),
           { id: 'up', label: t('app.rank.up'), icon: 'chevron-up', disabledReason: canMoveUp ? undefined : t('app.rank.already_first') },
           { id: 'down', label: t('app.rank.down'), icon: 'chevron-down', disabledReason: canMoveDown ? undefined : t('app.rank.already_last') },
+          ]),
           ...(container.type === 'COLLECTION'
             ? [
-                { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
-                { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
-                { id: 'views', label: t('app.views.title'), icon: 'star' as const },
+                // The labels, the fields and the policies are the collection's shape, managed and
+                // nothing else; the views and the templates are used by everybody, and their
+                // dialogs offer what changes the shape only to whom it belongs (UC-WRK-09 check 7).
+                ...shaping([
+                  { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                  { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                ]),
+                { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
                 { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
-                { id: 'policies', label: t('app.policies.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }]),
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
             : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
@@ -627,14 +645,16 @@
                 },
               ]
             : []),
-          {
-            id: 'trash',
-            label: t('app.workspace.trash'),
-            icon: 'trash',
-            isDestructive: true,
-            hasSeparatorBefore: true,
-            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
-          },
+          ...(mayDelete
+            ? [{
+                id: 'trash',
+                label: t('app.workspace.trash'),
+                icon: 'trash' as const,
+                isDestructive: true,
+                hasSeparatorBefore: true,
+                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+              }]
+            : []),
         ],
   );
 
@@ -738,19 +758,15 @@
             },
           } : undefined}
       secondary={container.type === 'HUB'
-        ? [
-            {
-              label: t('app.import.open'),
-              onclick: () => (isImporting = true),
-              disabledReason: isReadOnly
-                ? t('app.workspace.archived')
-                : structure.status === 'permitted'
-                  ? undefined
-                  : structure.status === 'refused'
-                    ? t(structure.code, structure.params)
-                    : t('app.import.deciding'),
-            },
-          ]
+        ? mayShape
+          ? [
+              {
+                label: t('app.import.open'),
+                onclick: () => (isImporting = true),
+                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+              },
+            ]
+          : []
         : [
             {
               label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
@@ -845,13 +861,15 @@
              with the reason rather than not at all, which is what every other control here does. -->
         <EmptyState kind="unused" title={t('app.workspace.no_collections')} icon="collection">
           {#snippet action()}
-            <Button
-              icon="plus"
-              disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
-              onclick={() => (isCreatingCollection = true)}
-            >
-              {t('app.workspace.create_collection')}
-            </Button>
+            {#if mayShape}
+              <Button
+                icon="plus"
+                disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+                onclick={() => (isCreatingCollection = true)}
+              >
+                {t('app.workspace.create_collection')}
+              </Button>
+            {/if}
           {/snippet}
         </EmptyState>
       {:else}
@@ -904,6 +922,9 @@
               {query}
               {lastResults}
               onduplicate={(item) => (duplicating = item)}
+              changeRefusal={changeRefusalOf}
+              mayCreate={mayCreateHere}
+              {mayShape}
             />
           {:else}
             <!-- Read-only follows the container: an archived collection's entries are archived with
@@ -981,6 +1002,11 @@
     bind:isOpen={isManagingViews}
     collectionId={container.id}
     hubId={container.parent_id ?? undefined}
+    mayShapeAt={(scope) => {
+      const at = scope === 'TENANT' ? {} : scope === 'HUB' ? { hubId: container.parent_id ?? undefined } : containerPath;
+      const held = people.roleOf(at, actor.account?.id, roleOrder());
+      return held === undefined ? undefined : holds(held ?? undefined, 'STRUCTURE').status === 'permitted';
+    }}
     {query}
     {layout}
     role={structureRole}

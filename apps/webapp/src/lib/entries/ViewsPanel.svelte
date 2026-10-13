@@ -50,6 +50,12 @@
     collectionId: string;
     /** The hub the collection sits in: what a view saved at hub scope names. */
     hubId?: string;
+    /**
+     * Whether the reader may shape the workspace at the place a scope names - `STRUCTURE` there,
+     * which saving a view anywhere but privately asks (`SavedView.go`). A scope is offered only
+     * where it is `true`: the collection's administrator is not offered the hub.
+     */
+    mayShapeAt: (scope: ViewScope) => boolean | undefined;
     /** What the editor currently holds, which is what "save what is on screen" means. */
     query?: ItemsQuery;
     layout: string;
@@ -61,7 +67,7 @@
     onsubscribe: (view: SavedView) => void;
   }
 
-  let { isOpen = $bindable(), collectionId, hubId, query, layout, role, onapply, onexport, onsubscribe }: Props =
+  let { isOpen = $bindable(), collectionId, hubId, mayShapeAt, query, layout, role, onapply, onexport, onsubscribe }: Props =
     $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
@@ -275,7 +281,7 @@
         <Select
           label={t('app.views.scope')}
           bind:value={scope}
-          options={VIEW_SCOPES.filter((each) => scopeIdOf(each, { collectionId, hubId }) !== undefined).map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
+          options={VIEW_SCOPES.filter((each) => scopeIdOf(each, { collectionId, hubId }) !== undefined && (!needsStructure(each) || mayShapeAt(each) === true)).map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
         />
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
         <div>

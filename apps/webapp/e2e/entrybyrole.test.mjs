@@ -21,7 +21,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, CHILDREN, COLLECTION, ITEMS, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
+import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -116,6 +116,48 @@ test('chromium: a contributor changes and comments on the entry assigned to them
   assert.equal(seen.notYours, false);
   assert.deepEqual(failures, []);
 });
+
+/** The container page's menu, opened and closed again. */
+async function pageMenu(page, name) {
+  await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
+  const rows = (await page.getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  await page.keyboard.press('Escape');
+  return rows;
+}
+
+// UC-WRK-22 check 4, UC-WRK-01 check 6, UC-WRK-09 check 7, UC-WRK-05: what shapes the workspace is
+// for a role that may shape it. A member works in the collection and is offered none of it.
+for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
+  test(`chromium: ${role} is ${shapes ? '' : 'not '}offered what changes the shape of a hub and a collection`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await as(browser, role);
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+    await page.getByText(ITEMS[2].title).first().waitFor();
+    await page.waitForTimeout(600);
+    const rows = await pageMenu(page, COLLECTION.name);
+    for (const shaping of ['Rename', 'Move to another hub…', 'Labels', 'Custom fields', 'Policies']) {
+      assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
+    }
+    // Used by everybody: the views, the templates, who is here.
+    for (const used of ['Saved views', 'Templates', 'People']) assert.ok(rows.includes(used), `${used} missing from ${rows}`);
+    // The trash takes a subtree with it: the owner's alone.
+    assert.equal(rows.includes('Move to the trash'), role === 'OWNER');
+
+    await page.getByRole('radio', { name: 'Board' }).click();
+    await page.getByText(ITEMS[2].title).first().waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Create column' }).count() > 0, shapes, 'Create column');
+
+    await page.goto(`${served.origin}/hubs/${HUB.id}`);
+    await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor();
+    await page.waitForTimeout(600);
+    assert.equal(await page.getByRole('button', { name: 'Create collection' }).count() > 0, shapes, 'Create collection');
+    assert.equal(await page.getByRole('button', { name: 'Import…' }).count() > 0, shapes, 'Import');
+    assert.deepEqual(failures, []);
+  });
+}
 
 test('chromium: a viewer reads the collection with no control that changes an entry, and nothing to add', async (t) => {
   const browser = await chromium.launch();

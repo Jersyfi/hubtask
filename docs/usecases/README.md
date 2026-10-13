@@ -201,7 +201,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-06](./work/UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md) | Put work in order and move it where it belongs | work | built |
 | [UC-WRK-07](./work/UC-WRK-07-duplicate-a-task.md) | Duplicate a task | work | built |
 | [UC-WRK-08](./work/UC-WRK-08-change-many-entries-at-once.md) | Change many entries at once | work | built |
-| [UC-WRK-09](./work/UC-WRK-09-make-work-recognisable-at-a-glance.md) | Make work recognisable at a glance | work | partial |
+| [UC-WRK-09](./work/UC-WRK-09-make-work-recognisable-at-a-glance.md) | Make work recognisable at a glance | work | built |
 | [UC-WRK-10](./work/UC-WRK-10-hand-work-to-a-person.md) | Hand work to a person | work | built |
 | [UC-WRK-11](./work/UC-WRK-11-let-a-collection-hand-out-new-work.md) | Let a collection hand out new work automatically | work | built |
 | [UC-WRK-12](./work/UC-WRK-12-record-the-facts-a-team-tracks.md) | Record the facts a team tracks, with custom fields | work | built |
