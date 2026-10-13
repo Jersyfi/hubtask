@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-person, PE-member, PE-admin]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-14]
-state: built
+state: verified
 tasks: [E-10, F4-20, PH-03]
-checked_by: [core/application/service/privacy/Consent_test.go, core/domain/model/privacy/Consent_test.go, core/application/service/privacy/GiveConsent_test.go, core/application/service/privacy/Register_test.go, core/application/service/integration/AiObjection_test.go, core/application/service/integration/AiPersonOptOut_test.go, core/domain/model/integration/AiPersonOptOut_test.go, core/domain/model/integration/KeptOut_test.go, test/integration/ai_kept_out_test.go, test/integration/ai_kept_out_embedding_test.go, test/contract/ai_objection_test.go, apps/webapp/e2e/aiobjection.test.mjs, apps/webapp/e2e/personoptout.test.mjs]
+checked_by: [core/application/service/privacy/Consent_test.go, core/domain/model/privacy/Consent_test.go, core/application/service/privacy/GiveConsent_test.go, core/application/service/privacy/Register_test.go, core/application/service/integration/AiObjection_test.go, core/application/service/integration/AiPersonOptOut_test.go, core/domain/model/integration/AiPersonOptOut_test.go, core/domain/model/integration/KeptOut_test.go, test/integration/ai_kept_out_test.go, test/integration/ai_kept_out_embedding_test.go, test/contract/ai_objection_test.go, apps/webapp/e2e/aiobjection.test.mjs, apps/webapp/e2e/personoptout.test.mjs, test/integration/privacy_withdrawal_core_test.go, docs/evidence/PH-03-2026-10-12.md, docs/evidence/PH-08-D4-2026-10-13.md, docs/evidence/PH-08-D5-2026-10-13.md]
 ---
 
 # Object to an optional use of my data

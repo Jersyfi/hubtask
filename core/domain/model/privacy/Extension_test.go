@@ -90,6 +90,11 @@ func TestTheLastDayIsThreeCalendarMonthsAfterReceipt(t *testing.T) {
 			if latest := shared.AsError(err).Params["latest"]; latest != c.last {
 				t.Errorf("the refusal names %q as the latest day, want %s", latest, c.last)
 			}
+			// The field's own message is drawn from the field error, which needs the same values,
+			// or "{latest}" reaches the reader beside the field.
+			if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Params["latest"] != c.last {
+				t.Errorf("the field error carries %+v", fields)
+			}
 
 			if until, ok := request.ExtendableUntil(now, zone); !ok || until.String() != c.last {
 				t.Errorf("extendable until %s (%v), want %s", until, ok, c.last)

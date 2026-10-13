@@ -318,6 +318,19 @@ func TestOnlyTheOwnerOpensAndNoOtherWorkspaceSeesIt(t *testing.T) {
 	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(w.tenant, w.member), input); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a member who is not the owner: %v, want forbidden", err)
 	}
+	// An administrator of the workspace runs it too, and is still not its owner (UC-ID-16 check 4).
+	administrator := freshID(t)
+	for _, statement := range []string{
+		`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Max Parent')`,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES (gen_random_uuid(), $2, $1, 'TENANT', 'ADMIN')`,
+	} {
+		if _, err := adminPool(ctx, t).Exec(ctx, statement, administrator.String(), w.tenant.String()); err != nil {
+			t.Fatalf("seeding the administrator: %v", err)
+		}
+	}
+	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(w.tenant, administrator), input); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("an administrator who is not the owner: %v, want forbidden", err)
+	}
 	if _, err := registry.Invoke(ctx, work.OpenPrivateHubName, present(tenantB, authorB), input); err == nil {
 		t.Error("another workspace's owner opened the hub")
 	}

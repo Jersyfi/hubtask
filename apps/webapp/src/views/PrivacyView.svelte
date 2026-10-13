@@ -153,12 +153,11 @@
   /** A calendar day as the reader's locale writes one, never shifted by a zone: it has none. */
   const day = (value: string) => formatDue(`${value}T12:00:00Z`, messages.locale, 'UTC', { allDay: true });
 
-  /** Today on the reader's own calendar, as YYYY-MM-DD: the latest day somebody can have been told. */
-  const today = () => {
-    const at = new Date();
-    const two = (n: number) => String(n).padStart(2, '0');
-    return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`;
-  };
+  /**
+   * Today in the workspace's zone, as YYYY-MM-DD: the latest day somebody can have been told. The
+   * server bounds the day there, so the device's own calendar would be refused around midnight.
+   */
+  const today = () => todayIn(zone);
 
   /** Opens the extension form on the latest day the server allows. */
   function beginExtending(request: Request): void {

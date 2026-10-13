@@ -40,9 +40,10 @@ const ROLES = [
   { role: 'ADMIN', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS'] },
 ];
 
-async function open(browser, role = 'OWNER') {
+async function open(browser, role = 'OWNER', options = {}) {
   const written = [];
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...options });
+  if (options.now) await context.clock.setFixedTime(options.now);
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
@@ -95,6 +96,27 @@ test('chromium: an extended case shows both deadlines and why', async () => {
     assert.match(text, /Extended once because of the number of requests\. They were told on .+2026\./);
     // Once extended, never offered again.
     assert.equal(await row(page, EXTENDED).getByRole('button', { name: 'Extend the deadline' }).count(), 0);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: the day the person was told starts on today in the workspace, not on the device', async () => {
+  // The server bounds the day by today in the workspace's zone (UC-PRV-01 check 9). At 11:00 UTC
+  // Berlin still has the 12th while a device on Kiritimati (UTC+14) already has the 13th: a form
+  // that started on the device's day would be refused for a day the person typed nothing into.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser, 'OWNER', {
+      timezoneId: 'Pacific/Kiritimati', now: new Date('2026-10-12T11:00:00Z'),
+    });
+    const open_ = row(page, OPEN);
+    await open_.getByRole('button', { name: 'Extend the deadline' }).click();
+    const informed = open_.getByLabel('The day you told them');
+    assert.equal(await informed.inputValue(), '2026-10-12');
+    assert.equal(await informed.getAttribute('max'), '2026-10-12');
     assert.deepEqual(failures, []);
     await close();
   } finally {

@@ -8,10 +8,10 @@ may contain breaks; with `1.0.0`, API v1 is promised stable. There is **one** ve
 product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-version.md)).
 
 The core track (`0.1.0` to `0.9.0`) is built, and so are the client milestones F1 to F6 and F8 to
-F10 and the sign-in milestone SI. Two tracks remain: the client track, which still owes the
-installed shells, and the convergence and stabilisation that close the major. Both meet in
-`0.9.5`, and `1.0.0` is released when the server, the clients and the website are finished
-together.
+F10, the sign-in milestone SI and the privacy milestone PH. Two tracks remain: the client track,
+which still owes the installed shells, and the convergence and stabilisation that close the major.
+Both meet in `0.9.5`, and `1.0.0` is released when the server, the clients and the website are
+finished together.
 
 ---
 
@@ -20,7 +20,6 @@ together.
 | Milestone | Builds | Backlog |
 |---|---|---|
 | **SC — Signing in and the installation, made coherent** | One rule in one place for the second factor, the first start and the way back into an installation without SQL; operators and machines on the screen; terms of use agreed and re-agreed; AI offered by the installation ([ADR-0072](./adr/ADR-0072-ai-at-the-installation-level.md)); budgets per source; invitations without mail; the brand marks cleared; the walk by use case | [`backlog/milestone-SC.md`](./backlog/milestone-SC.md) |
-| **PH — Privacy and the household** | A legal hold that wins over an erasure as far as it reaches; a deadline extended once; a person's objection to AI and a workspace's choice to make AI part of the work on a named legal basis ([`data-protection.md`](./architecture/data-protection.md) §4.1); private hubs with a transparent emergency access ([ADR-0073](./adr/ADR-0073-private-hubs.md)); accounts without a mail address for a child or a grandparent ([ADR-0074](./adr/ADR-0074-managed-accounts.md)) | [`backlog/milestone-PH.md`](./backlog/milestone-PH.md) |
 
 **After SC and PH**, in this order: passkeys, then plans, then custom domains. SI prepared all
 three without building any. Each is cut against its use cases like every milestone

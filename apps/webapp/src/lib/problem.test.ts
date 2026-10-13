@@ -140,14 +140,32 @@ test('a legal hold reads as its own sentence, not as a generic failure', () => {
       status: 409,
       code: 'conflict',
       detailCode: 'lifecycle.legal_hold',
-      params: { scope: 'hub' },
+      params: { scope: 'CONTAINER' },
     }),
     messages,
   );
   assert.equal(
     rendered.message,
-    'This cannot be deleted for good: a legal hold is in force on the hub. Ask whoever placed it.',
+    'This cannot be deleted for good: a legal hold is in force on the hub or collection it is in. Ask whoever placed it.',
   );
   assert.equal(rendered.isServerFault, false);
   assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
+});
+
+test('every scope a hold refusal names reads as words, never as its key', () => {
+  // The server sends the hold's scope as stored (Purge.go's legalHoldRefusal), so each one needs
+  // its own words: "in force on the CONTAINER" is a key on the screen (P-12).
+  for (const scope of ['WORKSPACE', 'TENANT', 'CONTAINER', 'ITEM', 'ACCOUNT']) {
+    const rendered = renderProblem(
+      new TransportError('problem', {
+        status: 409,
+        code: 'conflict',
+        detailCode: 'lifecycle.legal_hold',
+        params: { scope },
+      }),
+      messages,
+    );
+    assert.ok(!rendered.message.includes(scope), `${scope} reached the reader: ${rendered.message}`);
+    assert.match(rendered.message, /legal hold/);
+  }
 });

@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-owner, PE-admin, PE-scripter]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
-state: built
+state: verified
 tasks: [E-10, E-11, H-13, F4-20, PH-01, PH-09]
-checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go, core/domain/model/privacy/Plan_test.go, core/application/service/privacy/Preview_test.go, core/application/service/privacy/Remainder_test.go, test/integration/privacy_hold_test.go, test/integration/privacy_remainder_test.go, test/retention/account_hold_test.go, test/contract/privacy_kept_test.go, apps/webapp/e2e/privacy.test.mjs, test/integration/privacy_hold_restricted_test.go, test/integration/privacy_restricted_test.go, test/integration/ai_restricted_test.go, test/integration/automation_restricted_test.go]
+checked_by: [core/application/service/privacy/Erasure_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_test.go, test/privacy/PG2_deletion_test.go, core/domain/model/privacy/Request_test.go, core/domain/model/privacy/Plan_test.go, core/application/service/privacy/Preview_test.go, core/application/service/privacy/Remainder_test.go, test/integration/privacy_hold_test.go, test/integration/privacy_remainder_test.go, test/retention/account_hold_test.go, test/contract/privacy_kept_test.go, apps/webapp/e2e/privacy.test.mjs, test/integration/privacy_hold_restricted_test.go, test/integration/privacy_restricted_test.go, test/integration/ai_restricted_test.go, test/integration/automation_restricted_test.go, test/integration/privacy_trail_test.go, docs/evidence/PH-08-D4-2026-10-13.md]
 ---
 
 # Erase a person on request
