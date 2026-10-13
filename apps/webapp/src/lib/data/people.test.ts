@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, grantableOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -145,4 +145,17 @@ test('a role inherited from above counts as one that remains', () => {
     { scopeType: 'HUB', scopeId: HUB },
   );
   assert.equal(ownershipOf(holders, 'm-hub', AMELIE, () => []), 'own');
+});
+
+test('a form offers only the roles the server says the reader may grant, in the manifest order', () => {
+  const installed = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'] as const;
+  assert.deepEqual(grantableOf(installed, ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR']), [
+    'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR',
+  ]);
+  assert.deepEqual(grantableOf(installed, [...installed].reverse()), installed);
+  assert.deepEqual(grantableOf(installed, []), []);
+  // Not yet answered is not "all of them".
+  assert.deepEqual(grantableOf(installed, undefined), []);
+  // A role the installation does not declare is never offered, whatever the scope said.
+  assert.deepEqual(grantableOf(['MEMBER'], ['OWNER', 'MEMBER']), ['MEMBER']);
 });

@@ -76,6 +76,12 @@ export const MANIFEST = {
   limits: { max_bulk_operations: 100 }, features: {},
 };
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
+/**
+ * What the server answers a workspace owner may grant at any scope (`grantable_roles`): every role.
+ * A walk as an administrator answers `ADMIN_GRANTS`, which leaves out OWNER.
+ */
+export const OWNER_GRANTS = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
+export const ADMIN_GRANTS = OWNER_GRANTS.slice(1);
 
 /**
  * The workspace as `GET /tenant` answers it: two people, so a private hub is offered (UC-ID-16
@@ -231,7 +237,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/memberships')) {
     const scope = url.searchParams.get('scope_type');
     const rows = scope === 'COLLECTION' ? [{ id: 'm1', scope_type: 'COLLECTION', scope_id: COLLECTION.id, account_id: OTHER.id, role: 'MEMBER' }] : scope === 'HUB' ? [{ id: 'm2', scope_type: 'HUB', scope_id: HUB.id, account_id: ACCOUNT.id, role: 'OWNER' }] : scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' }, { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'MEMBER' }] : [];
-    return route.fulfill({ json: { ...PAGE, data: rows } });
+    return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: OWNER_GRANTS } });
   }
   if (path.endsWith('/api/v1/items:query')) {
     const body = request.postDataJSON();
