@@ -1,5 +1,8 @@
 {
-  "extends": "./.svelte-kit/tsconfig.json",
+  "extends": "$app/tsconfig",
+  // The pages and the root's configuration files; build/ holds plain Node scripts that the tests
+  // exercise, outside what SvelteKit compiles. The site has no service worker to exclude.
+  "include": ["src", "*"],
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": true,
