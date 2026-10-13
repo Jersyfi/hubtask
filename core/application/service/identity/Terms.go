@@ -160,6 +160,38 @@ func (w SessionWriter) termsStep(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
 	hint SessionHint, terms domain.TermsInForce,
 ) (SignInChallenge, error) {
+	return w.mintTerms(ctx, scope, account.ID, nil, hint, terms)
+}
+
+// newcomerStep mints the TERMS credential for a provider's newcomer: it carries the arrival
+// instead of an account, and the account is made only by the agreement. The person typed no
+// address, so the step names the one the provider vouched for.
+func (w SessionWriter) newcomerStep(
+	ctx context.Context, scope persistence.Scope, arrival domain.ArrivalIntent,
+	hint SessionHint, terms domain.TermsInForce,
+) (SignInChallenge, error) {
+	challenge, err := w.mintTerms(ctx, scope, "", &arrival, hint, terms)
+	if err != nil {
+		return SignInChallenge{}, err
+	}
+	challenge.Email = arrival.Email
+	return challenge, nil
+}
+
+// newcomerTerms answers the terms a newcomer would owe - all of them, having agreed to none - or
+// the zero value where none are in force or the step is not wired. Read outside a transaction.
+func (w SessionWriter) newcomerTerms(ctx context.Context, scope persistence.Scope) (domain.TermsInForce, error) {
+	if w.TermsIn == nil || w.Terms == nil || w.Pending == nil {
+		return domain.TermsInForce{}, nil
+	}
+	return w.TermsIn.TermsInForce(ctx, scope.TenantID)
+}
+
+// mintTerms writes the TERMS credential for an account, or for a newcomer's arrival.
+func (w SessionWriter) mintTerms(
+	ctx context.Context, scope persistence.Scope, accountID shared.ID, arrival *domain.ArrivalIntent,
+	hint SessionHint, terms domain.TermsInForce,
+) (SignInChallenge, error) {
 	material, err := w.Entropy.Bytes(domain.TokenSecretBytes)
 	if err != nil {
 		return SignInChallenge{}, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
@@ -177,10 +209,10 @@ func (w SessionWriter) termsStep(
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		now := w.Clock.Now()
 		credential := domain.PendingCredential{
-			ID: w.IDs.NewID(), TenantID: scope.TenantID, AccountID: account.ID,
+			ID: w.IDs.NewID(), TenantID: scope.TenantID, AccountID: accountID,
 			Purpose: domain.PendingTerms, UserAgent: hint.UserAgent, IPClass: ipClass,
 			CreatedAt: now.UTC(), ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
-			SessionMethod: hint.Method, SessionVia: hint.Via,
+			SessionMethod: hint.Method, SessionVia: hint.Via, Arrival: arrival,
 		}
 		if err := w.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
@@ -304,8 +336,25 @@ type AgreeToTermsCommand struct {
 	TenantHeader string
 }
 
+// NewcomerArrivals makes the account a provider's newcomer waited on the TERMS step for. The
+// provider is opened before the agreement's transaction, as every sign-in opens it; the account is
+// made inside it, so the agreement and the account are written together or not at all.
+type NewcomerArrivals interface {
+	ArrivalProvider(ctx context.Context, scope persistence.Scope, providerID shared.ID) (domain.IdentityProvider, error)
+	Arrive(
+		ctx context.Context, scope persistence.Scope, configured domain.IdentityProvider,
+		arrival domain.ArrivalIntent,
+	) (domain.Account, error)
+}
+
 // AgreeToTerms completes the TERMS step and opens the session the sign-in proved.
-type AgreeToTerms struct{ Writer SessionWriter }
+//
+// Arrivals makes a provider's newcomer the step carried; without it such a step is refused as an
+// unknown credential, never answered with an account made some other way.
+type AgreeToTerms struct {
+	Writer   SessionWriter
+	Arrivals NewcomerArrivals
+}
 
 // Execute agrees and signs in. Terms that changed while the step was open are refused without
 // spending the credential, so the person can agree to the new ones; terms removed meanwhile need no
@@ -329,6 +378,10 @@ func (h AgreeToTerms) Execute(ctx context.Context, cmd AgreeToTermsCommand) (Ses
 	if err != nil {
 		return SessionPair{}, err
 	}
+	configured, err := h.newcomersProvider(ctx, scope, token)
+	if err != nil {
+		return SessionPair{}, err
+	}
 
 	var (
 		account domain.Account
@@ -336,12 +389,20 @@ func (h AgreeToTerms) Execute(ctx context.Context, cmd AgreeToTermsCommand) (Ses
 	)
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		lookup, err := w.Pending.FindByToken(ctx, token)
+		if errors.Is(err, shared.ErrNotFound) && !configured.ID.IsZero() {
+			lookup, err = w.Pending.FindArrivalByToken(ctx, token)
+		}
 		if err != nil {
 			if errors.Is(err, shared.ErrNotFound) {
 				w.failure(ctx, FailureMfa)
 				return challengeRefused()
 			}
 			return err
+		}
+		newcomer := lookup.Credential.Arrival
+		if newcomer != nil && newcomer.ProviderID != configured.ID {
+			w.failure(ctx, FailureMfa)
+			return challengeRefused()
 		}
 		now := w.Clock.Now()
 		if err := lookup.Credential.Verify(now); err != nil {
@@ -352,8 +413,10 @@ func (h AgreeToTerms) Execute(ctx context.Context, cmd AgreeToTermsCommand) (Ses
 			w.failure(ctx, FailureMfa)
 			return challengeRefused()
 		}
-		if err := lookup.Account.Verify(); err != nil {
-			return err
+		if newcomer == nil {
+			if err := lookup.Account.Verify(); err != nil {
+				return err
+			}
 		}
 		if err := lookup.TenantStatus.Verify(); err != nil {
 			return err
@@ -370,6 +433,15 @@ func (h AgreeToTerms) Execute(ctx context.Context, cmd AgreeToTermsCommand) (Ses
 		if !consumed {
 			w.failure(ctx, FailureMfa)
 			return challengeRefused()
+		}
+		if newcomer != nil {
+			// The account is made here, in the agreement's transaction (UC-ID-19 check 1): a person
+			// who declined, or let the step run out, never had one.
+			made, err := h.Arrivals.Arrive(ctx, scope, configured, *newcomer)
+			if err != nil {
+				return err
+			}
+			lookup.Account = made
 		}
 		if terms.IsSet() {
 			if err := w.recordTermsAgreement(ctx, scope.TenantID, lookup.Account, terms, now); err != nil {
@@ -392,6 +464,30 @@ func (h AgreeToTerms) Execute(ctx context.Context, cmd AgreeToTermsCommand) (Ses
 		hint.SessionMethod, hint.SessionVia)
 }
 
+// newcomersProvider opens the provider a newcomer's step names, before the agreement's transaction
+// (a provider is opened in a read of its own). The zero value where the token names no newcomer, or
+// nothing can make one.
+func (h AgreeToTerms) newcomersProvider(
+	ctx context.Context, scope persistence.Scope, token domain.Token,
+) (domain.IdentityProvider, error) {
+	if h.Arrivals == nil {
+		return domain.IdentityProvider{}, nil
+	}
+	var arrival *domain.ArrivalIntent
+	err := h.Writer.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := h.Writer.Pending.FindArrivalByToken(ctx, token)
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil
+		}
+		arrival = found.Credential.Arrival
+		return err
+	})
+	if err != nil || arrival == nil {
+		return domain.IdentityProvider{}, err
+	}
+	return h.Arrivals.ArrivalProvider(ctx, scope, arrival.ProviderID)
+}
+
 // Descriptor is the catalogue entry.
 func (h AgreeToTerms) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
@@ -401,7 +497,9 @@ func (h AgreeToTerms) Descriptor() usecase.Descriptor {
 			"request repeats the link and version it was shown; terms that changed meanwhile " +
 			"are refused without spending the credential.",
 		SideEffects: "Consumes the pending credential, stores the agreement on the account, " +
-			"writes the agreement and the sign-in to the trail, and opens a session.",
+			"writes the agreement and the sign-in to the trail, and opens a session. For a " +
+			"newcomer arriving through a provider, it first creates the account, connects the " +
+			"provider and gives the newcomer's access.",
 		Input: []usecase.Field{
 			{Name: "pending_token", Kind: usecase.KindString, Required: true,
 				Description: "The TERMS challenge's credential. It dies on use."},

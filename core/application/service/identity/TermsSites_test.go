@@ -218,7 +218,13 @@ func TestAProviderReturnEndsInTheTerms(t *testing.T) {
 		if result.Challenge.Email != "ada@example.org" {
 			t.Errorf("%s: the step names %q, want the account's address", arrival, result.Challenge.Email)
 		}
-		session := agreeOpens(t, arrival, f.writer.Session, token)
+		// The newcomer is made by the agreement, so the provider's half takes part in it.
+		pair, err := AgreeToTerms{Writer: f.writer.Session, Arrivals: f.writer}.Execute(t.Context(),
+			AgreeToTermsCommand{PendingToken: token, TermsURL: hostTerms, TermsVersion: "3"})
+		if err != nil {
+			t.Fatalf("%s: agreeing: %v", arrival, err)
+		}
+		session := pair.Session
 		if session.SignedInWith != domain.SignedInWithOidc || session.SignedInVia != f.provider.ID {
 			t.Errorf("%s: the session was opened by %q via %q, want the provider's", arrival,
 				session.SignedInWith, session.SignedInVia)

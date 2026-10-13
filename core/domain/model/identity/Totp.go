@@ -222,6 +222,21 @@ type PendingCredential struct {
 	// sign-in proved the account, and the provider that did (zero for none).
 	SessionMethod string
 	SessionVia    shared.ID
+	// Arrival is the newcomer a TERMS credential carries instead of an account, or nil: a provider's
+	// first arrival that may be given an account, waiting for the terms to be agreed. AccountID is
+	// zero while it is set; the account is made only by the agreement.
+	Arrival *ArrivalIntent
+}
+
+// ArrivalIntent is a provider's newcomer waiting for the terms of use: which provider and subject,
+// and the address, name and directory it vouched for - everything the agreement needs to admit the
+// person again and make the account.
+type ArrivalIntent struct {
+	ProviderID  shared.ID
+	Subject     string
+	Email       string
+	DisplayName string
+	Directory   string
 }
 
 // LinkIntent is a provider identity waiting for the account's own proof: which provider, and the

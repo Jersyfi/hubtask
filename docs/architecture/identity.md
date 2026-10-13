@@ -97,6 +97,14 @@ the step owed; the client draws exactly the step the server names.
   that changed while the step was open are refused (`auth.terms_changed`) without spending it.
   Declining sends nothing: no session, and the card names whom to ask. Persons only; a refresh, an
   elevation and a token are no sign-in, and the setup signs its owner in without the step.
+* **A newcomer through a provider agrees before the account exists.** Where terms are in force, an
+  arrival the provider may make an account for (§10.4) is not made one at the callback: the TERMS
+  credential carries the arrival instead - the provider, the subject, the address, name and directory
+  it vouched for - and names the address on the card. Agreeing admits the arrival again against the
+  provider as it is then, makes the account, connects the provider, gives the newcomer's access,
+  stores the agreement and opens the provider's session, in one transaction; an address taken
+  meanwhile is refused (`identity_provider.account_taken`). A second agreement of the same arrival
+  signs in the account the first made. Declining, or letting the step run out, leaves no account.
 
 ### 4.3 Refusals and attempts
 
@@ -312,7 +320,8 @@ An unverified address comes in nowhere. Then:
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
-  group of it — given in the transaction that creates the account, recorded as a grant. Only a
+  group of it — given in the transaction that creates the account, recorded as a grant. Where terms
+  of use are in force that transaction is the agreement's, not the arrival's (§4.2). Only a
   workspace's own provider under `DOMAINS` or `ANY` names it; never `OWNER`, directly or through a
   group, which is checked when it is saved and again on arrival (a group gone or holding `OWNER` by
   then gives nothing). A person holding no membership anywhere is told an administrator still has
