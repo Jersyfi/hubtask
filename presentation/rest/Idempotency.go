@@ -119,7 +119,9 @@ func (i Idempotent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	captured := &capturedResponse{ResponseWriter: w, limit: maxStoredResponseBytes}
+	captured := &capturedResponse{
+		ResponseWriter: w, limit: maxStoredResponseBytes, shownOnce: ShownOnceRoutes[endpoint],
+	}
 	i.Next.ServeHTTP(captured, r)
 
 	// Stored after the answer has gone out, and with a context that outlives the request: a
@@ -170,7 +172,8 @@ type capturedResponse struct {
 	buffer   bytes.Buffer
 	limit    int
 	overflow bool
-	// shownOnce is the handler's mark that the answer carries a credential shown once.
+	// shownOnce says the answer carries a credential shown once: by its route (ShownOnceRoutes) or
+	// by the handler's mark on this answer (ShownOnceHeader).
 	shownOnce bool
 }
 
