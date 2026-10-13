@@ -1127,6 +1127,31 @@ test('without a mail server, the detour promises no link and says what works ins
   }
 });
 
+// The error presentation rule: a server failure on the provider's return is a sentence with the
+// reference to quote, the way every other refusal on the card is - never the bare category.
+test('a provider return the server fails is a sentence with its reference, not a bare word', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/oidc:callback')) {
+      return route.fulfill({ status: 500, json: { code: 'internal', status: 500, request_id: 'req_e2e_500' } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
+    const said = await page.getByRole('alert').innerText();
+    assert.match(said, /Something went wrong on our side/, said);
+    assert.match(said, /req_e2e_500/, `no reference: ${said}`);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-09 check 4: a provider's mark is its owner's, in the neutral button every guideline allows -
 // drawn from the bundle, never fetched, never recoloured (ADR-0069). The colours are the owners'
 // published values; a kind with no mark draws the tile with the name's first character.

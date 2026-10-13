@@ -210,9 +210,11 @@
        goes here is what the heading cannot say - a refusal, an outage, a session that ended. -->
   {#if oidc.failure}
     <!-- No provider configured, one switched off, or discovery unreachable: the server's own
-         code, and the password form below is untouched — which is exactly the degradation
+         sentence, and the password form below is untouched — which is exactly the degradation
          `observability-reliability.md` §7 promises. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+    <Banner tone={oidc.failure.isServerFault ? 'warning' : 'danger'} title={oidc.failure.message}>
+      {#if oidc.failure.reference}{oidc.failure.reference}{/if}
+    </Banner>
   {:else if passwordApi.wasSent}
     <Banner tone="success">{t('app.password.forgot_sent')}</Banner>
   {:else if session.problem}

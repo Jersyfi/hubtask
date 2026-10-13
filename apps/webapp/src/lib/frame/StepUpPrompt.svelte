@@ -89,8 +89,10 @@
       <p class="quiet">{t('app.step_up.why')}</p>
 
       {#if stepUp.failure}
-        <!-- The server's own code. Which of the two was wrong is not something this client says. -->
-        <Banner tone="danger">{t(stepUp.failure)}</Banner>
+        <!-- The server's own sentence. Which of the two was wrong is not something this client says. -->
+        <Banner tone="danger" title={stepUp.failure.message}>
+          {#if stepUp.failure.reference}{stepUp.failure.reference}{/if}
+        </Banner>
       {/if}
 
       {#if cannotProve}

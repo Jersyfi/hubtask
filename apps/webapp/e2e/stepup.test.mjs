@@ -172,3 +172,23 @@ test('chromium: the dialog offers every way the account holds, and a recovery co
   assert.deepEqual(sent.proofs, [{ recovery_code: 'abcd-efgh' }]);
   assert.deepEqual(sent.patches, [null, GRANT]);
 });
+
+// The error presentation rule on the step-up's return: a server failure is a sentence with the
+// reference to quote, never the bare category.
+test('chromium: a step-up return the server fails is a sentence with its reference', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, 'PROVIDER');
+  t.after(close);
+  await page.context().route('**/api/v1/auth/step-up', (route) =>
+    route.fulfill({ status: 500, json: { code: 'internal', status: 500, request_id: 'req_e2e_su500' } }));
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await changeARule(page);
+  await page.getByRole('dialog').getByRole('button', { name: 'Confirm with Contoso Entra ID' }).click();
+
+  await page.getByRole('heading', { name: 'Not confirmed' }).waitFor({ timeout: 15_000 });
+  const said = await page.getByRole('alert').innerText();
+  assert.match(said, /Something went wrong on our side/, said);
+  assert.match(said, /req_e2e_su500/, `no reference: ${said}`);
+});

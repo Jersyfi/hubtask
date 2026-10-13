@@ -25,6 +25,8 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { navigableUrl, startRequest, type AgreedTerms, type Handoff } from './oidc.ts';
+import { messages } from '../i18n/i18n.svelte.ts';
+import { renderProblem, type RenderedProblem } from '../problem.ts';
 import { session, type TermsInForce } from '../session.svelte.ts';
 
 const START = '/auth/oidc:start';
@@ -32,6 +34,11 @@ const CALLBACK = '/auth/oidc:callback';
 
 /** The one refusal every spent, unknown or unverifiable flow gets. It is the server's own code. */
 const REFUSED = 'auth.oidc_failed';
+/**
+ * A failure with no answer to quote. Not `errors.internal`, whose sentence carries a request id
+ * there is none of here (`problem.ts`).
+ */
+const DEFECT = 'app.something_went_wrong';
 
 /** Where to send the browser, as `OidcAuthorization` answers it. */
 interface Authorization {
@@ -58,7 +65,7 @@ interface LinkOwed {
 }
 
 class Oidc {
-  #failure = $state<string | undefined>(undefined);
+  #failure = $state<RenderedProblem | undefined>(undefined);
   #working = $state(false);
   /**
    * Which provider is being handed over to, where a workspace has more than one.
@@ -69,8 +76,11 @@ class Oidc {
    */
   #handingOver = $state<string | undefined>(undefined);
 
-  /** Why the last attempt did not go through, as the server's own code. */
-  get failure(): string | undefined {
+  /**
+   * Why the last attempt did not go through: the server's own sentence, rendered the way every
+   * other refusal is - a server fault with the reference to quote, never the bare category.
+   */
+  get failure(): RenderedProblem | undefined {
     return this.#failure;
   }
 
@@ -109,11 +119,11 @@ class Oidc {
       );
       const url = navigableUrl(answer.authorization_url);
       // An answer that is not a navigation is this installation's own defect rather than a
-      // refusal, and `errors.internal` is what a reader is owed for one.
-      if (url === undefined) this.#failure = 'errors.internal';
+      // refusal, and the sentence for one without a reference is what a reader is owed.
+      if (url === undefined) this.#failure = ownCode(DEFECT, true);
       return url;
     } catch (cause) {
-      this.#failure = codeOf(cause);
+      this.#failure = problemOf(cause);
       return undefined;
     } finally {
       this.#working = false;
@@ -152,7 +162,7 @@ class Oidc {
       session.hold({ access: answer.access_token, refresh: answer.refresh_token });
       return true;
     } catch (cause) {
-      this.#failure = codeOf(cause);
+      this.#failure = problemOf(cause);
       return false;
     } finally {
       this.#working = false;
@@ -168,7 +178,7 @@ class Oidc {
    * standing at the callback whether a handle they do not hold was ever real.
    */
   refuse(): void {
-    this.#failure = REFUSED;
+    this.#failure = ownCode(REFUSED);
   }
 
   /** Drops the refusal. Called when the screen that shows it leaves. */
@@ -177,10 +187,13 @@ class Oidc {
   }
 }
 
-function codeOf(cause: unknown): string {
-  return cause instanceof TransportError
-    ? (cause.detailCode ?? cause.code ?? 'errors.internal')
-    : 'errors.internal';
+function problemOf(cause: unknown): RenderedProblem {
+  return cause instanceof TransportError ? renderProblem(cause, messages) : ownCode(DEFECT, true);
+}
+
+/** A sentence this module says itself, in the shape the server's are drawn in. */
+function ownCode(code: string, isServerFault = false): RenderedProblem {
+  return { message: messages.t(code, {}), fields: new Map(), isServerFault };
 }
 
 export const oidc = new Oidc();
