@@ -12,10 +12,10 @@
 # make both flaky. Ports and a project name of its own, so it collides with nothing else this
 # repository starts.
 #
-# What comes from outside is the same bootstrap hubctl-e2e.sh needs, for the same reason: an
-# installation whose first account has no credential cannot be reached, so one narrow, ten-minute
-# credential is seeded by SQL from the real constructions (test/e2e/mint), used to mint the run's
-# working token through the API, and revoked.
+# It starts the way hubctl-e2e.sh does, and the way a self-hoster's installation does (UC-INS-01):
+# the first start prints a one-time setup code, the setup makes the workspace and its owner, and the
+# owner's session mints one narrow, ten-minute bootstrap token that mints the run's working token
+# through the API and is revoked. Nothing is written by SQL.
 
 set -euo pipefail
 
@@ -29,12 +29,9 @@ HTTP_PORT=18083
 OPS_PORT=19093
 DEADLINE_SECONDS=300
 
-# Fixed identities, as in the other sessions: a failed run leaves a stack behind for somebody to
-# look at, and constants make the rows findable.
-TENANT_ID="01936f2a-7c1e-7000-8000-00000000e3e0"
-ACCOUNT_ID="01936f2a-7c1e-7000-8000-00000000e3e1"
-MEMBERSHIP_ID="01936f2a-7c1e-7000-8000-00000000e3e2"
-TOKEN_ROW_ID="01936f2a-7c1e-7000-8000-00000000e3e3"
+# The owner the first start's setup creates, and the password they set there.
+OWNER_EMAIL="engine@example.org"
+SETUP_PASSWORD='nine grey herons along the river'
 
 WORK_DIR="$(mktemp -d)"
 ENV_FILE="$WORK_DIR/env"
@@ -88,28 +85,38 @@ if [ -z "$ready" ]; then
 fi
 echo "ready after $((SECONDS - started))s"
 
-echo "--- seeding the workspace and its bootstrap credential ---"
-INSTALLATION_SECRET="$(grep '^HUBTASK_SECRET_KEY=' "$ENV_FILE" | cut -d= -f2-)"
-read -r BOOTSTRAP_TOKEN BOOTSTRAP_HASH < <(HUBTASK_SECRET_KEY="$INSTALLATION_SECRET" go run ./test/e2e/mint --tenant "$TENANT_ID")
+echo "--- the first start: the printed setup code makes the workspace and its owner ---"
+# One field of a JSON answer.
+answer_field() { python3 -c "import json,sys; print(json.load(sys.stdin).get('$1',''))"; }
+# The code the server printed on its console (UC-INS-01), read where an operator reads it.
+setup_code() {
+	local logs
+	logs="$(compose_in_place logs app 2>&1)"
+	grep -o 'setup code [0-9A-Z]\{4\}-[0-9A-Z]\{4\}-[0-9A-Z]\{4\}' <<< "$logs" | tail -1 | cut -d' ' -f3
+}
+in_ten_minutes() {
+	python3 -c "import datetime; print((datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(minutes=10)).strftime('%Y-%m-%dT%H:%M:%SZ'))"
+}
 
-compose_in_place exec -T db psql -U hubtask -d hubtask -v ON_ERROR_STOP=1 -q <<SQL
-INSERT INTO tenant (id, slug, display_name)
-  VALUES ('$TENANT_ID', 'engine', 'The engine''s session')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO account (id, tenant_id, kind, display_name, status)
-  VALUES ('$ACCOUNT_ID', '$TENANT_ID', 'USER', 'The engine''s session', 'ACTIVE')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
-  VALUES ('$MEMBERSHIP_ID', '$TENANT_ID', '$ACCOUNT_ID', 'TENANT', 'OWNER')
-  ON CONFLICT (id) DO NOTHING;
-INSERT INTO access_token
-    (id, tenant_id, account_id, name, token_hash, token_prefix, scopes, expires_at)
-  VALUES ('$TOKEN_ROW_ID', '$TENANT_ID', '$ACCOUNT_ID', 'the engine session bootstrap',
-          decode('$BOOTSTRAP_HASH', 'hex'), 'hbt_pat_',
-          ARRAY['accounts:read','accounts:write'],
-          now() + interval '10 minutes')
-  ON CONFLICT (id) DO NOTHING;
-SQL
+CODE="$(setup_code)"
+[ -n "$CODE" ] || { echo "FAILED: the first start printed no setup code"; compose_in_place logs app --tail 50; exit 1; }
+set_up="$(curl -sS -X POST "http://127.0.0.1:$HTTP_PORT/api/v1/auth/installation:set-up" \
+	-H 'Content-Type: application/json' \
+	-d "{\"code\":\"$CODE\",\"display_name\":\"The engine's session\",\"owner_email\":\"$OWNER_EMAIL\",\"password\":\"$SETUP_PASSWORD\"}")"
+SETUP_ACCESS="$(answer_field access_token <<< "$set_up")"
+[ -n "$SETUP_ACCESS" ] || { echo "FAILED: the setup answered $set_up"; exit 1; }
+
+# The bootstrap, the smallest that can do its one job - mint a token - behind a step-up with the
+# owner's password: ten minutes and two scopes, so a run that dies before revoking it leaves behind a
+# credential that could not have done anything anyway.
+proof="$(curl -sS -X POST "http://127.0.0.1:$HTTP_PORT/api/v1/auth/step-up" -H "Authorization: Bearer $SETUP_ACCESS" \
+	-H 'Content-Type: application/json' -d "{\"password\":\"$SETUP_PASSWORD\"}" | answer_field step_up_token)"
+bootstrap="$(curl -sS -X POST "http://127.0.0.1:$HTTP_PORT/api/v1/auth/tokens" -H "Authorization: Bearer $SETUP_ACCESS" \
+	-H "X-Hubtask-Step-Up: $proof" -H 'Content-Type: application/json' \
+	-d "{\"name\":\"the engine session bootstrap\",\"scopes\":[\"accounts:read\",\"accounts:write\"],\"expires_at\":\"$(in_ten_minutes)\"}")"
+TOKEN_ROW_ID="$(answer_field id <<< "$bootstrap")"
+BOOTSTRAP_TOKEN="$(answer_field token <<< "$bootstrap")"
+[ -n "$BOOTSTRAP_TOKEN" ] || { echo "FAILED: the owner could not mint the bootstrap token"; echo "$bootstrap"; exit 1; }
 
 echo "--- minting the session's own token through the API ---"
 go build -trimpath -o "$WORK_DIR/hubctl" ./cmd/hubctl
