@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// Migration 0141 empties the replay bodies an earlier release kept for answers that carried a
+// Migration 0143 empties the replay bodies an earlier release kept for answers that carried a
 // credential shown once, and leaves every row, its status and every other body as it was: run
 // against a database populated at 0140, as an installation's would be.
 func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
@@ -49,8 +49,8 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 		}
 	}
 
-	if err := dbtest.MigrateTo(ctx, dsn, 141); err != nil {
-		t.Fatalf("migrating to 141: %v", err)
+	if err := dbtest.MigrateTo(ctx, dsn, 143); err != nil {
+		t.Fatalf("migrating to 143: %v", err)
 	}
 
 	var total int
