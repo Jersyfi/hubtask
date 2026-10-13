@@ -223,6 +223,12 @@ func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request
 		WriteProblem(w, err, requestID)
 		return
 	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// The invitation is accepted and the workspace demands a factor before the first session
+		// (identity.md §12).
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
 
