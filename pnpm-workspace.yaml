@@ -13,5 +13,14 @@ packages:
 # only way to it is from here. The website is prerendered and ships no server runtime, so nothing
 # released was exposed; this closes the advisory rather than the hole. 0.7 keeps 0.6's API, and the
 # bound stops at 1.0, which does not.
+#
+# `devalue` below 5.9.3 carries six advisories against `uneval` and `stringify` (quadratic
+# expansion, sparse-array amplification, a __proto__ bypass). It reaches the tree through
+# @sveltejs/kit 2, whose range already allows the fixed release. `brace-expansion` below 2.1.7
+# carries three denials of service and reaches the tree through minimatch 5 under
+# openapi-typescript, a build-time tool of the API client. Both bounds stay inside the major the
+# dependent asks for.
 overrides:
   cookie@<0.7.0: ^0.7.0
+  devalue@<5.9.3: ^5.9.4
+  brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
