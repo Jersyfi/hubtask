@@ -3121,13 +3121,16 @@ func run() error {
 	}
 
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:             reminderFiring,
-		queueport.KindRecurrenceMaterialize:    recurrenceMaterialisation,
-		queueport.KindOutboxDispatch:           dispatcher,
-		queueport.KindRetentionSweep:           retention,
-		queueport.KindMediaReconcile:           mediaReconciliation,
-		queueport.KindInvitationEmail:          invitationMessage,
-		queueport.KindPasswordResetEmail:       passwordResetMessage,
+		queueport.KindReminderFire:          reminderFiring,
+		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:        dispatcher,
+		queueport.KindRetentionSweep:        retention,
+		queueport.KindMediaReconcile:        mediaReconciliation,
+		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindPasswordResetEmail:    passwordResetMessage,
+		queueport.KindPasswordResetRequest: worker.PasswordResetRequest{
+			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
+		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
