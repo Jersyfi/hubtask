@@ -39,6 +39,7 @@
     sharingRefusal,
     type Sharing,
     type ViewScope,
+    scopeIdOf,
   } from '../data/views.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -47,6 +48,8 @@
   interface Props {
     isOpen: boolean;
     collectionId: string;
+    /** The hub the collection sits in: what a view saved at hub scope names. */
+    hubId?: string;
     /** What the editor currently holds, which is what "save what is on screen" means. */
     query?: ItemsQuery;
     layout: string;
@@ -58,7 +61,7 @@
     onsubscribe: (view: SavedView) => void;
   }
 
-  let { isOpen = $bindable(), collectionId, query, layout, role, onapply, onexport, onsubscribe }: Props =
+  let { isOpen = $bindable(), collectionId, hubId, query, layout, role, onapply, onexport, onsubscribe }: Props =
     $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
@@ -116,13 +119,14 @@
   }
 
   function save() {
+    const scopeId = scopeIdOf(scope, { collectionId, hubId });
     void attempt(async () => {
       await views.create(
         {
           scope_type: scope as never,
-          // `ACCOUNT` names the owner and `TENANT` names nobody; the two container scopes name
-          // this collection, which is the only container this screen is.
-          ...(scope === 'COLLECTION' || scope === 'HUB' ? { scope_id: collectionId } : {}),
+          // `ACCOUNT` names the owner and `TENANT` names nobody; `COLLECTION` names this collection
+          // and `HUB` the hub it sits in.
+          ...(scopeId ? { scope_id: scopeId } : {}),
           name,
           layout,
           query: queryDocumentOf(query, collectionId),
@@ -271,7 +275,7 @@
         <Select
           label={t('app.views.scope')}
           bind:value={scope}
-          options={VIEW_SCOPES.map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
+          options={VIEW_SCOPES.filter((each) => scopeIdOf(each, { collectionId, hubId }) !== undefined).map((each) => ({ value: each, label: t(`app.views.scope_${each}`) }))}
         />
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
         <div>

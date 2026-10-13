@@ -962,6 +962,7 @@
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}
+    hubId={container.parent_id ?? undefined}
     {query}
     {layout}
     role={structureRole}

@@ -77,6 +77,7 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
+  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
@@ -321,6 +322,8 @@
   const typeName = (type: string) => humanise(type.toLowerCase());
   const subtreeHeading = $derived(childType ? typeName(childType) : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
+  /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
+  let duplicating = $state<WorkItem | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
   /** The entry's own menu. What the head and the details rows do is not repeated in it. */
@@ -822,7 +825,7 @@
                 </Button>
               {/if}
             </div>
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} onduplicate={(chosen) => (duplicating = chosen)} />
           </Stack>
         {/if}
 
@@ -945,6 +948,17 @@
             {/if}
   {/if}
 {/snippet}
+
+<!-- The same copy the collection's list makes: a duplicate ends on the copy, which is a page. -->
+<DuplicateDialog
+  item={duplicating}
+  hubId={peoplePath.hubId}
+  onclose={() => (duplicating = undefined)}
+  onopened={(itemId) => {
+    duplicating = undefined;
+    onnavigate?.(`/items/${itemId}`);
+  }}
+/>
 
 {#if item}
   <MembersDialog
