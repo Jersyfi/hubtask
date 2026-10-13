@@ -5823,7 +5823,9 @@ type DataSubjectRequest struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope  *DataSubjectRequestScope `json:"scope,omitempty"`
 	Status DataSubjectRequestStatus `json:"status"`
 
@@ -5852,7 +5854,9 @@ type DataSubjectRequestCreate struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope            *DataSubjectRequestScope `json:"scope,omitempty"`
 	SubjectAccountId *openapi_types.UUID      `json:"subject_account_id,omitempty"`
 	SubjectEmail     *openapi_types.Email     `json:"subject_email,omitempty"`
@@ -5885,7 +5889,9 @@ type DataSubjectRequestKind string
 // for their own workspace means. `INSTALLATION` is every workspace of this installation in
 // which the person is a member - the one operation in this system that legitimately crosses
 // the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-// it touches, and is the provider's path rather than a tenant's.
+// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+// installation-wide: each workspace's owner carries it out, and the case is refused with
+// `privacy.installation_erasure_refused`.
 type DataSubjectRequestScope string
 
 // DataSubjectRequestStatus defines model for DataSubjectRequestStatus.

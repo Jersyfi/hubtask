@@ -15156,7 +15156,9 @@ components:
         for their own workspace means. `INSTALLATION` is every workspace of this installation in
         which the person is a member - the one operation in this system that legitimately crosses
         the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-        it touches, and is the provider's path rather than a tenant's.
+        it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+        installation-wide: each workspace's owner carries it out, and the case is refused with
+        `privacy.installation_erasure_refused`.
       enum: [TENANT, INSTALLATION]
 
     ErasureMode:

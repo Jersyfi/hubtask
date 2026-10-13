@@ -21311,7 +21311,7 @@
       },
       "DataSubjectRequestScope": {
         "type": "string",
-        "description": "How far the case reaches. `TENANT` is this workspace, which is what a controller answering\nfor their own workspace means. `INSTALLATION` is every workspace of this installation in\nwhich the person is a member - the one operation in this system that legitimately crosses\nthe tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace\nit touches, and is the provider's path rather than a tenant's.\n",
+        "description": "How far the case reaches. `TENANT` is this workspace, which is what a controller answering\nfor their own workspace means. `INSTALLATION` is every workspace of this installation in\nwhich the person is a member - the one operation in this system that legitimately crosses\nthe tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace\nit touches, and is the provider's path rather than a tenant's. An `ERASURE` is never\ninstallation-wide: each workspace's owner carries it out, and the case is refused with\n`privacy.installation_erasure_refused`.\n",
         "enum": [
           "TENANT",
           "INSTALLATION"
