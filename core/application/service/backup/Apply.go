@@ -902,6 +902,7 @@ func (s *state) stage(ctx context.Context, entity archive.Entity, record archive
 		s.report.Withhold(reason)
 		return nil
 	}
+	s.clearWithheld(entity, record)
 	// A workspace's legal holds are its obligations now, not the archive's: a hold placed since
 	// stays, one released since stays released (backup-restore.md §8.2). A new workspace has none
 	// of its own and takes the archive's along with the data they cover.
@@ -1043,11 +1044,22 @@ func (s *state) keptOut(entity archive.Entity, record archive.Record) (string, b
 	// attachment whose medium was erased does not come back either.
 	for _, reference := range entity.References {
 		id, named := record.Data[reference.Field].(string)
-		if named && s.withheld[reference.Table][id] {
+		if named && !reference.Clearable && s.withheld[reference.Table][id] {
 			return domain.WithheldDeleted, true
 		}
 	}
 	return "", false
+}
+
+// clearWithheld empties the clearable references that point at a withheld record: the row comes
+// back without what was erased since, rather than staying away with it.
+func (s *state) clearWithheld(entity archive.Entity, record archive.Record) {
+	for _, reference := range entity.References {
+		id, named := record.Data[reference.Field].(string)
+		if named && reference.Clearable && s.withheld[reference.Table][id] {
+			record.Data[reference.Field] = nil
+		}
+	}
 }
 
 // inSelection answers whether a SELECTIVE restore asked for this record.
