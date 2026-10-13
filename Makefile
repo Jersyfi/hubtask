@@ -927,11 +927,30 @@ docker-build:
 clean:
 	rm -rf bin dist coverage.out coverage.*.out
 
-## gate-fuzz: Fuzzing for the query DSL, CEL input, webhook signatures (nightly)
-.PHONY: gate-fuzz
+## gate-fuzz: SG-8, every fuzz target in turn, or one (FUZZ_TARGET=FuzzX FUZZ_PKG=./pkg); a crash fails it (nightly)
+# `go test -fuzz` takes one target in one package per invocation and refuses more, so the targets
+# are found rather than listed: a new one is fuzzed the night it lands, without anybody adding it
+# here. The nightly runs each in a job of its own (fuzz-targets prints the matrix it reads).
+FUZZ_TIME ?= 2m
+.PHONY: gate-fuzz fuzz-targets
 gate-fuzz:
-	$(GO) test -run=NONE -fuzz=Fuzz -fuzztime=5m ./core/... ./infrastructure/... || true
-	@echo "Note: fuzz targets appear alongside the building blocks they cover (SG-8)."
+	@if [ -n "$(FUZZ_TARGET)" ]; then \
+		$(GO) test -run=NONE -fuzz='^$(FUZZ_TARGET)$$' -fuzztime=$(FUZZ_TIME) $(FUZZ_PKG); \
+	else \
+		$(MAKE) --no-print-directory -s fuzz-targets | while read -r pkg target; do \
+			echo "--- $$target in $$pkg"; \
+			$(GO) test -run=NONE -fuzz="^$$target\$$" -fuzztime=$(FUZZ_TIME) "$$pkg" || exit 1; \
+		done; \
+	fi
+
+## fuzz-targets: Every fuzz target, one "<package> <target>" per line (FORMAT=json for the nightly's matrix)
+fuzz-targets:
+	@grep -rE --include='*_test.go' '^func Fuzz[A-Za-z0-9_]*\(' . 2>/dev/null \
+		| grep -v -e '^./vendor/' -e '/node_modules/' \
+		| sed -E 's#^(.*)/[^/]+_test\.go:func (Fuzz[A-Za-z0-9_]*)\(.*#\1 \2#' | sort \
+		| if [ "$(FORMAT)" = json ]; then \
+			awk 'BEGIN{printf "["} {printf "%s{\"package\":\"%s\",\"target\":\"%s\"}", (NR>1?",":""), $$1, $$2} END{print "]"}'; \
+		else cat; fi
 
 ## gate-load: RT-6, the automation storm and the regression guard (nightly)
 #
