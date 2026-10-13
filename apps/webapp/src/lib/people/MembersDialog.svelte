@@ -22,8 +22,9 @@
   // proof into a retry of the same intent. A client that carried its own list of privileged roles
   // would be wrong on the installation whose policy differs, and silently.
   //
-  // The roles offered come from `/meta/capabilities`. A list written here would be wrong on the
-  // installation that has one more.
+  // The roles offered come from `/meta/capabilities`, narrowed to the ones this scope's answer
+  // says the reader may give. A list written here would be wrong on the installation that has one
+  // more.
 
   import {
     Avatar,
@@ -39,7 +40,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
-  import { ownershipOf, type Holder } from '../data/people.ts';
+  import { grantableOf, ownershipOf, type Holder } from '../data/people.ts';
   import RevokeDialog from './RevokeDialog.svelte';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -71,8 +72,14 @@
     people.candidates(path).map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
 
+  /**
+   * Of those, the ones the server says this reader may give here (domain-model.md §3.2). With none
+   * - or before the answer - the grant is absent rather than offered to be refused (P-05).
+   */
+  const grantable = $derived(grantableOf(roles, people.grantableAt(scope)));
+
   const roleOptions = $derived(
-    roles.map((role) => ({
+    grantable.map((role) => ({
       value: role,
       label: t(`app.people.role.${role.toLowerCase()}`),
     })),
@@ -163,6 +170,7 @@
       </ul>
     {/if}
 
+    {#if grantable.length > 0}
     <Stack gap="100">
       <h3 class="section">{t('app.people.grant_title')}</h3>
       <Select
@@ -187,6 +195,7 @@
         </Button>
       </div>
     </Stack>
+    {/if}
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>

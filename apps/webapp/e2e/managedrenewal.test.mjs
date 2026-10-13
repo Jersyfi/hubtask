@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, OTHER, PAGE, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, OTHER, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 /** The sign-in rules of a workspace whose methods are the ones named. */
@@ -57,6 +57,7 @@ async function open(browser, { methods = undefined } = {}) {
             { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'MEMBER' },
             { id: 'm-lena', scope_type: 'TENANT', account_id: LENA.id, role: 'CONTRIBUTOR' },
           ],
+          grantable_roles: OWNER_GRANTS,
         },
       });
     }

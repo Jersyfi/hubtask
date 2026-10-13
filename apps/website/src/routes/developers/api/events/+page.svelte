@@ -3,9 +3,9 @@
 <script lang="ts">
   import { Callout, ParameterTable } from '@hubtask/design-system/components';
 
-  import { eventSchemas, type EventSchema } from '$lib/api/document.ts';
-  import { firstSentence } from '$lib/api/markdown.ts';
-  import type { Row } from '$lib/api/reference.ts';
+  import { eventSchemas, type EventSchema } from '#lib/api/document.ts';
+  import { firstSentence } from '#lib/api/markdown.ts';
+  import type { Row } from '#lib/api/reference.ts';
 
   const headings = { name: 'Name', type: 'Type', required: 'Required', description: 'Description' };
   const words = { required: 'required', optional: 'optional', deprecated: 'deprecated' };

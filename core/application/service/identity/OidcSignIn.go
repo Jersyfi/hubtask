@@ -610,7 +610,7 @@ func (w OidcWriter) settleAccount(
 		// a provider whose people are all being turned away is something an operator has to be
 		// able to read, and the person is told plainly rather than being provisioned a desk they
 		// were never meant to have.
-		if !configured.MayProvision() {
+		if !configured.MayProvision(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_invited"))
 		}
 

@@ -230,6 +230,11 @@ func NewRequest(in NewRequestInput) (Request, error) {
 	if !scope.Valid() {
 		return Request{}, invalid(CodeScopeInvalid, "/scope")
 	}
+	if scope == ScopeInstallation && in.Kind == KindErasure {
+		// Refused here rather than when the job runs: a started case its own job cannot honour
+		// would let the statutory deadline run with no work behind it.
+		return Request{}, invalid(CodeInstallationErasure, "/scope")
+	}
 
 	email := strings.TrimSpace(in.SubjectEmail)
 	if in.SubjectAccountID.IsZero() && email == "" {

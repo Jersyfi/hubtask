@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  import Levels from '$lib/Levels.svelte';
-  import Proof from '$lib/Proof.svelte';
+  import Levels from '#lib/Levels.svelte';
+  import Proof from '#lib/Proof.svelte';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs';
 </script>

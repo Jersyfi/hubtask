@@ -1463,7 +1463,7 @@ func run() error {
 		}.Descriptor(),
 		identity.ListMemberships{
 			Grants: grants, Containers: containers, Items: items,
-			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,
+			Authorizer: authorizer, Permits: authorizer, Grantable: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.GrantMembership{
 			Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),

@@ -280,6 +280,100 @@ func TestAnOperationWithoutATokenScope(t *testing.T) {
 	}
 }
 
+// changeIs reads one open field of an entry's changes.
+func changeIs(changes map[string]any, field string, want any) bool {
+	change, ok := changes[field].(map[string]any)
+	return ok && change["to"] == want
+}
+
+func grantRequest(role identity.Role) Request {
+	return Request{
+		Permission: service.PermissionManageMembers,
+		Path:       []identity.Scope{identity.TenantScope()},
+		Action:     "membership.granted",
+		TokenScope: "members:write",
+		TargetType: "membership",
+		Grants:     role,
+	}
+}
+
+// An administrator holds MANAGE_MEMBERS and still does not hand out OWNER (domain-model.md §3.2):
+// refused with its own code, and recorded with the role that was tried.
+func TestARoleAboveTheActorsOwnIsRefusedAndRecorded(t *testing.T) {
+	authorize, _, trail, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleAdmin},
+	})
+
+	err := authorize.Authorize(context.Background(), actorWithScopes("members:write"), grantRequest(identity.RoleOwner))
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error %v, want forbidden", err)
+	}
+	refusal := shared.AsError(err)
+	if refusal.DetailCode != "access.role_above_own" || refusal.Params["role"] != "OWNER" {
+		t.Errorf("refusal %s %v, want access.role_above_own naming OWNER", refusal.DetailCode, refusal.Params)
+	}
+	if len(trail.entries) != 1 {
+		t.Fatalf("%d audit entries, want 1", len(trail.entries))
+	}
+	entry := trail.entries[0]
+	if entry.Outcome != audit.OutcomeDenied || entry.Action != "membership.granted" ||
+		!changeIs(entry.Changes, "denied_by", "role") || !changeIs(entry.Changes, "role", "OWNER") {
+		t.Errorf("unexpected entry: %+v", entry)
+	}
+
+	for _, role := range []identity.Role{identity.RoleAdmin, identity.RoleGuest, identity.RoleAuditor} {
+		if err := authorize.Authorize(context.Background(), actorWithScopes("members:write"), grantRequest(role)); err != nil {
+			t.Errorf("an administrator was refused %s: %v", role, err)
+		}
+	}
+}
+
+func TestAnOwnerMayGrantEveryRole(t *testing.T) {
+	authorize, _, trail, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleOwner},
+	})
+	for _, role := range identity.Roles() {
+		if err := authorize.Authorize(context.Background(), actorWithScopes("members:write"), grantRequest(role)); err != nil {
+			t.Errorf("an owner was refused %s: %v", role, err)
+		}
+	}
+	if len(trail.entries) != 0 {
+		t.Errorf("a permitted grant produced an audit entry: %+v", trail.entries)
+	}
+}
+
+// The list a client offers is the grant's own decision, asked without a record.
+func TestGrantableRolesFollowTheActorsRole(t *testing.T) {
+	cases := []struct {
+		name   string
+		held   identity.Role
+		scopes []string
+		want   []identity.Role
+	}{
+		{"owner", identity.RoleOwner, []string{"members:write"}, identity.Roles()},
+		{"administrator", identity.RoleAdmin, []string{"members:write"}, identity.Roles()[1:]},
+		{"member", identity.RoleMember, []string{"members:write"}, []identity.Role{}},
+		{"a token that may not write members", identity.RoleOwner, []string{"members:read"}, []identity.Role{}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			authorize, _, trail, _ := serviceWith([]identity.Membership{
+				{AccountID: accountID, Scope: identity.TenantScope(), Role: c.held},
+			})
+			got, err := authorize.GrantableRoles(context.Background(), actorWithScopes(c.scopes...), grantRequest(""))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(got, c.want) {
+				t.Errorf("GrantableRoles = %v, want %v", got, c.want)
+			}
+			if len(trail.entries) != 0 {
+				t.Errorf("a question produced an audit entry: %+v", trail.entries)
+			}
+		})
+	}
+}
+
 // RoleAlong is the qualifier question: which role the actor holds, for the rules the
 // permission matrix cannot express - only the author or an administrator may change a comment.
 func TestRoleAlongReportsTheHighestRoleAndItsAbsence(t *testing.T) {

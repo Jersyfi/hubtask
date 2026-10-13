@@ -79,7 +79,35 @@ type ListMemberships struct {
 	Items      ItemFinder
 	Authorizer Authorizer
 	Permits    Permitter
+	// Grantable answers which roles the reader may hand out at the scope. Nil answers none, the
+	// side on which a client draws no control the server would refuse (P-05).
+	Grantable  GrantableRoles
 	UnitOfWork persistence.UnitOfWork
+}
+
+// GrantableRoles is the authoriser's answer to "which roles may this actor hand out here", asked
+// without a record (access.Service.GrantableRoles).
+type GrantableRoles interface {
+	GrantableRoles(ctx context.Context, actor appshared.ActorContext, request access.Request) ([]domain.Role, error)
+}
+
+// GrantableAt answers the roles the actor may grant at the scope, by the rule and along the path
+// GrantMembership itself is decided on - not the longer path the read walks, or a role offered here
+// could be one the grant then refuses (domain-model.md §3.2).
+func (h ListMemberships) GrantableAt(
+	ctx context.Context, actor appshared.ActorContext, scope domain.Scope,
+) ([]domain.Role, error) {
+	if h.Grantable == nil {
+		return []domain.Role{}, nil
+	}
+	return h.Grantable.GrantableRoles(ctx, actor, access.Request{
+		Permission: service.PermissionManageMembers,
+		Path:       pathTo(scope),
+		Action:     MembershipGrantedAction,
+		TokenScope: membersWrite,
+		TargetType: membershipTarget,
+		TargetID:   scope.ID,
+	})
 }
 
 // Execute returns one page of the memberships granted at the scope.
@@ -293,10 +321,22 @@ func (h ListMemberships) invoke(
 	if err != nil {
 		return nil, err
 	}
+	// Asked once the read has passed, so a scope the reader cannot see answers as not found
+	// rather than with a list of roles.
+	grantable, err := h.GrantableAt(ctx, actor, domain.Scope{Type: domain.ScopeType(in.String("scope_type")), ID: scopeID})
+	if err != nil {
+		return nil, err
+	}
 
 	rows := make([]usecase.Output, 0, len(page.Grants))
 	for _, grant := range page.Grants {
 		rows = append(rows, grantOutput(grant))
 	}
-	return pageOutput(rows, page.Info), nil
+	out := pageOutput(rows, page.Info)
+	roles := make([]string, 0, len(grantable))
+	for _, role := range grantable {
+		roles = append(roles, string(role))
+	}
+	out["grantable_roles"] = roles
+	return out, nil
 }

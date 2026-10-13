@@ -7,7 +7,7 @@
   // (api-guidelines.md is the authority for that prose).
   import { Callout, CodeBlock, ParameterTable } from '@hubtask/design-system/components';
 
-  import { reference } from '$lib/api/document.ts';
+  import { reference } from '#lib/api/document.ts';
 
   const docs = 'https://github.com/Jersyfi/hubtask/blob/main/docs/architecture/api-guidelines.md';
   const headings = { name: 'Name', type: 'Type', required: 'Required', description: 'Description' };

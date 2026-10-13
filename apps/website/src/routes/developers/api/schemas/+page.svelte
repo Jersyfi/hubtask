@@ -3,8 +3,8 @@
 <script lang="ts">
   import { ParameterTable } from '@hubtask/design-system/components';
 
-  import Markdown from '$lib/api/Markdown.svelte';
-  import { reference } from '$lib/api/document.ts';
+  import Markdown from '#lib/api/Markdown.svelte';
+  import { reference } from '#lib/api/document.ts';
 
   const headings = { name: 'Name', type: 'Type', required: 'Required', description: 'Description' };
   const words = { required: 'required', optional: 'optional', deprecated: 'deprecated' };

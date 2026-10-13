@@ -286,6 +286,10 @@ func NewIdentityProvider(in NewIdentityProviderInput) (IdentityProvider, error) 
 		return IdentityProvider{}, err
 	}
 
+	if err := personalAccountsInvitedOnly(issuer, preset, provisioning, directories); err != nil {
+		return IdentityProvider{}, err
+	}
+
 	// A multi-directory endpoint with nothing naming the directories is every organisation in the
 	// world, and that is a decision rather than a default (ADR-0071 §3). Refused at configuration
 	// so that nobody discovers it by meeting a stranger in their workspace.
@@ -482,6 +486,48 @@ func multiDirectoryIssuer(issuer string) bool {
 	return false
 }
 
+// personalAccountsInvitedOnly refuses a configuration that would give a provider's personal
+// accounts an account on arrival (UC-ID-09 check 1, milestone SC, decision 12): their directory in
+// a list that creates accounts, or ANY on an issuer that serves them. Under INVITED_ONLY a list
+// only narrows, so naming the personal directory there is a choice to let invited people with
+// personal accounts in, and stays.
+//
+// A stored row configured before this refusal is held where it is read instead (admittedAs).
+func personalAccountsInvitedOnly(
+	issuer string, preset ProviderPreset, provisioning Provisioning, directories []string,
+) error {
+	if provisioning == ProvisionInvitedOnly {
+		return nil
+	}
+	for _, directory := range directories {
+		if containsFold(preset.PersonalDirectories, directory) {
+			return shared.ErrValidation.
+				WithDetail("identity_provider.directory_personal").
+				WithParams(map[string]string{"directory": directory})
+		}
+	}
+	if provisioning == ProvisionAny && personalIssuer(issuer, preset) {
+		return shared.ErrValidation.
+			WithDetail("identity_provider.provisioning_personal").
+			WithParams(map[string]string{"issuer": issuer})
+	}
+	return nil
+}
+
+// personalIssuer reports whether an issuer serves the preset's personal accounts: its first path
+// segment is a shared endpoint that does (`/consumers`, `/common`), or the personal accounts'
+// own directory - which `login.microsoftonline.com` and `sts.windows.net` both spell as the
+// first segment.
+func personalIssuer(issuer string, preset ProviderPreset) bool {
+	parsed, err := url.Parse(issuer)
+	if err != nil {
+		return false
+	}
+	first, _, _ := strings.Cut(strings.TrimPrefix(parsed.Path, "/"), "/")
+	return first != "" &&
+		(containsFold(preset.PersonalIssuerPaths, first) || containsFold(preset.PersonalDirectories, first))
+}
+
 // resolvedProvisioning reads the mode and holds it to what the preset permits.
 //
 // One refusal: a **public** issuer is never ANY, which would provision everybody who holds an
@@ -615,7 +661,7 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 	if !arriving.EmailVerified || emailDomain(arriving.Email) == "" {
 		return false
 	}
-	switch p.Provisioning {
+	switch p.admittedAs(arriving) {
 	case ProvisionInvitedOnly:
 		// Claiming an account that already exists is done on the strength of an address, so the
 		// address has to be one the provider owns the domain of. A personal account with a
@@ -720,9 +766,28 @@ func (p IdentityProvider) MayClaim(arriving Arriving) bool {
 // MayProvision answers whether an admitted subject with no account here gets one.
 //
 // False for INVITED_ONLY alone, and that is the whole of the mode: somebody has to have invited
-// them first.
-func (p IdentityProvider) MayProvision() bool {
-	return p.Provisioning == ProvisionDomains || p.Provisioning == ProvisionAny
+// them first. A personal account is read under it whatever the row says (admittedAs).
+func (p IdentityProvider) MayProvision(arriving Arriving) bool {
+	mode := p.admittedAs(arriving)
+	return mode == ProvisionDomains || mode == ProvisionAny
+}
+
+// admittedAs is the mode an arrival is read under: the row's, except that a personal account -
+// one from a directory the preset names as personal - is read under INVITED_ONLY, with the row's
+// list narrowing it as it narrows that mode (UC-ID-09 check 1, identity.md §10.4).
+//
+// Configuration refuses the rows that would admit one new; this holds the rows stored before it
+// did, so that such a row admits nobody new while the identities already connected through it
+// keep working (they are found by subject before admission is asked).
+func (p IdentityProvider) admittedAs(arriving Arriving) Provisioning {
+	if p.Provisioning != ProvisionDomains && p.Provisioning != ProvisionAny {
+		return p.Provisioning
+	}
+	preset, known := PresetOf(p.Kind)
+	if known && arriving.Directory != "" && containsFold(preset.PersonalDirectories, arriving.Directory) {
+		return ProvisionInvitedOnly
+	}
+	return p.Provisioning
 }
 
 // linksDomain is DOMAINS' own half: the address's domain has to be on the configured list, and an

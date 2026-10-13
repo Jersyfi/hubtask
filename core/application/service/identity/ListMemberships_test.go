@@ -251,3 +251,78 @@ func TestTheListDescriptorAcceptsWhatTheControllerSends(t *testing.T) {
 		t.Error("a list is a read")
 	}
 }
+
+// grantable answers the roles the authoriser would, and remembers what it was asked.
+type grantable struct {
+	roles    []domain.Role
+	requests []access.Request
+}
+
+func (g *grantable) GrantableRoles(_ context.Context, _ appshared.ActorContext, request access.Request) ([]domain.Role, error) {
+	g.requests = append(g.requests, request)
+	return g.roles, nil
+}
+
+// UC-ID-14 check 1: the list answers the roles the reader may hand out at the scope, asked as the
+// grant itself is asked - on the grant's path, with the token scope a grant needs - so that a role
+// offered is never one the grant refuses (P-05). Through the registry, the door every channel uses.
+func TestTheListAnswersTheRolesTheReaderMayGrant(t *testing.T) {
+	asked := &grantable{roles: []domain.Role{domain.RoleAdmin, domain.RoleMember}}
+	handler := listHandler(newGrants(), &authorizer{}, &permitter{allowed: true})
+	handler.Grantable = asked
+	registry, err := usecase.NewRegistry(nil, handler.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+
+	out, err := registry.Invoke(t.Context(), ListMembershipsName, reader(), usecase.Input{
+		"scope_type": "ITEM", "scope_id": itemID.String(),
+	})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if got, _ := out["grantable_roles"].([]string); len(got) != 2 || got[0] != "ADMIN" || got[1] != "MEMBER" {
+		t.Errorf("grantable_roles %v, want ADMIN and MEMBER", out["grantable_roles"])
+	}
+	if len(asked.requests) != 1 {
+		t.Fatalf("%d questions, want one", len(asked.requests))
+	}
+	request := asked.requests[0]
+	if want := pathTo(domain.ItemScope(itemID)); len(request.Path) != len(want) || request.Path[1] != want[1] {
+		t.Errorf("asked along %v, want the grant's own path %v", request.Path, want)
+	}
+	if request.TokenScope != membersWrite || request.Permission != "MANAGE_MEMBERS" {
+		t.Errorf("asked as %+v, want the grant's permission and token scope", request)
+	}
+}
+
+// Unwired, or for a scope the reader cannot reach, nothing is offered: no roles rather than a
+// guess, and a hidden scope stays the not-found answer.
+func TestTheListOffersNothingItCannotStandBehind(t *testing.T) {
+	out, err := func() (usecase.Output, error) {
+		registry, err := usecase.NewRegistry(nil, listHandler(newGrants(), &authorizer{}, &permitter{allowed: true}).Descriptor())
+		if err != nil {
+			return nil, err
+		}
+		return registry.Invoke(t.Context(), ListMembershipsName, reader(), usecase.Input{"scope_type": "TENANT"})
+	}()
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if got, ok := out["grantable_roles"].([]string); !ok || len(got) != 0 {
+		t.Errorf("unwired, grantable_roles is %v, want an empty list", out["grantable_roles"])
+	}
+
+	asked := &grantable{roles: []domain.Role{domain.RoleOwner}}
+	hidden := listHandler(newGrants(), &authorizer{}, &permitter{allowed: false})
+	hidden.Grantable = asked
+	registry, err := usecase.NewRegistry(nil, hidden.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), ListMembershipsName, reader(), usecase.Input{
+		"scope_type": "HUB", "scope_id": hubID.String(),
+	}); !errors.Is(err, shared.ErrNotFound) || len(asked.requests) != 0 {
+		t.Errorf("a hidden scope answered %v after %d questions, want not found and none", err, len(asked.requests))
+	}
+}

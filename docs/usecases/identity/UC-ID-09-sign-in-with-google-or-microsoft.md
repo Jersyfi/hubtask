@@ -7,7 +7,7 @@ deployments: [D3, D5, D6]
 serves: [P-02, P-05, P-10]
 state: built
 tasks: [SI-10, SI-11, SI-14, SC-14]
-checked_by: [core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, apps/webapp/e2e/signin.test.mjs, scripts/check-brand-marks.sh, docs/evidence/SC-15-D4-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
+checked_by: [core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, core/domain/model/identity/ProviderPersonalAccounts_test.go, core/application/service/identity/OidcAdmission_test.go, apps/webapp/e2e/signin.test.mjs, scripts/check-brand-marks.sh, docs/evidence/SC-15-D4-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Sign in with my Google or Microsoft account

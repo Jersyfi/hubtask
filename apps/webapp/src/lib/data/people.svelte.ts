@@ -31,6 +31,8 @@ const TOUCHES = ['/memberships'];
 class People {
   /** One entry per scope path, so two screens asking the same question share one read. */
   #scopes = $state<Record<string, readonly Membership[]>>({});
+  /** What the server says the reader may grant at each scope it was asked about. */
+  #grantable = $state<Record<string, readonly MembershipRole[]>>({});
   /** The accounts in each group a membership named. */
   #groups = $state<Record<string, readonly string[]>>({});
   #openScopes = new Map<string, () => void>();
@@ -80,6 +82,15 @@ class People {
     this.#resolveGroups(memberships);
     accounts.resolve(memberships.map((membership) => membership.account_id));
     return holdersOf(memberships, here);
+  }
+
+  /**
+   * The roles the reader may grant at a scope, as the server answered with its memberships;
+   * `undefined` until the scope has been read (`openScope` first). A form offers these and no
+   * other (`grantableOf`).
+   */
+  grantableAt(scope: Scope): readonly MembershipRole[] | undefined {
+    return this.#grantable[membershipsPath(scope)];
   }
 
   /** The accounts in a group, once it has been read. Empty while the request is still out. */
@@ -257,7 +268,7 @@ class People {
     if (this.#openScopes.has(path)) return;
     const stop = engine.subscribe<MembershipPage>({ path }, (next) => {
       if (next.status !== 'ready') return;
-      this.#scopes = { ...this.#scopes, [path]: next.data.data ?? [] };
+      this.#keep(path, next.data);
     });
     this.#openScopes.set(path, stop);
   }
@@ -272,7 +283,14 @@ class People {
   async #reread(scope: Scope): Promise<void> {
     const path = membershipsPath(scope);
     const state = await engine.refresh<MembershipPage>({ path });
-    if (state.status === 'ready') this.#scopes = { ...this.#scopes, [path]: state.data.data ?? [] };
+    if (state.status === 'ready') this.#keep(path, state.data);
+  }
+
+  /** Holds one scope's answer: its rows, and the roles the reader may grant there. */
+  #keep(path: string, page: MembershipPage): void {
+    this.#scopes = { ...this.#scopes, [path]: page.data ?? [] };
+    // An answer without the list - a server older than the field - offers nothing rather than all.
+    this.#grantable = { ...this.#grantable, [path]: page.grantable_roles ?? [] };
   }
 
   /** Asks for the members of every group these memberships name, each group once per session. */
