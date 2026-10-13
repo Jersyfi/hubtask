@@ -127,8 +127,8 @@ Sign in with Acme Directory" -> pressing Enter
   focus: button[type=button] "Not you?" -> pressing Tab
   focus: input[type=password] "Password*" -> typing a WRONG password
   focus: input[type=password] "Password*" -> pressing Enter
-[wrong password] the alert: ["Sign-in failed. Check the email address and the password.\n\nccf39748aad8795ee96e4e8760719820"]
-[wrong password] the card: ["Hubtask","to localhost:18530","Sign-in failed. Check the email address and the password.","ccf39748aad8795ee96e4e8760719820","STEP 2 OF 2","Confirm it is your account","An account for this address already exists here. Enter its password once, and Acme Directory will sign you in from now on.","Signing in as","erika.mustermann@acme.example","Not you?","Password*","Show password","This sign-in waits 4:57","Confirm and connect"]
+[wrong password] the alert: ["Sign-in failed. Check the email address and the password.\n\n(the request reference, elided)"]
+[wrong password] the card: ["Hubtask","to localhost:18530","Sign-in failed. Check the email address and the password.","(the request reference, elided)","STEP 2 OF 2","Confirm it is your account","An account for this address already exists here. Enter its password once, and Acme Directory will sign you in from now on.","Signing in as","erika.mustermann@acme.example","Not you?","Password*","Show password","This sign-in waits 4:57","Confirm and connect"]
 identities connected to Erika's account after the wrong password: 0
   focus: input[type=password] "Password*" -> selecting what is in the field and typing Erika's password
   focus: input[type=password] "Password*" -> pressing Enter
