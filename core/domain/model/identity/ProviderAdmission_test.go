@@ -262,7 +262,7 @@ func TestGoogleAdmitsByWorkspaceDomainAndAPersonalAccountOnlyByInvitation(t *tes
 	personal := Arriving{Email: "ada@gmail.com", EmailVerified: true, AddressAuthoritative: true}
 	elsewhere := Arriving{Email: "eve@acme.example", EmailVerified: true, Directory: "other.example"}
 
-	if !google.MayAdmit(workspace) || !google.MayProvision() {
+	if !google.MayAdmit(workspace) || !google.MayProvision(workspace) {
 		t.Error("somebody from a listed Workspace domain was not admitted new")
 	}
 	if google.MayAdmit(personal) {
