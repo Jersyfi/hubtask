@@ -125,7 +125,9 @@ it ([audit.md](./audit.md) §5, §9).
 table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub
 gives `OWNER` on that hub and below it. A grant above is refused with `access.role_above_own` (403)
 and recorded, before any step-up is asked; this holds for every door that places a role, the
-managed account's creation included (`service.MayGrant`).
+managed account's creation included (`service.MayGrant`). `ListMemberships` answers
+`grantable_roles`, the roles the caller may give at that scope by the same rule and along the path
+the grant is decided on, and a client offers exactly those.
 
 The two qualifiers are decided in one place in the application layer
 ([ADR-0005](../adr/ADR-0005-authn-authz.md)), from the entry, the act and whose the entry is:

@@ -7248,7 +7248,13 @@ type MembershipGrant struct {
 // MembershipPage defines model for MembershipPage.
 type MembershipPage struct {
 	Data []Membership `json:"data"`
-	Page PageInfo     `json:"page"`
+
+	// GrantableRoles The roles the caller may grant at this scope, strongest first: those at or below the
+	// strongest role they hold along it, where they may manage members there. Empty where
+	// every grant here would be refused, a token without `members:write` included. A client
+	// offers exactly these.
+	GrantableRoles []MembershipRole `json:"grantable_roles"`
+	Page           PageInfo         `json:"page"`
 }
 
 // MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
@@ -14723,7 +14729,8 @@ type ClientInterface interface {
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
 	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-	// before any step-up is asked.
+	// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+	// a scope as `grantable_roles`.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -14742,7 +14749,8 @@ type ClientInterface interface {
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
 	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-	// before any step-up is asked.
+	// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+	// a scope as `grantable_roles`.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -22491,7 +22499,8 @@ func (c *Client) ListMemberships(ctx context.Context, params *ListMembershipsPar
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
 // administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-// before any step-up is asked.
+// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+// a scope as `grantable_roles`.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -22520,7 +22529,8 @@ func (c *Client) GrantMembershipWithBody(ctx context.Context, params *GrantMembe
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
 // administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-// before any step-up is asked.
+// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+// a scope as `grantable_roles`.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -42575,7 +42585,8 @@ type ClientWithResponsesInterface interface {
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
 	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-	// before any step-up is asked.
+	// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+	// a scope as `grantable_roles`.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -42594,7 +42605,8 @@ type ClientWithResponsesInterface interface {
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
 	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-	// before any step-up is asked.
+	// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+	// a scope as `grantable_roles`.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -64378,7 +64390,8 @@ func (c *ClientWithResponses) ListMembershipsWithResponse(ctx context.Context, p
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
 // administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-// before any step-up is asked.
+// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+// a scope as `grantable_roles`.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -64403,7 +64416,8 @@ func (c *ClientWithResponses) GrantMembershipWithBodyWithResponse(ctx context.Co
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
 // administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
-// before any step-up is asked.
+// before any step-up is asked. `GET /memberships` answers the roles the caller may grant at
+// a scope as `grantable_roles`.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`

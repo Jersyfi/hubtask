@@ -326,7 +326,8 @@ func TestListingTheMembershipsAtAHubPassesTheScopeAndPagesTheAnswer(t *testing.T
 			"id": "0192f000-0000-7000-8000-0000000000d1", "account_id": signedInAccount,
 			"scope_type": "HUB", "scope_id": hub, "role": "MEMBER",
 		}},
-		"page": map[string]any{"next_cursor": "abc", "has_more": true},
+		"page":            map[string]any{"next_cursor": "abc", "has_more": true},
+		"grantable_roles": []string{"ADMIN", "MEMBER"},
 	}}
 
 	recorder := identityRequest(t, registry, http.MethodGet, "/memberships?scope_type=HUB&scope_id="+hub+"&size=1")
@@ -350,6 +351,18 @@ func TestListingTheMembershipsAtAHubPassesTheScopeAndPagesTheAnswer(t *testing.T
 	}
 	if !page.Page.HasMore || page.Page.NextCursor == nil || *page.Page.NextCursor != "abc" {
 		t.Errorf("page %+v, want the cursor and has_more", page.Page)
+	}
+	if len(page.GrantableRoles) != 2 || page.GrantableRoles[0] != "ADMIN" || page.GrantableRoles[1] != "MEMBER" {
+		t.Errorf("grantable_roles %v, want what the use case answered", page.GrantableRoles)
+	}
+}
+
+// Where the use case offers no role, the answer says so as an empty list, never as null.
+func TestNoGrantableRoleIsAnEmptyList(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{}, "page": map[string]any{}}}
+	recorder := identityRequest(t, registry, http.MethodGet, "/memberships?scope_type=TENANT")
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"grantable_roles":[]`) {
+		t.Errorf("status %d, body %s, want an empty grantable_roles", recorder.Code, recorder.Body)
 	}
 }
 
