@@ -118,3 +118,23 @@ type Snapshot interface {
 type ScopeSource interface {
 	ScopeFromContext(ctx context.Context) (Scope, bool)
 }
+
+// Writable is a unit of work that can write from wherever its caller is - inside a read-only
+// transaction included.
+//
+// A second interface beside UnitOfWork rather than a third method on it, Snapshot's reasoning:
+// one caller needs it. A refusal recorded by the authoriser is a write that may happen while a
+// read is in progress - a reader that asks the catalogue for its target, and the target's own
+// reader is refused - and Within would join the read-only transaction, where the write can only
+// fail. The entry the trail owes would be lost without anybody's request noticing.
+type Writable interface {
+	// WithinWritable runs fn in a read-write transaction. Inside a read-write transaction it joins
+	// it, as Within does, and its writes share that transaction's fate. Inside a read-only one,
+	// which could never hold them, it opens a transaction of its own beside it - on another
+	// connection, committed when fn returns, whatever the read-only one does afterwards.
+	//
+	// Beside a read-write transaction it never opens one: that transaction may hold a lock the
+	// write needs (the audit chain's), and a second transaction waiting for its own caller would
+	// wait for ever.
+	WithinWritable(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
+}

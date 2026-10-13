@@ -32,6 +32,7 @@ var (
 	_ persistence.UnitOfWork  = (*UnitOfWork)(nil)
 	_ persistence.ScopeSource = (*UnitOfWork)(nil)
 	_ persistence.Snapshot    = (*UnitOfWork)(nil)
+	_ persistence.Writable    = (*UnitOfWork)(nil)
 )
 
 // contextKey is unexported, so nothing outside this package can put a transaction into a
@@ -41,6 +42,10 @@ type contextKey struct{ name string }
 var (
 	txKey    = contextKey{"postgres.tx"}
 	scopeKey = contextKey{"postgres.scope"}
+	// accessKey is the running transaction's access mode, as it was begun: a nested call joins
+	// whatever the outermost one opened, so the mode travels with the transaction rather than
+	// with the call that joined it.
+	accessKey = contextKey{"postgres.access"}
 )
 
 // Within runs fn in a read-write transaction bound to the scope.
@@ -52,6 +57,17 @@ func (u *UnitOfWork) Within(ctx context.Context, scope persistence.Scope, fn fun
 // a write that slipped into a query path fails loudly rather than quietly succeeding.
 func (u *UnitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
 	return u.run(ctx, scope, pgx.ReadOnly, fn)
+}
+
+// WithinWritable joins a running read-write transaction, and opens one of its own beside a running
+// read-only one (persistence.Writable). Beside it means on another connection: the context handed
+// on carries neither the read's transaction nor its scope, so the write commits when fn returns
+// whatever the read does afterwards.
+func (u *UnitOfWork) WithinWritable(ctx context.Context, scope persistence.Scope, fn func(context.Context) error) error {
+	if _, running := txFromContext(ctx); running && accessFromContext(ctx) == pgx.ReadOnly {
+		return u.run(outsideTransaction(ctx), scope, pgx.ReadWrite, fn)
+	}
+	return u.Within(ctx, scope, fn)
 }
 
 // WithinSnapshot runs fn against one consistent point in time (backup-restore.md §5).
@@ -105,7 +121,7 @@ func (u *UnitOfWork) WithinSnapshot(
 			WithCause(fmt.Errorf("reading the snapshot instant: %w", err))
 	}
 
-	return fn(withScope(withTx(ctx, tx), scope), at.UTC())
+	return fn(withAccess(withScope(withTx(ctx, tx), scope), pgx.ReadOnly), at.UTC())
 }
 
 func (u *UnitOfWork) run(
@@ -162,7 +178,7 @@ func (u *UnitOfWork) run(
 		return err
 	}
 
-	if err := fn(withScope(withTx(ctx, tx), scope)); err != nil {
+	if err := fn(withAccess(withScope(withTx(ctx, tx), scope), access)); err != nil {
 		return err
 	}
 
@@ -228,6 +244,23 @@ func withTx(ctx context.Context, tx pgx.Tx) context.Context {
 
 func withScope(ctx context.Context, scope persistence.Scope) context.Context {
 	return context.WithValue(ctx, scopeKey, scope)
+}
+
+func withAccess(ctx context.Context, access pgx.TxAccessMode) context.Context {
+	return context.WithValue(ctx, accessKey, access)
+}
+
+func accessFromContext(ctx context.Context) pgx.TxAccessMode {
+	access, _ := ctx.Value(accessKey).(pgx.TxAccessMode)
+	return access
+}
+
+// outsideTransaction is the context without the running transaction, its scope and its mode -
+// the deadline, the cancellation and the request's values stay.
+func outsideTransaction(ctx context.Context) context.Context {
+	ctx = context.WithValue(ctx, txKey, nil)
+	ctx = context.WithValue(ctx, scopeKey, nil)
+	return context.WithValue(ctx, accessKey, nil)
 }
 
 func txFromContext(ctx context.Context) (pgx.Tx, bool) {
