@@ -1,0 +1,259 @@
+# SC-15 D5 terms supplement - walk log (2026-10-13). Passwords are never printed; focus lines name the field kind only.
+
+## Phase A - check 5: no terms are set at the installation or in a workspace
+[A card 375] url=http://hubtask.localhost:18545/redeem
+  checkboxes=0 terms-text=0
+  card text: Hubtask to hubtask.localhost:18545 Join Anna's tasks You were invited. Choose a password and you are in. Invitation for carl@consumer.example New password* Show password At least 12 characters Not met Not containing your email address, your name or the workspace name Not met Not a commonly used password Not met Set the password and sign in
+  screenshot 1-no-terms-invitation-card-375.png (scrollWidth 375 at 375)
+  errors: []
+[A card desktop] url=http://hubtask.localhost:18545/redeem
+  checkboxes=0 terms-text=0
+  card text: Hubtask to hubtask.localhost:18545 Join Anna's tasks You were invited. Choose a password and you are in. Invitation for carl@consumer.example New password* Show password At least 12 characters Not met Not containing your email address, your name or the workspace name Not met Not a commonly used password Not met Set the password and sign in
+  screenshot 1-no-terms-invitation-card-desktop.png (scrollWidth 1280 at 1280)
+  focus before Set the password and sign in: input#field-agseahs "[password field]"
+  pressed: Set the password and sign in
+  focus before Skip the tour: button "Next"
+  pressed: Skip the tour
+  after accepting: url=http://hubtask.localhost:18545/ terms-text=0
+  session opened: true
+  errors: ["Failed to load resource: the server responded with a status of 403 (Forbidden)","Failed to load resource: the server responded with a status of 403 (Forbidden)","Failed to load resource: the server responded with a status of 403 (Forbidden)"]
+  focus before Sign in: input#field-mughhzw "[password field]"
+  pressed: Sign in
+[A next sign-in desktop] url=http://anna.hubtask.localhost:18545/ headings=["Overview"] terms-text=0
+  screenshot 2-no-terms-signed-in-directly-desktop.png (scrollWidth 1280 at 1280)
+  errors: ["Failed to load resource: the server responded with a status of 403 (Forbidden)","Failed to load resource: the server responded with a status of 403 (Forbidden)","Failed to load resource: the server responded with a status of 403 (Forbidden)"]
+
+
+## Phase B - Olga sets the installation's terms, version 3 (1280)
+  focus before Sign in: input#field-5i0xs2j "[password field]"
+  pressed: Sign in
+  after sign-in: url=http://ops.hubtask.localhost:18545/ headings=["Overview","What is on you","In the jumble","What you had open"]
+  (no tour)
+  the proof dialog opened by itself on the installation screen
+  focus before Prove it: input#field-cevqnlu "[password field]"
+  pressed: Prove it
+  legal rows before: ["Terms\tEach workspace decides\tuse their own","Version of the terms\tEach workspace decides\tuse their own"]
+  focus before Change these values: body
+  pressed: Change these values
+  version field present: 1
+  lock options for Terms: ["use their own","not change it"]
+  version's lock: ["open",true]
+  screenshot 3-operator-sets-terms-v3-desktop.png (scrollWidth 1280 at 1280)
+  focus before Save: input#field-hhpp0ba "[text field]"
+  pressed: Save
+  "Saved." shown
+  legal rows after: ["Terms\thttps://provider.example/legal/terms\tnot change it","Version of the terms\t3\tnot change it"]
+  screenshot 4-operator-terms-saved-v3-desktop.png (scrollWidth 1280 at 1280)
+  errors: ["403 GET /api/v1/admin/settings","Failed to load resource: the server responded with a status of 403 (Forbidden)","403 POST /api/v1/auth/sessions:elevate","Failed to load resource: the server responded with a status of 403 (Forbidden)","403 GET /api/v1/admin/settings","Failed to load resource: the server responded with a status of 403 (Forbidden)"]
+
+[step anna anna@consumer.example 375 -> agree]
+  focus before Sign in: input#field-891kp4x "[password field]"
+  pressed: Sign in
+  terms step shown: true; url=http://anna.hubtask.localhost:18545/
+  card: Hubtask to anna.hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as anna@consumer.example Not you? Read the terms of use (version 3) This sign-in waits 5:00 Agree and continue Decline
+  link: Read the terms of use (version 3) -> https://provider.example/legal/terms target=_blank
+  session before answering: false
+  screenshot 5-anna-first-terms-step-375.png (scrollWidth 375 at 375)
+  focus before Agree and continue: body
+  pressed: Agree and continue
+  focus before Skip the tour: button "Next"
+  pressed: Skip the tour
+  after agreeing: url=http://anna.hubtask.localhost:18545/ session=true headings=["Overview","What is on you","In the jumble","What you had open"]
+  agree-terms requests: ["POST http://anna.hubtask.localhost:18545/api/v1/auth/sessions:agree-terms"]
+  errors: []
+
+## Phase C - Bert's invitation, with the installation's terms version 3
+[C card 375] url=http://hubtask.localhost:18545/redeem
+  card: Hubtask to hubtask.localhost:18545 Join Anna's tasks You were invited. Choose a password and you are in. Invitation for bert@consumer.example New password* Show password At least 12 characters Not met Not containing your email address, your name or the workspace name Not met Not a commonly used password Not met Read the terms of use (version 3) I agree to the terms of use (version 3) Set the password and sign in
+  link: Read the terms of use (version 3) -> https://provider.example/legal/terms; box checked=false
+  screenshot 6-invitation-card-terms-box-375.png (scrollWidth 375 at 375)
+  errors: []
+[C card desktop] url=http://hubtask.localhost:18545/redeem
+  card: Hubtask to hubtask.localhost:18545 Join Anna's tasks You were invited. Choose a password and you are in. Invitation for bert@consumer.example New password* Show password At least 12 characters Not met Not containing your email address, your name or the workspace name Not met Not a commonly used password Not met Read the terms of use (version 3) I agree to the terms of use (version 3) Set the password and sign in
+  link: Read the terms of use (version 3) -> https://provider.example/legal/terms; box checked=false
+  screenshot 6-invitation-card-terms-box-desktop.png (scrollWidth 1280 at 1280)
+  focus before Set the password and sign in (box not ticked): input#field-z10ho9x "[password field]"
+  pressed: Set the password and sign in (box not ticked)
+  alert: ["Agree to the terms of use to continue."]; box aria-invalid=true; redeem requests=0
+  screenshot 7-invitation-without-agreement-desktop.png (scrollWidth 1280 at 1280)
+  focus before ticking: "BUTTON"
+  pressed: the box "I agree to the terms of use (version 3)"
+  focus before Set the password and sign in (box ticked): input#field-z10ho9x "[password field]"
+  pressed: Set the password and sign in (box ticked)
+  focus before Skip the tour: button "Next"
+  pressed: Skip the tour
+  after accepting: url=http://hubtask.localhost:18545/ session=true redeem requests=1 agree-terms=0
+  screenshot 8-bert-arrived-desktop.png (scrollWidth 1280 at 1280)
+  errors: ["403 GET /api/v1/meta/health","403 GET /api/v1/jumble/entries","403 GET /api/v1/quotas"]
+
+## Phase B - Olga sets the installation's terms, version 4 (375)
+  focus before Sign in: input#field-6ot0q95 "[password field]"
+  pressed: Sign in
+  after sign-in: url=http://ops.hubtask.localhost:18545/ headings=["Terms of use"]
+  Olga meets the terms step herself
+  screenshot 8b-operator-meets-terms-step-375.png (scrollWidth 375 at 375)
+  focus before Agree and continue: body
+  pressed: Agree and continue
+  (no tour)
+  the proof dialog opened by itself on the installation screen
+  focus before Prove it: input#field-wlun6yy "[password field]"
+  pressed: Prove it
+  legal rows before: ["Terms\thttps://provider.example/legal/terms\tnot change it","Version of the terms\t3\tnot change it"]
+  focus before Change these values: body
+  pressed: Change these values
+  version field present: 1
+  lock options for Terms: ["use their own","not change it"]
+  version's lock: ["locked",true]
+  screenshot 9a-operator-sets-terms-v4-375.png (scrollWidth 375 at 375)
+  focus before Save: input#field-u8xyw2f "[text field]"
+  pressed: Save
+  "Saved." shown
+  legal rows after: ["Terms\thttps://provider.example/legal/terms\tnot change it","Version of the terms\t4\tnot change it"]
+  screenshot 9b-operator-terms-saved-v4-375.png (scrollWidth 375 at 375)
+  errors: ["403 GET /api/v1/admin/settings","Failed to load resource: the server responded with a status of 403 (Forbidden)","403 POST /api/v1/auth/sessions:elevate","Failed to load resource: the server responded with a status of 403 (Forbidden)","403 GET /api/v1/admin/settings","Failed to load resource: the server responded with a status of 403 (Forbidden)"]
+
+[step anna bert@consumer.example desktop -> decline]
+  focus before Sign in: input#field-dreb7fc "[password field]"
+  pressed: Sign in
+  terms step shown: true; url=http://anna.hubtask.localhost:18545/
+  card: Hubtask to anna.hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as bert@consumer.example Not you? Read the terms of use (version 4) This sign-in waits 5:00 Agree and continue Decline
+  link: Read the terms of use (version 4) -> https://provider.example/legal/terms target=_blank
+  session before answering: false
+  screenshot 10-bert-version-4-step-desktop.png (scrollWidth 1280 at 1280)
+  focus before Decline: body
+  pressed: Decline
+  after declining: Hubtask to anna.hubtask.localhost:18545 You are not signed in You cannot use this workspace without agreeing to the terms of use. If you have questions about them, ask whoever provides this service to you. Sign in Email address* Password* Show password Forgot your password? Sign in
+  session: false; agree-terms requests: 0
+  screenshot 11-bert-declined-desktop.png (scrollWidth 1280 at 1280)
+  agree-terms requests: []
+  errors: []
+
+[step anna bert@consumer.example 375 -> decline]
+  focus before Sign in: input#field-mr3uuxb "[password field]"
+  pressed: Sign in
+  terms step shown: true; url=http://anna.hubtask.localhost:18545/
+  card: Hubtask to anna.hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as bert@consumer.example Not you? Read the terms of use (version 4) This sign-in waits 5:00 Agree and continue Decline
+  link: Read the terms of use (version 4) -> https://provider.example/legal/terms target=_blank
+  session before answering: false
+  screenshot 10-bert-version-4-step-375.png (scrollWidth 375 at 375)
+  focus before Decline: body
+  pressed: Decline
+  after declining: Hubtask to anna.hubtask.localhost:18545 You are not signed in You cannot use this workspace without agreeing to the terms of use. If you have questions about them, ask whoever provides this service to you. Sign in Email address* Password* Show password Forgot your password? Sign in
+  session: false; agree-terms requests: 0
+  screenshot 11-bert-declined-375.png (scrollWidth 375 at 375)
+  agree-terms requests: []
+  errors: []
+
+[step anna bert@consumer.example desktop -> agree]
+  focus before Sign in: input#field-q6laf9w "[password field]"
+  pressed: Sign in
+  terms step shown: true; url=http://anna.hubtask.localhost:18545/
+  card: Hubtask to anna.hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as bert@consumer.example Not you? Read the terms of use (version 4) This sign-in waits 5:00 Agree and continue Decline
+  link: Read the terms of use (version 4) -> https://provider.example/legal/terms target=_blank
+  session before answering: false
+  (the step again, before agreeing; no screenshot kept)
+  focus before Agree and continue: body
+  pressed: Agree and continue
+  (no tour)
+  after agreeing: url=http://anna.hubtask.localhost:18545/ session=true headings=["Overview"]
+  agree-terms requests: ["POST http://anna.hubtask.localhost:18545/api/v1/auth/sessions:agree-terms"]
+  errors: ["403 GET /api/v1/meta/health","403 GET /api/v1/jumble/entries","403 GET /api/v1/quotas"]
+
+## Setup for check 6 (through the API, as Anna in her workspace `anna`)
+Anna's own sign-in owed version 4: she agreed through POST /auth/sessions:agree-terms (terms_url, terms_version "4").
+POST /identity-providers (with a step-up): GENERIC, issuer https://host.docker.internal:18546 (the walk's fake issuer),
+  display name "Consumer ID (walk issuer)", provisioning ANY, newcomer_role MEMBER, a made-up client id and secret -> 201, enabled false
+POST /identity-providers/{id}:offer {"offered":true} (with a step-up) -> 200, offered_here true
+The fake issuer logged the server's discovery: GET /.well-known/openid-configuration
+
+[E provider sign-in, Nora, 375 -> decline]
+  focus before "C
+Sign in with Consumer ID (walk issuer)": body
+  pressed: "C
+Sign in with Consumer ID (walk issuer)"
+  at the fake issuer: https://host.docker.internal:18546/authorize
+  focus before Continue as nora@consumer.example (fake issuer): body
+  pressed: Continue as nora@consumer.example (fake issuer)
+  back at http://hubtask.localhost:18545/; terms step shown: true; session: false
+  card: Hubtask to hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as Not you? Read the terms of use (version 4) This sign-in waits 4:59 Agree and continue Decline
+  screenshot 13-provider-sign-in-terms-step-375.png (scrollWidth 375 at 375)
+  focus before Decline: body
+  pressed: Decline
+  after declining: Hubtask to hubtask.localhost:18545 You are not signed in You cannot use this workspace without agreeing to the terms of use. If you have questions about them, ask whoever provides this service to you. Sign in Email address* Password* Show password Forgot your password? Sign in; session=false
+  screenshot 14-provider-sign-in-declined-375.png (scrollWidth 375 at 375)
+  agree-terms requests: []
+  errors: []
+
+[E provider sign-in, Nora, desktop -> agree]
+  focus before "C
+Sign in with Consumer ID (walk issuer)": body
+  pressed: "C
+Sign in with Consumer ID (walk issuer)"
+  at the fake issuer: https://host.docker.internal:18546/authorize
+  focus before Continue as nora@consumer.example (fake issuer): body
+  pressed: Continue as nora@consumer.example (fake issuer)
+  back at http://hubtask.localhost:18545/; terms step shown: true; session: false
+  card: Hubtask to hubtask.localhost:18545 STEP 2 OF 2 Terms of use Before you continue, read the terms of use and agree to them. Signing in as Not you? Read the terms of use (version 4) This sign-in waits 4:59 Agree and continue Decline
+  screenshot 13-provider-sign-in-terms-step-desktop.png (scrollWidth 1280 at 1280)
+  focus before Agree and continue: body
+  pressed: Agree and continue
+  focus before Skip the tour: button "Next"
+  pressed: Skip the tour
+  after agreeing: url=http://hubtask.localhost:18545/ session=true headings=["Overview","What is on you","In the jumble","What you had open"]
+  screenshot 15-nora-in-the-workspace-desktop.png (scrollWidth 1280 at 1280)
+  agree-terms requests: ["POST http://hubtask.localhost:18545/api/v1/auth/sessions:agree-terms"]
+  errors: ["403 GET /api/v1/meta/health","403 GET /api/v1/quotas"]
+
+
+[F the trail of `anna`, as Anna]
+  focus before Sign in: input#field-t17edyd "[password field]"
+  pressed: Sign in
+  (no tour)
+  focus before Look (What was done = auth.terms): input#field-dtqacnz "[text field]"
+  pressed: Look (What was done = auth.terms)
+  main: Administration The trail The trail Every action this workspace records about itself. What it holds is who, what and when — never what anybody wrote. Look for From To What was done The start of an action name is enough — “auth.” finds every sign-in event. Who did it An account's identifier. Without the right to the whole trail, only your own events are answered. What kind of thing For example container, or legal_hold. Which one How it ended Any way Done Refused Failed Look Reading the trail is not itself recorded — a trail that grew by being read would bury what it is for. A refusal is recorded, and so is an export. Done Worth noticing auth.terms_agreed in the chain: 45 by Nora Newcomer · Oct 13, 2026, 8:23 AM about the account 01a133ee-16ed-7f5c-a707-9a02e23a612c terms_set_by became INSTALLATION terms_url became https://provider.example/legal/terms terms_version became 4 Done Worth noticing auth.terms_agreed in the chain: 35 by anna@consumer.example · Oct 13, 2026, 8:23 AM about the account 01a133e8-06d1-7511-8cba-4c65bc5a5a8f terms_set_by became INSTALLATION terms_url became https://provider.example/legal/terms terms_version became 4 Done Worth noticing auth.terms_agreed in the chain: 30 by Bert Consumer · Oct 13, 2026, 8:21 AM about the account 01a133eb-64d7-7acc-bdf8-c5fca3a53160 terms_set_by became INSTALLATION terms_url became https://provider.example/legal/terms terms_version became 4 Done Worth noticing auth.terms_agreed in the chain: 23 by Bert Consumer · Oct 13, 2026, 8:20 AM about the account 01a133eb-64d7-7acc-bdf8-c5fca3a53160 terms_set_by became INSTALLATION terms_url became https://provider.example/legal/terms terms_version became 3 Done Worth noticing auth.terms_agreed in the chain: 17 by anna@consumer.example · Oct 13, 2026, 8:20 AM about the account 01a133e8-06d1-7511-8cba-4c65bc5a5a8f terms_set_by became INSTALLATION terms_url became https://provider.example/legal/terms terms_version became 3 Does the record still hold? Every entry is chained to the one before it. Checking the chain over a period says whether anything has been altered or removed since. From To Check the chain Name a period first. Anchoring outside this database Once a day, the chain's end — the last entry's number and its hash — is written as a small file to a backup target of this workspace. That copy is what says something against somebody who could rewrite the whole database. Not anchored. The chain proves tampering inside the database only. Choose a target with object
+  terms text of the page itself present: false
+  screenshot 16-trail-terms-agreed-desktop.png (scrollWidth 1280 at 1280)
+
+## Carl (arrived before any terms existed), password sign-in through the API after version 4
+$ POST /auth/sessions (anna, carl@consumer.example)
+{"expires_at": "2026-10-13T06:29:45.935922383Z", "methods": ["TERMS"], "pending_token": "hbt_mfa_\u2026", "terms": {"set_by": "INSTALLATION", "url": "https://provider.example/legal/terms", "version": "4"}}
+
+## The database after the walk (owner role)
+-- account: workspace | address | status | terms_url | terms_version | terms_agreed_at | sessions
+anna|anna@consumer.example|ACTIVE|https://provider.example/legal/terms|4|2026-10-13 06:23:06.583858+00|9
+anna|bert@consumer.example|ACTIVE|https://provider.example/legal/terms|4|2026-10-13 06:21:36.199555+00|2
+anna|carl@consumer.example|ACTIVE|-|-|-|2
+anna|nora@consumer.example|ACTIVE|https://provider.example/legal/terms|4|2026-10-13 06:23:38.257226+00|1
+anna-club|anna@consumer.example|ACTIVE|-|-|-|1
+ops|olga@provider.example|ACTIVE|https://provider.example/legal/terms|3|2026-10-13 06:21:15.458621+00|5
+-- audit_log auth.terms_agreed: workspace | when | actor | changes
+anna|2026-10-13 06:20:12.886143+00|anna@consumer.example|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "3"}}
+anna|2026-10-13 06:20:30.228993+00|Bert Consumer|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "3"}}
+ops|2026-10-13 06:21:15.458621+00|olga@provider.example|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "3"}}
+anna|2026-10-13 06:21:36.199555+00|Bert Consumer|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "4"}}
+anna|2026-10-13 06:23:06.583858+00|anna@consumer.example|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "4"}}
+anna|2026-10-13 06:23:38.257226+00|Nora Newcomer|{"terms_url": {"to": "https://provider.example/legal/terms"}, "terms_set_by": {"to": "INSTALLATION"}, "terms_version": {"to": "4"}}
+-- any audit row whose changes or context hold more than the link and version (a text of terms): count
+0
+-- instance_setting
+legal.terms_url|"https://provider.example/legal/terms"|INSTANCE|01a133e7-f28b-7298-8bf9-1d68a5e735aa|2026-10-13 06:21:24.036553+00
+legal.terms_version|"4"|INSTANCE|01a133e7-f28b-7298-8bf9-1d68a5e735aa|2026-10-13 06:21:24.036553+00
+-- instance_event
+2026-10-13 06:19:42.952732+00|instance.settings_changed|olga@provider.example|{"switches": ["terms_url", "terms_version"]}
+2026-10-13 06:21:24.038238+00|instance.settings_changed|olga@provider.example|{"switches": ["terms_version"]}
+
+## The fake issuer's own log (https://host.docker.internal:18546)
+2026-10-13T06:22:31.531Z listening
+2026-10-13T06:22:32.560Z GET /.well-known/openid-configuration
+2026-10-13T06:22:32.628Z GET /.well-known/openid-configuration
+2026-10-13T06:23:06.693Z GET /.well-known/openid-configuration
+2026-10-13T06:23:23.781Z GET /authorize client_id=walk-d5t-client redirect_uri=http://hubtask.localhost:18545/auth/callback response_type=code scope=openid profile email code_challenge_method=S256 prompt=null max_age=null
+2026-10-13T06:23:23.821Z GET /authorize client_id=walk-d5t-client redirect_uri=http://hubtask.localhost:18545/auth/callback response_type=code scope=openid profile email code_challenge_method=S256 prompt=null max_age=null
+2026-10-13T06:23:23.882Z POST /token
+2026-10-13T06:23:23.882Z   token exchange: pkce matched
+2026-10-13T06:23:23.884Z GET /jwks
+2026-10-13T06:23:37.625Z GET /authorize client_id=walk-d5t-client redirect_uri=http://hubtask.localhost:18545/auth/callback response_type=code scope=openid profile email code_challenge_method=S256 prompt=null max_age=null
+2026-10-13T06:23:37.665Z GET /authorize client_id=walk-d5t-client redirect_uri=http://hubtask.localhost:18545/auth/callback response_type=code scope=openid profile email code_challenge_method=S256 prompt=null max_age=null
+2026-10-13T06:23:37.720Z POST /token
+2026-10-13T06:23:37.720Z   token exchange: pkce matched
