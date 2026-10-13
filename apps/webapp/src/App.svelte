@@ -18,6 +18,7 @@
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
+  import { reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
@@ -101,6 +102,17 @@ import ContainerView from './views/ContainerView.svelte';
   });
 
   /**
+   * Whether the reader is inside the level this address belongs to (P-05: a level somebody is
+   * outside of does not appear at all). The menu does not offer the administration to somebody
+   * who does not reach it; an address typed or kept from an earlier role must not offer it either -
+   * its forms, its *Save*, and the reads behind them that the server refuses and records. Outside,
+   * the address answers as one that reaches nothing; `undefined` while the manifest has not yet
+   * answered for this reader, and then nothing is drawn rather than a not-found that turns into a
+   * screen a moment later.
+   */
+  const reach = $derived(route.area === 'administration' ? reachesAdministrationArea() : true);
+
+  /**
    * A section's own address opens its first screen (ADR-0065 decision 1).
    *
    * `/administration` is linked from the account menu and from the trail of every screen under it,
@@ -110,7 +122,7 @@ import ContainerView from './views/ContainerView.svelte';
    * they were sent through.
    */
   $effect(() => {
-    if (session.isSignedIn && route.name === 'administration') router.replace(firstScreen(ADMINISTRATION));
+    if (session.isSignedIn && route.name === 'administration' && reach === true) router.replace(firstScreen(ADMINISTRATION));
   });
 
   /**
@@ -224,7 +236,11 @@ import ContainerView from './views/ContainerView.svelte';
   {/if}
 {:else}
 <AppFrame {route} onnavigate={(path) => router.navigate(path)}>
-  {#if route.name === 'consent'}
+  {#if reach === undefined}
+    <!-- Not yet known whether this reader is inside the level: nothing, rather than a guess. -->
+  {:else if reach === false}
+    {@render nothingHere()}
+  {:else if route.name === 'consent'}
     <!-- Signed in only: `POST /oauth/authorize` needs a person, never a token, so somebody who
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
     <ConsentView />
@@ -335,11 +351,15 @@ import ContainerView from './views/ContainerView.svelte';
       <ContainerView id={route.params.id ?? ''} openItemId={pane.kind === 'pane' ? pane.itemId : undefined} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else}
-    <!-- The server's own code for a path that reaches nothing, at the same address - as the
-         page's heading, because a screen without one is a screen a reader cannot name. -->
-    <h1>{t('route.unknown')}</h1>
-    <p><code>{route.path}</code></p>
-    <p><a href="/">{t('app.back_to_start')}</a></p>
+    {@render nothingHere()}
   {/if}
 </AppFrame>
 {/if}
+
+{#snippet nothingHere()}
+  <!-- The server's own code for a path that reaches nothing, at the same address - as the
+       page's heading, because a screen without one is a screen a reader cannot name. -->
+  <h1>{t('route.unknown')}</h1>
+  <p><code>{route.path}</code></p>
+  <p><a href="/">{t('app.back_to_start')}</a></p>
+{/snippet}

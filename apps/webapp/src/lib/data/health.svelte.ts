@@ -12,8 +12,9 @@
  *
  * The constraint still shapes the module more than anything else does. An ordinary member is not
  * shown a report they are not entitled to, is not shown an error about being refused one, and does
- * not send a request that will be refused: the read is not attempted at all without a bearer, and a
- * `401` or `403` ends it quietly rather than becoming a message on the screen.
+ * not send a request that will be refused: the read is not attempted at all without a bearer or
+ * the right the manifest says the reader holds, and a `401` or `403` ends it quietly rather than
+ * becoming a message on the screen.
  *
  * The other half of that: **no second, unauthenticated health surface**.
  * A member learns of a degradation when an operation degrades, which is where the message belongs
@@ -71,10 +72,11 @@ class Health {
    *
    * Returns the stop function either way, so a caller has one shape to handle. Without a bearer
    * there is nobody to be entitled, and the request is not made - `platform.bearer()` is the seam
-   * that knows, and it answers `undefined` while no token is behind it.
+   * that knows, and it answers `undefined` while no token is behind it. Nor without `mayRead`,
+   * the caller's answer from the manifest: a read the server refuses is a refusal it records.
    */
-  start(): () => void {
-    if (platform.bearer() === undefined) {
+  start(mayRead: boolean): () => void {
+    if (platform.bearer() === undefined || !mayRead) {
       // Nobody is signed in, so nothing is known - including whatever a previous session read.
       // `engine.reset()` drops the engine's copy on sign-out; this drops this module's.
       this.#state = { status: 'idle' };

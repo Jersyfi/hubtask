@@ -46,7 +46,7 @@
   import { recoveryNote } from '../data/recoverynote.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { quotas } from '../data/quotas.svelte.ts';
+  import { reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
@@ -84,22 +84,18 @@
   });
 
   /**
-   * The administration area, offered only where the server says this reader reaches it.
+   * The administration area, offered only where the manifest says this reader reaches it.
    *
    * **The one place in this client where hiding beats a `CapabilityGate`.** The gate exists so
    * that a control somebody might want carries its reason (`domain-model.md` §2); a whole area
    * they will never hold is not a control they want, it is navigation noise on every screen.
    *
-   * The condition is the server's own: `GET /quotas` is refused unless the caller holds
-   * `STRUCTURE` or the auditor's `READ_CONFIGURATION`, which is the area's condition exactly. A
-   * frame that worked it out from the actor's role and the role matrix would be a second
-   * implementation of an authorisation decision — and would be wrong for an auditor, who holds no
-   * `READ` and therefore cannot list the memberships that would say what role they have.
+   * The condition is the server's own - `STRUCTURE`, or the auditor's `READ_CONFIGURATION`, on the
+   * workspace - read from what the manifest says this reader holds there (`workspace_permissions`).
+   * Not by reading `GET /quotas` to see whether it is refused: a member is, and every refusal is
+   * recorded, so the trail would fill with the client's own probing.
    */
-  $effect(() => {
-    if (!session.isSignedIn) return;
-    return untrack(() => quotas.open());
-  });
+  const isAdministrationReachable = $derived(reachesAdministrationArea() === true);
 
   // A person's own choice about AI, read while signed in: when the workspace made AI part of
   // everybody's work after they kept their content out, they are told so once, here, on whichever
@@ -120,7 +116,7 @@
 
   // The private hubs, read while the administration is open: whether its row is drawn is this
   // answer (`navigation.ts`, `administration`).
-  const isInAdministration = $derived(route.area === 'administration');
+  const isInAdministration = $derived(route.area === 'administration' && isAdministrationReachable);
   $effect(() => {
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
@@ -160,7 +156,7 @@
    * which is the same answer `currentDestination` gives the account group: one fact, read once.
    */
   const section = $derived(
-    route.area === 'administration'
+    isInAdministration
       ? {
           label: t('app.admin.nav'),
           groups: administration({
@@ -168,7 +164,7 @@
               (privateHubs.hasAny || workspace.workspace?.several_people === true),
             withInstallation: installationPlace({
               isInstanceReachable: manifest.isInstanceReachable,
-              isAdministrationReachable: quotas.isReachable === true,
+              isAdministrationReachable,
               isSingleWorkspace: manifest.isSingleTenant,
             }) === 'administration',
           }),
@@ -185,7 +181,7 @@
   );
   const accountGroup = $derived(
     account({
-      isAdministrationReachable: quotas.isReachable === true,
+      isAdministrationReachable,
       // The manifest's answer about this caller, and nothing compiled in. False until it
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,

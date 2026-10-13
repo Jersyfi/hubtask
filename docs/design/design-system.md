@@ -604,8 +604,9 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
 on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
-settings*; *Workspace administration*, only where `GET /quotas` is not refused (`STRUCTURE`, or the
-auditor's `READ_CONFIGURATION`); *Installation*, only for an account in the operator register, as the
+settings*; *Workspace administration*, only where the manifest's `workspace_permissions` carry
+`STRUCTURE` or the auditor's `READ_CONFIGURATION` - and an address under `/administration` typed by
+anybody else answers as one that reaches nothing; *Installation*, only for an account in the operator register, as the
 manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) - except on a single-workspace
 installation, where an operator who reaches the administration finds it as the administration's last
 group instead, "Installation · Applies to every workspace you create", and not in this menu; *Take the tour again*; *About

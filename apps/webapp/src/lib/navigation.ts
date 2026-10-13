@@ -128,9 +128,10 @@ export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
  * reader is inside the section, and a tree of hubs beside sixteen settings screens would say they
  * are somewhere they are not.
  *
- * Who sees it is not decided here and not by this list. The area is offered where `GET /quotas` is
- * not refused, which is the area's condition exactly (ADR-0061 decision 1); a reader without it has
- * no row, no section and no route, and the server refuses the screens regardless.
+ * Who sees it is not decided here and not by this list. The area is offered where the manifest says
+ * the reader holds `STRUCTURE` or `READ_CONFIGURATION` on the workspace, the condition of the
+ * area's reads (ADR-0061 decision 1); a reader without it has no row, no section and no route, and
+ * the server refuses the screens regardless.
  */
 export interface SectionRow {
   readonly id: string;
@@ -413,8 +414,8 @@ export function primary(): readonly Destination[] {
 /**
  * The account group, with the two rows the server decides.
  *
- * The administration area is offered only where `GET /quotas` is not refused — the frame's
- * `quotas.isReachable`, which is the area's condition exactly. The instance area is offered only
+ * The administration area is offered only where the manifest says this reader holds `STRUCTURE`
+ * or `READ_CONFIGURATION` on the workspace — the area's condition exactly. The instance area is offered only
  * where the manifest says this account is in the operator register (ADR-0070 §1).
  *
  * These are the places in this client where **hiding beats a gate**, and the rule that decides it
