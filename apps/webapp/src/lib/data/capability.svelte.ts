@@ -52,3 +52,10 @@ export const holds = (role: string | undefined, permission: string): Verdict =>
 /** Whether this entry may be changed, `ASSIGNED` taken into account. */
 export const mayChange = (role: string | undefined, isAssignedToActor: boolean): Verdict =>
   changeVerdict(manifest.value, role, isAssignedToActor);
+
+/**
+ * The installation's roles, strongest first, as the manifest reports them - the order the server's
+ * effective role is taken in. Empty until the manifest is read, which leaves every role unknown.
+ */
+export const roleOrder = (): readonly string[] =>
+  (manifest.value?.roles ?? []).map((description) => description.role as string | undefined).filter((role): role is string => role !== undefined);
