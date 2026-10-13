@@ -48,4 +48,9 @@ regexes = [
   # log now says "row stored"; the scan reads the history, so the entries stay with the commit.
   '''01a13153-c36a-74c0-851e-52cb66bcc153''',
   '''01a13153-d822-73a9-a355-8b7e3002d69c''',
+  # The reference of a refusal the sign-in card showed in the SC-15 D4 walk
+  # (docs/evidence/SC-15-D4-2026-10-13/walk.log, "[wrong password] the card"): the request id under
+  # the sentence, which the reader quotes to an administrator - a walk id, not a secret. The log now
+  # elides it; the scan reads the history, so the entry stays with the commit.
+  '''ccf39748aad8795ee96e4e8760719820''',
 ]
