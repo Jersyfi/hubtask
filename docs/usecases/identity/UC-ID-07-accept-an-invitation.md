@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
 state: built
 tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10]
-checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md]
 ---
 
 # Accept an invitation and set up my account
