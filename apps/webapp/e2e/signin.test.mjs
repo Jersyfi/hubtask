@@ -449,6 +449,106 @@ test('a setup forced during sign-in confirms in the code field and shows the cod
   }
 });
 
+// UC-ID-03 check 8: under "Required of: Everyone" an invitation is accepted and the card continues
+// into the setup, naming the invited address - no session before the factor is armed and
+// *Continue* pressed.
+test('an invitation under a factor rule continues into the setup and opens the session only after it', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    if (path.endsWith('/api/v1/auth/invitations:redeem')) {
+      sent.redeem = request.postDataJSON();
+      return route.fulfill({ status: 202, json: { pending_token: 'enroll-r', methods: ['ENROLL'], email: 'bert@contoso.example', expires_at: new Date(Date.now() + 300_000).toISOString() } });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:enroll')) {
+      sent.enroll = request.postDataJSON();
+      return route.fulfill({ json: ENROLLMENT });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:confirm')) {
+      sent.confirm = request.postDataJSON();
+      return route.fulfill({ json: { armed: true, tokens: { access_token: 'e2e-access', refresh_token: 'e2e-refresh' } } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Set the password and sign in' }).click();
+
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.equal(new URL(page.url()).pathname, '/sign-in');
+    assert.equal(sent.redeem?.token, 'invitation-token');
+    assert.ok(await page.getByText('Your workspace requires a second factor.', { exact: false }).isVisible(), 'the card does not say why');
+    assert.ok(await page.getByText('bert@contoso.example').isVisible(), 'the identity line names the invited address');
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('hubtask.bearer')), null, 'a session opened before the factor');
+
+    await walkSetup(page, sent);
+    assert.deepEqual(sent.enroll, { pending_token: 'enroll-r' });
+    assert.equal(sent.confirm?.pending_token, 'enroll-r');
+    await page.getByRole('button', { name: 'Continue' }).waitFor({ state: 'detached' });
+    assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// The pending credential lives five minutes, and a newcomer may first have to install an
+// authenticator: at zero the card returns to step one with the invited address in its field, and
+// signing in with the password just chosen meets the setup again.
+test('an invitation whose setup waited too long signs in with the new password and meets the setup again', async () => {
+  const { origin, close } = await serve(DIST);
+  const started = Date.parse('2026-10-01T12:00:00Z');
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    if (path.endsWith('/api/v1/auth/invitations:redeem')) {
+      return route.fulfill({ status: 202, json: { pending_token: 'enroll-r', methods: ['ENROLL'], email: 'bert@contoso.example', expires_at: new Date(started + 300_000).toISOString() } });
+    }
+    if (path.endsWith('/api/v1/auth/sessions') && request.method() === 'POST') {
+      sent.signIn = request.postDataJSON();
+    }
+    return stubFor({
+      answer: () => ({ status: 202, json: { pending_token: 'enroll-s', methods: ['ENROLL'], expires_at: new Date(started + 900_000).toISOString() } }),
+    })(route);
+  });
+  const page = await context.newPage();
+  await page.clock.install({ time: started });
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Set the password and sign in' }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+
+    await page.clock.runFor(301_000);
+    await page.getByText('The sign-in waited too long').waitFor();
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'bert@contoso.example', 'the invited address is not in the field');
+
+    await page.locator('input[autocomplete="current-password"]').fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.deepEqual(sent.signIn, { identifier: 'bert@contoso.example', password: 'seven blue lanterns over the harbour' });
+    assert.ok(await page.getByRole('button', { name: 'Set up a second factor' }).isVisible(), 'the sign-in does not meet the setup');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // Before there is an account, the browser's language decides (i18n-l10n.md §2) - on the signed-out
 // card as much as inside the application. If only the frame read the installation's list of languages,
 // the card would render the source language whatever the browser asked for.

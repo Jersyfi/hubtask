@@ -109,7 +109,11 @@
     recoveryCode = '';
     linkPassword = '';
     usingRecovery = false;
+    // A step an invitation card or a reset link handed over typed no address here: step one takes
+    // the one the server named, so the person signs in with it and the password they just chose.
+    const named = session.signingInAs;
     session.timedOut();
+    if (email === '' && named !== undefined) email = named;
   });
 
   /**
