@@ -20,6 +20,7 @@ import {
   childVerdict,
   declaresType,
   itemAccess,
+  itemPermitted,
   permissionVerdict,
   rootTypes,
   typesWith,
@@ -284,4 +285,26 @@ test('a capability refusal reads as a sentence, not as the identifiers behind it
     verdict.status === 'refused' ? messages.t(verdict.code, verdict.params) : null,
     'An activity has no members.',
   );
+});
+
+test('what a role may do to one entry: unqualified, assigned only, never - and unknown before the role is', () => {
+  const matrix = {
+    roles: [
+      { role: 'MEMBER', item_access: { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' } },
+      { role: 'CONTRIBUTOR', item_access: { read: 'ALL', create: 'ALL', change: 'ASSIGNED', comment: 'ASSIGNED' } },
+      { role: 'VIEWER', item_access: { read: 'ALL', create: 'NONE', change: 'NONE', comment: 'NONE' } },
+      { role: 'GUEST', item_access: { read: 'ALL', create: 'NONE', change: 'NONE', comment: 'ALL' } },
+    ],
+  } as unknown as Capabilities;
+  assert.equal(itemPermitted(matrix, 'MEMBER', 'change', false), true);
+  assert.equal(itemPermitted(matrix, 'CONTRIBUTOR', 'change', true), true);
+  assert.equal(itemPermitted(matrix, 'CONTRIBUTOR', 'change', false), false);
+  assert.equal(itemPermitted(matrix, 'CONTRIBUTOR', 'create', false), true);
+  assert.equal(itemPermitted(matrix, 'VIEWER', 'comment', true), false);
+  assert.equal(itemPermitted(matrix, 'GUEST', 'comment', false), true);
+  assert.equal(itemPermitted(matrix, 'GUEST', 'change', true), false);
+  // Nothing held along the path, a role unknown, a manifest unread.
+  assert.equal(itemPermitted(matrix, null, 'change', true), false);
+  assert.equal(itemPermitted(matrix, undefined, 'change', true), undefined);
+  assert.equal(itemPermitted(undefined, 'MEMBER', 'change', true), undefined);
 });

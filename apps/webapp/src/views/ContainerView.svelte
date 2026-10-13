@@ -55,7 +55,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { holds, rootTypes } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, roleOrder, rootTypes } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -172,11 +172,19 @@
     people.open(containerPath);
   });
 
-  const structureRole = $derived(
-    people
-      .along(containerPath)
-      .find((membership) => membership.account_id === actor.account?.id)?.role as string | undefined,
-  );
+  /**
+   * The reader's effective role here - the strongest along the container's path, their own or a
+   * group's - which is the role the server decides by (`people.roleOf`). `undefined` while it is
+   * still being read; the shape controls and the dialogs then wait rather than guess.
+   */
+  const myRole = $derived(container ? people.roleOf(containerPath, actor.account?.id, roleOrder()) : undefined);
+  const structureRole = $derived(myRole ?? undefined);
+  /** Whether the reader may create entries in this collection, and why a row is not theirs to change. */
+  const mayCreateHere = $derived(mayDo(myRole, 'create', false) === true);
+  function changeRefusalOf(row: WorkItem): string | undefined {
+    const code = changeRefusalCode(myRole, row.assignee_id != null && row.assignee_id === actor.account?.id);
+    return code ? t(code) : undefined;
+  }
 
   /**
    * The definitions in force here, as fields the query editor can offer.
@@ -426,6 +434,14 @@
   let isImporting = $state(false);
   /** `STRUCTURE` on the hub is what an import takes, because it creates collections there. */
   const structure = $derived(holds(structureRole, 'STRUCTURE'));
+  /**
+   * A control that changes the shape of the workspace, or nothing where the reader's role may not
+   * (UC-WRK-22 check 4, UC-WRK-01 check 6): absent rather than offered and refused (P-05).
+   */
+  const mayShape = $derived(structure.status === 'permitted');
+  function structureControl<T>(control: T): T | undefined {
+    return mayShape ? control : undefined;
+  }
 
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
@@ -702,14 +718,14 @@
         },
       }}
       primary={container.type === 'HUB'
-        ? {
+        ? structureControl({
             label: t('app.workspace.create_collection'),
             icon: 'plus',
             onclick: () => (isCreatingCollection = true),
             disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
             opener: 'add-collection',
-          }
-        : {
+          })
+        : mayCreateHere ? {
             label: t('app.entries.add'),
             icon: 'plus',
             onclick: addFromHead,
@@ -720,7 +736,7 @@
               items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
               onselect: () => (isUsingTemplates = true),
             },
-          }}
+          } : undefined}
       secondary={container.type === 'HUB'
         ? [
             {
@@ -903,6 +919,8 @@
               onopen={viewport.isLarge ? openBeside : undefined}
               currentId={openItemId}
               onduplicate={(item) => (duplicating = item)}
+              changeRefusal={changeRefusalOf}
+              mayCreate={mayCreateHere}
             />
           {/if}
         </div>

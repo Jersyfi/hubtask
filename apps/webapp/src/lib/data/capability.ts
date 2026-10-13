@@ -233,3 +233,23 @@ export function changeVerdict(
   if (access === 'NONE') return refused('app.gate.change_none');
   return isAssignedToActor ? PERMITTED : refused('app.gate.change_assigned_only');
 }
+
+/**
+ * Whether the reader may do this to one entry, the qualifier taken into account: `ASSIGNED` is
+ * only on an entry assigned to them. `undefined` while the role or the manifest is unknown - the
+ * three answers again, because "may not" drawn before anything is known is a screen that changes
+ * its mind a moment later.
+ */
+export function itemPermitted(
+  manifest: Capabilities | undefined,
+  role: string | null | undefined,
+  kind: 'read' | 'create' | 'change' | 'comment',
+  isAssignedToActor: boolean,
+): boolean | undefined {
+  if (role === undefined || !manifest) return undefined;
+  if (role === null) return false;
+  const access = itemAccess(manifest, role, kind);
+  if (access === 'ALL') return true;
+  if (access === 'ASSIGNED') return isAssignedToActor;
+  return false;
+}

@@ -1635,6 +1635,7 @@
   "app.gate.permission_missing": "A {role} cannot do this. It needs the {permission} permission.",
   "app.gate.change_none": "Your role can read entries here but not change them.",
   "app.gate.change_assigned_only": "Your role changes only the entries assigned to you.",
+  "app.gate.deciding": "Reading what your role may do here…",
   "app.sign_in.title": "Sign in",
   "app.sign_in.email_label": "Email address",
   "app.sign_in.password_label": "Password",
