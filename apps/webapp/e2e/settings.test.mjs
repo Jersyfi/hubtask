@@ -640,7 +640,11 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
   await weekStart.waitFor({ timeout: 15_000 });
 
   const text = (await page.locator('main').textContent()) ?? '';
-  assert.match(text, /The installation's default: de\./);
+  // A language by its name, never its tag (P-12).
+  assert.match(text, /The installation's default: Deutsch[^.]*\./);
+  assert.doesNotMatch(text, /default: de\./);
+  const languages = await page.getByLabel(/^Fallback language/).locator('option').allTextContents();
+  assert.ok(languages.some((each) => /English/.test(each)) && !languages.includes('en'), languages.join(', '));
   assert.match(text, /The installation's default: Europe\/Vienna\./);
   const choices = await weekStart.locator('option').allTextContents();
   assert.equal(choices[0], 'As the installation says: Sunday', choices.join(', '));

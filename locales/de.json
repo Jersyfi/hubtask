@@ -1543,6 +1543,7 @@
   "app.instance.flag_on": "An",
   "app.instance.flag_off": "Aus",
   "app.instance.value_unlimited": "Unbegrenzt",
+  "app.instance.value_size": "Das sind {size}.",
   "app.instance.area_sign_in": "Anmelden",
   "app.instance.area_legal": "Rechtliche Angaben",
   "app.instance.area_localisation": "Sprache und Zeit",

@@ -25,6 +25,7 @@
   import { Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import { quotas } from '../lib/data/quotas.svelte.ts';
+  import { formatBytes } from '../lib/i18n/bytes.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -73,6 +74,10 @@
   ]);
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
+
+  /** A number as the limit counts it: attachment storage in bytes is said as a size. */
+  const amount = (quota: string, value: number) =>
+    quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value);
 
   /** The same number `hubtask_tenant_quota_usage_ratio` reports, as a percentage a person reads. */
   const percentOf = (ratio: number) => Math.round(ratio * 100);
@@ -124,7 +129,7 @@
                      opposite of what it means. -->
                 {t('app.quotas.unlimited')}
               {:else}
-                {standing.limit}
+                {amount(standing.quota, standing.limit)}
               {/if}
             </td>
             <td>
@@ -133,7 +138,7 @@
                      own headers, so this screen would be inventing a number. -->
                 <span class="quiet">{t('app.quotas.no_count')}</span>
               {:else}
-                {standing.used}
+                {amount(standing.quota, standing.used)}
               {/if}
             </td>
             <td class="approach">

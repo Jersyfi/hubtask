@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub } from './fixture.mjs';
+import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -51,4 +51,40 @@ test('chromium: a locked limit is set by the installation, an open one is its de
   assert.doesNotMatch(await row('Entries').textContent() ?? '', /default/);
   assert.match(await row('Export jobs').textContent() ?? '', /The installation's default/);
   assert.match(await row('Webhook').textContent() ?? '', /This workspace/);
+});
+
+/** *Limits* with the given standings, on an installation of the given tenancy. */
+async function openLimits(browser, standings, { tenancy = 'single' } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: tenancy } });
+    if (path === '/quotas') return route.fulfill({ json: standings });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/quotas`);
+  await page.getByRole('row').nth(1).waitFor({ timeout: 15_000 });
+  return { page, close: () => context.close() };
+}
+
+// P-12: the attachment storage is a size, not a count of bytes; every other limit stays a count.
+test('chromium: attachment storage reads as a size', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openLimits(browser, [
+    { quota: 'media_bytes', limit: 10737418240, used: 2500000, ratio: 0.0002, configured: false, locked: false },
+    { quota: 'items', limit: 5000, used: 12, configured: false, locked: false },
+  ]);
+  t.after(close);
+
+  const storage = await page.getByRole('row').filter({ hasText: 'Attachment storage' }).textContent() ?? '';
+  assert.match(storage, /10\.7\s?GB/, storage);
+  assert.match(storage, /2\.5\s?MB/, storage);
+  assert.doesNotMatch(storage, /10737418240/, storage);
+  assert.match(await page.getByRole('row').filter({ hasText: 'Entries' }).textContent() ?? '', /5000/);
 });

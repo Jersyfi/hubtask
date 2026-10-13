@@ -2147,6 +2147,7 @@
   "app.instance.flag_on": "On",
   "app.instance.flag_off": "Off",
   "app.instance.value_unlimited": "Unlimited",
+  "app.instance.value_size": "That is {size}.",
   "app.instance.area_sign_in": "Signing in",
   "app.instance.area_legal": "Legal information",
   "app.instance.area_localisation": "Language and time",
