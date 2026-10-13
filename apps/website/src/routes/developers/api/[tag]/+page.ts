@@ -5,7 +5,7 @@
 // tag added to the contract is a page added to the site with no route written for it.
 import { error } from '@sveltejs/kit';
 
-import { reference } from '$lib/api/document.ts';
+import { reference } from '#lib/api/document.ts';
 
 import type { EntryGenerator, PageLoad } from './$types';
 

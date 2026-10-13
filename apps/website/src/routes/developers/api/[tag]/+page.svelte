@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  import Markdown from '$lib/api/Markdown.svelte';
-  import OperationCard from '$lib/api/OperationCard.svelte';
-  import { reference } from '$lib/api/document.ts';
+  import Markdown from '#lib/api/Markdown.svelte';
+  import OperationCard from '#lib/api/OperationCard.svelte';
+  import { reference } from '#lib/api/document.ts';
 
   const { data } = $props();
   const tag = $derived(data.tag);
