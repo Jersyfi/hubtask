@@ -236,7 +236,10 @@ so what merged meanwhile is first checked by `main`'s own run. Four things keep 
   `startup_failure` is red; a re-run still going is red, a first attempt still going and a cancelled
   run are passed over. While `main` is red it fails, unless the pull request is a revert (`revert:
   …`, `Revert "…"`) or its description has a line `Mends main: <sha>` — editing the description
-  re-runs it (`pr-description-rerun.yml`). A failing API call fails it.
+  re-runs it (`pr-description-rerun.yml`). A failing API call fails it. A pure revert — `git revert`
+  of exactly the commit the issue "CI: main is red" names, nothing else changed — merges as soon as
+  its CI is green, without asking (the owner, 2026-10-13, #1311); the reverted change returns to its
+  task as a new pull request. A fix forward (`Mends main:`) merges on the owner's word.
 * **`after-ci.yml` acts after every run** (`scripts/ci/after-ci.sh`): a failed run is re-run once,
   known-traps.md's rule for flakes — not a pull request's run that failed only at the guard; a red
   `main` opens the issue "CI: main is red" (`finding`) with the commit, its pull request, the failed
