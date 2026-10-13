@@ -24,6 +24,7 @@
 
   import { Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -101,7 +102,9 @@
   />
 
     <Stack gap="300">
-    <p class="quiet">{t('app.quotas.intro')}</p>
+    <!-- A single installation says neither "installation" nor "operator" (deployments.md D1); its
+         sentence also serves an administrator who cannot open the section it names. -->
+    <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.intro_single' : 'app.quotas.intro')}</p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting">
@@ -160,7 +163,7 @@
         {/each}
       </Table>
 
-      <p class="quiet">{t('app.quotas.raising')}</p>
+      <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')}</p>
     {/if}
     </Stack>
 </Stack>

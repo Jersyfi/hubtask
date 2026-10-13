@@ -88,3 +88,24 @@ test('chromium: attachment storage reads as a size', async (t) => {
   assert.doesNotMatch(storage, /10737418240/, storage);
   assert.match(await page.getByRole('row').filter({ hasText: 'Entries' }).textContent() ?? '', /5000/);
 });
+
+// deployments.md D1: on a single installation *Limits* names neither the installation nor an
+// operator, and says where a limit is changed - or whom to ask, for a reader who cannot go there.
+// An installation of many keeps its own sentences.
+test('chromium: a single installation is told where a limit changes without the operator', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const standings = [{ quota: 'items', limit: 5000, used: 12, configured: false, locked: false }];
+
+  const single = await openLimits(browser, standings, { tenancy: 'single' });
+  const said = (await single.page.locator('main').textContent()) ?? '';
+  await single.close();
+  assert.doesNotMatch(said, /operator|installation's to set/i, said);
+  assert.match(said, /Applies to every workspace you create/, said);
+  assert.match(said, /ask whoever set Hubtask up/, said);
+
+  const multi = await openLimits(browser, standings, { tenancy: 'multi' });
+  const many = (await multi.page.locator('main').textContent()) ?? '';
+  await multi.close();
+  assert.match(many, /the operator of this installation/, many);
+});
