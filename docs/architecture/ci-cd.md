@@ -40,6 +40,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | Job | Contents |
 |---|---|
 | `changes` | Classifies what a pull request touches (`dorny/paths-filter`, §3.1) |
+| `actions-allowed` | Every `uses:` of every workflow as a step that never runs, so GitHub's job set-up checks each against the repository setting (§4); behind the `ci` filter, always on `main`. CI only: nothing local can ask the setting |
 | `secrets` | Gitleaks over the history (SG-7) |
 | `dependencies` | Dependency review: no high-severity vulnerability, no GPL, LGPL, AGPL or SSPL licence ([licensing-editions.md](./licensing-editions.md) §1) |
 | `licences` | `make gate-licenses`: no copyleft Go dependency, `THIRD-PARTY-LICENSES.md` current, every brand mark with its row and its preset |
@@ -276,7 +277,24 @@ permissions:
   `deploy.yml`'s lies above its inner timeouts together, so it never cuts `helm upgrade` short. A
   step that waits on something outside the runner (apt in `engines`) gets a shorter limit of its
   own, so the log names it. A job that hits its limit is re-run once, like a flake.
-* Repository setting "Allow select actions" with an allowlist.
+* Only listed actions run. The repository setting "Allow select actions" allows actions owned by
+  GitHub (`actions/*`, `github/*`) and the third-party repositories in
+  `.github/actions-allowlist.txt`, each as `owner/repo@*` — the version is fixed by the SHA in the
+  workflow — with verified creators off and **SHA pinning required**, so a tag- or branch-pinned
+  `uses:` is refused. `test/architecture` holds the file to the workflows: every third-party
+  repository used is listed, every entry is used, and an action that only a listed composite
+  action runs inside itself is marked `# nested in <owner/repo>`. GitHub resolves nested actions at
+  job set-up too (`aquasecurity/trivy-action` runs `aquasecurity/setup-trivy`). The `ci.yml` job
+  `actions-allowed` (§3) names every `uses:` of every workflow as a step that never runs, so an
+  action the setting lacks — a new nested one a Dependabot bump brings — fails the pull request
+  that brings it, not the release or the nightly that would use it first; `test/architecture`
+  holds its steps equal to the other workflows' `uses:`, pins included. Neither test reads the
+  setting itself (that needs the administration right); a nested entry that a bump made unneeded
+  is not found and stays until somebody removes it.
+  A new third-party action is a new dependency and the owner's word: add the `uses:`, the entry in
+  the file, and the same `owner/repo@*` in the setting
+  (`gh api -X PUT repos/<owner>/<repo>/actions/permissions/selected-actions`, the whole list);
+  `actions-allowed` stays red until the setting has it.
 * `after-ci.yml` runs on `workflow_run`, which has write rights for a fork's run too: it checks out
   the default branch only and takes the run's values through the environment, never into `run:`
   (`test/architecture`).

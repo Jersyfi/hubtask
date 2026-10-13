@@ -1,0 +1,25 @@
+# The third-party actions this repository may run - a mirror of the repository setting
+# Settings > Actions > General > "Allow select actions" (ci-cd.md §4).
+#
+# The setting allows actions owned by GitHub (`actions/*`, `github/*`), each repository below as
+# `owner/repo@*`, and nothing else; it requires every action to be pinned to a full commit SHA. The
+# version is fixed by the SHA in the workflow, not here, so a Dependabot bump needs no change.
+#
+# One `owner/repo` per line, sorted. test/architecture holds this file to .github/workflows: every
+# third-party repository a workflow uses is listed, and every entry is used. An action that only
+# another listed action runs inside itself is marked `# nested in <owner/repo>` with its parent.
+#
+# A new entry is a new third-party dependency, so it is the owner's word (AGENTS.md), and it goes
+# into the repository setting as well - the `actions-allowed` job in ci.yml turns red until it is.
+anchore/sbom-action
+aquasecurity/setup-trivy  # nested in aquasecurity/trivy-action
+aquasecurity/trivy-action
+docker/build-push-action
+docker/login-action
+docker/setup-buildx-action
+docker/setup-qemu-action
+dorny/paths-filter
+gitleaks/gitleaks-action
+helm/kind-action
+sigstore/cosign-installer
+softprops/action-gh-release
