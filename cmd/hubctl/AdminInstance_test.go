@@ -64,6 +64,21 @@ func TestTheSettingsTableShowsTheWholeLevelDecidedOrNot(t *testing.T) {
 	}
 }
 
+// A count is printed as the number it is. The value arrives through JSON as a float64, which `%v`
+// prints in exponent form from a million up: an attachment limit of ten gigabytes read
+// `1.073741824e+10`, a number nobody can type back.
+func TestALargeCountIsPrintedInDigits(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"quotas": {"media_bytes": {"set": true, "value": 10737418240, "locked": false, "kind": "COUNT"}}, "source": "database"}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "show")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "10737418240") || strings.Contains(out, "e+") {
+		t.Errorf("the count is not in digits: %q", out)
+	}
+}
+
 // `set` changes one key and sends the rest back untouched, because `PUT` replaces the level. A
 // terminal that made somebody retype twenty-two switches to change one is a terminal nobody uses.
 func TestSettingOneKeySendsTheRestBack(t *testing.T) {
