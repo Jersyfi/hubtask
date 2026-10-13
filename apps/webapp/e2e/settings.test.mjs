@@ -277,7 +277,14 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/profile/security`);
-  await walkSetup(page, sent);
+  await walkSetup(page, sent, {
+    // design-system.md's narrowest width: the secret and the code field fit it, and nothing - the
+    // bottom bar included - is pushed past it.
+    atSecret: async () => {
+      const wide = await page.evaluate(() => document.documentElement.scrollWidth);
+      assert.ok(wide <= 375, `the setup is ${wide} px wide at 375 px`);
+    },
+  });
   assert.deepEqual(sent.enroll, {}, 'a signed-in setup presents no pending credential');
   assert.equal(sent.confirm?.pending_token, undefined);
 
