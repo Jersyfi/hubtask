@@ -230,6 +230,27 @@ func TestACreationIsRefusedBeforeAnythingIsWritten(t *testing.T) {
 	}
 }
 
+// The managed account's role is placed through the grant's own ceiling (domain-model.md §3.2): an
+// administrator does not make an owner this way either, and no account is left behind.
+func TestAManagedAccountIsNotPlacedAboveItsCreatorsRole(t *testing.T) {
+	f := newManagedFixture(t)
+	f.authorizer.refuseGrant = shared.ErrForbidden.WithDetail("access.role_above_own")
+	in := lenaInput()
+	in["role"], in["scope_type"] = "OWNER", "TENANT"
+	delete(in, "scope_id")
+
+	_, err := f.create(t, admin(), in)
+	if got := detailOf(err); got != "access.role_above_own" {
+		t.Fatalf("answered %q (%v), want access.role_above_own", got, err)
+	}
+	if len(f.authorizer.requests) != 2 || f.authorizer.requests[1].Grants != domain.RoleOwner {
+		t.Errorf("the grant was asked as %+v, want it to name OWNER", f.authorizer.requests)
+	}
+	if len(f.accounts.inserted) != 0 || len(f.grants.granted) != 0 {
+		t.Error("something was written")
+	}
+}
+
 // The creation asks the workspace's permission first and the grant's at its scope: an administrator
 // of one hub only is refused at the first.
 func TestTheCreationAsksTheWorkspaceAndTheScope(t *testing.T) {

@@ -87,6 +87,40 @@ func TestACaseNobodyCouldAnswerIsRefused(t *testing.T) {
 	}
 }
 
+// An erasure is carried out by each workspace's owner, who owns the work it destroys (UC-PRV-06,
+// *Where it ends*); a case that asks for one across the installation is refused when it is
+// recorded, rather than started and failed by its own job while its deadline runs. Every other
+// kind may still reach across.
+func TestAnInstallationWideErasureIsRefusedWhenRecorded(t *testing.T) {
+	_, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Kind, in.Scope = privacy.KindErasure, privacy.ScopeInstallation
+	}))
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("an installation-wide erasure answered %v, want a validation refusal", err)
+	}
+	var refusal *shared.Error
+	if !errors.As(err, &refusal) || len(refusal.Fields) != 1 ||
+		refusal.Fields[0].Code != privacy.CodeInstallationErasure || refusal.Fields[0].Path != "/scope" {
+		t.Errorf("the refusal names %v, want %s on /scope", err, privacy.CodeInstallationErasure)
+	}
+
+	for _, kind := range privacy.Kinds() {
+		if kind == privacy.KindErasure {
+			continue
+		}
+		if _, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+			in.Kind, in.Scope = kind, privacy.ScopeInstallation
+		})); err != nil {
+			t.Errorf("an installation-wide %s was refused: %v", kind, err)
+		}
+	}
+	if _, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {
+		in.Kind, in.Scope = privacy.KindErasure, privacy.ScopeTenant
+	})); err != nil {
+		t.Errorf("an erasure in this workspace was refused: %v", err)
+	}
+}
+
 // A request from somebody who never got as far as an account is still a request.
 func TestAnAddressIsEnoughOfASubject(t *testing.T) {
 	request, err := privacy.NewRequest(input(func(in *privacy.NewRequestInput) {

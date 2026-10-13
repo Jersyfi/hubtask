@@ -1113,6 +1113,7 @@ class MembershipGrant(TypedDict, total=False):
 class MembershipPage(TypedDict, total=False):
     data: Required[list["Membership"]]
     page: Required["PageInfo"]
+    grantable_roles: Required[list["MembershipRole"]]
 
 class Container(TypedDict, total=False):
     id: Required[str]

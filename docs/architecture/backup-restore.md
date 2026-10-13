@@ -171,8 +171,10 @@ An erasure takes effect at once in the primary system, but last week's archive s
 data:
 
 * **The deletion journal.** Deletions are recorded in `deletion_journal`; a restore reapplies those
-  between the archive and now, and keeps out with them every record that *points at* what they kept
-  out, so no restored row references an object deliberately not created.
+  between the archive and now, and keeps out with them every record whose identity rests on what
+  they kept out (a join row, an attachment), so no restored row references an object deliberately
+  not created. A reference the record merely uses and may lose — an entry's cover image — is
+  cleared instead: the entry comes back without its cover.
 * **Backup retention bounds deletion**: 35 days for the operator's system backups and PITR window
   ([data-protection.md](./data-protection.md) §5). A tenant's own archive backups are the tenant's to
   plan, starting from §6's generation defaults.

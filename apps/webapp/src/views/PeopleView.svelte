@@ -39,7 +39,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { grantableOf, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
@@ -154,8 +154,15 @@
       .filter((role): role is MembershipRole => role !== undefined),
   );
 
+  /**
+   * Of those, the ones the server says this reader may give at the workspace: an administrator is
+   * not offered Owner (UC-ID-14 check 1). With none - or before the answer - the invitation and the
+   * grant are absent, since every press would be refused (P-05).
+   */
+  const grantable = $derived(grantableOf(roles, people.grantableAt(TENANT)));
+
   const roleOptions = $derived(
-    roles.map((role) => ({ value: role, label: t(`app.people.role.${role.toLowerCase()}`) })),
+    grantable.map((role) => ({ value: role, label: t(`app.people.role.${role.toLowerCase()}`) })),
   );
 
   /** Who could be granted something: the people this workspace already knows about. */
@@ -439,6 +446,7 @@
       onCancel={() => (revoking = undefined)}
     />
 
+    {#if grantable.length > 0 || invited || handedOver}
     <Stack gap="150">
       <h2 class="section">{t('app.people.invite_title')}</h2>
       <!-- What the press will do, said before it: a mail, or - where no mail goes out - a link to
@@ -468,6 +476,7 @@
           />
         </div>
       {/if}
+      {#if grantable.length > 0}
       <form class="panel" onsubmit={invite}>
         <Stack gap="150">
           <Input
@@ -503,12 +512,15 @@
           </div>
         </Stack>
       </form>
+      {/if}
     </Stack>
-
-    {#if managedAllowed}
-      <ManagedAccountForm {roleOptions} />
     {/if}
 
+    {#if managedAllowed && grantable.length > 0}
+      <ManagedAccountForm {roles} workspaceRoles={grantable} />
+    {/if}
+
+    {#if grantable.length > 0}
     <Stack gap="150">
       <h2 class="section">{t('app.people.grant_title')}</h2>
       <p class="quiet small">{t('app.people.grant_hint')}</p>
@@ -535,6 +547,7 @@
         </Button>
       </div>
     </Stack>
+    {/if}
     </Stack>
 </Stack>
 

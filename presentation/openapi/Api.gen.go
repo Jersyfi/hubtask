@@ -5823,7 +5823,9 @@ type DataSubjectRequest struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope  *DataSubjectRequestScope `json:"scope,omitempty"`
 	Status DataSubjectRequestStatus `json:"status"`
 
@@ -5852,7 +5854,9 @@ type DataSubjectRequestCreate struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope            *DataSubjectRequestScope `json:"scope,omitempty"`
 	SubjectAccountId *openapi_types.UUID      `json:"subject_account_id,omitempty"`
 	SubjectEmail     *openapi_types.Email     `json:"subject_email,omitempty"`
@@ -5885,7 +5889,9 @@ type DataSubjectRequestKind string
 // for their own workspace means. `INSTALLATION` is every workspace of this installation in
 // which the person is a member - the one operation in this system that legitimately crosses
 // the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-// it touches, and is the provider's path rather than a tenant's.
+// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+// installation-wide: each workspace's owner carries it out, and the case is refused with
+// `privacy.installation_erasure_refused`.
 type DataSubjectRequestScope string
 
 // DataSubjectRequestStatus defines model for DataSubjectRequestStatus.
@@ -6315,7 +6321,7 @@ type IdentityProviderScope string
 
 // IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
 type IdentityProviderConfiguration struct {
-	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.
+	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list. A personal account comes in only by invitation: the directory of personal Microsoft accounts (`9188040d-6c67-4c5b-b112-36a304b66dad`) is refused here under `DOMAINS` and `ANY` (`identity_provider.directory_personal`), and only narrows under `INVITED_ONLY`.
 	// **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.
 	AllowedDirectories *[]string `json:"allowed_directories,omitempty"`
 
@@ -6374,7 +6380,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation. A preset that is public only at some of its issuers is not marked public: Microsoft's `consumers` and `common` issuers, and the personal-account directory's own, are refused `ANY` when configured (`identity_provider.provisioning_personal`), so `provisioning` may list a mode such an issuer refuses.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.
@@ -7242,7 +7248,13 @@ type MembershipGrant struct {
 // MembershipPage defines model for MembershipPage.
 type MembershipPage struct {
 	Data []Membership `json:"data"`
-	Page PageInfo     `json:"page"`
+
+	// GrantableRoles The roles the caller may grant at this scope, strongest first: those at or below the
+	// strongest role they hold along it, where they may manage members there. Empty where
+	// every grant here would be refused, a token without `members:write` included. A client
+	// offers exactly these.
+	GrantableRoles []MembershipRole `json:"grantable_roles"`
+	Page           PageInfo         `json:"page"`
 }
 
 // MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and
@@ -7257,7 +7269,7 @@ type MembershipScope string
 
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
-	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; and with every step a password reset answers - the person arrived from the link in the mail. Absent after a password sign-in, whose first step the address was typed into.
+	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; with the first step a provider's return or a connect link from the mail answers, for the same reason; and with every step a password reset answers - the person arrived from the link in the mail. A later step of the same sign-in may carry none: the card keeps the name it already shows. Absent after a password sign-in, whose first step the address was typed into.
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 

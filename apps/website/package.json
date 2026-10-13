@@ -5,6 +5,9 @@
   "type": "module",
   "description": "The Hubtask project website (hubtask.eu). Deployed as static files, never embedded.",
   "license": "Apache-2.0",
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "scripts": {
     "dev": "vite dev",
     "build": "vite build && node build/check-static.js",
@@ -19,8 +22,8 @@
     "@hubtask/design-system": "workspace:*"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.10",
-    "@sveltejs/kit": "^2.70.3",
+    "@sveltejs/adapter-static": "^4.0.0",
+    "@sveltejs/kit": "^3.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "svelte": "^5.57.2",
     "svelte-check": "^4.7.6",

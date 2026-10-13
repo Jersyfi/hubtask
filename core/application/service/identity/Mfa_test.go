@@ -173,9 +173,19 @@ func (s *pendingStore) Insert(
 
 func (s *pendingStore) FindByToken(_ context.Context, token domain.Token) (repository.PendingLookup, error) {
 	lookup, ok := s.rows[token.Secret()]
-	if !ok {
+	// As the database reads it: a newcomer's row has no account to join, so this read misses it.
+	if !ok || lookup.Credential.Arrival != nil {
 		return repository.PendingLookup{}, shared.ErrNotFound.WithDetail("auth.mfa_challenge_failed")
 	}
+	return lookup, nil
+}
+
+func (s *pendingStore) FindArrivalByToken(_ context.Context, token domain.Token) (repository.PendingLookup, error) {
+	lookup, ok := s.rows[token.Secret()]
+	if !ok || lookup.Credential.Arrival == nil {
+		return repository.PendingLookup{}, shared.ErrNotFound.WithDetail("auth.mfa_challenge_failed")
+	}
+	lookup.Account = domain.Account{}
 	return lookup, nil
 }
 

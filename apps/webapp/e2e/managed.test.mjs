@@ -86,8 +86,10 @@ test('People offers an account without an address where the rule allows it, and 
     const form = page.locator('form').filter({ has: page.getByLabel('Sign-in name') });
     await form.getByLabel('Sign-in name').fill('Lena');
     await form.getByRole('textbox', { name: /^Name/ }).fill('Lena');
-    await form.getByLabel('Role').selectOption('OWNER');
+    // The place first: the roles offered are the ones the reader may give there.
     await form.getByLabel('Where').selectOption(HUB.id);
+    await form.getByLabel('Role').locator('option[value="OWNER"]').waitFor({ state: 'attached' });
+    await form.getByLabel('Role').selectOption('OWNER');
     await form.getByRole('button', { name: 'Add', exact: true }).click();
 
     await page.getByText('Start password for lena').waitFor();

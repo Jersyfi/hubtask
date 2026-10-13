@@ -125,12 +125,17 @@ func (s *accountStore) UpdatePreferences(_ context.Context, account domain.Accou
 var _ repository.Accounts = (*accountStore)(nil)
 
 type authorizer struct {
-	refuse   error
-	requests []access.Request
+	refuse error
+	// refuseGrant answers only a request that hands out a role, as the authoriser's ceiling does.
+	refuseGrant error
+	requests    []access.Request
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
+	if request.Grants != "" && a.refuseGrant != nil {
+		return a.refuseGrant
+	}
 	return a.refuse
 }
 

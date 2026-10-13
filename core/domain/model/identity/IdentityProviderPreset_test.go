@@ -114,7 +114,7 @@ func TestWhatAPresetPermitsAsProvisioning(t *testing.T) {
 	if err != nil {
 		t.Fatalf("INVITED_ONLY was refused on a self-hosted issuer: %v", err)
 	}
-	if invitedOnly.MayProvision() {
+	if invitedOnly.MayProvision(Arriving{}) {
 		t.Error("an INVITED_ONLY provider may create accounts")
 	}
 
@@ -184,7 +184,7 @@ func TestWhoEachModeAdmits(t *testing.T) {
 			if got := c.provider.MayClaim(Arriving{Email: c.email, EmailVerified: c.verified, AddressAuthoritative: c.verified}); got != c.admitted {
 				t.Errorf("MayClaim = %v, want %v", got, c.admitted)
 			}
-			if got := c.provider.MayProvision(); got != c.mayProvision {
+			if got := c.provider.MayProvision(Arriving{}); got != c.mayProvision {
 				t.Errorf("MayProvision = %v, want %v", got, c.mayProvision)
 			}
 		})
@@ -236,7 +236,7 @@ func TestAnUnknownModeAdmitsNobody(t *testing.T) {
 	if provider.MayAdmit(Arriving{Email: "ada@example.org", EmailVerified: true, AddressAuthoritative: true}) {
 		t.Error("a mode this build does not know admitted an address")
 	}
-	if provider.MayProvision() {
+	if provider.MayProvision(Arriving{}) {
 		t.Error("a mode this build does not know provisioned an account")
 	}
 }

@@ -317,7 +317,12 @@ func (c *RestController) ListMemberships(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	page := openapi.MembershipPage{Data: []openapi.Membership{}, Page: pageResponse(out)}
+	page := openapi.MembershipPage{
+		Data: []openapi.Membership{}, Page: pageResponse(out), GrantableRoles: []openapi.MembershipRole{},
+	}
+	for _, role := range stringsOf(out["grantable_roles"]) {
+		page.GrantableRoles = append(page.GrantableRoles, openapi.MembershipRole(role))
+	}
 	for _, row := range rowsOf(out) {
 		page.Data = append(page.Data, membershipResponse(row))
 	}

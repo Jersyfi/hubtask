@@ -67,7 +67,7 @@ password opens anyway, is §17.
 |---|---|
 | The password switch is honoured everywhere | Where the resolved methods leave the password out, every password door refuses — sign-in, the reset's request and completion, pending steps ending in a session through a password — alike for every address, stored passwords kept. The fallback of §17 is one exception; the other is a sign-in name (an identifier without `@`, UC-ID-20): its sign-in, its `PASSWORD_CHANGE` step and its step-up stay open under the workspace's password and factor rules, while an address is refused before any lookup and an account found by name that also holds an address is refused once the password has been proved. |
 | Before the password is switched off | The switch shows how many people never signed in through a provider (`GET /tenant/accounts-without-provider`; connected, invited and service accounts not counted). |
-| The last way in cannot be switched off | Refused with `identity_provider.last_way_in`. |
+| The last way in cannot be switched off | Refused with `identity_provider.last_way_in`. Whether the password is still a way in is read from the resolved methods (§18), not the workspace's own setting. |
 | The client follows the rules | `GET /auth/sign-in-rules` (§5.4) names the methods and providers; the card offers exactly those. |
 
 ### 4.2 The steps
@@ -97,6 +97,14 @@ the step owed; the client draws exactly the step the server names.
   that changed while the step was open are refused (`auth.terms_changed`) without spending it.
   Declining sends nothing: no session, and the card names whom to ask. Persons only; a refresh, an
   elevation and a token are no sign-in, and the setup signs its owner in without the step.
+* **A newcomer through a provider agrees before the account exists.** Where terms are in force, an
+  arrival the provider may make an account for (§10.4) is not made one at the callback: the TERMS
+  credential carries the arrival instead - the provider, the subject, the address, name and directory
+  it vouched for - and names the address on the card. Agreeing admits the arrival again against the
+  provider as it is then, makes the account, connects the provider, gives the newcomer's access,
+  stores the agreement and opens the provider's session, in one transaction; an address taken
+  meanwhile is refused (`identity_provider.account_taken`). A second agreement of the same arrival
+  signs in the account the first made. Declining, or letting the step run out, leaves no account.
 
 ### 4.3 Refusals and attempts
 
@@ -208,6 +216,7 @@ the password's shape), one place the history is written.
 | Rule | Detail |
 |---|---|
 | One answer for every address | `POST /auth/password:forgot` answers the same `202` byte for byte, with or without an account, whatever mail is sent. |
+| The same work for every address | Every request makes one read-only lookup and queues one request job (`identity.password_reset_request`) naming the account or nobody; the job records `auth.password_reset_requested` at the request's moment and queues the mail where the account is active. The time a request takes is no answer either (T-02) — up to the lookup itself, an index hit against a miss. |
 | The token | An `auth_pending` row, purpose `RESET`: 32 bytes, hashed under its purpose label, thirty minutes, single use; a new link, or a change of password or address, spends the earlier ones. |
 | The mail | Its own job from message codes, not a notification (no preference applies); an unreachable mail server never fails the request. |
 | The second factor still stands | `POST /auth/password:reset` sets the password and ends every session; where a factor is on it answers the `202` asking for it, the pair only after the code. |
@@ -280,7 +289,7 @@ rows every workspace reads and none writes. An installation provider is **offere
 
 | Preset | Directory claim | Authoritative for an address when | Mode allowed |
 |---|---|---|---|
-| `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any |
+| `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any, but never `ANY` on an issuer that serves personal accounts (`/consumers`, `/common`, the personal-account directory's own), and never that directory listed under `DOMAINS` or `ANY`: a personal account comes in only by invitation |
 | `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` or `DOMAINS`, never `ANY` (a public issuer: a personal account carries no `hd` and comes in only by invitation) |
 | `GENERIC` | none | never — a self-hosted issuer included | any; at installation level `INVITED_ONLY` only |
 
@@ -311,7 +320,8 @@ An unverified address comes in nowhere. Then:
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
-  group of it — given in the transaction that creates the account, recorded as a grant. Only a
+  group of it — given in the transaction that creates the account, recorded as a grant. Where terms
+  of use are in force that transaction is the agreement's, not the arrival's (§4.2). Only a
   workspace's own provider under `DOMAINS` or `ANY` names it; never `OWNER`, directly or through a
   group, which is checked when it is saved and again on arrival (a group gone or holding `OWNER` by
   then gives nothing). A person holding no membership anywhere is told an administrator still has
@@ -319,6 +329,11 @@ An unverified address comes in nowhere. Then:
 * A mode a build does not know admits nobody.
 * Microsoft's personal-account directory is `9188040d-6c67-4c5b-b112-36a304b66dad`; a company's is
   its tenant GUID. Google directories are Workspace domains as `hd` answers them.
+* **A personal account is admitted only by invitation** (UC-ID-09 check 1): configuration refuses
+  what §10.3 rules out (`identity_provider.directory_personal`,
+  `identity_provider.provisioning_personal`), and a row stored before reads an arrival from the
+  personal-account directory under `DOMAINS` or `ANY` as under `INVITED_ONLY`, its list narrowing
+  it — so it creates nobody, and the identities already connected through it keep working.
 
 ### 10.5 What a provider asks for
 

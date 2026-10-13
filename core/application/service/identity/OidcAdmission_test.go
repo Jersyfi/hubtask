@@ -126,3 +126,57 @@ func TestTheRelyingConfigCarriesThePresetsAuthority(t *testing.T) {
 		t.Errorf("a generic row is configured with %+v", cfg.Authority)
 	}
 }
+
+// A provider stored before configuration refused it - Microsoft's personal-account endpoint under
+// ANY, or the personal directory listed under DOMAINS - gives a personal account nothing on
+// arrival: it is told it was not invited, and nothing is created (UC-ID-09 check 1). A company
+// account through the same row is provisioned as before.
+func TestAStoredRowGivesAPersonalMicrosoftAccountNothingOnArrival(t *testing.T) {
+	const personal = "9188040d-6c67-4c5b-b112-36a304b66dad"
+	const company = "72f988bf-86f1-41af-91ab-2d7cd011db47"
+	cases := []struct {
+		name        string
+		issuer      string
+		mode        domain.Provisioning
+		directories []string
+		directory   string
+		provisioned bool
+	}{
+		{"ANY on the personal-account endpoint, a personal account",
+			"https://login.microsoftonline.com/consumers/v2.0", domain.ProvisionAny, nil, personal, false},
+		{"DOMAINS listing the personal directory, a personal account",
+			"https://login.microsoftonline.com/common/v2.0", domain.ProvisionDomains, []string{company, personal}, personal, false},
+		{"DOMAINS listing the personal directory, a company account",
+			"https://login.microsoftonline.com/common/v2.0", domain.ProvisionDomains, []string{company, personal}, company, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newOidcFixture(t, now)
+			// Written onto the stored row, as a row from before the refusal is read back.
+			row := &f.store.rows[0]
+			row.Kind, row.Issuer, row.Provisioning = domain.KindMicrosoft, tc.issuer, tc.mode
+			row.AllowedDirectories, row.AllowedEmailDomains = tc.directories, nil
+			f.relying.identity = provider.Identity{
+				Subject: "subject-grace", Email: "grace@outlook.example", EmailVerified: true,
+				Directory: tc.directory, AddressAuthoritative: true, DisplayName: "Grace",
+			}
+			before := len(f.accounts.byID)
+
+			_, err := CompleteOidcSignIn{Writer: f.writer}.
+				Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+
+			if tc.provisioned {
+				if err != nil || len(f.accounts.byID) != before+1 {
+					t.Fatalf("a company account was not provisioned: %v", err)
+				}
+				return
+			}
+			if shared.AsError(err).DetailCode != "identity_provider.not_invited" {
+				t.Fatalf("a personal account was answered %v, want identity_provider.not_invited", err)
+			}
+			if len(f.accounts.byID) != before || len(f.external.links) != 0 {
+				t.Errorf("a personal account was given an account or a link")
+			}
+		})
+	}
+}

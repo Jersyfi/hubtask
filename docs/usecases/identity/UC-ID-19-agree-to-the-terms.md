@@ -7,7 +7,7 @@ deployments: [D4, D5, D6]
 serves: [P-02, P-11, P-12]
 state: built
 tasks: [SC-10]
-checked_by: [core/domain/model/identity/Terms_test.go, core/application/service/identity/TermsStep_test.go, core/application/service/identity/TermsSites_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/TermsSettings_test.go, test/integration/terms_flow_test.go, test/integration/terms_agreement_test.go, apps/webapp/e2e/terms.test.mjs, cmd/hubctl/LoginTerms_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md]
+checked_by: [core/domain/model/identity/Terms_test.go, core/application/service/identity/TermsStep_test.go, core/application/service/identity/TermsSites_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/TermsNewcomer_test.go, test/integration/newcomer_terms_test.go, core/application/service/identity/TermsSettings_test.go, test/integration/terms_flow_test.go, test/integration/terms_agreement_test.go, apps/webapp/e2e/terms.test.mjs, cmd/hubctl/LoginTerms_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md]
 ---
 
 # Agree to the terms, and again when they change

@@ -6,7 +6,7 @@
   import '@hubtask/design-system/tokens.css';
   import '../site.css';
   import { Icon } from '@hubtask/design-system/components';
-  import Mark from '$lib/Mark.svelte';
+  import Mark from '#lib/Mark.svelte';
 
   let { children } = $props();
 

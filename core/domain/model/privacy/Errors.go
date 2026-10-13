@@ -32,6 +32,9 @@ const (
 	CodeConsentOwnOnly          = "privacy.consent_own_only"
 	CodeSubjectNotFound         = "privacy.subject_not_found"
 	CodeInstallationScopeDenied = "privacy.installation_scope_denied"
+	// CodeInstallationErasure is an erasure asked for across the installation: an erasure is
+	// carried out by each workspace's owner, who owns the work it destroys (UC-PRV-06).
+	CodeInstallationErasure = "privacy.installation_erasure_refused"
 	// CodeErasureBlockedByRule is the refusal PG-2 asked for: the person still runs automation,
 	// and a rule that acts as somebody must not start acting as nobody. The operator re-points or
 	// removes the rules, and the case is carried out afterwards.

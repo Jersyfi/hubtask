@@ -42,9 +42,10 @@ func LegalLinkNames() []LegalLink {
 	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkAccessibility}
 }
 
-// LegalSettingNames is the four links and the terms' version: everything a level sets about them.
+// LegalSettingNames is the four links and the terms' version: everything a level sets about them,
+// in the order a form draws them - the version right after the link it belongs to.
 func LegalSettingNames() []LegalLink {
-	return append(LegalLinkNames(), LinkTermsVersion)
+	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkTermsVersion, LinkAccessibility}
 }
 
 // MaxLegalURLLength bounds a stored link. Long enough for any real address, short enough that the

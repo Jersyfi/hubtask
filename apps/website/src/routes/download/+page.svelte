@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  import Proof from '$lib/Proof.svelte';
+  import Proof from '#lib/Proof.svelte';
   const repo = 'https://github.com/Jersyfi/hubtask';
 </script>
 

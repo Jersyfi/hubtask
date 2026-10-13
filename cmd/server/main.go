@@ -1467,7 +1467,7 @@ func run() error {
 		}.Descriptor(),
 		identity.ListMemberships{
 			Grants: grants, Containers: containers, Items: items,
-			Authorizer: authorizer, Permits: authorizer, UnitOfWork: unitOfWork,
+			Authorizer: authorizer, Permits: authorizer, Grantable: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		identity.GrantMembership{
 			Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
@@ -1637,7 +1637,7 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
-		identity.AgreeToTerms{Writer: sessionWriter}.Descriptor(),
+		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
@@ -3125,13 +3125,16 @@ func run() error {
 	}
 
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:             reminderFiring,
-		queueport.KindRecurrenceMaterialize:    recurrenceMaterialisation,
-		queueport.KindOutboxDispatch:           dispatcher,
-		queueport.KindRetentionSweep:           retention,
-		queueport.KindMediaReconcile:           mediaReconciliation,
-		queueport.KindInvitationEmail:          invitationMessage,
-		queueport.KindPasswordResetEmail:       passwordResetMessage,
+		queueport.KindReminderFire:          reminderFiring,
+		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
+		queueport.KindOutboxDispatch:        dispatcher,
+		queueport.KindRetentionSweep:        retention,
+		queueport.KindMediaReconcile:        mediaReconciliation,
+		queueport.KindInvitationEmail:       invitationMessage,
+		queueport.KindPasswordResetEmail:    passwordResetMessage,
+		queueport.KindPasswordResetRequest: worker.PasswordResetRequest{
+			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
+		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,

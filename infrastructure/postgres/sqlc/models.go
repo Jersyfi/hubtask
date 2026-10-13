@@ -600,6 +600,9 @@ type AuthPending struct {
 	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
+	ArrivalEmail       *string
+	ArrivalDisplayName *string
+	ArrivalDirectory   *string
 }
 
 type AutoAssignPolicy struct {
