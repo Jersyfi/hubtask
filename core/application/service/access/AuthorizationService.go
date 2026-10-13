@@ -531,7 +531,13 @@ func union(paths [][]identity.Scope) []identity.Scope {
 	return scopes
 }
 
-// recordRefusal writes the DENIED entry in a transaction of its own.
+// recordRefusal writes the DENIED entry where it can be stored.
+//
+// Called before the caller's transaction, as Authorize asks, it opens its own. Called from inside a
+// read-only one - a reader that asks the catalogue for its target, and the target's reader refuses -
+// joining would make the insert fail, so a unit of work that can write beside the read does
+// (persistence.Writable). Inside a read-write transaction it joins, and the entry shares that
+// transaction's fate: Authorize's rule about being called first is what keeps it.
 //
 // A failed write does not turn into a different answer for the client - the refusal stands either
 // way - but it is an error rather than a warning: the trail is evidence, and a gap in it is an
@@ -561,7 +567,11 @@ func (s Service) recordRefusal(ctx context.Context, actor appshared.ActorContext
 		Changes:    audit.Changes(changes...),
 	}
 
-	err := s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	within := s.UnitOfWork.Within
+	if writable, ok := s.UnitOfWork.(persistence.Writable); ok {
+		within = writable.WithinWritable
+	}
+	err := within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return s.Audit.Append(ctx, entry)
 	})
 	if err != nil {
