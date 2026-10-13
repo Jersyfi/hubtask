@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  import Markdown from '$lib/api/Markdown.svelte';
-  import { contractUrl, reference } from '$lib/api/document.ts';
+  import Markdown from '#lib/api/Markdown.svelte';
+  import { contractUrl, reference } from '#lib/api/document.ts';
 </script>
 
 <svelte:head>
