@@ -2372,7 +2372,6 @@
   "app.workspace.unarchived_announced": "{name} is active again.",
   "app.import.open": "Import…",
   "app.import.title": "Import from another system",
-  "app.import.deciding": "Working out whether you may create collections here",
   "app.import.step": "Step {number} of {of}: {name}",
   "app.import.step_kind": "Where the file comes from",
   "app.import.step_file": "The file",
