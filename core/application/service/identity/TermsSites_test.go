@@ -214,7 +214,13 @@ func TestAProviderReturnEndsInTheTerms(t *testing.T) {
 			t.Fatalf("%s: %v", arrival, err)
 		}
 		token := mustBeTermsStep(t, arrival, result, len(f.session.sessions.inserted))
-		session := agreeOpens(t, arrival, f.writer.Session, token)
+		// The newcomer is made by the agreement, so the provider's half takes part in it.
+		pair, err := AgreeToTerms{Writer: f.writer.Session, Arrivals: f.writer}.Execute(t.Context(),
+			AgreeToTermsCommand{PendingToken: token, TermsURL: hostTerms, TermsVersion: "3"})
+		if err != nil {
+			t.Fatalf("%s: agreeing: %v", arrival, err)
+		}
+		session := pair.Session
 		if session.SignedInWith != domain.SignedInWithOidc || session.SignedInVia != f.provider.ID {
 			t.Errorf("%s: the session was opened by %q via %q, want the provider's", arrival,
 				session.SignedInWith, session.SignedInVia)

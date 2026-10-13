@@ -1633,7 +1633,7 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
-		identity.AgreeToTerms{Writer: sessionWriter}.Descriptor(),
+		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
 		identity.ListAccessTokens{Writer: accessTokenWriter}.Descriptor(),
