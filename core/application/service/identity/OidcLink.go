@@ -180,13 +180,10 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := s.openSessionWithHint(ctx, scope, token.TenantID(), account,
-		credential.UserAgent, credential.IPClass, OidcSignedInAction,
-		bounds, domain.SignedInWithOidc, credential.Link.ProviderID)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	return s.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: credential.UserAgent, IPClass: credential.IPClass,
+		Method: domain.SignedInWithOidc, Via: credential.Link.ProviderID,
+	}, bounds)
 }
 
 // handOnToTheFactor mints the TOTP credential that carries the link on to the second factor's step.

@@ -50,9 +50,14 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	}
 
 	legal := usecase.Output{}
-	for _, link := range identity.LegalLinkNames() {
+	for _, link := range identity.LegalSettingNames() {
 		value := level.Legal.Links.Of(link)
-		place(legal, string(link), entryOf(identity.DeclarationOfLink(link), value != "", value, level.Legal.Locks[link]))
+		locked := level.Legal.Locks[link]
+		if link == identity.LinkTermsVersion {
+			// The version is locked exactly when its link is.
+			locked = level.Legal.Locks[identity.LinkTerms]
+		}
+		place(legal, string(link), entryOf(identity.DeclarationOfLink(link), value != "", value, locked))
 	}
 
 	localisation := usecase.Output{}
@@ -241,7 +246,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			return nil
 		}},
 		{areaLegal, func(name string) (identity.ValueDeclaration, bool) {
-			for _, link := range identity.LegalLinkNames() {
+			for _, link := range identity.LegalSettingNames() {
 				if string(link) == name {
 					return identity.DeclarationOfLink(link), true
 				}
@@ -254,7 +259,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 				return atField(err, areaLegal, name)
 			}
 			level.Legal.Links = level.Legal.Links.With(link, checked)
-			if locked {
+			if locked && link != identity.LinkTermsVersion {
 				level.Legal.Locks[link] = true
 			}
 			return nil
@@ -325,6 +330,14 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		}
 	}
 
+	// The terms' version belongs to the terms link: never beside none, and locked exactly when it is.
+	if level.Legal.Links.TermsVersion != "" && level.Legal.Links.TermsURL == "" {
+		return identityrepo.InstanceLevel{}, atField(identity.TermsVersionWithoutLink(), areaLegal, string(identity.LinkTermsVersion))
+	}
+	if level.Legal.Locks[identity.LinkTerms] {
+		level.Legal.Locks[identity.LinkTermsVersion] = true
+	}
+
 	level.BlocklistFile = in.String("blocklist_file")
 	return level, nil
 }
@@ -383,7 +396,7 @@ func valueOfKind(area, name string, declaration identity.ValueDeclaration, raw a
 			words = append(words, word)
 		}
 		return words, true, nil
-	case identity.KindLink, identity.KindLocale, identity.KindTimeZone:
+	case identity.KindLink, identity.KindText, identity.KindLocale, identity.KindTimeZone:
 		word, isWord := raw.(string)
 		if !isWord {
 			return nil, false, refused

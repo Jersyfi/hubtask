@@ -33,6 +33,7 @@ const (
 	sessionRefreshPath  = "/auth/sessions:refresh"
 	sessionVerifyPath   = "/auth/sessions:verify"
 	sessionChangePath   = "/auth/sessions:set-password"
+	sessionTermsPath    = "/auth/sessions:agree-terms"
 	sessionRevokePrefix = "/auth/sessions/"
 )
 
@@ -40,7 +41,7 @@ func loginGroup() group {
 	return group{
 		name:    "login",
 		summary: "sign in as a person, with a password and - where one is armed - a code",
-		usage:   "--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery]",
+		usage:   "--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery] [--agree-terms]",
 		run:     signIn,
 	}
 }
@@ -53,7 +54,7 @@ func loginGroup() group {
 // access token nearly out buys the next pair before it calls anything.
 func signIn(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "login", "",
-		"--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery]")
+		"--url <address> (--email <address> | --sign-in-name <name>) [--tenant <workspace>] [--recovery] [--agree-terms]")
 	address := flags.String("url", cli.Profile.BaseURL, "the installation to sign in to")
 	email := flags.String("email", "", "the address the account signs in with")
 	name := flags.String("sign-in-name", "", "the sign-in name an account without an address signs in with")
@@ -61,9 +62,12 @@ func signIn(ctx context.Context, cli *CLI, args []string) error {
 		"the workspace, in an installation that runs more than one")
 	recovery := flags.Bool("recovery", false,
 		"answer the second step with one of the ten recovery codes instead of the authenticator's")
+	agreeTerms := flags.Bool("agree-terms", false,
+		"agree to the terms of use in force without being asked, where the sign-in asks for them")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
+	cli.agreeTerms = *agreeTerms
 	if *address == "" {
 		return usagef("say which installation to sign in to: --url https://hub.example.com")
 	}
@@ -126,12 +130,9 @@ func (cli *CLI) secondStep(
 		return fmt.Errorf("the installation owed a second step in a shape this client cannot read: %w", err)
 	}
 
-	if offers(challenge, openapi.MfaChallengeMethodsPASSWORDCHANGE) {
-		return cli.changeOwed(ctx, client, baseURL, tenant, challenge)
-	}
 	if !offers(challenge, openapi.MfaChallengeMethodsTOTP) &&
 		!offers(challenge, openapi.MfaChallengeMethodsRECOVERY) {
-		return cli.enrolmentOwed(baseURL, tenant, challenge)
+		return cli.owedStep(ctx, client, baseURL, tenant, challenge)
 	}
 
 	completion := openapi.SignInCompletion{PendingToken: challenge.PendingToken}
@@ -154,12 +155,8 @@ func (cli *CLI) secondStep(
 		return err
 	}
 	if verifiedStatus == http.StatusAccepted {
-		// The code was right, and the password the sign-in began with still owes the change.
-		var owed openapi.MfaChallenge
-		if err := json.Unmarshal(verified, &owed); err != nil {
-			return fmt.Errorf("the installation owed a further step in a shape this client cannot read: %w", err)
-		}
-		return cli.changeOwed(ctx, client, baseURL, tenant, owed)
+		// The code was right, and the sign-in still owes the change of its password or the terms.
+		return cli.furtherStep(ctx, client, baseURL, tenant, verified)
 	}
 	tokens, err := readSessionTokens(verified)
 	if err != nil {
@@ -190,13 +187,83 @@ func (cli *CLI) changeOwed(
 	if chosen != again {
 		return errors.New("the two new passwords differ; nothing was sent - sign in again")
 	}
-	_, changed, err := client.PostStatus(ctx, sessionChangePath, openapi.SignInPasswordChange{
+	status, changed, err := client.PostStatus(ctx, sessionChangePath, openapi.SignInPasswordChange{
 		PendingToken: challenge.PendingToken, Password: chosen,
 	})
 	if err != nil {
 		return err
 	}
+	if status == http.StatusAccepted {
+		// Set; the terms of use in force are still to be agreed to.
+		return cli.furtherStep(ctx, client, baseURL, tenant, changed)
+	}
 	tokens, err := readSessionTokens(changed)
+	if err != nil {
+		return err
+	}
+	return cli.holdSession(baseURL, tenant, tokens)
+}
+
+// owedStep answers a step that is not a code: the change of the password, the terms of use, or an
+// enrolment - the one a sign-in cannot finish here.
+func (cli *CLI) owedStep(
+	ctx context.Context, client *Client, baseURL, tenant string, challenge openapi.MfaChallenge,
+) error {
+	switch {
+	case offers(challenge, openapi.MfaChallengeMethodsTERMS):
+		return cli.termsOwed(ctx, client, baseURL, tenant, challenge)
+	case offers(challenge, openapi.MfaChallengeMethodsPASSWORDCHANGE):
+		return cli.changeOwed(ctx, client, baseURL, tenant, challenge)
+	}
+	return cli.enrolmentOwed(baseURL, tenant, challenge)
+}
+
+// furtherStep reads the step a completed step still owes and answers it.
+func (cli *CLI) furtherStep(ctx context.Context, client *Client, baseURL, tenant string, answer []byte) error {
+	var owed openapi.MfaChallenge
+	if err := json.Unmarshal(answer, &owed); err != nil {
+		return fmt.Errorf("the installation owed a further step in a shape this client cannot read: %w", err)
+	}
+	return cli.owedStep(ctx, client, baseURL, tenant, owed)
+}
+
+// termsOwed answers the TERMS step (UC-ID-19): the terms of use in force, which this account has not
+// agreed to, are shown by their link and version, and the session opens only once agreed. Declining
+// sends nothing - the pending credential dies on its own within minutes - and says whom to ask.
+func (cli *CLI) termsOwed(
+	ctx context.Context, client *Client, baseURL, tenant string, challenge openapi.MfaChallenge,
+) error {
+	terms := challenge.Terms
+	if terms == nil {
+		return errors.New("the installation asked to agree to terms of use it did not name; sign in again")
+	}
+	version := ""
+	if terms.Version != nil && *terms.Version != "" {
+		version = " (version " + *terms.Version + ")"
+	}
+	printf(cli.Err, "the terms of use have to be agreed to before the sign-in finishes:\n  %s%s\n",
+		terms.Url, version)
+	if !cli.agreeTerms {
+		answer, err := cli.readCredential("", "Type yes to agree to these terms: ")
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(answer, "yes") {
+			whom := "whoever runs this installation"
+			if terms.SetBy == openapi.TermsInForceSetByWORKSPACE {
+				whom = "this workspace's administrators"
+			}
+			return errors.New("the terms of use were not agreed to, so nobody is signed in; " +
+				"questions about them go to " + whom)
+		}
+	}
+	_, agreed, err := client.PostStatus(ctx, sessionTermsPath, openapi.TermsAgreement{
+		PendingToken: challenge.PendingToken, TermsUrl: terms.Url, TermsVersion: terms.Version,
+	})
+	if err != nil {
+		return err
+	}
+	tokens, err := readSessionTokens(agreed)
 	if err != nil {
 		return err
 	}

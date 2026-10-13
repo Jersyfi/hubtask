@@ -153,7 +153,9 @@
         { value: 'open', label: t(lockOpen) },
         { value: 'locked', label: t(lockClosed) },
       ]}
-      disabledReason={decided ? undefined : t('app.instance.lock_needs_value')}
+      disabledReason={area === 'legal' && key === 'terms_version'
+        ? t('app.instance.locked_with_terms_link')
+        : decided ? undefined : t('app.instance.lock_needs_value')}
       onchange={(event) => {
         if (!current) return;
         onchange({ ...current, locked: (event.currentTarget as HTMLSelectElement).value === 'locked' });

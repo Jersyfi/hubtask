@@ -151,7 +151,7 @@ func TestAManagedAccountSignsInWithItsNameAndChoosesItsPassword(t *testing.T) {
 			PendingToken: secret.New(out.String("pending_token")),
 			Password:     secret.New("seven blue lanterns above the quiet harbour"),
 		})
-	if err != nil || pair.Session.ID.IsZero() {
+	if err != nil || pair.Pair == nil || pair.Pair.Session.ID.IsZero() {
 		t.Fatalf("choosing the password did not sign in: %v", err)
 	}
 }

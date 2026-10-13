@@ -81,6 +81,7 @@ the step owed; the client draws exactly the step the server names.
 | `ENROLL` | The rule requires a factor of this person and they have none | Enrolment and its confirmation (§8) |
 | `PASSWORD_CHANGE` | The password is right but no longer meets the rule (too weak, older than `max_age_days`, set before `rotation_from`) | Setting a new password; confirming it *is* the sign-in (§6) |
 | `LINK` | A provider's first arrival meets an account that already holds a credential | The account's own proof (§11) |
+| `TERMS` | Terms of use are in force (§18) and the account has not agreed to their link and version | Agreeing to the terms the step names, at `/auth/sessions:agree-terms` ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)) |
 
 * The pending credential (`hbt_mfa_…`, an `auth_pending` row with a purpose) only completes its
   step: five minutes (`expires_at` answered), single use, never extended; then the client returns
@@ -88,6 +89,14 @@ the step owed; the client draws exactly the step the server names.
 * Steps chain: a `LINK` continues into `TOTP` where the account has a factor, and a `TOTP` or
   `ENROLL` continues into `PASSWORD_CHANGE` where the password owes the change - the factor first,
   the change after it, never forgotten.
+* `TERMS` is last, after every proof, at every door that ends a sign-in in a session - the password,
+  the second factor, the change, a provider's return, the link step, the connect link, a reset - so
+  it never opens what the proofs would not. Its credential carries the session the sign-in would
+  have opened (method and provider); agreeing opens exactly that one, stores the link, the version
+  and the moment on the account and records `auth.terms_agreed` with the version and the link. Terms
+  that changed while the step was open are refused (`auth.terms_changed`) without spending it.
+  Declining sends nothing: no session, and the card names whom to ask. Persons only; a refresh, an
+  elevation and a token are no sign-in, and the setup signs its owner in without the step.
 
 ### 4.3 Refusals and attempts
 
@@ -366,7 +375,16 @@ safeguard belongs to connecting, not to the provider kind.
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
   link admits even a non-authoritative provider, for that account and the invited address only.
 * Unknown, expired, accepted and foreign invitations are one refusal.
-* Not built: §21 I-5 (terms at the invitation).
+* `POST /auth/invitations:inspect` names the workspace and the invited address for a token that
+  would redeem, before anything is typed; every other token gets that one refusal, and nothing is
+  spent.
+* **Terms at the invitation** ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)):
+  where terms are in force the redemption carries the link and version agreed to on the card and is
+  refused without them (`auth.terms_not_agreed`) or against other terms (`auth.terms_changed`),
+  before the token is looked up; activation and agreement are one transaction. A provider's start
+  carries the agreement beside `invitation_token` on the flow, and the arrival that activates the
+  account stores it; without it the arrival meets `TERMS`. A managed account, which has no
+  invitation, agrees at its first sign-in, after `PASSWORD_CHANGE`.
 
 ---
 
@@ -644,6 +662,12 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   start page have no installation level; language and time zone may be defaulted there, never locked.
 * The legal links (imprint, privacy, terms, accessibility statement) resolve
   `workspace → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line shown.
+* The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
+  terms link: it resolves with it, from the same level and under the same lock, and a level sets
+  one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
+  gives up its own link loses its version with it. Terms are in force where a terms link is; an
+  account has agreed while its stored link and version equal the ones in force, so changing either
+  asks everybody once more at their next sign-in (§4.2).
 
 ---
 
@@ -670,11 +694,11 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 
 * No password, hash, token, secret, recovery code or reset link appears in a log, metric, trace,
   audit entry or error (rule 10, [security.md](./security.md) §4 T-18).
-* Every sign-in, refusal, step-up, credential or provider change, withdrawal, fallback use and
-  operator opening is audited ([audit.md](./audit.md)); every refused sign-in or refresh counts in
-  `hubtask_auth_failures_total{reason}`.
+* Every sign-in, refusal, step-up, credential or provider change, withdrawal, fallback use,
+  operator opening and agreement to the terms of use is audited ([audit.md](./audit.md)); every
+  refused sign-in or refresh counts in `hubtask_auth_failures_total{reason}`.
 * The session's user agent, IP class and method, the reset and invitation tokens, the opening's
-  requester and the provider identities are personal data in the
+  requester, the provider identities and the latest agreement to the terms are personal data in the
   [data catalogue](../privacy/data-catalog.md).
 
 ---
@@ -685,7 +709,6 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 |---|---|
 | I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
-| I-5 | Terms of use with a `TERMS` step ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)). Not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |

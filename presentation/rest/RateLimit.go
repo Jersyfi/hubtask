@@ -284,6 +284,7 @@ func isAuthRoute(r *http.Request) bool {
 	case APIBasePath + "/auth/sessions",
 		APIBasePath + "/auth/sessions:refresh",
 		APIBasePath + "/auth/invitations:redeem",
+		APIBasePath + "/auth/invitations:inspect",
 		// A token in the body, as the invitation's: anonymous, and a write when it lands.
 		APIBasePath + "/auth/address:confirm",
 		APIBasePath + "/auth/installation:set-up",

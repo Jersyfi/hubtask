@@ -196,6 +196,16 @@ class SessionRefresh(TypedDict, total=False):
 class InvitationRedemption(TypedDict, total=False):
     token: Required[str]
     password: Required[str]
+    terms_url: str | None
+    terms_version: str | None
+
+class InvitationInspection(TypedDict, total=False):
+    token: Required[str]
+
+class InvitationSummary(TypedDict, total=False):
+    """What the invitation card names before anything is typed."""
+    workspace_name: Required[str]
+    email: Required[str]
 
 class InstallationSetUp(TypedDict, total=False):
     code: Required[str]
@@ -238,6 +248,8 @@ class OidcStart(TypedDict, total=False):
     login_hint: str | None
     invitation_token: str | None
     connect_token: str | None
+    terms_url: str | None
+    terms_version: str | None
 
 class OidcAuthorization(TypedDict, total=False):
     """Where to send the browser, and the handle to finish with."""
@@ -536,6 +548,7 @@ class LegalPolicySettings(TypedDict, total=False):
     privacy_url: Required["SignInPolicyText"]
     terms_url: Required["SignInPolicyText"]
     accessibility_url: Required["SignInPolicyText"]
+    terms_version: Required["SignInPolicyText"]
 
 class InstallationDefaults(TypedDict, total=False):
     """What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none."""
@@ -575,6 +588,7 @@ class SignInPolicyChange(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    terms_version: str
     managed_accounts: bool
     private_hubs: bool
     rotation_from: Literal["now"]
@@ -706,7 +720,7 @@ class InstanceSetting(TypedDict, total=False):
     set: Required[bool]
     value: Any
     locked: Required[bool]
-    kind: Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "LOCALE", "TIME_ZONE"]
+    kind: Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE"]
     options: list[Any]
     minimum: int
     maximum: int
@@ -779,6 +793,8 @@ class LegalLinks(TypedDict, total=False):
     privacy_url: str
     terms_url: str
     accessibility_url: str
+    terms_version: str
+    terms_set_by: Literal["INSTALLATION", "WORKSPACE"]
 
 class SignInRules(TypedDict, total=False):
     """The least a sign-in screen needs, and deliberately no more."""
@@ -794,10 +810,22 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
     password_rules: "PasswordRules"
     email: str | None
     provider_name: str | None
+    terms: "TermsInForce"
+
+class TermsInForce(TypedDict, total=False):
+    """The terms of use a person is asked to agree to."""
+    url: Required[str]
+    version: str | None
+    set_by: Required[Literal["INSTALLATION", "WORKSPACE"]]
+
+class TermsAgreement(TypedDict, total=False):
+    pending_token: Required[str]
+    terms_url: Required[str]
+    terms_version: str | None
 
 class LinkCompletion(TypedDict, total=False):
     pending_token: Required[str]

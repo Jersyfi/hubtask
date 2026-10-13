@@ -368,6 +368,7 @@ func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 		identity.LinkPrivacy:       &answer.PrivacyUrl,
 		identity.LinkTerms:         &answer.TermsUrl,
 		identity.LinkAccessibility: &answer.AccessibilityUrl,
+		identity.LinkTermsVersion:  &answer.TermsVersion,
 	} {
 		value := links.Of(name)
 		if value == "" {
@@ -378,6 +379,10 @@ func legalLinksResponse(links identity.LegalLinks) *openapi.LegalLinks {
 	}
 	if !held {
 		return nil
+	}
+	if links.TermsSetBy != "" {
+		setBy := openapi.LegalLinksTermsSetBy(links.TermsSetBy)
+		answer.TermsSetBy = &setBy
 	}
 	return &answer
 }

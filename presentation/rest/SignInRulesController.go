@@ -80,8 +80,20 @@ func signInRulesResponse(out usecase.Output) openapi.SignInRules {
 			PrivacyUrl:       optionalTextField(legal["privacy_url"]),
 			TermsUrl:         optionalTextField(legal["terms_url"]),
 			AccessibilityUrl: optionalTextField(legal["accessibility_url"]),
+			TermsVersion:     optionalTextField(legal["terms_version"]),
+			TermsSetBy:       termsSetByField(legal["terms_set_by"]),
 		},
 	}
+}
+
+// termsSetByField answers who set the terms, absent where no terms are in force.
+func termsSetByField(value any) *openapi.LegalLinksTermsSetBy {
+	text, _ := value.(string)
+	if text == "" {
+		return nil
+	}
+	setBy := openapi.LegalLinksTermsSetBy(text)
+	return &setBy
 }
 
 // passwordRulesResponse maps the rules projection. Zero is off for every count, `max_repeat`
@@ -330,6 +342,11 @@ func (c *RestController) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Req
 		})
 	if err != nil {
 		WriteProblem(w, err, requestID)
+		return
+	}
+	if required, _ := out["mfa_required"].(bool); required {
+		// Set; the terms of use in force are still to be agreed to (UC-ID-19).
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))

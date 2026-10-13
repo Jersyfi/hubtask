@@ -350,6 +350,11 @@ func (r MfaRepository) Insert(
 		PasswordChangeOwed: credential.PasswordChangeOwed,
 		// How the steps before a change step were proven (migration 0139).
 		SignedInWith: nullableString(credential.SignedInWith),
+		// The session a TERMS step opens once agreed (migration 0140).
+		SessionMethod: nullableString(credential.SessionMethod),
+	}
+	if params.SessionVia, err = optionalUUID(credential.SessionVia); err != nil {
+		return err
 	}
 	if link := credential.Link; link != nil {
 		// The provider identity waiting for the account's proof (migration 0110).
@@ -442,6 +447,11 @@ func pendingLookupOf(row sqlc.FindPendingByHashRow, tenantID shared.ID) (reposit
 		}
 	}
 
+	via, err := optionalID(row.SessionVia)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+
 	return repository.PendingLookup{
 		Credential: identity.PendingCredential{
 			ID:                 credentialID,
@@ -456,6 +466,8 @@ func pendingLookupOf(row sqlc.FindPendingByHashRow, tenantID shared.ID) (reposit
 			ExpiresAt:          timeFrom(row.ExpiresAt),
 			ConsumedAt:         timeFrom(row.ConsumedAt),
 			Link:               link,
+			SessionMethod:      stringFrom(row.SessionMethod),
+			SessionVia:         via,
 		},
 		Account: identity.Account{
 			ID:          accountID,

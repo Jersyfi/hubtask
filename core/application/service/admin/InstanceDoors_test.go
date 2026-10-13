@@ -162,7 +162,7 @@ func TestEveryKeyOfEveryAreaIsDeclared(t *testing.T) {
 			}
 			places[entry["position"]] = name
 			kind, _ := entry["kind"].(string)
-			if !slices.Contains([]string{"COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "LOCALE", "TIME_ZONE"}, kind) {
+			if !slices.Contains([]string{"COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE"}, kind) {
 				t.Errorf("%s.%s has no kind: %v", area, name, entry)
 			}
 			if options, _ := entry["options"].([]any); (kind == "CHOICE" || kind == "CHOICES") && len(options) == 0 {

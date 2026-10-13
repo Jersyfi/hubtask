@@ -71,6 +71,25 @@ test('a sign-in begun on the invitation card carries the invitation, and no othe
   assert.deepEqual(startRequest('  ', undefined, ''), {});
 });
 
+test('the terms agreed on the invitation card travel with the invitation only', () => {
+  // UC-ID-19 check 1: the arrival that activates the invited account stores the agreement.
+  const terms = { url: 'https://acme.example/terms', version: '3' };
+  assert.deepEqual(startRequest(undefined, 'p-entra', 'inv-token', undefined, terms), {
+    provider_id: 'p-entra',
+    invitation_token: 'inv-token',
+    terms_url: 'https://acme.example/terms',
+    terms_version: '3',
+  });
+  assert.deepEqual(
+    startRequest(undefined, 'p-entra', 'inv-token', undefined, { url: 'https://acme.example/terms' }),
+    { provider_id: 'p-entra', invitation_token: 'inv-token', terms_url: 'https://acme.example/terms' },
+  );
+  // Without an invitation there is nothing for the agreement to ride on.
+  assert.deepEqual(startRequest(undefined, 'p-entra', undefined, undefined, terms), {
+    provider_id: 'p-entra',
+  });
+});
+
 test('a sign-in begun on the connect card carries the link, and no other does', () => {
   // ADR-0078 §1: where the password is off, the mailed link is half of the account's proof.
   assert.deepEqual(startRequest(undefined, 'p-entra', undefined, 'connect-token'), {

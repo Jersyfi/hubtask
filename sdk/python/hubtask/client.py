@@ -539,6 +539,10 @@ class Client:
         """Redeem an invitation and set the first password"""
         return self._call("POST", "/auth/invitations:redeem", {}, None, {}, body, "json", "application/json", "json")
 
+    def inspect_invitation(self, body: "InvitationInspection") -> "InvitationSummary":
+        """Name the workspace and the address an invitation is for"""
+        return self._call("POST", "/auth/invitations:inspect", {}, None, {}, body, "json", "application/json", "json")
+
     def set_up_installation(self, body: "InstallationSetUp") -> "SessionTokens":
         """Set up a fresh installation with the code its first start printed"""
         return self._call("POST", "/auth/installation:set-up", {}, None, {}, body, "json", "application/json", "json")
@@ -550,6 +554,10 @@ class Client:
     def complete_link(self, body: "LinkCompletion") -> "SessionTokens":
         """Prove the account before a provider is connected to it"""
         return self._call("POST", "/auth/sessions:link", {}, None, {}, body, "json", "application/json", "json")
+
+    def agree_to_terms(self, body: "TermsAgreement") -> "SessionTokens":
+        """Agree to the terms of use and finish the sign-in"""
+        return self._call("POST", "/auth/sessions:agree-terms", {}, None, {}, body, "json", "application/json", "json")
 
     def change_password(self, body: "PasswordChange", *, step_up: str | None = None) -> None:
         """Change the password of the signed-in account"""

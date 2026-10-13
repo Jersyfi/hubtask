@@ -106,6 +106,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.signed_in` | SignIn | `session` | NOTICE | Every time |
 | `auth.step_up` | StepUp | `session` | NOTICE | Every time |
 | `auth.step_up_provider_started` | StartProviderStepUp | `session` | INFO | Every time |
+| `auth.terms_agreed` | AgreeToTerms | `account` | NOTICE | Every time |
 
 ## Automation
 
@@ -345,6 +346,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | CheckPassword | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
+| `` | InspectInvitation | `` |  | When refused |
 
 ## Permissions
 

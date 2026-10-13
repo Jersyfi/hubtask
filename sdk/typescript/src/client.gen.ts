@@ -664,6 +664,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/invitations:redeem", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Name the workspace and the address an invitation is for
+   * Public: sent without a bearer where the client holds none. */
+  inspectInvitation(body: NonNullable<operations["inspectInvitation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["inspectInvitation"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/invitations:inspect", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set up a fresh installation with the code its first start printed
    * Public: sent without a bearer where the client holds none. */
   setUpInstallation(body: NonNullable<operations["setUpInstallation"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpInstallation"]['responses'][201]['content']["application/json"]> {
@@ -680,6 +686,12 @@ export class HubtaskClient {
    * Public: sent without a bearer where the client holds none. */
   completeLink(body: NonNullable<operations["completeLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeLink"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/sessions:link", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Agree to the terms of use and finish the sign-in
+   * Public: sent without a bearer where the client holds none. */
+  agreeToTerms(body: NonNullable<operations["agreeToTerms"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["agreeToTerms"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:agree-terms", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Change the password of the signed-in account */

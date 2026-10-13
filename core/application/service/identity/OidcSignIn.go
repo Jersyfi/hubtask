@@ -108,6 +108,10 @@ type StartOidcSignInCommand struct {
 	// ConnectToken is the CONNECT link a workspace without the password mailed, when the sign-in
 	// began on the card that link opens (ADR-0078 §1). Empty for every other sign-in.
 	ConnectToken secret.Secret
+	// TermsURL and TermsVersion are the terms of use agreed to on the invitation card (UC-ID-19
+	// check 1); read only beside an invitation.
+	TermsURL     string
+	TermsVersion string
 }
 
 // OidcAuthorization is the answer: where to go, and the handle to come back with.
@@ -156,10 +160,24 @@ func (h StartOidcSignIn) Execute(
 		return OidcAuthorization{}, err
 	}
 
+	// The agreement given on the invitation card rides on the flow to the arrival that activates the
+	// account - kept only where it is to the terms in force, so the column holds nothing a caller
+	// made up; without it the arrival meets the TERMS step instead.
+	var agreed domain.TermsAgreement
+	if !invited.IsZero() && cmd.TermsURL != "" {
+		terms, err := w.Session.termsToAgree(ctx, tenantID, cmd.TermsURL, cmd.TermsVersion)
+		if err == nil && terms.IsSet() {
+			agreed = domain.TermsAgreement{URL: terms.URL, Version: terms.Version}
+		} else if err != nil && !errors.Is(err, shared.ErrValidation) && !errors.Is(err, shared.ErrConflict) {
+			return OidcAuthorization{}, err
+		}
+	}
+
 	now := w.Session.Clock.Now()
 	flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
 		ID: w.Session.IDs.NewID(), TenantID: tenantID, ProviderID: configured.ID,
 		Nonce: nonce, Verifier: verifier, Now: now, InvitedAccountID: invited, PendingID: connect,
+		Terms: agreed,
 	})
 	if err != nil {
 		return OidcAuthorization{}, err
@@ -419,19 +437,27 @@ func (h CompleteOidcSignIn) Execute(
 		return SignInResult{Challenge: &challenge}, nil
 	}
 
+	// The invited account this flow activated agreed to the terms on its invitation card. Recorded
+	// after the activation, in a transaction of its own: should it fail, the person meets the TERMS
+	// step at the next sign-in rather than losing the activation.
+	if !flow.InvitedAccountID.IsZero() && account.ID == flow.InvitedAccountID {
+		if err := w.Session.agreedOnTheCard(ctx, scope, account, flow.Terms); err != nil {
+			return SignInResult{}, err
+		}
+	}
+
 	// A provider sign-in holds no password for the rule to judge, but its session answers to the
 	// workspace's bounds like every other (UC-ID-08 check 4), and it records how it was opened.
 	bounds, err := w.Session.sessionBounds(ctx, state.TenantID(), account)
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := w.Session.openSessionVia(ctx, scope, state.TenantID(), account,
-		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		bounds, domain.SignedInWithOidc, configured.ID)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	// The terms of use in force, where not yet agreed, are the step after the provider's word
+	// (UC-ID-19 check 6).
+	return w.Session.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		Method: domain.SignedInWithOidc, Via: configured.ID,
+	}, bounds)
 }
 
 // settleAccount finds the person the subject names, links them, or makes them.
@@ -825,13 +851,10 @@ func (w OidcWriter) connectByMail(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	pair, err := s.openSessionVia(ctx, scope, scope.TenantID, account,
-		cmd.UserAgent, cmd.RemoteAddr, OidcSignedInAction, nil,
-		bounds, domain.SignedInWithOidc, configured.ID)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	return SignInResult{Pair: &pair}, nil
+	return s.openOrAgree(ctx, scope, account, SessionHint{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		Method: domain.SignedInWithOidc, Via: configured.ID,
+	}, bounds)
 }
 
 // turnedAwayError marks an arrival the provider vouched for and this workspace turned away, so that
@@ -1412,6 +1435,12 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The token of the link a workspace without the password mails to connect " +
 					"its provider. Checked, not spent: the flow remembers the link, the provider is " +
 					"asked for a fresh sign-in, and only an arrival that connects spends it."},
+			{Name: "terms_url", Kind: usecase.KindString,
+				Description: "Beside invitation_token: the terms of use agreed to on the invitation " +
+					"card. Kept on the flow where they are the terms in force; the arrival that " +
+					"activates the account stores the agreement."},
+			{Name: "terms_version", Kind: usecase.KindString,
+				Description: "Their version as shown, where they carry one."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignInStartedAction, TargetType: identityProviderTarget,
@@ -1438,6 +1467,8 @@ func (h StartOidcSignIn) invoke(
 		TenantHeader:    in.String("tenant_header"),
 		InvitationToken: secret.New(in.String("invitation_token")),
 		ConnectToken:    secret.New(in.String("connect_token")),
+		TermsURL:        in.String("terms_url"),
+		TermsVersion:    in.String("terms_version"),
 	})
 	if err != nil {
 		return nil, err

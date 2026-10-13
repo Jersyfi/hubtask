@@ -48,6 +48,32 @@ func TestTheLinkChallengeCarriesWhoseAccountAndWhichProvider(t *testing.T) {
 	}
 }
 
+// The TERMS step names the terms, their version and who set them (UC-ID-19); terms without a
+// version answer none rather than an empty one.
+func TestTheTermsChallengeCarriesTheTerms(t *testing.T) {
+	answered := mfaChallengeResponse(usecase.Output{
+		"mfa_required": true, "pending_token": "hbt_pnd_t", "expires_at": time.Now().UTC(),
+		"methods": []any{"TERMS"},
+		"terms":   usecase.Output{"url": "https://host.example/terms", "version": "3", "set_by": "INSTALLATION"},
+	})
+	terms := answered.Terms
+	if terms == nil || terms.Url != "https://host.example/terms" || terms.Version == nil ||
+		*terms.Version != "3" || terms.SetBy != "INSTALLATION" {
+		t.Fatalf("terms = %+v", terms)
+	}
+	unversioned := mfaChallengeResponse(usecase.Output{
+		"mfa_required": true, "pending_token": "hbt_pnd_u", "expires_at": time.Now().UTC(),
+		"methods": []any{"TERMS"},
+		"terms":   usecase.Output{"url": "https://acme.example/terms", "set_by": "WORKSPACE"},
+	})
+	if unversioned.Terms == nil || unversioned.Terms.Version != nil {
+		t.Errorf("unversioned terms = %+v", unversioned.Terms)
+	}
+	if plain := mfaChallengeResponse(usecase.Output{"methods": []any{"TOTP"}}); plain.Terms != nil {
+		t.Errorf("a TOTP challenge carried terms %+v", plain.Terms)
+	}
+}
+
 func TestAPresetAnswersTheModesOfBothLevels(t *testing.T) {
 	answered := identityProviderPresetResponse(usecase.Output{
 		"kind": "GENERIC", "scopes": []any{"openid"},
