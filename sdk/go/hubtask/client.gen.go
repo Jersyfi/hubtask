@@ -1266,6 +1266,42 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	}
 }
 
+// Defines values for CapabilitiesWorkspacePermissions.
+const (
+	CapabilitiesWorkspacePermissionsAUDITREAD         CapabilitiesWorkspacePermissions = "AUDIT_READ"
+	CapabilitiesWorkspacePermissionsAUTOMATION        CapabilitiesWorkspacePermissions = "AUTOMATION"
+	CapabilitiesWorkspacePermissionsDELETECONTAINER   CapabilitiesWorkspacePermissions = "DELETE_CONTAINER"
+	CapabilitiesWorkspacePermissionsMANAGEMEMBERS     CapabilitiesWorkspacePermissions = "MANAGE_MEMBERS"
+	CapabilitiesWorkspacePermissionsREAD              CapabilitiesWorkspacePermissions = "READ"
+	CapabilitiesWorkspacePermissionsREADCONFIGURATION CapabilitiesWorkspacePermissions = "READ_CONFIGURATION"
+	CapabilitiesWorkspacePermissionsSTRUCTURE         CapabilitiesWorkspacePermissions = "STRUCTURE"
+	CapabilitiesWorkspacePermissionsWRITEITEMS        CapabilitiesWorkspacePermissions = "WRITE_ITEMS"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesWorkspacePermissions enum.
+func (e CapabilitiesWorkspacePermissions) Valid() bool {
+	switch e {
+	case CapabilitiesWorkspacePermissionsAUDITREAD:
+		return true
+	case CapabilitiesWorkspacePermissionsAUTOMATION:
+		return true
+	case CapabilitiesWorkspacePermissionsDELETECONTAINER:
+		return true
+	case CapabilitiesWorkspacePermissionsMANAGEMEMBERS:
+		return true
+	case CapabilitiesWorkspacePermissionsREAD:
+		return true
+	case CapabilitiesWorkspacePermissionsREADCONFIGURATION:
+		return true
+	case CapabilitiesWorkspacePermissionsSTRUCTURE:
+		return true
+	case CapabilitiesWorkspacePermissionsWRITEITEMS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -5517,6 +5553,10 @@ type Capabilities struct {
 	// Anonymous callers read it too. What a token may be asked for is not a secret, and the screen that mints one is behind a session anyway.
 	TokenScopes *[]string `json:"token_scopes,omitempty"`
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
+
+	// WorkspacePermissions The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.
+	// It answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.
+	WorkspacePermissions *[]CapabilitiesWorkspacePermissions `json:"workspace_permissions,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's.
@@ -5527,6 +5567,9 @@ type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
+
+// CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
+type CapabilitiesWorkspacePermissions string
 
 // Comment defines model for Comment.
 type Comment struct {

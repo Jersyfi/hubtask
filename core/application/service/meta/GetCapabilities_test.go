@@ -725,3 +725,59 @@ func TestTheSetupIsOpenOnlyOnAnEmptyInstallation(t *testing.T) {
 		})
 	}
 }
+
+// workspaceFake answers what the caller holds on the workspace, and counts how often it was asked.
+type workspaceFake struct {
+	held  []service.Permission
+	err   error
+	asked *int
+}
+
+func (w workspaceFake) HeldOnWorkspace(context.Context, appshared.ActorContext) ([]service.Permission, error) {
+	*w.asked++
+	return w.held, w.err
+}
+
+// A signed-in caller is told what they hold on the workspace - the answer a client draws the
+// administration and the jumble from rather than probing routes that refuse (P-05).
+func TestTheManifestAnswersWhatTheCallerHoldsOnTheWorkspace(t *testing.T) {
+	asked := 0
+	h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	h.Workspace = workspaceFake{held: []service.Permission{service.PermissionRead, service.PermissionWriteItems}, asked: &asked}
+
+	capabilities, err := h.Execute(t.Context(), member())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []service.Permission{service.PermissionRead, service.PermissionWriteItems}
+	if !slices.Equal(capabilities.WorkspacePermissions, want) || asked != 1 {
+		t.Errorf("workspace permissions %v (asked %d), want %v", capabilities.WorkspacePermissions, asked, want)
+	}
+}
+
+// Anonymous, nobody holds anything and the authoriser is not asked: nil, which the contract
+// answers as absent rather than as "nothing held".
+func TestAnAnonymousCallerIsToldNothingAboutTheWorkspace(t *testing.T) {
+	asked := 0
+	h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	h.Workspace = workspaceFake{held: []service.Permission{service.PermissionRead}, asked: &asked}
+
+	capabilities, err := h.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if capabilities.WorkspacePermissions != nil || asked != 0 {
+		t.Errorf("anonymous: %v, asked %d times", capabilities.WorkspacePermissions, asked)
+	}
+}
+
+// A question that could not be answered fails the manifest rather than reading as nothing held.
+func TestAnUnreadableWorkspaceAnswerFailsTheManifest(t *testing.T) {
+	asked := 0
+	h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+	h.Workspace = workspaceFake{err: shared.ErrUnavailable.WithDetail("postgres.query_failed"), asked: &asked}
+
+	if _, err := h.Execute(t.Context(), member()); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("error %v, want unavailable", err)
+	}
+}
