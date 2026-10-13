@@ -284,6 +284,11 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
       const wide = await page.evaluate(() => document.documentElement.scrollWidth);
       assert.ok(wide <= 375, `the setup is ${wide} px wide at 375 px`);
     },
+    // Confirmed: the factor is on while the ten codes are shown, and the card above them says so.
+    atCodes: async () => {
+      assert.equal(await page.getByText('Off. Your password', { exact: false }).count(), 0, 'the card says the factor is off while its codes are shown');
+      assert.equal(await page.getByText('no second factor on this account yet', { exact: false }).count(), 0, 'the card says there is no factor while its codes are shown');
+    },
   });
   assert.deepEqual(sent.enroll, {}, 'a signed-in setup presents no pending credential');
   assert.equal(sent.confirm?.pending_token, undefined);
@@ -462,6 +467,10 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
   await dialog.getByRole('button', { name: 'Prove it' }).click();
 
   await page.getByText('The password was changed. Every other session was signed out.').first().waitFor({ timeout: 15_000 });
+  // Said in the panel where the change was made, not in the second factor's below it.
+  const said = await page.getByText('The password was changed.').first()
+    .evaluate((node) => node.closest('[class*="panel"]')?.querySelector('h2')?.textContent?.trim());
+  assert.equal(said, 'Password', 'the confirmation is drawn in another panel');
   assert.deepEqual(proofs, [{ password: 'the old one' }], 'the proof was asked more than once, or not at all');
   assert.deepEqual(changes.map((each) => each.proof), [null, 'hbt_sup_pw']);
   assert.deepEqual(Object.keys(changes[1].body), ['password'], 'the change carries more than the new password');
