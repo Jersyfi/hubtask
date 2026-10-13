@@ -1757,6 +1757,7 @@
   "app.password.forgot_sent": "If an account exists for that address, the link is on its way. Check the mailbox.",
   "app.password.mail_link_title": "Get a sign-in link by mail",
   "app.password.mail_link_body": "Enter the address you sign in with. If an account exists for it, a mail is on its way. Where the account is not connected to this workspace's provider yet, the mail holds a link that connects it - it works once, for thirty minutes.",
+  "app.password.no_mail": "This installation sends no mail, so no link can reach you. Ask whoever runs your workspace for help getting back in.",
   "app.password.back_to_sign_in": "Back to sign in",
   "app.password.reset_title": "Choose a new password",
   "app.password.reset_body": "For {email}. Every other session of this account will be signed out.",

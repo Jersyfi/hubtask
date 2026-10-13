@@ -675,6 +675,7 @@
   "app.password.forgot_sent": "Wenn es für diese Adresse ein Konto gibt, ist der Link unterwegs. Sieh in dein Postfach.",
   "app.password.mail_link_title": "Anmeldelink per Mail anfordern",
   "app.password.mail_link_body": "Gib die Adresse ein, mit der du dich anmeldest. Wenn es dafür ein Konto gibt, ist eine Mail unterwegs. Ist das Konto noch nicht mit dem Anbieter dieses Arbeitsbereichs verbunden, enthält sie einen Link, der es verbindet – er funktioniert einmal, dreißig Minuten lang.",
+  "app.password.no_mail": "Diese Installation verschickt keine Mails, darum kann dich kein Link erreichen. Frag die Person, die deinen Workspace betreibt, wie du wieder hineinkommst.",
   "app.password.back_to_sign_in": "Zurück zur Anmeldung",
   "app.password.reset_title": "Wähle ein neues Passwort",
   "app.password.reset_body": "Für {email}. Jede andere Sitzung dieses Kontos wird abgemeldet.",
