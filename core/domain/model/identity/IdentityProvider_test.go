@@ -182,8 +182,9 @@ func TestAProviderNeedsItsClientAndItsKey(t *testing.T) {
 		t.Error("a provider without an id was accepted")
 	}
 
-	// A preset that vouches for its addresses, because an installation's provider must be one:
-	// `TestAnUnverifiedPresetIsNeverTheInstallationsProvider` is where that rule is asserted.
+	// A preset that vouches for its addresses, so any admission is open to it at installation
+	// level; one without a directory claim is held to *Only people invited here*, which
+	// `TestAnInstallationProviderWithoutADirectoryAdmitsOnlyTheInvited` asserts.
 	installation := providerInput()
 	installation.TenantID = shared.ID("")
 	installation.Issuer = "https://accounts.google.com"
