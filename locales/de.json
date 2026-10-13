@@ -2664,6 +2664,8 @@
   "app.flow.field_ids": "Kennungen, eine je Zeile",
   "app.flow.field_pick": "Auswählen",
   "app.flow.field_pick_none": "In diesem Geltungsbereich gibt es nichts zur Auswahl",
+  "app.flow.field_gone": "Gibt es nicht mehr – bitte neu auswählen",
+  "app.flow.field_unlisted": "Nicht unter der Auswahl hier",
   "app.flow.field_required": "Beim Lauf erforderlich",
   "app.flow.field_secret_kept": "*** zurückzusenden behält das gespeicherte Geheimnis.",
   "app.flow.guardrails_hint": "Nach fünf Fehlschlägen in Folge schaltet sich die Regel selbst aus und sagt es dir – dir, nicht dem Konto, als das sie läuft.",

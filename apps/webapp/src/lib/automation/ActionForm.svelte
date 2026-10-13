@@ -40,10 +40,12 @@
     pickers: Readonly<Record<string, readonly Choice[]>>;
     /** The server's refusals, by the field's name. */
     errors?: ReadonlyMap<string, string>;
+    /** The fields whose reference the check found gone, with its sentence, by the field's name. */
+    gone?: ReadonlyMap<string, string>;
     onchange: (params: Record<string, unknown>) => void;
   }
 
-  const { fields, params, pickers, errors, onchange }: Props = $props();
+  const { fields, params, pickers, errors, gone, onchange }: Props = $props();
 
 
   /** The JSON of a document field as it is being typed: a half-written object is still visible. */
@@ -102,8 +104,10 @@
     {#each shown as field (field.name)}
       {@const reference = REFERENCE[field.name]}
       {@const choices: readonly Choice[] = reference ? (pickers[reference] ?? []) : []}
-      {@const error = errors?.get(field.name)}
+      {@const error = errors?.get(field.name) ?? (reference ? gone?.get(field.name) : undefined)}
       {#if field.kind === 'id' && reference}
+        <!-- A value the choices do not hold is named for what it is - gone, or not offered here -
+             and never shown as the identifier it is (P-08). -->
         <Select
           label={label(field)}
           hint={choices.length > 0 ? hint(field) : t('app.flow.field_pick_none')}
@@ -113,7 +117,7 @@
           options={[
             ...choices,
             ...(params[field.name] && !choices.some((choice) => choice.value === params[field.name])
-              ? [{ value: String(params[field.name]), label: String(params[field.name]) }]
+              ? [{ value: String(params[field.name]), label: t(gone?.has(field.name) ? 'app.flow.field_gone' : 'app.flow.field_unlisted') }]
               : []),
           ]}
           onchange={(event: Event) => set(field.name, (event.currentTarget as HTMLSelectElement).value || undefined)}

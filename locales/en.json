@@ -3817,6 +3817,8 @@
   "app.flow.field_ids": "Identifiers, one per line",
   "app.flow.field_pick": "Choose",
   "app.flow.field_pick_none": "Nothing to choose from in this scope",
+  "app.flow.field_gone": "No longer exists — choose another",
+  "app.flow.field_unlisted": "Not among the choices here",
   "app.flow.field_required": "Required at the run",
   "app.flow.field_secret_kept": "Sending *** back keeps the stored secret.",
   "app.flow.guardrails_hint": "After five failed runs in a row the rule switches itself off and tells you — you, not the account it runs as.",

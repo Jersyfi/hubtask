@@ -893,6 +893,30 @@ test('chromium: the list checks the rules when it opens and says what the check 
   assert.equal(await enable.isDisabled(), true);
 });
 
+test('chromium: a step naming a deleted label says it is gone, never its identifier', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  await context.route('**/api/v1/**', stubFor([]));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/rules/${STALE.id}`);
+  const card = page.locator('[data-card="0"]');
+  await card.locator('.flag').waitFor();
+  const gone = STALE.actions[0].params.label_id;
+  assert.equal((await card.textContent()).includes(gone), false, 'the card does not show the identifier');
+  await card.click();
+  const picker = page.locator('aside.inspector select');
+  await picker.waitFor();
+  assert.equal(await picker.inputValue(), gone, 'the stored value is kept until a new choice is made');
+  assert.equal((await picker.locator('option:checked').textContent()).trim(), 'No longer exists — choose another');
+  assert.match(await page.locator('aside.inspector').textContent(), /The label this step points at no longer exists/, 'the field is marked with the check\'s sentence');
+  assert.equal((await page.locator('aside.inspector').textContent()).includes(gone), false, 'the panel does not show the identifier');
+});
+
 test('chromium: the runs page opens prefiltered on a rule and narrows to a window', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

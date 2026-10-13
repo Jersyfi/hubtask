@@ -4,7 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cardOf, listHealth, marksOf } from './findings.ts';
+import { cardOf, goneAt, listHealth, marksOf } from './findings.ts';
+import type { RuleFinding } from '../data/rules.svelte.ts';
 
 test('a finding lands at the card its pointer names', () => {
   assert.equal(cardOf('/trigger/event_type'), 'trigger');
@@ -31,4 +32,17 @@ test('the list judges health from the findings and the switch alone', () => {
   assert.equal(listHealth({ enabled: false, findings: [], failure_count: 0 }), 'off');
   assert.equal(listHealth({ enabled: true, findings: [{ level: 'ATTENTION', path: '/actions/0', code: 'c' }], failure_count: 0 }), 'attention');
   assert.equal(listHealth({ enabled: false, findings: [{ level: 'BROKEN', path: '/actions/0/kind', code: 'c' }], failure_count: 0 }), 'broken');
+});
+
+test('a gone reference is found at its step\'s field, and only there', () => {
+  const words = { t: (code: string, params?: Record<string, string | number>) => `${code}(${params?.kind ?? ''})`, has: () => true };
+  const findings: RuleFinding[] = [
+    { level: 'ATTENTION', path: '/actions/0/params/template_id', code: 'automation.finding.reference_gone', params: { kind: 'template', id: 'x' } },
+    { level: 'ATTENTION', path: '/actions/0/params/body', code: 'automation.finding.parameter_missing', params: { kind: 'ADD_COMMENT', parameter: 'body' } },
+    { level: 'ATTENTION', path: '/actions/0/params/then/0/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: 'y' } },
+    { level: 'ATTENTION', path: '/actions/1/params/label_id', code: 'automation.finding.reference_gone', params: { kind: 'label', id: 'z' } },
+  ];
+  assert.deepEqual([...goneAt(words, findings, '/actions/0/params/')], [['template_id', 'automation.finding.reference_gone(template)']]);
+  assert.deepEqual([...goneAt(words, findings, '/actions/0/params/then/0/params/')], [['label_id', 'automation.finding.reference_gone(label)']]);
+  assert.equal(goneAt(words, findings, '/actions/2/params/').size, 0);
 });
