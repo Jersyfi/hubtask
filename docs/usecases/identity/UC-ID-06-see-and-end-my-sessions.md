@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11]
 state: built
 tasks: [SI-08, SI-15, SC-09, SC-19, SC-23]
-checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go, core/application/service/identity/SessionsElsewhere_test.go, test/integration/session_elsewhere_test.go]
+checked_by: [test/integration/session_test.go, presentation/rest/SessionProjection_test.go, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/SessionListBounds_test.go, core/application/service/identity/SessionsElsewhere_test.go, test/integration/session_elsewhere_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md, docs/evidence/SC-15-D2-2026-10-13.md, docs/evidence/SC-15-D4-2026-10-13.md, core/application/service/identity/OwedChange_test.go, test/integration/mfa_test.go]
 ---
 
 # See where I am signed in and end a session

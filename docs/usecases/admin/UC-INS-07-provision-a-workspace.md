@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-05, P-08, P-15]
 state: built
 tasks: [H-06, SI-17, SC-08]
-checked_by: [core/application/service/admin/Provision_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md]
+checked_by: [core/application/service/admin/Provision_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
 
 # Create a workspace for a customer

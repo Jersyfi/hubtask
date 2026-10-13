@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6, D7]
 serves: [P-01, P-11, P-12]
 state: built
 tasks: [SI-17, SC-04, SC-07]
-checked_by: [core/application/service/admin/InstanceOverview_test.go, test/integration/first_start_test.go, apps/webapp/e2e/instanceoverview.test.mjs, core/application/service/admin/InstanceJournal_test.go]
+checked_by: [core/application/service/admin/InstanceOverview_test.go, test/integration/first_start_test.go, apps/webapp/e2e/instanceoverview.test.mjs, core/application/service/admin/InstanceJournal_test.go, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
 
 # See the installation at a glance and read what happened

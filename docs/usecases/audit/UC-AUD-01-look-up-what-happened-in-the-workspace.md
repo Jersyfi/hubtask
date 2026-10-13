@@ -5,9 +5,9 @@ context: audit
 actors: [PE-owner, PE-admin, PE-auditor, PE-scripter, PE-agent]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
-state: built
-tasks: [E-09, E-12, G-12, F4-19]
-checked_by: [core/application/service/audit/List_test.go, test/integration/audit_read_test.go, presentation/rest/AuditController_test.go, cmd/hubctl/Audit_test.go]
+state: verified
+tasks: [E-09, E-12, G-12, F4-19, SC-29]
+checked_by: [core/application/service/audit/List_test.go, test/integration/audit_read_test.go, presentation/rest/AuditController_test.go, cmd/hubctl/Audit_test.go, test/integration/audit_lookup_test.go, test/integration/privacy_test.go, test/security/authorization_test.go, apps/webapp/e2e/audittrail.test.mjs, docs/evidence/SC-15-D2-2026-10-13.md, docs/evidence/SC-15-D4-2026-10-13.md]
 ---
 
 # Look up what happened in the workspace

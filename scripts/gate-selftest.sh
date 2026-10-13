@@ -705,8 +705,10 @@ header "Milestones and use cases (make gate-docs)"
 # A milestone delivers what its Delivers line names, and a task grows only inside it; a built use
 # case has nothing left in Today. Both are shown to bite on the real files.
 # A use case no milestone delivers, and a milestone with a Delivers line: the probe's task asks the
-# milestone for a check it does not deliver. Neither is named, so the probe does not rot.
-DELIVERS=$(grep -h '^\*\*Delivers:\*\*' docs/backlog/milestone-*.md)
+# milestone for a check it does not deliver. Neither is named, so the probe does not rot - and the
+# archived milestones count, because gate-docs reads them too and between two cuts no milestone runs.
+MILESTONES=$(ls docs/backlog/milestone-*.md docs/archive/backlog/milestone-*.md 2>/dev/null || true)
+DELIVERS=$(for f in $MILESTONES; do grep -h '^\*\*Delivers:\*\*' "$f" || true; done)
 PROBE_UC=""
 for f in docs/usecases/*/UC-*.md; do
 	id=$(basename "$f" | cut -d- -f1-3)
@@ -717,7 +719,7 @@ for f in docs/usecases/*/UC-*.md; do
 done
 # Loops rather than `grep | head`: under pipefail, head closing the pipe kills grep with SIGPIPE.
 MILESTONE=""
-for f in docs/backlog/milestone-*.md; do
+for f in $MILESTONES; do
 	if grep -q '^\*\*Delivers:\*\*' "$f"; then
 		MILESTONE=$f
 		break

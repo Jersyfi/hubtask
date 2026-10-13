@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-12]
 state: partial
 tasks: [SI-03, SI-15, SC-09, SC-16]
-checked_by: [core/application/service/identity/Password_test.go, core/application/service/identity/ProviderOnly_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpProvider_test.go, apps/webapp/e2e/settings.test.mjs, apps/webapp/e2e/stepup.test.mjs]
+checked_by: [core/application/service/identity/Password_test.go, core/application/service/identity/ProviderOnly_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpProvider_test.go, apps/webapp/e2e/settings.test.mjs, apps/webapp/e2e/stepup.test.mjs, test/integration/reset_tokens_test.go, core/domain/model/identity/PasswordRules_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md]
 ---
 
 # Change my password

@@ -4,8 +4,8 @@ The goal: **every person who signs in, administers a workspace or runs an instal
 the SI concept promised them — without a database shell, without two screens for one rule, and
 without a way into an account that is weaker than the account.** SI built the mechanisms; SC makes
 them reach the person using them, measured against the seven deployments of
-[`../vision/deployments.md`](../vision/deployments.md) and the principles of
-[`../vision/principles.md`](../vision/principles.md).
+[`../vision/deployments.md`](../../vision/deployments.md) and the principles of
+[`../vision/principles.md`](../../vision/principles.md).
 
 Every task names the use cases and the checks it makes true; a task is done when those checks hold,
 and the pull request says how each was confirmed. The *Today* sections of the named use cases are
@@ -13,18 +13,19 @@ the findings in detail — this file does not repeat them.
 
 What deliberately is **not** in this milestone:
 
-* **A private hub no administrator can open** ([UC-ID-16](../usecases/identity/UC-ID-16-keep-a-hub-private.md))
-  and **accounts without a mail address** ([UC-ID-20](../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md))
-  — [milestone PH](../archive/backlog/milestone-PH.md).
+* **A private hub no administrator can open** ([UC-ID-16](../../usecases/identity/UC-ID-16-keep-a-hub-private.md))
+  and **accounts without a mail address** ([UC-ID-20](../../usecases/identity/UC-ID-20-give-someone-an-account-without-an-address.md))
+  — [milestone PH](./milestone-PH.md).
 * **Passkeys, plans, platform events and usage, own domains** — their own milestones, in that order.
 
 **Delivers:** UC-AI-02 (5), UC-AI-05 (1–7), UC-AI-06 (1–8), UC-AI-07 (2), UC-AUD-01 (1–8), UC-ID-01 (5), UC-ID-02 (2, 4–7), UC-ID-03 (1, 2, 4–7), UC-ID-04 (1–8), UC-ID-05 (1–5), UC-ID-06 (2, 4, 5), UC-ID-07 (4, 5), UC-ID-08 (2, 4, 5), UC-ID-09 (4), UC-ID-10 (1–7), UC-ID-11 (1–8), UC-ID-12 (1–9), UC-ID-14 (5, 6), UC-ID-17 (3), UC-ID-18 (3–5), UC-ID-19 (1–6), UC-INS-01 (1–7), UC-INS-02 (4, 5), UC-INS-03 (1–5), UC-INS-04 (1, 3, 6), UC-INS-05 (1–7), UC-INS-06 (1, 2, 5), UC-INS-07 (4), UC-INS-08 (1, 5), UC-INS-09 (1–7), UC-INS-11 (1–6), UC-INS-12 (2, 5), UC-INS-16 (1–4)
 **Released:** 2026-09-30
+**Closed:** 2026-10-13
 
 ## Decisions
 
 1. **E1 — the admission ladder is one axis, "who comes in".** `INVITED_ONLY`, `DOMAINS`, `ANY` stay
-   as built after [ADR-0071](../adr/ADR-0071-provider-admission.md); the screen says them in plain
+   as built after [ADR-0071](../../adr/ADR-0071-provider-admission.md); the screen says them in plain
    words, and the two modes that create accounts say what newcomers get (SC-02).
 2. **E2 — the safeguard belongs to connecting an account, not to the provider kind.** An existing
    account with a credential is connected to a provider only after that credential is proven once,
@@ -32,15 +33,15 @@ What deliberately is **not** in this milestone:
    "GENERIC may not be INVITED_ONLY" no longer holds.
 3. **Nobody is locked out.** No user may be locked out of the platform, and so out of their data and
    Hubtask; every door a task touches is checked against it
-   ([ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md)).
+   ([ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md)).
 4. **A step-up proves the account with whatever it holds**
-   ([ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md)).
+   ([ADR-0075](../../adr/ADR-0075-step-up-with-what-the-account-holds.md)).
 5. **An offered provider is withdrawn with a count, a notice and a way back in**: the count is
    counted, not kept, and removal follows an ended offer
-   ([ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md), amended by ADR-0077).
+   ([ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md), amended by ADR-0077).
 6. **AI is offered by the installation**, with locks on which sources a workspace may use
-   ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)).
-7. **The ways back in** ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md)): a provider joins an
+   ([ADR-0072](../../adr/ADR-0072-ai-at-the-installation-level.md)).
+7. **The ways back in** ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md)): a provider joins an
    existing account or activates an invited one only with a second proof; the password opens as the
    fallback whenever no way in works, whatever the cause; an operator can open the password for one
    workspace for a limited time; "authoritative for the address" is read as ADR-0078 §5 says.
@@ -300,7 +301,7 @@ workspace's providers; inviting an existing address says so.
 
 A `THIRD-PARTY-LICENSES.md` row per shipped mark with source and guideline; the simplified Okta and
 GitLab redraws replaced by the originals or by the letter tile; marks without a preset removed
-([ADR-0069](../adr/ADR-0069-third-party-brand-marks.md) §2, §3).
+([ADR-0069](../../adr/ADR-0069-third-party-brand-marks.md) §2, §3).
 
 **Acceptance:** the licences gate names every mark.
 
@@ -308,7 +309,7 @@ GitLab redraws replaced by the originals or by the letter tile; marks without a 
 
 ## SC-16 — A step-up for every account · built
 
-*Depends on: SC-09.* · [ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md)
+*Depends on: SC-09.* · [ADR-0075](../../adr/ADR-0075-step-up-with-what-the-account-holds.md)
 
 **Use cases:** UC-ID-05 (5), UC-ID-03 (6), UC-ID-12 (4)
 
@@ -386,7 +387,7 @@ from the list.
 
 ## SC-20 — Withdrawing an offered provider · built
 
-*Depends on: SC-21.* · [ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md)
+*Depends on: SC-21.* · [ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md)
 
 **Use cases:** UC-ID-12 (6), UC-INS-11 (5)
 
@@ -406,7 +407,7 @@ password does not; a walk of announce, cancel and *Withdraw now*.
 
 ## SC-21 — A provider is switched in the list only · built
 
-*Depends on: nothing.* · [ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md)
+*Depends on: nothing.* · [ADR-0076](../../adr/ADR-0076-withdrawing-an-offered-provider.md)
 
 **Use cases:** UC-ID-12 (6), UC-ID-11 (8)
 
@@ -458,7 +459,7 @@ the button.
 
 ## SC-24 — The password switch is honoured by the server · built
 
-*Depends on: SC-20.* · issue #1119 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §4
+*Depends on: SC-20.* · issue #1119 · [ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §4
 
 **Use cases:** UC-ID-12 (6), UC-ID-04 (1)
 
@@ -478,7 +479,7 @@ through; UC-ID-12 moves to `built` if every check then holds.
 
 ## SC-25 — An account without a password gets back in by mail · built
 
-*Depends on: SC-24.* · issue #1122 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §3
+*Depends on: SC-24.* · issue #1122 · [ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §3
 
 **Use cases:** UC-ID-04 (1–7), UC-ID-12 (6)
 
@@ -490,7 +491,7 @@ request still answers byte for byte the same for every address. Outside the fall
 **Acceptance:** a test that a provider-only account in a fallback workspace sets a password and signs
 in, and that the same account outside the fallback gets the provider mail; the reset's checks hold.
 
-*Widened on 2026-10-06* ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §4, the owner's E5): the
+*Widened on 2026-10-06* ([ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §4, the owner's E5): the
 first-password link opens wherever the password is open and no provider the account is connected to
 lets it in - under the fallback, under the operator's opening, and where the workspace keeps the
 password on but the account's provider ended. A new reset link spends the earlier unspent ones, and so
@@ -500,7 +501,7 @@ does a change of the password or the address by any other way (UC-ID-04 check 2)
 
 ## SC-26 — An offered provider's count is counted, not kept · built
 
-*Depends on: SC-20.* · issue #1121 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §1
+*Depends on: SC-20.* · issue #1121 · [ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §1
 
 **Use cases:** UC-INS-11 (5)
 
@@ -520,7 +521,7 @@ release later (expand/contract).
 
 ## SC-27 — An offered provider is removed only after its offer ended · built
 
-*Depends on: SC-20, SC-26.* · issue #1123 · [ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md) §2
+*Depends on: SC-20, SC-26.* · issue #1123 · [ADR-0077](../../adr/ADR-0077-nobody-is-locked-out.md) §2
 
 **Use cases:** UC-INS-11 (5)
 
@@ -571,7 +572,7 @@ finds an old entry too.
 
 ## SC-31 — The password opens whenever no way in works · built
 
-*Depends on: SC-24, and lands with it.* · issue #1138 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §2
+*Depends on: SC-24, and lands with it.* · issue #1138 · [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §2
 
 **Use cases:** UC-ID-12 (6), UC-ID-04 (1–8), UC-INS-11 (5)
 
@@ -588,7 +589,7 @@ integration test under an installation default without the password, with the re
 
 ## SC-32 — An invited account is activated only with a second proof · built
 
-*Depends on: SC-31; SC-24 lands with it.* · issue #1139 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1, §5
+*Depends on: SC-31; SC-24 lands with it.* · issue #1139 · [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1, §5
 
 **Use cases:** UC-ID-10 (4), UC-ID-07 (5)
 
@@ -609,7 +610,7 @@ claim shape; a PostgreSQL test that a refusal's trail entry is stored.
 
 ## SC-33 — A workspace without the password connects its provider by mail · built
 
-*Depends on: SC-32.* · issue #1140 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1
+*Depends on: SC-32.* · issue #1140 · [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §1
 
 **Use cases:** UC-ID-04 (8), UC-ID-10 (1, 6), UC-ID-12 (6)
 
@@ -633,7 +634,7 @@ once; the switch's count excludes connected, invited and service accounts.
 
 ## SC-34 — An operator opens the password for one workspace · built
 
-*Depends on: SC-31.* · issue #1141 · [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §3
+*Depends on: SC-31.* · issue #1141 · [ADR-0078](../../adr/ADR-0078-the-ways-back-in.md) §3
 
 **Use cases:** UC-INS-11, UC-ID-12 (6)
 
@@ -664,7 +665,7 @@ is on, the password fallback does not open.
 
 ---
 
-## SC-15 — The walk, by use case
+## SC-15 — The walk, by use case · built
 
 *Depends on: all.*
 

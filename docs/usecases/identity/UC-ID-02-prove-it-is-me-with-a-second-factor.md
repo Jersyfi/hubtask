@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13]
 state: built
 tasks: [H-02, SI-13, SI-14, SI-15, SC-03, SC-09, SC-17, SC-18]
-checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/src/lib/signin/expiry.test.ts, apps/webapp/src/lib/data/recoverynote.test.ts, locales/Terms_test.go]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/src/lib/signin/expiry.test.ts, apps/webapp/src/lib/data/recoverynote.test.ts, locales/Terms_test.go, test/integration/mfa_test.go, core/domain/model/identity/Totp_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md]
 ---
 
 # Prove it is me with a second factor when I sign in

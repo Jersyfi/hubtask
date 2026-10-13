@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-09, P-10, P-12]
 state: verified
 tasks: [SC-04]
-checked_by: [cmd/server/FirstStart_test.go, core/application/service/identity/Setup_test.go, test/integration/first_start_test.go, apps/webapp/e2e/setup.test.mjs, scripts/compose-smoke.sh, scripts/hubctl-e2e.sh, docs/evidence/SC-04-2026-10-12.md]
+checked_by: [cmd/server/FirstStart_test.go, core/application/service/identity/Setup_test.go, test/integration/first_start_test.go, apps/webapp/e2e/setup.test.mjs, scripts/compose-smoke.sh, scripts/hubctl-e2e.sh, docs/evidence/SC-04-2026-10-12.md, docs/evidence/SC-15-D1-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Start a fresh installation and create my workspace in the browser

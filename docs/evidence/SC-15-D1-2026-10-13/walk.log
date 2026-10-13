@@ -1,0 +1,668 @@
+375 setup card: side scroll 0 px; short-name field present: 0
+setup card labels: ["Setup code*","Name of the workspace*","Your name","Email address*","Your password*"]
+sign-in card heading present: 0
+wrong code: focus before Create = input[type=password]#field-kdvxpr5 (clicked, no key)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+wrong code: visible messages = ["That setup code is not right. Use the code Hubtask printed when it started, in its console output."]; focus after = button[type=submit] «Create»; calls = ["POST /api/v1/auth/installation:set-up -> 403"]
+right code: focus before Create = input[type=text]#field-hema3z0 (clicked, no key)
+right code: signed in; calls = ["POST /api/v1/auth/installation:set-up -> 403","POST /api/v1/auth/installation:set-up -> 201"]; url = http://localhost:18510/
+tour: Skip the tour clicked
+tour still shown: 0
+after Create hub: focus = input[type=text]#field-3wvqnxh
+dialog: []
+second sign-in: tour shown again: 0
+second sign-in: tour shown again: 0
+create hub: focus before pressing = input[type=text]#field-fep9ect (clicked, no key)
+after hub: url = http://localhost:18510/hubs/01a13233-7da2-74b2-94a6-b1df935485fd
+buttons: ["Create collection","Import…","Actions for Home","RW","Create collection"]
+nav to Home: http://localhost:18510/hubs/01a13233-7da2-74b2-94a6-b1df935485fd
+collection dialog: ["Create collection\nCancel\nCollection name\nDescription\nCancel\nCreate collection\nGive it a name first."]
+create collection: focus before pressing = input[type=text]#field-iy800ok (clicked, no key)
+after collection: url = http://localhost:18510/collections/01a13234-3945-7193-ae5d-1e796659366a
+main buttons: ["Add an entry","More ways to add an entry","Filter and sort","Actions for Around the house","Saved views","RW","Add an entry"]
+main inputs: ["","","","","","","","","","","","","","","","","","",""]
+after Add an entry: focus = input[type=text]#field-r2ikw23
+after Add an entry: focus = input[type=text]#field-j7p130i
+create task: focus before pressing = input[type=text]#field-j7p130i (clicked, no key)
+after task: url = http://localhost:18510/collections/01a13234-3945-7193-ae5d-1e796659366a; rows with the title = 6
+== UC-INS-01 check 3: the used code again (curl)
+{"type":"https://docs.hubtask.dev/errors/conflict","title":"conflict","status":409,"code":"conflict","detail_code":"setup.already_done","request_id":"3987027a18b0947038c97c882a3bedb8","docs":"https://docs.hubtask.dev/errors/conflict"}
+
+HTTP 409
+== UC-INS-01 check 4: the database after setup (owner role, read only)
+     slug      | display_name  | status |          created_at          
+---------------+---------------+--------+------------------------------
+ robin-at-home | Robin at home | ACTIVE | 2026-10-12 22:18:54.52134+00
+(1 row)
+
+         email         | status | role  
+-----------------------+--------+-------
+ robin@walk-d1.example | ACTIVE | OWNER
+(1 row)
+
+              tenant_id               |              account_id              |           added_at            | added_by 
+--------------------------------------+--------------------------------------+-------------------------------+----------
+ 01a13232-86b9-7482-847f-e02d4f4ac66e | 01a13232-86b9-78aa-adf5-3234a10e127b | 2026-10-12 22:18:54.590451+00 | 
+(1 row)
+
+ERROR:  column "type" does not exist
+LINE 1: select occurred_at, type, actor_kind from instance_event ord...
+                            ^
+ERROR:  column "used_at" does not exist
+LINE 1: select used_at is not null as used, expires_at from instance...
+               ^
+HINT:  Perhaps you meant to reference the column "instance_setup_code.issued_at".
+         occurred_at          |     action      |  tenant_slug  | actor_label  |                                                                    details                                                                     
+------------------------------+-----------------+---------------+--------------+------------------------------------------------------------------------------------------------------------------------------------------------
+ 2026-10-12 22:18:54.52134+00 | instance.set_up | robin-at-home | Robin Walker | {"default_hub_id": "01a13232-8701-7b85-a6b6-4400d4f2a394", "operator_added": true, "owner_account_id": "01a13232-86b9-78aa-adf5-3234a10e127b"}
+(1 row)
+
+ setup_codes_left 
+------------------
+                0
+(1 row)
+
+== UC-INS-01 check 1: first start's log lines naming the setup (code redacted here)
+{"time":"2026-10-12T22:18:12.340754917Z","level":"INFO","msg":"the installation is not set up yet; a setup code is on standard error","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","expires_at":"2026-10-12T22:48:12.339146459Z"}
+  Set up Hubtask: open http://localhost:18510 in a browser and enter the setup code XXXX-XXXX-XXXX. It works once, until 22:48 UTC.
+== after docker restart of the app container: lines matching setup|code = 0 of       16 lines
+{'methods': ['PASSWORD'], 'providers': [], 'legal': {}}
+[desktop] sign-in-rules answered 200: providers=[]
+[desktop] sign-in-rules answered 200: providers=[]
+[desktop] account menu items: ["Your settings","Workspace administration","Take the tour again","About Hubtask","Sign out"]
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[desktop] sign-in-rules answered 200: providers=[]
+[desktop] signed-out card text: "Hubtask\nto localhost:18510\nSign in\nEmail address*\nPassword*\nShow password\n\nForgot your password?\n\nSign in"
+[desktop] rules fetched after sign-out: true; buttons: ["Show password","Forgot your password?","Sign in"]; a standalone "or": 0; footer links: []; any link texts: []; side scroll: 0
+[375] sign-in-rules answered 200: providers=[]
+[375] sign-in-rules answered 200: providers=[]
+[375] sign-in-rules answered 200: providers=[]
+[375] sign-in-rules answered 200: providers=[]
+[375] sign-in-rules answered 200: providers=[]
+[375] sign-in-rules answered 200: providers=[]
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] console error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[375] sign-in-rules answered 200: providers=[]
+[375] signed-out card text: "Hubtask\nto localhost:18510\nSign in\nEmail address*\nPassword*\nShow password\n\nForgot your password?\n\nSign in"
+[375] rules fetched after sign-out: true; buttons: ["Show password","Forgot your password?","Sign in"]; a standalone "or": 0; footer links: []; any link texts: []; side scroll: 0
+account menu (owner, 1280): ["Your settings","Workspace administration","Take the tour again","About Hubtask","Sign out"]
+administration nav, last four lines: ["Sign-in provider","AI","Installation","Applies to every workspace you create"]
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+after the Installation row: url = http://localhost:18510/instance
+page text: "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nProve it and continue\nChecking\n\nThe proof lasts an hour, on this session only, and it does not extend itself. It is written into the installation's journal, as is the moment it ends."
+requests: ["POST /api/v1/auth/sessions:elevate -> 403"]
+account menu (owner, 1280): ["Your settings","Workspace administration","Take the tour again","About Hubtask","Sign out"]
+administration nav, last four lines: ["Sign-in provider","AI","Installation","Applies to every workspace you create"]
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+after the Installation row: url = http://localhost:18510/instance
+page text: "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nProve it and continue\nChecking\n\nThe proof lasts an hour, on this session only, and it does not extend itself. It is written into the installation's journal, as is the moment it ends."
+proof dialog open without a further press: 1
+proof: focus before pressing Prove it = input[type=password]#field-hh18u48 (clicked, no key)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+after proof: "Overview\nYou are working on the installation. 60 minutes left.\nWorkspaces\n1\nSuspended\n0\nBeing deleted\n0\nPeople\n1\nAccounts in all\n1\nDefaults\n0 of 18 switches decided, 0 of them locked\nChange\nLegal texts\n0 of 4 links set, 0 of them locked\nChange\nSign-in providers\nThis installation offers none of its own\nManage\nOperators\n1 account may run this installation\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026, 12:26 AM\nOpen\nWhat this level will hold\nLater\nDefault retention rules with a lock, and how long the audit trail is kept.\nLater\nBackup targets the installation offers, and whether a workspace may name its own.\nLater\nPlans: the limits and features each one opens, which is the level between this one and a workspace.\nHealth\n\nEverything this installation depends on is answering."
+after reload: url = http://localhost:18510/instance; dialog = 0; requests since reload = ["GET /instance -> 200"]
+after reload, the head of the page: "Overview\nYou are working on the installation. 60 minutes left.\nWorkspaces\n1\nSuspended\n0\nBeing deleted\n0\nPeople\n1\nAccounts in all\n1\nDefaults\n0 of 18 switches decided, 0 of them locked\nChange\nLegal texts\n0 of 4 links set, 0 of them locked\nChange\nSign-in providers\nThis installation offers none of its o"
+countdown-like texts anywhere: ["You are working on the installation. 60 minutes left.","No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured."]
+requests: ["POST /api/v1/auth/sessions:elevate -> 403","POST /api/v1/auth/step-up -> 201","POST /api/v1/auth/sessions:elevate -> 200","GET /instance -> 200"]
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[x] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+invite: focus before pressing = input[type=email]#field-wb3356n (clicked, no key)
+invitation link drawn: yes (redeem#token=…)
+panel words: "Invitation link for sam@walk-d1.example\n\nShown only now. Hand it over by any messenger; it works once, for fourteen days, and any earlier link for this person no longer works. Lost it? Renew the invitation from the list.\n\nhttp://localhost:18510/redeem#token=hbt_inv_…(redacted)\n\nHide the link\nCopy\nI have copied the link\nDone\nCopy the link first: it cannot be shown again.\nEmail address*\nName\n\nOptional. Without one they are shown by t"
+redeem card: "Hubtask\nto localhost:18510\nSet your password\n\nYou were invited to this workspace. Choose a password and you are in.\n\nNew password*\nShow password\nAt least 12 characters\nNot met\nNot containing your email address, your name or the workspace name\nNot met\nNot a commonly used password\nNot met\nSet the password and sign in"
+redeem: focus before pressing = input[type=password]#field-gmw3z4u (clicked, no key)
+[sam-redeem] console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+redeem card: "Hubtask\nto localhost:18510\nSet your password\n\nYou were invited to this workspace. Choose a password and you are in.\n\nNew password*\nShow password\nAt least 12 characters\nNot met\nNot containing your email address, your name or the workspace name\nNot met\nNot a commonly used password\nNot met\nSet the password and sign in"
+redeem: focus before pressing = input[type=password]#field-fbwyrsv (clicked, no key)
+[sam-redeem] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+Sam redeemed the link and is signed in
+[sam-redeem] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam: Skip the tour
+[desktop] Sam's account menu: ""
+[desktop] words "Installation"/"Applies to every workspace"/"operator" on Sam's screen: false/false/false
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam at /administration/workspace: url http://localhost:18510/administration/workspace; contains "Applies to every workspace": false; head "Skip to the content\nCollapse the navigation\nHubtask\nSearch everything\nHubtask is a preview\nConnected\ns\nsam\nThe workspace\nThis workspace\nWorkspace\nPeople\nGroups\nWhat each role means\nService accounts\nTh"
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam at /instance: url http://localhost:18510/instance; dialog 0; text "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nThis account is not an operator of this installation.\n\nReference 91332d0923c6d759c523b117219f0c40\n\nProve it and continue\n\nThe proof lasts an hour, on this session onl"; requests ["GET /instance -> 200","POST /api/v1/auth/sessions:elevate -> 403"]; side scroll 0
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam's account menu: ""
+[375] words "Installation"/"Applies to every workspace"/"operator" on Sam's screen: false/false/false
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam at /administration/workspace: url http://localhost:18510/administration/workspace; contains "Applies to every workspace": false; head "Skip to the content\nOpen the navigation\nWorkspace\nHubtask is a preview\nConnected\n\nAdministration\n\nWorkspace\nName*\n\nWhat this workspace is called, wherever it is named.\n\nAddress\n\nrobin-at-home\n\nFixed. "
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam at /instance: url http://localhost:18510/instance; dialog 0; text "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nThis account is not an operator of this installation.\n\nReference acfa92cf1560234a8be804ec88d72dfe\n\nProve it and continue\n\nThe proof lasts an hour, on this session onl"; requests ["GET /instance -> 200","POST /api/v1/auth/sessions:elevate -> 403"]; side scroll 0
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam's account menu: "Your settings\nTake the tour again\nAbout Hubtask\nSign out"
+[desktop] words "Installation"/"Applies to every workspace"/"operator" on Sam's screen: false/false/false
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam at /administration/workspace (typed): url http://localhost:18510/administration/workspace; contains "Applies to every workspace": false; contains "Installation": false
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] Sam at /instance: url http://localhost:18510/instance; dialog 0; text "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nThis account is not an operator of this installation.\n\nReference 2c933e271d1d192146f6423d8f433ba0\n\nProve it and continue\n\nThe proof lasts an hour, on this session onl"; requests ["GET /instance -> 200","POST /api/v1/auth/sessions:elevate -> 403"]; side scroll 0
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam's account menu: "Your settings\nTake the tour again\nAbout Hubtask\nSign out"
+[375] words "Installation"/"Applies to every workspace"/"operator" on Sam's screen: false/false/false
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam at /administration/workspace (typed): url http://localhost:18510/administration/workspace; contains "Applies to every workspace": false; contains "Installation": false
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sam-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] Sam at /instance: url http://localhost:18510/instance; dialog 0; text "Overview\n\nThe installation's own screens\n\nThese screens run the installation rather than this workspace: which workspaces exist, what applies to all of them, and who may change it. Reaching them needs you to prove who you are again.\n\nThis account is not an operator of this installation.\n\nReference 2e18dd2c999301948a3ba525e47065ce\n\nProve it and continue\n\nThe proof lasts an hour, on this session onl"; requests ["GET /instance -> 200","POST /api/v1/auth/sessions:elevate -> 403"]; side scroll 0
+[375] administration: url http://localhost:18510/administration/workspace
+[375] buttons on the administration: ["Open the navigation","Hubtask is a preview","Connected","Save"]
+[375] administration: url http://localhost:18510/administration/workspace
+[375] buttons on the administration: ["Open the navigation","Hubtask is a preview","Connected","Save"]
+[375] drawer, last four lines: ["Sign-in provider","AI","Installation","Applies to every workspace you create"]
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] proof: focus before pressing = input[type=password]#field-2u1gexm (clicked, no key)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[owner-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] overview: side scroll 0
+[375] /instance/settings: side scroll 0; dialog 0
+[375] /instance/workspaces: side scroll 0; dialog 0
+[owner-375] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+[375] /administration/ai: side scroll 0; dialog 0
+== hubctl (built from this commit) against the compose stack
+$ hubctl login --url http://localhost:18510 --email robin@walk-d1.example
+signed in to http://localhost:18510; the session is held in /private/tmp/claude-501/-Users-jeromewinkel-Dev-hubtask-repo--claude-worktrees-milestones-ph-sc-completion-c810cb/644726f7-c2ce-4966-b6cb-67b6093a5f51/scratchpad/walk-d1/hubctl-profile.json until 2026-11-11 23:31
+exit 0
+$ hubctl admin settings show   (before elevate)
+hubctl: The token used is not allowed to do this. It would need the scope admin:tenants.
+exit 0
+$ hubctl admin elevate
+hubctl: proved again with the password; retrying
+ELEVATED UNTIL     MINUTES LEFT
+2026-10-13 01:31   60
+exit 0
+$ hubctl admin settings show   (after elevate)
+KEY                               VALUE   WORKSPACE
+sign_in.breach_check              -       open
+sign_in.common_passwords          -       open
+sign_in.context_words             -       open
+sign_in.history_count             -       open
+sign_in.managed_accounts          -       open
+sign_in.max_age_days              -       open
+sign_in.max_repeat                -       open
+sign_in.methods                   -       open
+sign_in.mfa_required_for          -       open
+sign_in.min_age_hours             -       open
+sign_in.min_classes               -       open
+sign_in.min_digits                -       open
+sign_in.min_length                -       open
+sign_in.min_lowercase             -       open
+sign_in.min_symbols               -       open
+sign_in.min_uppercase             -       open
+sign_in.session_idle_minutes      -       open
+sign_in.session_max_days          -       open
+legal.accessibility_url           -       open
+legal.imprint_url                 -       open
+legal.privacy_url                 -       open
+legal.terms_url                   -       open
+localisation.locale               -       open
+localisation.time_zone            -       open
+localisation.week_start           -       open
+quotas.ai_tokens_per_day          -       open
+quotas.api_requests_per_minute    -       open
+quotas.automation_runs_per_hour   -       open
+quotas.export_jobs                -       open
+quotas.items                      -       open
+quotas.media_bytes                -       open
+quotas.webhook_targets            -       open
+ai.min_jurisdiction               -       open
+ai.person_opt_out                 -       open
+ai.sources                        -       open
+== UC-INS-07 check 4 through hubctl (single mode)
+$ hubctl admin tenant create --slug second --name Second --owner-email x@walk-d1.example
+hubctl: This installation runs in single mode: its one workspace is the installation. Workspaces are created, suspended and deleted only in multi mode.
+$ hubctl admin tenant suspend robin-at-home
+hubctl: the identifier: robin-at-home is not a valid identifier.
+$ hubctl admin tenant delete robin-at-home
+hubctl: the identifier: robin-at-home is not a valid identifier.
+$ hubctl admin tenant suspend 01a13232-86b9-7482-847f-e02d4f4ac66e   (the workspace's id)
+hubctl: This installation runs in single mode: its one workspace is the installation. Workspaces are created, suspended and deleted only in multi mode.
+$ hubctl admin tenant delete 01a13232-86b9-7482-847f-e02d4f4ac66e   (the workspace's id)
+hubctl: ending a workspace needs --confirm with its display name, typed exactly
+
+hubctl - the command line client for a Hubtask installation
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[sweep] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+UC-INS-07 c4 sweep /instance: 5 controls; matches ["text: Suspended"]
+UC-INS-07 c4 sweep /instance/workspaces: 3 controls; matches []
+  workspaces row controls: ["Limits","Export","Open the password"]
+UC-INS-07 c4 sweep /instance/settings: 1 controls; matches []
+UC-INS-07 c4 sweep /instance/providers: 1 controls; matches []
+UC-INS-07 c4 sweep /instance/ai: 1 controls; matches []
+UC-INS-07 c4 sweep /instance/encryption: 0 controls; matches []
+UC-INS-07 c4 sweep /instance/operators: 1 controls; matches []
+UC-INS-07 c4 sweep /instance/journal: 0 controls; matches ["text: What this installation recorded: who was provisioned, suspended, resumed and deleted, and what its operator changed. Identifiers, counts and moments - never any"]
+UC-INS-07 c4 sweep /administration/workspace: 2 controls; matches []
+UC-INS-07 c4 sweep /administration/people: 9 controls; matches []
+UC-INS-07 c4 sweep /administration/quotas: 4 controls; matches []
+UC-INS-07 c4 sweep /administration/backup: 2 controls; matches []
+UC-INS-07 c4 sweep /administration/sign-in: 4 controls; matches []
+[sweep] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+UC-INS-07 c4 sweep /administration/ai: 4 controls; matches ["text: Send this workspace’s content to the provider"]
+== UC-INS-12 check 2: the register emptied by hand (owner role) - the state of an installation whose register nobody filled; the product offers no way to remove the only operator
+DELETE 1
+ operators 
+-----------
+         0
+(1 row)
+
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] empty register: overview's operator tile: "Operators\nYou run this installation because it has one workspace and nobody is registered.\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026"
+[desktop] empty register: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nNobody is registered, which on a private installation means the owner - exactly as it did before this register existed. Adding the first operator turns that off.\n\n"
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] empty register: overview's operator tile: "Operators\nYou run this installation because it has one workspace and nobody is registered.\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026"
+[375] empty register: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nNobody is registered, which on a private installation means the owner - exactly as it did before this register existed. Adding the first operator turns that off.\n\n"
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] before re-adding the owner: overview's operator tile: "Operators\nYou run this installation because it has one workspace and nobody is registered.\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026"
+[desktop] before re-adding the owner: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nNobody is registered, which on a private installation means the owner - exactly as it did before this register existed. Adding the first operator turns that off.\n\n"
+add operator robin@walk-d1.example: focus before pressing = input[type=email]#field-vrgova4 (clicked, no key)
+after Add them: "Connected | Now showing changes as they happen."
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] one registered: overview's operator tile: "Operators\n1 account may run this installation\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026, 12:34 AM\nOpen\nWhat this level will hold\nLat"
+[desktop] one registered: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nOperator\n\t\nSigns in with\n\t\nTheir workspace\n\t\nAdded\n\t\nWhat can be done\n\nRobin Walker you\trobin@walk-d1.example\tRobin at home (robin-at-home)\tOct 13, 2026, 12:34 AM\nby Robin Walker\n\t\n\nThe only operator cannot be removed: an installation nobody operates is one nobody can run.\n\n"
+add operator sam@walk-d1.example: focus before pressing = input[type=email]#field-am5qqql (clicked, no key)
+after Add them: "Connected | Now showing changes as they happen."
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] two registered: overview's operator tile: "Operators\n2 accounts may run this installation\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026, 12:34 AM\nOpen\nWhat this level will hold\nLa"
+[desktop] two registered: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nOperator\n\t\nSigns in with\n\t\nTheir workspace\n\t\nAdded\n\t\nWhat can be done\n\nRobin Walker you\trobin@walk-d1.example\tRobin at home (robin-at-home)\tOct 13, 2026, 12:34 AM\nby Robin Walker\n\t\nRemove\n\nsam\tsam@walk-d1.example\tRobin at home (robin-at-home)\tOct 13, 2026, 12:34 AM\nby Robin Walker\n\t\nRemove\n"
+row controls for sam@walk-d1.example: ["Remove"]
+remove dialog: "Remove sam as an operator?\nKeep\nsam of Robin at home (robin-at-home) will no longer reach the installation's screens. Their account stays as it is.\nKeep\nRemove"
+after remove: "Connected | sam is no longer an operator."
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[ops-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] after removing Sam: overview's operator tile: "Operators\n1 account may run this installation\nManage\nJournal\nLast: Session raised to the installation, Oct 13, 2026, 12:34 AM\nOpen\nWhat this level will hold\nLat"
+[desktop] after removing Sam: operators screen: "Operators\nYou are working on the installation. 60 minutes left.\n\nAn operator can reach these screens after proving who they are. Anyone else is refused, whatever else they may do in their own workspace.\n\nOperator\n\t\nSigns in with\n\t\nTheir workspace\n\t\nAdded\n\t\nWhat can be done\n\nRobin Walker you\trobin@walk-d1.example\tRobin at home (robin-at-home)\tOct 13, 2026, 12:34 AM\nby Robin Walker\n\t\n\nThe only operator cannot be removed: an installation nobody operates is one nobody can run.\n\n"
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[defaults] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+defaults editor: 69 visible controls
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[save] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+invalid value on the screen: focus before Save = input[type=url]#field-vpcf9my (clicked, no key)
+[save] console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+after Save with ftp://: requests []; messages ["A link here has to start with https:// or http://.\n\nReference d8e11721004bb3664adb638068d8d84f","true","A link here has to start with https:// or http://."]; texts ["A link here has to start with https:// or http://.","Refuse the address, the name and the workspace name inside a password","Accounts without a mail address allowed","A link here has to start with https:// or http://."]
+values before Save: ["12","locked","1","open","1","open","1","open","0","open","2","open","3","open","true","open","true","open","false","open","365","open","3","open","1","open","NONE","open",true,false,"open","30","open","720","open","false","open","https://walk-d1.example/imprint","locked","https://walk-d1.example/privacy","open","https://walk-d1.example/terms","open","https://walk-d1.example/accessibility","open","en","Europe/Berlin","MONDAY","6000","open","100000","locked","10737418240","open","1000","open","10","open","10","open","200000","open","OWN","open","ANY","open","OFFERED","open",""]
+every key: focus before Save = input[type=url]#field-vpcf9my (clicked, no key)
+after Save: requests []
+after Save, head: "Defaults\nYou are working on the installation. 60 minutes left.\n\nWhat this installation has decided for every workspace on it. Changed here, through hubctl, or through the API - they are three doors to the same values. A file in enforcing mode is the exception: then it is the source and nothing else may write.\n\nSaved. Every workspace reads the new values from now on.\n\nThis installation has decided 35 of 35 settings. The rest are each workspace's.\n\nSigning in\nSetting\n\t\nValue\n\t\nWorkspaces may\n\nMinimum length\t12\tnot change it\nLowercase letters, at least\t1\tmake it stricter\nUppercase letters, at lea"
+== UC-INS-09 check 2: the level after one Save from the screen (owner role, read only)
+              key               |                  value                  | stored_as | lock_origin 
+--------------------------------+-----------------------------------------+-----------+-------------
+ ai.min_jurisdiction            | "ANY"                                   | string    | OPEN
+ ai.person_opt_out              | "OFFERED"                               | string    | OPEN
+ ai.sources                     | "OWN"                                   | string    | OPEN
+ legal.accessibility_url        | "https://walk-d1.example/accessibility" | string    | OPEN
+ legal.imprint_url              | "https://walk-d1.example/imprint"       | string    | INSTANCE
+ legal.privacy_url              | "https://walk-d1.example/privacy"       | string    | OPEN
+ legal.terms_url                | "https://walk-d1.example/terms"         | string    | OPEN
+ localisation.locale            | "en"                                    | string    | OPEN
+ localisation.time_zone         | "Europe/Berlin"                         | string    | OPEN
+ localisation.week_start        | 1                                       | number    | OPEN
+ quota.ai_tokens_per_day        | 200000                                  | number    | OPEN
+ quota.api_requests_per_minute  | 6000                                    | number    | OPEN
+ quota.automation_runs_per_hour | 1000                                    | number    | OPEN
+ quota.export_jobs              | 10                                      | number    | OPEN
+ quota.items                    | 100000                                  | number    | INSTANCE
+ quota.media_bytes              | 10737418240                             | number    | OPEN
+ quota.webhook_targets          | 10                                      | number    | OPEN
+ sign_in.breach_check           | false                                   | boolean   | OPEN
+ sign_in.common_passwords       | true                                    | boolean   | OPEN
+ sign_in.context_words          | true                                    | boolean   | OPEN
+ sign_in.history_count          | 3                                       | number    | OPEN
+ sign_in.managed_accounts       | false                                   | boolean   | OPEN
+ sign_in.max_age_days           | 365                                     | number    | OPEN
+ sign_in.max_repeat             | 3                                       | number    | OPEN
+ sign_in.methods                | ["PASSWORD"]                            | array     | OPEN
+ sign_in.mfa_required_for       | "NONE"                                  | string    | OPEN
+ sign_in.min_age_hours          | 1                                       | number    | OPEN
+ sign_in.min_classes            | 2                                       | number    | OPEN
+ sign_in.min_digits             | 1                                       | number    | OPEN
+ sign_in.min_length             | 12                                      | number    | INSTANCE
+ sign_in.min_lowercase          | 1                                       | number    | OPEN
+ sign_in.min_symbols            | 0                                       | number    | OPEN
+ sign_in.min_uppercase          | 1                                       | number    | OPEN
+ sign_in.session_idle_minutes   | 720                                     | number    | OPEN
+ sign_in.session_max_days       | 30                                      | number    | OPEN
+(35 rows)
+
+== UC-INS-09 check 6, hubctl's door
+$ hubctl admin settings set legal.accessibility_url ftp://walk-d1.example/accessibility
+hubctl: A link here has to start with https:// or http://.
+exit 1
+$ hubctl admin settings show (after the Save on the screen)
+KEY                               VALUE                                   WORKSPACE
+sign_in.breach_check              false                                   open
+sign_in.common_passwords          true                                    open
+sign_in.context_words             true                                    open
+sign_in.history_count             3                                       open
+sign_in.managed_accounts          false                                   open
+sign_in.max_age_days              365                                     open
+sign_in.max_repeat                3                                       open
+sign_in.methods                   [PASSWORD]                              open
+sign_in.mfa_required_for          NONE                                    open
+sign_in.min_age_hours             1                                       open
+sign_in.min_classes               2                                       open
+sign_in.min_digits                1                                       open
+sign_in.min_length                12                                      LOCKED
+sign_in.min_lowercase             1                                       open
+sign_in.min_symbols               0                                       open
+sign_in.min_uppercase             1                                       open
+sign_in.session_idle_minutes      720                                     open
+sign_in.session_max_days          30                                      open
+legal.accessibility_url           https://walk-d1.example/accessibility   open
+legal.imprint_url                 https://walk-d1.example/imprint         LOCKED
+legal.privacy_url                 https://walk-d1.example/privacy         open
+legal.terms_url                   https://walk-d1.example/terms           open
+localisation.locale               en                                      open
+localisation.time_zone            Europe/Berlin                           open
+localisation.week_start           MONDAY                                  open
+quotas.ai_tokens_per_day          200000                                  open
+quotas.api_requests_per_minute    6000                                    open
+quotas.automation_runs_per_hour   1000                                    open
+quotas.export_jobs                10                                      open
+quotas.items                      100000                                  LOCKED
+quotas.media_bytes                1.073741824e+10                         open
+quotas.webhook_targets            10                                      open
+ai.min_jurisdiction               ANY                                     open
+ai.person_opt_out                 OFFERED                                 open
+ai.sources                        OWN                                     open
+sign-in after the installation's stricter rules: "Choose a new password" shown = 1; footer links ["Imprint","Privacy","Terms","Accessibility"]
+new password: focus before pressing = input[type=password]#field-a9g97cp (clicked, no key)
+Robin set a new password meeting the rules and is signed in
+[x] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+[desktop] /administration/ai: "offered" false; "installation" lines ["On this installation’s own infrastructure","In tokens a day. Leave it empty for no budget: the installation's budget never limits our own model."]; side scroll 0
+[desktop] /administration/quotas: "offered" false; "installation" lines ["What this workspace may use. These are the installation's to set, not this workspace's.","API requests a minute\t6000\tNot counted here\t—\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","Own AI model's tokens a day\tNo limit\t0\t—\tThe installation's default","Raising a limit is the operator of this installation's to do, not this workspace's. Ask whoever runs it."]; side scroll 0
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] /instance/settings: "offer" lines []; side scroll 0
+[desktop] /instance/ai: "offer" lines ["The AI models this installation offers every workspace. Offered is not on: each workspace chooses a model itself, and th","Offer a model","This installation offers no AI model. Each workspace connects its own, where the defaults allow it - or none."]; side scroll 0
+[shots-375] console error: Failed to load resource: the server responded with a status of 404 (Not Found)
+[375] /administration/ai: "offered" false; "installation" lines ["On this installation’s own infrastructure","In tokens a day. Leave it empty for no budget: the installation's budget never limits our own model."]; side scroll 0
+[375] /administration/quotas: "offered" false; "installation" lines ["What this workspace may use. These are the installation's to set, not this workspace's.","API requests a minute\t6000\tNot counted here\t—\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","\tThe installation's default","Own AI model's tokens a day\tNo limit\t0\t—\tThe installation's default","Raising a limit is the operator of this installation's to do, not this workspace's. Ask whoever runs it."]; side scroll 0
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[shots-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] /instance/settings: "offer" lines []; side scroll 0
+[375] /instance/ai: "offer" lines ["The AI models this installation offers every workspace. Offered is not on: each workspace chooses a model itself, and th","Offer a model","This installation offers no AI model. Each workspace connects its own, where the defaults allow it - or none."]; side scroll 0
+== UC-INS-09 check 6, the file's door: enforce mode with legal.accessibility_url = ftp://... (file shown above in the walk file)
+Up 10 seconds (healthy)
+{"time":"2026-10-12T22:38:41.271770958Z","level":"WARN","msg":"sampling the queue depth failed","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.271780458Z","level":"WARN","msg":"sampling the retry backlog failed","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.273049458Z","level":"WARN","msg":"sampling the backup freshness failed","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.273089791Z","level":"WARN","msg":"the audit partition could not be ensured","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","month":"2026-10","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.273100541Z","level":"WARN","msg":"a stream partition could not be ensured","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","table":"activity_entry","month":"2026-10","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.273110791Z","level":"WARN","msg":"aged stream partitions could not be dropped","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","table":"outbox_event","error":"dependency_unavailable","component":"worker.scheduler"}
+{"time":"2026-10-12T22:38:41.273210083Z","level":"WARN","msg":"job failed","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","job_kind":"outbox.dispatch","job_id":"01a13232-8702-7fb0-8203-a3ed2f456f32","attempt":1,"error_code":"postgres.begin_failed","dead_letter":false,"component":"worker.runner"}
+{"time":"2026-10-12T22:38:41.273239041Z","level":"WARN","msg":"recording a job failure failed","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","job_id":"01a13232-8702-7fb0-8203-a3ed2f456f32","error":"dependency_unavailable","component":"worker.runner"}
+after ~2 minutes with the ftp:// file in enforce mode: /readyz on the ops port answers 'starting'; container 'Up 2 minutes (healthy)'; the log carries no line about the instance file (neither 'written from the file' nor a refusal) and 141 WARN lines 'dependency_unavailable' (claiming jobs, sampling the queue) while postgres reports ok in /meta/health; the stored legal.accessibility_url is unchanged: "https://walk-d1.example/accessibility"
+== the same enforce mode with a valid file (min_length 14 locked, accessibility_url https://…/accessibility-from-file), app restarted
+readyz: 'ok' after ~4s
+{"time":"2026-10-12T22:40:52.210295463Z","level":"INFO","msg":"operations endpoints ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","addr":":9090"}
+{"time":"2026-10-12T22:40:52.27831138Z","level":"INFO","msg":"API ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","addr":":8080"}
+{"time":"2026-10-12T22:40:52.278328422Z","level":"INFO","msg":"worker ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","batch":10,"poll_interval":2000000000,"job_timeout":60000000000,"woken_by_notification":true,"componen
+{"time":"2026-10-12T22:40:52.278339547Z","level":"INFO","msg":"job listener ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","channel":"hubtask_job","component":"worker.job_listener"}
+{"time":"2026-10-12T22:40:52.27834888Z","level":"INFO","msg":"scheduler ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","tick_interval":10000000000,"component":"worker.scheduler"}
+{"time":"2026-10-12T22:40:52.278301963Z","level":"INFO","msg":"change listener ready","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","channel":"hubtask_change","component":"api.change_listener"}
+{"time":"2026-10-12T22:40:52.280416588Z","level":"INFO","msg":"the instance level was written from the file","service":"hubtask","version":"sc15-d1","role":"api,worker,scheduler,automation","source":"/etc/hubtask/instance.json","mode":"enforce"}
+dependency_unavailable lines since restart: 76
+sign_in.min_length|14|INSTANCE
+legal.accessibility_url|"https://walk-d1.example/accessibility-from-file"|OPEN
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-desktop] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[desktop] enforce: file path on screen true; "Change these values" 0; visible controls []; head "Defaults\nYou are working on the installation. 60 minutes left.\n\nWhat this installation has decided for every workspace on it. Changed here, through hubctl, or through the API - they are three doors to the same values. A file in enforcing mode is the exception: then it is the source and nothing else may write.\n\nThese values come from this installation's file and are written again at every start. Changing them here or through the API is refused.\n\n/etc/hubtask/instance.json\n\nThis installation has decided 2 of 35 settings. The rest are each workspace's.\n\nSigning in\nSetting\n\t\nValue\n\t\nWorkspaces may\n\nMinimum length\t14\tnot change it\nLowercase letters, at least\tEach workspace decides\tmake it stricte"; side scroll 0
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[enforce-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[375] enforce: file path on screen true; "Change these values" 0; visible controls []; head "Defaults\nYou are working on the installation. 60 minutes left.\n\nWhat this installation has decided for every workspace on it. Changed here, through hubctl, or through the API - they are three doors to the same values. A file in enforcing mode is the exception: then it is the source and nothing else may write.\n\nThese values come from this installation's file and are written again at every start. Changing them here or through the API is refused.\n\n/etc/hubtask/instance.json\n\nThis installation has decided 2 of 35 settings. The rest are each workspace's.\n\nSigning in\nSetting\n\t\nValue\n\t\nWorkspaces may\n\nMinimum length\t14\tnot change it\nLowercase letters, at least\tEach workspace decides\tmake it stricte"; side scroll 0
+== enforce mode, hubctl (a new sign-in: the password changed and the earlier session ended)
+signed in to http://localhost:18510; the session is held in <scratch profile> until 2026-11-11 23:41
+hubctl: proved again with the password; retrying
+ELEVATED UNTIL     MINUTES LEFT
+2026-10-13 01:41   60
+$ hubctl admin settings set legal.terms_url https://walk-d1.example/terms-2
+hubctl: These values come from /etc/hubtask/instance.json and are written again at every start, so a change made here would be undone by the next restart. Change the file.
+exit 1

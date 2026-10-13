@@ -7,7 +7,7 @@ deployments: [D5, D6]
 serves: [P-08, P-15]
 state: built
 tasks: [SI-05, SC-05]
-checked_by: [apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminElevate_test.go, core/application/service/identity/AuthenticateRegister_test.go, docs/evidence/SC-05-2026-10-12.md]
+checked_by: [apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminElevate_test.go, core/application/service/identity/AuthenticateRegister_test.go, docs/evidence/SC-05-2026-10-12.md, apps/webapp/e2e/admintoken.test.mjs, docs/evidence/SC-15-D4-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 
 # Let a purchase platform provision workspaces with its own credential

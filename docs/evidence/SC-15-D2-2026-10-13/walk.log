@@ -1,0 +1,172 @@
+setup: focus before Create = field-lz5lrxk
+setup: the parent is signed in to "The Hollands"
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-wzp6m9u (clicked, no key)
+invite Sam: hint "No mail goes out from here." is on screen; button reads "Create the invitation link"
+note: a first run of the invitation probe invited sam@hollands.example (Sam Holland, Member) and then stopped: the probe waited for the panel by a name it does not carry. Sam stays invited, not arrived, and serves the already-invited case below.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-q7qu8dr (clicked, no key)
+invite Kim: hint "No mail goes out from here." is on screen; button reads "Create the invitation link"
+panel reads: Invitation link for kim@hollands.example / 
+after the press: "Invitation sent" on screen = 0; token in body text before reveal = false
+revealed link: http://localhost:18520/redeem#token=hbt_inv_…
+after Done: token in page markup = false
+redeem card at 375: address bar after load = http://localhost:18520/redeem; side scroll {"scrollWidth":375,"clientWidth":375}
+note: the second run invited kim@hollands.example and stopped at a field the card does not have (a repeat field); Kim's link was not redeemed and stays invited, not arrived. The run below starts again with Alex.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-j9ur64h (clicked, no key)
+invite Alex: hint "No mail goes out from here." is on screen; button reads "Create the invitation link"
+panel reads: Invitation link for alex@hollands.example / 
+after the press: "Invitation sent" on screen = 0; token in body text before reveal = false
+revealed link: http://localhost:18520/redeem#token=hbt_inv_…
+after Done: token in page markup = false
+redeem card at 375: address bar after load = http://localhost:18520/redeem; side scroll {"scrollWidth":375,"clientWidth":375}
+redeem: focus before pressing Set the password and sign in = input[type=password]#field-qj6txxy (clicked)
+[alex-375] console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+note: the third run's password for Alex contained Alex's name; the card refused it (422), as its third rule says. The link was not spent; the walk continues with a renewed link for Alex.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-ueyi8r7 (clicked, no key)
+Alex's row: Alex Holland Member this workspace Invited, not yet arrived New invitation link Revoke
+renewed: panel reads Invitation link for Alex Holland / ; focus = div
+redeem card at 375: address bar after load = http://localhost:18520/redeem; side scroll {"scrollWidth":375,"clientWidth":375}
+redeem: focus before pressing Set the password and sign in = input[type=password]#field-1kmx4i4 (clicked)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+note: the fourth run redeemed Alex's renewed link at 375 and Alex arrived (the side navigation is attached but folded away at 375, which the probe first waited for as visible). Two 403 answers were logged by Alex's first page; see below.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-vwut4s9 (clicked, no key)
+sign-in alex@hollands.example: focus before pressing Sign in = input[type=password]#field-wfgpwds (clicked, no key)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-4gbstov (clicked, no key)
+sign-in alex@hollands.example: focus before pressing Sign in = input[type=password]#field-22mbx9z (clicked, no key)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+Alex pressed Skip the tour
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-375] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+sessions as Alex: "Invitation" on screen = true; "Signed in with" = true
+[parent-1280] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+same address again (Alex, active): alerts = Connected | Somebody with that address is already in this workspace. | Now showing changes as they happen.; link panel = 0
+[parent-1280] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+same address again (Sam, invited earlier, not arrived): alerts = Connected | That address was invited already and has not accepted yet. Renew the invitation from the list of people instead. | Now showing changes as they happen.; link panel = 0
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-fpwv5da (clicked, no key)
+[parent-375] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+375 parent, Alex again: alerts = Connected | Somebody with that address is already in this workspace. | Now showing changes as they happen.; side scroll {"scrollWidth":375,"clientWidth":375}
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-f90cpln (clicked, no key)
+[parent-1280] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+1280px, sam@hollands.example again: banner top -306 px in a viewport of 900 (scrollY 563) -> out of view; email field after the refusal = ""; focus = button[type=submit]; side scroll {"scrollWidth":1280,"clientWidth":1280}
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-m79qitz (clicked, no key)
+[parent-375] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+375px, alex@hollands.example again: banner top -630 px in a viewport of 812 (scrollY 874) -> out of view; email field after the refusal = ""; focus = button[type=submit]; side scroll {"scrollWidth":375,"clientWidth":375}
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-3y2ufsw (clicked, no key)
+[parent-1280] console error: Failed to load resource: the server responded with a status of 409 (Conflict)
+1280px, sam@hollands.example again: banner top -306 px in a viewport of 900 (scrollY 563) -> out of view; email field after the refusal = ""; focus = button[type=submit]; side scroll {"scrollWidth":1280,"clientWidth":1280}
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-zao9y83 (clicked, no key)
+--- sign-in rules at 1280px; side scroll {"scrollWidth":1280,"clientWidth":1280}
+Required of: options = Nobody / Owners and administrators / Everyone; value = NONE
+controls on Sign-in whose label names a second factor: []
+rule "Minimum length": controls=1 input/number min=12; origin: Hubtask's default.
+rule "Lowercase": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Uppercase": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Digits": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Other": controls=1 input/number min=0; origin: Hubtask's default.
+rule "At least this many of the four kinds": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Most of the same character in a row": controls=1 input/number; origin: Hubtask's default.
+rule "Refuse commonly used passwords": controls=1 input/checkbox disabled; origin: Hubtask's default.
+rule "Refuse the address, the name and the workspace name inside a password": controls=1 input/checkbox disabled; origin: Hubtask's default.
+rule "Check against known breaches": controls=1 input/checkbox; origin: Hubtask's default.
+rule "Expires after, in days": controls=1 input/number; origin: Hubtask's default.
+rule "Remember previous passwords": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Earliest change after, in hours": controls=1 input/number min=0; origin: Hubtask's default.
+rule "Required of": controls=1 select/select-one; origin: Hubtask's default.
+rule /^End a session after, in days/: controls=1; origin: Hubtask's default.
+rule /^End an idle session after, in minutes/: controls=1; origin: Hubtask's default.
+rotation action "Require a new password from everyone": 1
+Ways to sign in (1): ["Password The only way in left. Switch another one on first. The address and a password, checked by this installation. Hubtask's default."]
+switches in the list: [{"checked":true,"disabled":true,"role":"switch"}]
+refusal: typed 0 into "End a session after, in days"; focus before pressing Save = input[type=number]#field-sjr9ych (clicked)
+after Save: aria-invalid fields = []; alerts = []; browser validation message = "Value must be greater than or equal to 1."
+the rule's block now reads: End a session after, in days Hubtask's default.
+[parent-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+Minimum length 500 -> aria-invalid = []; alerts = []; validation = ""; block: Minimum length Hubtask's default.
+Workspace screen controls: ["Name*","Fallback language","Fallback time zone","A week starts on"]
+Workspace screen mentions "second factor": false; "Require": false
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-ce1kfto (clicked, no key)
+--- sign-in rules at 375px; side scroll {"scrollWidth":375,"clientWidth":375}
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-xf04kt5 (clicked, no key)
+[parent-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+step-up dialog: focus before pressing Prove it = input[type=password]#field-4tk5mwp (clicked)
+Minimum length 500 after the proof -> aria-invalid = []; alerts = []; block: Minimum length Set here.
+profile Language options: Use the workspace's / English / Deutsch — German
+German: 186 English strings of the screen's catalogues checked against the page text; English shown = []; keys missing from de.json = []
+German "Wege der Anmeldung" on screen: true
+German "Verlangt von" on screen: true
+German "Frühestens änderbar nach, in Stunden" on screen: true
+German "Voreinstellung von Hubtask." on screen: true
+German screen: no screenshot kept (screenshots are English, the owner 2026-10-12)
+sign-in after min length 500: card reads: Hubtask to localhost:18520 STEP 2 OF 2 Choose a new password Your password was right, but it no longer meets this workspace's rules. Set a new one and you are in. Signing in as pat@hollands.example Not you? New password* Show password At least 128 characters Not met Not containing your email address, your name or the workspace name Not met Not a commonly used password Not met Set the password and sign in
+change step: a 130-character password typed; focus before pressing = input[type=password]#field-5p5do6z (clicked)
+[parent-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+minimum length put back: block reads Minimum length Set here.; value 12
+--- UC-AUD-01 check 5, as Kim (a plain member, before the erasure)
+Kim GET /api/v1/audit -> HTTP 200; items: 4 actors: ['<Kim>'] actions: ['account.preferences_changed', 'auth.signed_in', 'auth.signed_in', 'auth.invitation_redeemed']
+Kim GET /api/v1/audit?actor_id=<Pat> -> HTTP 403; code: forbidden detail_code: access.not_permitted status: 403
+Kim GET /api/v1/audit?actor_id=<Kim> -> HTTP 200; items: 5 actors: ['<Kim>'] actions: ['audit.read', 'account.preferences_changed', 'auth.signed_in', 'auth.signed_in', 'auth.invitation_redeemed']
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-oqgj43d (clicked, no key)
+privacy: kinds offered = A copy of their data / Their data in a portable form / A correction / Their data left alone / An end to optional processing / Their data removed
+case row: (no row)
+note: the erasure case for Kim was recorded through People's requests (Their data removed, Their account = Kim's identifier); the first probe then looked for the case by name and stopped.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-r7x3y5m (clicked, no key)
+the case as listed: Their data removed Recorded Kim Holland Owed Nov 11, 2026, 11:26 PM · in 4 weeks Received Oct 13, 2026, 12:26 AM How much is removed is your choice, and it affects other people's work. Choose it on the case before it starts. How much to remove Keep what other people depend on Remove their own contributions too Their name goes and their authorship becomes a former user. Tasks, comments and threads other people rely on stay where they are. This is what a case that names nothing gets, because the people who are not asking have rights too. Start answering it Extend the deadline Refuse it
+erasure dialog: Erase Kim Holland? Keep the case open Kim Holland's name, address, password and every token and device go, and their authorship becomes a former user. What they wrote stays where other people rely on it. This cannot be undone. No legal hold reaches this person: everything the mode names goes. Keep the case open Erase
+after Erase: alerts = []; row: (row gone)
+--- UC-AUD-01 check 3, after the erasure: entries whose actor was Kim = 6
+   actor as shown on each: ['{"id": "01a13232-41d2-7567-a255-471ba274d46c", "label": "former-user-373464343663", "type": "USER"}']
+   "Kim Holland" anywhere in the trail: False ; "kim@" anywhere: False
+   entries whose target is Kim: 4 ['account.preferences_changed', 'auth.invitation_redeemed', 'account.invitation_renewed', 'account.invited']
+   "Holiday plans" (a hub title) anywhere in the trail: False
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-mnbrzsg (clicked, no key)
+--- UC-AUD-01 at 1280 (browser time zone UTC). First screen: 50 entries; "Show more" = 1; page-number controls = 0
+sentence on the screen: Reading the trail is not itself recorded — a trail that grew by being read would bury what it is for. A refusal is recorded, and so is an export.
+first entry as shown: Done Worth noticing auth.signed_in in the chain: 69 by Pat Holland · Oct 12, 2026, 10:30 PM about the session 01a1323c-b9f5-7fc1-b08c-a4e382d808dd account_id became <Pat>
+the screen shows "Holiday plans" = false, "Kim Holland" = false
+after "Show more": 69 entries, the first 50 kept above; address unchanged
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-2ho7rpw (clicked, no key)
+--- UC-AUD-01 at 1280 (browser time zone UTC). First screen: 50 entries; "Show more" = 1; page-number controls = 0
+sentence on the screen: Reading the trail is not itself recorded — a trail that grew by being read would bury what it is for. A refusal is recorded, and so is an export.
+first entry as shown: Done Worth noticing auth.signed_in in the chain: 71 by Pat Holland · Oct 12, 2026, 10:30 PM about the session 01a1323c-e3fe-7f81-8754-04eb15ded3df account_id became <Pat>
+the screen shows "Holiday plans" = false, "Kim Holland" = false
+after "Show more": 71 entries, the first 50 kept above; address unchanged
+filter "period": focus before pressing Look = input[type=datetime-local]#field-vd550e4 (clicked)
+filter "period": screen [57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17] | API 200 [57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17] | hubctl [57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17] -> the same entries
+filter "action auth.invitation": focus before pressing Look = input[type=text]#field-2bbwnra (clicked)
+filter "action auth.invitation": screen [53,19] | API 200 [53,19] | hubctl [53,19] -> the same entries
+filter "actor = Kim (erased)": focus before pressing Look = input[type=text]#field-85renyn (clicked)
+filter "actor = Kim (erased)": screen [58,57,56,55,54,53] | API 200 [58,57,56,55,54,53] | hubctl [58,57,56,55,54,53] -> the same entries
+  erased actor on screen: ["former user","became permission"]
+filter "target account Kim": focus before pressing Look = input[type=text]#field-e4gm9qx (clicked)
+filter "target account Kim": screen [56,53,52,12] | API 200 [56,53,52,12] | hubctl [56,53,52,12] -> the same entries
+filter "outcome refused": focus before pressing Look = body (clicked)
+filter "outcome refused": screen [58,57,34,33,32,31,28,27,26,25,22,21] | API 200 [58,57,34,33,32,31,28,27,26,25,22,21] | hubctl [58,57,34,33,32,31,28,27,26,25,22,21] -> the same entries
+check 6: entries in the whole trail before the screen reads = 71, after five filtered reads on the screen, three through the API and five through hubctl = 71
+GET /api/v1/audit?from=2026-10-13T00%3A00%3A00Z&to=2026-10-12T00%3A00%3A00Z -> HTTP 422; code validation_failed; detail_code audit.period_invalid
+GET /api/v1/audit?outcome=MAYBE -> HTTP 422; code validation_failed; detail_code usecase.input_invalid
+[parent-1280] console error: Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)
+screen, reversed period: alerts = ["The end of the period must come after its start.\n\nReference 0cd1d1d27e4fa8c6c1d9f6e67c73a3bf"]; banner = The start of an action name is enough — “auth.” finds every sign-in event.,The end of the period must come after its start.,Every entry is chained to the one before it. Checking the chain over a period says whether anything has been altered or removed since.
+sign-in pat@hollands.example: focus before pressing Sign in = input[type=password]#field-xarqlpl (clicked, no key)
+375: side scroll {"scrollWidth":375,"clientWidth":375}
+--- UC-ID-18 at 1280px, signed out: links on the page = []; footer text = [""]; legal labels among the links = []; requests naming "legal" = []; side scroll {"scrollWidth":1280,"clientWidth":1280}
+--- UC-ID-18 at 375px, signed out: links on the page = []; footer text = [""]; legal labels among the links = []; requests naming "legal" = []; side scroll {"scrollWidth":375,"clientWidth":375}
+"Forgot your password?" is a button; pressed (clicked, nothing submitted)
+it then reads: Hubtask to localhost:18520 Reset your password Enter the address you sign in with. If an account exists for it, a link is on its way — it works once, for thirty minutes. Email address* Send the link Back to sign in
+sign-in alex@hollands.example: focus before pressing Sign in = input[type=password]#field-kho74ll (clicked, no key)
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+--- UC-ID-06 at 1280 as Alex: []
+sign-in alex@hollands.example: focus before pressing Sign in = input[type=password]#field-84axp01 (clicked, no key)
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-1280] request failed: POST /api/v1/sync:snapshot net::ERR_ABORTED
+Alex pressed Skip the tour at 1280 and waited: PATCH requests = ["/api/v1/accounts/01a13232-ef04-7250-a79b-4af67fc2b80f/preferences"]
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+[alex-1280] console error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+--- UC-ID-06 at 1280 as Alex: ["Client Signed in Signed in with Last active Network End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 This device Oct 13, 2026, 12:32 AM Password Oct 13, 2026, 12:32 AM 127.0.0.0/24 End this session","curl/8.7.1 Oct 13, 2026, 12:31 AM Password Oct 13, 2026, 12:31 AM 127.0.0.0/24 End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 Oct 13, 2026, 12:31 AM Password Oct 13, 2026, 12:31 AM 127.0.0.0/24 End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 Oct 13, 2026, 12:21 AM Password Oct 13, 2026, 12:21 AM 127.0.0.0/24 End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 Oct 13, 2026, 12:20 AM Password Oct 13, 2026, 12:20 AM 127.0.0.0/24 End","Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/153.0.8010.12 Safari/537.36 Oct 13, 2026, 12:20 AM Invitation Oct 13, 2026, 12:20 AM 127.0.0.0/24 End"]
+note: the tour skip at 375 earlier wrote nothing because the probe navigated away at once; pressed at 1280 and waited, Skip the tour sends its PATCH. Not a product fault.

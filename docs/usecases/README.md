@@ -166,8 +166,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-08](./identity/UC-ID-08-sign-in-with-my-organisations-directory.md) | Sign in with my organisation's directory | identity | built |
 | [UC-ID-09](./identity/UC-ID-09-sign-in-with-google-or-microsoft.md) | Sign in with my Google or Microsoft account | identity | built |
 | [UC-ID-10](./identity/UC-ID-10-connect-a-provider-to-my-existing-account.md) | Connect a sign-in provider to the account I already have | identity | partial |
-| [UC-ID-11](./identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md) | Set up a sign-in provider for our workspace | identity | built |
-| [UC-ID-12](./identity/UC-ID-12-set-the-workspaces-sign-in-rules-in-one-place.md) | Set how people in our workspace sign in, in one place | identity | built |
+| [UC-ID-11](./identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md) | Set up a sign-in provider for our workspace | identity | verified |
+| [UC-ID-12](./identity/UC-ID-12-set-the-workspaces-sign-in-rules-in-one-place.md) | Set how people in our workspace sign in, in one place | identity | verified |
 | [UC-ID-13](./identity/UC-ID-13-require-a-new-password-from-everyone.md) | Require a new password from everyone after a breach | identity | built |
 | [UC-ID-14](./identity/UC-ID-14-invite-people-with-a-role.md) | Invite people and give them a role | identity | partial |
 | [UC-ID-15](./identity/UC-ID-15-limit-a-person-to-part-of-the-workspace.md) | Let a person see only part of the workspace | identity | partial |
@@ -184,9 +184,9 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | built |
 | [UC-INS-07](./admin/UC-INS-07-provision-a-workspace.md) | Create a workspace for a customer | admin | built |
 | [UC-INS-08](./admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md) | Suspend, resume and delete a workspace | admin | built |
-| [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | built |
+| [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | verified |
 | [UC-INS-10](./admin/UC-INS-10-set-limits-for-workspaces.md) | Set limits for workspaces, and see them before they hurt | admin | built |
-| [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | built |
+| [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | verified |
 | [UC-INS-12](./admin/UC-INS-12-see-the-installation-at-a-glance.md) | See the installation at a glance and read what happened | admin | built |
 | [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | specified |
 | [UC-INS-14](./admin/UC-INS-14-tell-a-platform-what-happened.md) | Tell the purchase platform what happened, without it asking | admin | specified |
@@ -275,7 +275,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-PRV-06](./privacy/UC-PRV-06-answer-a-request-across-the-whole-installation.md) | Answer a request across every workspace of the installation | privacy | partial |
 | [UC-PRV-07](./privacy/UC-PRV-07-correct-what-we-hold-about-a-person.md) | Correct what the workspace holds about a person | privacy | built |
 | [UC-PRV-08](./privacy/UC-PRV-08-know-what-the-installation-stores-about-people.md) | Know what the installation stores about people, and how each piece is deleted | privacy | built |
-| [UC-AUD-01](./audit/UC-AUD-01-look-up-what-happened-in-the-workspace.md) | Look up what happened in the workspace | audit | built |
+| [UC-AUD-01](./audit/UC-AUD-01-look-up-what-happened-in-the-workspace.md) | Look up what happened in the workspace | audit | verified |
 | [UC-AUD-02](./audit/UC-AUD-02-prove-the-trail-is-intact.md) | Prove the trail has not been changed | audit | verified |
 | [UC-AUD-03](./audit/UC-AUD-03-anchor-the-trail-outside-the-database.md) | Anchor the trail outside the database | audit | partial |
 | [UC-AUD-04](./audit/UC-AUD-04-hand-the-trail-to-an-auditor.md) | Hand a period of the trail to somebody outside | audit | built |
@@ -286,8 +286,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-02](./suggestion/UC-AI-02-connect-our-own-ai-provider.md) | Connect our workspace's own AI model | suggestion | built |
 | [UC-AI-03](./suggestion/UC-AI-03-consent-to-ai-processing.md) | Decide whether our content may be sent to a model, and take it back | suggestion | built |
 | [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
-| [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | built |
-| [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | built |
+| [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | verified |
+| [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | verified |
 | [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | partial |
 | [UC-SYN-01](./sync/UC-SYN-01-keep-working-when-the-connection-drops.md) | Keep working when the connection drops | sync | partial |
 | [UC-SYN-02](./sync/UC-SYN-02-edit-on-two-devices-without-losing-either-change.md) | Edit on two devices without losing either change | sync | built |
