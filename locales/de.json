@@ -114,6 +114,7 @@
   "auth.tenant_unresolved": "Unter dieser Adresse antwortet kein Workspace. Prüfe die Adresse, unter der du dich anmeldest.",
   "auth.mfa_challenge_failed": "Diese Anmeldung kann nicht mehr abgeschlossen werden. Beginne von vorn mit deinem Passwort.",
   "auth.mfa_code_invalid": "Dieser Code wurde nicht bestätigt. Gib den aktuellen Code aus deiner Authenticator-App ein.",
+  "auth.recovery_code_invalid": "Dieser Wiederherstellungscode wurde nicht bestätigt. Jeder funktioniert nur einmal – versuch einen anderen der zehn.",
   "auth.mfa_code_required": "Diese Anmeldung braucht den Code aus deinem Authenticator oder einen deiner Wiederherstellungscodes.",
   "auth.link_password_required": "Gib das Passwort dieses Kontos ein, um den Anbieter damit zu verbinden.",
   "auth.mfa_not_enrolled": "Für dieses Konto ist kein zweiter Faktor eingerichtet.",

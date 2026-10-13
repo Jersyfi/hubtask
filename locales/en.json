@@ -202,6 +202,7 @@
   "auth.tenant_unresolved": "No workspace answers this address. Check the address you are signing in at.",
   "auth.mfa_challenge_failed": "That sign-in can no longer be completed. Start again with your password.",
   "auth.mfa_code_invalid": "That code did not verify. Enter the current code from your authenticator.",
+  "auth.recovery_code_invalid": "That recovery code did not verify. Each one works once - try another of the ten.",
   "auth.mfa_code_required": "This sign-in needs the code from your authenticator, or one of your recovery codes.",
   "auth.link_password_required": "Type the password of this account to connect the provider to it.",
   "auth.mfa_not_enrolled": "This account has no second factor set up.",
