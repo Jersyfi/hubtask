@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -192,7 +193,7 @@ func anotherWayIn(
 	// No other provider. The workspace still has a way in when a password opens one, which is what
 	// the effective policy's methods say — and a workspace with no policy above it signs in with a
 	// password, because that is the product's own default.
-	return !onlyProviderMethods(here.workspace)
+	return here.passwordIsAWayIn()
 }
 
 // waysHere is what "is this a way in here" reads beyond the provider's row: the workspace, whose
@@ -204,6 +205,19 @@ type waysHere struct {
 	providersLockedIn bool
 	// lockOrigin is who locked the ways in, for a refusal to name.
 	lockOrigin domain.LockOrigin
+	// installation is the installation's own layer of the rule, kept so that whether the password
+	// is a way in is resolved against whichever workspace row the reader holds at the time.
+	installation domain.PolicyLayer
+}
+
+// passwordIsAWayIn answers whether the methods in force here include the password: the
+// installation's default and lock over the workspace's own layer, as the sign-in path resolves them
+// (identity.md §18), never the workspace's setting alone - a row stored before a lock or a default
+// moved past it says something the rule no longer does. The fallback and an operator's opening
+// (§17) are not counted: they open because no way in works, which is what this guard prevents.
+func (h waysHere) passwordIsAWayIn() bool {
+	inForce := domain.Effective(h.installation, domain.PolicyLayer{}, h.workspace.Settings.SignInLayer())
+	return slices.Contains(inForce.Policy.Methods, domain.MethodDirect)
 }
 
 // readWaysHere reads both, in the ambient transaction: `instance_setting` carries no row policy, so
@@ -231,6 +245,7 @@ func readWaysHere(
 		above := domain.Effective(level.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
 		here.providersLockedIn = above.ProvidersLockedIn()
 		here.lockOrigin = above.LockOf(domain.SwitchMethods)
+		here.installation = level.Policy
 	}
 	return here, nil
 }
@@ -272,20 +287,6 @@ func providerOnHere(
 // lastWayIn is the one refusal every door gives.
 func lastWayIn() error {
 	return shared.ErrValidation.WithDetail("identity_provider.last_way_in")
-}
-
-// onlyProviderMethods reports whether this workspace has switched password sign-in off.
-func onlyProviderMethods(workspace domain.Workspace) bool {
-	methods := workspace.Settings.SignIn.Methods
-	if methods == nil {
-		return false
-	}
-	for _, method := range *methods {
-		if method == domain.MethodDirect {
-			return false
-		}
-	}
-	return true
 }
 
 // offeredHere is the one reading of "is this a way in here", shared by the listing, the guard, the

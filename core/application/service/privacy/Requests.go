@@ -627,7 +627,7 @@ func (h CreateDataSubjectRequest) Descriptor() usecase.Descriptor {
 				Enum: []string{string(domain.ScopeTenant), string(domain.ScopeInstallation)},
 				Description: "How far the case reaches. This workspace by default; every " +
 					"workspace of the installation the person is a member of needs the " +
-					"admin:tenants scope.",
+					"admin:tenants scope, and is never an erasure.",
 			},
 			{
 				Name: "subject_account_id", Kind: usecase.KindID,

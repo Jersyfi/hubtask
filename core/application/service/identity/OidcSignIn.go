@@ -475,7 +475,7 @@ func (h CompleteOidcSignIn) Execute(
 	}
 	// The terms of use in force, where not yet agreed, are the step after the provider's word
 	// (UC-ID-19 check 6).
-	return w.Session.openOrAgree(ctx, scope, account, SessionHint{
+	return w.Session.openOrAgreeNaming(ctx, scope, account, SessionHint{
 		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
 		Method: domain.SignedInWithOidc, Via: configured.ID,
 	}, bounds)
@@ -948,7 +948,7 @@ func (w OidcWriter) connectByMail(
 	if err != nil {
 		return SignInResult{}, err
 	}
-	return s.openOrAgree(ctx, scope, account, SessionHint{
+	return s.openOrAgreeNaming(ctx, scope, account, SessionHint{
 		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
 		Method: domain.SignedInWithOidc, Via: configured.ID,
 	}, bounds)

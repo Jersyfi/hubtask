@@ -138,6 +138,22 @@ func (w SessionWriter) openOrAgree(
 	return SignInResult{Pair: &pair}, nil
 }
 
+// openOrAgreeNaming is openOrAgree for a sign-in whose person typed no address - a provider's
+// return, a connect link from the mail: the TERMS step names the account on its identity line, as
+// the reset's does (UC-ID-02 check 1). The proof is complete, so the address tells the person
+// nothing the sign-in had not already established. The link step needs none: its LINK challenge
+// named the account already, and the card keeps that name.
+func (w SessionWriter) openOrAgreeNaming(
+	ctx context.Context, scope persistence.Scope, account domain.Account,
+	hint SessionHint, bounds domain.SessionPolicy,
+) (SignInResult, error) {
+	result, err := w.openOrAgree(ctx, scope, account, hint, bounds)
+	if err == nil && result.Challenge != nil {
+		result.Challenge.Email = account.Email
+	}
+	return result, err
+}
+
 // termsStep mints the TERMS credential. The proof is complete at this point, so the attempt
 // ledger's entries it cleared are cleared here too, as the second factor's step clears them.
 func (w SessionWriter) termsStep(

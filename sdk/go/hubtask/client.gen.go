@@ -5829,7 +5829,9 @@ type DataSubjectRequest struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope  *DataSubjectRequestScope `json:"scope,omitempty"`
 	Status DataSubjectRequestStatus `json:"status"`
 
@@ -5858,7 +5860,9 @@ type DataSubjectRequestCreate struct {
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
 	// which the person is a member - the one operation in this system that legitimately crosses
 	// the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-	// it touches, and is the provider's path rather than a tenant's.
+	// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+	// installation-wide: each workspace's owner carries it out, and the case is refused with
+	// `privacy.installation_erasure_refused`.
 	Scope            *DataSubjectRequestScope `json:"scope,omitempty"`
 	SubjectAccountId *openapi_types.UUID      `json:"subject_account_id,omitempty"`
 	SubjectEmail     *openapi_types.Email     `json:"subject_email,omitempty"`
@@ -5891,7 +5895,9 @@ type DataSubjectRequestKind string
 // for their own workspace means. `INSTALLATION` is every workspace of this installation in
 // which the person is a member - the one operation in this system that legitimately crosses
 // the tenant boundary, and it needs the `admin:tenants` scope, is audited in every workspace
-// it touches, and is the provider's path rather than a tenant's.
+// it touches, and is the provider's path rather than a tenant's. An `ERASURE` is never
+// installation-wide: each workspace's owner carries it out, and the case is refused with
+// `privacy.installation_erasure_refused`.
 type DataSubjectRequestScope string
 
 // DataSubjectRequestStatus defines model for DataSubjectRequestStatus.
@@ -7269,7 +7275,7 @@ type MembershipScope string
 
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
-	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; and with every step a password reset answers - the person arrived from the link in the mail. Absent after a password sign-in, whose first step the address was typed into.
+	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; with the first step a provider's return or a connect link from the mail answers, for the same reason; and with every step a password reset answers - the person arrived from the link in the mail. A later step of the same sign-in may carry none: the card keeps the name it already shows. Absent after a password sign-in, whose first step the address was typed into.
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 

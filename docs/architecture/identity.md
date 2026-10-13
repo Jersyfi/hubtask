@@ -67,7 +67,7 @@ password opens anyway, is §17.
 |---|---|
 | The password switch is honoured everywhere | Where the resolved methods leave the password out, every password door refuses — sign-in, the reset's request and completion, pending steps ending in a session through a password — alike for every address, stored passwords kept. The fallback of §17 is one exception; the other is a sign-in name (an identifier without `@`, UC-ID-20): its sign-in, its `PASSWORD_CHANGE` step and its step-up stay open under the workspace's password and factor rules, while an address is refused before any lookup and an account found by name that also holds an address is refused once the password has been proved. |
 | Before the password is switched off | The switch shows how many people never signed in through a provider (`GET /tenant/accounts-without-provider`; connected, invited and service accounts not counted). |
-| The last way in cannot be switched off | Refused with `identity_provider.last_way_in`. |
+| The last way in cannot be switched off | Refused with `identity_provider.last_way_in`. Whether the password is still a way in is read from the resolved methods (§18), not the workspace's own setting. |
 | The client follows the rules | `GET /auth/sign-in-rules` (§5.4) names the methods and providers; the card offers exactly those. |
 
 ### 4.2 The steps

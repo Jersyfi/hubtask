@@ -199,7 +199,8 @@ func TestAResetEndsInTheTermsAndNamesTheAccount(t *testing.T) {
 }
 
 // Check 6: a provider's return - an account made on arrival, and one found by its subject - ends in
-// the step, and agreeing opens the provider's session.
+// the step, and agreeing opens the provider's session. The person typed no address, so the step
+// names the account, as the reset's does.
 func TestAProviderReturnEndsInTheTerms(t *testing.T) {
 	f := newOidcFixture(t, now)
 	reader, store := &termsReaderFake{terms: installationTerms("3")}, newTermsStore()
@@ -214,6 +215,9 @@ func TestAProviderReturnEndsInTheTerms(t *testing.T) {
 			t.Fatalf("%s: %v", arrival, err)
 		}
 		token := mustBeTermsStep(t, arrival, result, len(f.session.sessions.inserted))
+		if result.Challenge.Email != "ada@example.org" {
+			t.Errorf("%s: the step names %q, want the account's address", arrival, result.Challenge.Email)
+		}
 		// The newcomer is made by the agreement, so the provider's half takes part in it.
 		pair, err := AgreeToTerms{Writer: f.writer.Session, Arrivals: f.writer}.Execute(t.Context(),
 			AgreeToTermsCommand{PendingToken: token, TermsURL: hostTerms, TermsVersion: "3"})
@@ -267,6 +271,9 @@ func TestTheLinkStepAndTheConnectLinkEndInTheTerms(t *testing.T) {
 			t.Fatalf("connecting: %v", err)
 		}
 		token := mustBeTermsStep(t, "the connect link", result, len(f.session.sessions.inserted))
+		if result.Challenge.Email != "bert@example.org" {
+			t.Errorf("the step names %q, want the account's address", result.Challenge.Email)
+		}
 		if session := agreeOpens(t, "the connect link", f.writer.Session, token); session.SignedInWith !=
 			domain.SignedInWithOidc {
 			t.Errorf("the session was opened by %q", session.SignedInWith)
