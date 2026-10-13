@@ -208,6 +208,7 @@ the password's shape), one place the history is written.
 | Rule | Detail |
 |---|---|
 | One answer for every address | `POST /auth/password:forgot` answers the same `202` byte for byte, with or without an account, whatever mail is sent. |
+| The same work for every address | Every request makes one read-only lookup and queues one request job (`identity.password_reset_request`) naming the account or nobody; the job records `auth.password_reset_requested` at the request's moment and queues the mail where the account is active. The time a request takes is no answer either (T-02) — up to the lookup itself, an index hit against a miss. |
 | The token | An `auth_pending` row, purpose `RESET`: 32 bytes, hashed under its purpose label, thirty minutes, single use; a new link, or a change of password or address, spends the earlier ones. |
 | The mail | Its own job from message codes, not a notification (no preference applies); an unreachable mail server never fails the request. |
 | The second factor still stands | `POST /auth/password:reset` sets the password and ends every session; where a factor is on it answers the `202` asking for it, the pair only after the code. |

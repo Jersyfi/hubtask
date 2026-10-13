@@ -58,6 +58,15 @@ const (
 	// exists only to be an exception.
 	KindPasswordResetEmail Kind = "notification.password_reset"
 
+	// KindPasswordResetRequest is what a forgotten-password request leaves behind, for every
+	// address alike (T-02): the account the address named, or nobody. Its handler records the
+	// request and queues KindPasswordResetEmail where there is an active account - work the request
+	// itself used to do for a held address only, and whose time was the difference a probe could
+	// read. Not detached: the entry and the mail job commit with the job's completion. Not
+	// deduplicated: an empty account must not collapse into somebody else's request, and the mail
+	// job is deduplicated per account already.
+	KindPasswordResetRequest Kind = "identity.password_reset_request"
+
 	// KindPasswordOpeningEmail tells one administrator of a workspace that an operator opened the
 	// password there, or that the opening ended (ADR-0078 §3, identity.md §17.2). Queued in the
 	// transaction that opened or closed it, one job per administrator, so the act and its notices

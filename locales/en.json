@@ -228,6 +228,7 @@
   "auth.reset_failed": "That reset link cannot be used. Ask for a new one.",
   "auth.address_link_invalid": "That confirmation link cannot be used. It may be older than a day, or a newer one was sent. Ask for a new one.",
   "auth.reset_expired": "That reset link has expired. Ask for a new one.",
+  "auth.reset_request_malformed": "This installation could not read a password reset request it had queued.",
   "auth.recovery_regenerated": "New recovery codes. The old ten no longer work.",
   "auth.policy_locked": "This is set for every workspace on this installation and cannot be changed here.",
   "auth.policy_loosens": "A workspace can make this stricter than the installation's setting, never looser.",
