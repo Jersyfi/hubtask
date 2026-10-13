@@ -109,6 +109,8 @@ var Jobs = []Job{
 	{ID: "engine-session", Container: true, Filters: goPipeline, Steps: []Step{
 		{Name: "gate-engine-conformance", Command: "make tools-node && pnpm install --frozen-lockfile && make gate-engine-conformance"},
 	}},
+	// Its check is GitHub's job set-up against the repository's action setting, which only a run asks.
+	{ID: "actions-allowed", Filters: []string{"ci"}, CIOnly: "GitHub's job set-up checks the actions against the repository setting; nothing local can ask it"},
 	{ID: "secrets", CIOnly: "gitleaks scans the history and is not among the pinned tools; push protection stops a key at the push"},
 	{ID: "dependencies", CIOnly: "the dependency review compares the pull request with its base through GitHub's API"},
 	// Run by verify-pr itself rather than as a step: it needs the description, which lives on GitHub.
