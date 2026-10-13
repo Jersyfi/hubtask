@@ -82,8 +82,9 @@ func (h GrantMembership) Execute(
 }
 
 // prepare builds the grant and asks everything that is asked before a write: the permission at the
-// scope and, for OWNER, the step-up. Shared with the managed account's creation, which places the
-// person it creates through exactly these checks rather than a copy of them.
+// scope, a role there at least as strong as the one handed out (domain-model.md §3.2) and, for
+// OWNER, the step-up. Shared with the managed account's creation, which places the person it
+// creates through exactly these checks rather than a copy of them.
 func (h GrantMembership) prepare(
 	ctx context.Context, actor appshared.ActorContext, cmd GrantMembershipCommand,
 ) (domain.Grant, error) {
@@ -99,6 +100,8 @@ func (h GrantMembership) prepare(
 		TokenScope: membersWrite,
 		TargetType: membershipTarget,
 		TargetID:   grant.Scope.ID,
+		// Before the step-up: a proof spent on a grant the role then refuses would be burnt.
+		Grants: grant.Role,
 	}); err != nil {
 		return domain.Grant{}, err
 	}

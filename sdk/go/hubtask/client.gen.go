@@ -14720,6 +14720,11 @@ type ClientInterface interface {
 	// To an account or to a group, never both. The role applies downwards from the scope:
 	// a role at a hub applies to its collections and their items.
 	//
+	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+	// role along its path at least as strong as the one granted - an owner gives any role, an
+	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+	// before any step-up is asked.
+	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
 	// without one.
@@ -14733,6 +14738,11 @@ type ClientInterface interface {
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
 	// a role at a hub applies to its collections and their items.
+	//
+	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+	// role along its path at least as strong as the one granted - an owner gives any role, an
+	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+	// before any step-up is asked.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -22478,6 +22488,11 @@ func (c *Client) ListMemberships(ctx context.Context, params *ListMembershipsPar
 // To an account or to a group, never both. The role applies downwards from the scope:
 // a role at a hub applies to its collections and their items.
 //
+// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+// role along its path at least as strong as the one granted - an owner gives any role, an
+// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+// before any step-up is asked.
+//
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
 // without one.
@@ -22501,6 +22516,11 @@ func (c *Client) GrantMembershipWithBody(ctx context.Context, params *GrantMembe
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
 // a role at a hub applies to its collections and their items.
+//
+// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+// role along its path at least as strong as the one granted - an owner gives any role, an
+// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+// before any step-up is asked.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -42552,6 +42572,11 @@ type ClientWithResponsesInterface interface {
 	// To an account or to a group, never both. The role applies downwards from the scope:
 	// a role at a hub applies to its collections and their items.
 	//
+	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+	// role along its path at least as strong as the one granted - an owner gives any role, an
+	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+	// before any step-up is asked.
+	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
 	// without one.
@@ -42565,6 +42590,11 @@ type ClientWithResponsesInterface interface {
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
 	// a role at a hub applies to its collections and their items.
+	//
+	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+	// role along its path at least as strong as the one granted - an owner gives any role, an
+	// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+	// before any step-up is asked.
 	//
 	// Granting `OWNER` is a privileged action: it demands a fresh step-up,
 	// presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
@@ -64345,6 +64375,11 @@ func (c *ClientWithResponses) ListMembershipsWithResponse(ctx context.Context, p
 // To an account or to a group, never both. The role applies downwards from the scope:
 // a role at a hub applies to its collections and their items.
 //
+// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+// role along its path at least as strong as the one granted - an owner gives any role, an
+// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+// before any step-up is asked.
+//
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
 // without one.
@@ -64364,6 +64399,11 @@ func (c *ClientWithResponses) GrantMembershipWithBodyWithResponse(ctx context.Co
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
 // a role at a hub applies to its collections and their items.
+//
+// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
+// role along its path at least as strong as the one granted - an owner gives any role, an
+// administrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),
+// before any step-up is asked.
 //
 // Granting `OWNER` is a privileged action: it demands a fresh step-up,
 // presented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`
