@@ -333,7 +333,8 @@ func (r MfaRepository) Insert(
 	if err != nil {
 		return err
 	}
-	account, err := uuidOf(credential.AccountID)
+	// A newcomer's TERMS step has no account yet (migration 0142).
+	account, err := optionalUUID(credential.AccountID)
 	if err != nil {
 		return err
 	}
@@ -366,6 +367,17 @@ func (r MfaRepository) Insert(
 		// wrote it.
 		params.LinkProof = nullableString(string(link.Proof))
 	}
+	if arrival := credential.Arrival; arrival != nil {
+		// The newcomer waiting for the terms (migration 0142): the provider and subject where the
+		// LINK step keeps them, and what the account will be made from.
+		if params.LinkProviderID, err = uuidOf(arrival.ProviderID); err != nil {
+			return err
+		}
+		params.LinkSubject = nullableString(arrival.Subject)
+		params.ArrivalEmail = nullableString(arrival.Email)
+		params.ArrivalDisplayName = nullableString(arrival.DisplayName)
+		params.ArrivalDirectory = nullableString(arrival.Directory)
+	}
 	if err := queries.InsertPendingCredential(ctx, params); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -392,6 +404,63 @@ func (r MfaRepository) FindByToken(
 	}
 
 	return pendingLookupOf(row, token.TenantID())
+}
+
+// FindArrivalByToken answers a TERMS credential that carries a provider's newcomer (migration
+// 0142). Row level security keeps it to the token's workspace.
+func (r MfaRepository) FindArrivalByToken(
+	ctx context.Context, token identity.Token,
+) (repository.PendingLookup, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	row, err := queries.FindArrivalPendingByHash(ctx, r.pendingHasher.Hash(token.Secret()))
+	if err != nil {
+		if IsNoRows(err) {
+			return repository.PendingLookup{}, shared.ErrNotFound.WithDetail("auth.mfa_challenge_failed")
+		}
+		return repository.PendingLookup{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the pending arrival: %w", err))
+	}
+	credentialID, err := idFrom(row.ID)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	providerID, err := idFrom(row.LinkProviderID)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	via, err := optionalID(row.SessionVia)
+	if err != nil {
+		return repository.PendingLookup{}, err
+	}
+	return repository.PendingLookup{
+		Credential: identity.PendingCredential{
+			ID:            credentialID,
+			TenantID:      token.TenantID(),
+			Purpose:       identity.PendingPurpose(row.Purpose),
+			UserAgent:     stringFrom(row.UserAgent),
+			IPClass:       stringFrom(row.IpClass),
+			CreatedAt:     timeFrom(row.CreatedAt),
+			ExpiresAt:     timeFrom(row.ExpiresAt),
+			ConsumedAt:    timeFrom(row.ConsumedAt),
+			SessionMethod: stringFrom(row.SessionMethod),
+			SessionVia:    via,
+			Arrival: &identity.ArrivalIntent{
+				ProviderID:  providerID,
+				Subject:     stringFrom(row.LinkSubject),
+				Email:       stringFrom(row.ArrivalEmail),
+				DisplayName: stringFrom(row.ArrivalDisplayName),
+				Directory:   stringFrom(row.ArrivalDirectory),
+			},
+		},
+		TenantLocale:   row.DefaultLocale,
+		TenantTimeZone: row.DefaultTimeZone,
+		TenantSlug:     row.TenantSlug,
+		TenantStatus:   identity.TenantStatus(row.TenantStatus),
+	}, nil
 }
 
 // FindByID answers the credential a provider flow remembered (ADR-0078 §1): the CONNECT link it

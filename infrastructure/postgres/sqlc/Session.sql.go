@@ -449,6 +449,68 @@ func (q *Queries) FindAccountForSignIn(ctx context.Context, arg FindAccountForSi
 	return i, err
 }
 
+const findArrivalPendingByHash = `-- name: FindArrivalPendingByHash :one
+SELECT p.id, p.purpose, p.user_agent, p.ip_class,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
+       p.session_method, p.session_via,
+       p.arrival_email, p.arrival_display_name, p.arrival_directory,
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
+FROM auth_pending p
+JOIN tenant n ON n.id = p.tenant_id
+WHERE p.token_hash = $1 AND p.account_id IS NULL
+`
+
+type FindArrivalPendingByHashRow struct {
+	ID                 pgtype.UUID
+	Purpose            string
+	UserAgent          *string
+	IpClass            *string
+	CreatedAt          pgtype.Timestamptz
+	ExpiresAt          pgtype.Timestamptz
+	ConsumedAt         pgtype.Timestamptz
+	LinkProviderID     pgtype.UUID
+	LinkSubject        *string
+	SessionMethod      *string
+	SessionVia         pgtype.UUID
+	ArrivalEmail       *string
+	ArrivalDisplayName *string
+	ArrivalDirectory   *string
+	DefaultLocale      string
+	DefaultTimeZone    string
+	TenantSlug         string
+	TenantStatus       string
+}
+
+// A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
+// and the workspace, nothing to join an account from. Read only by the agreement, so no other step
+// ever meets a credential without an account.
+func (q *Queries) FindArrivalPendingByHash(ctx context.Context, tokenHash []byte) (FindArrivalPendingByHashRow, error) {
+	row := q.db.QueryRow(ctx, findArrivalPendingByHash, tokenHash)
+	var i FindArrivalPendingByHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.Purpose,
+		&i.UserAgent,
+		&i.IpClass,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.ConsumedAt,
+		&i.LinkProviderID,
+		&i.LinkSubject,
+		&i.SessionMethod,
+		&i.SessionVia,
+		&i.ArrivalEmail,
+		&i.ArrivalDisplayName,
+		&i.ArrivalDirectory,
+		&i.DefaultLocale,
+		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
+	)
+	return i, err
+}
+
 const findAuthAttempt = `-- name: FindAuthAttempt :one
 
 SELECT failures, last_failure_at, locked_until
@@ -904,14 +966,15 @@ const insertPendingCredential = `-- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
    link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with,
-   session_method, session_via)
+   session_method, session_via, arrival_email, arrival_display_name, arrival_directory)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
   $9, $10, $11,
   $12, $13, $14,
-  $15
+  $15, $16, $17,
+  $18
 )
 `
 
@@ -931,6 +994,9 @@ type InsertPendingCredentialParams struct {
 	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
+	ArrivalEmail       *string
+	ArrivalDisplayName *string
+	ArrivalDirectory   *string
 }
 
 // ====================== The pending credential ======================
@@ -951,6 +1017,9 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.SignedInWith,
 		arg.SessionMethod,
 		arg.SessionVia,
+		arg.ArrivalEmail,
+		arg.ArrivalDisplayName,
+		arg.ArrivalDirectory,
 	)
 	return err
 }

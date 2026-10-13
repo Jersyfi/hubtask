@@ -412,14 +412,15 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
    link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with,
-   session_method, session_via)
+   session_method, session_via, arrival_email, arrival_display_name, arrival_directory)
 VALUES (
-  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
+  sqlc.arg('id'), current_tenant_id(), sqlc.narg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
   sqlc.arg('created_at'), sqlc.arg('expires_at'),
   sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof'),
   sqlc.arg('password_change_owed'), sqlc.narg('signed_in_with'), sqlc.narg('session_method'),
-  sqlc.narg('session_via')
+  sqlc.narg('session_via'), sqlc.narg('arrival_email'), sqlc.narg('arrival_display_name'),
+  sqlc.narg('arrival_directory')
 );
 
 -- name: FindPendingByHash :one
@@ -439,6 +440,20 @@ FROM auth_pending p
 JOIN account a ON a.id = p.account_id
 JOIN tenant  n ON n.id = p.tenant_id
 WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
+
+-- name: FindArrivalPendingByHash :one
+-- A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
+-- and the workspace, nothing to join an account from. Read only by the agreement, so no other step
+-- ever meets a credential without an account.
+SELECT p.id, p.purpose, p.user_agent, p.ip_class,
+       p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
+       p.session_method, p.session_via,
+       p.arrival_email, p.arrival_display_name, p.arrival_directory,
+       n.default_locale, n.default_time_zone,
+       n.slug AS tenant_slug, n.status::text AS tenant_status
+FROM auth_pending p
+JOIN tenant n ON n.id = p.tenant_id
+WHERE p.token_hash = sqlc.arg('token_hash') AND p.account_id IS NULL;
 
 -- name: FindPendingByID :one
 -- FindPendingByHash for a credential the server itself remembered rather than one a caller
