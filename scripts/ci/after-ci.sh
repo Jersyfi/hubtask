@@ -76,7 +76,7 @@ ${jobs:-* (none listed)}
 
 Until a run on \`main\` is green again, \`CI required\` fails on every pull request that is not the fix (ADR-0083). ${retry}
 
-If the re-run fails too, revert the commit, or fix it forward with a line \`Mends main: ${sha:0:12}\` in the pull request's description. Either merges on the owner's word, like every pull request.
+If the re-run fails too, revert the commit, or fix it forward with a line \`Mends main: ${sha:0:12}\` in the pull request's description. A pure revert of this commit, nothing else changed, merges as soon as its CI is green; a fix forward merges on the owner's word (ci-cd.md §3.5). The reverted change returns to its task as a new pull request.
 
 \`\`\`bash
 git fetch origin && git switch -c revert-${sha:0:12} origin/main
