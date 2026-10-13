@@ -151,8 +151,13 @@ test('chromium: the dialog offers every way the account holds, and a recovery co
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
 
-  // The code first, and the other three beside it.
+  // The code first, and the other three beside it. The caret is in it the first time the dialog
+  // opens, not on *Not now*: the dialog exists to be answered.
   assert.ok(await dialog.getByLabel('Code from your authenticator').isVisible());
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('autocomplete')), 'one-time-code',
+    'the first focus is not the field');
+  // A sign-in rule can be changed back; the dialog does not call every guarded step irreversible.
+  assert.doesNotMatch(await dialog.innerText(), /irreversible/i);
   for (const other of ['Use your password', 'Use a recovery code', 'Confirm with Contoso Entra ID']) {
     assert.ok(await dialog.getByRole('button', { name: other }).isVisible(), `${other} is not offered`);
   }

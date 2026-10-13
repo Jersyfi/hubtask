@@ -2728,7 +2728,7 @@
   "app.identity_provider.removing": "Removing",
   "app.identity_provider.keep": "Keep it",
   "app.step_up.title": "Prove it is you",
-  "app.step_up.why": "This one is irreversible, so Hubtask asks again before it happens. Nothing is changed until you answer.",
+  "app.step_up.why": "Hubtask asks again before a step like this one. Nothing is changed until you answer.",
   "app.step_up.password_label": "Your password",
   "app.step_up.code_label": "Code from your authenticator",
   "app.step_up.code_hint": "Six digits, the one showing now.",

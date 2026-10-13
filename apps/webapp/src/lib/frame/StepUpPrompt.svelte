@@ -28,10 +28,14 @@
   let password = $state('');
   let code = $state('');
   let recoveryCode = $state('');
-  let chosen = $state<Typed | undefined>(undefined);
+  /** The way the reader switched to; until they do, the first typed way the account holds. */
+  let switched = $state<Typed | undefined>(undefined);
 
   const pending = $derived(stepUp.pending);
   const typed = $derived(ORDER.filter((method) => pending?.methods.includes(method)));
+  // Derived rather than set in an effect: the field has to be in the dialog when it opens, or the
+  // dialog's own first focus lands on *Not now* before an effect could draw it.
+  const chosen = $derived(switched ?? typed[0]);
   const offersProvider = $derived(pending?.methods.includes('PROVIDER') ?? false);
   /** The provider's name, from the refusal - or a plain word where an older server named none. */
   const provider = $derived(pending?.provider ?? t('app.step_up.your_provider'));
@@ -44,13 +48,13 @@
 
   // Cleared whenever a new prompt opens, so a value typed for the last privileged action is not
   // sitting in the field for the next one; and the first typed way the account holds is the one
-  // asked for.
+  // asked for again.
   $effect(() => {
     if (pending) {
       password = '';
       code = '';
       recoveryCode = '';
-      chosen = ORDER.find((method) => pending.methods.includes(method));
+      switched = undefined;
     }
   });
 
@@ -132,7 +136,7 @@
         {#if typed.length > 1 || (offersProvider && chosen)}
           <div class="others">
             {#each typed.filter((method) => method !== chosen) as other (other)}
-              <Button tone="subtle" onclick={() => (chosen = other)}>{t(switchLabel[other])}</Button>
+              <Button tone="subtle" onclick={() => (switched = other)}>{t(switchLabel[other])}</Button>
             {/each}
             {#if offersProvider && chosen}
               <Button tone="subtle" isBusy={stepUp.isWorking} onclick={() => stepUp.confirmAtProvider()}>
