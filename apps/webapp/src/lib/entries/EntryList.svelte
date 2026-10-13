@@ -67,7 +67,6 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { textLanguages } from '../data/query.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { humanise } from '../i18n/messages.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
 
@@ -393,13 +392,11 @@
 
   /**
    * What the control at the end of the top level says: "Add an entry" in a collection; in a
-   * subtree the name of what it adds, as the manifest names the type, because "+ Work package"
-   * under a task says which level the reader is adding to.
+   * subtree the name of what it adds, in the catalogue's words for the manifest's type, because
+   * "Add a work package" under a task says which level the reader is adding to.
    */
-  /** A type as words: the manifest's identifier, read as `humanise` reads a code ("Work package"). */
-  const typeName = (type: string) => humanise(type.toLowerCase());
   const addLabel = $derived(
-    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: typeName(topTypes()[0] ?? '') }) : t('app.entries.add'),
+    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: topTypes()[0] ?? '' }) : t('app.entries.add'),
   );
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
@@ -1163,7 +1160,7 @@
                   <IconButton
                     icon="plus"
                     label={childTypes(row.item.type).length === 1
-                      ? t('app.entries.add_typed_inside', { type: typeName(childTypes(row.item.type)[0] ?? ''), title: row.item.title })
+                      ? t('app.entries.add_typed_inside', { type: childTypes(row.item.type)[0] ?? '', title: row.item.title })
                       : t('app.entries.add_child', { title: row.item.title })}
                     size="sm"
                     onclick={() => startAdding(row.item.id)}

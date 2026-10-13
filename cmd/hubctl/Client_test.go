@@ -208,8 +208,8 @@ func TestAFieldErrorBorrowsTheProblemsParameters(t *testing.T) {
 		t.Errorf("a placeholder reached the message: %q", err.Error())
 	}
 	// The field line is rendered from the problem's parameters, which is where the server puts
-	// them - so it names the type rather than printing the placeholder for it.
-	if !strings.Contains(err.Error(), "parent_id: ") || !strings.Contains(err.Error(), "ACTIVITY") {
+	// them - so it names the type, in words, rather than printing the placeholder for it.
+	if !strings.Contains(err.Error(), "parent_id: ") || !strings.Contains(err.Error(), "An activity") {
 		t.Errorf("the field line is missing or empty: %q", err.Error())
 	}
 }
