@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-12]
 state: partial
 tasks: [E-10, E-12, H-13, F4-20, PH-02]
-checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs]
+checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs, docs/evidence/PH-08-D4-2026-10-13.md]
 ---
 
 # Record a data subject request and answer it in time

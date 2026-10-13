@@ -33,6 +33,8 @@ type privateWorld struct {
 	title string
 	// trashed is an entry of the hub in the trash, where a reader's table seeds one.
 	trashed shared.ID
+	// view is a saved view shared into the hub's collection, where a reader's table seeds one.
+	view shared.ID
 }
 
 func seedPrivateWorld(ctx context.Context, t *testing.T) privateWorld {

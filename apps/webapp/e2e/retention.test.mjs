@@ -73,8 +73,10 @@ test('chromium: the owner places a hold on a person, picked by name', async () =
   try {
     const { page, failures, written, close } = await open(browser, 'OWNER');
     const form = page.locator('form', { hasText: 'Place a hold' });
-    const scopes = await form.getByLabel('What it covers').locator('option').allTextContents();
-    assert.equal(scopes.length, 4, scopes.join(', '));
+    // Exactly the four scopes a hold can be placed on (UC-LIF-06 check 8), nothing else.
+    const scopes = await form.getByLabel('What it covers').locator('option')
+      .evaluateAll((options) => options.map((option) => option.value));
+    assert.deepEqual([...scopes].sort(), ['ACCOUNT', 'CONTAINER', 'ITEM', 'TENANT'], scopes.join(', '));
 
     await form.getByLabel('What it covers').selectOption('ACCOUNT');
     await form.getByLabel('Whose data').selectOption({ label: OTHER.display_name });
