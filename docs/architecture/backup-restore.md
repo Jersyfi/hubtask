@@ -80,8 +80,11 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
 ## 4. Encryption
 
 * **Client-side encryption is the standard**: AES-256-GCM under a key **derived from the
-  installation's master key with HKDF-SHA256, bound to the target** — two targets never share a key,
-  and nobody remembers a second secret. The key is not in the archive. Server-side encryption at the
+  installation's master key with HKDF-SHA256, bound to the target through a random salt** the
+  target is given when it is created and every archive's manifest carries. Two targets never share
+  a key, nobody remembers a second secret, and a target re-created after the database is lost still
+  opens the archives at its location: the salt is read from the manifest, not from the database's
+  row of the target. The key is not in the archive. Server-side encryption at the
   target may be added; it replaces nothing.
 * **A passphrase is not available**: `encryption_passphrase` on a target and `decryption_passphrase`
   on a restore are refused (`backup.encryption_passphrase_not_available`) rather than ignored.

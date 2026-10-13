@@ -5,7 +5,7 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
-state: built
+state: partial
 tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17]
 checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpRecovery_test.go, core/application/service/identity/ReplaceAuthenticator_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/Recovery_test.go, test/integration/recovery_codes_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md]
 ---
@@ -41,9 +41,16 @@ same setup during sign-in, told why.
    with it.
 7. A person routed into setup during sign-in sees why ("Your workspace requires a second factor")
    and the identity line.
+8. Accepting an invitation counts as a sign-in: when the workspace's rule requires a second factor
+   of the new person, setting the first password leads into the same setup, and no session opens
+   before the factor is set up.
 
 ## Where it ends
 
 * One authenticator per account. Several authenticators, hardware keys and passkeys are the passkey
   milestone's.
 * No download button for the codes; the clipboard is enough for a password manager.
+
+## Today
+
+* Check 8: not met — redeeming an invitation opens a session without the factor, and setup is asked only at the next password sign-in, tracked in #1327.

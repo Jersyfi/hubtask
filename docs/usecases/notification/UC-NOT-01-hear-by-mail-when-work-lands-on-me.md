@@ -5,7 +5,7 @@ context: notification
 actors: [PE-member, PE-person, PE-guest]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12]
-state: built
+state: partial
 tasks: [C-09, C-01, C-03]
 checked_by: [core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, test/integration/notification_test.go, test/integration/notification_delivery_test.go, test/integration/notification_locale_test.go]
 ---
@@ -40,6 +40,8 @@ and its member — each receive one mail; Carla, who wrote it, receives none.
    rather than silently dropped, and the cause that produced it — the assignment, the comment — is
    never undone by it.
 8. The same event mails each person once, even when the event is handed over twice.
+9. Being given a role on a hub, a collection or one entry sends the person one mail that names who
+   gave it, the role and what it opens, and links to it.
 
 ## Where it ends
 
@@ -47,3 +49,7 @@ and its member — each receive one mail; Carla, who wrote it, receives none.
 * No digest or batching: one event, one mail.
 * No list of past notifications in the app, and no read or unread state.
 * In `D1` a person working alone assigns nothing to anybody else; there is nothing to tell.
+
+## Today
+
+* Check 9: not met — `membership.granted` maps to no notification category, so a person given access is not told, tracked in #1081.

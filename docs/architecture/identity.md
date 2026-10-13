@@ -229,7 +229,7 @@ the password's shape), one place the history is written.
 | TOTP, written in-house | RFC 6238 on `crypto/hmac`, `crypto/sha1`, `crypto/subtle`: a 20-byte secret, six digits, a 30-second step. |
 | Verification | One step either side of now, never twice for one step; attempts count in the ledger (§4.3). |
 | Enrolment | The secret is sealed under its own purpose ([security.md](./security.md) §8); the provisioning URI and ten recovery codes are shown **once**; the factor is armed only after a valid code. The client draws the QR code. |
-| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL`. The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
+| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
 | Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person. The body's `password` is `deprecated` until the next major contract version. |
 | Replacing the authenticator | A step-up with any method held, a new secret confirmed by a code from the new app, one atomic swap answering ten new recovery codes; until then the old factor and codes hold, the replacement waiting ten minutes as an unconfirmed enrolment. Audited as `auth.mfa_replaced`. |
 | No secret travels | The secret and every code appear nowhere after their single showing; MFA state does not travel to devices ([offline-sync.md](./offline-sync.md) §4.2). |
@@ -370,6 +370,9 @@ safeguard belongs to connecting, not to the provider kind.
 * The mail links `<base>/redeem#token=…`, the token in the **fragment** (§14.4);
   `POST /auth/invitations:redeem` sets the first password through `SetPassword` (§6) and activates
   the account.
+* **A redemption is a sign-in for the second-factor rule**: where `mfa_required_for` covers the
+  person (§8), the redemption answers the `ENROLL` step (§4.2) instead of a session, and the session
+  opens only once the factor is armed — the same as a password sign-in would.
 * **A provider activates an invited account only with a second proof**: it is authoritative for the
   address (§10.3), or the person arrives through the invitation's own link — bound to the provider
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
