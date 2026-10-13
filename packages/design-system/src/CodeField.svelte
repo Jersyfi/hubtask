@@ -130,9 +130,12 @@
 </Field>
 
 <style>
+  /* Never wider than what holds it: at the narrowest width a panel's padding leaves less than the
+     places' full measure, and a field that ran past it scrolled the whole page sideways. */
   .code {
     position: relative;
     display: inline-flex;
+    max-inline-size: 100%;
     border-radius: var(--r-md);
   }
 
@@ -163,6 +166,7 @@
     /* Wide enough that two underlines read as two places. At four pixels they joined into one
        long rule and the field looked like a line with a break in it. */
     gap: var(--sp-100);
+    min-inline-size: 0;
     /* A picture of a control never takes the click meant for it. */
     pointer-events: none;
   }
@@ -175,10 +179,12 @@
     justify-content: center;
     /* A fixed measure rather than a minimum: the places are a picture of one field and a place
        that shrank to its (empty) content would draw an underline of a different length than the
-       one beside it. */
+       one beside it. Where the field has less room than that, every place gives up the same share
+       (one basis, one shrink factor), so the underlines stay equal. */
     inline-size: var(--density-control-md-min);
+    min-inline-size: 0;
     block-size: var(--density-control-md-min);
-    flex: none;
+    flex: 0 1 auto;
     border-block-end: var(--bw-thick) solid var(--border-default);
     color: var(--text-primary);
     font-family: var(--font-mono);

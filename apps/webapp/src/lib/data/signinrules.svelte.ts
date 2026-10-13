@@ -119,6 +119,17 @@ class SignInRulesStore {
     return manifest.value?.features?.['sign_in_rules'] === true;
   }
 
+  /**
+   * Whether this installation can send the link the forgotten-password detour asks for.
+   *
+   * Only an explicit `false` withholds it: a server that does not say is one this client cannot
+   * second-guess, and the request is answered alike for every address either way. Where it is
+   * `false`, a link promised is a link that never arrives (deployments.md D1).
+   */
+  get sendsMail(): boolean {
+    return manifest.value?.features?.['mail'] !== false;
+  }
+
   /** Whether the answer is in hand, which is what the screens draw from. */
   get wasRead(): boolean {
     return this.#rules !== undefined;

@@ -44,9 +44,14 @@
      * step the sign-in still owes where the password must be replaced first.
      */
     onarmed?: (pair?: { access: string; refresh: string }, owedChange?: OwedChange) => void;
+    /**
+     * Called the moment the code confirmed the factor, before *Continue*: from then on the factor is
+     * on, and a place that says whether it is must not wait for the codes to be put away to say so.
+     */
+    onconfirmed?: () => void;
   }
 
-  let { pendingToken, onarmed }: Props = $props();
+  let { pendingToken, onarmed, onconfirmed }: Props = $props();
 
   let code = $state('');
   /** The codes and the pair between the confirmation and *Continue*. */
@@ -81,7 +86,10 @@
     const codes = enrollment?.recovery_codes ?? [];
     const answer = await mfa.confirm(code.trim(), pendingToken);
     code = '';
-    if (answer?.armed) armed = { codes, pair: answer.tokens, owedChange: answer.challenge };
+    if (answer?.armed) {
+      armed = { codes, pair: answer.tokens, owedChange: answer.challenge };
+      onconfirmed?.();
+    }
   }
 
   function proceed(): void {

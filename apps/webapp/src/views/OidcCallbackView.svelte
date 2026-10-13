@@ -106,7 +106,9 @@
     <!-- The server's own code: a spent or unknown `state`, a provider that could not be reached, a
          workspace whose provider is switched off - or, for a step-up, a different account at the
          provider, or one that did not confirm a fresh sign-in. -->
-    <Banner tone="danger">{t(failure)}</Banner>
+    <Banner tone="danger" title={failure.message}>
+      {#if failure.reference}{failure.reference}{/if}
+    </Banner>
   {/if}
 {/snippet}
 

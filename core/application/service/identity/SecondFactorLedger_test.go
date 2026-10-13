@@ -41,8 +41,10 @@ func TestAWrongCodeAtTheSignInsSecondStepCounts(t *testing.T) {
 	_, _, err = CompleteSignIn{Writer: fixture.writer}.Execute(t.Context(), CompleteSignInCommand{
 		PendingToken: signInChallenge(t, fixture), RecoveryCode: secret.New("AAAA-BBBB-CCCC-DDDD"),
 	})
-	if err == nil {
-		t.Fatal("a wrong recovery code completed a sign-in")
+	// Its own sentence: somebody typing a recovery code is usually somebody without the
+	// authenticator, and being told to use it is no answer.
+	if err == nil || !strings.Contains(err.Error(), "auth.recovery_code_invalid") {
+		t.Fatalf("a wrong recovery code answered %v", err)
 	}
 	if got := ledger(fixture, mfaSubject(account)); got != 2 {
 		t.Errorf("after a wrong recovery code the ledger stands at %d, want 2", got)

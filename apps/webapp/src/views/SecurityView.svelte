@@ -50,11 +50,18 @@
   // what put three refusals on this screen.
   const armed = $derived(actor.hasSecondFactor === true);
 
+  // The setup on this screen confirmed its code: the factor is on although the ten codes are still
+  // on screen and the account has not been read again, so the panel's state line says so already.
+  let confirmedHere = $state(false);
+  const isOn = $derived(armed || confirmedHere);
+
   // How many recovery codes are left. Answered only where a factor is armed, so it needs no
   // defence of its own: the panel that reads it is inside that branch.
   const left = $derived(actor.recoveryCodesLeft);
 
   let newPassword = $state('');
+  // One per panel: a sentence is drawn beside the thing it is about, never in the panel below it.
+  let passwordNotice = $state<string | undefined>(undefined);
   let notice = $state<string | undefined>(undefined);
 
   // The rules this account's workspace applies, so the list under the field is this workspace's.
@@ -65,8 +72,8 @@
     const candidate = newPassword;
     newPassword = '';
     if (await passwordApi.change(candidate)) {
-      notice = t('app.password.changed');
-      announcer.say(notice);
+      passwordNotice = t('app.password.changed');
+      announcer.say(passwordNotice);
     }
   }
 
@@ -82,6 +89,7 @@
     notice = t('app.mfa.armed');
     announcer.say(notice);
     await actor.reread();
+    confirmedHere = false;
   }
 
   async function replaced(): Promise<void> {
@@ -115,6 +123,7 @@
           <p class="quiet">{t('app.password.none')}</p>
         {:else}
         <p class="quiet">{t('app.password.change_body')}</p>
+        {#if passwordNotice}<p class="quiet">{passwordNotice}</p>{/if}
         {#if passwordApi.problem}
           <Banner tone="danger" title={passwordApi.problem.message}>
             {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
@@ -150,7 +159,7 @@
     <div class="panel">
       <Stack gap="150">
         <h2>{t('app.mfa.title')}</h2>
-        <p class="quiet">{armed ? t('app.mfa.on') : t('app.mfa.off')}</p>
+        <p class="quiet">{isOn ? t('app.mfa.on') : t('app.mfa.off')}</p>
         <!-- Beside the state it is about. At the foot of the panel it sat under the "turn it off"
              section and read as a caption for it. -->
         {#if notice}<p class="quiet">{notice}</p>{/if}
@@ -233,10 +242,11 @@
             {/if}
           </div>
         {:else}
-          <TotpEnrollment onarmed={() => void armedFactor()} />
+          <TotpEnrollment onconfirmed={() => (confirmedHere = true)} onarmed={() => void armedFactor()} />
           <!-- Said where the codes would be, so that the question "where are my recovery codes"
-               has an answer on the screen rather than a button that refuses. -->
-          <p class="quiet">{t('app.recovery.none_yet')}</p>
+               has an answer on the screen rather than a button that refuses - until the setup
+               confirmed, when the codes are the panel above it. -->
+          {#if !confirmedHere}<p class="quiet">{t('app.recovery.none_yet')}</p>{/if}
         {/if}
       </Stack>
     </div>

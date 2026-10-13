@@ -130,9 +130,11 @@
 
 {#snippet notice()}
   {#if oidc.failure}
-    <!-- The server's own code: an invitation that cannot be redeemed, or a provider that is not
+    <!-- The server's own sentence: an invitation that cannot be redeemed, or a provider that is not
          there. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+    <Banner tone="danger" title={oidc.failure.message}>
+      {#if oidc.failure.reference}{oidc.failure.reference}{/if}
+    </Banner>
   {:else if session.problem}
     <Banner tone="danger" title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}

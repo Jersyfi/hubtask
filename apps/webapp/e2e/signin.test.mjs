@@ -1083,6 +1083,75 @@ test('where the password is on, the card keeps Forgot your password and no sign-
   }
 });
 
+// deployments.md D1, P-05: an installation without a mail server cannot send the link, so the
+// detour promises none and asks for no address - it says what works instead. Under both doors: the
+// password's reset, and the sign-in link where the password is off.
+test('without a mail server, the detour promises no link and says what works instead', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    for (const methods of [['PASSWORD', 'OIDC'], ['OIDC']]) {
+      const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+      const base = stubFor({ answer: refused });
+      const asked = [];
+      await context.route('**/api/v1/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.endsWith('/api/v1/meta/capabilities')) {
+          return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'single', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true, mail: false } } });
+        }
+        if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: { ...RULES, methods } });
+        if (path.endsWith('/api/v1/auth/password:forgot')) {
+          asked.push(route.request().postDataJSON());
+          return route.fulfill({ status: 202, body: '' });
+        }
+        return base(route);
+      });
+      const page = await context.newPage();
+      await page.goto(origin);
+      const door = methods.includes('PASSWORD') ? 'Forgot your password?' : 'Get a sign-in link by mail';
+      await page.getByRole('button', { name: door }).click();
+      await page.getByText('This installation sends no mail', { exact: false }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Send the link' }).count(), 0, `${door}: a link is offered that cannot arrive`);
+      assert.equal(await page.getByText(/on its way/).count(), 0, `${door}: the card still promises a mail`);
+      assert.equal(await page.locator('input[type="email"]').count(), 0, `${door}: an address is asked for nothing`);
+      assert.deepEqual(asked, []);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 375), `${door}: the card scrolls sideways`);
+
+      await page.getByRole('button', { name: 'Back to sign in' }).click();
+      await page.getByRole('button', { name: door }).waitFor();
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// The error presentation rule: a server failure on the provider's return is a sentence with the
+// reference to quote, the way every other refusal on the card is - never the bare category.
+test('a provider return the server fails is a sentence with its reference, not a bare word', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/oidc:callback')) {
+      return route.fulfill({ status: 500, json: { code: 'internal', status: 500, request_id: 'req_e2e_500' } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
+    const said = await page.getByRole('alert').innerText();
+    assert.match(said, /Something went wrong on our side/, said);
+    assert.match(said, /req_e2e_500/, `no reference: ${said}`);
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-09 check 4: a provider's mark is its owner's, in the neutral button every guideline allows -
 // drawn from the bundle, never fetched, never recoloured (ADR-0069). The colours are the owners'
 // published values; a kind with no mark draws the tile with the name's first character.

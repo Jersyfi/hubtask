@@ -18,10 +18,12 @@ export const ENROLLMENT = {
  * The one walk of UC-ID-03 checks 1 and 2 that both places share: the secret, the confirmation in
  * the sign-in's own code field, then the ten codes once, copyable as one block, and *Continue*
  * unavailable until the reader ticks that they stored them. `sent` is where the stub recorded the requests.
+ * `atSecret` and `atCodes` let a place assert what it draws around the setup at those two moments.
  */
-export async function walkSetup(page, sent) {
+export async function walkSetup(page, sent, { atSecret, atCodes } = {}) {
   await page.getByRole('button', { name: 'Set up a second factor' }).click();
   await page.getByText('JBSW Y3DP').waitFor();
+  await atSecret?.();
   // The QR code beside the secret written out: an image that says what it is, drawn from the URI.
   const qr = page.getByRole('img', { name: /A code for your authenticator to scan/ });
   assert.equal(await qr.count(), 1, 'setup shows no QR code');
@@ -42,6 +44,7 @@ export async function walkSetup(page, sent) {
   await proceed.waitFor();
   assert.deepEqual(sent.confirm?.code, '123456');
   assert.equal(await proceed.isDisabled(), true, 'Continue is available before the codes were stored');
+  await atCodes?.();
   await page.getByRole('button', { name: 'Show the codes' }).click();
   assert.ok(await page.getByRole('button', { name: 'Hide the codes' }).isVisible(), 'the control says what it hides');
   assert.ok(await page.getByText(ENROLLMENT.recovery_codes[9]).isVisible(), 'the tenth code is shown');
