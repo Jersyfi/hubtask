@@ -7257,7 +7257,7 @@ type MembershipScope string
 
 // MfaChallenge The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in.
 type MfaChallenge struct {
-	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; and with every step a password reset answers - the person arrived from the link in the mail. Absent after a password sign-in, whose first step the address was typed into.
+	// Email Whose account the step is for, for the identity line on the card, where the person typed no address: with `LINK`, the account the provider's address matched - the person arrived from the provider; with the first step a provider's return or a connect link from the mail answers, for the same reason; and with every step a password reset answers - the person arrived from the link in the mail. A later step of the same sign-in may carry none: the card keeps the name it already shows. Absent after a password sign-in, whose first step the address was typed into.
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
