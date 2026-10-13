@@ -45,3 +45,29 @@ func TestMovingALocalisationDefaultOrACeilingIsNamedInTheJournal(t *testing.T) {
 		}
 	}
 }
+
+// Deciding a switch at the product's own default is a change of the installation's defaults even
+// though the value in force stays the same: from then on a workspace cannot go below it. So the
+// journal names a switch whose decided-ness moves, both ways, and not one that stays undecided.
+func TestDecidingASwitchAtTheProductsDefaultIsNamedInTheJournal(t *testing.T) {
+	zero, off, none := 0, false, identity.MfaRequirement("NONE")
+	decided := identityrepo.InstanceLevel{Policy: identity.PolicyLayer{Patch: identity.PolicyPatch{
+		MinSymbols: &zero, BreachCheck: &off, MfaRequiredFor: &none,
+	}}}
+	open := identityrepo.InstanceLevel{}
+
+	for direction, pair := range map[string][2]identityrepo.InstanceLevel{
+		"starting to decide": {open, decided},
+		"ceasing to decide":  {decided, open},
+	} {
+		moved := movedSwitches(pair[0], pair[1])
+		for _, want := range []any{"min_symbols", "breach_check", "mfa_required_for"} {
+			if !slices.Contains(moved, want) {
+				t.Errorf("%s: the journal does not name %v: %v", direction, want, moved)
+			}
+		}
+		if slices.Contains(moved, any("min_length")) {
+			t.Errorf("%s: the journal names min_length, which nobody decided: %v", direction, moved)
+		}
+	}
+}

@@ -210,8 +210,11 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	later := identity.Effective(after.Policy, identity.PolicyLayer{}, identity.PolicyLayer{})
 
 	for _, name := range identity.PolicySwitches() {
+		// Whether the installation decides a switch is a change of its own, even where the value
+		// in force stays the product's default (UC-INS-12 check 3).
 		if identity.SwitchText(earlier.Policy, name) != identity.SwitchText(later.Policy, name) ||
-			earlier.LockOf(name) != later.LockOf(name) {
+			earlier.LockOf(name) != later.LockOf(name) ||
+			before.Policy.Patch.Decides(name) != after.Policy.Patch.Decides(name) {
 			moved = append(moved, string(name))
 		}
 	}

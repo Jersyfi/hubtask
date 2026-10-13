@@ -318,6 +318,10 @@ func (p PolicyPatch) Decided() []PolicySwitch {
 	return decided
 }
 
+// Decides reports whether this level decided the switch, whatever the value - deciding the
+// product's own default is still a decision, because the level below can no longer go under it.
+func (p PolicyPatch) Decides(name PolicySwitch) bool { return p.carries(name) }
+
 func (p PolicyPatch) carries(name PolicySwitch) bool {
 	switch name {
 	case SwitchMinLength:
