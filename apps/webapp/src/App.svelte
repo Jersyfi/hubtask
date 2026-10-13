@@ -18,7 +18,7 @@
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
-  import { reachesAdministrationArea } from './lib/data/capability.svelte.ts';
+  import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
@@ -104,13 +104,20 @@ import ContainerView from './views/ContainerView.svelte';
   /**
    * Whether the reader is inside the level this address belongs to (P-05: a level somebody is
    * outside of does not appear at all). The menu does not offer the administration to somebody
-   * who does not reach it; an address typed or kept from an earlier role must not offer it either -
-   * its forms, its *Save*, and the reads behind them that the server refuses and records. Outside,
+   * who does not reach it, nor the jumble to somebody who does not read the workspace itself; an
+   * address typed or kept from an earlier role must not offer either - their forms, their *Save*,
+   * and the reads behind them that the server refuses and records. Outside,
    * the address answers as one that reaches nothing; `undefined` while the manifest has not yet
    * answered for this reader, and then nothing is drawn rather than a not-found that turns into a
    * screen a moment later.
    */
-  const reach = $derived(route.area === 'administration' ? reachesAdministrationArea() : true);
+  const reach = $derived(
+    route.area === 'administration'
+      ? reachesAdministrationArea()
+      : route.name === 'jumble'
+        ? holdsHere('READ')
+        : true,
+  );
 
   /**
    * A section's own address opens its first screen (ADR-0065 decision 1).

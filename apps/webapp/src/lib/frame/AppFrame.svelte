@@ -46,7 +46,7 @@
   import { recoveryNote } from '../data/recoverynote.svelte.ts';
   import { tour } from '../tour.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { reachesAdministrationArea } from '../data/capability.svelte.ts';
+  import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
@@ -190,7 +190,7 @@
   );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
-    ...primary().map((each) => ({
+    ...primary({ hasJumble: holdsHere('READ') === true }).map((each) => ({
       id: each.id,
       label: t(each.code),
       icon: each.icon,

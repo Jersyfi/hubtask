@@ -30,6 +30,9 @@ test.after(() => served.close());
 
 const NOTHING_HERE = 'There is nothing at this address.';
 
+/** One arrival nobody has decided about yet: the row that carries convert, dismiss and ask. */
+const ARRIVAL = { id: '01a0e2e0-0000-7000-8000-0000000007a1', channel: 'QUICK_CAPTURE', raw_subject: 'Call the plumber', raw_body: null, attachments: [], status: 'NEW', received_at: '2026-10-13T08:00:00Z' };
+
 /** A signed-in tab as somebody holding `permissions` on the workspace, with every API path it asked. */
 async function as(browser, permissions) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -38,6 +41,7 @@ async function as(browser, permissions) {
     const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
     asked.push(path);
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions } });
+    if (path === '/jumble/entries') return route.fulfill({ json: { data: [ARRIVAL], next_cursor: null } });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -103,6 +107,57 @@ for (const role of ['OWNER', 'AUDITOR']) {
     assert.equal(await page.getByRole('heading', { name: NOTHING_HERE }).count(), 0);
     for (let waited = 0; !asked.includes('/meta/health') && waited < 50; waited++) await page.waitForTimeout(100);
     assert.ok(asked.includes('/meta/health'), 'the health report was not read for somebody who may read it');
+    assert.deepEqual(failures, []);
+  });
+}
+
+// The jumble (UC-JUM-01 check 7, UC-JUM-02 check 7): the row and the screen with READ on the
+// workspace, capturing and settling with WRITE_ITEMS, *Make a new address* with AUTOMATION.
+const JUMBLE = {
+  MEMBER: { row: true, capture: true, settle: true, rotate: true },
+  CONTRIBUTOR: { row: true, capture: true, settle: true, rotate: false },
+  VIEWER: { row: true, capture: false, settle: false, rotate: false },
+  GUEST: { row: true, capture: false, settle: false, rotate: false },
+};
+
+for (const [role, expected] of Object.entries(JUMBLE)) {
+  test(`chromium: ${role} sees the jumble with exactly the controls the server accepts from them`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await as(browser, PERMISSIONS[role]);
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}/`);
+    await page.getByRole('heading', { name: 'In the jumble' }).waitFor();
+    assert.equal(await page.getByRole('navigation').getByText('Jumble', { exact: true }).count() > 0, expected.row);
+
+    await page.goto(`${served.origin}/jumble`);
+    await page.getByText('Call the plumber').waitFor();
+    const count = (name) => page.getByRole('button', { name }).count();
+    assert.equal(await count('Put it in the inbox') === 1, expected.capture, 'the capture form');
+    assert.equal(await count('Make an entry from it') === 1, expected.settle, 'convert');
+    assert.equal(await count('Dismiss') === 1, expected.settle, 'dismiss');
+    assert.equal(await count('Make a new address') === 1, expected.rotate, 'the intake address');
+    assert.deepEqual(failures, []);
+  });
+}
+
+for (const role of ['AUDITOR', 'BELOW']) {
+  test(`chromium: ${role} has no jumble - no row, no panel, no read, and its address reaches nothing`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}/`);
+    await page.getByRole('heading', { name: 'What you had open' }).waitFor();
+    assert.equal(await page.getByRole('navigation').getByText('Jumble', { exact: true }).count(), 0, 'the jumble row is drawn');
+    assert.equal(await page.getByRole('heading', { name: 'In the jumble' }).count(), 0, 'the overview draws the jumble');
+
+    await page.goto(`${served.origin}/jumble`);
+    await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();
+    assert.equal(await page.getByRole('button', { name: 'Put it in the inbox' }).count(), 0);
+    assert.equal(asked.filter((path) => path.startsWith('/jumble')).length, 0, 'the jumble was read');
     assert.deepEqual(failures, []);
   });
 }

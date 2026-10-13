@@ -394,7 +394,9 @@ export const TRASH = TRASH_ROW;
 export const YOU_CODE = 'app.nav.you';
 
 /**
- * The primary group, whole — Search included, whatever the bar is carrying.
+ * The primary group, whole — Search included, whatever the bar is carrying — and the jumble where
+ * it is the reader's: `READ` on the workspace itself (UC-JUM-01 check 7). A guest on one collection
+ * or an auditor has no jumble, and a row leading to one would lead to a refusal.
  *
  * **This reverses one sentence.** The rule was: from `medium` up the bar holds the entry to search
  * (ADR-0063 decision 4), so a row for it beside the tree would be a second entry to one
@@ -407,8 +409,10 @@ export const YOU_CODE = 'app.nav.you';
  * Below `medium` nothing changes: the tree draws no primary group there, because the bottom bar
  * holds those destinations and Search is already one of them.
  */
-export function primary(): readonly Destination[] {
-  return DESTINATIONS.filter((destination) => destination.group === 'primary');
+export function primary(options: { readonly hasJumble: boolean }): readonly Destination[] {
+  return DESTINATIONS.filter(
+    (destination) => destination.group === 'primary' && (destination.id !== 'jumble' || options.hasJumble),
+  );
 }
 
 /**

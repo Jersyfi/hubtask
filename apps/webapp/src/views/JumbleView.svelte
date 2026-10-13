@@ -13,8 +13,12 @@
   // things disappear into.
   //
   // **The intake address is a credential in a URL**, which is why it is minted rather than shown.
-  // The control is offered and the server refuses it where the reader lacks `AUTOMATION`; a screen
-  // that hid it would be a screen guessing at a permission, and this client does not do that.
+  // Only for somebody holding `AUTOMATION` on the workspace, as the manifest answers it: pointing
+  // outside input at the workspace is that power, and a control the server refuses is absent (P-05).
+  //
+  // **Each control for the permission it needs**, read from the same answer: the list for anybody
+  // the screen is drawn for (`READ`), capturing and settling an arrival - convert, dismiss, ask -
+  // with `WRITE_ITEMS`. A reader who may only read sees the list and nothing to press.
   //
   // **AI, where the manifest says there is one**: a control on each undecided card asks
   // `:suggest`, and the proposal renders in the card's slot as an `AISuggestion` whose acceptance
@@ -37,6 +41,7 @@
   } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { jumble, type IntakeToken, type JumbleEntry } from '../lib/data/jumble.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
@@ -74,6 +79,10 @@
 
   // The address dies with the screen, like every other one-time value in this client.
   $effect(() => () => (minted = undefined));
+
+  /** What the reader may do here, from what the manifest says they hold on the workspace. */
+  const mayWrite = $derived(holdsHere('WRITE_ITEMS') === true);
+  const mayRotate = $derived(holdsHere('AUTOMATION') === true);
 
   const reading = $derived(jumble.stateOf(filter));
   const entries = $derived(jumble.of(filter));
@@ -209,12 +218,12 @@
             dismissedNote={entry.status === 'DISMISSED' ? t('app.jumble.dismissed_note') : undefined}
           >
             {#snippet suggestion()}
-              {#if hasAi && entry.status === 'NEW'}
+              {#if hasAi && mayWrite && entry.status === 'NEW'}
                 <JumbleProposal {entry} {destinations} chosen={destination} onaccepted={(id) => void accepted(id)} />
               {/if}
             {/snippet}
             {#snippet actions()}
-              {#if entry.status === 'NEW'}
+              {#if mayWrite && entry.status === 'NEW'}
                 {#if converting === entry.id}
                   <Stack gap="150">
                     <Select
@@ -291,64 +300,68 @@
       </Stack>
     {/if}
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.jumble.capture_title')}</h2>
-      <p class="quiet small">{t('app.jumble.capture_hint')}</p>
-      <form onsubmit={capture}>
-        <Stack gap="150">
-          <Input label={t('app.jumble.capture_subject')} bind:value={capturedSubject} />
-          <Textarea label={t('app.jumble.capture_body')} bind:value={capturedBody} rows={3} />
-          <div>
-            <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.jumble.capturing')}>
-              {t('app.jumble.capture')}
+    {#if mayWrite}
+      <Stack gap="150">
+        <h2 class="section">{t('app.jumble.capture_title')}</h2>
+        <p class="quiet small">{t('app.jumble.capture_hint')}</p>
+        <form onsubmit={capture}>
+          <Stack gap="150">
+            <Input label={t('app.jumble.capture_subject')} bind:value={capturedSubject} />
+            <Textarea label={t('app.jumble.capture_body')} bind:value={capturedBody} rows={3} />
+            <div>
+              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.jumble.capturing')}>
+                {t('app.jumble.capture')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </Stack>
+    {/if}
+
+    {#if mayRotate}
+      <Stack gap="150">
+        <h2 class="section">{t('app.jumble.intake_title')}</h2>
+        <p class="quiet small">{t('app.jumble.intake_hint')}</p>
+
+        {#if minted}
+          <OneTimeSecret
+            value={minted.token}
+            label={t('app.jumble.intake_address')}
+            hint={t('app.jumble.intake_minted_hint')}
+            revealLabel={t('app.jumble.reveal')}
+            hideLabel={t('app.jumble.hide')}
+            copyLabel={t('app.jumble.copy')}
+            copiedLabel={t('app.jumble.copied')}
+            acknowledgementLabel={t('app.jumble.kept')}
+            notAcknowledgedReason={t('app.jumble.keep_first')}
+            dismissLabel={t('app.jumble.done')}
+            onDismiss={() => (minted = undefined)}
+          />
+        {:else if rotating}
+          <!-- Said before the button: whatever posts to the current address stops at this moment. -->
+          <Banner tone="warning">{t('app.jumble.rotate_cost')}</Banner>
+          <div class="row">
+            <Button
+              tone="danger"
+              isBusy={isWorking}
+              busyLabel={t('app.jumble.rotating')}
+              onclick={() =>
+                void attempt(async () => {
+                  minted = await jumble.rotateIntake();
+                  rotating = false;
+                }, t('app.jumble.rotated_announced'))}
+            >
+              {t('app.jumble.rotate_now')}
             </Button>
+            <Button tone="subtle" onclick={() => (rotating = false)}>{t('app.jumble.cancel')}</Button>
           </div>
-        </Stack>
-      </form>
-    </Stack>
-
-    <Stack gap="150">
-      <h2 class="section">{t('app.jumble.intake_title')}</h2>
-      <p class="quiet small">{t('app.jumble.intake_hint')}</p>
-
-      {#if minted}
-        <OneTimeSecret
-          value={minted.token}
-          label={t('app.jumble.intake_address')}
-          hint={t('app.jumble.intake_minted_hint')}
-          revealLabel={t('app.jumble.reveal')}
-          hideLabel={t('app.jumble.hide')}
-          copyLabel={t('app.jumble.copy')}
-          copiedLabel={t('app.jumble.copied')}
-          acknowledgementLabel={t('app.jumble.kept')}
-          notAcknowledgedReason={t('app.jumble.keep_first')}
-          dismissLabel={t('app.jumble.done')}
-          onDismiss={() => (minted = undefined)}
-        />
-      {:else if rotating}
-        <!-- Said before the button: whatever posts to the current address stops at this moment. -->
-        <Banner tone="warning">{t('app.jumble.rotate_cost')}</Banner>
-        <div class="row">
-          <Button
-            tone="danger"
-            isBusy={isWorking}
-            busyLabel={t('app.jumble.rotating')}
-            onclick={() =>
-              void attempt(async () => {
-                minted = await jumble.rotateIntake();
-                rotating = false;
-              }, t('app.jumble.rotated_announced'))}
-          >
-            {t('app.jumble.rotate_now')}
-          </Button>
-          <Button tone="subtle" onclick={() => (rotating = false)}>{t('app.jumble.cancel')}</Button>
-        </div>
-      {:else}
-        <div>
-          <Button tone="secondary" onclick={() => (rotating = true)}>{t('app.jumble.rotate')}</Button>
-        </div>
-      {/if}
-    </Stack>
+        {:else}
+          <div>
+            <Button tone="secondary" onclick={() => (rotating = true)}>{t('app.jumble.rotate')}</Button>
+          </div>
+        {/if}
+      </Stack>
+    {/if}
   </Stack>
 </div>
 
