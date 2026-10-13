@@ -232,7 +232,9 @@ func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
 	withAi := before
 	withAi.Ai = domain.AiLayer{
 		Sources: &sources,
-		Locks:   map[domain.AiSwitch]bool{domain.AiSwitchSources: true, domain.AiSwitchMinJurisdiction: true},
+		Locks: map[domain.AiSwitch]bool{
+			domain.AiSwitchSources: true, domain.AiSwitchMinJurisdiction: true, domain.AiSwitchPersonOptOut: true,
+		},
 	}
 	write(withAi)
 
@@ -245,9 +247,14 @@ func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
 		!got.Ai.Locks[domain.AiSwitchMinJurisdiction] {
 		t.Errorf("the locked minimum came back as %v", got.Ai.MinJurisdiction)
 	}
+	// The same for the person's opt-out: a lock alone holds the workspaces at OFFERED.
+	if got.Ai.PersonOptOut == nil || *got.Ai.PersonOptOut != domain.AiOptOutOffered ||
+		!got.Ai.Locks[domain.AiSwitchPersonOptOut] {
+		t.Errorf("the locked opt-out came back as %v", got.Ai.PersonOptOut)
+	}
 
 	write(before)
-	if cleared := read(); cleared.Ai.Sources != nil || cleared.Ai.MinJurisdiction != nil {
+	if cleared := read(); cleared.Ai.Sources != nil || cleared.Ai.MinJurisdiction != nil || cleared.Ai.PersonOptOut != nil {
 		t.Errorf("a write that no longer decides the area left it: %+v", cleared.Ai)
 	}
 }

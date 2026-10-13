@@ -297,12 +297,22 @@ cleared. The rule's sentence stands collapsed under the name.
 Inside a run, the cheapest refusal comes first: **depth**, then **throttle**, then **conditions**
 (reads), then **actions** (writes).
 
+**No run acts as or about a person whose processing is restricted** (Art. 18,
+[data-protection.md](./data-protection.md) §4). Before its conditions - and again at the resume of a
+waiting run - the engine reads who is restricted: a run whose `run_as` is restricted ends `SKIPPED`
+with `automation.run_as_restricted`; one whose event a restricted person caused, whose entry they
+created or are on, or whose intake entry they sent ends `SKIPPED` with
+`automation.subject_restricted`. No rule puts a restricted person on an entry: assigning them or
+adding them as a member is refused with `items.assignee_restricted` and recorded as a skipped action;
+a create, a copy or a template that would carry them makes the entry unassigned. By hand nothing is
+restricted.
+
 **Every run is recorded**, written `RUNNING` before the conditions are evaluated.
 
 | Status | What happened |
 |---|---|
 | `SUCCEEDED` | The run reached its end; under `on_error: CONTINUE` some actions may have failed, as the per-action results say |
-| `SKIPPED` | A condition answered no — the ordinary answer of a working rule |
+| `SKIPPED` | A condition answered no — the ordinary answer of a working rule; or a restriction held the run back, its code saying so |
 | `THROTTLED` | The rule has already run as often as it may this hour; conditions not asked |
 | `FAILED` | An action refused under `STOP`, or a condition could not be evaluated |
 | `ABORTED_LOOP` | The chain reached `causation_depth` 5. The run did nothing |

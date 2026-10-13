@@ -1490,6 +1490,27 @@ CREATE TABLE calendar_feed (
 CREATE UNIQUE INDEX calendar_feed_token_uq ON calendar_feed (token_hash);
 CREATE INDEX calendar_feed_account_idx ON calendar_feed (tenant_id, account_id, created_at DESC, id DESC);
 
+-- ======================= The emergency access to a private hub =======================
+-- One row per opening by the workspace owner (ADR-0073 §4, migration 0138): the hub, who, why and
+-- the hour. The reason is the members' record of who opened their hub, kept with the hub and gone
+-- with it.
+CREATE TABLE private_hub_access (
+  id        uuid PRIMARY KEY,
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id    uuid NOT NULL,
+  opened_by uuid,
+  reason    text NOT NULL CHECK (char_length(reason) BETWEEN 1 AND 500),
+  opened_at timestamptz NOT NULL,
+  ends_at   timestamptz NOT NULL,
+  CONSTRAINT private_hub_access_hour_check CHECK (ends_at > opened_at),
+  UNIQUE (tenant_id, id),
+  CONSTRAINT private_hub_access_hub_id_fkey
+    FOREIGN KEY (tenant_id, hub_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT private_hub_access_opened_by_fkey
+    FOREIGN KEY (tenant_id, opened_by) REFERENCES account (tenant_id, id) ON DELETE SET NULL (opened_by)
+);
+CREATE INDEX private_hub_access_hub_idx ON private_hub_access (tenant_id, hub_id, opened_at DESC);
+
 -- ============================== Notification ===============================
 
 -- What somebody is to be told, and how far that got. References and no content: what an
@@ -1499,7 +1520,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -1513,6 +1534,9 @@ CREATE TABLE notification (
   -- off, the subscription that stopped being called. At most one of the three is set.
   rule_id         uuid,
   subscription_id uuid,
+  -- The emergency access a member is told of (migration 0138, ADR-0073 §4): the mail reads the
+  -- opener, the time and the reason from it at delivery.
+  private_hub_access_id uuid,
 
   CONSTRAINT notification_recipient_id_fkey
     FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -1525,8 +1549,10 @@ CREATE TABLE notification (
     FOREIGN KEY (tenant_id, rule_id) REFERENCES automation_rule (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_subscription_id_fkey
     FOREIGN KEY (tenant_id, subscription_id) REFERENCES webhook_subscription (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT notification_private_hub_access_id_fkey
+    FOREIGN KEY (tenant_id, private_hub_access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_one_subject_check
-    CHECK (num_nonnulls(item_id, rule_id, subscription_id) <= 1)
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id) <= 1)
 );
 -- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
 CREATE UNIQUE INDEX notification_event_recipient_idx
@@ -1540,7 +1566,7 @@ CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -1860,6 +1886,17 @@ CREATE TABLE consent_record (
   source       text,                                -- 'user','tenant_admin','config'
   UNIQUE (tenant_id, account_id, purpose, granted_at),
   CONSTRAINT consent_record_account_id_fkey
+    FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+
+-- A person told once that their objection to AI stopped taking effect (migration 0137): the
+-- notice is pending while noticed_at is older than the workspace's position.
+CREATE TABLE ai_objection_notice (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id uuid NOT NULL,
+  noticed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, account_id),
+  CONSTRAINT ai_objection_notice_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE
 );
 
@@ -2372,8 +2409,9 @@ BEGIN
     'automation_rule','rule_run','rule_occurrence','jumble_intake',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
-    'notification','notification_preference',
+    'notification','notification_preference','private_hub_access',
     'audit_anchor','audit_pseudonym','retention_policy','data_subject_request','consent_record',
+    'ai_objection_notice',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule',

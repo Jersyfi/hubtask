@@ -378,7 +378,7 @@ func TestEverySwitchIsAddressable(t *testing.T) {
 		CommonPasswords: boolOf(true), ContextWords: boolOf(true), BreachCheck: boolOf(true),
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(1),
 		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
-		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false),
+		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false), PrivateHubs: boolOf(false),
 		RotationFrom: &moment,
 	}
 
@@ -448,7 +448,7 @@ func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
 		CommonPasswords: boolOf(true), ContextWords: boolOf(true), BreachCheck: boolOf(true),
 		MaxAgeDays: intOf(90), HistoryCount: intOf(5), MinAgeHours: intOf(6),
 		MfaRequiredFor: requirementOf(MfaForEveryone), Methods: methodsOf(MethodDirect),
-		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false),
+		SessionMaxDays: intOf(7), SessionIdleMinutes: intOf(30), ManagedAccounts: boolOf(false), PrivateHubs: boolOf(false),
 		RotationFrom: &moment,
 	}
 
@@ -464,7 +464,7 @@ func TestEverySwitchMergesIntoItsOwnField(t *testing.T) {
 		SwitchMaxRepeat: "2", SwitchCommonPasswords: "true", SwitchContextWords: "true",
 		SwitchBreachCheck: "true", SwitchMaxAgeDays: "90", SwitchHistoryCount: "5",
 		SwitchMinAgeHours: "6", SwitchMfaRequiredFor: "EVERYONE", SwitchMethods: "PASSWORD",
-		SwitchSessionMaxDays: "7", SwitchSessionIdleMinutes: "30", SwitchManagedAccounts: "false",
+		SwitchSessionMaxDays: "7", SwitchSessionIdleMinutes: "30", SwitchManagedAccounts: "false", SwitchPrivateHubs: "false",
 	} {
 		if got := SwitchText(resolved.Policy, name); got != want {
 			t.Errorf("%s merged to %q, want %q", name, got, want)
@@ -561,5 +561,38 @@ func TestEverySwitchSaysWhichLevelDecidedIt(t *testing.T) {
 	stale := Effective(instance, PolicyLayer{}, PolicyLayer{Patch: PolicyPatch{MinLength: &eight}})
 	if got := stale.SourceOf(SwitchMinLength); got != SourceInstance {
 		t.Errorf("an overruled workspace value reads as %q, want the installation's", got)
+	}
+}
+
+// UC-ID-12 check 8: a value past the product's own bound is refused at its rule, not saved and then
+// quietly enforced as the bound - a minimum of 2000 characters stored, 128 demanded at the next
+// sign-in, and nobody told.
+func TestAValuePastTheProductsBoundIsRefusedAtItsRule(t *testing.T) {
+	resolved := EffectivePolicy{Policy: DefaultSignInPolicy()}
+	for _, c := range []struct {
+		name  string
+		patch PolicyPatch
+		path  string
+	}{
+		{"minimum length", PolicyPatch{MinLength: intOf(CeilingMinLength + 1)}, "/sign_in_policy/min_length"},
+		{"history", PolicyPatch{HistoryCount: intOf(CeilingHistoryCount + 1)}, "/sign_in_policy/history_count"},
+		{"earliest change", PolicyPatch{MinAgeHours: intOf(CeilingMinAgeHours + 1)}, "/sign_in_policy/min_age_hours"},
+		{"classes", PolicyPatch{MinClasses: intOf(5)}, "/sign_in_policy/min_classes"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, _, err := resolved.Tightened(DefaultSignInPolicy(), c.patch)
+			var refusal *shared.Error
+			if !errors.As(err, &refusal) || len(refusal.Fields) != 1 {
+				t.Fatalf("the refusal was %v", err)
+			}
+			if refusal.Fields[0].Path != c.path || refusal.Fields[0].Code != "auth.policy_out_of_bounds" {
+				t.Errorf("field %q code %q", refusal.Fields[0].Path, refusal.Fields[0].Code)
+			}
+		})
+	}
+
+	// At the bound itself it is accepted.
+	if _, _, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{MinLength: intOf(CeilingMinLength)}); err != nil {
+		t.Errorf("the bound itself was refused: %v", err)
 	}
 }

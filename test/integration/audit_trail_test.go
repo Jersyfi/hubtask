@@ -61,7 +61,7 @@ func auditEntry(tenant shared.ID, action port.Action, name string) port.Entry {
 
 func appendEntries(ctx context.Context, t *testing.T, tenant shared.ID, entries ...port.Entry) {
 	t.Helper()
-	sink := postgres.NewAuditSink(generator{t})
+	sink := keyedSink(t)
 
 	for _, entry := range entries {
 		if err := write(ctx, t, tenant, func(ctx context.Context) error {

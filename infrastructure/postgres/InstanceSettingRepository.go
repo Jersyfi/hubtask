@@ -92,6 +92,7 @@ const (
 	keySessionMaxDays     = signInArea + ".session_max_days"
 	keySessionIdleMinutes = signInArea + ".session_idle_minutes"
 	keyManagedAccounts    = signInArea + ".managed_accounts"
+	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
 )
 
@@ -118,6 +119,7 @@ var switchKeys = map[identity.PolicySwitch]string{
 	identity.SwitchSessionMaxDays:     keySessionMaxDays,
 	identity.SwitchSessionIdleMinutes: keySessionIdleMinutes,
 	identity.SwitchManagedAccounts:    keyManagedAccounts,
+	identity.SwitchPrivateHubs:        keyPrivateHubs,
 }
 
 // Read answers the whole level.
@@ -210,6 +212,8 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		patch.SessionIdleMinutes, err = number()
 	case keyManagedAccounts:
 		patch.ManagedAccounts, err = flag()
+	case keyPrivateHubs:
+		patch.PrivateHubs, err = flag()
 	case keyCommonPasswords:
 		patch.CommonPasswords, err = flag()
 	case keyContextWords:
@@ -237,7 +241,9 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 	case localisationArea + ".week_start":
 		var start *int
 		if start, err = number(); err == nil {
-			level.Localisation.WeekStart = *start
+			// A day none of the three - written before the vocabulary was one - is undecided
+			// rather than a level nobody can read.
+			level.Localisation.WeekStart, _ = identity.WeekStartOfISO(*start)
 		}
 	case aiArea + "." + string(integration.AiSwitchSources):
 		var value string
@@ -252,6 +258,13 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 			floor := integration.AiMinJurisdiction(value)
 			level.Ai.MinJurisdiction = &floor
 			level.Ai.Locks[integration.AiSwitchMinJurisdiction] = locked
+		}
+	case aiArea + "." + string(integration.AiSwitchPersonOptOut):
+		var value string
+		if value, err = word(); err == nil {
+			position := integration.AiPersonOptOut(value)
+			level.Ai.PersonOptOut = &position
+			level.Ai.Locks[integration.AiSwitchPersonOptOut] = locked
 		}
 	default:
 		if name, isQuota := strings.CutPrefix(key, quotaArea+"."); isQuota {
@@ -438,6 +451,9 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 	if patch.ManagedAccounts != nil {
 		values[identity.SwitchManagedAccounts] = *patch.ManagedAccounts
 	}
+	if patch.PrivateHubs != nil {
+		values[identity.SwitchPrivateHubs] = *patch.PrivateHubs
+	}
 
 	// In the domain's own order, so that two writes of one level produce the same statements and a
 	// diff of the trail reads top to bottom.
@@ -490,8 +506,10 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		}
 		rows = append(rows, settingRow{key: key, value: encoded, lock: "OPEN"})
 	}
-	if level.Localisation.WeekStart != 0 {
-		encoded, err := json.Marshal(level.Localisation.WeekStart)
+	// The week start as its ISO number, the form this row has always held: a server one release
+	// older reads the level whole and refuses it over a value of the wrong kind.
+	if day := level.Localisation.WeekStart.ISO(); day != 0 {
+		encoded, err := json.Marshal(day)
 		if err != nil {
 			return nil, shared.Internalf("postgres: encoding the week start: %w", err)
 		}
@@ -526,6 +544,11 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		aiValues[integration.AiSwitchMinJurisdiction] = string(*level.Ai.MinJurisdiction)
 	} else if level.Ai.Locks[integration.AiSwitchMinJurisdiction] {
 		aiValues[integration.AiSwitchMinJurisdiction] = string(integration.AiMinAny)
+	}
+	if level.Ai.PersonOptOut != nil {
+		aiValues[integration.AiSwitchPersonOptOut] = string(*level.Ai.PersonOptOut)
+	} else if level.Ai.Locks[integration.AiSwitchPersonOptOut] {
+		aiValues[integration.AiSwitchPersonOptOut] = string(integration.AiOptOutOffered)
 	}
 	for _, name := range integration.AiSwitches() {
 		value, decided := aiValues[name]

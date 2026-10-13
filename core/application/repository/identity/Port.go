@@ -28,6 +28,9 @@ type Credential struct {
 	// (i18n-l10n.md §2). Never empty: the columns have defaults.
 	TenantLocale   string
 	TenantTimeZone string
+	// WeekStartAbove is the week start's link above the account (i18n-l10n.md §4): the workspace's
+	// own day, otherwise the installation's default, otherwise empty - the locale's day then.
+	WeekStartAbove identity.WeekStart
 	// TenantSlug and TenantStatus ride with every credential read: the middleware
 	// compares the slug against multi-tenancy.md §3's weaker sources, and a suspension flips
 	// authentication itself rather than each use case separately.
@@ -121,6 +124,10 @@ type Memberships interface {
 	// caller built it: a path that names a collection without its hub is completed here, and
 	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
+
+	// HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access
+	// to at `now` (ADR-0073 §4): asked only once a private hub is on a path.
+	HubsOpenedFor(ctx context.Context, accountID shared.ID, hubIDs []shared.ID, now time.Time) ([]shared.ID, error)
 
 	// HoldsAny answers whether the account holds a role anywhere in the workspace, directly or
 	// through a group: what a person needs to make a private hub of their own (ADR-0073 §2).

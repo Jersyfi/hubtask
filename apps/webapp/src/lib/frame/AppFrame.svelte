@@ -22,13 +22,14 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
   import BarSearch from './BarSearch.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import EmergencyNotices from './EmergencyNotices.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
@@ -47,8 +48,10 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { quotas } from '../data/quotas.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, INSTANCE, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, primary } from '../navigation.ts';
+  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
+  import { aiObjection } from '../data/aiobjection.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -98,12 +101,35 @@
     return untrack(() => quotas.open());
   });
 
+  // A person's own choice about AI, read while signed in: when the workspace made AI part of
+  // everybody's work after they kept their content out, they are told so once, here, on whichever
+  // screen they come back to (data-protection.md §4.1).
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => aiObjection.open());
+  });
+  let isAcknowledging = $state(false);
+  async function acknowledgeAiNotice() {
+    isAcknowledging = true;
+    try {
+      await aiObjection.acknowledge();
+    } finally {
+      isAcknowledging = false;
+    }
+  }
+
   // The private hubs, read while the administration is open: whether its row is drawn is this
   // answer (`navigation.ts`, `administration`).
   const isInAdministration = $derived(route.area === 'administration');
   $effect(() => {
     if (!session.isSignedIn || !isInAdministration) return;
     return untrack(() => privateHubs.open());
+  });
+  // And the workspace, for whether it holds more than one person: there the row stays drawn with
+  // no private hub in it, because it is where *Private hubs allowed* is set (ADR-0073 §6).
+  $effect(() => {
+    if (!session.isSignedIn || !isInAdministration) return;
+    return untrack(() => workspace.open());
   });
 
   // Whose list of recently opened entries this device is holding. The account's id is the key, so
@@ -138,7 +164,8 @@
       ? {
           label: t('app.admin.nav'),
           groups: administration({
-            hasPrivateHubs: privateHubs.hasAny,
+            hasPrivateHubs: privateHubs.isReadable &&
+              (privateHubs.hasAny || workspace.workspace?.several_people === true),
             withInstallation: installationPlace({
               isInstanceReachable: manifest.isInstanceReachable,
               isAdministrationReachable: quotas.isReachable === true,
@@ -147,7 +174,7 @@
           }),
         }
       : route.area === 'instance'
-        ? { label: t('app.instance.nav'), groups: INSTANCE }
+        ? { label: t('app.instance.nav'), groups: instanceSection({ isSingleWorkspace: manifest.isSingleTenant }) }
         : route.area === 'profile'
           ? { label: t('app.nav.profile'), groups: SETTINGS }
           : undefined,
@@ -407,6 +434,24 @@
                 >
                   {t('app.recovery_note.replace')}
                 </a>
+              {/snippet}
+            </Banner>
+          </div>
+        {/if}
+        <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
+        <EmergencyNotices onnavigate={go} />
+        {#if aiObjection.noticePending && aiObjection.position}
+          <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
+          <div class="confirmed" data-ai-notice>
+            <Banner tone="info">
+              {t('app.profile.ai_notice', {
+                basis: aiObjection.position.basis ? t(`app.profile.ai_basis_${aiObjection.position.basis}`) : '',
+                contact: aiObjection.position.contact || t('app.profile.ai_ask_admin'),
+              })}
+              {#snippet action()}
+                <Button size="sm" isBusy={isAcknowledging} busyLabel={t('app.workspace.saving')} onclick={() => void acknowledgeAiNotice()}>
+                  {t('app.profile.ai_notice_understood')}
+                </Button>
               {/snippet}
             </Banner>
           </div>

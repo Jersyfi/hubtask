@@ -524,7 +524,9 @@ Before one — sign-in, an invitation, a consent — the foot carries the **oper
 accessibility statement among them, only where the operator set one
 ([UC-ID-18](../usecases/identity/UC-ID-18-show-the-legal-information-before-sign-in.md) checks 4 and
 5): the project's statement never stands in for the operator's. It is **not** a footer on every
-screen.
+screen. The operator sets it on *Installation → Defaults* (`legal.accessibility_url`); an
+installation in multi mode that set none is named in the health report
+(`config.accessibility_statement_missing`, info), a private installation never.
 
 **What is deliberately not promised.** Level AAA anywhere; sign language or audio description (the
 product has no video); a conformance claim for a third-party client.
@@ -882,8 +884,12 @@ week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
 * A brand mark's colours are data with an owner, not tokens: each carries the `lint-no-literals`
   exemption with its reason; each mark is reproduced as its owner publishes it — never recoloured or
   simplified, never `currentColor` unless its guideline is monochrome; each has a
-  `THIRD-PARTY-LICENSES.md` entry naming the source, the guideline and the permitted use.
-* A mark ships only where its owner's guideline clearly permits the sign-in use. A provider without
+  `THIRD-PARTY-LICENSES.md` entry naming the source, the guideline and the permitted use, written
+  in `tools/licenses.md.tpl`. `make gate-licenses` (`scripts/check-brand-marks.sh`) refuses a mark
+  without its entry, an entry without its mark, and a mark for a kind `IdentityProviderKind` does
+  not have.
+* A mark ships only where its owner's guideline clearly permits the sign-in use, and only for a
+  provider preset. A provider without
   one gets a square tile with the first character of its name in one of the ten label colours,
   derived from the name. There is no logo upload.
 * The marks live in `apps/webapp/src/lib/signin/ProviderMark.svelte` until a second client draws

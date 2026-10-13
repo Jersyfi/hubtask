@@ -21,8 +21,9 @@ message that lets them in never switchable off.
 ## Story
 
 Under *Profile → Notifications* the person sees one row per kind — assignments, being added,
-comments, invitations, reminders, integrations, retention — each with *Send* and *Include the
-title*. They switch comments off and switch the title off for everything else, because their mail
+comments, invitations, reminders, integrations, retention, a private hub of theirs opened in an
+emergency — each with *Send* and *Include the title*; the invitation and the emergency access are
+always sent. They switch comments off and switch the title off for everything else, because their mail
 is read on a shared screen. From then on comment mails stop, and the others say only that something
 concerns them, with a link.
 

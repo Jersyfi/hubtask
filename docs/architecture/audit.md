@@ -98,11 +98,12 @@ What this build records, use case by use case, is the generated
 [event matrix](../audit/event-matrix.md) (`make generate`). In short: authentication, tokens,
 permissions (including **denied access**, `outcome=DENIED`), the tenant lifecycle, deletion,
 restore, import and bulk operations, exports (requested, produced, **downloaded**), automation, AI
-use, integrations, data protection cases and security-relevant administration. Planned, not built
-(milestone PH): a private hub opened through the emergency access, a data subject request's deadline
-extended. A managed account's new start password (`account.start_password_issued`, a warning) and
-its address requested and confirmed (`account.address_requested`, `account.address_confirmed`, the
-address `SENSITIVE`) are recorded.
+use, integrations, data protection cases and security-relevant administration, a private hub
+opened through the emergency access among them (`container.emergency_access_opened`, its reason
+masked: it is written to the hub's members, not to the trail's readers). Planned, not built
+(milestone PH): a data subject request's deadline extended. A managed account's new start password
+(`account.start_password_issued`, a warning) and its address requested and confirmed
+(`account.address_requested`, `account.address_confirmed`, the address `SENSITIVE`) are recorded.
 
 **A private hub keeps no act out of the trail.** Whoever reads the trail sees acts in a private hub
 as every other act — actor, action, the target's identifier — and, as everywhere, never a name or
@@ -119,12 +120,23 @@ responses in clear text (metadata only: provider, model, purpose, scope).
 | Masking | Written as | Classes |
 |---|---|---|
 | `OPEN` | The value in clear (e.g. `OPEN → DONE`) | `NON_PERSONAL`, `PERSONAL_TECHNICAL` (already reduced where it is written — an address truncated, a user agent to a class) |
-| `SENSITIVE` | "changed" plus a hash for comparability | `PERSONAL_BASIC`, `PERSONAL_CONTENT`, `SPECIAL_CATEGORY_RISK`, and any class this build does not recognise |
+| `SENSITIVE` | "changed" plus a keyed hash for comparability | `PERSONAL_BASIC`, `PERSONAL_CONTENT`, `SPECIAL_CATEGORY_RISK`, and any class this build does not recognise |
 | `SECRET` | Not at all | `SECRET` |
 
 A field with no classification is masked, never opened: gate PG-1 refuses one at build time and the
 masking refuses one at run time. A trail that kept every title in full would undermine the deletion
 obligation of the item it documents.
+
+**The hash is keyed**, because a plain hash of a name or a title is readable to whoever can guess
+it: they hash candidates until one matches. It is HMAC-SHA-256 under a key derived from the
+installation secret ([security.md](./security.md) §8), over the workspace and the value, written as
+`hmac-sha256:<hex>`. The masking decides in core what is sensitive; the sink computes the hash,
+before the chain, so the chain covers it as stored (§3). A sink without the key records "changed"
+alone, never an unkeyed hash. What an auditor can compare: two hashes of one workspace on one
+installation secret — equal exactly when the values were. Not across workspaces, not across a
+change of `HUBTASK_SECRET_KEY`, and not with a hash stored without the prefix by a version before
+the key: stored entries are never rewritten (§3), so those keep their unkeyed form until their
+period ends, and never equal a keyed one.
 
 **One exception:** the **actor's label** (`PERSONAL_BASIC`) travels in clear (§2); after an erasure
 the boundary answers it with a pseudonym (§6).

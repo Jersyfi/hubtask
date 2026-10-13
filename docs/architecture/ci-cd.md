@@ -42,7 +42,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `changes` | Classifies what a pull request touches (`dorny/paths-filter`, §3.1) |
 | `secrets` | Gitleaks over the history (SG-7) |
 | `dependencies` | Dependency review: no high-severity vulnerability, no GPL, LGPL, AGPL or SSPL licence ([licensing-editions.md](./licensing-editions.md) §1) |
-| `licences` | `make gate-licenses`: no copyleft Go dependency, `THIRD-PARTY-LICENSES.md` current |
+| `licences` | `make gate-licenses`: no copyleft Go dependency, `THIRD-PARTY-LICENSES.md` current, every brand mark with its row and its preset |
 | `quick` | `make gate-quick` (gofmt, `golangci-lint` with `gosec` and `depguard`, `go vet`, `make generate` without a diff), `make gate-sdk` |
 | `build` | `make build` for linux/amd64 and linux/arm64 |
 | `unit` | `make gate-unit`: Go tests with `-race`, the gates' own tests under `tools/` among them, coverage `core/domain` ≥ 85 %, `core/application` ≥ 75 % |

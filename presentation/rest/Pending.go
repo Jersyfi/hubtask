@@ -537,6 +537,16 @@ func (pending) RestrictProcessing(w http.ResponseWriter, r *http.Request, _ open
 }
 
 func (pending) WithdrawConsent(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) GiveConsent(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) ListConsents(w http.ResponseWriter, r *http.Request, _ openapi.ListConsentsParams) {
+	notAvailable(w, r)
+}
+func (pending) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+func (pending) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 
 // The three target operations. Overridden by RestController; they stay here because the
 // compile-time assertion is on `pending` itself.
@@ -1297,5 +1307,24 @@ func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// The emergency access to a private hub (ADR-0073 §4).
+func (pending) ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request, _ openapi.HubId) {
+	notAvailable(w, r)
+}
+
+func (pending) OpenPrivateHub(
+	w http.ResponseWriter, r *http.Request, _ openapi.HubId, _ openapi.OpenPrivateHubParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

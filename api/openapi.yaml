@@ -5120,6 +5120,85 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /private-hubs/{hubId}/accesses:
+    parameters:
+      - $ref: "#/components/parameters/HubId"
+    get:
+      tags: [meta]
+      operationId: listPrivateHubAccesses
+      summary: Who opened this private hub through the emergency access, and why
+      description: >
+        Every emergency access to the hub, newest first, with the person who opened it, when, until
+        when and the reason they gave. Read by whoever reads the hub - its members, and the
+        workspace's owner while their access runs; to everybody else the hub is not there, and this
+        answers not found as it does.
+      responses:
+        "200":
+          description: The accesses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrivateHubAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [meta]
+      operationId: openPrivateHub
+      summary: Open a private hub through the emergency access
+      description: >
+        The workspace's owner - only the owner, as a person - opens a private hub they hold nothing in,
+        for one hour, with a reason. Every member of the hub is told at once, in the same step: by
+        mail where they have an address, and in the app whatever their mail did; the opening is in the
+        workspace's trail. The hour is not extended, and a second access is refused while one runs
+        (`containers.emergency_running`, naming its end); once it has ended, a new one is a new act,
+        told again. During the hour the hub answers its opener as a hub of the workspace would, through
+        the opener's own requests only - never into a device's copy, a calendar feed or a job.
+
+        Demands a fresh step-up in the `X-Hubtask-Step-Up` header. A shared hub is refused
+        (`containers.emergency_not_private`), and so is a private hub the owner already holds a role in
+        (`containers.emergency_not_needed`).
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateHubAccessRequest"
+      responses:
+        "201":
+          description: Opened; the members have been told
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateHubAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/emergency-notices:
+    get:
+      tags: [identity]
+      operationId: listEmergencyNotices
+      summary: The emergency accesses the caller was told of in the last 30 days
+      description: >
+        Each time the workspace's owner opened a private hub the caller is a member of, within the
+        last 30 days, whatever the mail about it did - so that a person without a mailbox, or one
+        whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it
+        answers this one kind of notice and nothing else.
+      responses:
+        "200":
+          description: The notices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PrivateHubAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/accounts-without-provider:
     get:
       tags: [auth]
@@ -5860,6 +5939,36 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /ai-person-opt-out:
+    put:
+      tags: [ai]
+      operationId: setAiPersonOptOut
+      summary: Whether each person may keep their own content out of AI
+      description: >
+        `OFFERED`, the default, lets each person keep what they authored out of every prompt.
+        `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest
+        on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or
+        `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then
+        see the basis and whom to ask instead of the switch; an objection recorded earlier stops
+        taking effect, and each person it affects is told once. Where the installation or a plan
+        holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`.
+        Going back to `OFFERED` is always allowed. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiPersonOptOutChoice"
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /ai-budget:
     put:
       tags: [ai]
@@ -6280,6 +6389,38 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /privacy/consents:
+    get:
+      tags: [privacy]
+      operationId: listConsents
+      summary: The consent register - who withdrew a purpose
+      description: |
+        For one purpose, every person whose newest record is a withdrawal, with since when and
+        whether they or an administrator recorded it. For `ai_processing` this is who keeps their
+        own content out of AI - and this register is the one place that list appears. For the
+        people who manage members (`MANAGE_MEMBERS`).
+
+        Unpaged: it is bounded by the people of the workspace, ordered by name.
+      parameters:
+        - name: purpose
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/ConsentPurpose" }
+      responses:
+        "200":
+          description: The register
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ConsentRegisterEntry" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /privacy/consents:withdraw:
     post:
       tags: [privacy]
@@ -6301,6 +6442,70 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ConsentRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/consents:give:
+    post:
+      tags: [privacy]
+      operationId: giveConsent
+      summary: Agree to an optional processing purpose
+      description: |
+        The caller's own agreement - for `ai_processing`, letting the content they authored back
+        into AI after they kept it out. Only ever the caller's own: a consent for anybody else is
+        refused with `403`, `privacy.consent_own_only`, because nobody agrees in another's place.
+        The withdrawal before it stays on record for the period it covered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ConsentGrant" }
+      responses:
+        "200":
+          description: The consent record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConsentRecord" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/ai-objection:
+    get:
+      tags: [privacy]
+      operationId: readOwnAiPosition
+      summary: The caller's own view of keeping their content out of AI
+      description: |
+        Whether there is anything to choose here (`shown`: AI answers this workspace and more than
+        one person works in it), the workspace's position - with the legal basis and whom to ask
+        where AI is part of everybody's work - the caller's own choice, whether it takes effect,
+        and whether they still have to be told that it stopped taking effect.
+
+        The caller keeps their content out with `POST /privacy/consents:withdraw` and lets it back
+        in with `POST /privacy/consents:give`, both with the purpose `ai_processing`.
+      responses:
+        "200":
+          description: The caller's view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnAiPosition" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /privacy/ai-objection:noticed:
+    post:
+      tags: [privacy]
+      operationId: acknowledgeAiPosition
+      summary: Acknowledge that keeping one's content out stopped taking effect
+      description: |
+        Records that the caller read the notice: the workspace made AI part of everybody's work,
+        so their choice to keep their content out no longer takes effect. Acknowledging twice is
+        acknowledging once.
+      responses:
+        "200":
+          description: The caller's view afterwards
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnAiPosition" }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -8728,6 +8933,11 @@ components:
         the provider a `PROVIDER` proof goes to.
       schema: { type: string }
 
+    HubId:
+      name: hubId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     ContainerId:
       name: containerId
       in: path
@@ -10056,7 +10266,8 @@ components:
     AiSource:
       type: object
       required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
-        min_jurisdiction_origin, offered, version]
+        min_jurisdiction_origin, offered, version, person_opt_out, person_opt_out_origin,
+        keeping_out_count]
       properties:
         source:
           $ref: "#/components/schemas/AiSourceKind"
@@ -10100,8 +10311,61 @@ components:
           description: >
             True while search by meaning is being rebuilt for the model now in use. Search by
             words keeps working meanwhile.
+        person_opt_out:
+          $ref: "#/components/schemas/AiPersonOptOut"
+        person_opt_out_origin:
+          type: string
+          enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+        person_opt_out_lock:
+          type: string
+          enum: [INSTANCE, PLAN]
+          description: >
+            Present where a level above holds the workspace at `OFFERED`: then only the
+            installation or the plan can change it.
+        person_opt_out_basis:
+          $ref: "#/components/schemas/AiOptOutBasis"
+        person_opt_out_contact:
+          type: string
+          description: Whom people may ask about the basis. Absent for an administrator of this workspace.
+        person_opt_out_since:
+          type: string
+          format: date-time
+          description: When the workspace made AI part of everybody's work. Absent with `OFFERED`.
+        keeping_out_count:
+          type: integer
+          minimum: 0
+          description: >
+            How many people keep their own content out now, or whose objection stops taking
+            effect under `NOT_OFFERED`. A number, never who: the consent register names them.
         updated_at: { type: string, format: date-time }
         version: { type: integer }
+
+    AiPersonOptOut:
+      type: string
+      enum: [OFFERED, NOT_OFFERED]
+      description: >
+        `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of
+        everybody's work, on the legal basis the workspace named.
+
+    AiOptOutBasis:
+      type: string
+      enum: [EMPLOYMENT_CONTRACT, WORKS_AGREEMENT, LEGAL_OBLIGATION]
+      description: The legal basis a workspace names for making AI part of everybody's work.
+
+    AiPersonOptOutChoice:
+      type: object
+      required: [person_opt_out]
+      properties:
+        person_opt_out:
+          $ref: "#/components/schemas/AiPersonOptOut"
+        basis:
+          $ref: "#/components/schemas/AiOptOutBasis"
+        contact:
+          type: string
+          maxLength: 200
+          description: >
+            Whom people may ask about it - a name, a role or an address. Optional; without one,
+            people are told to ask an administrator of this workspace.
 
     OfferedAiModelSummary:
       type: object
@@ -10167,7 +10431,7 @@ components:
       description: >
         A private hub as an administrator sees it: whose, how big, and when it goes if it is in the
         trash. Deliberately without a name.
-      required: [id, owners, collections, entries, attachment_bytes, created_at]
+      required: [id, owners, collections, entries, attachment_bytes, created_at, emergency_access]
       properties:
         id: { type: string, format: uuid }
         owners:
@@ -10186,6 +10450,45 @@ components:
           type: [string, "null"]
           format: date
           description: The day a trashed hub is deleted for good, by the workspace's trash period.
+        emergency_access:
+          type: object
+          required: [offered, open_until]
+          description: >
+            The caller's emergency access to this hub. `offered` is true where the caller may open it
+            now - the workspace's owner, holding nothing in the hub, with no access of theirs running;
+            `open_until` is the end of the caller's running access, or null.
+          properties:
+            offered: { type: boolean }
+            open_until: { type: [string, "null"], format: date-time }
+
+    PrivateHubAccessRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: >
+            Why the hub is opened. Told to every member of the hub, and kept with the hub as their
+            record of who opened it.
+
+    PrivateHubAccess:
+      type: object
+      description: >
+        One opening of a private hub by the workspace's owner (the emergency access): who, when,
+        until when, and why.
+      required: [id, hub_id, opened_by, reason, opened_at, ends_at]
+      properties:
+        id: { type: string, format: uuid }
+        hub_id: { type: string, format: uuid }
+        opened_by:
+          type: [string, "null"]
+          format: uuid
+          description: The account that opened it; null once that account is gone.
+        reason: { type: string }
+        opened_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
 
     Workspace:
       type: object
@@ -10219,6 +10522,14 @@ components:
         default_time_zone:
           type: string
           description: An IANA zone, for the same position in the same chain.
+        default_week_start:
+          type: [string, "null"]
+          enum: [MONDAY, SATURDAY, SUNDAY, null]
+          description: >
+            The day a member's week starts on when they chose none of their own, or null where
+            this workspace decided nothing and the installation's day, then the language's, applies.
+        installation_defaults:
+          $ref: "#/components/schemas/InstallationDefaults"
         require_admin_totp:
           type: boolean
           description: >
@@ -10244,9 +10555,17 @@ components:
           type: boolean
           readOnly: true
           description: >
-            Whether a client offers to make a hub private: the workspace holds more than one person
-            whose account is not anonymised. A workspace of one has nobody to keep a hub from, and
-            a screen that offered it would be noise. The server accepts a private hub either way.
+            Whether a client offers to make a hub private: the workspace allows private hubs
+            (`sign_in_policy.private_hubs`) and holds more than one person whose account is not
+            anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered
+            it would be noise. Where private hubs are not allowed, the server refuses one
+            (`containers.private_hubs_off`).
+        several_people:
+          type: boolean
+          readOnly: true
+          description: >
+            Whether the workspace holds more than one person whose account is not anonymised -
+            where private hubs, and the setting that allows them, mean something.
         sign_in_policy:
           $ref: "#/components/schemas/SignInPolicy"
           description: >
@@ -10409,6 +10728,11 @@ components:
             Whether owners and administrators may give somebody an account without a mail address.
             On by default; off is the stricter value. Off stops new ones only - the managed accounts
             already here keep signing in.
+        private_hubs:
+          $ref: "#/components/schemas/SignInPolicyFlag"
+          description: >
+            Whether people here may make private hubs. On by default; off is the stricter value. Off
+            stops new ones only: every private hub already here stays private.
         rotation_from:
           type: [string, "null"]
           format: date-time
@@ -10464,14 +10788,28 @@ components:
             terms link of its own. Changing the link or the version asks every person to agree
             again at their next sign-in.
 
+    InstallationDefaults:
+      type: object
+      readOnly: true
+      description: >
+        What the installation set as the default language, time zone and week start, so a
+        workspace's screen can show it beside the workspace's own. Only what the installation
+        decided: a key it left open is absent, and an installation that decided nothing answers an
+        empty object. The language and time zone are what a new workspace starts with; the week
+        start applies wherever a workspace decided none.
+      properties:
+        locale: { type: string }
+        time_zone: { type: string }
+        week_start: { type: string, enum: [MONDAY, SATURDAY, SUNDAY] }
+
     WorkspaceUpdate:
       type: object
       description: >
         Every field optional; an omitted one is left alone, which is what merge-patch means. An
-        explicit `null` is read as an absent key rather than as "clear it", and nothing is lost
-        by that: none of these four has an absent state - a workspace always has a name, a
-        locale, a zone and an answer to the enforcement question - so there is nothing for a null
-        to mean here.
+        explicit `null` is read as an absent key rather than as "clear it". The one field with
+        an absent state, `default_week_start`, is cleared with the empty string instead; the
+        others have none - a workspace always has a name, a locale, a zone and an answer to the
+        enforcement question.
       properties:
         display_name:
           type: string
@@ -10483,6 +10821,13 @@ components:
         default_time_zone:
           type: string
           description: An IANA zone. One that does not load is a field error.
+        default_week_start:
+          type: string
+          maxLength: 8
+          description: >
+            `MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none
+            of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an
+            explicit `null` reads as an absent key here, as everywhere in this body.
         require_admin_totp:
           type: boolean
           description: >
@@ -10538,6 +10883,7 @@ components:
             of its own, and with `auth.terms_version_invalid` when it is too long or holds a
             control character.
         managed_accounts: { type: boolean }
+        private_hubs: { type: boolean }
         rotation_from:
           type: string
           enum: [now]
@@ -10569,7 +10915,10 @@ components:
             `iss` differs is refused, which is the first check of the token.
         client_id:
           type: string
-          description: This installation's registration with the provider.
+          description: >
+            This installation's registration with the provider. Empty on a row of `scope`
+            `installation` when a workspace reads it: the installation's registration is its
+            operator's, and a workspace sees that provider by name, kind and admission rule only.
         display_name:
           type: string
           description: >
@@ -11077,6 +11426,48 @@ components:
           description: >
             Whether a workspace may change it. Locked means the value applies and the workspace's
             control is switched off, with the reason and with who set it.
+        kind:
+          type: string
+          readOnly: true
+          enum: [COUNT, FLAG, CHOICE, CHOICES, LINK, TEXT, LOCALE, TIME_ZONE]
+          description: >
+            What kind of value the key takes, so a client draws the control for it whether or not
+            the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of
+            `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one
+            short line (the terms' version),
+            `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+        options:
+          type: array
+          readOnly: true
+          items: {}
+          description: >
+            For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the
+            strictest. Absent for the other kinds.
+        minimum:
+          type: integer
+          readOnly: true
+          description: >
+            For `COUNT`, the least value the product applies. A value past either bound is held
+            at it, at every level. Where the least is `0`, it means off or unlimited for the keys
+            that say so.
+        maximum:
+          type: integer
+          readOnly: true
+          description: For `COUNT`, the most the product applies. Absent where there is no bound.
+        position:
+          type: integer
+          readOnly: true
+          description: >
+            The key's place within its area, from 0: the order a screen draws the keys in, which an
+            object's own key order does not carry.
+        workspace_may:
+          type: string
+          readOnly: true
+          enum: [TIGHTEN, RAISE, REPLACE]
+          description: >
+            What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value,
+            `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the
+            key is never locked - a language, a time zone and a week start are defaults only.
 
     InstanceSettings:
       type: object
@@ -11094,7 +11485,7 @@ components:
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
           description: >
             The switches by name - the thirteen the password has, `mfa_required_for`, `methods`,
-            the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a
+            the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a
             workspace raises for its own people, and an operator who wanted every account on the
             installation to change its password would be asking for a different feature with a
             different blast radius.
@@ -11110,8 +11501,10 @@ components:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
           description: >
-            `locale`, `time_zone` and `week_start`: what a workspace that has set none of its own
-            inherits.
+            `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the
+            week start, what a workspace that set none of its own inherits. `week_start` is
+            `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers
+            1, 6 and 7 are accepted for those days.
 
             **A default, never a lock.** `locked` is always false here and a write that sets one is
             refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss:
@@ -11135,7 +11528,11 @@ components:
             Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this
             installation offers), `OWN` (only the workspace's own, the default) or `EITHER`;
             `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a
-            workspace's own model must declare about where it processes content.
+            workspace's own model must declare about where it processes content;
+            `person_opt_out` is `OFFERED` only - each person may keep their own content out of
+            AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here
+            with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's
+            work, because only it can name the legal basis.
 
             A workspace may narrow `sources` where it is not locked, and may always choose no AI:
             a lock holds a workspace out of a source, never in one. No value here switches
@@ -11920,6 +12317,11 @@ components:
         configured:
           type: boolean
           description: True when the workspace carries its own ceiling rather than the mode's default.
+        locked:
+          type: boolean
+          description: >
+            True when the installation locked this ceiling for every workspace, so it is set by the
+            installation rather than offered as its default.
 
     TenantQuotas:
       type: object
@@ -14990,6 +15392,66 @@ components:
         revoked_at: { type: [string, "null"], format: date-time }
         source: { type: [string, "null"], enum: [user, tenant_admin, config, null] }
 
+    ConsentRegisterEntry:
+      type: object
+      required: [account_id, display_name, since]
+      properties:
+        account_id: { type: string, format: uuid }
+        display_name: { type: string }
+        since:
+          type: string
+          format: date-time
+          description: When the withdrawal standing now was recorded.
+        source:
+          type: string
+          enum: [user, tenant_admin, config]
+          description: Whether the person or an administrator on their behalf recorded it.
+
+    ConsentGrant:
+      type: object
+      required: [purpose]
+      properties:
+        purpose: { $ref: "#/components/schemas/ConsentPurpose" }
+        account_id:
+          type: string
+          format: uuid
+          description: Whose consent - only ever the caller's own.
+
+    OwnAiPosition:
+      type: object
+      required: [shown, person_opt_out, keeping_out, in_effect, notice_pending]
+      properties:
+        shown:
+          type: boolean
+          description: >
+            Whether there is anything here at all: AI answers this workspace and more than one
+            person works in it. Alone, the workspace's decision is the person's own.
+        person_opt_out:
+          $ref: "#/components/schemas/AiPersonOptOut"
+        basis:
+          $ref: "#/components/schemas/AiOptOutBasis"
+        contact:
+          type: string
+          description: Whom to ask about the basis. Absent for an administrator of this workspace.
+        since:
+          type: string
+          format: date-time
+          description: Since when AI is part of everybody's work. Absent with `OFFERED`.
+        keeping_out:
+          type: boolean
+          description: The caller's own choice - their newest `ai_processing` record is a withdrawal.
+        keeping_out_since:
+          type: string
+          format: date-time
+        in_effect:
+          type: boolean
+          description: Whether the caller's content is kept out now.
+        notice_pending:
+          type: boolean
+          description: >
+            True once, until acknowledged: the workspace made AI part of everybody's work, so the
+            caller's choice stopped taking effect.
+
     ConsentWithdrawal:
       type: object
       required: [purpose]
@@ -15043,7 +15505,11 @@ components:
         One changed field, masked per its classification. An `OPEN` field carries
         `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
         makes two entries comparable without either being readable; a `SECRET` one is not here at
-        all.
+        all. A hash is keyed with a secret of the installation and bound to the workspace, and
+        names its scheme as a prefix (`hmac-sha256:`): two hashes are comparable only when both
+        carry the same scheme and come from the same workspace on an installation whose secret
+        did not change between them. A hash without a prefix was written by an earlier version
+        and is never equal to a prefixed one, whatever the value.
       properties:
         field: { type: string }
         from: {}
@@ -16480,7 +16946,8 @@ components:
             learns about one feature. Both are answered for the caller's workspace rather than for
             the installation, because an AI provider is configured per workspace; an anonymous
             caller, who can neither search nor ask, reads `false`
-            for both. `semantic_search` needs the store *and* a provider that embeds: a database
+            for both, and so does a person who keeps their own content out of AI - no AI action
+            is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database
             carrying pgvector with nobody to produce vectors searches lexically, which is complete
             but is not the feature.
 

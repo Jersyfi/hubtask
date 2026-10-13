@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -17,6 +18,7 @@ import (
 const (
 	adminAiProvidersPath = "/admin/ai-providers"
 	aiSourcePath         = "/ai-source"
+	aiPersonOptOutPath   = "/ai-person-opt-out"
 )
 
 // adminAi dispatches `hubctl admin ai ls|add|set|rm`.
@@ -80,12 +82,19 @@ func adminAiWrite(ctx context.Context, cli *CLI, args []string, changing bool) e
 	completion := flags.String("completion-model", "", "the model that answers in words")
 	embedding := flags.String("embedding-model", "", "the model that answers in vectors")
 	jurisdiction := flags.String("jurisdiction", "", "SELF_HOSTED, EEA, ADEQUACY or THIRD_COUNTRY")
-	if err := parseCommand(flags, args); err != nil {
-		return err
+	// The identifier comes first, as the usage line says and as every other `<id>` command takes
+	// it: the flag parser stops at the first argument that is not a flag, so an identifier in
+	// front of the flags was read as the end of them.
+	var id string
+	if changing {
+		parsed, rest, err := cli.takeID(args, "admin ai set "+usage)
+		if err != nil {
+			return err
+		}
+		id, args = parsed.String(), rest
 	}
-	rest := flags.Args()
-	if changing && len(rest) == 0 {
-		return usagef("admin ai set needs a model - `admin ai ls` prints them")
+	if err := parseOnlyFlags(flags, args, "admin ai "+verb+" "+usage); err != nil {
+		return err
 	}
 	if *name == "" || *processor == "" || *kind == "" || *baseURL == "" || *jurisdiction == "" {
 		return usagef("admin ai %s needs --name, --processor, --kind, --base-url and --jurisdiction", verb)
@@ -106,7 +115,7 @@ func adminAiWrite(ctx context.Context, cli *CLI, args []string, changing bool) e
 	}
 	var written openapi.OfferedAiModel
 	if changing {
-		err = client.Put(ctx, adminAiProvidersPath+"/"+rest[0], body, &written)
+		err = client.Put(ctx, adminAiProvidersPath+"/"+id, body, &written)
 	} else {
 		err = client.Post(ctx, adminAiProvidersPath, body, &written)
 	}
@@ -225,5 +234,83 @@ func aiSourceTable(source openapi.AiSource) Table {
 	for _, offered := range source.Offered {
 		rows = append(rows, []string{"offered", offered.DisplayName + " - " + offered.Processor + ", " + string(offered.Jurisdiction)})
 	}
+	return Table{Columns: []string{"", ""}, Rows: rows}
+}
+
+// aiOptOut is `hubctl ai opt-out [show]` and `hubctl ai opt-out set`: the workspace's position on
+// people keeping their own content out of AI (data-protection.md §4.1).
+func aiOptOut(ctx context.Context, cli *CLI, args []string) error {
+	if len(args) > 0 && args[0] == "set" {
+		return aiOptOutSet(ctx, cli, args[1:])
+	}
+	flags := commandFlags(cli, "ai", "opt-out", "[show]")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() > 1 || (flags.NArg() == 1 && flags.Arg(0) != "show") {
+		return usagef("hubctl ai opt-out takes `show`, `set` or nothing")
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var source openapi.AiSource
+	if err := client.Get(ctx, aiSourcePath, nil, &source); err != nil {
+		return err
+	}
+	return cli.Emit(source, aiOptOutTable(source))
+}
+
+// aiOptOutSet writes the position. NOT_OFFERED needs --basis; the server refuses it without one,
+// and refuses it under the installation's or a plan's lock.
+func aiOptOutSet(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "ai opt-out", "set",
+		"--position OFFERED|NOT_OFFERED [--basis EMPLOYMENT_CONTRACT|WORKS_AGREEMENT|LEGAL_OBLIGATION] [--contact <whom to ask>]")
+	position := flags.String("position", "", "OFFERED or NOT_OFFERED")
+	basis := flags.String("basis", "", "the legal basis, with NOT_OFFERED")
+	contact := flags.String("contact", "", "whom people may ask about it")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *position == "" {
+		return usagef("hubctl ai opt-out set needs --position")
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	body := openapi.AiPersonOptOutChoice{PersonOptOut: openapi.AiPersonOptOut(*position)}
+	if *basis != "" {
+		value := openapi.AiOptOutBasis(*basis)
+		body.Basis = &value
+	}
+	if *contact != "" {
+		body.Contact = contact
+	}
+	var set openapi.AiSource
+	if err := client.Put(ctx, aiPersonOptOutPath, body, &set); err != nil {
+		return err
+	}
+	return cli.Emit(set, aiOptOutTable(set))
+}
+
+// aiOptOutTable prints the position, who decided it, its basis and how many people it touches -
+// a number, never who.
+func aiOptOutTable(source openapi.AiSource) Table {
+	lock := "open"
+	if source.PersonOptOutLock != nil {
+		lock = "LOCKED (" + string(*source.PersonOptOutLock) + ")"
+	}
+	rows := [][]string{
+		{"position", string(source.PersonOptOut) + ", " + lock},
+		{"decided by", string(source.PersonOptOutOrigin)},
+	}
+	if source.PersonOptOutBasis != nil {
+		rows = append(rows, []string{"basis", string(*source.PersonOptOutBasis)})
+	}
+	if source.PersonOptOutContact != nil {
+		rows = append(rows, []string{"whom to ask", *source.PersonOptOutContact})
+	}
+	rows = append(rows, []string{"keeping their content out", strconv.Itoa(source.KeepingOutCount)})
 	return Table{Columns: []string{"", ""}, Rows: rows}
 }

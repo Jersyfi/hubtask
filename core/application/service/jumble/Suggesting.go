@@ -5,11 +5,13 @@ package jumble
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -62,6 +64,14 @@ type SuggestFromJumbleEntry struct {
 	AI AiAvailability
 	// Queue is where the question goes.
 	Queue Jobs
+	// Kept is whose content stays out of AI (data-protection.md §4.1). Nil keeps nobody out.
+	Kept KeptOutReader
+}
+
+// KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
+// here because the application layer may not import a sibling service.
+type KeptOutReader interface {
+	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }
 
 // Execute checks, then queues.
@@ -105,6 +115,20 @@ func (h SuggestFromJumbleEntry) Execute(
 			// A settled entry is one somebody has already decided about. A proposal for it would
 			// be a proposal nobody can take, which is an inbox of noise rather than a feature.
 			return shared.ErrConflict.WithDetail("jumble.entry_already_settled")
+		}
+		if h.Kept != nil {
+			kept, err := h.Kept.Read(ctx, actor.TenantID)
+			if err != nil {
+				return err
+			}
+			if refused := kept.Refusal(actor.AccountID); refused != nil {
+				return refused
+			}
+			// What a kept-out person mailed in, and an entry with nothing in it, get one answer.
+			if kept.HasAddress(entry.Sender) ||
+				strings.TrimSpace(entry.RawSubject) == "" && strings.TrimSpace(entry.RawBody) == "" {
+				return integration.NothingToWorkWith()
+			}
 		}
 
 		// The job carries the entry's identity and nothing else. A payload holding the subject and

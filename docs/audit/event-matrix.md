@@ -58,7 +58,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |
 | `ai.fields_asked` | AiSuggestFields | `ai_suggestion` | NOTICE | Every time |
+| `ai.notice_acknowledged` | AcknowledgeAiPosition | `account` | INFO | Every time |
 | `ai.own_budget_set` | SetOwnAiBudget | `ai_budget` | NOTICE | Every time |
+| `ai.own_position_read` | ReadOwnAiPosition | `account` | INFO | When refused |
+| `ai.person_opt_out_set` | SetAiPersonOptOut | `ai_source` | NOTICE | Every time |
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
@@ -205,6 +208,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.archived` | ArchiveContainer | `container` | INFO | Every time |
 | `container.created` | CreateContainer | `container` | INFO | Every time |
 | `container.deleted` | TrashContainer | `container` | NOTICE | Every time |
+| `container.emergency_access_opened` | OpenPrivateHub | `container` | NOTICE | Every time |
+| `container.emergency_accesses_read` | ListPrivateHubAccesses | `container` | INFO | When refused |
+| `container.emergency_notices_read` | ListEmergencyNotices | `account` | INFO | When refused |
 | `container.moved` | MoveContainer | `container` | INFO | Every time |
 | `container.moved` | ReorderContainer | `container` | INFO | Every time |
 | `container.policies_updated` | UpdateContainerPolicies | `container` | INFO | Every time |
@@ -235,7 +241,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `dsr.consent_given` | GiveConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consent_withdrawn` | WithdrawConsent | `consent_record` | NOTICE | Every time |
+| `dsr.consents_listed` | ListConsents | `consent_record` | INFO | When refused |
 | `dsr.extended` | ExtendDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.processing_restricted` | RestrictProcessing | `account` | WARNING | Every time |
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |

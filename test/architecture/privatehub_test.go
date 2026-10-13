@@ -37,10 +37,11 @@ const (
 // privateHubExemptions are the readers of the six packages UC-ID-16 check 2 names that are not rows
 // of the integration table, each with its reason.
 var privateHubExemptions = map[string]string{
-	"AiTranslate":                  asksOnItsPath, // reads through GetWorkItem
+	// Reads through GetWorkItem; TestAiRunByOthersKeepsAPrivateHubFromOutsiders runs it, outside
+	// the table because its answer names no identifier.
+	"AiTranslate":                  asksOnItsPath,
 	"ExportView":                   asksOnItsPath,
 	"GetRecurrence":                asksOnItsPath,
-	"GetSavedView":                 asksOnItsPath,
 	"GetTemplate":                  asksOnItsPath,
 	"ListActivity":                 asksOnItsPath,
 	"ListBuckets":                  asksOnItsPath,
@@ -48,12 +49,9 @@ var privateHubExemptions = map[string]string{
 	"ListCustomFields":             asksOnItsPath,
 	"ListLabels":                   asksOnItsPath,
 	"ListReminders":                asksOnItsPath,
-	"ListSavedViews":               asksOnItsPath,
 	"ListTemplates":                asksOnItsPath,
-	"QueryItems":                   asksOnItsPath,
 	"GetMedia":                     asksOnItsPath,
 	"ListAttachments":              asksOnItsPath,
-	"ListSuggestions":              asksOnItsPath,
 	"ListMemberships":              asksOnItsPath,
 	"ListLegalHolds":               controllersInstrument,
 	"ListRetentionPolicies":        controllersInstrument,
@@ -62,9 +60,12 @@ var privateHubExemptions = map[string]string{
 	"ListWebhookDeliveries":        ownSubscriptions,
 	"ListWebhookSubscriptions":     ownSubscriptions,
 	"ListPrivateHubs":              "ADR-0073 §3's list: owners and sizes, never a name or content",
+	"ListPrivateHubAccesses":       asksOnItsPath,
+	"ListEmergencyNotices":         "the caller's own notices of an emergency access: a hub's identifier and the words written to them, never its content",
 	"PollTriggerEvents":            filteredPoll,
 	"ReadAiProvider":               noHub,
 	"ReadAiSource":                 noHub,
+	"ReadOwnAiPosition":            noHub,
 	"CheckPassword":                noHub,
 	"CountAccountsWithoutProvider": noHub,
 	"GetAccount":                   noHub,
@@ -103,7 +104,7 @@ func TestEveryReaderIsInThePrivateHubTable(t *testing.T) {
 		t.Fatal("the table PrivateHubReaders is not where this test reads it")
 	}
 	table := map[string]bool{}
-	for _, name := range regexp.MustCompile(`work\.(\w+)Name`).FindAllSubmatch(block[1], -1) {
+	for _, name := range regexp.MustCompile(`(?:work|suggestion)\.(\w+)Name`).FindAllSubmatch(block[1], -1) {
 		table[string(name[1])] = true
 	}
 

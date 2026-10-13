@@ -300,7 +300,10 @@ func (h ConfirmTotp) Execute(
 		return ConfirmedEnrollment{}, nil
 	}
 	if caller.pending.PasswordChangeOwed {
-		challenge, err := w.owedChange(ctx, scope, caller.account, caller.pending)
+		// The confirmed code is this sign-in's second factor; the change step's session says so.
+		owed := caller.pending
+		owed.SignedInWith = domain.SignedInWithPasswordTotp
+		challenge, err := w.owedChange(ctx, scope, caller.account, owed)
 		if err != nil {
 			return ConfirmedEnrollment{}, err
 		}

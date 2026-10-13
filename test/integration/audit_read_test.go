@@ -243,7 +243,8 @@ func TestARowEditedInTheDatabaseIsFoundByVerification(t *testing.T) {
 	}
 }
 
-// The filters §5 asks for, against real rows: period, action prefix, actor, target and outcome.
+// The filters §5 asks for, against real rows: period, action prefix, actor, target and outcome
+// (UC-AUD-01 check 1).
 func TestTheFiltersNarrowTheTrail(t *testing.T) {
 	ctx := context.Background()
 	tenant := auditTenant(ctx, t)
@@ -279,6 +280,18 @@ func TestTheFiltersNarrowTheTrail(t *testing.T) {
 		if record.Entry.Outcome != port.OutcomeDenied {
 			t.Errorf("the outcome filter answered %s", record.Entry.Outcome)
 		}
+	}
+
+	// The actor filter (UC-AUD-01 check 1): one person's events and nobody else's. `mixedEntries`
+	// gives every third entry to somebody else, so 26 of the 40 are Eve's.
+	mine := page(repository.Filter{ActorID: readerE})
+	for _, record := range mine {
+		if record.Entry.ActorID != readerE {
+			t.Errorf("the actor filter answered an entry of %s", record.Entry.ActorID)
+		}
+	}
+	if len(mine) != 26 {
+		t.Errorf("the actor filter answered %d entries, want the 26 Eve wrote", len(mine))
 	}
 
 	// The target filter §5 requires and the specification lacked: what happened to this object.

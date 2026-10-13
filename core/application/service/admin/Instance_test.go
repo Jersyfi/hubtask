@@ -516,19 +516,23 @@ func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 		Source: "database",
 	})
 
+	// Every switch the installation holds - all but `rotation_from`, an event a workspace raises
+	// for its own people, which the contract leaves out of this level on purpose.
 	settings, _ := out["sign_in"].(usecase.Output)
-	if len(settings) != len(identity.PolicySwitches()) {
+	if len(settings) != len(identity.PolicySwitches())-1 {
 		t.Fatalf("the projection answers %d switches, want every one of the %d",
-			len(settings), len(identity.PolicySwitches()))
+			len(settings), len(identity.PolicySwitches())-1)
 	}
 	for _, name := range identity.PolicySwitches() {
-		if _, held := settings[string(name)]; !held {
-			t.Errorf("%s is missing from the projection", name)
+		_, held := settings[string(name)]
+		if held != (name != identity.SwitchRotationFrom) {
+			t.Errorf("%s is answered: %v", name, held)
 		}
 	}
 
 	decided, _ := settings["min_length"].(usecase.Output)
-	if decided["set"] != true || decided["value"] != 18 || decided["locked"] != true {
+	if decided["set"] != true || decided["value"] != 18 || decided["locked"] != true ||
+		decided["kind"] != "COUNT" || decided["minimum"] != identity.FloorMinLength {
 		t.Errorf("min_length reads %v", decided)
 	}
 

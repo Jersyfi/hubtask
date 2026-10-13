@@ -371,6 +371,12 @@ func (h CompleteSignIn) Execute(
 		return SignInResult{}, -1, err
 	}
 	if hint.PasswordChangeOwed {
+		// The change step opens the session; it carries how this step was proven, so that the
+		// session says so rather than "Password" (UC-ID-06 check 2).
+		hint.SignedInWith = domain.SignedInWithPasswordTotp
+		if remaining >= 0 {
+			hint.SignedInWith = domain.SignedInWithPasswordRecovery
+		}
 		challenge, err := w.owedChange(ctx, scope, account, hint)
 		if err != nil {
 			return SignInResult{}, -1, err
@@ -428,6 +434,7 @@ func (w SessionWriter) owedChange(
 		ID: w.IDs.NewID(), TenantID: scope.TenantID, AccountID: account.ID,
 		Purpose: domain.PendingPassword, UserAgent: hint.UserAgent, IPClass: hint.IPClass,
 		CreatedAt: now.UTC(), ExpiresAt: now.Add(domain.PendingLifetime).UTC(),
+		SignedInWith: hint.SignedInWith,
 	}
 	if err := w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		return w.Pending.Insert(ctx, credential, presented)

@@ -88,6 +88,12 @@ type storeFake struct {
 	// instance is the installation's level, left empty by the cases that measure a workspace's
 	// own against the product's defaults.
 	instance repository.Overrides
+	// locks are the installation's locked quotas, by name.
+	locks map[string]bool
+}
+
+func (s *storeFake) InstanceLocks(context.Context) (map[string]bool, error) {
+	return s.locks, nil
 }
 
 func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
@@ -568,5 +574,43 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 	unbounded := Resolve(repository.Overrides{}, repository.Overrides{ExportJobs: ceiling(Unlimited)}, env.TenancyMulti)
 	if unbounded.ExportJobs != Unlimited {
 		t.Errorf("an installation's configured unlimited lost to the default: %d", unbounded.ExportJobs)
+	}
+}
+
+// UC-INS-09 check 5: a ceiling the installation locked is answered as locked, so the workspace's
+// screen can say it is set by the installation; one it left open, and one the workspace carries
+// itself, are not.
+func TestALockedCeilingIsAnsweredAsLocked(t *testing.T) {
+	handler := ReadQuotas{
+		Store: &storeFake{
+			overrides: repository.Overrides{Items: ceiling(100)},
+			instance: repository.Overrides{
+				ExportJobs: ceiling(3), WebhookTargets: ceiling(5), Items: ceiling(50),
+			},
+			locks: map[string]bool{ExportJobs: true, Items: true},
+		},
+		Usage:      &usageFake{},
+		Authorizer: authorizerFake{}, UnitOfWork: &unitOfWork{},
+		Clock: clock.Fixed(now), Tenancy: env.TenancyMulti,
+	}
+	standings, err := handler.Execute(t.Context(), reader())
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	locked := map[string]bool{}
+	for _, standing := range standings {
+		locked[standing.Quota] = standing.Locked
+	}
+	if !locked[ExportJobs] {
+		t.Error("a ceiling the installation locked is not answered as locked")
+	}
+	if locked[WebhookTargets] {
+		t.Error("a ceiling the installation left open is answered as locked")
+	}
+	if locked[Items] {
+		t.Error("a ceiling the workspace carries itself is answered as the installation's")
+	}
+	if rows := StandingOutputs(standings); rows[0]["locked"] == nil {
+		t.Errorf("the answer carries no locked field: %v", rows[0])
 	}
 }

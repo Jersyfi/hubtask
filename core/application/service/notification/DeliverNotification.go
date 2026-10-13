@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/url"
 	"strings"
+	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
@@ -16,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/mail"
@@ -54,6 +56,10 @@ const (
 	// and never a title - there is none it may carry (ADR-0073 §5).
 	subjectPrivateHubTrashed = "email.private_hub_trashed.subject"
 	bodyPrivateHubTrashed    = "email.private_hub_trashed.body"
+	// The workspace's owner opened a private hub the recipient is a member of (ADR-0073 §4): who,
+	// from when until when, and why. The hub's name only where the recipient lets titles travel.
+	subjectEmergencyAccess = "email.emergency_access.subject"
+	bodyEmergencyAccess    = "email.emergency_access.body"
 	// withheldSuffix names the variant of a message that has no title to put in it - because the
 	// recipient asked for none, or because the entry is gone.
 	withheldSuffix = ".withheld"
@@ -85,10 +91,13 @@ type DeliverNotification struct {
 	// nil leaves the title out, which is the withheld sentence rather than a wrong one.
 	Rules         RuleReader
 	Subscriptions SubscriptionReader
-	Mail          mail.Sender
-	Renderer      i18n.Renderer
-	UnitOfWork    persistence.UnitOfWork
-	Clock         clock.Clock
+	// Accesses names the emergency access a member is told of. Optional like the two above: nil
+	// leaves the hub, the opener's words and the times out, which the withheld sentence survives.
+	Accesses   AccessReader
+	Mail       mail.Sender
+	Renderer   i18n.Renderer
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
 	// Workspaces answers the workspace's own default language, the second link of the chain a
 	// recipient's locale is resolved down (i18n-l10n.md §2) - an invited person has not chosen
 	// one yet, by definition, and the invitation is the first thing they read. Optional: nil
@@ -118,6 +127,11 @@ type SubscriptionReader interface {
 	Find(ctx context.Context, id shared.ID) (integrationrepo.StoredSubscription, error)
 }
 
+// AccessReader answers an emergency access with its hub's name - the work repository's Find.
+type AccessReader interface {
+	Find(ctx context.Context, id shared.ID) (work.EmergencyAccess, string, error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -137,6 +151,8 @@ type subject struct {
 	decision  domain.Decision
 	title     string
 	actorName string
+	// access is the emergency access the record names, zero for every other message.
+	access work.EmergencyAccess
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -144,6 +160,8 @@ type subject struct {
 type identityAccount struct {
 	locale  string
 	address string
+	// zone is where the recipient reads a time: the emergency access says from when until when.
+	zone string
 }
 
 // Execute sends the notification the job names, and reports whether it worked.
@@ -219,7 +237,7 @@ func (d DeliverNotification) load(
 		if err != nil {
 			return err
 		}
-		loaded.recipient = identityAccount{locale: locale, address: recipient.Email}
+		loaded.recipient = identityAccount{locale: locale, address: recipient.Email, zone: recipient.TimeZone}
 
 		preference, err := d.Preferences.Find(ctx, record.RecipientID, record.Category, record.Channel)
 		switch {
@@ -269,6 +287,12 @@ func (d DeliverNotification) load(
 			if target, err := url.Parse(stored.Subscription.TargetURL); err == nil {
 				loaded.title = target.Host
 			}
+		case !record.PrivateHubAccessID.IsZero() && d.Accesses != nil:
+			access, hubName, err := d.Accesses.Find(ctx, record.PrivateHubAccessID)
+			if err != nil && !errors.Is(err, shared.ErrNotFound) {
+				return err
+			}
+			loaded.access, loaded.title = access, hubName
 		case !record.ItemID.IsZero():
 			item, err := d.Items.Find(ctx, record.ItemID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -339,6 +363,15 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		Link:        d.link(loaded.record),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if loaded.record.Category == domain.CategoryEmergencyAccess && !loaded.access.ID.IsZero() {
+		message.Reason = loaded.access.Reason
+		message.When = inZone(loaded.access.OpenedAt, loaded.recipient.zone)
+		message.Until = inZone(loaded.access.EndsAt, loaded.recipient.zone)
+		// The hub itself, where a member reads every access to it.
+		if base := strings.TrimSuffix(d.BaseURL, "/"); base != "" {
+			message.Link = base + "/hubs/" + url.PathEscape(loaded.access.HubID.String())
+		}
+	}
 	if message.Title == "" {
 		// A body written for a title it does not get would print `{title}` at somebody: the
 		// catalogue leaves a placeholder with no parameter standing. The withheld variant is a
@@ -372,6 +405,8 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectIntegration, bodyIntegration
 	case domain.CategoryRetention:
 		return subjectRetention, bodyRetention
+	case domain.CategoryEmergencyAccess:
+		return subjectEmergencyAccess, bodyEmergencyAccess
 	}
 	// Not reachable through New, which refuses an unknown category. Answered rather than panicked:
 	// a message with the wrong words is better than a worker that dies on a row.
@@ -394,6 +429,9 @@ func (d DeliverNotification) link(record domain.Notification) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.PrivateHubAccessID.IsZero():
+		// The installation, where the access is gone: compose names the hub when it is there.
+		return base
 	case record.PrivateHubTrashed():
 		return base + "/administration/private-hubs"
 	}
@@ -460,4 +498,20 @@ func (d DeliverNotification) recipientLocale(ctx context.Context, own string) (s
 		}
 	}
 	return d.FallbackLocale, nil
+}
+
+// emergencyTimeLayout is a moment as the emergency access's mail says it: to the minute, with the
+// zone named, because an hour given without its zone is a wrong hour somewhere.
+const emergencyTimeLayout = "2006-01-02 15:04"
+
+// inZone writes the moment in the recipient's time zone, naming it; UTC where they chose none or
+// one this installation does not know.
+func inZone(at time.Time, zone string) string {
+	location := time.UTC
+	if zone != "" {
+		if loaded, err := time.LoadLocation(zone); err == nil {
+			location = loaded
+		}
+	}
+	return at.In(location).Format(emergencyTimeLayout) + " (" + location.String() + ")"
 }

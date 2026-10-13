@@ -66,6 +66,11 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.time_zone AS account_time_zone,
        a.week_start AS account_week_start,
        n.default_locale, n.default_time_zone,
+       -- The week start's two links above the account (i18n-l10n.md §4): the workspace's own, and
+       -- the installation's default as its row stores it. A scalar read of a policy-free table of a
+       -- few rows, on the round trip that already runs, rather than a second query per request.
+       coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
+       (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
        coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM session s
@@ -406,13 +411,15 @@ WHERE account_id = sqlc.arg('account_id') AND used_at IS NULL;
 -- name: InsertPendingCredential :exec
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed, session_method, session_via)
+   link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with,
+   session_method, session_via)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
   sqlc.arg('purpose'), sqlc.narg('user_agent'), sqlc.narg('ip_class'),
   sqlc.arg('created_at'), sqlc.arg('expires_at'),
   sqlc.narg('link_provider_id'), sqlc.narg('link_subject'), sqlc.narg('link_proof'),
-  sqlc.arg('password_change_owed'), sqlc.narg('session_method'), sqlc.narg('session_via')
+  sqlc.arg('password_change_owed'), sqlc.narg('signed_in_with'), sqlc.narg('session_method'),
+  sqlc.narg('session_via')
 );
 
 -- name: FindPendingByHash :one
@@ -420,7 +427,7 @@ VALUES (
 -- FindSessionForAuth's shape.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed, p.session_method, p.session_via,
+       p.password_change_owed, p.signed_in_with, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -440,7 +447,7 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 -- transaction is bound to.
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed, p.session_method, p.session_via,
+       p.password_change_owed, p.signed_in_with, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,

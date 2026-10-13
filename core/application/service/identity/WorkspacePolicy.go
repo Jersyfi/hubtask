@@ -348,6 +348,8 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 		"legal": legal,
 		"managed_accounts": setting(domain.SwitchManagedAccounts,
 			policy.ManagedAccounts, above.ManagedAccounts),
+		"private_hubs": setting(domain.SwitchPrivateHubs,
+			policy.PrivateHubs, above.PrivateHubs),
 		"rotation_from": nil,
 	}
 	if !policy.RotationFrom.IsZero() {
@@ -432,6 +434,7 @@ func policyPatchFrom(sent map[string]any) (WorkspacePolicyChange, error) {
 		{"context_words", &change.Policy.ContextWords},
 		{"breach_check", &change.Policy.BreachCheck},
 		{"managed_accounts", &change.Policy.ManagedAccounts},
+		{"private_hubs", &change.Policy.PrivateHubs},
 	} {
 		if *field.target, err = flag(field.key); err != nil {
 			return WorkspacePolicyChange{}, err

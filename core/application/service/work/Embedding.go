@@ -47,6 +47,9 @@ type EmbedItems struct {
 	Clock      clock.Clock
 	// BatchSize bounds one pass. Zero takes the default below.
 	BatchSize int
+	// Kept is whose content stays out of AI: their entries are not embedded, and their vectors
+	// are forgotten by the pass (data-protection.md §4.1). Nil keeps nobody out.
+	Kept KeptOutReader
 }
 
 // defaultEmbedBatch is how many entries one pass embeds.
@@ -91,6 +94,9 @@ func (h EmbedItems) Execute(
 	var (
 		available bool
 		owed      []repository.OwedEmbedding
+		skip      []shared.ID
+		// restricted are kept out further: the entries they are on are about them.
+		restricted []shared.ID
 	)
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
@@ -98,10 +104,30 @@ func (h EmbedItems) Execute(
 			if available, err = h.Semantic.Available(ctx); err != nil || !available {
 				return err
 			}
-			owed, err = h.Embeddings.Owed(ctx, capabilities.EmbeddingModel, batch)
+			if h.Kept != nil {
+				kept, err := h.Kept.Read(ctx, actor.TenantID)
+				if err != nil {
+					return err
+				}
+				skip, restricted = kept.Accounts(), kept.Restricted()
+			}
+			owed, err = h.Embeddings.Owed(ctx, capabilities.EmbeddingModel, batch, skip, restricted)
 			return err
 		}); err != nil {
 		return EmbedOutcome{}, err
+	}
+	if available && len(skip) > 0 {
+		// What a kept-out person created leaves the store with every pass: an objection recorded
+		// while the workspace was a person alone, or the position moved back, takes effect here.
+		if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			if _, err := h.Embeddings.Forget(ctx, skip); err != nil {
+				return err
+			}
+			_, err := h.Embeddings.ForgetAssigned(ctx, restricted)
+			return err
+		}); err != nil {
+			return EmbedOutcome{}, err
+		}
 	}
 	if !available || len(owed) == 0 {
 		return EmbedOutcome{}, nil

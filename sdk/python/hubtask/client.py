@@ -787,6 +787,18 @@ class Client:
         """The workspace's private hubs, without their names"""
         return self._call("GET", "/private-hubs", {}, None, {}, None, "none", None, "json")
 
+    def list_private_hub_accesses(self, hub_id: str) -> dict[str, Any]:
+        """Who opened this private hub through the emergency access, and why"""
+        return self._call("GET", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
+    def open_private_hub(self, hub_id: str, body: "PrivateHubAccessRequest", *, step_up: str | None = None) -> "PrivateHubAccess":
+        """Open a private hub through the emergency access"""
+        return self._call("POST", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def list_emergency_notices(self) -> dict[str, Any]:
+        """The emergency accesses the caller was told of in the last 30 days"""
+        return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
+
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""
         return self._call("GET", "/tenant/accounts-without-provider", {}, None, {}, None, "none", None, "json")
@@ -887,6 +899,10 @@ class Client:
         """Choose which AI answers this workspace"""
         return self._call("PUT", "/ai-source", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
+        """Whether each person may keep their own content out of AI"""
+        return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""
         return self._call("PUT", "/ai-budget", {}, None, {}, body, "json", "application/json", "json")
@@ -947,9 +963,25 @@ class Client:
         """Restrict the processing of an account's data (Art. 18)"""
         return self._call("POST", "/accounts/{accountId}:restrict", {"accountId": account_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_consents(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The consent register - who withdrew a purpose"""
+        return self._call("GET", "/privacy/consents", {}, query, {}, None, "none", None, "json")
+
     def withdraw_consent(self, body: "ConsentWithdrawal") -> "ConsentRecord":
         """Withdraw consent for an optional processing purpose (Art. 21)"""
         return self._call("POST", "/privacy/consents:withdraw", {}, None, {}, body, "json", "application/json", "json")
+
+    def give_consent(self, body: "ConsentGrant") -> "ConsentRecord":
+        """Agree to an optional processing purpose"""
+        return self._call("POST", "/privacy/consents:give", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_own_ai_position(self) -> "OwnAiPosition":
+        """The caller's own view of keeping their content out of AI"""
+        return self._call("GET", "/privacy/ai-objection", {}, None, {}, None, "none", None, "json")
+
+    def acknowledge_ai_position(self) -> "OwnAiPosition":
+        """Acknowledge that keeping one's content out stopped taking effect"""
+        return self._call("POST", "/privacy/ai-objection:noticed", {}, None, {}, None, "none", None, "json")
 
     def list_memberships(self, *, query: dict[str, Any] | None = None) -> "MembershipPage":
         """Who holds a role at a scope"""

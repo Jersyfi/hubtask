@@ -127,6 +127,29 @@ test('chromium: every rule says where it comes from, and looser choices are not 
 
   // The eighteenth rule has its control.
   assert.ok(await page.getByLabel('Earliest change after, in hours', { exact: true }).isVisible());
+
+  // UC-ID-12 check 7: every rule ADR-0068 lets a workspace set has a control of its own, found by its
+  // label - the password's thirteen, the second factor, both session bounds - with the ways to sign
+  // in as one list and the rotation as its action. (`blocklist_file` is the installation's alone.)
+  for (const label of [
+    'Minimum length', 'Lowercase', 'Uppercase', 'Digits', 'Other', 'At least this many of the four kinds',
+    'Most of the same character in a row', 'Refuse commonly used passwords',
+    'Refuse the address, the name and the workspace name inside a password', 'Check against known breaches',
+    'Expires after, in days', 'Remember previous passwords', 'Earliest change after, in hours', 'Required of',
+  ]) {
+    assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `no control for "${label}"`);
+  }
+  assert.equal(await page.getByLabel(/^End a session after, in days/).count(), 1, 'no control for the session\'s maximum age');
+  assert.equal(await idle.count(), 1, 'no control for the idle time');
+  assert.ok(await page.locator('ul.ways li').count() >= 1, 'no list of the ways to sign in');
+  assert.equal(await page.getByRole('button', { name: 'Require a new password from everyone' }).count(), 1, 'no rotation action');
+
+  // A switch kept on by Hubtask's own default says so, not that the installation required it: the
+  // origin line beside it says "Hubtask's default", and the reason must not contradict it (check 4).
+  const common = await page.getByLabel('Refuse commonly used passwords', { exact: true }).evaluate((input) =>
+    input.closest('[data-rule]')?.textContent ?? '');
+  assert.match(common, /Hubtask requires this of every workspace/, common);
+  assert.doesNotMatch(common, /The installation requires this/, common);
 });
 
 test('chromium: a refusal is shown at the rule it is about', async (t) => {
@@ -603,4 +626,39 @@ test('chromium: a provider the installation\'s lock turns on is shown on and set
   await own.check();
   await new Promise((resolve) => setTimeout(resolve, 300));
   assert.deepEqual(sent, ['/identity-providers/entra:offer']);
+});
+
+// UC-ID-18 check 3 and UC-INS-09 check 5: each link field holds the workspace's own, and the
+// installation's link is said beside it - inherited where the workspace set none, beside its own
+// where both are set, with the lock where the installation fixed it, and nothing where nobody set one.
+test('chromium: a link field holds the workspace\'s own, with the installation\'s beside it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const answer = policy();
+  answer.legal = {
+    imprint_url: rule('https://provider.example/imprint', 'https://provider.example/imprint', { source: 'INSTANCE', above: 'INSTANCE' }),
+    privacy_url: rule('https://acme.example/privacy', 'https://provider.example/privacy', { source: 'WORKSPACE', above: 'INSTANCE' }),
+    terms_url: rule('', ''),
+    accessibility_url: rule('https://provider.example/a11y', 'https://provider.example/a11y', { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' }),
+  };
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: answer } }) : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Imprint', { exact: true }).waitFor();
+
+  // Inherited: the workspace's own field is empty, and the installation's link is said under it.
+  assert.equal(await page.getByLabel('Imprint', { exact: true }).inputValue(), '');
+  assert.match(await originOf(page, 'Imprint'), /installation.s applies: https:\/\/provider\.example\/imprint/);
+  // Both set: the workspace's own in the field, the installation's beside it.
+  assert.equal(await page.getByLabel('Privacy', { exact: true }).inputValue(), 'https://acme.example/privacy');
+  assert.match(await originOf(page, 'Privacy'), /Set here\. Installation: https:\/\/provider\.example\/privacy/);
+  // Nobody set one: said, not left blank.
+  assert.match(await originOf(page, 'Terms'), /shows none/);
+  // Locked: the installation's link, the lock, and no way to change it.
+  const statement = page.getByLabel('Accessibility', { exact: true });
+  assert.equal(await statement.inputValue(), 'https://provider.example/a11y');
+  assert.equal(await statement.isDisabled(), true);
+  assert.match(await originOf(page, 'Accessibility'), /Set by the installation/);
 });

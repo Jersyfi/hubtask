@@ -55,6 +55,10 @@ func (c *RestController) UpdateWorkspace(
 			"default_locale":    optionalStringField(body.DefaultLocale),
 			"default_time_zone": optionalStringField(body.DefaultTimeZone),
 		}
+		if body.DefaultWeekStart != nil {
+			// The empty string is the clearing, which an explicit null cannot say here.
+			in["default_week_start"] = string(*body.DefaultWeekStart)
+		}
 		if body.RequireAdminTotp != nil {
 			// Set only when the caller sent one: absent has to reach the catalogue as absent,
 			// because false is a value this field legitimately holds.
@@ -102,6 +106,7 @@ func signInPolicyChange(sent openapi.SignInPolicyChange) map[string]any {
 	for name, value := range map[string]*bool{
 		"common_passwords": sent.CommonPasswords, "context_words": sent.ContextWords,
 		"breach_check": sent.BreachCheck, "managed_accounts": sent.ManagedAccounts,
+		"private_hubs": sent.PrivateHubs,
 	} {
 		if value != nil {
 			change[name] = *value
@@ -146,6 +151,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		CreatedAt:        timeValue(out["created_at"]),
 		Version:          out.Int("version"),
 	}
+	if several, held := out["several_people"].(bool); held {
+		answer.SeveralPeople = &several
+	}
 	if offered, held := out["private_hubs_offered"].(bool); held {
 		answer.PrivateHubsOffered = &offered
 	}
@@ -158,6 +166,21 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	}
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
+	}
+	if day := out.String("default_week_start"); day != "" {
+		weekStart := openapi.WorkspaceDefaultWeekStart(day)
+		answer.DefaultWeekStart = &weekStart
+	}
+	if defaults, held := out["installation_defaults"].(usecase.Output); held {
+		installation := openapi.InstallationDefaults{
+			Locale:   optionalStringOutput(defaults, "locale"),
+			TimeZone: optionalStringOutput(defaults, "time_zone"),
+		}
+		if day := defaults.String("week_start"); day != "" {
+			weekStart := openapi.InstallationDefaultsWeekStart(day)
+			installation.WeekStart = &weekStart
+		}
+		answer.InstallationDefaults = &installation
 	}
 	if opening, held := out["password_opening"].(usecase.Output); held {
 		// Who asked and why travel only where the use case answered them (READ_CONFIGURATION).
@@ -271,6 +294,10 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 	if _, held := out["managed_accounts"].(usecase.Output); held {
 		managed := flag(out, "managed_accounts")
 		answer.ManagedAccounts = &managed
+	}
+	if _, held := out["private_hubs"].(usecase.Output); held {
+		allowed := flag(out, "private_hubs")
+		answer.PrivateHubs = &allowed
 	}
 	if moment, held := out["rotation_from"].(time.Time); held && !moment.IsZero() {
 		answer.RotationFrom = &moment

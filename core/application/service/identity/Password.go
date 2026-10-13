@@ -908,11 +908,15 @@ func (h SetPasswordAndSignIn) Execute(
 		return SignInResult{}, err
 	}
 
-	// The change was the last proof; the terms of use in force, where not yet agreed, are the step
-	// after it (identity.md §4.2).
+	// A change a factor's step handed on to says how that step was proven; a change owed by the
+	// password alone was opened with the password. The change was the last proof; the terms of
+	// use in force, where not yet agreed, are the step after it (identity.md §4.2).
+	method := domain.SignedInWithPassword
+	if lookup.Credential.SignedInWith != "" {
+		method = lookup.Credential.SignedInWith
+	}
 	return w.Session.openOrAgree(ctx, scope, lookup.Account, SessionHint{
-		UserAgent: lookup.Credential.UserAgent, IPClass: lookup.Credential.IPClass,
-		Method: domain.SignedInWithPassword,
+		UserAgent: lookup.Credential.UserAgent, IPClass: lookup.Credential.IPClass, Method: method,
 	}, rules.Effective.Policy.Sessions)
 }
 

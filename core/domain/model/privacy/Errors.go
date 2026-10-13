@@ -4,6 +4,7 @@
 package privacy
 
 import (
+	"maps"
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -28,6 +29,7 @@ const (
 	CodeRequestClosed           = "privacy.request_closed"
 	CodePurposeRequired         = "privacy.purpose_required"
 	CodeConsentNotFound         = "privacy.consent_not_found"
+	CodeConsentOwnOnly          = "privacy.consent_own_only"
 	CodeSubjectNotFound         = "privacy.subject_not_found"
 	CodeInstallationScopeDenied = "privacy.installation_scope_denied"
 	// CodeErasureBlockedByRule is the refusal PG-2 asked for: the person still runs automation,
@@ -60,7 +62,7 @@ func invalidWith(code, field string, params map[string]string) error {
 	return shared.ErrValidation.
 		WithDetail(code).
 		WithParams(params).
-		WithFields(shared.FieldError{Path: field, Code: code})
+		WithFields(shared.FieldError{Path: field, Code: code, Params: maps.Clone(params)})
 }
 
 // conflict is a refusal about the case's state rather than the input: the same request may succeed

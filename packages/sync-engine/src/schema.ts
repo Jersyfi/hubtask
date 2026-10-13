@@ -165,6 +165,7 @@ export type Account = components['schemas']['Account'];
 export type AccountSummary = components['schemas']['AccountSummary'];
 /** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
 export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
+export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**
@@ -304,6 +305,17 @@ export type AiSources = components['schemas']['AiSources'];
 export type OwnAiBudget = components['schemas']['OwnAiBudget'];
 export type AiMinJurisdiction = components['schemas']['AiMinJurisdiction'];
 export type OfferedAiModelSummary = components['schemas']['OfferedAiModelSummary'];
+/**
+ * Whether each person may keep their own content out of AI, or AI is part of everybody's work on a
+ * basis the workspace names (`data-protection.md` §4.1).
+ */
+export type AiPersonOptOut = components['schemas']['AiPersonOptOut'];
+export type AiOptOutBasis = components['schemas']['AiOptOutBasis'];
+export type AiPersonOptOutChoice = components['schemas']['AiPersonOptOutChoice'];
+/** A person's own view of keeping their content out of AI. */
+export type OwnAiPosition = components['schemas']['OwnAiPosition'];
+/** One row of the consent register: who withdrew a purpose, since when. */
+export type ConsentRegisterEntry = components['schemas']['ConsentRegisterEntry'];
 
 /**
  * A minted credential as it is listed afterwards. The token itself is not a member of it: it

@@ -66,6 +66,11 @@ func TestAnAccountIsFoundByIdentifierAndByAddress(t *testing.T) {
 	if byID.Email != account.Email || byID.Status != identity.AccountInvited {
 		t.Errorf("read %+v, want the invited account", byID)
 	}
+	// The round trip carries the workspace: an account rebuilt without it builds trail entries the
+	// sink refuses, which rolled back *New codes* and the connection by mail on every real server.
+	if byID.TenantID != tenantA || byEmail.TenantID != tenantA {
+		t.Errorf("read back in workspace %q and %q, want %q", byID.TenantID, byEmail.TenantID, tenantA)
+	}
 	if byEmail.ID != account.ID {
 		t.Errorf("the address found %s, want %s", byEmail.ID, account.ID)
 	}

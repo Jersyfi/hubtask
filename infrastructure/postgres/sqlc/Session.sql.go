@@ -524,7 +524,7 @@ func (q *Queries) FindPasswordHash(ctx context.Context, id pgtype.UUID) (*string
 const findPendingByHash = `-- name: FindPendingByHash :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed, p.session_method, p.session_via,
+       p.password_change_owed, p.signed_in_with, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -551,6 +551,7 @@ type FindPendingByHashRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
 	AccountKind        AccountKind
@@ -582,6 +583,7 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SignedInWith,
 		&i.SessionMethod,
 		&i.SessionVia,
 		&i.AccountKind,
@@ -600,7 +602,7 @@ func (q *Queries) FindPendingByHash(ctx context.Context, tokenHash []byte) (Find
 const findPendingByID = `-- name: FindPendingByID :one
 SELECT p.id, p.account_id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject, p.link_proof,
-       p.password_change_owed, p.session_method, p.session_via,
+       p.password_change_owed, p.signed_in_with, p.session_method, p.session_via,
        a.kind     AS account_kind,
        a.status   AS account_status,
        a.display_name AS account_display_name,
@@ -627,6 +629,7 @@ type FindPendingByIDRow struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
 	AccountKind        AccountKind
@@ -660,6 +663,7 @@ func (q *Queries) FindPendingByID(ctx context.Context, id pgtype.UUID) (FindPend
 		&i.LinkSubject,
 		&i.LinkProof,
 		&i.PasswordChangeOwed,
+		&i.SignedInWith,
 		&i.SessionMethod,
 		&i.SessionVia,
 		&i.AccountKind,
@@ -774,6 +778,11 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        a.time_zone AS account_time_zone,
        a.week_start AS account_week_start,
        n.default_locale, n.default_time_zone,
+       -- The week start's two links above the account (i18n-l10n.md §4): the workspace's own, and
+       -- the installation's default as its row stores it. A scalar read of a policy-free table of a
+       -- few rows, on the round trip that already runs, rather than a second query per request.
+       coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
+       (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
        coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
 FROM session s
@@ -784,32 +793,34 @@ WHERE s.id = $1 AND a.deleted_at IS NULL
 `
 
 type FindSessionForAuthRow struct {
-	ID                 pgtype.UUID
-	TenantID           pgtype.UUID
-	AccountID          pgtype.UUID
-	CreatedAt          pgtype.Timestamptz
-	LastSeenAt         pgtype.Timestamptz
-	ExpiresAt          pgtype.Timestamptz
-	RevokedAt          pgtype.Timestamptz
-	GrantID            pgtype.UUID
-	Scopes             []string
-	HardExpiresAt      pgtype.Timestamptz
-	IdleMinutes        *int32
-	SignedInWith       *string
-	ElevatedUntil      pgtype.Timestamptz
-	RotationFrom       interface{}
-	GrantClientID      pgtype.UUID
-	AccountKind        AccountKind
-	AccountStatus      AccountStatus
-	AccountDisplayName string
-	AccountLocale      *string
-	AccountTimeZone    *string
-	AccountWeekStart   *string
-	DefaultLocale      string
-	DefaultTimeZone    string
-	TenantSlug         string
-	TenantStatus       string
-	TokenRateOverride  interface{}
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	AccountID             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	LastSeenAt            pgtype.Timestamptz
+	ExpiresAt             pgtype.Timestamptz
+	RevokedAt             pgtype.Timestamptz
+	GrantID               pgtype.UUID
+	Scopes                []string
+	HardExpiresAt         pgtype.Timestamptz
+	IdleMinutes           *int32
+	SignedInWith          *string
+	ElevatedUntil         pgtype.Timestamptz
+	RotationFrom          interface{}
+	GrantClientID         pgtype.UUID
+	AccountKind           AccountKind
+	AccountStatus         AccountStatus
+	AccountDisplayName    string
+	AccountLocale         *string
+	AccountTimeZone       *string
+	AccountWeekStart      *string
+	DefaultLocale         string
+	DefaultTimeZone       string
+	TenantWeekStart       string
+	InstallationWeekStart []byte
+	TenantSlug            string
+	TenantStatus          string
+	TokenRateOverride     interface{}
 }
 
 // What authenticating a session access token needs: the row the signature named, its account,
@@ -841,6 +852,8 @@ func (q *Queries) FindSessionForAuth(ctx context.Context, id pgtype.UUID) (FindS
 		&i.AccountWeekStart,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantWeekStart,
+		&i.InstallationWeekStart,
 		&i.TenantSlug,
 		&i.TenantStatus,
 		&i.TokenRateOverride,
@@ -890,13 +903,15 @@ const insertPendingCredential = `-- name: InsertPendingCredential :exec
 
 INSERT INTO auth_pending
   (id, tenant_id, account_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at,
-   link_provider_id, link_subject, link_proof, password_change_owed, session_method, session_via)
+   link_provider_id, link_subject, link_proof, password_change_owed, signed_in_with,
+   session_method, session_via)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8,
   $9, $10, $11,
-  $12, $13, $14
+  $12, $13, $14,
+  $15
 )
 `
 
@@ -913,6 +928,7 @@ type InsertPendingCredentialParams struct {
 	LinkSubject        *string
 	LinkProof          *string
 	PasswordChangeOwed bool
+	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
 }
@@ -932,6 +948,7 @@ func (q *Queries) InsertPendingCredential(ctx context.Context, arg InsertPending
 		arg.LinkSubject,
 		arg.LinkProof,
 		arg.PasswordChangeOwed,
+		arg.SignedInWith,
 		arg.SessionMethod,
 		arg.SessionVia,
 	)

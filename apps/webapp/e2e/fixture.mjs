@@ -81,11 +81,13 @@ export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: 
  * The workspace as `GET /tenant` answers it: two people, so a private hub is offered (UC-ID-16
  * check 8). A walk about a workspace of one routes `/tenant` itself.
  */
-export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true };
+export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true, several_people: true };
 
 /**
  * The private hubs as an administrator lists them: one in use, owned by the other person, and one
- * whose last member left, in the trash. No names - the list has none to give.
+ * whose last member left, in the trash. No names - the list has none to give. The reader is the
+ * workspace's owner and holds nothing in either, so the emergency access is offered on both
+ * (ADR-0073 §4).
  */
 /** This installation's own callback, as the presets answer it. */
 export const REDIRECT_URI = 'https://hubtask.example/api/v1/auth/oidc/callback';
@@ -105,9 +107,15 @@ export const PROVIDER_PRESETS = [
 ];
 
 export const PRIVATE_HUBS = [
-  { id: '01a0e2e0-0000-7000-8000-0000000005b1', owners: [OTHER.id], collections: 2, entries: 14, attachment_bytes: 2_621_440, created_at: '2026-09-02T08:00:00Z', trashed_at: null, purge_on: null },
-  { id: '01a0e2e0-0000-7000-8000-0000000005b2', owners: [], collections: 1, entries: 3, attachment_bytes: 0, created_at: '2026-09-03T08:00:00Z', trashed_at: '2026-10-01T08:00:00Z', purge_on: '2026-10-31' },
+  { id: '01a0e2e0-0000-7000-8000-0000000005b1', owners: [OTHER.id], collections: 2, entries: 14, attachment_bytes: 2_621_440, created_at: '2026-09-02T08:00:00Z', trashed_at: null, purge_on: null, emergency_access: { offered: true, open_until: null } },
+  { id: '01a0e2e0-0000-7000-8000-0000000005b2', owners: [], collections: 1, entries: 3, attachment_bytes: 0, created_at: '2026-09-03T08:00:00Z', trashed_at: '2026-10-01T08:00:00Z', purge_on: '2026-10-31', emergency_access: { offered: true, open_until: null } },
 ];
+
+/**
+ * An emergency access to the first private hub: the other person's hub, opened by the reader, the
+ * workspace's owner. What the members are told, and what the hub's page says.
+ */
+export const EMERGENCY_ACCESS = { id: '01a0e2e0-0000-7000-8000-0000000005d1', hub_id: PRIVATE_HUBS[0].id, opened_by: ACCOUNT.id, reason: 'Mara is in hospital and the insurance papers are in here.', opened_at: '2026-10-12T14:30:00Z', ends_at: '2026-10-12T15:30:00Z' };
 
 /**
  * People's requests: one that can still be extended (the server answers its bound), one extended
@@ -151,7 +159,16 @@ export const OFFERED_AI = [
  * A workspace's AI source on a private installation (D1): its own model, nothing offered, no lock -
  * today's screen. A walk of an installation that offers a model routes `/ai-source` itself.
  */
-export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0 };
+export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0 };
+
+/**
+ * A person's own view of keeping their content out of AI where there is nothing to choose: AI off
+ * in the fixture's workspace (UC-PRV-05 check 8). A walk of the switch routes it itself.
+ */
+export const AI_OBJECTION = { shown: false, person_opt_out: 'OFFERED', keeping_out: false, in_effect: false, notice_pending: false };
+
+/** The consent register: one person keeps their content out, recorded by themselves. */
+export const CONSENT_REGISTER = { data: [{ account_id: '01a0e2e0-0000-7000-8000-0000000000b7', display_name: 'Kim Keeper', since: '2026-10-05T09:12:00Z', source: 'user' }] };
 
 /**
  * The keyring mid-rotation, as the operator reads it: the current key, a predecessor nothing names
@@ -207,6 +224,8 @@ export function stub(route) {
   }
   if (path.endsWith('/api/v1/tenant') && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
   if (path.endsWith('/api/v1/private-hubs') && request.method() === 'GET') return route.fulfill({ json: PRIVATE_HUBS });
+  // A hub's emergency accesses, and the reader's own notices: none, unless a walk routes them.
+  if (/\/api\/v1\/private-hubs\/[^/]+\/accesses$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/labels')) return route.fulfill({ json: LABELS });
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });
   if (path.endsWith('/api/v1/memberships')) {
@@ -251,6 +270,8 @@ export function stub(route) {
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
+  if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
+  if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
@@ -331,7 +352,7 @@ const ARRAYS = new Set([
   '/quotas', '/groups', '/retention-policies', '/oauth/clients', '/oauth/grants',
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
-  '/integrations/calendar-feeds', '/private-hubs',
+  '/integrations/calendar-feeds', '/private-hubs', '/accounts/me/emergency-notices',
   // The provider surface, plural and read by the administration's sign-in screen. Both
   // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
   // like from the outside.

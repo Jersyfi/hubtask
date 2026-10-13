@@ -90,7 +90,7 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 }
 
 const accountsOfKind = `-- name: AccountsOfKind :many
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE kind = $1 AND deleted_at IS NULL
@@ -99,6 +99,7 @@ ORDER BY id DESC
 
 type AccountsOfKindRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -127,6 +128,7 @@ func (q *Queries) AccountsOfKind(ctx context.Context, kind AccountKind) ([]Accou
 		var i AccountsOfKindRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.TenantID,
 			&i.Kind,
 			&i.Email,
 			&i.SignInName,
@@ -301,6 +303,11 @@ SELECT
   a.week_start AS account_week_start,
   n.default_locale,
   n.default_time_zone,
+  -- The week start's two links above the account (i18n-l10n.md §4): the workspace's own, and
+  -- the installation's default as its row stores it. A scalar read of a policy-free table of a
+  -- few rows, on the round trip that already runs, rather than a second query per request.
+  coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
+  (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
   n.slug         AS tenant_slug,
   n.status::text AS tenant_status,
   coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
@@ -312,24 +319,26 @@ WHERE t.token_hash = $1
 `
 
 type FindAccessTokenByHashRow struct {
-	ID                 pgtype.UUID
-	TenantID           pgtype.UUID
-	AccountID          pgtype.UUID
-	Scopes             []string
-	ExpiresAt          pgtype.Timestamptz
-	RevokedAt          pgtype.Timestamptz
-	LastUsedAt         pgtype.Timestamptz
-	AccountDisplayName string
-	AccountKind        AccountKind
-	AccountStatus      AccountStatus
-	AccountLocale      *string
-	AccountTimeZone    *string
-	AccountWeekStart   *string
-	DefaultLocale      string
-	DefaultTimeZone    string
-	TenantSlug         string
-	TenantStatus       string
-	TokenRateOverride  interface{}
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	AccountID             pgtype.UUID
+	Scopes                []string
+	ExpiresAt             pgtype.Timestamptz
+	RevokedAt             pgtype.Timestamptz
+	LastUsedAt            pgtype.Timestamptz
+	AccountDisplayName    string
+	AccountKind           AccountKind
+	AccountStatus         AccountStatus
+	AccountLocale         *string
+	AccountTimeZone       *string
+	AccountWeekStart      *string
+	DefaultLocale         string
+	DefaultTimeZone       string
+	TenantWeekStart       string
+	InstallationWeekStart []byte
+	TenantSlug            string
+	TenantStatus          string
+	TokenRateOverride     interface{}
 }
 
 func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (FindAccessTokenByHashRow, error) {
@@ -351,6 +360,8 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 		&i.AccountWeekStart,
 		&i.DefaultLocale,
 		&i.DefaultTimeZone,
+		&i.TenantWeekStart,
+		&i.InstallationWeekStart,
 		&i.TenantSlug,
 		&i.TenantStatus,
 		&i.TokenRateOverride,
@@ -360,7 +371,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 
 const findAccount = `-- name: FindAccount :one
 
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
@@ -368,6 +379,7 @@ WHERE id = $1 AND deleted_at IS NULL
 
 type FindAccountRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -389,6 +401,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 	var i FindAccountRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,
@@ -404,7 +417,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 }
 
 const findAccountByEmail = `-- name: FindAccountByEmail :one
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE lower(email) = lower($1) AND deleted_at IS NULL
@@ -412,6 +425,7 @@ WHERE lower(email) = lower($1) AND deleted_at IS NULL
 
 type FindAccountByEmailRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -431,6 +445,7 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 	var i FindAccountByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,
@@ -446,7 +461,7 @@ func (q *Queries) FindAccountByEmail(ctx context.Context, email string) (FindAcc
 }
 
 const findAccountBySignInName = `-- name: FindAccountBySignInName :one
-SELECT id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
+SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
 FROM account
 WHERE sign_in_name = $1 AND deleted_at IS NULL
@@ -454,6 +469,7 @@ WHERE sign_in_name = $1 AND deleted_at IS NULL
 
 type FindAccountBySignInNameRow struct {
 	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
 	Kind                  AccountKind
 	Email                 *string
 	SignInName            *string
@@ -472,6 +488,7 @@ func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *strin
 	var i FindAccountBySignInNameRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Kind,
 		&i.Email,
 		&i.SignInName,

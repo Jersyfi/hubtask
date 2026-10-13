@@ -13,17 +13,18 @@ pull request.
 
 **Delivers:** UC-ID-16 (1–8), UC-ID-20 (1–8), UC-LIF-06 (1–8), UC-PRV-01 (9, 10), UC-PRV-03 (9–13), UC-PRV-05 (4, 5, 7–12)
 **Released:** 2026-09-30
+**Closed:** 2026-10-13
 
 ## Decisions
 
 Each measured against the deployments `D1`–`D7`:
 
-1. **The data protection rights** ([data-protection.md](../architecture/data-protection.md) §4.1):
+1. **The data protection rights** ([data-protection.md](../../architecture/data-protection.md) §4.1):
    a deadline extended once, a legal hold that wins over an erasure as far as it reaches (which also
    answers R-3), and AI objection per person with the workspace's choice to make AI part of the work
    for everybody.
-2. **Private hubs** with a transparent emergency access ([ADR-0073](../adr/ADR-0073-private-hubs.md)).
-3. **Managed accounts** without a mail address ([ADR-0074](../adr/ADR-0074-managed-accounts.md)).
+2. **Private hubs** with a transparent emergency access ([ADR-0073](../../adr/ADR-0073-private-hubs.md)).
+3. **Managed accounts** without a mail address ([ADR-0074](../../adr/ADR-0074-managed-accounts.md)).
 4. **Only the workspace can name the legal basis `NOT_OFFERED` needs**, so the installation's and the
    plan's lock can hold a workspace at `OFFERED` only (PH-03).
 5. **The extension's audit action is `dsr.extended`**, not `privacy.request_extended`: every action

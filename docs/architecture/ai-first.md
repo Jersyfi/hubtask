@@ -104,6 +104,23 @@ budget wrapper checks and meters that one ([multi-tenancy.md](./multi-tenancy.md
 model's key is re-sealed by the installation's own round of a key rotation
 ([security.md](./security.md) §8.1). With no offered model, none of this is visible.
 
+**Whose content stays out** ([data-protection.md](./data-protection.md) §4.1; UC-PRV-05). One
+exclusion, read in the same transaction as the material, decides it for every path that hands
+content to a model - the suggestion producer, translation and the embedding pass - and takes its
+reasons from sources: a person's objection (their newest `ai_processing` consent record is a
+withdrawal, the workspace offers keeping one's content out, and more than one person works there)
+is one; a restriction of processing (Art. 18, data-protection.md §4) is the other, read first and
+without the objection's gates - it holds whatever the workspace's position and for a person alone,
+and it also keeps out an entry assigned to the person. What a kept-out person created, their
+comments and what they mailed in are not material; their display name, its parts of three letters
+or more, their sign-in name and their address become `[person]` in what remains. Material with
+nothing left is refused at the asking with `ai.nothing_to_work_with` - the words an empty one gets,
+so no answer to a colleague names or implies who objected - and the person themselves is told
+their own reason, `ai.kept_out` or `ai.processing_restricted`; the manifest answers `ai_suggestions` and `semantic_search` false for them, and they
+search by words. The embedding pass skips their entries and forgets their vectors; recording the
+objection or the restriction forgets them in its own transaction. A rule's AI action with nothing to work with is
+skipped, not failed.
+
 **Every AI answer is a suggestion record** unless the table says otherwise: kind, target, payload and
 provenance. Accepting performs the ordinary use cases as the accepting person, with their rights and
 audit entries; dismissing is a state on the record ([domain-model.md](./domain-model.md) §5).

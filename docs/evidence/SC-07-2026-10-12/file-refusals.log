@@ -1,0 +1,12 @@
+$ instance file: sign_in.min_length = {"sign_in": {"min_length": {"value": "twelve"}}}
+{"time":"2026-10-12T20:07:23.441082+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (auth.policy_value_invalid) [switch=sign_in.min_length]"}
+$ instance file: sign_in.min_length = {"sign_in": {"min_length": {"value": 3.5}}}
+{"time":"2026-10-12T20:07:29.515756+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (auth.policy_value_invalid) [switch=sign_in.min_length]"}
+$ instance file: localisation.week_start = {"localisation": {"week_start": {"value": "WEDNESDAY"}}}
+{"time":"2026-10-12T20:07:35.590116+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (auth.policy_value_invalid) [switch=localisation.week_start]"}
+$ instance file: localisation.time_zone = {"localisation": {"time_zone": {"value": "Mars/Olympus_Mons"}}}
+{"time":"2026-10-12T20:07:41.659013+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (admin.time_zone_invalid) [value=Mars/Olympus_Mons]"}
+$ instance file: legal.accessibility_url = {"legal": {"accessibility_url": {"value": "ftp://provider.example/a11y"}}}
+{"time":"2026-10-12T20:07:47.749025+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (auth.legal_url_scheme)"}
+$ instance file: quotas.items = {"quotas": {"items": {"value": "lots"}}}
+{"time":"2026-10-12T20:07:53.845591+02:00","level":"ERROR","msg":"startup failed","service":"hubtask","version":"0.0.0-dev","role":"api","error":"VALIDATION: validation_failed (auth.policy_value_invalid) [switch=quotas.items]"}

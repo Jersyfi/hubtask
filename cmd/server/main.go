@@ -246,6 +246,13 @@ func run() error {
 		defer backgroundPool.Close()
 	}
 
+	// Every loop started below runs under this context, and it ends on any return - before the
+	// pools' Close above, which waits for every connection to come back. A start refused after the
+	// loops began (an instance file whose value is refused) otherwise never returned: the listeners
+	// held their connections, Close waited for them, and the process served on, never ready.
+	ctx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+
 	registry.Register(postgres.NewProbe(pool))
 	registry.SetSignals(metrics)
 
@@ -329,7 +336,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("clock: %w", err)
 	}
-	auditSink := postgres.NewAuditSink(ids)
+	auditSink := postgres.NewAuditSink(ids).Keyed(security.NewAuditFingerprinter(cfg.SecretKey))
 	// The queue is wired into the write path before any worker exists: an event carries its own
 	// wake-up, so the dispatcher finds work whether or not this process is the one that runs it.
 	jobs := postgres.NewQueue(ids, clockadapter.System{})
@@ -801,7 +808,9 @@ func run() error {
 	// purpose - the actor's own permission and the question about the second person are two
 	// different questions answered by the same service.
 	assignment := work.AssignmentWriter{
-		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
+		// No rule puts a person whose processing is restricted on an entry (Art. 18).
+		Accounts: accounts,
+		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Visibility: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
@@ -891,7 +900,8 @@ func run() error {
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
 	itemMemberWriter := work.ItemMemberWriter{
-		Items: items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
+		Accounts: accounts,
+		Items:    items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -951,7 +961,8 @@ func run() error {
 		// The authorisation service under three names: the permission, the question about the
 		// role the actor holds, and whether a second person can see the destination.
 		Authorizer: authorizer, Ownership: authorizer, Visibility: authorizer,
-		Events: outbox, Changes: changes,
+		Restrictions: accounts,
+		Events:       outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 	}
@@ -1051,7 +1062,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(),
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
@@ -1062,10 +1073,32 @@ func run() error {
 		Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 	}
 	aiProviderWriter.Reindex = embeddingSeeder
+	// Whose content stays out of AI (data-protection.md §4.1): one exclusion every path that hands
+	// content to a model reads in the transaction it reads the material in, over two reasons: a
+	// restriction of processing (Art. 18) and an objection.
+	keptOut := integrationservice.Exclusion{Sources: []integrationservice.KeptOutSource{
+		// First: somebody both restricted and objecting is kept out as far as a restriction reaches.
+		integrationservice.RestrictionSource{Restrictions: privacyStore},
+		integrationservice.ObjectionSource{
+			Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		},
+	}}
+	// The asking reads what the producer will read, with the same exclusion, so that nothing to
+	// work with is refused at once rather than queued. Set here, before any descriptor copies the
+	// cases below.
+	suggestionCases.Material = suggestionservice.CatalogueSources{
+		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+	}
+	// A person's own view of keeping their content out of AI, over the same rule every AI call
+	// resolves (data-protection.md §4.1).
+	aiObjectionReader := integrationservice.AiObjectionReader{
+		Rules: &aiRules, People: postgres.NewPrivateHubRepository(), Consents: privacyStore,
+		Notices: privacyStore, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	aiSourceWriter := integrationservice.AiSourceWriter{
 		Rules: aiRules, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Reindex: embeddingSeeder,
-		Spaces: postgres.NewEmbeddingRepository(),
+		Spaces: postgres.NewEmbeddingRepository(), Embeddings: postgres.NewEmbeddingRepository(),
 	}
 
 	// The AI provider's resolver. A provider is per tenant (ai-first.md §2), so there is
@@ -1128,7 +1161,7 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles},
+		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1206,6 +1239,10 @@ func run() error {
 	// check 4).
 	registry.AddWarningSource(adminservice.RegisterWarnings{
 		State: operators, Environment: operatorsFromEnvironment, UnitOfWork: unitOfWork,
+	}.Warnings)
+	// A provider's installation without an accessibility statement (UC-ID-18), read live too.
+	registry.AddWarningSource(adminservice.AccessibilityWarnings{
+		Tenancy: cfg.Tenancy, Settings: postgres.NewInstanceSettingRepository(), UnitOfWork: unitOfWork,
 	}.Warnings)
 	// A key the ring lacks while values still name it, by kind (UC-INS-16 check 3): the census
 	// is taken in the background, at start and hourly, and served from the last one.
@@ -1365,6 +1402,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
@@ -1496,6 +1534,7 @@ func run() error {
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors),
 			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+			Instance: postgres.NewInstanceSettingRepository(),
 		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
 		identity.EnrollTotp{Writer: sessionWriter}.Descriptor(),
@@ -1538,6 +1577,7 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1657,7 +1697,7 @@ func run() error {
 		jumbleservice.SuggestFromJumbleEntry{
 			Writer: jumbleWriter,
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
-			Queue:  jobs,
+			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
@@ -1674,18 +1714,19 @@ func run() error {
 			Lag: cfg.Queue.TriggerPollLag,
 		}.Descriptor(),
 		work.CreateContainer{
-			Containers: containers,
-			Authorizer: authorizer,
-			OwnHubs:    authorizer,
-			Grants:     grants,
-			Events:     outbox,
-			Changes:    changes,
-			Audit:      auditSink,
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{},
-			IDs:        ids,
-			HLC:        hybrid,
-			Text:       forms,
+			Containers:  containers,
+			Authorizer:  authorizer,
+			OwnHubs:     authorizer,
+			PrivateHubs: signInPolicyResolver,
+			Grants:      grants,
+			Events:      outbox,
+			Changes:     changes,
+			Audit:       auditSink,
+			UnitOfWork:  unitOfWork,
+			Clock:       clockadapter.System{},
+			IDs:         ids,
+			HLC:         hybrid,
+			Text:        forms,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:        items,
@@ -1733,9 +1774,27 @@ func run() error {
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Accesses: postgres.NewEmergencyAccessRepository(), Owners: authorizer, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.ListPrivateHubAccesses{
+			Accesses: postgres.NewEmergencyAccessRepository(), Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListEmergencyNotices{
+			Accesses: postgres.NewEmergencyAccessRepository(), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.OpenPrivateHub{
+			Accesses: postgres.NewEmergencyAccessRepository(), Hubs: postgres.NewHubLockRepository(),
+			// Every member told in the transaction that opens the hub (ADR-0073 §4).
+			Notices: notification.RecordEmergencyAccess{
+				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids,
+			},
+			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
 		work.SetHubPrivacy{
 			Writer: containerWriter, Hubs: postgres.NewHubLockRepository(), Revocations: revocations,
+			PrivateHubs: signInPolicyResolver,
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
@@ -1813,7 +1872,7 @@ func run() error {
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
 		work.ListWorkItems{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -1835,7 +1894,7 @@ func run() error {
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork,
+				UnitOfWork: unitOfWork, Kept: keptOut,
 			},
 		}.Descriptor(),
 		// The index brought current at an administrator's request: what the row's
@@ -1907,11 +1966,22 @@ func run() error {
 		privacyservice.RestrictProcessing{
 			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{
 			Consents: privacyStore, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
+		privacyservice.ListConsents{
+			Consents: privacyStore, Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		privacyservice.GiveConsent{
+			Consents: privacyStore, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Reindex: embeddingSeeder,
+		}.Descriptor(),
+		integrationservice.ReadOwnAiPosition{Reader: aiObjectionReader}.Descriptor(),
+		integrationservice.AcknowledgeAiPosition{Reader: aiObjectionReader}.Descriptor(),
 		auditservice.ExportAuditTrail{
 			Jobs: jobs, Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
@@ -1966,7 +2036,7 @@ func run() error {
 		work.InstantiateTemplate{
 			Quota:  quotaGuard,
 			Writer: templateWriter, Items: items, ItemMembers: itemMembers,
-			Visibility: authorizer, Events: outbox, Activity: journal,
+			Visibility: authorizer, Restrictions: accounts, Events: outbox, Activity: journal,
 		}.Descriptor(),
 		work.GetRecurrence{
 			Recurrences: recurrences, Items: items, Containers: containers,
@@ -2295,6 +2365,8 @@ func run() error {
 			// honest one: a workspace that has spent the day's tokens is a workspace whose next
 			// suggestion will be refused.
 			Providers: budgetedAi,
+			// And per caller: a person who keeps their own content out is offered no AI action.
+			Kept: keptOut,
 			// The four links the installation is obliged to show, through the one resolver that
 			// knows the levels. The same object `/auth/sign-in-rules` reads, so a footer
 			// inside the application and the signed-out card cannot disagree.
@@ -2747,6 +2819,8 @@ func run() error {
 			// the subscription that stopped being called.
 			Rules:         postgres.NewAutomationRuleRepository(cursors),
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
+			// The emergency access a member is told of: opener, times, reason and hub.
+			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
@@ -2827,6 +2901,7 @@ func run() error {
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
 		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
@@ -3030,6 +3105,8 @@ func run() error {
 			Jumble:     postgres.NewJumbleRepository(cursors),
 			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
 			Signals:    metrics,
+			// No run acts as or about a person whose processing is restricted (Art. 18).
+			Restrictions: privacyStore,
 			Owners: notification.RecordRuleDisabled{
 				Notifications: notifications, Accounts: accounts,
 				Preferences: notificationPreferences, Jobs: jobs,
@@ -3059,7 +3136,7 @@ func run() error {
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,
 				Semantic: postgres.NewSemanticSearchRepository(), UnitOfWork: unitOfWork,
-				Clock: clockadapter.System{},
+				Clock: clockadapter.System{}, Kept: keptOut,
 			},
 			// A quiet workspace pays one pass an hour for having the machinery; a busy one comes
 			// straight back while there is known work left. The retention sweep's two numbers, for
@@ -3077,11 +3154,14 @@ func run() error {
 			Continuation: 2 * time.Second,
 		},
 		queueport.KindNotificationDeliver: notificationDelivery,
-		queueport.KindWebhookDeliver:      webhookDelivery,
-		queueport.KindAutomationRun:       automationRun,
-		queueport.KindAutomationHTTP:      outboundCall,
-		queueport.KindBackupRun:           backupRun,
-		queueport.KindBackupVerify:        worker.BackupVerify{Performer: backupPerformer},
+		// The same delivery under its own kind, which a process of the previous release leaves alone
+		// (queue.KindEmergencyAccessEmail).
+		queueport.KindEmergencyAccessEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:       webhookDelivery,
+		queueport.KindAutomationRun:        automationRun,
+		queueport.KindAutomationHTTP:       outboundCall,
+		queueport.KindBackupRun:            backupRun,
+		queueport.KindBackupVerify:         worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

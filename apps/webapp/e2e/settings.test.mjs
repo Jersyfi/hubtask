@@ -381,6 +381,85 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
   assert.ok(disables.every((each) => !('password' in (each.body ?? {}))), 'the deprecated password was sent');
 });
 
+// UC-ID-05 checks 1-3: the change asks for one proof - the step-up - and no second "current password";
+// the rules list ticks under the one field; after saving the screen says every other session was
+// signed out.
+test('chromium: 1280 px — the password is changed with one proof, the rules ticking, and the sessions said', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const changes = [];
+  const proofs = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') {
+      return route.fulfill({ json: { ...ACCOUNT, has_password: true, has_second_factor: false, second_factor_required: false } });
+    }
+    if (path === '/auth/password' && request.method() === 'POST') {
+      const proof = request.headers()['x-hubtask-step-up'] ?? null;
+      changes.push({ proof, body: request.postDataJSON() });
+      if (proof !== 'hbt_sup_pw') {
+        return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'PASSWORD' }, request_id: 'req_s' } });
+      }
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/auth/step-up') {
+      proofs.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { step_up_token: 'hbt_sup_pw', expires_at: '2099-01-01T00:00:00Z', method: 'PASSWORD' } });
+    }
+    if (path === '/auth/sign-in-rules') {
+      return route.fulfill({ json: {
+        workspace_host: 'acme.hubtask.eu', methods: ['PASSWORD'], providers: [], legal: {},
+        password: {
+          min_length: 14, min_lowercase: 0, min_uppercase: 0, min_digits: 0, min_symbols: 0,
+          min_classes: 0, max_repeat: null, common_passwords: true, context_words: true,
+          breach_check: false, history_count: 0, not_current: false,
+        },
+      } });
+    }
+    if (path === '/auth/password:check') return route.fulfill({ json: { violations: [] } });
+    if (path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, sign_in_rules: true } } });
+    }
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile/security`);
+  const field = page.getByLabel(/^New password/);
+  await field.waitFor();
+
+  // One field: no "current password" beside the new one (check 1).
+  assert.equal(await page.locator('input[autocomplete="current-password"]').count(), 0, 'a current-password field beside the step-up');
+  // The rules list under it, ticking as the person types (check 2).
+  const length = page.locator('li', { hasText: 'At least 14 characters' });
+  await length.waitFor();
+  assert.match(await length.innerText(), /Not met/, 'the rule is not listed before the first keystroke');
+  await field.fill('short');
+  assert.match(await length.innerText(), /Not met/);
+  await field.fill('a long enough new passphrase for this account');
+  await page.waitForFunction(() => {
+    const row = [...document.querySelectorAll('li')].find((li) => li.textContent?.includes('At least 14 characters'));
+    return row && !/Not met/.test(row.textContent ?? '');
+  });
+
+  await page.getByRole('button', { name: 'Change the password' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  await dialog.getByLabel('Your password').fill('the old one');
+  await dialog.getByRole('button', { name: 'Prove it' }).click();
+
+  await page.getByText('The password was changed. Every other session was signed out.').first().waitFor({ timeout: 15_000 });
+  assert.deepEqual(proofs, [{ password: 'the old one' }], 'the proof was asked more than once, or not at all');
+  assert.deepEqual(changes.map((each) => each.proof), [null, 'hbt_sup_pw']);
+  assert.deepEqual(Object.keys(changes[1].body), ['password'], 'the change carries more than the new password');
+});
+
 // UC-ID-03 checks 4-6: under a rule that requires a second factor, the profile offers no way
 // to turn it off but does offer to replace the authenticator - behind the step-up, confirmed with the
 // new app, and ending in ten new codes shown once.
@@ -457,6 +536,9 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
     { id: 'm2', user_agent: 'Safari on iPhone', created_at: '2026-09-02T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'OIDC', signed_in_provider: 'Contoso Entra ID' },
     { id: 'm3', user_agent: 'Chrome on macOS', created_at: '2026-09-03T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'PASSWORD_RECOVERY' },
     { id: 'm4', user_agent: 'Edge on Windows', created_at: '2026-09-04T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: null },
+    { id: 'm5', user_agent: 'Opera on Linux', created_at: '2026-09-05T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'PASSWORD' },
+    { id: 'm6', user_agent: 'Vivaldi on macOS', created_at: '2026-09-06T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'INVITATION' },
+    { id: 'm7', user_agent: 'Brave on Windows', created_at: '2026-09-07T08:00:00Z', last_used_at: null, ip_class: null, current: false, signed_in_with: 'RESET' },
   ];
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
@@ -475,6 +557,9 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
   assert.match(await row('Firefox on Linux'), /Password and second factor/);
   assert.match(await row('Safari on iPhone'), /Contoso Entra ID/);
   assert.match(await row('Chrome on macOS'), /Recovery code/);
+  assert.match(await row('Opera on Linux'), /Password(?! and)/);
+  assert.match(await row('Vivaldi on macOS'), /Invitation/);
+  assert.match(await row('Brave on Windows'), /Password reset/);
   assert.doesNotMatch(await row('Edge on Windows'), /OIDC|PASSWORD|undefined|null/);
 });
 
@@ -520,4 +605,48 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   assert.equal(new URL(page.url()).pathname, '/profile/sessions', 'the reader was signed out');
   // Nothing else to end: the control is gone with the sessions it ended.
   assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
+});
+
+// UC-INS-09 checks 4 and 5: the workspace screen says the installation's language and zone beside
+// its own, and offers a week start of its own whose empty choice names the installation's day.
+test('chromium: 1280 px — the workspace screen names the installation\'s defaults and takes its own week start', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  const tenant = {
+    id: 'w1', slug: 'acme', display_name: 'Acme', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'Europe/Berlin',
+    require_admin_totp: false, created_at: '2026-09-01T00:00:00Z', version: 3,
+    installation_defaults: { locale: 'de', time_zone: 'Europe/Vienna', week_start: 'SUNDAY' },
+  };
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/tenant' && request.method() === 'PATCH') {
+      sent.push(request.postDataJSON());
+      return route.fulfill({ json: { ...tenant, default_week_start: 'MONDAY', version: 4 } });
+    }
+    if (path === '/tenant') return route.fulfill({ json: tenant });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/workspace`);
+  const weekStart = page.getByLabel('A week starts on', { exact: true });
+  await weekStart.waitFor({ timeout: 15_000 });
+
+  const text = (await page.locator('main').textContent()) ?? '';
+  assert.match(text, /The installation's default: de\./);
+  assert.match(text, /The installation's default: Europe\/Vienna\./);
+  const choices = await weekStart.locator('option').allTextContents();
+  assert.equal(choices[0], 'As the installation says: Sunday', choices.join(', '));
+
+  await weekStart.selectOption('MONDAY');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await page.getByText('Saved.').waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent.at(-1), { default_week_start: 'MONDAY' });
 });

@@ -429,6 +429,12 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AiObjectionNotice struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	NoticedAt pgtype.Timestamptz
+}
+
 type AiProvider struct {
 	TenantID          pgtype.UUID
 	Kind              string
@@ -591,6 +597,7 @@ type AuthPending struct {
 	LinkProof          *string
 	PasswordChangeOwed bool
 	Address            *string
+	SignedInWith       *string
 	SessionMethod      *string
 	SessionVia         pgtype.UUID
 }
@@ -1093,21 +1100,22 @@ type Membership struct {
 }
 
 type Notification struct {
-	ID             pgtype.UUID
-	TenantID       pgtype.UUID
-	RecipientID    pgtype.UUID
-	Category       string
-	Channel        string
-	State          string
-	Reason         *string
-	EventID        pgtype.UUID
-	ItemID         pgtype.UUID
-	ActorID        pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	SentAt         pgtype.Timestamptz
-	Attempts       int32
-	RuleID         pgtype.UUID
-	SubscriptionID pgtype.UUID
+	ID                 pgtype.UUID
+	TenantID           pgtype.UUID
+	RecipientID        pgtype.UUID
+	Category           string
+	Channel            string
+	State              string
+	Reason             *string
+	EventID            pgtype.UUID
+	ItemID             pgtype.UUID
+	ActorID            pgtype.UUID
+	CreatedAt          pgtype.Timestamptz
+	SentAt             pgtype.Timestamptz
+	Attempts           int32
+	RuleID             pgtype.UUID
+	SubscriptionID     pgtype.UUID
+	PrivateHubAccessID pgtype.UUID
 }
 
 type NotificationPreference struct {
@@ -1213,6 +1221,16 @@ type PrivacyIncident struct {
 	AuthorityNotified bool
 	SubjectsNotified  bool
 	ClosedAt          pgtype.Timestamptz
+}
+
+type PrivateHubAccess struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+	HubID    pgtype.UUID
+	OpenedBy pgtype.UUID
+	Reason   string
+	OpenedAt pgtype.Timestamptz
+	EndsAt   pgtype.Timestamptz
 }
 
 type RecurrenceRule struct {

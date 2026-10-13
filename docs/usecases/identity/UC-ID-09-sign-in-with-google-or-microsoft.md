@@ -6,8 +6,8 @@ actors: [PE-person, PE-member, PE-guest]
 deployments: [D3, D5, D6]
 serves: [P-02, P-05, P-10]
 state: built
-tasks: [SI-10, SI-11, SI-14]
-checked_by: [core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go]
+tasks: [SI-10, SI-11, SI-14, SC-14]
+checked_by: [core/domain/model/identity/IdentityProviderPreset_test.go, core/domain/model/identity/ProviderAdmission_test.go, apps/webapp/e2e/signin.test.mjs, scripts/check-brand-marks.sh]
 ---
 
 # Sign in with my Google or Microsoft account

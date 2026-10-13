@@ -1,0 +1,19 @@
+overview before: No SMTP server is configured, and this installation fires reminders. They are recorded and wait in the queue; nobody is told until a mail server is configured.No egress allowlist is configured. In multi-tenant operation, outbound calls should be restricted to known hosts.This installation runs workspaces for others and names no accessibility statement, so a sign-in card shows none unless its workspace set one. Set it under Installation, Defaults, or with: hubctl admin settings set legal.accessibility_url <address>
+operators line: 1 account may run this installation
+undecided rows: 34
+desktop overflow: 0
+keys answered: 34; keys saved from the screen: 34; saved differently: 0
+page errors: none
+overview after: hint shown 0
+sign-in Imprint: field "https://provider.example/imprint" - Set by the installation for every workspace.
+sign-in Privacy: field "" - Empty here, so the installation's applies: https://provider.example/privacy.
+sign-in Terms: field "" - Empty here, so the installation's applies: https://provider.example/terms.
+sign-in Accessibility: field "" - Empty here, so the installation's applies: https://provider.example/accessibility.
+sign-in min length: 14 disabled true
+workspace week start choices: As the installation says: Sunday | Monday | Sunday | Saturday
+workspace hints: The installation's default: de. The installation's default: Europe/Berlin.
+page errors: none
+375 table overflow: 0
+375 form overflow: 0
+375 workspace overflow: 0
+375 page errors: none

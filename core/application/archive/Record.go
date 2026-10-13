@@ -216,6 +216,11 @@ type Entity struct {
 	// schedule setting, because including it gives better evidence and keeps personal metadata
 	// longer (backup-restore.md §7).
 	Optional bool
+	// Later marks an entity format 1 gained after archives were already written (tenant-export.md
+	// §11, additive). It is written into every archive like any other; an archive from before it
+	// carries no such file, and reads as holding none of its rows rather than as an archive
+	// somebody tampered with.
+	Later bool
 	// Whole marks an entity that cannot say when one of its rows changed, and is therefore
 	// written complete in every archive - including an incremental one - with a restore replacing
 	// its set rather than merging into it.
@@ -462,6 +467,15 @@ var entities = []Entity{
 		References: []Reference{{Field: "account_id", Table: "account"}},
 	},
 	{Name: "legal_holds", Table: "legal_hold", Whole: true, Keys: []string{"id"}},
+	// The members' record of who opened their private hub and why (ADR-0073 §4). Not duplicable:
+	// an access describes the hub it was made to, and a copy of the hub was never opened.
+	{
+		Name: "private_hub_accesses", Table: "private_hub_access", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "hub_id", Table: "container"},
+			{Field: "opened_by", Table: "account"},
+		},
+	},
 	{
 		Name: "set_elements", Table: "set_element", Whole: true, Duplicable: true,
 		Keys:       []string{"item_id", "set_name", "element_id"},
@@ -619,6 +633,11 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// narrowing of the sources it may use is not here but in the archived workspace settings,
 	// because a restore must never widen what an administrator restricted.
 	"ai_source": "§8.4 - the choice is the consent to an offered model; a restore must not resume sending under a consent nobody gave again",
+	// A read receipt: that a person saw the notice that their objection to AI stopped taking
+	// effect. The objection itself and the workspace's position are archived; a restore without
+	// the receipt tells the person again, which harms nobody, while one with it could hide a notice
+	// about a position taken after the archive was made.
+	"ai_objection_notice": "a read receipt of a notice; without it a restored workspace tells a person once more, which harms nobody",
 	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history, which the archive carries; what a proposal was about is a state of an
 	// entry that a restore months later has anyway replaced. Restoring one would offer somebody a

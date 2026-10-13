@@ -11,14 +11,17 @@
 //
 // What an adapter adds and this port therefore does not carry: the sequence number, the previous
 // hash, and the hash. They are the chain, and a chain computed by anything but the one component
-// that appends to it is a chain with two authors (audit.md §3).
+// that appends to it is a chain with two authors (audit.md §3). The sink also keys the fingerprints
+// of sensitive values, through KeyFingerprints and the Fingerprinter it is handed - before the
+// chain, so that the chain covers what is stored.
 package audit
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"io"
+	"log/slog"
+	"maps"
 	"slices"
 	"time"
 
@@ -70,8 +73,8 @@ const (
 	// Open is a value that is not personal data and carries no content: a status, a type, a role.
 	// It is recorded as it is, because an auditor has to be able to read what changed.
 	Open Classification = "OPEN"
-	// Sensitive is user content: a name, a title, a note. Recorded as "changed", with a hash that
-	// makes two entries comparable without either of them being readable.
+	// Sensitive is user content: a name, a title, a note. Recorded as "changed", with a keyed
+	// hash that makes two entries comparable without either of them being readable.
 	Sensitive Classification = "SENSITIVE"
 	// Secret is a credential, a token, or a key. Not recorded at all, in any form.
 	Secret Classification = "SECRET"
@@ -130,11 +133,11 @@ func Changes(changes ...Change) map[string]any {
 			continue
 		case Sensitive:
 			entry := map[string]any{"changed": true}
-			if digest := fingerprint(change.To); digest != "" {
-				entry["to_hash"] = digest
+			if value, ok := deferValue(change.To); ok {
+				entry["to_hash"] = value
 			}
-			if digest := fingerprint(change.From); digest != "" {
-				entry["from_hash"] = digest
+			if value, ok := deferValue(change.From); ok {
+				entry["from_hash"] = value
 			}
 			masked[change.Field] = entry
 		default:
@@ -148,15 +151,82 @@ func Changes(changes ...Change) map[string]any {
 	return masked
 }
 
-// fingerprint is what makes two sensitive values comparable without either being readable. Not a
-// password hash and not meant to be one: the input is content, not a credential, and the point is
-// "did this change back to what it was", not secrecy against an offline attack.
-func fingerprint(value any) string {
+// Redacted is what a sensitive value awaiting its fingerprint shows wherever it is printed.
+const Redacted = "[sensitive]"
+
+// unkeyed is a sensitive value on its way to the sink, which replaces it with its keyed
+// fingerprint (KeyFingerprints).
+//
+// The fingerprint is not computed here because its key is the installation's, and Changes is
+// called from a hundred places that have no business holding it. So the value travels to the one
+// place that does, and cannot be read on the way: every `fmt` verb and every log attribute shows
+// Redacted (rule 10), and it refuses to become JSON, so a path that skipped the sink fails closed
+// instead of storing something.
+type unkeyed struct{ value string }
+
+// deferValue canonicalises the value as the fingerprint will see it. Absent and empty have no
+// fingerprint: recording one would read as "it was empty" rather than "it did not exist".
+func deferValue(value any) (unkeyed, bool) {
 	if value == nil || value == "" {
-		return ""
+		return unkeyed{}, false
 	}
-	digest := sha256.Sum256([]byte(fmt.Sprint(value)))
-	return hex.EncodeToString(digest[:])
+	return unkeyed{value: fmt.Sprint(value)}, true
+}
+
+func (unkeyed) String() string   { return Redacted }
+func (unkeyed) GoString() string { return Redacted }
+
+// Format takes precedence over String and GoString for every verb, %x and %q included.
+func (unkeyed) Format(state fmt.State, _ rune) { _, _ = io.WriteString(state, Redacted) }
+
+func (unkeyed) LogValue() slog.Value { return slog.StringValue(Redacted) }
+
+func (unkeyed) MarshalJSON() ([]byte, error) {
+	return nil, shared.ErrInternal.WithDetail("audit.fingerprint_unkeyed")
+}
+
+// KeyFingerprints replaces every sensitive value awaiting its fingerprint with the keyed one, in a
+// copy: the caller's maps are left as they were. Without a fingerprinter the value is dropped and
+// the field records "changed" alone - the safe direction, never an unkeyed hash.
+func KeyFingerprints(entry Entry, fingerprints Fingerprinter) Entry {
+	if len(entry.Changes) == 0 {
+		return entry
+	}
+	keyed := make(map[string]any, len(entry.Changes))
+	for field, change := range entry.Changes {
+		masked, ok := change.(map[string]any)
+		if !ok {
+			keyed[field] = change
+			continue
+		}
+		masked = maps.Clone(masked)
+		for key, value := range masked {
+			pending, ok := value.(unkeyed)
+			if !ok {
+				continue
+			}
+			if fingerprints == nil {
+				delete(masked, key)
+				continue
+			}
+			masked[key] = fingerprints.Fingerprint(entry.TenantID, pending.value)
+		}
+		keyed[field] = masked
+	}
+	entry.Changes = keyed
+	return entry
+}
+
+// Fingerprinter keys the fingerprint of a sensitive value (audit.md §4).
+//
+// Keyed, because an unkeyed hash of a name or a title is readable to anybody who can guess it:
+// whoever reads the trail hashes candidates until one matches, and the trail outlives the item
+// whose deletion it was meant not to undermine. The key is the installation's, never in the
+// database, and the workspace is bound in, so two workspaces' fingerprints of one value differ.
+// Which construction it is belongs to the adapter; the answer names its scheme as a prefix, so a
+// reader can tell it from a fingerprint written under another one.
+type Fingerprinter interface {
+	Fingerprint(tenantID shared.ID, value string) string
 }
 
 // Context is the request an entry belongs to (audit.md §2). The address is truncated (IPv4 /24,

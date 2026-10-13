@@ -28,7 +28,11 @@ var embedTenant = shared.MustParseID("0192f000-0000-7000-8000-00000000000a")
 // for the handler's decision about when to return to be measured.
 type owedStore struct{ rows int }
 
-func (s owedStore) Owed(_ context.Context, _ string, batch int) ([]repository.OwedEmbedding, error) {
+func (owedStore) Forget(context.Context, []shared.ID) (int, error) { return 0, nil }
+
+func (owedStore) ForgetAssigned(context.Context, []shared.ID) (int, error) { return 0, nil }
+
+func (s owedStore) Owed(_ context.Context, _ string, batch int, _, _ []shared.ID) ([]repository.OwedEmbedding, error) {
 	owed := make([]repository.OwedEmbedding, 0, s.rows)
 	for i := range min(s.rows, batch) {
 		owed = append(owed, repository.OwedEmbedding{

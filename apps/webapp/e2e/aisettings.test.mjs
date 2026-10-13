@@ -124,6 +124,31 @@ test('chromium: a consumer switches on the offered model with one control', asyn
   assert.ok(await use.isChecked(), 'the switch does not show the model in use');
 });
 
+// UC-AI-05 check 6: where the installation offers several models, the workspace picks one by name -
+// each named with its processor and where, and the choice sends that model and no other.
+test('chromium: of several offered models the workspace picks one by name', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const SMALL = { id: '01a0e2e0-0000-7000-8000-0000000006a2', display_name: 'Small (DE)', processor: 'Beispiel KI GmbH', jurisdiction: 'SELF_HOSTED' };
+  const { page, sent, close } = await open(browser, sourceRoutes(sourceUnder('OFFERED', { sources_lock: 'INSTANCE', offered: [LARGE, SMALL] })));
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  const large = page.getByRole('switch', { name: 'Use Large (EU)' });
+  const small = page.getByRole('switch', { name: 'Use Small (DE)' });
+  await small.waitFor({ timeout: 15_000 });
+  assert.equal(await large.count(), 1, 'the first offered model is not named');
+  const text = await page.locator('main').textContent() ?? '';
+  assert.match(text, /Example AI SAS/);
+  assert.match(text, /Beispiel KI GmbH/);
+
+  await small.check();
+  for (let i = 0; i < 50 && sent.length === 0; i++) await page.waitForTimeout(100);
+  assert.deepEqual(sent[0], { source: 'OFFERED', offered_model_id: SMALL.id });
+  assert.ok(await small.isChecked(), 'the chosen model is not shown in use');
+  assert.equal(await large.isChecked(), false, 'the other model is shown in use too');
+});
+
 // D6 (UC-AI-05 check 7, UC-AI-06 check 4): either source on one screen, the own form kept, and the
 // minimum said with who set it.
 test('chromium: a company chooses between the offered model and its own', async (t) => {

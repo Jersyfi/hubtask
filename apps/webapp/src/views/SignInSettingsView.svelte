@@ -126,15 +126,42 @@
       mfa_required_for: policy.mfa_required_for.value,
       session_max_days: policy.session.max_days.value,
       session_idle_minutes: policy.session.idle_minutes.value,
-      imprint_url: policy.legal.imprint_url.value,
-      privacy_url: policy.legal.privacy_url.value,
-      terms_url: policy.legal.terms_url.value,
-      accessibility_url: policy.legal.accessibility_url.value,
-      ...(policy.legal.terms_version ? { terms_version: policy.legal.terms_version.value } : {}),
+      // The workspace's own link, empty where it set none: the installation's is said beside the
+      // field rather than filled into it, so an administrator sees what applies before overriding
+      // it and an untouched form sends nothing (UC-ID-18 check 3).
+      imprint_url: ownLink(policy.legal.imprint_url),
+      privacy_url: ownLink(policy.legal.privacy_url),
+      terms_url: ownLink(policy.legal.terms_url),
+      accessibility_url: ownLink(policy.legal.accessibility_url),
+      // The terms' version, own where the workspace's own terms carry one (UC-ID-19).
+      ...(policy.legal.terms_version ? { terms_version: ownLink(policy.legal.terms_version) } : {}),
       // Absent from a server that predates it, and then not a row this form sends.
       ...(policy.managed_accounts ? { managed_accounts: policy.managed_accounts.value } : {}),
     };
     baseline = { ...draft };
+  }
+
+  /** A link as this workspace set it, or empty where it inherits the installation's or nobody's. */
+  function ownLink(setting: Setting<string>): string {
+    return setting.source === 'WORKSPACE' ? setting.value : '';
+  }
+
+  /**
+   * Where a link comes from, said under its field: the installation's where it locked it or where
+   * this workspace set none, the installation's beside the workspace's own where both are set, or
+   * that nobody set one and the footer shows none (UC-ID-18 checks 1 and 3).
+   */
+  function linkOrigin(setting: Setting<string>, own: string): string {
+    if (setting.lock !== null) return lockedBecause(setting.lock) ?? '';
+    const inherited = setting.installation_source !== 'DEFAULT' && setting.installation !== '';
+    if (own.trim() !== '') {
+      return inherited
+        ? `${t('app.signin_settings.source_workspace')} ${t('app.signin_settings.installation_default', { value: setting.installation })}`
+        : t('app.signin_settings.source_workspace');
+    }
+    return inherited
+      ? t('app.signin_settings.link_inherited', { value: setting.installation })
+      : t('app.signin_settings.link_none');
   }
 
   /** The rows that moved, in the shape the contract takes. Empty means there is nothing to save. */
@@ -158,7 +185,15 @@
    * Shown with its reason rather than hidden, because the rule is in force here all the same.
    */
   function requiredAbove(setting: Setting<boolean>): string | undefined {
-    return lockedBecause(setting.lock) ?? (setting.installation ? t('app.signin_settings.required_above') : undefined);
+    const locked = lockedBecause(setting.lock);
+    if (locked) return locked;
+    if (!setting.installation) return undefined;
+    // The level above is the installation over Hubtask's default: where the installation decided
+    // nothing, it is Hubtask's default that the workspace may not go below, and saying "the
+    // installation" there would contradict the origin line beside it.
+    return setting.installation_source === 'DEFAULT'
+      ? t('app.signin_settings.required_default')
+      : t('app.signin_settings.required_above');
   }
 
   /** Where a rule's value came from, said in a sentence; the installation's value beside it where it decided one. */
@@ -182,7 +217,6 @@
     value === 'EVERYONE' ? t('app.signin_settings.mfa_everyone')
       : value === 'ADMINS' ? t('app.signin_settings.mfa_admins')
         : t('app.signin_settings.mfa_none');
-  const link = (value: string): string => (value === '' ? t('app.signin_settings.no_link') : value);
 
   /** The refusal the server attached to this rule, if it attached one (check 8). */
   function refusalOf(key: string): string | undefined {
@@ -346,15 +380,17 @@
 
 {#snippet linkRow(key: 'imprint_url' | 'privacy_url' | 'terms_url' | 'accessibility_url', label: string)}
   {#if policy}
+    {@const locked = policy.legal[key].lock !== null}
     <div data-rule>
       <Input
         {label}
-        value={String(draft[key] ?? '')}
+        type="url"
+        value={locked ? policy.legal[key].value : String(draft[key] ?? '')}
         oninput={(event) => (draft[key] = (event.currentTarget as HTMLInputElement).value)}
         disabledReason={lockedBecause(policy.legal[key].lock)}
         error={refusalOf(key)}
       />
-      {@render origin(originOf(policy.legal[key], link))}
+      {@render origin(linkOrigin(policy.legal[key], String(draft[key] ?? '')))}
     </div>
   {/if}
 {/snippet}
@@ -578,14 +614,15 @@
                   <Input
                     label={t('app.signin_settings.terms_version')}
                     hint={t('app.signin_settings.terms_version_hint')}
-                    value={String(draft['terms_version'] ?? '')}
+                    value={policy.legal.terms_version.lock !== null
+                      ? policy.legal.terms_version.value
+                      : String(draft['terms_version'] ?? '')}
                     oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
                     disabledReason={lockedBecause(policy.legal.terms_version.lock)}
                     error={refusalOf('terms_version')}
                     maxlength={64}
                   />
-                  {@render origin(originOf(policy.legal.terms_version, (value: string) =>
-                    value === '' ? t('app.signin_settings.no_version') : value))}
+                  {@render origin(linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
                 </div>
               {/if}
               <!-- The fourth link, which the sign-in footer shows: without this row a workspace

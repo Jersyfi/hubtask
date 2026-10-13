@@ -6,6 +6,7 @@ package notification
 import (
 	"context"
 	"testing"
+	"time"
 
 	identityrepository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -46,6 +47,11 @@ func (s *administratorStore) Administrators(
 		key = "path"
 	}
 	return s.byPath[key], nil
+}
+
+// HubsOpenedFor: no emergency access is running here.
+func (s *administratorStore) HubsOpenedFor(context.Context, shared.ID, []shared.ID, time.Time) ([]shared.ID, error) {
+	return nil, nil
 }
 
 func (s *administratorStore) HubsOf(context.Context, []shared.ID) (map[shared.ID]identityrepository.Hub, error) {

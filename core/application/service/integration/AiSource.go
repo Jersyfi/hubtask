@@ -10,11 +10,13 @@ import (
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
+	privacydomain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -58,6 +60,9 @@ type AiRules struct {
 	Choices    repository.AiChoices
 	// Own is the workspace's own configuration, read by Select where the choice is the own model.
 	Own repository.AiProviders
+	// Consents counts who keeps their content out, for the number the screen shows before the
+	// workspace changes its position (P-04). Nil counts nobody.
+	Consents privacyrepo.Consents
 }
 
 // AiState is a workspace's AI at one moment.
@@ -70,6 +75,13 @@ type AiState struct {
 	// SearchRebuilding is true while vectors of another model than the one now in use are still
 	// stored: search by meaning is being rebuilt, and search by words works meanwhile.
 	SearchRebuilding bool
+	// OptOutContact and OptOutSince belong to the workspace's NOT_OFFERED: whom to ask, and
+	// since when - empty and zero under OFFERED.
+	OptOutContact string
+	OptOutSince   time.Time
+	// KeepingOut is how many people's newest ai_processing record is a withdrawal: a number, never
+	// who (UC-PRV-05 check 12).
+	KeepingOut int
 }
 
 // ChosenOffered answers the offered model the choice names, when it still exists.
@@ -107,12 +119,31 @@ func (r AiRules) Resolve(ctx context.Context, tenantID shared.ID) (AiState, erro
 	if narrowing.Valid() {
 		workspaceLayer.Sources = &narrowing
 	}
-	return AiState{
+	if position := domain.AiPersonOptOut(workspace.Settings.AiPersonOptOut); position.Valid() {
+		workspaceLayer.PersonOptOut = &position
+		workspaceLayer.Basis = domain.AiOptOutBasis(workspace.Settings.AiOptOutBasis)
+	}
+	state := AiState{
 		Rule:      domain.EffectiveAi(level.Ai, domain.AiLayer{}, workspaceLayer, len(offered) > 0),
 		Choice:    choice,
 		Offered:   offered,
 		Narrowing: narrowing,
-	}, nil
+	}
+	if !state.Rule.OptOutOffered() {
+		state.OptOutContact = workspace.Settings.AiOptOutContact
+		state.OptOutSince = workspace.Settings.AiOptOutSince
+	}
+	return state, nil
+}
+
+// keepingOut counts the people whose newest ai_processing record is a withdrawal. Only the two
+// reads that show it ask, not every AI call that resolves the rule.
+func (r AiRules) keepingOut(ctx context.Context) (int, error) {
+	if r.Consents == nil {
+		return 0, nil
+	}
+	standing, err := r.Consents.Standing(ctx, privacydomain.PurposeAi)
+	return len(standing), err
 }
 
 // AiSourceWriter is what the two use cases share.
@@ -127,6 +158,14 @@ type AiSourceWriter struct {
 	Reindex EmbeddingReseeder
 	// Spaces answers whether search by meaning is being rebuilt. Nil answers never.
 	Spaces workrepo.EmbeddingSpaces
+	// Embeddings forgets the vectors of the people whose objection takes effect again when the
+	// workspace goes back to letting each person keep their content out. Nil leaves it to the pass.
+	Embeddings EmbeddingForgetter
+}
+
+// EmbeddingForgetter removes the vectors of what some people created.
+type EmbeddingForgetter interface {
+	Forget(ctx context.Context, creators []shared.ID) (int, error)
 }
 
 // EmbeddingReseeder queues a re-embedding pass in the transaction's workspace.
@@ -186,6 +225,9 @@ func (h ReadAiSource) Execute(ctx context.Context, actor appshared.ActorContext)
 	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		if state, err = w.Rules.Resolve(ctx, actor.TenantID); err != nil {
+			return err
+		}
+		if state.KeepingOut, err = w.Rules.keepingOut(ctx); err != nil {
 			return err
 		}
 		state.SearchRebuilding, err = w.rebuilding(ctx, actor.TenantID)
@@ -380,6 +422,21 @@ func AiSourceOutput(state AiState) usecase.Output {
 	if !state.Choice.UpdatedAt.IsZero() {
 		out["updated_at"] = state.Choice.UpdatedAt
 	}
+	out["person_opt_out"] = string(rule.PersonOptOut)
+	out["person_opt_out_origin"] = string(rule.OriginOf(domain.AiSwitchPersonOptOut))
+	if lock := rule.LockOf(domain.AiSwitchPersonOptOut); lock != "" {
+		out["person_opt_out_lock"] = string(lock)
+	}
+	if rule.Basis != "" {
+		out["person_opt_out_basis"] = string(rule.Basis)
+	}
+	if state.OptOutContact != "" {
+		out["person_opt_out_contact"] = state.OptOutContact
+	}
+	if !state.OptOutSince.IsZero() {
+		out["person_opt_out_since"] = state.OptOutSince
+	}
+	out["keeping_out_count"] = state.KeepingOut
 	return out
 }
 

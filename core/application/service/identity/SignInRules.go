@@ -64,6 +64,9 @@ type ResolvedPolicy struct {
 	Workspace domain.Workspace
 	// BlocklistFile is the operator's own list, instance-only.
 	BlocklistFile string
+	// InstallationLocalisation is what the installation set as the default language, time zone and
+	// week start, for the workspace's screen to show beside its own (UC-INS-09 check 5).
+	InstallationLocalisation domain.LocalisationDefaults
 }
 
 // Resolve answers the rule in force, in **one** scope.
@@ -128,7 +131,19 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		InstanceLegal:         instance.Legal,
 		Workspace:             workspace,
 		BlocklistFile:         instance.BlocklistFile,
+
+		InstallationLocalisation: instance.Localisation,
 	}, nil
+}
+
+// PrivateHubsAllowed answers *Private hubs allowed* in force for the workspace (ADR-0073 §6): the
+// rule's switch, resolved through the same levels as every other.
+func (r SignInPolicyResolver) PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error) {
+	resolved, err := r.Resolve(ctx, tenantID)
+	if err != nil {
+		return false, err
+	}
+	return resolved.Effective.Policy.PrivateHubs, nil
 }
 
 // Legal answers the links in force for a workspace, or the installation's own where the identifier

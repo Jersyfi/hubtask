@@ -8,9 +8,8 @@
  * installation operator; this answers one workspace to the people inside it and answers no other.
  *
  * **Merge-patch, so only what moved is sent.** An absent key changes nothing, and an explicit
- * `null` reads as absent rather than as "clear it" — which loses nothing, because none of the four
- * fields has an absent state: a workspace always has a name, a locale, a zone and an answer to the
- * enforcement question.
+ * `null` reads as absent rather than as "clear it". The one field with an absent state, the week
+ * start, is cleared with the empty string; a workspace always has a name, a locale and a zone.
  *
  * **The version travels.** A concurrent write is refused rather than silently overwritten
  * (ADR-0025), which is what the `If-Match` here is for.
@@ -41,6 +40,19 @@ export interface Workspace {
    * A workspace of one has nobody to keep a hub from (UC-ID-16 check 8).
    */
   readonly private_hubs_offered?: boolean;
+  /**
+   * Whether more than one person can act here: where private hubs, and the switch that allows
+   * them, mean anything at all (UC-ID-16 checks 7, 8).
+   */
+  readonly several_people?: boolean;
+  /** The day this workspace's weeks start on for a member who chose none; absent where it decided none. */
+  readonly default_week_start?: string | null;
+  /** What the installation set as the default language, zone and week start - only what it decided. */
+  readonly installation_defaults?: {
+    readonly locale?: string;
+    readonly time_zone?: string;
+    readonly week_start?: string;
+  };
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */
@@ -48,6 +60,8 @@ export interface WorkspaceChange {
   display_name?: string;
   default_locale?: string;
   default_time_zone?: string;
+  /** The empty string clears it. */
+  default_week_start?: string;
 }
 
 class WorkspaceStore {
@@ -59,6 +73,15 @@ class WorkspaceStore {
 
   get workspace(): Workspace | undefined {
     return this.#state.status === 'ready' ? this.#state.data : undefined;
+  }
+
+  /**
+   * The week start's link above the account: the workspace's own day, otherwise the installation's
+   * default - the same link the server resolves for this reader (i18n-l10n.md §4).
+   */
+  get weekStartAbove(): string | null {
+    const held = this.workspace;
+    return held?.default_week_start || held?.installation_defaults?.week_start || null;
   }
 
   /** Starts the read. **From `untrack`**, for the reason every other store records. */

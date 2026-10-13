@@ -175,6 +175,12 @@ type SignInPolicy struct {
 	// mail address (ADR-0074 §7). On by default; off is the stricter value, and it stops new ones
 	// only - a managed account already there keeps signing in.
 	ManagedAccounts bool
+	// PrivateHubs is whether people may make private hubs here (ADR-0073 §6). On by default; off is
+	// the stricter value, and it stops new ones only - every private hub already there stays
+	// private. A switch of this rule rather than a setting of its own, as ManagedAccounts is: the
+	// three levels, the lock and the screen's source are the rule's, and a second place for them
+	// would be a second answer.
+	PrivateHubs bool
 	// RotationFrom is the moment "require a new password from everyone" was pressed. A password
 	// set before it meets PASSWORD_CHANGE at the next sign-in and a session opened before it is
 	// refused on its next request - which is the whole of the enforcement, with no job and no
@@ -199,6 +205,7 @@ func DefaultSignInPolicy() SignInPolicy {
 		Methods:         []string{MethodDirect, MethodOidc},
 		Sessions:        SessionPolicy{MaxDays: CeilingSessionMaxDays},
 		ManagedAccounts: true,
+		PrivateHubs:     true,
 	}
 }
 
@@ -230,6 +237,7 @@ const (
 	SwitchSessionIdleMinutes PolicySwitch = "session_idle_minutes"
 
 	SwitchManagedAccounts PolicySwitch = "managed_accounts"
+	SwitchPrivateHubs     PolicySwitch = "private_hubs"
 
 	SwitchRotationFrom PolicySwitch = "rotation_from"
 )
@@ -244,7 +252,7 @@ func PolicySwitches() []PolicySwitch {
 		SwitchMinAgeHours,
 		SwitchMfaRequiredFor, SwitchMethods,
 		SwitchSessionMaxDays, SwitchSessionIdleMinutes,
-		SwitchManagedAccounts,
+		SwitchManagedAccounts, SwitchPrivateHubs,
 		SwitchRotationFrom,
 	}
 }
@@ -291,6 +299,7 @@ type PolicyPatch struct {
 	SessionIdleMinutes *int
 
 	ManagedAccounts *bool
+	PrivateHubs     *bool
 
 	RotationFrom *time.Time
 }
@@ -347,6 +356,8 @@ func (p PolicyPatch) carries(name PolicySwitch) bool {
 		return p.SessionIdleMinutes != nil
 	case SwitchManagedAccounts:
 		return p.ManagedAccounts != nil
+	case SwitchPrivateHubs:
+		return p.PrivateHubs != nil
 	case SwitchRotationFrom:
 		return p.RotationFrom != nil
 	}
@@ -395,6 +406,8 @@ func (p PolicyPatch) Merge(other PolicyPatch) PolicyPatch {
 			merged.SessionIdleMinutes = other.SessionIdleMinutes
 		case SwitchManagedAccounts:
 			merged.ManagedAccounts = other.ManagedAccounts
+		case SwitchPrivateHubs:
+			merged.PrivateHubs = other.PrivateHubs
 		case SwitchRotationFrom:
 			merged.RotationFrom = other.RotationFrom
 		}
@@ -553,6 +566,8 @@ func applySwitch(policy SignInPolicy, name PolicySwitch, patch PolicyPatch) Sign
 		policy.Sessions.IdleMinutes = *patch.SessionIdleMinutes
 	case SwitchManagedAccounts:
 		policy.ManagedAccounts = *patch.ManagedAccounts
+	case SwitchPrivateHubs:
+		policy.PrivateHubs = *patch.PrivateHubs
 	case SwitchRotationFrom:
 		policy.RotationFrom = patch.RotationFrom.UTC()
 	}
@@ -584,6 +599,27 @@ func bounded(policy SignInPolicy) SignInPolicy {
 	policy.Sessions.MaxDays = clamp(policy.Sessions.MaxDays, 1, CeilingSessionMaxDays)
 	policy.Sessions.IdleMinutes = atLeast(policy.Sessions.IdleMinutes, 0)
 	return policy
+}
+
+// withinBounds refuses a switch whose proposed value the product's own bounds would change. Without
+// it the value was stored as sent and `bounded` enforced the bound at the next sign-in instead: a
+// minimum of 2000 characters read "saved" on the screen and demanded 128 of everybody, nobody told
+// (UC-ID-12 check 8). The ways in are left out: their order is not a bound, and boundedMethods
+// only orders and de-duplicates them.
+func withinBounds(name PolicySwitch, proposed SignInPolicy) error {
+	if name == SwitchMethods {
+		return nil
+	}
+	if SwitchText(bounded(proposed), name) == SwitchText(proposed, name) {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail("auth.policy_out_of_bounds").
+		WithParams(map[string]string{"switch": string(name)}).
+		WithFields(shared.FieldError{
+			Path: "/sign_in_policy/" + string(name),
+			Code: "auth.policy_out_of_bounds",
+		})
 }
 
 // boundedMethods keeps the list to the ways in that exist, in the contract's order, without
@@ -669,6 +705,10 @@ func tightens(name PolicySwitch, inForce SignInPolicy, proposed PolicyPatch) boo
 	case SwitchManagedAccounts:
 		// Fewer kinds of account is stricter: off may follow on, never on follow off.
 		return !*proposed.ManagedAccounts || inForce.ManagedAccounts
+	case SwitchPrivateHubs:
+		// Fewer hubs closed to the workspace's roles is stricter: off may follow on, never on
+		// follow off.
+		return !*proposed.PrivateHubs || inForce.PrivateHubs
 	case SwitchRotationFrom:
 		// A moment only ever moves forward: rewinding it would let a workspace un-require a
 		// rotation it already asked for, and the sessions it ended are already gone.
@@ -756,6 +796,9 @@ func (e EffectivePolicy) Tightened(above SignInPolicy, patch PolicyPatch) (SignI
 		if err := Tighten(name, above, patch); err != nil {
 			return SignInPolicy{}, nil, err
 		}
+		if err := withinBounds(name, next); err != nil {
+			return SignInPolicy{}, nil, err
+		}
 		result = next
 		moved[string(name)] = FieldChange{Field: string(name), From: before, To: after}
 	}
@@ -806,6 +849,8 @@ func SwitchText(policy SignInPolicy, name PolicySwitch) string {
 		return itoa(policy.Sessions.IdleMinutes)
 	case SwitchManagedAccounts:
 		return boolText(policy.ManagedAccounts)
+	case SwitchPrivateHubs:
+		return boolText(policy.PrivateHubs)
 	case SwitchRotationFrom:
 		if policy.RotationFrom.IsZero() {
 			return ""

@@ -24,6 +24,7 @@ var privilegedUseCases = map[string]string{
 	"RemoveInstanceIdentityProvider":           "a way in offered to every workspace (identity.md §16.3)",
 	"StartRestore":                             "the destructive restore modes replace data (backup-restore.md §8.3)",
 	"GrantMembership":                          "granting OWNER is changing the OWNER role",
+	"OpenPrivateHub":                           "it opens a hub nobody else reaches, a fresh proof and a reason (ADR-0073 §4)",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",

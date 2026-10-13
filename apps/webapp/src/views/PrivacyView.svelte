@@ -29,6 +29,7 @@
   import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds } from '../lib/data/capability.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -152,12 +153,11 @@
   /** A calendar day as the reader's locale writes one, never shifted by a zone: it has none. */
   const day = (value: string) => formatDue(`${value}T12:00:00Z`, messages.locale, 'UTC', { allDay: true });
 
-  /** Today on the reader's own calendar, as YYYY-MM-DD: the latest day somebody can have been told. */
-  const today = () => {
-    const at = new Date();
-    const two = (n: number) => String(n).padStart(2, '0');
-    return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())}`;
-  };
+  /**
+   * Today in the workspace's zone, as YYYY-MM-DD: the latest day somebody can have been told. The
+   * server bounds the day there, so the device's own calendar would be refused around midnight.
+   */
+  const today = () => todayIn(zone);
 
   /** Opens the extension form on the latest day the server allows. */
   function beginExtending(request: Request): void {
@@ -594,6 +594,9 @@
         </div>
       </Stack>
     </form>
+
+    <!-- Who keeps their own content out of AI: the register, here and nowhere else. -->
+    <ConsentRegister />
 
     <Stack gap="150">
       <h2 class="section">{t('app.privacy.articles_title')}</h2>

@@ -132,6 +132,39 @@ WHERE tenant_id = current_tenant_id()
 ORDER BY granted_at DESC
 LIMIT 1;
 
+-- name: StandingWithdrawals :many
+-- The people whose newest record for one purpose is a withdrawal: who keeps their content out of
+-- AI, for the consent register and for the prompt builder alike. The newest record decides, so a
+-- consent given again after a withdrawal ends it. The names and addresses are what the prompt
+-- builder replaces in what remains; the register answers only the name.
+SELECT a.id AS account_id, a.display_name, a.email, a.sign_in_name,
+       latest.granted_at AS since, latest.source
+FROM (
+  SELECT DISTINCT ON (c.account_id) c.account_id, c.granted, c.granted_at, c.source
+  FROM consent_record c
+  WHERE c.tenant_id = current_tenant_id()
+    AND c.purpose = sqlc.arg('purpose')
+    AND c.account_id IS NOT NULL
+  ORDER BY c.account_id, c.granted_at DESC, c.id DESC
+) latest
+JOIN account a ON a.tenant_id = current_tenant_id() AND a.id = latest.account_id
+WHERE NOT latest.granted
+  AND a.deleted_at IS NULL
+ORDER BY lower(a.display_name) COLLATE hubtask_name, a.id;
+
+-- name: AiNoticedAt :one
+-- When a person last acknowledged that their objection to AI stopped taking effect.
+SELECT noticed_at FROM ai_objection_notice
+WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
+-- name: RecordAiNotice :exec
+-- The acknowledgement moves only forwards: a late, retried request must not make an earlier
+-- notice pending again.
+INSERT INTO ai_objection_notice (tenant_id, account_id, noticed_at)
+VALUES (current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('noticed_at'))
+ON CONFLICT (tenant_id, account_id)
+DO UPDATE SET noticed_at = GREATEST(ai_objection_notice.noticed_at, EXCLUDED.noticed_at);
+
 -- name: SetAccountStatus :execrows
 -- One column, for the reason UpdateAccountPreferences writes three: the status decides whether an
 -- account may act at all, and a statement that could write anything else while setting it is one
@@ -358,6 +391,24 @@ ORDER BY request_id, hold_id;
 SELECT count(*) FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
   AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+
+-- name: RestrictedPeople :many
+-- Whose processing is restricted (Art. 18, data-protection.md §4): every account whose status is
+-- RESTRICTED, and every anonymised account a legal hold still keeps contributions of - the subject
+-- of an erasure case with a part not yet erased (§4.1). Not every anonymised account: what an
+-- erasure anonymised without a hold is the workspace's content. The names and the address are what
+-- a prompt builder replaces in what remains; an anonymised account has none left.
+SELECT a.id AS account_id, a.display_name, a.email, a.sign_in_name
+FROM account a
+WHERE a.tenant_id = current_tenant_id()
+  AND a.deleted_at IS NULL
+  AND (a.status = 'RESTRICTED'
+    OR (a.status = 'ANONYMIZED' AND EXISTS (
+      SELECT 1 FROM erasure_kept k
+      JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+      WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
+        AND r.subject_account_id = a.id)))
+ORDER BY a.id;
 
 -- name: ErasureKeepsAccount :one
 -- Whether a case still keeps this account because of a hold. Its restriction stands until the rest

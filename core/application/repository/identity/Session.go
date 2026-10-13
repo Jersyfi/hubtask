@@ -24,6 +24,9 @@ type SessionCredential struct {
 	// TenantLocale and TenantTimeZone are the third link of the resolution chain.
 	TenantLocale   string
 	TenantTimeZone string
+	// WeekStartAbove is the week start's link above the account (i18n-l10n.md §4): the workspace's
+	// own day, otherwise the installation's default, otherwise empty - the locale's day then.
+	WeekStartAbove identity.WeekStart
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus

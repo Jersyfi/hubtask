@@ -10,11 +10,18 @@
   //
   // **The owners are the row's heading.** A row needs something to be read by, and "whose" is the
   // one thing about the hub the list may say; a hub nobody owns any more says so in its place.
+  //
+  // **The emergency access is the one way in, and only for the owner** (ADR-0073 §4). The row draws
+  // it exactly where the server says it would be accepted (`emergency_access.offered`, P-05); while
+  // the owner's hour runs, the row says until when and links to the hub - the only row that does.
 
   import { untrack } from 'svelte';
 
-  import { Banner, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
+  import PrivateHubsAllowed from '../lib/workspace/PrivateHubsAllowed.svelte';
+  import EmergencyAccessDialog from '../lib/workspace/EmergencyAccessDialog.svelte';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { privateHubs } from '../lib/data/privatehubs.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
@@ -23,7 +30,25 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
+  interface Props {
+    onnavigate?: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
   $effect(() => untrack(() => privateHubs.open()));
+
+  /** The hub the emergency dialog is open for, or none. */
+  let opening = $state<string | undefined>(undefined);
+  let isOpening = $state(false);
+
+  const hasEmergencyColumn = $derived(
+    privateHubs.hubs.some((hub) => hub.emergency_access.offered || hub.emergency_access.open_until),
+  );
+
+  function hubPath(id: string): string {
+    return `/hubs/${id}`;
+  }
 
   const reading = $derived(privateHubs.state);
   const refusal = $derived(
@@ -41,6 +66,7 @@
     { id: 'attachments', label: t('app.private_hubs.attachments') },
     { id: 'created', label: t('app.private_hubs.created') },
     { id: 'state', label: t('app.private_hubs.state') },
+    ...(hasEmergencyColumn ? [{ id: 'emergency', label: t('app.private_hubs.emergency') }] : []),
   ]);
 
   /** A day as the reader's language writes it; a `date` and a timestamp alike are read in UTC. */
@@ -68,6 +94,8 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+
+  <PrivateHubsAllowed />
 
   <Stack gap="300">
     <p class="quiet">{t('app.private_hubs.intro')}</p>
@@ -101,6 +129,36 @@
                 {t('app.private_hubs.in_use')}
               {/if}
             </td>
+            {#if hasEmergencyColumn}
+              <td>
+                {#if hub.emergency_access.open_until}
+                  <span class="open">
+                    {t('app.private_hubs.emergency_running', { until: formatDateTime(hub.emergency_access.open_until, messages.locale) })}
+                  </span>
+                  <a
+                    href={hubPath(hub.id)}
+                    onclick={(event) => {
+                      event.preventDefault();
+                      onnavigate?.(hubPath(hub.id));
+                    }}
+                  >
+                    {t('app.private_hubs.go_to_hub')}
+                  </a>
+                {:else if hub.emergency_access.offered}
+                  <Button
+                    tone="secondary"
+                    size="sm"
+                    data-emergency={hub.id}
+                    onclick={() => {
+                      opening = hub.id;
+                      isOpening = true;
+                    }}
+                  >
+                    {t('app.private_hubs.emergency_open')}
+                  </Button>
+                {/if}
+              </td>
+            {/if}
           </tr>
         {/each}
       </Table>
@@ -108,7 +166,17 @@
   </Stack>
 </Stack>
 
+{#if opening}
+  <EmergencyAccessDialog
+    bind:isOpen={isOpening}
+    hubId={opening}
+    onopened={(id) => onnavigate?.(hubPath(id))}
+  />
+{/if}
+
 <style>
+  .open { display: block; color: var(--text-warning); }
+
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .waiting {

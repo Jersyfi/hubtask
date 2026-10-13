@@ -53,7 +53,7 @@ model as to a workspace's own. Two instance values bound what a workspace may us
 default and a lock: `ai.sources` (`NONE`, `OFFERED`, `OWN`, `EITHER`), and `ai.min_jurisdiction` for a
 workspace's own model. A lock can hold a workspace out of a source, never in one.
 
-**And a third person will have a say: the one whose content it is** (decided, not yet built).
+**And a third person will have a say: the one whose content it is.**
 Inside a workspace with AI on, each
 person may keep what they authored out of every prompt — unless the workspace has made AI part of
 everybody's work and named the legal basis for it, in which case people see that basis instead of
@@ -75,6 +75,12 @@ the fields; what leaves the installation is:
 
 Every one of them is `PERSONAL_CONTENT`. None of it is sent by a background process nobody asked
 for: an embedding follows a write somebody made, a suggestion follows an entry somebody submitted.
+
+**Except what a person keeps out.** Where the workspace lets each person keep their own content out
+of AI (the default), what a person who did so created, commented or mailed in is sent nowhere, and
+their name is replaced in the rest; where the workspace made AI part of everybody's work, it names
+the legal basis, and every person sees it instead of the switch
+([data-protection.md](../architecture/data-protection.md) §4.1).
 
 **Content is data, never instruction.** A prompt marks user content as context and no server-side
 AI call carries out an action "demanded" in the text ([ai-first.md](../architecture/ai-first.md)

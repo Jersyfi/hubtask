@@ -188,6 +188,51 @@ test('a second factor becomes the second step, with the code field and the ident
   }
 });
 
+// UC-ID-02 check 5: a wrong code is one sentence and an emptied field, and the step stays - the
+// same credential is presented again with the next code, so nothing restarts.
+test('a wrong code is one sentence and an emptied field, and the step stays', async () => {
+  const { origin, close } = await serve(DIST);
+  const presented = [];
+  const base = stubFor({ answer: owed });
+  const { browser, page } = await open(origin, async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sessions:verify')) {
+      presented.push(route.request().postDataJSON());
+      if (presented.length === 1) {
+        return route.fulfill({ status: 401, json: { code: 'errors.unauthenticated', detail_code: 'auth.mfa_code_invalid', status: 401, request_id: 'req_e2e' } });
+      }
+      return route.fulfill({ status: 201, json: TOKENS });
+    }
+    return base(route);
+  });
+  try {
+    await page.locator('input[type="email"]').fill('walker@example.invalid');
+    await page.locator('input[autocomplete="current-password"]').fill('whatever-it-was');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    const code = page.getByLabel('Code from your authenticator');
+    await code.waitFor();
+    await code.fill('000000');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+
+    const alert = page.locator('[role="alert"]');
+    await alert.waitFor();
+    assert.match(await alert.innerText(), /That code did not verify/);
+    assert.equal(await alert.count(), 1, 'one sentence');
+    assert.equal(await code.inputValue(), '', 'the wrong code is out of the field');
+    assert.equal(await page.locator('h1').innerText(), 'Second factor', 'the step stayed');
+    assert.ok(await page.locator('text=walker@example.invalid').count(), 'the identity line stayed');
+    assert.equal(await page.locator('input[type="email"]').count(), 0, 'the card did not return to step one');
+
+    await code.fill('482197');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('input[autocomplete="one-time-code"]'));
+    assert.equal(presented.length, 2);
+    assert.equal(presented[1].pending_token, presented[0].pending_token, 'the same step, not a new sign-in');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-02 check 2: the code step says when its last minute begins - under the countdown and
 // through a live region - and at 0:00 the card returns to step one with the address kept, both code
 // fields emptied, and a sentence saying the sign-in waited too long. The window is not extended.
@@ -457,11 +502,15 @@ test('the rules under a password are the workspace’s, and the server’s lines
     assert.equal(new URL(page.url()).hash, '');
 
     const field = page.getByLabel('New password');
+    const states = async () => page.locator('li[data-state]').evaluateAll((nodes) => nodes.map((n) => n.dataset.state));
+    // UC-ID-04 check 3: the workspace's rules are listed before the first keystroke.
+    await page.locator('li[data-state]').first().waitFor();
+    assert.equal((await states()).length, 3, 'the rules are not listed before the first keystroke');
+
     await field.fill('short');
     await page.waitForTimeout(700);
     assert.deepEqual(asked, [], 'the server is not asked while the local rules are still open');
 
-    const states = async () => page.locator('li[data-state]').evaluateAll((nodes) => nodes.map((n) => n.dataset.state));
     // `short` is too short and holds no context word: one line open, one met, and the server's
     // line still waiting - which is the whole point, because a password this short is not worth a
     // round trip.
@@ -481,6 +530,40 @@ test('the rules under a password are the workspace’s, and the server’s lines
     await field.fill('a-long-enough-password');
     await page.waitForTimeout(700);
     assert.deepEqual(asked, ['a-long-enough-password'], 'a value already answered is not asked again');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-04 check 3, the language: the reset card's rules and every one a password breaks read in the
+// reader's language. (That the server names every rule broken, not only the first, is the domain's
+// TestARefusedPasswordNamesEveryRuleAgainstTheOneField.)
+test('the reset card names the broken rules in the reader\'s language', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'de-DE' });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/api/v1/meta/capabilities')) {
+      return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'multi', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true } } });
+    }
+    return stubFor({ answer: refused, onCheck: () => [{ rule: 'common' }] })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/reset#token=e2e-reset`);
+    await page.getByRole('heading', { name: 'Wähle ein neues Passwort' }).waitFor();
+    await page.locator('li[data-state]').first().waitFor();
+    const text = await page.locator('ul:has(li[data-state])').innerText();
+    assert.match(text, /14/, 'the length rule is not listed');
+    assert.doesNotMatch(text, /At least|Not met|characters/, `a rule line is English: ${text}`);
+
+    // Too short: each rule it breaks is said in words, in German.
+    await page.locator('input[type="password"]').first().fill('walker');
+    const unmet = page.locator('li[data-state="unmet"]');
+    await page.waitForFunction(() => document.querySelectorAll('li[data-state="unmet"]').length >= 1);
+    for (const line of await unmet.allInnerTexts()) assert.match(line, /Nicht erfüllt/, line);
   } finally {
     await browser.close();
     await close();
@@ -673,6 +756,35 @@ test('no provider button before the rules name a provider', async () => {
   }
 });
 
+// UC-ID-01 check 5, the case the check names: the rules arrive and name no provider.
+test('no provider button when the rules name none', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  let rulesRead = false;
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')) {
+      rulesRead = true;
+      return route.fulfill({ json: { ...RULES, methods: ['PASSWORD'], providers: [] } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.locator('input[type="email"]').waitFor();
+    // The footer's imprint link comes from the same answer: once it is drawn, the rules were applied.
+    await page.getByRole('link', { name: 'Imprint' }).waitFor();
+    assert.ok(rulesRead, 'the card read the rules');
+    assert.equal(await page.getByRole('button', { name: /Sign in with/ }).count(), 0, 'a provider button although the rules name none');
+    assert.equal(await page.getByText('or', { exact: true }).count(), 0, 'an "or" with nothing after it');
+    assert.ok(await page.locator('input[type="password"]').isVisible(), 'the password is the way in');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // UC-ID-18 checks 4 and 5: the footer's links are the operator's, labelled neutrally whatever they
 // point at, and a link nobody set is not shown - the accessibility link included, which does not fall
 // back to hubtask.eu.
@@ -683,6 +795,10 @@ test('the footer shows only the links that were set, with neutral labels', async
     for (const [legal, expected] of [
       [{}, []],
       [{ imprint_url: 'https://op.example/imprint', accessibility_url: 'https://op.example/a11y' }, ['Imprint', 'Accessibility']],
+      [{
+        imprint_url: 'https://op.example/imprint', privacy_url: 'https://op.example/privacy',
+        terms_url: 'https://op.example/terms', accessibility_url: 'https://op.example/a11y',
+      }, ['Imprint', 'Privacy', 'Terms', 'Accessibility']],
     ]) {
       const context = await browser.newContext();
       await context.route('**/api/v1/**', async (route) => {
@@ -961,6 +1077,61 @@ test('where the password is on, the card keeps Forgot your password and no sign-
       'a second link beside the password');
     await page.getByRole('button', { name: 'Forgot your password?' }).click();
     await page.getByRole('heading', { name: 'Reset your password' }).waitFor();
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// UC-ID-09 check 4: a provider's mark is its owner's, in the neutral button every guideline allows -
+// drawn from the bundle, never fetched, never recoloured (ADR-0069). The colours are the owners'
+// published values; a kind with no mark draws the tile with the name's first character.
+test('a provider mark is drawn inline in its owner\'s colours, and nothing is fetched for it', async () => {
+  const { origin, close } = await serve(DIST);
+  const rules = {
+    ...RULES,
+    providers: [{ id: 'p-google', display_name: 'Contoso Google', kind: 'GOOGLE', scope: 'installation' }, ...RULES.providers],
+  };
+  const stub = stubFor({ answer: refused });
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const requests = [];
+  context.on('request', (request) => requests.push(request.url()));
+  await context.route('**/api/v1/**', (route) =>
+    new URL(route.request().url()).pathname.endsWith('/api/v1/auth/sign-in-rules')
+      ? route.fulfill({ json: rules })
+      : stub(route));
+  const page = await context.newPage();
+  try {
+    await page.goto(origin);
+    await page.waitForSelector('text=to contoso.hubtask.eu');
+    const fills = (name, shape) => page.getByRole('button', { name }).locator(`svg ${shape}`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('fill')));
+
+    const google = page.getByRole('button', { name: /Contoso Google/ }).locator('svg');
+    assert.equal(await google.getAttribute('viewBox'), '10 10 20 20', 'the G is not drawn on its published grid');
+    assert.ok((await google.locator('mask path').getAttribute('d')).startsWith('M29.3987 18.1814H19.9849V22.0445H25.3598'),
+      'the G is not the published shape');
+    assert.deepEqual(await fills(/Contoso Google/, 'ellipse'), ['#3186FF', '#3186FF', '#FF4641', '#FF5B8B', '#3186FF', '#FF4641']);
+    // The two declarations the published file carries as style attributes arrive through the
+    // stylesheet - an inline style would be refused by the content security policy, and the G
+    // would lose its gradient without a word.
+    assert.match(await google.locator('.g-angular').evaluate((node) => getComputedStyle(node).backgroundImage), /conic-gradient/);
+    assert.equal(await google.locator('mask').evaluate((node) => getComputedStyle(node).maskType), 'alpha');
+    assert.deepEqual(await fills(/Contoso Entra ID/, 'rect'), ['#f25022', '#00a4ef', '#7fba00', '#ffb900']);
+    assert.equal(await page.getByRole('button', { name: /Contoso Entra ID/ }).locator('svg').getAttribute('viewBox'), '0 0 21 21',
+      'the Microsoft symbol is not drawn on its published grid');
+    const lab = page.getByRole('button', { name: /Contoso Lab/ });
+    assert.equal(await lab.locator('svg').count(), 0, 'a provider without a preset drew a brand');
+    assert.equal(await lab.locator('.tile').textContent(), 'C');
+
+    for (const name of [/Contoso Google/, /Contoso Entra ID/, /Contoso Lab/]) {
+      const button = page.getByRole('button', { name });
+      assert.equal(await button.getAttribute('data-tone'), 'secondary', `${name} is not the neutral button`);
+      assert.equal(await button.locator('[href], [src], image, use').count(), 0, `${name} draws a mark by reference`);
+    }
+    const foreign = requests.filter((url) => new URL(url).origin !== new URL(origin).origin);
+    assert.deepEqual(foreign, [], 'the card reached another origin');
   } finally {
     await browser.close();
     await close();

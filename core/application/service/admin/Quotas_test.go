@@ -33,6 +33,8 @@ func (s *quotaStoreFake) InstanceOverrides(context.Context) (quotarepo.Overrides
 	return s.instance, nil
 }
 
+func (s *quotaStoreFake) InstanceLocks(context.Context) (map[string]bool, error) { return nil, nil }
+
 func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error) {
 	return s.overrides, nil
 }

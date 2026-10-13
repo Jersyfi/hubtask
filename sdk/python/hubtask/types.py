@@ -384,8 +384,24 @@ class AiSource(TypedDict, total=False):
     min_jurisdiction_lock: Literal["INSTANCE", "PLAN"]
     offered: Required[list["OfferedAiModelSummary"]]
     search_rebuilding: bool
+    person_opt_out: Required["AiPersonOptOut"]
+    person_opt_out_origin: Required[Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]]
+    person_opt_out_lock: Literal["INSTANCE", "PLAN"]
+    person_opt_out_basis: "AiOptOutBasis"
+    person_opt_out_contact: str
+    person_opt_out_since: str
+    keeping_out_count: Required[int]
     updated_at: str
     version: Required[int]
+
+AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
+
+AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiPersonOptOutChoice(TypedDict, total=False):
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
 
 class OfferedAiModelSummary(TypedDict, total=False):
     id: Required[str]
@@ -415,6 +431,19 @@ class PrivateHubSummary(TypedDict, total=False):
     created_at: Required[str]
     trashed_at: str | None
     purge_on: str | None
+    emergency_access: Required[dict[str, Any]]
+
+class PrivateHubAccessRequest(TypedDict, total=False):
+    reason: Required[str]
+
+class PrivateHubAccess(TypedDict, total=False):
+    """One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why."""
+    id: Required[str]
+    hub_id: Required[str]
+    opened_by: Required[str | None]
+    reason: Required[str]
+    opened_at: Required[str]
+    ends_at: Required[str]
 
 class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
@@ -424,12 +453,15 @@ class Workspace(TypedDict, total=False):
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: Required[str]
     default_time_zone: Required[str]
+    default_week_start: Literal["MONDAY", "SATURDAY", "SUNDAY"] | None
+    installation_defaults: "InstallationDefaults"
     require_admin_totp: Required[bool]
     audit_anchor_target_id: str | None
     created_at: Required[str]
     updated_at: str | None
     version: Required[int]
     private_hubs_offered: bool
+    several_people: bool
     sign_in_policy: "SignInPolicy"
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
@@ -486,6 +518,7 @@ class SignInPolicy(TypedDict, total=False):
     session: Required["SessionPolicySettings"]
     legal: Required["LegalPolicySettings"]
     managed_accounts: "SignInPolicyFlag"
+    private_hubs: "SignInPolicyFlag"
     rotation_from: Required[str | None]
 
 class PasswordPolicySettings(TypedDict, total=False):
@@ -517,11 +550,18 @@ class LegalPolicySettings(TypedDict, total=False):
     accessibility_url: Required["SignInPolicyText"]
     terms_version: Required["SignInPolicyText"]
 
+class InstallationDefaults(TypedDict, total=False):
+    """What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none."""
+    locale: str
+    time_zone: str
+    week_start: Literal["MONDAY", "SATURDAY", "SUNDAY"]
+
 class WorkspaceUpdate(TypedDict, total=False):
-    """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here."""
+    """Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question."""
     display_name: str
     default_locale: str
     default_time_zone: str
+    default_week_start: str
     require_admin_totp: bool
     sign_in_policy: "SignInPolicyChange"
 
@@ -550,6 +590,7 @@ class SignInPolicyChange(TypedDict, total=False):
     accessibility_url: str
     terms_version: str
     managed_accounts: bool
+    private_hubs: bool
     rotation_from: Literal["now"]
 
 class IdentityProvider(TypedDict, total=False):
@@ -679,6 +720,12 @@ class InstanceSetting(TypedDict, total=False):
     set: Required[bool]
     value: Any
     locked: Required[bool]
+    kind: Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE"]
+    options: list[Any]
+    minimum: int
+    maximum: int
+    position: int
+    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE"]
 
 class InstanceSettings(TypedDict, total=False):
     """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""
@@ -922,6 +969,7 @@ class QuotaStanding(TypedDict, total=False):
     used: int | None
     ratio: float | None
     configured: bool
+    locked: bool
 
 class TenantQuotas(TypedDict, total=False):
     """Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing."""
@@ -1992,6 +2040,27 @@ class ConsentRecord(TypedDict, total=False):
     granted_at: str
     revoked_at: str | None
     source: Literal["user", "tenant_admin", "config"] | None
+
+class ConsentRegisterEntry(TypedDict, total=False):
+    account_id: Required[str]
+    display_name: Required[str]
+    since: Required[str]
+    source: Literal["user", "tenant_admin", "config"]
+
+class ConsentGrant(TypedDict, total=False):
+    purpose: Required["ConsentPurpose"]
+    account_id: str
+
+class OwnAiPosition(TypedDict, total=False):
+    shown: Required[bool]
+    person_opt_out: Required["AiPersonOptOut"]
+    basis: "AiOptOutBasis"
+    contact: str
+    since: str
+    keeping_out: Required[bool]
+    keeping_out_since: str
+    in_effect: Required[bool]
+    notice_pending: Required[bool]
 
 class ConsentWithdrawal(TypedDict, total=False):
     purpose: Required["ConsentPurpose"]

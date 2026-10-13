@@ -6,8 +6,8 @@ actors: [PE-admin, PE-owner, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-14]
 state: partial
-tasks: [E-10, F4-20]
-checked_by: [core/application/service/privacy/Restriction_test.go, test/integration/privacy_test.go]
+tasks: [E-10, F4-20, PH-09]
+checked_by: [core/application/service/privacy/Restriction_test.go, test/integration/privacy_test.go, core/application/service/automation/Restricted_test.go, core/application/service/work/Restricted_test.go, test/integration/automation_restricted_test.go, test/integration/ai_restricted_test.go, test/integration/ai_restricted_embedding_test.go]
 ---
 
 # Restrict the processing of a person's data
@@ -50,5 +50,3 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 ## Today
 
 * Check 1: not met in part — the web app can restrict but not lift, and `hubctl` has no command for either.
-* Check 4: not met — the automation engine does not ask whether a person's processing is restricted, although the screen's note says it does.
-* Check 5: not met — the suggestion service does not ask whether a person's processing is restricted, although the screen's note says it does.

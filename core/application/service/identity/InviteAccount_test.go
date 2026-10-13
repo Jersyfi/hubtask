@@ -136,7 +136,12 @@ func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, requ
 
 type auditSink struct{ entries []audit.Entry }
 
+// Append refuses what the real sink refuses, so that an entry the trail would reject - one without
+// a workspace, say - fails here as it fails on a real server.
 func (s *auditSink) Append(_ context.Context, entry audit.Entry) error {
+	if err := entry.Validate(); err != nil {
+		return err
+	}
 	s.entries = append(s.entries, entry)
 	return nil
 }

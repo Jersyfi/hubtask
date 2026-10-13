@@ -43,7 +43,11 @@ async function operatorsScreen(browser, register, viewport = { width: 1280, heig
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/admin/operators' && request.method() === 'GET') return route.fulfill({ json: register });
     if (path === '/admin/operators' && request.method() === 'POST') {
-      sent.added.push(request.postDataJSON());
+      const body = request.postDataJSON();
+      sent.added.push(body);
+      if (body.email === 'nobody@example.invalid') {
+        return route.fulfill({ status: 422, json: { code: 'errors.validation', detail_code: 'admin.operator_unknown_account', status: 422, request_id: 'req_o' } });
+      }
       return route.fulfill({ status: 204 });
     }
     if (path.startsWith('/admin/operators/') && request.method() === 'DELETE') {
@@ -136,3 +140,30 @@ async function assertEventually(condition, timeoutMs = 5_000) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
+
+// UC-INS-05 check 2: adding by workspace and address, and an address that matches no account there
+// refused with one sentence - the screen says it and adds nobody.
+test('chromium: an operator is added by workspace and address, and an unknown address is one sentence', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, sent } = await operatorsScreen(browser, [ME]);
+
+  const workspace = page.getByLabel(/^Their workspace/);
+  await workspace.waitFor();
+  const choice = (await workspace.locator('option').allTextContents()).find((label) => !/Pick a workspace/.test(label));
+  assert.ok(choice, 'no workspace to pick');
+  await workspace.selectOption({ label: choice });
+  await page.getByLabel(/^Their email address/).fill('nobody@example.invalid');
+  await page.getByRole('button', { name: 'Add them' }).click();
+  await page.getByText('There is no such account on this installation.').first().waitFor();
+  assert.equal(await page.getByText('There is no such account on this installation.').count(), 1, 'more than one sentence');
+  assert.equal(sent.added.length, 1);
+  assert.equal(sent.added[0].email, 'nobody@example.invalid');
+  assert.ok(sent.added[0].workspace ?? sent.added[0].tenant_id ?? sent.added[0].workspace_slug, `no workspace was sent: ${JSON.stringify(sent.added[0])}`);
+
+  await page.getByLabel(/^Their email address/).fill('ada@example.invalid');
+  await page.getByRole('button', { name: 'Add them' }).click();
+  await assertEventually(() => sent.added.length === 2);
+  assert.equal(sent.added[1].email, 'ada@example.invalid');
+  await context.close();
+});

@@ -214,6 +214,10 @@ type PendingCredential struct {
 	// the password the sign-in began with no longer meets the rule, or is a start password. The
 	// factor comes first; the change follows it rather than being forgotten (identity.md §4.2).
 	PasswordChangeOwed bool
+	// SignedInWith is how the steps before a change step were proven - a code or a recovery code -
+	// so that the session the change opens says so (UC-ID-06 check 2). Empty on every other
+	// credential.
+	SignedInWith string
 	// SessionMethod and SessionVia are the session a TERMS credential opens once agreed: how the
 	// sign-in proved the account, and the provider that did (zero for none).
 	SessionMethod string

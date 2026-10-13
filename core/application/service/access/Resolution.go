@@ -5,7 +5,9 @@ package access
 
 import (
 	"context"
+	"slices"
 
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -16,6 +18,8 @@ import (
 type resolved struct {
 	path    []identity.Scope
 	privacy service.Privacy
+	// hub is the private hub that made the path private, zero for a shared path.
+	hub shared.ID
 }
 
 // held reads what the account holds along the paths, and answers the paths as storage completes
@@ -25,8 +29,12 @@ type resolved struct {
 // adds to a caller's path - the hub a collection sits under, whether that hub is private - is added
 // for every question alike. No caller says whether its path is private: a path builder that forgot
 // would leak, so privacy is read from the hub itself (ADR-0073 §1).
+//
+// `opened` says whether a running emergency access of this account counts: only for the actor
+// asking about themselves while present (opensFor). Every other question - about somebody else,
+// for a copy, for something run later - is judged as if no access existed.
 func (s Service) held(
-	ctx context.Context, scope persistence.Scope, accountID shared.ID, paths [][]identity.Scope,
+	ctx context.Context, scope persistence.Scope, accountID shared.ID, paths [][]identity.Scope, opened bool,
 ) ([]identity.Membership, []resolved, error) {
 	var (
 		memberships []identity.Membership
@@ -41,7 +49,10 @@ func (s Service) held(
 			return err
 		}
 		answers, err = s.privacyOf(ctx, completed, memberships)
-		return err
+		if err != nil || !opened {
+			return err
+		}
+		return s.openedFor(ctx, accountID, answers, memberships)
 	})
 	if err != nil {
 		return nil, nil, err
@@ -51,9 +62,9 @@ func (s Service) held(
 
 // heldAlong is held for one path.
 func (s Service) heldAlong(
-	ctx context.Context, scope persistence.Scope, accountID shared.ID, path []identity.Scope,
+	ctx context.Context, scope persistence.Scope, accountID shared.ID, path []identity.Scope, opened bool,
 ) ([]identity.Membership, resolved, error) {
-	memberships, answers, err := s.held(ctx, scope, accountID, [][]identity.Scope{path})
+	memberships, answers, err := s.held(ctx, scope, accountID, [][]identity.Scope{path}, opened)
 	if err != nil {
 		return nil, resolved{}, err
 	}
@@ -96,11 +107,59 @@ func (s Service) privacyOf(
 		for _, step := range path {
 			if hub, found := hubs[step.ID]; found && hub.Private {
 				answers[i].privacy = service.PrivatePath
+				answers[i].hub = hub.ID
 				break
 			}
 		}
 	}
 	return answers, nil
+}
+
+// openedFor treats a private path as shared where the account holds a running emergency access to
+// its hub and is, still, an owner of the workspace (ADR-0073 §4): the workspace's role then counts
+// there as it does in any hub. Only the owner may open one, and a demotion ends what it opens at
+// once rather than at the end of the hour. Asked only when a private path came back, so nothing
+// else pays for it; without a clock nothing is opened.
+func (s Service) openedFor(
+	ctx context.Context, accountID shared.ID, answers []resolved, memberships []identity.Membership,
+) error {
+	if s.Clock == nil || !ownsTheWorkspace(memberships) {
+		return nil
+	}
+	var private []shared.ID
+	for _, answer := range answers {
+		if answer.privacy == service.PrivatePath {
+			private = append(private, answer.hub)
+		}
+	}
+	if len(private) == 0 {
+		return nil
+	}
+	opened, err := s.Memberships.HubsOpenedFor(ctx, accountID, private, s.Clock.Now())
+	if err != nil {
+		return err
+	}
+	for i := range answers {
+		if answers[i].privacy == service.PrivatePath && slices.Contains(opened, answers[i].hub) {
+			answers[i].privacy = service.SharedPath
+		}
+	}
+	return nil
+}
+
+// opensFor is whether a running emergency access of `accountID` counts in a question the actor
+// asks: about themselves, as a person, present (ActorContext.Present).
+func opensFor(actor appshared.ActorContext, accountID shared.ID) bool {
+	return actor.Present && actor.Kind == appshared.ActorUser && accountID == actor.AccountID
+}
+
+func ownsTheWorkspace(memberships []identity.Membership) bool {
+	for _, membership := range memberships {
+		if membership.Scope.Type == identity.ScopeTenant && membership.Role == identity.RoleOwner {
+			return true
+		}
+	}
+	return false
 }
 
 func holdsOnTheWorkspace(memberships []identity.Membership) bool {

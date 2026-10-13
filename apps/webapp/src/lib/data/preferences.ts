@@ -125,5 +125,7 @@ export function preferenceFor(
  * says why it cannot.
  */
 export function isAlwaysOn(category: string): boolean {
-  return category === 'INVITATION';
+  // The invitation is the way in; the emergency access is the owner opening one's private hub,
+  // which nobody may be left out of (UC-ID-16, *Where it ends*).
+  return category === 'INVITATION' || category === 'EMERGENCY_ACCESS';
 }

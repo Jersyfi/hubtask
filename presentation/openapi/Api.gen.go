@@ -276,6 +276,45 @@ func (e AiMinJurisdiction) Valid() bool {
 	}
 }
 
+// Defines values for AiOptOutBasis.
+const (
+	EMPLOYMENTCONTRACT AiOptOutBasis = "EMPLOYMENT_CONTRACT"
+	LEGALOBLIGATION    AiOptOutBasis = "LEGAL_OBLIGATION"
+	WORKSAGREEMENT     AiOptOutBasis = "WORKS_AGREEMENT"
+)
+
+// Valid indicates whether the value is a known member of the AiOptOutBasis enum.
+func (e AiOptOutBasis) Valid() bool {
+	switch e {
+	case EMPLOYMENTCONTRACT:
+		return true
+	case LEGALOBLIGATION:
+		return true
+	case WORKSAGREEMENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiPersonOptOut.
+const (
+	AiPersonOptOutNOTOFFERED AiPersonOptOut = "NOT_OFFERED"
+	AiPersonOptOutOFFERED    AiPersonOptOut = "OFFERED"
+)
+
+// Valid indicates whether the value is a known member of the AiPersonOptOut enum.
+func (e AiPersonOptOut) Valid() bool {
+	switch e {
+	case AiPersonOptOutNOTOFFERED:
+		return true
+	case AiPersonOptOutOFFERED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiProviderKind.
 const (
 	NOOP             AiProviderKind = "NOOP"
@@ -333,6 +372,48 @@ func (e AiSourceMinJurisdictionOrigin) Valid() bool {
 	case AiSourceMinJurisdictionOriginPLAN:
 		return true
 	case AiSourceMinJurisdictionOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutLock.
+const (
+	AiSourcePersonOptOutLockINSTANCE AiSourcePersonOptOutLock = "INSTANCE"
+	AiSourcePersonOptOutLockPLAN     AiSourcePersonOptOutLock = "PLAN"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutLock enum.
+func (e AiSourcePersonOptOutLock) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutLockINSTANCE:
+		return true
+	case AiSourcePersonOptOutLockPLAN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiSourcePersonOptOutOrigin.
+const (
+	AiSourcePersonOptOutOriginDEFAULT   AiSourcePersonOptOutOrigin = "DEFAULT"
+	AiSourcePersonOptOutOriginINSTANCE  AiSourcePersonOptOutOrigin = "INSTANCE"
+	AiSourcePersonOptOutOriginPLAN      AiSourcePersonOptOutOrigin = "PLAN"
+	AiSourcePersonOptOutOriginWORKSPACE AiSourcePersonOptOutOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the AiSourcePersonOptOutOrigin enum.
+func (e AiSourcePersonOptOutOrigin) Valid() bool {
+	switch e {
+	case AiSourcePersonOptOutOriginDEFAULT:
+		return true
+	case AiSourcePersonOptOutOriginINSTANCE:
+		return true
+	case AiSourcePersonOptOutOriginPLAN:
+		return true
+	case AiSourcePersonOptOutOriginWORKSPACE:
 		return true
 	default:
 		return false
@@ -1239,6 +1320,27 @@ func (e ConsentRecordSource) Valid() bool {
 	}
 }
 
+// Defines values for ConsentRegisterEntrySource.
+const (
+	ConsentRegisterEntrySourceConfig      ConsentRegisterEntrySource = "config"
+	ConsentRegisterEntrySourceTenantAdmin ConsentRegisterEntrySource = "tenant_admin"
+	ConsentRegisterEntrySourceUser        ConsentRegisterEntrySource = "user"
+)
+
+// Valid indicates whether the value is a known member of the ConsentRegisterEntrySource enum.
+func (e ConsentRegisterEntrySource) Valid() bool {
+	switch e {
+	case ConsentRegisterEntrySourceConfig:
+		return true
+	case ConsentRegisterEntrySourceTenantAdmin:
+		return true
+	case ConsentRegisterEntrySourceUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -1866,6 +1968,84 @@ func (e ImportRunStatus) Valid() bool {
 	case ImportRunStatusRUNNING:
 		return true
 	case ImportRunStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstallationDefaultsWeekStart.
+const (
+	InstallationDefaultsWeekStartMONDAY   InstallationDefaultsWeekStart = "MONDAY"
+	InstallationDefaultsWeekStartSATURDAY InstallationDefaultsWeekStart = "SATURDAY"
+	InstallationDefaultsWeekStartSUNDAY   InstallationDefaultsWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the InstallationDefaultsWeekStart enum.
+func (e InstallationDefaultsWeekStart) Valid() bool {
+	switch e {
+	case InstallationDefaultsWeekStartMONDAY:
+		return true
+	case InstallationDefaultsWeekStartSATURDAY:
+		return true
+	case InstallationDefaultsWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstanceSettingKind.
+const (
+	InstanceSettingKindCHOICE   InstanceSettingKind = "CHOICE"
+	InstanceSettingKindCHOICES  InstanceSettingKind = "CHOICES"
+	InstanceSettingKindCOUNT    InstanceSettingKind = "COUNT"
+	InstanceSettingKindFLAG     InstanceSettingKind = "FLAG"
+	InstanceSettingKindLINK     InstanceSettingKind = "LINK"
+	InstanceSettingKindLOCALE   InstanceSettingKind = "LOCALE"
+	InstanceSettingKindTEXT     InstanceSettingKind = "TEXT"
+	InstanceSettingKindTIMEZONE InstanceSettingKind = "TIME_ZONE"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingKind enum.
+func (e InstanceSettingKind) Valid() bool {
+	switch e {
+	case InstanceSettingKindCHOICE:
+		return true
+	case InstanceSettingKindCHOICES:
+		return true
+	case InstanceSettingKindCOUNT:
+		return true
+	case InstanceSettingKindFLAG:
+		return true
+	case InstanceSettingKindLINK:
+		return true
+	case InstanceSettingKindLOCALE:
+		return true
+	case InstanceSettingKindTEXT:
+		return true
+	case InstanceSettingKindTIMEZONE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstanceSettingWorkspaceMay.
+const (
+	RAISE   InstanceSettingWorkspaceMay = "RAISE"
+	REPLACE InstanceSettingWorkspaceMay = "REPLACE"
+	TIGHTEN InstanceSettingWorkspaceMay = "TIGHTEN"
+)
+
+// Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
+func (e InstanceSettingWorkspaceMay) Valid() bool {
+	switch e {
+	case RAISE:
+		return true
+	case REPLACE:
+		return true
+	case TIGHTEN:
 		return true
 	default:
 		return false
@@ -3894,6 +4074,30 @@ func (e WebhookSubscriptionUpdateState) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceDefaultWeekStart.
+const (
+	WorkspaceDefaultWeekStartLessThannil WorkspaceDefaultWeekStart = "<nil>"
+	WorkspaceDefaultWeekStartMONDAY      WorkspaceDefaultWeekStart = "MONDAY"
+	WorkspaceDefaultWeekStartSATURDAY    WorkspaceDefaultWeekStart = "SATURDAY"
+	WorkspaceDefaultWeekStartSUNDAY      WorkspaceDefaultWeekStart = "SUNDAY"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceDefaultWeekStart enum.
+func (e WorkspaceDefaultWeekStart) Valid() bool {
+	switch e {
+	case WorkspaceDefaultWeekStartLessThannil:
+		return true
+	case WorkspaceDefaultWeekStartMONDAY:
+		return true
+	case WorkspaceDefaultWeekStartSATURDAY:
+		return true
+	case WorkspaceDefaultWeekStartSUNDAY:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for WorkspaceStatus.
 const (
 	WorkspaceStatusACTIVE          WorkspaceStatus = "ACTIVE"
@@ -4349,6 +4553,24 @@ type AiJurisdiction string
 // AiMinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 type AiMinJurisdiction string
 
+// AiOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+type AiOptOutBasis string
+
+// AiPersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+type AiPersonOptOut string
+
+// AiPersonOptOutChoice defines model for AiPersonOptOutChoice.
+type AiPersonOptOutChoice struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom people may ask about it - a name, a role or an address. Optional; without one, people are told to ask an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+}
+
 // AiProvider How this workspace uses AI, if it does. The API key is not a member: it is sealed at configuration time and opened only by the adapter that makes the call.
 type AiProvider struct {
 	// BaseUrl The endpoint the adapter calls. Absent for `NOOP`. Every call to it goes through the guarded client, so an address inside this installation's own network is refused wherever it was typed.
@@ -4408,6 +4630,9 @@ type AiSource struct {
 	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
 	InstallationSources AiSources `json:"installation_sources"`
 
+	// KeepingOutCount How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+	KeepingOutCount int `json:"keeping_out_count"`
+
 	// MinJurisdiction The least a workspace's own model must declare about where it processes content, further right being stricter.
 	MinJurisdiction       AiMinJurisdiction             `json:"min_jurisdiction"`
 	MinJurisdictionLock   *AiSourceMinJurisdictionLock  `json:"min_jurisdiction_lock,omitempty"`
@@ -4421,6 +4646,22 @@ type AiSource struct {
 
 	// OfferedModelId The offered model chosen. Absent with any other source - and absent while the source is `OFFERED` once the installation withdrew the model chosen: then nothing answers until the workspace chooses again.
 	OfferedModelId *openapi_types.UUID `json:"offered_model_id,omitempty"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// PersonOptOutBasis The legal basis a workspace names for making AI part of everybody's work.
+	PersonOptOutBasis *AiOptOutBasis `json:"person_opt_out_basis,omitempty"`
+
+	// PersonOptOutContact Whom people may ask about the basis. Absent for an administrator of this workspace.
+	PersonOptOutContact *string `json:"person_opt_out_contact,omitempty"`
+
+	// PersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+	PersonOptOutLock   *AiSourcePersonOptOutLock  `json:"person_opt_out_lock,omitempty"`
+	PersonOptOutOrigin AiSourcePersonOptOutOrigin `json:"person_opt_out_origin"`
+
+	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
+	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -4443,6 +4684,12 @@ type AiSourceMinJurisdictionLock string
 
 // AiSourceMinJurisdictionOrigin defines model for AiSource.MinJurisdictionOrigin.
 type AiSourceMinJurisdictionOrigin string
+
+// AiSourcePersonOptOutLock Present where a level above holds the workspace at `OFFERED`: then only the installation or the plan can change it.
+type AiSourcePersonOptOutLock string
+
+// AiSourcePersonOptOutOrigin defines model for AiSource.PersonOptOutOrigin.
+type AiSourcePersonOptOutOrigin string
 
 // AiSourceSourcesLock Present where a level above locked what the workspace may use.
 type AiSourceSourcesLock string
@@ -4537,7 +4784,11 @@ type AuditAnchoringConfiguration struct {
 // AuditChange One changed field, masked per its classification. An `OPEN` field carries
 // `from` and `to`; a `SENSITIVE` one carries `changed` and the two hashes instead, which
 // makes two entries comparable without either being readable; a `SECRET` one is not here at
-// all.
+// all. A hash is keyed with a secret of the installation and bound to the workspace, and
+// names its scheme as a prefix (`hmac-sha256:`): two hashes are comparable only when both
+// carry the same scheme and come from the same workspace on an installation whose secret
+// did not change between them. A hash without a prefix was written by an earlier version
+// and is never equal to a prefixed one, whatever the value.
 type AuditChange struct {
 	Changed  *bool       `json:"changed,omitempty"`
 	Field    *string     `json:"field,omitempty"`
@@ -5199,7 +5450,7 @@ type Capabilities struct {
 	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
-	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
+	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
@@ -5322,6 +5573,15 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConsentGrant defines model for ConsentGrant.
+type ConsentGrant struct {
+	// AccountId Whose consent - only ever the caller's own.
+	AccountId *openapi_types.UUID `json:"account_id,omitempty"`
+
+	// Purpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
+	Purpose ConsentPurpose `json:"purpose"`
+}
+
 // ConsentPurpose The optional processing a consent covers. Open rather than an enum, because a purpose is configuration - what an installation offers, not what this contract fixes.
 type ConsentPurpose = string
 
@@ -5340,6 +5600,21 @@ type ConsentRecord struct {
 
 // ConsentRecordSource defines model for ConsentRecord.Source.
 type ConsentRecordSource string
+
+// ConsentRegisterEntry defines model for ConsentRegisterEntry.
+type ConsentRegisterEntry struct {
+	AccountId   openapi_types.UUID `json:"account_id"`
+	DisplayName string             `json:"display_name"`
+
+	// Since When the withdrawal standing now was recorded.
+	Since time.Time `json:"since"`
+
+	// Source Whether the person or an administrator on their behalf recorded it.
+	Source *ConsentRegisterEntrySource `json:"source,omitempty"`
+}
+
+// ConsentRegisterEntrySource Whether the person or an administrator on their behalf recorded it.
+type ConsentRegisterEntrySource string
 
 // ConsentWithdrawal defines model for ConsentWithdrawal.
 type ConsentWithdrawal struct {
@@ -5981,7 +6256,7 @@ type IdentityProvider struct {
 	// AllowedEmailDomains The domains a verified address must be inside for this provider to admit it, under `DOMAINS` — **for a preset that has no directory claim**, which is `GENERIC` and only `GENERIC`. **Empty admits nobody** under that mode: the list is the mode, and a mode with no list lets no one in.
 	AllowedEmailDomains []string `json:"allowed_email_domains"`
 
-	// ClientId This installation's registration with the provider.
+	// ClientId This installation's registration with the provider. Empty on a row of `scope` `installation` when a workspace reads it: the installation's registration is its operator's, and a workspace sees that provider by name, kind and admission rule only.
 	ClientId  string    `json:"client_id"`
 	CreatedAt time.Time `json:"created_at"`
 
@@ -6170,6 +6445,16 @@ type InboundTriggerToken struct {
 	Token string `json:"token"`
 }
 
+// InstallationDefaults What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none.
+type InstallationDefaults struct {
+	Locale    *string                        `json:"locale,omitempty"`
+	TimeZone  *string                        `json:"time_zone,omitempty"`
+	WeekStart *InstallationDefaultsWeekStart `json:"week_start,omitempty"`
+}
+
+// InstallationDefaultsWeekStart defines model for InstallationDefaults.WeekStart.
+type InstallationDefaultsWeekStart string
+
 // InstallationSetUp defines model for InstallationSetUp.
 type InstallationSetUp struct {
 	// Code The setup code the server printed at start. Case and the dashes between its groups do not matter.
@@ -6246,20 +6531,44 @@ type InstanceReach struct {
 // InstanceSetting One switch of the installation's level: whether it decided anything, what it set, and whether a workspace may tighten it.
 // **Every switch is answered, decided or not.** A reader has to be able to see that a switch exists and that this installation has left it to each workspace — which is a different fact from the switch not existing, and the only way a screen can draw the whole level without keeping a list of its own that would be wrong the day one is added.
 type InstanceSetting struct {
+	// Kind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+	Kind *InstanceSettingKind `json:"kind,omitempty"`
+
 	// Locked Whether a workspace may change it. Locked means the value applies and the workspace's control is switched off, with the reason and with who set it.
 	Locked bool `json:"locked"`
+
+	// Maximum For `COUNT`, the most the product applies. Absent where there is no bound.
+	Maximum *int `json:"maximum,omitempty"`
+
+	// Minimum For `COUNT`, the least value the product applies. A value past either bound is held at it, at every level. Where the least is `0`, it means off or unlimited for the keys that say so.
+	Minimum *int `json:"minimum,omitempty"`
+
+	// Options For `CHOICE` and `CHOICES`, the closed set of values, from the loosest to the strictest. Absent for the other kinds.
+	Options *[]interface{} `json:"options,omitempty"`
+
+	// Position The key's place within its area, from 0: the order a screen draws the keys in, which an object's own key order does not carry.
+	Position *int `json:"position,omitempty"`
 
 	// Set Whether the installation decided this one. False means each workspace decides it, and `value` is then absent — not zero, not empty, absent, because a zero is a decision.
 	Set bool `json:"set"`
 
 	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words. Absent where `set` is false.
 	Value interface{} `json:"value,omitempty"`
+
+	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
+
+// InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
+type InstanceSettingKind string
+
+// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+type InstanceSettingWorkspaceMay string
 
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
-	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content.
+	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
 
@@ -6272,7 +6581,7 @@ type InstanceSettings struct {
 	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
-	// Localisation `locale`, `time_zone` and `week_start`: what a workspace that has set none of its own inherits.
+	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
 	// **A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler".
 	Localisation *map[string]InstanceSetting `json:"localisation,omitempty"`
 
@@ -6280,7 +6589,7 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
-	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds and `managed_accounts`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
+	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
@@ -7260,6 +7569,34 @@ type OwnAiBudget struct {
 	OwnTokensPerDay *int64 `json:"own_tokens_per_day"`
 }
 
+// OwnAiPosition defines model for OwnAiPosition.
+type OwnAiPosition struct {
+	// Basis The legal basis a workspace names for making AI part of everybody's work.
+	Basis *AiOptOutBasis `json:"basis,omitempty"`
+
+	// Contact Whom to ask about the basis. Absent for an administrator of this workspace.
+	Contact *string `json:"contact,omitempty"`
+
+	// InEffect Whether the caller's content is kept out now.
+	InEffect bool `json:"in_effect"`
+
+	// KeepingOut The caller's own choice - their newest `ai_processing` record is a withdrawal.
+	KeepingOut      bool       `json:"keeping_out"`
+	KeepingOutSince *time.Time `json:"keeping_out_since,omitempty"`
+
+	// NoticePending True once, until acknowledged: the workspace made AI part of everybody's work, so the caller's choice stopped taking effect.
+	NoticePending bool `json:"notice_pending"`
+
+	// PersonOptOut `OFFERED`: each person may keep their own content out of AI. `NOT_OFFERED`: AI is part of everybody's work, on the legal basis the workspace named.
+	PersonOptOut AiPersonOptOut `json:"person_opt_out"`
+
+	// Shown Whether there is anything here at all: AI answers this workspace and more than one person works in it. Alone, the workspace's decision is the person's own.
+	Shown bool `json:"shown"`
+
+	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
+	Since *time.Time `json:"since,omitempty"`
+}
+
 // PageInfo defines model for PageInfo.
 type PageInfo struct {
 	HasMore bool `json:"has_more"`
@@ -7422,6 +7759,24 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
+type PrivateHubAccess struct {
+	EndsAt   time.Time          `json:"ends_at"`
+	HubId    openapi_types.UUID `json:"hub_id"`
+	Id       openapi_types.UUID `json:"id"`
+	OpenedAt time.Time          `json:"opened_at"`
+
+	// OpenedBy The account that opened it; null once that account is gone.
+	OpenedBy *openapi_types.UUID `json:"opened_by"`
+	Reason   string              `json:"reason"`
+}
+
+// PrivateHubAccessRequest defines model for PrivateHubAccessRequest.
+type PrivateHubAccessRequest struct {
+	// Reason Why the hub is opened. Told to every member of the hub, and kept with the hub as their record of who opened it.
+	Reason string `json:"reason"`
+}
+
 // PrivateHubSummary A private hub as an administrator sees it: whose, how big, and when it goes if it is in the trash. Deliberately without a name.
 type PrivateHubSummary struct {
 	// AttachmentBytes The bytes of the files attached to its entries.
@@ -7430,6 +7785,12 @@ type PrivateHubSummary struct {
 	// Collections Collections in it, the trashed ones included.
 	Collections int       `json:"collections"`
 	CreatedAt   time.Time `json:"created_at"`
+
+	// EmergencyAccess The caller's emergency access to this hub. `offered` is true where the caller may open it now - the workspace's owner, holding nothing in the hub, with no access of theirs running; `open_until` is the end of the caller's running access, or null.
+	EmergencyAccess struct {
+		Offered   bool       `json:"offered"`
+		OpenUntil *time.Time `json:"open_until"`
+	} `json:"emergency_access"`
 
 	// Entries Entries in it, the trashed ones included.
 	Entries int                `json:"entries"`
@@ -7601,6 +7962,9 @@ type QuotaStanding struct {
 
 	// Limit The resolved ceiling. 0 means unlimited.
 	Limit int64 `json:"limit"`
+
+	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
+	Locked *bool `json:"locked,omitempty"`
 
 	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
 	Quota QuotaStandingQuota `json:"quota"`
@@ -8382,6 +8746,9 @@ type SignInPolicy struct {
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
 
+	// PrivateHubs Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.
+	PrivateHubs *SignInPolicyFlag `json:"private_hubs,omitempty"`
+
 	// RotationFrom When somebody last asked everybody for a new password, or null. Set by the action rather than typed: a client that could name a moment could name one in the past and un-require a rotation it already asked for.
 	RotationFrom *time.Time `json:"rotation_from"`
 
@@ -8418,6 +8785,7 @@ type SignInPolicyChange struct {
 	MinSymbols   *int    `json:"min_symbols,omitempty"`
 	MinUppercase *int    `json:"min_uppercase,omitempty"`
 	PrivacyUrl   *string `json:"privacy_url,omitempty"`
+	PrivateHubs  *bool   `json:"private_hubs,omitempty"`
 
 	// RotationFrom The literal `now`, and nothing else: it asks every person in this workspace for a new password at their next sign-in and ends every session opened before this moment. One write, whatever the size of the workspace - no job walks accounts.
 	RotationFrom *SignInPolicyChangeRotationFrom `json:"rotation_from,omitempty"`
@@ -9381,21 +9749,30 @@ type Workspace struct {
 
 	// DefaultTimeZone An IANA zone, for the same position in the same chain.
 	DefaultTimeZone string `json:"default_time_zone"`
-	DisplayName     string `json:"display_name"`
+
+	// DefaultWeekStart The day a member's week starts on when they chose none of their own, or null where this workspace decided nothing and the installation's day, then the language's, applies.
+	DefaultWeekStart *WorkspaceDefaultWeekStart `json:"default_week_start,omitempty"`
+	DisplayName      string                     `json:"display_name"`
 
 	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
 	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
+	// InstallationDefaults What the installation set as the default language, time zone and week start, so a workspace's screen can show it beside the workspace's own. Only what the installation decided: a key it left open is absent, and an installation that decided nothing answers an empty object. The language and time zone are what a new workspace starts with; the week start applies wherever a workspace decided none.
+	InstallationDefaults *InstallationDefaults `json:"installation_defaults,omitempty"`
+
 	// PasswordOpening The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.
 	PasswordOpening *WorkspacePasswordOpening `json:"password_opening,omitempty"`
 
-	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. The server accepts a private hub either way.
+	// PrivateHubsOffered Whether a client offers to make a hub private: the workspace allows private hubs (`sign_in_policy.private_hubs`) and holds more than one person whose account is not anonymised. A workspace of one has nobody to keep a hub from, and a screen that offered it would be noise. Where private hubs are not allowed, the server refuses one (`containers.private_hubs_off`).
 	PrivateHubsOffered *bool `json:"private_hubs_offered,omitempty"`
 
 	// RequireAdminTotp Whether the rule in force demands a second factor of this workspace's `OWNER` and `ADMIN` role holders - `sign_in_policy.mfa_required_for` is `ADMINS` or `EVERYONE`. Derived from the rule and from nothing else, so the two cannot disagree. Kept for the clients that read it.
 	RequireAdminTotp bool `json:"require_admin_totp"`
+
+	// SeveralPeople Whether the workspace holds more than one person whose account is not anonymised - where private hubs, and the setting that allows them, mean something.
+	SeveralPeople *bool `json:"several_people,omitempty"`
 
 	// SignInPolicy How people in this workspace prove who they are. Absent on an installation with no instance layer, where there is no level above to resolve against - a screen that drew eighteen rows it could not save would be a screen that lies about what it offers.
 	SignInPolicy *SignInPolicy `json:"sign_in_policy,omitempty"`
@@ -9410,6 +9787,9 @@ type Workspace struct {
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
 }
+
+// WorkspaceDefaultWeekStart The day a member's week starts on when they chose none of their own, or null where this workspace decided nothing and the installation's day, then the language's, applies.
+type WorkspaceDefaultWeekStart string
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
@@ -9445,14 +9825,17 @@ type WorkspacePasswordOpening struct {
 	Until time.Time `json:"until"`
 }
 
-// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it", and nothing is lost by that: none of these four has an absent state - a workspace always has a name, a locale, a zone and an answer to the enforcement question - so there is nothing for a null to mean here.
+// WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
 	DefaultLocale *string `json:"default_locale,omitempty"`
 
 	// DefaultTimeZone An IANA zone. One that does not load is a field error.
 	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
-	DisplayName     *string `json:"display_name,omitempty"`
+
+	// DefaultWeekStart `MONDAY`, `SATURDAY` or `SUNDAY`: the day a member's week starts on when they chose none of their own; another day is a field error. The empty string clears it, and the installation's day, then the language's, applies again - an explicit `null` reads as an absent key here, as everywhere in this body.
+	DefaultWeekStart *string `json:"default_week_start,omitempty"`
+	DisplayName      *string `json:"display_name,omitempty"`
 
 	// RequireAdminTotp The old name of `sign_in_policy.mfa_required_for`: true asks for `ADMINS` where the rule demands less, false for `NONE`. A change to the rule, so it demands the step-up whenever it moves anything - see the operation.
 	RequireAdminTotp *bool `json:"require_admin_totp,omitempty"`
@@ -9509,6 +9892,9 @@ type FeedId = openapi_types.UUID
 
 // GroupId defines model for GroupId.
 type GroupId = openapi_types.UUID
+
+// HubId defines model for HubId.
+type HubId = openapi_types.UUID
 
 // IdempotencyKey defines model for IdempotencyKey.
 type IdempotencyKey = openapi_types.UUID
@@ -10479,6 +10865,11 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListConsentsParams defines parameters for ListConsents.
+type ListConsentsParams struct {
+	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
+}
+
 // ListDataSubjectRequestsParams defines parameters for ListDataSubjectRequests.
 type ListDataSubjectRequestsParams struct {
 	Status *DataSubjectRequestStatus `form:"status,omitempty" json:"status,omitempty"`
@@ -10506,6 +10897,12 @@ type PreviewErasureParams struct {
 type ExtendDataSubjectRequestParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// OpenPrivateHubParams defines parameters for OpenPrivateHub.
+type OpenPrivateHubParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ListRetentionPoliciesParams defines parameters for ListRetentionPolicies.
@@ -10696,6 +11093,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
+
+// SetAiPersonOptOutJSONRequestBody defines body for SetAiPersonOptOut for application/json ContentType.
+type SetAiPersonOptOutJSONRequestBody = AiPersonOptOutChoice
 
 // ConfigureAiProviderJSONRequestBody defines body for ConfigureAiProvider for application/json ContentType.
 type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
@@ -10982,6 +11382,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
+type GiveConsentJSONRequestBody = ConsentGrant
+
 // WithdrawConsentJSONRequestBody defines body for WithdrawConsent for application/json ContentType.
 type WithdrawConsentJSONRequestBody = ConsentWithdrawal
 
@@ -10993,6 +11396,9 @@ type UpdateDataSubjectRequestApplicationMergePatchPlusJSONRequestBody = DataSubj
 
 // ExtendDataSubjectRequestJSONRequestBody defines body for ExtendDataSubjectRequest for application/json ContentType.
 type ExtendDataSubjectRequestJSONRequestBody = DataSubjectRequestExtension
+
+// OpenPrivateHubJSONRequestBody defines body for OpenPrivateHub for application/json ContentType.
+type OpenPrivateHubJSONRequestBody = PrivateHubAccessRequest
 
 // StartRestoreJSONRequestBody defines body for StartRestore for application/json ContentType.
 type StartRestoreJSONRequestBody = RestoreRequest
@@ -11050,6 +11456,9 @@ type ServerInterface interface {
 	// GetOwnAccount The account the caller is signed in as
 	// (GET /accounts/me)
 	GetOwnAccount(w http.ResponseWriter, r *http.Request)
+	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
+	// (GET /accounts/me/emergency-notices)
+	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11173,6 +11582,9 @@ type ServerInterface interface {
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
+	// SetAiPersonOptOut Whether each person may keep their own content out of AI
+	// (PUT /ai-person-opt-out)
+	SetAiPersonOptOut(w http.ResponseWriter, r *http.Request)
 	// RemoveAiProvider Remove the workspace's AI provider
 	// (DELETE /ai-provider)
 	RemoveAiProvider(w http.ResponseWriter, r *http.Request)
@@ -11806,6 +12218,18 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
+	// (GET /privacy/ai-objection)
+	ReadOwnAiPosition(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeAiPosition Acknowledge that keeping one's content out stopped taking effect
+	// (POST /privacy/ai-objection:noticed)
+	AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request)
+	// ListConsents The consent register - who withdrew a purpose
+	// (GET /privacy/consents)
+	ListConsents(w http.ResponseWriter, r *http.Request, params ListConsentsParams)
+	// GiveConsent Agree to an optional processing purpose
+	// (POST /privacy/consents:give)
+	GiveConsent(w http.ResponseWriter, r *http.Request)
 	// WithdrawConsent Withdraw consent for an optional processing purpose (Art. 21)
 	// (POST /privacy/consents:withdraw)
 	WithdrawConsent(w http.ResponseWriter, r *http.Request)
@@ -11827,6 +12251,12 @@ type ServerInterface interface {
 	// ListPrivateHubs The workspace's private hubs, without their names
 	// (GET /private-hubs)
 	ListPrivateHubs(w http.ResponseWriter, r *http.Request)
+	// ListPrivateHubAccesses Who opened this private hub through the emergency access, and why
+	// (GET /private-hubs/{hubId}/accesses)
+	ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request, hubId HubId)
+	// OpenPrivateHub Open a private hub through the emergency access
+	// (POST /private-hubs/{hubId}/accesses)
+	OpenPrivateHub(w http.ResponseWriter, r *http.Request, hubId HubId, params OpenPrivateHubParams)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -11957,6 +12387,20 @@ func (siw *ServerInterfaceWrapper) GetOwnAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEmergencyNotices operation middleware
+func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEmergencyNotices(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13169,6 +13613,20 @@ func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetOwnAiBudget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAiPersonOptOut operation middleware
+func (siw *ServerInterfaceWrapper) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAiPersonOptOut(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20895,6 +21353,81 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ReadOwnAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadOwnAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeAiPosition operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeAiPosition(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeAiPosition(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListConsents operation middleware
+func (siw *ServerInterfaceWrapper) ListConsents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConsentsParams
+
+	// ------------- Required query parameter "purpose" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "purpose", r.URL.Query(), &params.Purpose, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "purpose"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "purpose", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConsents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GiveConsent operation middleware
+func (siw *ServerInterfaceWrapper) GiveConsent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GiveConsent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // WithdrawConsent operation middleware
 func (siw *ServerInterfaceWrapper) WithdrawConsent(w http.ResponseWriter, r *http.Request) {
 
@@ -21171,6 +21704,82 @@ func (siw *ServerInterfaceWrapper) ListPrivateHubs(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListPrivateHubs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPrivateHubAccesses operation middleware
+func (siw *ServerInterfaceWrapper) ListPrivateHubAccesses(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPrivateHubAccesses(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OpenPrivateHub operation middleware
+func (siw *ServerInterfaceWrapper) OpenPrivateHub(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId HubId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params OpenPrivateHubParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenPrivateHub(w, r, hubId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22786,6 +23395,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)
@@ -22811,6 +23423,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-provider", wrapper.ConfigureAiProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-person-opt-out", wrapper.SetAiPersonOptOut)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)
@@ -22826,7 +23439,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/requests/{requestId}:extend", wrapper.ExtendDataSubjectRequest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/requests/{requestId}/erasure-preview", wrapper.PreviewErasure)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:restrict", wrapper.RestrictProcessing)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/consents", wrapper.ListConsents)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:withdraw", wrapper.WithdrawConsent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/consents:give", wrapper.GiveConsent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/privacy/ai-objection", wrapper.ReadOwnAiPosition)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/privacy/ai-objection:noticed", wrapper.AcknowledgeAiPosition)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/memberships", wrapper.ListMemberships)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/memberships", wrapper.GrantMembership)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/memberships/{membershipId}", wrapper.RevokeMembership)

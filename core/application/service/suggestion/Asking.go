@@ -5,12 +5,14 @@ package suggestion
 
 import (
 	"context"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -111,6 +113,9 @@ func (a Ask) queue(
 		// existence check at once - and it is read *before* the job, so that asking about
 		// something that is not there fails now rather than in a worker.
 		if _, err := c.Targets.Digest(ctx, actor, targetType, targetID); err != nil {
+			return err
+		}
+		if err := c.workable(ctx, actor, targetType, targetID, promptID, text); err != nil {
 			return err
 		}
 		payload := map[string]any{
@@ -237,4 +242,29 @@ func (h SuggestDecomposition) invoke(
 		return nil, err
 	}
 	return usecase.Output{}, nil
+}
+
+// workable reads the material the producer will read, with the same exclusion: a person who keeps
+// their own content out is told no AI action is theirs (ai.kept_out), and a question with nothing
+// left to work with is refused in the words an empty entry gets (ai.nothing_to_work_with) - the
+// one answer for both, so that it says nothing about who wrote what. A question asked with words
+// of its own (a template's description) always has something to work with.
+func (c Cases) workable(
+	ctx context.Context, actor appshared.ActorContext,
+	targetType domain.TargetType, targetID shared.ID, promptID, text string,
+) error {
+	if c.Material == nil {
+		return nil
+	}
+	material, err := c.Material.Material(ctx, actor, targetType, targetID, promptID)
+	if err != nil {
+		return err
+	}
+	if refused := material.Kept.Refusal(actor.AccountID); refused != nil {
+		return refused
+	}
+	if text == "" && strings.TrimSpace(material.Content) == "" {
+		return integration.NothingToWorkWith()
+	}
+	return nil
 }

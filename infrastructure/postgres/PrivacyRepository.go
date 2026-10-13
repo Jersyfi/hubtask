@@ -32,11 +32,12 @@ func NewPrivacyRepository(cursors security.CursorCodec) PrivacyRepository {
 }
 
 var (
-	_ repository.Requests   = PrivacyRepository{}
-	_ repository.Consents   = PrivacyRepository{}
-	_ repository.Subjects   = PrivacyRepository{}
-	_ repository.Pseudonyms = PrivacyRepository{}
-	_ repository.Erasure    = PrivacyRepository{}
+	_ repository.Requests     = PrivacyRepository{}
+	_ repository.Consents     = PrivacyRepository{}
+	_ repository.Subjects     = PrivacyRepository{}
+	_ repository.Pseudonyms   = PrivacyRepository{}
+	_ repository.Erasure      = PrivacyRepository{}
+	_ repository.Restrictions = PrivacyRepository{}
 )
 
 // Insert records a new case.
@@ -720,4 +721,99 @@ func erasureFailed(what string, cause error) error {
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
 		WithCause(fmt.Errorf("%s: %w", what, cause))
+}
+
+// Standing answers every person whose newest record for a purpose is a withdrawal.
+func (r PrivacyRepository) Standing(ctx context.Context, purpose string) ([]repository.Objector, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.StandingWithdrawals(ctx, purpose)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading standing withdrawals: %w", err))
+	}
+	objectors := make([]repository.Objector, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		objectors = append(objectors, repository.Objector{
+			AccountID: id, DisplayName: row.DisplayName,
+			Email: stringFrom(row.Email), SignInName: stringFrom(row.SignInName),
+			Since: timeFrom(row.Since), Source: stringFrom(row.Source),
+		})
+	}
+	return objectors, nil
+}
+
+// RestrictedPeople answers whose processing is restricted.
+func (r PrivacyRepository) RestrictedPeople(ctx context.Context) ([]domain.RestrictedPerson, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.RestrictedPeople(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whose processing is restricted: %w", err))
+	}
+	people := make([]domain.RestrictedPerson, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		people = append(people, domain.RestrictedPerson{
+			AccountID: id, DisplayName: row.DisplayName,
+			Email: stringFrom(row.Email), SignInName: stringFrom(row.SignInName),
+		})
+	}
+	return people, nil
+}
+
+// NoticedAt answers when a person last acknowledged that their objection stopped taking effect.
+func (r PrivacyRepository) NoticedAt(ctx context.Context, accountID shared.ID) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return time.Time{}, err
+	}
+	at, err := queries.AiNoticedAt(ctx, account)
+	switch {
+	case IsNoRows(err):
+		return time.Time{}, nil
+	case err != nil:
+		return time.Time{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an AI notice: %w", err))
+	}
+	return timeFrom(at), nil
+}
+
+// Notice records an acknowledgement.
+func (r PrivacyRepository) Notice(ctx context.Context, accountID shared.ID, at time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return err
+	}
+	if err := queries.RecordAiNotice(ctx, sqlc.RecordAiNoticeParams{
+		AccountID: account, NoticedAt: timestampOf(at),
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("recording an AI notice: %w", err))
+	}
+	return nil
 }

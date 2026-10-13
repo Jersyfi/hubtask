@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { OFFERED_AI, stub } from './fixture.mjs';
+import { MANIFEST, OFFERED_AI, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -25,13 +25,13 @@ test.after(() => served.close());
 const LEVEL = {
   sign_in: {}, legal: {}, localisation: {}, quotas: {},
   ai: {
-    sources: { set: true, value: 'OFFERED', locked: true },
-    min_jurisdiction: { set: true, value: 'EEA', locked: false },
+    sources: { set: true, value: 'OFFERED', locked: true, kind: 'CHOICE', options: ['EITHER', 'OFFERED', 'OWN', 'NONE'], workspace_may: 'TIGHTEN' },
+    min_jurisdiction: { set: true, value: 'EEA', locked: false, kind: 'CHOICE', options: ['ANY', 'ADEQUACY', 'EEA', 'SELF_HOSTED'], workspace_may: 'TIGHTEN' },
   },
   source: 'database', is_enforced_from_file: false,
 };
 
-async function open(browser) {
+async function open(browser, { tenancy = 'multi' } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const sent = [];
   let models = [...OFFERED_AI];
@@ -40,6 +40,9 @@ async function open(browser) {
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    if (path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, tenancy_mode: tenancy, instance: { reachable: true } } });
     }
     if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: LEVEL });
     if (path === '/admin/ai-providers' && request.method() === 'GET') return route.fulfill({ json: models });
@@ -122,4 +125,23 @@ test('chromium: the defaults say in words which AI workspaces may use', async (t
   const minimum = page.getByRole('row').filter({ hasText: 'Their own model must process content' });
   assert.match(await minimum.textContent() ?? '', /In the EEA/);
   assert.doesNotMatch(await sources.textContent() ?? '', /OFFERED|ai\.sources/);
+});
+
+// UC-AI-06 check 8: a private installation (one workspace) has no model to offer, so neither the
+// installation's navigation nor its defaults speak of an offered one.
+test('chromium: a single-workspace installation draws no offered AI', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, { tenancy: 'single' });
+  t.after(close);
+
+  const read = page.waitForResponse((response) => response.url().endsWith('/api/v1/admin/settings'));
+  await page.goto(`${served.origin}/instance/settings`);
+  await read;
+  await page.locator('nav').first().waitFor();
+  await page.waitForTimeout(500);
+  assert.equal(await page.getByRole('row').filter({ hasText: 'Workspaces may use' }).count(), 0, 'the AI area is drawn');
+  const text = (await page.locator('main').textContent()) ?? '';
+  assert.doesNotMatch(text, /offered model/i, 'the defaults speak of an offered model');
+  assert.equal(await page.locator('a[href="/instance/ai"]').count(), 0, 'the installation offers an AI row');
 });
