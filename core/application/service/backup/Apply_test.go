@@ -414,6 +414,43 @@ func TestTheDeletionJournalKeepsAnErasedObjectOut(t *testing.T) {
 	}
 }
 
+// A cover is a reference the entry can lose and still be itself: an entry whose cover image was
+// erased after the archive was written comes back without its cover, and only the image stays away
+// (P-03, backup-restore.md §7). A join row or an attachment, whose identity *is* the reference,
+// is still kept out with what it points at.
+func TestAnEntryWhoseCoverWasErasedComesBackWithoutIt(t *testing.T) {
+	h := newApplyHarness(t, func(export *rows) {
+		containerRows(export)
+		export.byTable["work_item"][0].Data["cover_media_id"] = "m1"
+		export.byTable["media_object"] = []repository.Row{
+			{ID: "m1", ChangedAt: now.Add(-time.Hour), Data: map[string]any{"id": "m1"}},
+		}
+	})
+	h.journal.entries = []repository.Deletion{{
+		Entity: "media_object", EntityID: shared.ID("m1"),
+		DeletedAt: now.Add(time.Hour), Reason: "ERASURE",
+	}}
+
+	report, err := h.applier().Apply(context.Background(), h.accept(t, func(*domain.Restore) {}))
+	if err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+
+	entry, back := h.imports.tables["work_item"]["w1"]
+	if !back {
+		t.Fatal("the entry whose cover was erased did not come back")
+	}
+	if cover := entry["cover_media_id"]; cover != nil {
+		t.Errorf("the entry came back pointing at the erased image %v", cover)
+	}
+	if _, back := h.imports.tables["media_object"]["m1"]; back {
+		t.Error("the erased image came back")
+	}
+	if report.Deleted() != 1 {
+		t.Errorf("the report says the journal kept out %d, want only the image", report.Deleted())
+	}
+}
+
 // A deletion recorded *before* the archive was taken is not in the archive, so it is not a reason
 // to withhold anything - and reading the whole journal would be a pass over a table that outlives
 // every archive.
