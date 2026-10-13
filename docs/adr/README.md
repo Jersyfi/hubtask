@@ -116,3 +116,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0081](./ADR-0081-how-work-is-organised.md) | How work on Hubtask is organised | accepted | Process |
 | [0082](./ADR-0082-integration-in-production-shape.md) | The integration environment runs its database in production's shape | accepted | Operations |
 | [0083](./ADR-0083-a-merge-without-catching-up.md) | A pull request merges without catching up with `main` | accepted | CI, process |
+| [0084](./ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md) | The first major's shells cost nothing to ship | accepted | Clients, release |
