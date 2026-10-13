@@ -6315,7 +6315,7 @@ type IdentityProviderScope string
 
 // IdentityProviderConfiguration The provider, set whole. Discovery is performed before anything is stored, so an issuer that cannot be reached or that disagrees with its own metadata is refused here rather than by the first person who tries to sign in.
 type IdentityProviderConfiguration struct {
-	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids (`9188040d-6c67-4c5b-b112-36a304b66dad` is personal Microsoft accounts), Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list.
+	// AllowedDirectories The organisations this provider admits under `DOMAINS`, in its own identifiers: Microsoft tenant ids, Google Workspace domains. Refused for a preset that has no such claim, because a list nothing consults is worse than no list. A personal account comes in only by invitation: the directory of personal Microsoft accounts (`9188040d-6c67-4c5b-b112-36a304b66dad`) is refused here under `DOMAINS` and `ANY` (`identity_provider.directory_personal`), and only narrows under `INVITED_ONLY`.
 	// **Required for a multi-directory issuer.** `login.microsoftonline.com/common/v2.0` with no directories named is every organisation in the world, and that is a decision rather than a default.
 	AllowedDirectories *[]string `json:"allowed_directories,omitempty"`
 
@@ -6374,7 +6374,7 @@ type IdentityProviderPreset struct {
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation. A preset that is public only at some of its issuers is not marked public: Microsoft's `consumers` and `common` issuers, and the personal-account directory's own, are refused `ANY` when configured (`identity_provider.provisioning_personal`), so `provisioning` may list a mode such an issuer refuses.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.

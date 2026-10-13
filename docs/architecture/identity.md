@@ -280,7 +280,7 @@ rows every workspace reads and none writes. An installation provider is **offere
 
 | Preset | Directory claim | Authoritative for an address when | Mode allowed |
 |---|---|---|---|
-| `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any |
+| `MICROSOFT` | `tid` | `xms_edov` is present **and** `true` (the `email` claim alone never is) | any, but never `ANY` on an issuer that serves personal accounts (`/consumers`, `/common`, the personal-account directory's own), and never that directory listed under `DOMAINS` or `ANY`: a personal account comes in only by invitation |
 | `GOOGLE` | `hd` | the address is at `gmail.com`/`googlemail.com`, or `hd` equals the address's domain | `INVITED_ONLY` or `DOMAINS`, never `ANY` (a public issuer: a personal account carries no `hd` and comes in only by invitation) |
 | `GENERIC` | none | never — a self-hosted issuer included | any; at installation level `INVITED_ONLY` only |
 
@@ -319,6 +319,11 @@ An unverified address comes in nowhere. Then:
 * A mode a build does not know admits nobody.
 * Microsoft's personal-account directory is `9188040d-6c67-4c5b-b112-36a304b66dad`; a company's is
   its tenant GUID. Google directories are Workspace domains as `hd` answers them.
+* **A personal account is admitted only by invitation** (UC-ID-09 check 1): configuration refuses
+  what §10.3 rules out (`identity_provider.directory_personal`,
+  `identity_provider.provisioning_personal`), and a row stored before reads an arrival from the
+  personal-account directory under `DOMAINS` or `ANY` as under `INVITED_ONLY`, its list narrowing
+  it — so it creates nobody, and the identities already connected through it keep working.
 
 ### 10.5 What a provider asks for
 
