@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
-import { countOf, documentOf, lockCode, rowsOf } from './values.ts';
+import { countOf, documentOf, draftEntry, lockCode, rowsOf } from './values.ts';
 
 const count = (extra: Partial<InstanceSetting> = {}): InstanceSetting => ({
   set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, workspace_may: 'TIGHTEN', ...extra,
@@ -48,4 +48,22 @@ test('the areas are drawn in the screen order, each key in its declared position
     sign_in: { min_digits: count({ position: 3 }), min_length: count({ position: 0 }) },
   });
   assert.deepEqual(rows.map((row) => `${row.area}.${row.key}`), ['sign_in.min_length', 'sign_in.min_digits', 'ai.sources']);
+});
+
+test("the terms' version is locked exactly when the terms link is, while the form is open", () => {
+  const link = (locked: boolean): InstanceSetting => ({
+    set: true, value: 'https://host.example/terms', locked, kind: 'LINK', workspace_may: 'REPLACE',
+  });
+  const version: InstanceSetting = { set: true, value: '3', locked: false, kind: 'TEXT', workspace_may: 'REPLACE' };
+  const draft = (locked: boolean): InstanceSettings => ({
+    legal: { terms_url: link(locked), terms_version: version },
+    blocklist_file: '',
+  });
+
+  assert.equal(draftEntry(draft(true), 'legal', 'terms_version')?.locked, true);
+  assert.equal(draftEntry(draft(false), 'legal', 'terms_version')?.locked, false);
+  // Any other key keeps its own lock, and an undecided one is undecided.
+  assert.equal(draftEntry(draft(true), 'legal', 'terms_url')?.locked, true);
+  const undecided: InstanceSettings = { legal: { terms_version: { ...version, set: false } }, blocklist_file: '' };
+  assert.equal(draftEntry(undecided, 'legal', 'terms_version'), undefined);
 });
