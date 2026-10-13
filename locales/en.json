@@ -103,6 +103,7 @@
   "access.token_not_administrable": "Somebody else's access tokens are theirs. You can disable the account or revoke its permissions instead.",
   "access.token_unmintable": "This installation could not draw a token. Try again.",
   "access.not_permitted": "Your role in this workspace does not allow that ({permission}).",
+  "access.role_above_own": "You can give a role only up to your own here, and {role} is above it.",
   "access.account_not_active": "This account cannot be used at the moment. Its status is {status}.",
   "auth.sign_in_failed": "Sign-in failed. Check the email address and the password.",
   "auth.identifier_one": "Send who is signing in once: an address or a sign-in name, not both and not neither.",

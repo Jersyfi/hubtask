@@ -9,22 +9,27 @@
   // in this component only until the reader dismisses it, and the slip exists in the document only
   // while the browser prints it - a credential is in the DOM no longer than its one showing.
 
+  import { untrack } from 'svelte';
+
   import { Banner, Button, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { containers } from '../data/containers.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { grantableOf } from '../data/people.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import StartPasswordResult from './StartPasswordResult.svelte';
 
   interface Props {
-    /** The roles the installation reports, already labelled. */
-    roleOptions: readonly { value: string; label: string }[];
+    /** The roles the installation reports, in its order. */
+    roles: readonly MembershipRole[];
+    /** The ones the reader may give at the workspace, already read by the screen. */
+    workspaceRoles: readonly MembershipRole[];
   }
 
-  const { roleOptions }: Props = $props();
+  const { roles, workspaceRoles }: Props = $props();
 
   /** The workspace itself, or one hub - what a person is given a place in from this screen. */
   const WORKSPACE = '';
@@ -38,6 +43,29 @@
   let nameError = $state<string | undefined>(undefined);
   /** The one answer that carried the start password, until the reader dismisses it. */
   let created = $state<{ signInName: string; startPassword: string } | undefined>(undefined);
+
+  /**
+   * The roles offered follow the place chosen: what the reader may give is decided along that
+   * place's path - a hub they own offers Owner, a private hub they hold less in offers less
+   * (domain-model.md §3.2). A hub's answer is read when it is chosen; until it arrives, none.
+   */
+  const placeScope = $derived(where === WORKSPACE ? undefined : { scopeType: 'HUB' as const, scopeId: where });
+  $effect(() => {
+    const scope = placeScope;
+    if (scope) untrack(() => people.openScope(scope));
+  });
+  const placeAnswer = $derived(placeScope ? people.grantableAt(placeScope) : workspaceRoles);
+  const roleOptions = $derived(
+    grantableOf(roles, placeAnswer).map((option) => ({
+      value: option,
+      label: t(`app.people.role.${option.toLowerCase()}`),
+    })),
+  );
+  // A role chosen for one place is not carried to a place that, once it has answered, does not
+  // offer it.
+  $effect(() => {
+    if (role && placeAnswer && !roleOptions.some((option) => option.value === role)) role = '';
+  });
 
   const whereOptions = $derived([
     { value: WORKSPACE, label: t('app.people.managed_where_workspace') },

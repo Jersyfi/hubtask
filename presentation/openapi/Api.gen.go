@@ -7242,7 +7242,13 @@ type MembershipGrant struct {
 // MembershipPage defines model for MembershipPage.
 type MembershipPage struct {
 	Data []Membership `json:"data"`
-	Page PageInfo     `json:"page"`
+
+	// GrantableRoles The roles the caller may grant at this scope, strongest first: those at or below the
+	// strongest role they hold along it, where they may manage members there. Empty where
+	// every grant here would be refused, a token without `members:write` included. A client
+	// offers exactly these.
+	GrantableRoles []MembershipRole `json:"grantable_roles"`
+	Page           PageInfo         `json:"page"`
 }
 
 // MembershipRole `AUDITOR` is the one that is not a rung on the same ladder: it reads the audit trail and

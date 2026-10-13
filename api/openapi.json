@@ -8177,7 +8177,7 @@
         ],
         "operationId": "grantMembership",
         "summary": "Grant a role at a scope",
-        "description": "To an account or to a group, never both. The role applies downwards from the scope:\na role at a hub applies to its collections and their items.\n\nGranting `OWNER` is a privileged action: it demands a fresh step-up,\npresented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`\nwithout one.\n",
+        "description": "To an account or to a group, never both. The role applies downwards from the scope:\na role at a hub applies to its collections and their items.\n\nNobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a\nrole along its path at least as strong as the one granted - an owner gives any role, an\nadministrator any but `OWNER`. A role above is refused with `access.role_above_own` (403),\nbefore any step-up is asked. `GET /memberships` answers the roles the caller may grant at\na scope as `grantable_roles`.\n\nGranting `OWNER` is a privileged action: it demands a fresh step-up,\npresented in the `X-Hubtask-Step-Up` header, and refuses with `auth.step_up_required`\nwithout one.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -17141,7 +17141,8 @@
         "type": "object",
         "required": [
           "data",
-          "page"
+          "page",
+          "grantable_roles"
         ],
         "properties": {
           "data": {
@@ -17152,6 +17153,13 @@
           },
           "page": {
             "$ref": "#/components/schemas/PageInfo"
+          },
+          "grantable_roles": {
+            "type": "array",
+            "description": "The roles the caller may grant at this scope, strongest first: those at or below the\nstrongest role they hold along it, where they may manage members there. Empty where\nevery grant here would be refused, a token without `members:write` included. A client\noffers exactly these.\n",
+            "items": {
+              "$ref": "#/components/schemas/MembershipRole"
+            }
           }
         }
       },

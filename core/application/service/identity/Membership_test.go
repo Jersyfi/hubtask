@@ -206,6 +206,30 @@ func TestTheGrantIsAuthorisedAtItsOwnScope(t *testing.T) {
 	}
 }
 
+// Nobody grants above their own role (domain-model.md §3.2): the use case asks with the role it
+// hands out, and the authoriser's refusal stops it before the step-up is asked and before
+// anything is written. Through Execute, which MCP, hubctl and REST all reach.
+func TestAnAdministratorCannotGrantOwner(t *testing.T) {
+	above := shared.ErrForbidden.WithDetail("access.role_above_own").WithParams(map[string]string{"role": "OWNER"})
+	auth := &authorizer{refuse: above}
+	grants, sink := newGrants(), &auditSink{}
+
+	_, err := grantHandler(grants, newAccounts(invitedAccount(t)), newGroups(), auth, sink).
+		Execute(t.Context(), admin(), GrantMembershipCommand{
+			AccountID: invitedID, Scope: domain.TenantScope(), Role: domain.RoleOwner,
+		})
+
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own before the step-up", err)
+	}
+	if len(auth.requests) != 1 || auth.requests[0].Grants != domain.RoleOwner {
+		t.Errorf("the grant was asked as %+v, want it to name OWNER", auth.requests)
+	}
+	if len(grants.granted) != 0 || len(sink.entries) != 0 {
+		t.Errorf("a refused grant wrote %v and %v", grants.granted, sink.entries)
+	}
+}
+
 // Granting to somebody who is not here says so, rather than surfacing as a foreign key violation
 // from three layers down.
 func TestGrantingToAnAccountThatIsNotHereIsNotFound(t *testing.T) {

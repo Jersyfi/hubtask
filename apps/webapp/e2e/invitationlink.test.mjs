@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, INVITED, MANIFEST, PAGE, stub } from './fixture.mjs';
+import { ACCOUNT, ADMIN_GRANTS, INVITED, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -26,10 +26,11 @@ test.after(() => served.close());
 
 const roles = [
   { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] },
+  { role: 'ADMIN', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS'] },
   { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS'] },
 ];
 
-async function open(browser, { mail, invite }, sent) {
+async function open(browser, { mail, invite, grants = OWNER_GRANTS }, sent) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -43,7 +44,7 @@ async function open(browser, { mail, invite }, sent) {
         ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' },
           { id: 'm-bert', scope_type: 'TENANT', account_id: INVITED.id, role: 'MEMBER' }]
         : [];
-      return route.fulfill({ json: { ...PAGE, data: rows } });
+      return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: grants } });
     }
     if (path === '/memberships' && request.method() === 'POST') {
       sent.grant = request.postDataJSON();
@@ -198,6 +199,46 @@ test('with mail the screen is what it was: a mail is promised, sent, and no link
     await form.getByRole('button', { name: 'Send the invitation' }).click();
     await page.getByText('Invitation sent to anna@example.invalid', { exact: false }).waitFor();
     assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a link was drawn beside a mail');
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
+// UC-ID-14 check 1: an administrator is offered every role but Owner, in the invitation and in the
+// grant alike - the server's `grantable_roles`, not the manifest's whole list.
+test('an administrator is not offered Owner', async () => {
+  const browser = await chromium.launch();
+  const { page, close } = await open(browser, { mail: true, invite: linked, grants: ADMIN_GRANTS }, {});
+  try {
+    await page.goto(`${served.origin}/administration/people`);
+    const inviteForm = page.locator('form').filter({ has: page.getByLabel('Email address') });
+    await inviteForm.getByLabel('Role').waitFor();
+    const offered = async (select) => select.locator('option').evaluateAll((options) => options.map((option) => option.value));
+    const invitable = await offered(inviteForm.getByLabel('Role'));
+    assert.equal(invitable.includes('OWNER'), false, 'the invitation offers Owner');
+    assert.ok(invitable.includes('ADMIN') && invitable.includes('MEMBER'), `the invitation offers ${invitable}`);
+    const roleSelects = page.getByLabel('Role');
+    for (let index = 0; index < await roleSelects.count(); index += 1) {
+      const values = await offered(roleSelects.nth(index));
+      assert.equal(values.includes('OWNER'), false, `a role select offers Owner: ${values}`);
+    }
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
+// Where the server says nothing may be given here, nothing is offered: the people are listed and
+// the invitation and the grant are absent rather than refused (P-05).
+test('a reader who may grant nothing sees the people and no form', async () => {
+  const browser = await chromium.launch();
+  const { page, close } = await open(browser, { mail: true, invite: linked, grants: [] }, {});
+  try {
+    await page.goto(`${served.origin}/administration/people`);
+    await page.getByRole('row').filter({ hasText: 'Bert' }).waitFor();
+    assert.equal(await page.getByLabel('Email address').count(), 0, 'the invitation is drawn');
+    assert.equal(await page.getByRole('button', { name: 'Grant' }).count(), 0, 'the grant is drawn');
   } finally {
     await close();
     await browser.close();

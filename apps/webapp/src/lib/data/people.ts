@@ -168,3 +168,20 @@ export function ownershipOf(
   const remaining = holders.some((holder) => holder.membershipId !== membershipId && reaches(holder));
   return remaining ? 'own' : 'last';
 }
+
+/**
+ * The roles a form may offer at a scope: the installation's roles, in the manifest's order, that
+ * the server says this reader may grant there (`grantable_roles`, domain-model.md §3.2).
+ *
+ * Both halves, because each says something the other does not: the manifest is which roles exist
+ * and how they are ordered, the scope's answer which of them this reader may give. A role in only
+ * one of the two is not offered, and before the scope has answered nothing is (P-05): an
+ * administrator is never shown *Owner* only to be refused.
+ */
+export function grantableOf(
+  installed: readonly MembershipRole[],
+  grantable: readonly MembershipRole[] | undefined,
+): readonly MembershipRole[] {
+  if (!grantable) return [];
+  return installed.filter((role) => grantable.includes(role));
+}

@@ -185,6 +185,7 @@
   "access.token_not_administrable": "Die Zugriffstoken anderer gehören ihnen. Du kannst stattdessen das Konto deaktivieren oder seine Berechtigungen entziehen.",
   "access.token_unmintable": "Diese Installation konnte kein Token ausstellen. Versuche es noch einmal.",
   "access.not_permitted": "Deine Rolle in diesem Workspace erlaubt das nicht ({permission}).",
+  "access.role_above_own": "Du kannst hier nur Rollen bis zu deiner eigenen vergeben, und {role} liegt darüber.",
   "access.account_not_active": "Dieses Konto kann im Moment nicht verwendet werden. Sein Status ist {status}.",
   "access.tenant_suspended": "Dieser Workspace ist gesperrt. Seine Daten bleiben erhalten; wende dich an den Betreiber.",
   "access.tenant_pending_deletion": "Dieser Workspace wird gelöscht. Während der Frist ist der Zugang geschlossen.",

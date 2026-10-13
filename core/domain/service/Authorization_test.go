@@ -4,6 +4,7 @@
 package service_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -323,5 +324,70 @@ func TestOnAPrivateHubTheHubsRoleCountsAndTheWorkspacesDoesNot(t *testing.T) {
 	}
 	if !service.Allows(held, collectionPth, service.SharedPath, service.PermissionDeleteContainer) {
 		t.Error("on a shared hub the workspace's ownership stopped counting")
+	}
+}
+
+// Nobody hands out a role above the strongest one they hold along the path (domain-model.md
+// §3.2): an administrator is not offered OWNER, and the owner of a hub gives OWNER on that hub.
+func TestMayGrant(t *testing.T) {
+	workspace := []identity.Scope{identity.TenantScope()}
+	held := func(memberships ...identity.Membership) []identity.Membership { return memberships }
+
+	cases := []struct {
+		name    string
+		held    []identity.Membership
+		path    []identity.Scope
+		privacy service.Privacy
+		role    identity.Role
+		want    bool
+	}{
+		{"an owner gives owner", held(grant(identity.TenantScope(), identity.RoleOwner)), workspace, service.SharedPath, identity.RoleOwner, true},
+		{"an owner gives an auditor", held(grant(identity.TenantScope(), identity.RoleOwner)), workspace, service.SharedPath, identity.RoleAuditor, true},
+		{"an administrator does not give owner", held(grant(identity.TenantScope(), identity.RoleAdmin)), workspace, service.SharedPath, identity.RoleOwner, false},
+		{"an administrator gives administrator", held(grant(identity.TenantScope(), identity.RoleAdmin)), workspace, service.SharedPath, identity.RoleAdmin, true},
+		{"an administrator gives a guest", held(grant(identity.TenantScope(), identity.RoleAdmin)), workspace, service.SharedPath, identity.RoleGuest, true},
+		{"an administrator gives an auditor", held(grant(identity.TenantScope(), identity.RoleAdmin)), workspace, service.SharedPath, identity.RoleAuditor, true},
+		{"an administrator does not give owner on a hub", held(grant(identity.TenantScope(), identity.RoleAdmin)), hubPath, service.SharedPath, identity.RoleOwner, false},
+		{"a hub's owner gives owner on it", held(grant(identity.TenantScope(), identity.RoleAdmin), grant(identity.HubScope(hub), identity.RoleOwner)), hubPath, service.SharedPath, identity.RoleOwner, true},
+		{"a hub's owner gives owner on a collection in it", held(grant(identity.HubScope(hub), identity.RoleOwner)), collectionPth, service.SharedPath, identity.RoleOwner, true},
+		{"a hub's owner gives nothing at the workspace", held(grant(identity.HubScope(hub), identity.RoleOwner)), workspace, service.SharedPath, identity.RoleGuest, false},
+		{"a hub's administrator does not give owner on a collection", held(grant(identity.HubScope(hub), identity.RoleAdmin)), collectionPth, service.SharedPath, identity.RoleOwner, false},
+		{"a hub's owner gives nothing on another hub", held(grant(identity.HubScope(otherHub), identity.RoleOwner)), hubPath, service.SharedPath, identity.RoleGuest, false},
+		{"a member gives nothing", held(grant(identity.TenantScope(), identity.RoleMember)), workspace, service.SharedPath, identity.RoleGuest, false},
+		{"an auditor gives nothing", held(grant(identity.TenantScope(), identity.RoleAuditor)), workspace, service.SharedPath, identity.RoleAuditor, false},
+		{"an auditor beside an administrator gives administrator", held(grant(identity.TenantScope(), identity.RoleAuditor), grant(identity.TenantScope(), identity.RoleAdmin)), workspace, service.SharedPath, identity.RoleAdmin, true},
+		{"the workspace's owner gives nothing in a private hub", held(grant(identity.TenantScope(), identity.RoleOwner)), hubPath, service.PrivatePath, identity.RoleGuest, false},
+		{"a private hub's owner gives owner in it", held(grant(identity.HubScope(hub), identity.RoleOwner)), hubPath, service.PrivatePath, identity.RoleOwner, true},
+		{"an unknown role is given by nobody", held(grant(identity.TenantScope(), identity.RoleOwner)), workspace, service.SharedPath, identity.Role("SUPERUSER"), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := service.MayGrant(c.held, c.path, c.privacy, c.role); got != c.want {
+				t.Errorf("MayGrant(%s) = %v, want %v", c.role, got, c.want)
+			}
+		})
+	}
+}
+
+// The list a client offers is MayGrant's answer for every role, in the order roles rank.
+func TestGrantableRolesAreWhatMayGrantPermits(t *testing.T) {
+	cases := []struct {
+		name string
+		held identity.Role
+		want []identity.Role
+	}{
+		{"owner", identity.RoleOwner, []identity.Role{identity.RoleOwner, identity.RoleAdmin, identity.RoleMember,
+			identity.RoleContributor, identity.RoleViewer, identity.RoleGuest, identity.RoleAuditor}},
+		{"administrator", identity.RoleAdmin, []identity.Role{identity.RoleAdmin, identity.RoleMember,
+			identity.RoleContributor, identity.RoleViewer, identity.RoleGuest, identity.RoleAuditor}},
+		{"member", identity.RoleMember, []identity.Role{}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := service.GrantableRoles([]identity.Membership{grant(identity.TenantScope(), c.held)}, hubPath, service.SharedPath)
+			if !slices.Equal(got, c.want) {
+				t.Errorf("GrantableRoles = %v, want %v", got, c.want)
+			}
+		})
 	}
 }
