@@ -28,6 +28,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/expression"
+	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 )
 
 // CEL is the compiler, and it holds nothing per expression.
@@ -55,6 +56,36 @@ func (CEL) Compile(
 		return nil, port.Refusal{Code: port.CodeSyntax}.Error()
 	}
 
+	// The checker takes no context and cannot be interrupted, so the deadline is a wait with a
+	// limit: past it the caller has its refusal and the compilation finishes unobserved. What
+	// bounds that leftover work is MaxDepth, applied by the parser before the checker starts; the
+	// deadline is the backstop for a shape the depth does not catch.
+	done := make(chan compilation, 1)
+	concurrency.Go(context.Background(), "expression.compile", func(context.Context) {
+		program, err := compileNow(text, environment, want)
+		done <- compilation{program: program, err: err}
+	})
+	deadline := time.NewTimer(compileTimeout)
+	defer deadline.Stop()
+	select {
+	case result := <-done:
+		return result.program, result.err
+	case <-deadline.C:
+		return nil, port.Refusal{Code: port.CodeTooComplex}.Error()
+	}
+}
+
+// compileTimeout is port.CompileTimeout, a variable so that a test can prove the deadline without
+// building an expression slow enough to meet the real one.
+var compileTimeout = port.CompileTimeout
+
+type compilation struct {
+	program port.Program
+	err     error
+}
+
+// compileNow parses, checks and plans one expression, with no deadline of its own.
+func compileNow(text string, environment port.Environment, want port.Result) (port.Program, error) {
 	env, err := environmentOf(environment)
 	if err != nil {
 		return nil, err
@@ -219,6 +250,8 @@ func environmentOf(environment port.Environment) (*cel.Env, error) {
 		// discovering it at evaluation.
 		cel.EagerlyValidateDeclarations(true),
 		cel.DefaultUTCTimeZone(true),
+		// Depth, not length, is what makes a compile slow (port.MaxDepth).
+		cel.ParserRecursionLimit(port.MaxDepth),
 	}
 	for _, variable := range environment.Variables {
 		celType, err := typeOf(variable.Kind)
@@ -273,6 +306,13 @@ func refusalOf(err error) port.Refusal {
 		// "you named something that does not exist" and "this is not an expression" send their
 		// reader to two different places.
 		refusal.Code = port.CodeUnknownName
+	}
+	if strings.Contains(message, "recursion limit exceeded") ||
+		strings.Contains(message, "max recursion depth exceeded") ||
+		strings.Contains(message, "expression count exceeds limit") {
+		// Nested too deeply, or expanded into too many nodes: well formed perhaps, and still
+		// refused, so "not a valid expression" would send its author looking for a typo.
+		return port.Refusal{Code: port.CodeTooComplex, Message: message}
 	}
 	refusal.Position = positionIn(message)
 	return refusal

@@ -805,6 +805,7 @@
   "expression.syntax": "That is not a valid expression. Check it at line {line}, column {column}.",
   "expression.unknown_name": "That expression uses a name this rule cannot see. Check it at line {line}, column {column}.",
   "expression.too_long": "That expression is too long.",
+  "expression.too_complex": "That expression is nested too deeply to check. Simplify it, or split it into several conditions.",
   "expression.not_boolean": "A condition has to answer true or false.",
   "expression.not_string": "A template has to produce text.",
   "expression.too_expensive": "That expression costs too much to evaluate. Simplify it.",

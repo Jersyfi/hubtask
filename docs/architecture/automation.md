@@ -131,6 +131,7 @@ never learns of it (ADR-0001).
 | Limit | Value | Note |
 |---|---|---|
 | Expression length | 4096 bytes | Checked **before** the parser |
+| Nesting depth | 64, as the parser counts it | Length does not bound type-checking; depth does. Compiling also has a 1 s deadline, a backstop (`expression.too_complex`) |
 | Cost | the evaluator's own budget | Bounded statically too: an expensive rule is refused when saved |
 | Timeout | 50 ms | **Per expression**, not per rule |
 
