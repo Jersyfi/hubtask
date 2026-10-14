@@ -182,7 +182,7 @@ for (const locale of ['en', 'de']) {
   });
 }
 
-// UC-ID-11, #1322: a workspace choosing Google has its one issuer filled in; another provider takes
+// UC-ID-11: a workspace choosing Google has its one issuer filled in; another provider takes
 // it out again.
 test('chromium: choosing Google fills its issuer in a workspace too', async (t) => {
   const browser = await chromium.launch();

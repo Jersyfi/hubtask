@@ -206,7 +206,7 @@ test('chromium: each offered provider says what the lock on the ways to sign in 
   assert.equal(await byDomain.locator('[data-lock]').count(), 0);
 });
 
-// UC-INS-11 check 1, #1322: choosing Google fills the one issuer it has; choosing another provider
+// UC-INS-11 check 1: choosing Google fills the one issuer it has; choosing another provider
 // takes it out again, and what somebody typed stays.
 test('chromium: choosing Google fills its issuer, another provider takes it out', async (t) => {
   const browser = await chromium.launch();
