@@ -222,6 +222,11 @@ func (h StepUp) prove(
 	return method, nil
 }
 
+// recoveryCodeInvalid is a refused recovery code. Not the authenticator's sentence: the person
+// typing one is usually the one without the authenticator. Which of the two was asked for is the
+// caller's own choice, so the difference tells a guesser nothing.
+const recoveryCodeInvalid = "auth.recovery_code_invalid"
+
 // burnRecoveryCode spends one recovery code as the proof (ADR-0075 §1), exactly as the sign-in's
 // second step spends one: burned in the statement that matches it, and the trail told how many are
 // left - a run of these is what an account takeover looks like from the trail.
@@ -229,7 +234,7 @@ func (w SessionWriter) burnRecoveryCode(
 	ctx context.Context, actor appshared.ActorContext, presented secret.Secret, now time.Time,
 ) error {
 	if w.Recovery == nil {
-		return shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+		return shared.ErrUnauthenticated.WithDetail(recoveryCodeInvalid)
 	}
 	burned, err := w.Recovery.Burn(ctx, actor.AccountID, presented.Reveal(), now)
 	if err != nil {
@@ -237,7 +242,7 @@ func (w SessionWriter) burnRecoveryCode(
 	}
 	if !burned {
 		w.failure(ctx, FailureMfa)
-		return shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+		return shared.ErrUnauthenticated.WithDetail(recoveryCodeInvalid)
 	}
 	left, err := w.Recovery.Remaining(ctx, actor.AccountID)
 	if err != nil {

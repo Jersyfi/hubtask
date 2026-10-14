@@ -21,7 +21,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { fallback, unstubbedSoFar } from './fixture.mjs';
+import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -56,7 +56,7 @@ async function stub(route) {
   if (path === '/sync:pull') return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path === '/accounts/me') return route.fulfill({ json: ACCOUNT });
   if (path === '/meta/capabilities') {
-    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], query_fields: [{ field: 'assignee_id', operators: ['EQ'] }, { field: 'is_completed', operators: ['EQ'] }, { field: 'due_at', operators: ['IS_NULL'] }] } });
+    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], query_fields: [{ field: 'assignee_id', operators: ['EQ'] }, { field: 'is_completed', operators: ['EQ'] }, { field: 'due_at', operators: ['IS_NULL'] }], workspace_permissions: PERMISSIONS.MEMBER } });
   }
   if (path === '/search') {
     searched = route.request().postDataJSON();

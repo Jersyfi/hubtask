@@ -17,7 +17,9 @@
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { health } from '../lib/data/health.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
+  import { rowsOf } from '../lib/instance/values.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -43,10 +45,13 @@
     return () => stops.forEach((stop) => stop());
   });
 
-  /** How many of the installation's switches are decided, and how many of those are locked. */
-  const signIn = $derived.by(() => {
+  /**
+   * How many of the installation's settings are decided, and how many of those are locked: every
+   * area, as *Defaults* counts them, so the two screens give one number.
+   */
+  const decided = $derived.by(() => {
     const settings = instance.settings.status === 'ready' ? instance.settings.data : undefined;
-    const entries = Object.values(settings?.sign_in ?? {});
+    const entries = rowsOf(settings).map((row) => row.setting);
     return {
       decided: entries.filter((entry) => entry.set).length,
       total: entries.length,
@@ -123,14 +128,18 @@
             <dt>{t('app.instance.workspaces_active')}</dt>
             <dd>{census.workspaces_active}</dd>
           </div>
-          <div class="count">
-            <dt>{t('app.instance.workspaces_suspended')}</dt>
-            <dd>{census.workspaces_suspended}</dd>
-          </div>
-          <div class="count">
-            <dt>{t('app.instance.workspaces_pending_deletion')}</dt>
-            <dd>{census.workspaces_pending_deletion}</dd>
-          </div>
+          {#if !manifest.isSingleTenant}
+            <!-- A single installation's one workspace is neither suspended nor deleted from here
+                 (the server refuses both), so it is shown no counter for either. -->
+            <div class="count">
+              <dt>{t('app.instance.workspaces_suspended')}</dt>
+              <dd>{census.workspaces_suspended}</dd>
+            </div>
+            <div class="count">
+              <dt>{t('app.instance.workspaces_pending_deletion')}</dt>
+              <dd>{census.workspaces_pending_deletion}</dd>
+            </div>
+          {/if}
           <div class="count">
             <dt>{t('app.instance.accounts_active')}</dt>
             <dd>{census.accounts_active}</dd>
@@ -154,7 +163,7 @@
           <div class="entry">
             <dt>{t('app.instance.settings')}</dt>
             <dd>
-              <span>{t('app.instance.digest_sign_in', { decided: signIn.decided, total: signIn.total, locked: signIn.locked })}</span>
+              <span>{t('app.instance.digest_settings', { decided: decided.decided, total: decided.total, locked: decided.locked })}</span>
               <Button tone="subtle" size="sm" onclick={() => onnavigate('/instance/settings')}>
                 {t('app.instance.digest_change')}
               </Button>

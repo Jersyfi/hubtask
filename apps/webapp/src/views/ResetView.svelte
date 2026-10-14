@@ -73,8 +73,10 @@
 
 {#snippet notice()}
   {#if oidc.failure}
-    <!-- The server's own code: a link that cannot be used, or a provider that is not there. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+    <!-- The server's own sentence: a link that cannot be used, or a provider that is not there. -->
+    <Banner tone="danger" title={oidc.failure.message}>
+      {#if oidc.failure.reference}{oidc.failure.reference}{/if}
+    </Banner>
   {:else if passwordApi.problem}
     <Banner tone="danger" title={passwordApi.problem.message}>
       {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}

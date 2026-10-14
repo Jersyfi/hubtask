@@ -646,6 +646,7 @@ class ProviderWithdrawal(TypedDict, total=False):
 class IdentityProviderPreset(TypedDict, total=False):
     """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
     kind: Required["IdentityProviderKind"]
+    issuer: str | None
     scopes: Required[list[str]]
     addresses_verified: Required[bool]
     public: Required[bool]
@@ -2587,6 +2588,7 @@ class Capabilities(TypedDict, total=False):
     features: dict[str, Any]
     legal: "LegalLinks"
     instance: "InstanceReach"
+    workspace_permissions: list[Literal["READ", "WRITE_ITEMS", "STRUCTURE", "MANAGE_MEMBERS", "AUTOMATION", "DELETE_CONTAINER", "READ_CONFIGURATION", "AUDIT_READ"]]
     deprecations: list["DeprecatedField"]
 
 class DeprecatedField(TypedDict, total=False):

@@ -23,7 +23,8 @@ and lands in the workspace with the role they were given.
 The invitation opens the sign-in card for that workspace: "You were invited to *Family*". One
 password field with the rules ticking off, and, where the workspace offers a provider, "or continue
 with Contoso Entra ID". Where the operator or the workspace set terms, a sentence with the link and
-a box to agree. After that the person is signed in and sees what their role lets them see. The same
+a box to agree. After that the person is signed in and sees what their role lets them see — or,
+where the workspace requires a second factor of them, first sets one up, as at any sign-in. The same
 invitation used twice, or after it expired, gets one plain sentence and the name of whom to ask.
 
 ## How to check

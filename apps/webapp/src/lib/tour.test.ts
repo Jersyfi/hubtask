@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { stepsFor } from './tour.ts';
 
 test('a workspace with a collection and an entry is walked through all six steps, and led to add an entry', () => {
-  const steps = stepsFor({ collectionId: 'col-1', itemId: 'it-1' });
+  const steps = stepsFor({ collectionId: 'col-1', itemId: 'it-1', hasJumble: true });
   assert.deepEqual(steps.map((s) => s.id), ['hubs', 'layouts', 'entry', 'jumble', 'search', 'profile', 'make']);
   assert.equal(steps[1]?.route, '/collections/col-1');
   assert.equal(steps[2]?.route, '/items/it-1');
@@ -17,12 +17,16 @@ test('a workspace with a collection and an entry is walked through all six steps
 });
 
 test('a fresh workspace leaves out what it cannot point at, and the seventh leads to the first hub', () => {
-  const steps = stepsFor({});
+  const steps = stepsFor({ hasJumble: true });
   assert.deepEqual(steps.map((s) => s.id), ['hubs', 'jumble', 'search', 'profile', 'make']);
   assert.equal(steps.at(-1)?.route, '/');
   assert.equal(steps.at(-1)?.selector, '[data-tour="hubs"]');
 });
 
 test('a collection without an entry keeps the list step and drops the entry step', () => {
-  assert.deepEqual(stepsFor({ collectionId: 'c' }).map((s) => s.id), ['hubs', 'layouts', 'jumble', 'search', 'profile', 'make']);
+  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: true }).map((s) => s.id), ['hubs', 'layouts', 'jumble', 'search', 'profile', 'make']);
+});
+
+test('somebody the jumble is not drawn for is not toured through it', () => {
+  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'layouts', 'search', 'profile', 'make']);
 });

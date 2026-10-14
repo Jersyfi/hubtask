@@ -19,9 +19,11 @@ import {
   changeVerdict,
   childVerdict,
   declaresType,
+  holdsOnWorkspace,
   itemAccess,
   itemPermitted,
   permissionVerdict,
+  reachesAdministration,
   rootTypes,
   typesWith,
 } from './capability.ts';
@@ -307,4 +309,24 @@ test('what a role may do to one entry: unqualified, assigned only, never - and u
   assert.equal(itemPermitted(matrix, null, 'change', true), false);
   assert.equal(itemPermitted(matrix, undefined, 'change', true), undefined);
   assert.equal(itemPermitted(undefined, 'MEMBER', 'change', true), undefined);
+});
+
+test('what the reader holds on the workspace is the manifest answer, and unknown until it gives one', () => {
+  const member = { workspace_permissions: ['READ', 'WRITE_ITEMS', 'AUTOMATION'] } as unknown as Capabilities;
+  assert.equal(holdsOnWorkspace(member, 'WRITE_ITEMS'), true);
+  assert.equal(holdsOnWorkspace(member, 'STRUCTURE'), false);
+  // Read anonymously, or not read: nothing is known about this reader.
+  assert.equal(holdsOnWorkspace({} as Capabilities, 'READ'), undefined);
+  assert.equal(holdsOnWorkspace(undefined, 'READ'), undefined);
+  // Somebody whose roles sit only below the workspace holds nothing on it.
+  assert.equal(holdsOnWorkspace({ workspace_permissions: [] } as unknown as Capabilities, 'READ'), false);
+});
+
+test('the administration is reached with STRUCTURE or the auditor READ_CONFIGURATION, and by nobody else', () => {
+  const holding = (permissions: string[]) => ({ workspace_permissions: permissions }) as unknown as Capabilities;
+  assert.equal(reachesAdministration(holding(['READ', 'WRITE_ITEMS', 'STRUCTURE'])), true);
+  assert.equal(reachesAdministration(holding(['READ_CONFIGURATION', 'AUDIT_READ'])), true);
+  assert.equal(reachesAdministration(holding(['READ', 'WRITE_ITEMS', 'AUTOMATION'])), false);
+  assert.equal(reachesAdministration(holding([])), false);
+  assert.equal(reachesAdministration({} as Capabilities), undefined);
 });

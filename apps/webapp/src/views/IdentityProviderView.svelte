@@ -39,6 +39,7 @@
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
+  import { issuerAfterChoosing } from '../lib/signin/issuer.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -409,6 +410,8 @@
               hint={t('app.identity_provider.kind_hint')}
               options={kindOptions}
               bind:value={kind}
+              onchange={(event) =>
+                (issuer = issuerAfterChoosing(identityProvider.presets, (event.currentTarget as HTMLSelectElement).value, issuer))}
             />
             {#if preset}
               <!-- The instructions are the server's message code rendered with this installation's

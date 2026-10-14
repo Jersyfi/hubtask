@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	usecase "github.com/Jersyfi/hubtask/core/application/service/meta"
@@ -18,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
 )
 
@@ -510,5 +512,41 @@ func TestTheManifestPublishesEachActionsFields(t *testing.T) {
 	}
 	if body.Automation.ActionSummaries == nil || body.Automation.ActionSummaries["ASSIGN_ITEM"] != "Assigns an entry." {
 		t.Errorf("action_summaries is %v", body.Automation.ActionSummaries)
+	}
+}
+
+// What the caller holds on the workspace reaches the response as a list - empty included, which
+// says "nothing here" - and is absent for an anonymous caller, who holds nothing anywhere.
+func TestTheManifestPublishesWhatTheCallerHoldsOnTheWorkspace(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		given []service.Permission
+		want  []string
+	}{
+		{"a member", []service.Permission{service.PermissionRead, service.PermissionWriteItems}, []string{"READ", "WRITE_ITEMS"}},
+		{"somebody holding nothing there", []service.Permission{}, []string{}},
+		{"anonymous", nil, nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			answer := manifest()
+			answer.WorkspacePermissions = test.given
+
+			response := serveCapabilities(t, &capabilities{result: answer})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+			}
+			var body struct {
+				WorkspacePermissions *[]string `json:"workspace_permissions"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("the manifest is not JSON: %v", err)
+			}
+			if (body.WorkspacePermissions == nil) != (test.want == nil) {
+				t.Fatalf("workspace_permissions %v, want %v", body.WorkspacePermissions, test.want)
+			}
+			if test.want != nil && !slices.Equal(*body.WorkspacePermissions, test.want) {
+				t.Errorf("workspace_permissions %v, want %v", *body.WorkspacePermissions, test.want)
+			}
+		})
 	}
 }

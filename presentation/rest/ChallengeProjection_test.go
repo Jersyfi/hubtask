@@ -87,3 +87,13 @@ func TestAPresetAnswersTheModesOfBothLevels(t *testing.T) {
 		t.Errorf("installation_provisioning = %v", answered.InstallationProvisioning)
 	}
 }
+
+func TestAPresetAnswersItsOneIssuerAndOnlyThen(t *testing.T) {
+	google := identityProviderPresetResponse(usecase.Output{"kind": "GOOGLE", "issuer": "https://accounts.google.com"})
+	if google.Issuer == nil || *google.Issuer != "https://accounts.google.com" {
+		t.Errorf("issuer = %v", google.Issuer)
+	}
+	if generic := identityProviderPresetResponse(usecase.Output{"kind": "GENERIC"}); generic.Issuer != nil {
+		t.Errorf("a preset without one issuer answered %q", *generic.Issuer)
+	}
+}

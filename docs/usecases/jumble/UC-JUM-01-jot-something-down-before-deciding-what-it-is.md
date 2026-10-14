@@ -5,9 +5,9 @@ context: jumble
 actors: [PE-person, PE-member, PE-scripter, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-10, P-12]
-state: partial
+state: built
 tasks: [G-10, F4-12, G-13]
-checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go]
+checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs]
 ---
 
 # Jot something down before deciding what it is
@@ -53,9 +53,5 @@ either may carry files it has already uploaded. Nothing is a task yet.
 * Capturing works while the server answers. The jumble does not synchronise to devices and is not
   offered offline ([offline-sync.md](../../architecture/offline-sync.md) §4.2).
 * No voice recording or transcription in the product; a transcript arrives as text like any other.
-* No per-person jumble: the jumble is the workspace's, and everyone with a role on the workspace
-  reads it.
-
-## Today
-
-* Check 7: not met in the web app — the navigation lists *Jumble* for everybody, and the capture form is drawn without asking whether the reader may write; only the server refuses, tracked in #1083.
+* No per-person jumble: the jumble is the workspace's, and everyone whose role on the workspace
+  carries reading reads it - not the auditor, who reads no content.

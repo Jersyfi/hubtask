@@ -109,7 +109,11 @@
     recoveryCode = '';
     linkPassword = '';
     usingRecovery = false;
+    // A step an invitation card or a reset link handed over typed no address here: step one takes
+    // the one the server named, so the person signs in with it and the password they just chose.
+    const named = session.signingInAs;
     session.timedOut();
+    if (email === '' && named !== undefined) email = named;
   });
 
   /**
@@ -210,9 +214,11 @@
        goes here is what the heading cannot say - a refusal, an outage, a session that ended. -->
   {#if oidc.failure}
     <!-- No provider configured, one switched off, or discovery unreachable: the server's own
-         code, and the password form below is untouched — which is exactly the degradation
+         sentence, and the password form below is untouched — which is exactly the degradation
          `observability-reliability.md` §7 promises. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+    <Banner tone={oidc.failure.isServerFault ? 'warning' : 'danger'} title={oidc.failure.message}>
+      {#if oidc.failure.reference}{oidc.failure.reference}{/if}
+    </Banner>
   {:else if passwordApi.wasSent}
     <Banner tone="success">{t('app.password.forgot_sent')}</Banner>
   {:else if session.problem}
@@ -246,9 +252,20 @@
 {#if asking}
   <SignInCard
     title={mailsALink ? t('app.password.mail_link_title') : t('app.password.forgot_title')}
-    lead={mailsALink ? t('app.password.mail_link_body') : t('app.password.forgot_body')}
+    lead={!signInRules.sendsMail
+      ? t('app.password.no_mail')
+      : mailsALink ? t('app.password.mail_link_body') : t('app.password.forgot_body')}
     {notice}
   >
+    {#if !signInRules.sendsMail}
+      <!-- No mail server: no address to ask for and no link to promise. The lead says what works
+           instead, and the way back is the one control left (P-05). -->
+      <div class="row">
+        <Button tone="subtle" onclick={() => (asking = false)}>
+          {t('app.password.back_to_sign_in')}
+        </Button>
+      </div>
+    {:else}
     <form onsubmit={askForLink}>
       <Stack gap="200">
         {#if namesAccepted}
@@ -274,6 +291,7 @@
         </div>
       </Stack>
     </form>
+    {/if}
   </SignInCard>
 {:else if mustEnroll}
   <!-- Not a code: this workspace demands a second factor of this person and they have none yet,

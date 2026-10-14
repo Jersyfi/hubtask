@@ -179,6 +179,21 @@ func (c Catalogue) Codes() []string {
 	return codes
 }
 
+// appPrefix is the web app's own codes (`app.<screen>.<message>`), one family per screen.
+const appPrefix = "app."
+
+// Family is the group a code is counted in when a translation's coverage is reported: its first
+// segment, and for the web app's own codes its first two. The web app's codes are most of the
+// catalogue, so as one family a whole screen left untranslated vanished inside "partial".
+func Family(code string) string {
+	if rest, isApp := strings.CutPrefix(code, appPrefix); isApp {
+		screen, _, _ := strings.Cut(rest, ".")
+		return appPrefix + screen
+	}
+	family, _, _ := strings.Cut(code, ".")
+	return family
+}
+
 // Pattern answers the raw message for a code, unrendered. For the gates.
 func (c Catalogue) Pattern(code string) (string, bool) {
 	message, known := c.messages[code]

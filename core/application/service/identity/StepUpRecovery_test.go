@@ -54,7 +54,7 @@ func TestARecoveryCodeProvesAStepUpOnceAndIsConsumed(t *testing.T) {
 	// The same code a second time proves nothing, and counts against the ledger.
 	_, err = StepUp{Writer: fixture.writer}.Execute(t.Context(), signedInActor(),
 		StepUpCommand{RecoveryCode: secret.New(code)})
-	if err == nil || !strings.Contains(err.Error(), "auth.mfa_code_invalid") {
+	if err == nil || !strings.Contains(err.Error(), "auth.recovery_code_invalid") {
 		t.Fatalf("a spent recovery code answered %v", err)
 	}
 	if got := fixture.attempts.standing[stepUpSubject(account)].Failures; got != 1 {

@@ -273,7 +273,10 @@ stateDiagram-v2
 Deleting a tenant demands a step-up and the typed tenant name. In single mode the one workspace is
 the installation and holds every operator: suspending it and requesting its deletion are refused
 (`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
-and cancelling stay open in every mode. The hard delete removes the workspace
+and cancelling stay open in every mode. A workspace that got there anyway - before the refusal, or
+whose every operator sits in it - is brought back on the machine: `hubtask workspace
+cancel-deletion --workspace <short name>`, then `hubtask workspace resume --workspace <short name>`,
+the same two use cases recorded as the machine's ([identity.md](./identity.md) §19). The hard delete removes the workspace
 from the primary system at once and from the operator's system backups **35 days** later
 ([data-protection.md](./data-protection.md) §5).
 

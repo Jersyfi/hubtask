@@ -32,7 +32,9 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
-  import { AREAS, choiceCode, documentOf, draftEntry, fieldOf, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { AREAS, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { formatBytes } from '../lib/i18n/bytes.ts';
+  import { languageName } from '../lib/i18n/locale.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
@@ -97,7 +99,10 @@
         return value === true ? t('app.instance.flag_on') : t('app.instance.flag_off');
       case 'COUNT':
         // Zero is a limit's "unlimited", which is a decision and not a number anybody counts to.
-        return value === 0 && area === 'quotas' ? t('app.instance.value_unlimited') : String(value);
+        if (value === 0 && area === 'quotas') return t('app.instance.value_unlimited');
+        return isBytes(area, key) && typeof value === 'number' ? formatBytes(value, messages.locale) : String(value);
+      case 'LOCALE':
+        return languageName(String(value ?? ''), messages.locale);
       default:
         return String(value ?? '');
     }

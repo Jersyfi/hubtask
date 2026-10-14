@@ -4312,7 +4312,7 @@
         "operationId": "redeemInvitation",
         "security": [],
         "summary": "Redeem an invitation and set the first password",
-        "description": "The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.\nWhere the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.\nThe token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.\n",
+        "description": "The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.\nWhere the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.\nThe token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.\nA redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -4330,6 +4330,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionTokens"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Redeemed, and the workspace demands a second factor of this person before the first session: the step is `ENROLL`, and `email` names the invited address. The pending credential can do nothing but complete this sign-in.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaChallenge"
                 }
               }
             }
@@ -14890,6 +14900,15 @@
           "kind": {
             "$ref": "#/components/schemas/IdentityProviderKind"
           },
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "description": "The one issuer this provider has for every account, which a form fills in when the provider is chosen. Absent where each organisation has an issuer of its own.\n"
+          },
           "scopes": {
             "type": "array",
             "items": {
@@ -24899,6 +24918,23 @@
           "instance": {
             "$ref": "#/components/schemas/InstanceReach",
             "description": "What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.\n**This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.\n"
+          },
+          "workspace_permissions": {
+            "type": "array",
+            "description": "The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.\nIt answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.\n",
+            "items": {
+              "type": "string",
+              "enum": [
+                "READ",
+                "WRITE_ITEMS",
+                "STRUCTURE",
+                "MANAGE_MEMBERS",
+                "AUTOMATION",
+                "DELETE_CONTAINER",
+                "READ_CONFIGURATION",
+                "AUDIT_READ"
+              ]
+            }
           },
           "deprecations": {
             "type": "array",

@@ -224,6 +224,27 @@ func (s Service) Permits(
 	return request.satisfiedBy(memberships, path), nil
 }
 
+// HeldOnWorkspace answers every permission the actor holds on the workspace itself, and records
+// nothing: what the manifest tells a client it may offer at that level before anybody presses
+// anything (P-05). Asking is not an attempt (audit.md §4) - the alternative, a client probing a
+// route to see whether it is refused, fills the trail with refusals nobody meant.
+//
+// The account's roles only, as Permits: a token's scopes bound what it may do further, and are
+// checked by Authorize where something is actually done.
+func (s Service) HeldOnWorkspace(ctx context.Context, actor appshared.ActorContext) ([]service.Permission, error) {
+	if !actor.IsAuthenticated() {
+		return []service.Permission{}, nil
+	}
+	memberships, at, err := s.heldAlong(ctx, actor.PersistenceScope(), actor.AccountID,
+		[]identity.Scope{identity.TenantScope()}, opensFor(actor, actor.AccountID))
+	if err != nil {
+		// Not "nothing": the question could not be answered, and an empty list would read as a
+		// workspace that offers this person nothing.
+		return nil, err
+	}
+	return service.Held(memberships, at.path, at.privacy), nil
+}
+
 // Reach is how much of a container's entries an actor may see.
 type Reach struct {
 	// All is true when a role held on the container's own path answers for every entry in it -

@@ -123,6 +123,10 @@ type ProviderPreset struct {
 	PersonalDirectories []string
 	PersonalIssuerPaths []string
 
+	// Issuer is the one issuer this provider has for every account there is, which a form can fill
+	// in for whoever chose the provider. Empty where each organisation has its own.
+	Issuer string
+
 	// Particular is the message code of the one thing about this provider that is not like the
 	// others - `hd` for Google, the directory-specific issuer for Microsoft. Empty where there is
 	// none.
@@ -145,6 +149,7 @@ func providerHost(labels ...string) string { return strings.Join(labels, ".") }
 var providerPresets = []ProviderPreset{
 	{
 		Kind:              KindGoogle,
+		Issuer:            "https://" + providerHost("accounts", "google", "com"),
 		IssuerSuffixes:    []string{providerHost("accounts", "google", "com")},
 		Scopes:            []string{"openid", "email", "profile"},
 		AddressesVerified: true,
