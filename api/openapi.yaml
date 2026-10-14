@@ -16141,8 +16141,8 @@ components:
         view shows and what restoring it needs, and reading the entry back in full is a second
         request to the object's own endpoint.
       required:
-        [kind, id, trash_batch_id, deleted_at, deleted_by, title, subtype, hub_id, collection_id,
-         parent_id, version]
+        [kind, id, trash_batch_id, deleted_at, purge_after, deleted_by, title, subtype, hub_id,
+         collection_id, parent_id, version]
       properties:
         kind:
           type: string
@@ -16159,6 +16159,15 @@ components:
           type: string
           format: date-time
           description: When it went in, and the moment the retention period runs from.
+        purge_after:
+          type: string
+          format: date-time
+          description: >
+            The earliest moment the automatic removal takes it, unless a legal hold keeps it: the
+            workspace's trash period from `deleted_at`, and never sooner than the longest a device may
+            stay offline, so that every device has learnt of the deletion first. The removal runs on
+            its own schedule, so it goes at the first run after this moment. Deleting it for good or
+            emptying the trash takes it at once.
         deleted_by:
           oneOf:
             - $ref: "#/components/schemas/Actor"
