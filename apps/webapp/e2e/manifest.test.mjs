@@ -145,7 +145,7 @@ test('chromium: a manifest that declares no profile for the type says so, once',
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
 
-  await page.getByText('This workspace does not offer Task entries', { exact: false }).waitFor({ timeout: 5_000 })
+  await page.getByText('This workspace does not offer tasks.', { exact: false }).waitFor({ timeout: 5_000 })
     .catch(() => assert.fail('a type the installation does not declare is drawn as a type that carries nothing'));
   assert.equal(await page.locator('[data-detail]').count(), 0);
   // Said once. Fourteen refusals is fourteen sentences for one fact.

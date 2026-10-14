@@ -1086,6 +1086,7 @@ class GroupDetail(TypedDict, total=False):
     description: str | None
     version: Required[int]
     members: Required[list[str]]
+    members_changeable: Required[bool]
 
 class GroupPage(TypedDict, total=False):
     data: Required[list["Group"]]
@@ -2355,6 +2356,7 @@ class TrashEntry(TypedDict, total=False):
     id: Required[str]
     trash_batch_id: Required[str]
     deleted_at: Required[str]
+    purge_after: Required[str]
     deleted_by: Required["Actor" | Any]
     title: Required[str]
     subtype: Required[str]

@@ -101,7 +101,6 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
-  import { humanise } from '../lib/i18n/messages.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -318,8 +317,8 @@
 
   /** The subtree's head: the child type as the manifest names it, and how much of it is done. */
   const childType = $derived(item ? childTypes(item.type)[0] : undefined);
-  /** A type as words: the manifest's identifier, read as `humanise` reads a code ("Work package"). */
-  const typeName = (type: string) => humanise(type.toLowerCase());
+  /** A type as a name standing on its own - a heading, a badge - in the catalogue's words. */
+  const typeName = (type: string) => t('app.item.type_name', { type });
   const subtreeHeading = $derived(childType ? typeName(childType) : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
   /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
@@ -549,6 +548,17 @@
   const hasMore = $derived(
     history.state.status === 'ready' && (history.state.data.page?.has_more ?? false),
   );
+  /**
+   * What the last press of *Show more history* brought, for `LoadMore`'s live region. Empty until
+   * the reader asks: the first page arrives with the tab, and a region filled at mount announces a
+   * count nobody asked for.
+   */
+  let historyArrived = $state<string | undefined>(undefined);
+
+  async function moreHistory(): Promise<void> {
+    await history.loadMore();
+    historyArrived = t('app.activity.arrived', { count: steps.length });
+  }
   const historyFailure = $derived(
     history.state.status === 'failed' ? renderProblem(history.state.error, messages) : undefined,
   );
@@ -812,7 +822,7 @@
             {:else if isTypeKnown}
               <!-- The manifest answered and does not declare this type. Its own sentence, once,
                    rather than fourteen refusals drawn as an empty column. -->
-              <p class="unread" role="status">{t('items.type_unsupported', { item_type: typeName(item.type) })}</p>
+              <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
             {:else if typeFailure}
               <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
                    on. The rows are missing because the installation could not be read, and that
@@ -899,11 +909,15 @@
                 <!-- Cursor pagination, never a page number: the API has none, so no component may
                      imply one. What arrived is announced, because pressing a button and being told
                      nothing is the case a live region is for. -->
-                {#if hasMore}
+                <!-- Drawn whole even after the last page: the live region goes with the
+                     component, and one removed with the button is one whose sentence about the
+                     last page nobody hears. Without a further page it draws no button. -->
+                {#if hasMore || historyArrived}
                   <LoadMore
                     label={t('app.activity.more')}
-                    arrivedLabel={t('app.activity.arrived', { count: steps.length })}
-                    onLoadMore={() => history.loadMore()}
+                    {hasMore}
+                    arrivedLabel={historyArrived}
+                    onLoadMore={() => void moreHistory()}
                   />
                 {/if}
               {/if}

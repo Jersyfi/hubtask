@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-08, P-09, P-11, P-12]
 state: partial
 tasks: [E-03, E-04, F4-16]
-checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go]
+checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs]
 ---
 
 # Choose where the workspace's backups go
@@ -66,4 +66,4 @@ See [backup-restore.md](../../architecture/backup-restore.md) §2.
 
 ## Today
 
-* Check 10: not met in the web app — the target form offers no WebDAV, and its SFTP variant has no host key field and sends the user name as a credential, so an SFTP target added there is always refused; the form offers no encryption choice either, tracked in #1073.
+* Check 10: not met in the web app — the target form offers no WebDAV, no encryption choice and, for SFTP, no private key; not yet tracked in an issue of its own.

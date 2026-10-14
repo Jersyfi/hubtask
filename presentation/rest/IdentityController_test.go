@@ -399,12 +399,13 @@ func TestListingTheGroupsPagesTheAnswer(t *testing.T) {
 	}
 }
 
-// The group's read carries its members as identifiers and its version as the tag a PATCH
-// presents.
+// The group's read carries its members as identifiers, whether the reader may change them, and its
+// version as the tag a PATCH presents.
 func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
 	group := "0192f000-0000-7000-8000-0000000000c1"
 	registry := &catalogue{out: usecase.Output{
 		"id": group, "name": "Leads", "version": 3, "members": []string{signedInAccount},
+		"members_changeable": true,
 	}}
 
 	recorder := identityRequest(t, registry, http.MethodGet, "/groups/"+group)
@@ -424,6 +425,9 @@ func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
 	}
 	if len(detail.Members) != 1 || detail.Members[0].String() != signedInAccount {
 		t.Errorf("members %v, want the one identifier", detail.Members)
+	}
+	if !detail.MembersChangeable {
+		t.Error("members_changeable was lost on the way to the response")
 	}
 }
 

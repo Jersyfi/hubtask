@@ -448,6 +448,55 @@ func TestUnderAnyAVerifiedStrangerIsProvisioned(t *testing.T) {
 	}
 }
 
+// ANY on Microsoft's shared endpoint for work accounts is bounded by its directory list
+// (identity.md §10.3): a verified stranger from a directory the row does not name is refused at the
+// door rather than provisioned, and one from a named directory still comes in new.
+func TestUnderAnyOnASharedMicrosoftEndpointOnlyTheListedDirectoriesComeIn(t *testing.T) {
+	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	const listed = "72f988bf-86f1-41af-91ab-2d7cd011db47"
+	for _, tc := range []struct {
+		name      string
+		directory string
+		admitted  bool
+	}{
+		{name: "a listed directory", directory: listed, admitted: true},
+		{name: "another directory", directory: "0f1e2d3c-4b5a-4968-8776-655443322110"},
+		{name: "no directory named"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newOidcFixture(t, at)
+			row := &f.store.rows[0]
+			row.Kind = domain.KindMicrosoft
+			row.Issuer = "https://login.microsoftonline.com/organizations/v2.0"
+			row.Provisioning = domain.ProvisionAny
+			row.AllowedEmailDomains = nil
+			row.AllowedDirectories = []string{listed}
+			f.relying.identity = provider.Identity{
+				Subject: "s-any", Email: "ada@contoso.example", EmailVerified: true,
+				DisplayName: "Ada", Directory: tc.directory,
+			}
+
+			_, err := CompleteOidcSignIn{Writer: f.writer}.
+				Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+			if tc.admitted {
+				if err != nil {
+					t.Fatalf("an arrival from a listed directory was refused: %v", err)
+				}
+				if !containsAction(auditActions(f.session.audit.entries), OidcProvisionedAction) {
+					t.Error("the arrival was not recorded as a provisioning")
+				}
+				return
+			}
+			if detailOf(err) != "identity_provider.not_admitted" {
+				t.Fatalf("completing answered %v, want identity_provider.not_admitted", err)
+			}
+			if len(f.accounts.inserted) != 0 {
+				t.Errorf("%d accounts were provisioned for an arrival outside the list", len(f.accounts.inserted))
+			}
+		})
+	}
+}
+
 // A state is one round trip. Presented twice, the second is refused - and refused the way an
 // unknown one is, because which it was is not for the presenter to learn.
 func TestAStateIsSpentOnceAndTheReplayIsIndistinguishable(t *testing.T) {

@@ -78,6 +78,21 @@ export function instantOf(date: string, time: string | undefined, zone: string):
   return new Date(guess).toISOString();
 }
 
+/**
+ * The last second of a day in `zone`: the instant the next day begins there, less one second.
+ *
+ * For a deadline typed as a day - a token that works "through the 31st" - which is the 31st where
+ * the person is. The end of that day in UTC is the 1st on every clock east of Greenwich.
+ */
+export function endOfDayIn(date: string, zone: string): string | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) return undefined;
+  const next = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + 1));
+  const start = instantOf(next.toISOString().slice(0, 10), '00:00', zone);
+  if (start === undefined) return undefined;
+  return new Date(Date.parse(start) - 1000).toISOString();
+}
+
 /** The date the clock in `zone` shows at that instant, as `YYYY-MM-DD`. */
 export function dateIn(iso: string, zone: string): string | undefined {
   const instant = Date.parse(iso);

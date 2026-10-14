@@ -197,6 +197,9 @@ type Notification struct {
 	// PrivateHubAccessID is the emergency access a member is told of: the message reads the
 	// opener, the time and the reason from it when it is rendered.
 	PrivateHubAccessID shared.ID
+	// MembershipID is the role the recipient was given (UC-NOT-01 check 9): the message reads the
+	// role, the scope and the place's name from the grant when it is rendered.
+	MembershipID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -217,11 +220,13 @@ type NewInput struct {
 	Channel     Channel
 	EventID     shared.ID
 	ItemID      shared.ID
-	// RuleID, SubscriptionID or PrivateHubAccessID instead of ItemID for a message about a rule,
-	// a subscription or an emergency access; naming two subjects is refused.
+	// RuleID, SubscriptionID, PrivateHubAccessID or MembershipID instead of ItemID for a message
+	// about a rule, a subscription, an emergency access or a role given; naming two subjects is
+	// refused.
 	RuleID             shared.ID
 	SubscriptionID     shared.ID
 	PrivateHubAccessID shared.ID
+	MembershipID       shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -264,6 +269,7 @@ func New(in NewInput) (Notification, error) {
 		RuleID:             in.RuleID,
 		SubscriptionID:     in.SubscriptionID,
 		PrivateHubAccessID: in.PrivateHubAccessID,
+		MembershipID:       in.MembershipID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -271,7 +277,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID} {
 		if !id.IsZero() {
 			named++
 		}
@@ -314,11 +320,12 @@ func (n Notification) Failed(final bool) Notification {
 
 // PrivateHubTrashed reports whether this is the message that a private hub lost its last member
 // and went to the trash (ADR-0073 §5): a membership message about no subject. Every other
-// membership message names the entry it is about, and a record whose entry is purged goes with the
-// entry, so a membership record without a subject is this one and nothing else.
+// membership message names the entry or the grant it is about, and a record whose subject is
+// purged or revoked goes with it, so a membership record without a subject is this one and nothing
+// else.
 func (n Notification) PrivateHubTrashed() bool {
 	return n.Category == CategoryMembership &&
-		n.ItemID.IsZero() && n.RuleID.IsZero() && n.SubscriptionID.IsZero()
+		n.ItemID.IsZero() && n.RuleID.IsZero() && n.SubscriptionID.IsZero() && n.MembershipID.IsZero()
 }
 
 // Pending reports whether the delivery still has to do something about this.

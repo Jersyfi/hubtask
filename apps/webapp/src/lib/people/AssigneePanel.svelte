@@ -15,8 +15,9 @@
   //
   // **The manifest decides which of them exist.** An activity carries an assignee and no member
   // list, and this component learns that from `/meta/capabilities` rather than from a list of
-  // types written here. A type that carries neither shows the reason, because a control that is
-  // missing tells the reader nothing.
+  // types written here. A part the type refuses is absent, not drawn with the refusal's reason:
+  // the reader could never use it (design-system.md §11). The panel itself is drawn only for a
+  // type that carries one of the two.
   //
   // **The picker is a courtesy.** It offers the accounts that hold a membership along the path;
   // the server refuses one that cannot see the entry, and that refusal reaches the reader as a
@@ -43,6 +44,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { partOf } from './parts.ts';
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
 
@@ -142,14 +144,11 @@
 
 <Stack gap="250">
   <!-- Responsible: one person, the entry is theirs. -->
+  {#if partOf(assignment) !== 'absent'}
   <section class="part">
     <h3 class="name">{t('app.people.responsible')}</h3>
     <p class="says">{t('app.people.responsible_hint')}</p>
-    <CapabilityGate
-      status={assignment.status}
-      reason={assignment.status === 'refused' ? t(assignment.code, assignment.params) : undefined}
-      pendingLabel={t('app.people.deciding')}
-    >
+    <CapabilityGate status={assignment.status} pendingLabel={t('app.people.deciding')}>
       <AssigneeControl
         label={t('app.people.responsible')}
         {candidates}
@@ -198,16 +197,14 @@
       {/if}
     </CapabilityGate>
   </section>
+  {/if}
 
   <!-- Also on it: several people, who follow the entry rather than own it. -->
+  {#if partOf(membership) !== 'absent'}
   <section class="part">
     <h3 class="name">{t('app.people.also_on_it')}</h3>
     <p class="says">{t('app.people.also_on_it_hint')}</p>
-    <CapabilityGate
-      status={membership.status}
-      reason={membership.status === 'refused' ? t(membership.code, membership.params) : undefined}
-      pendingLabel={t('app.people.deciding')}
-    >
+    <CapabilityGate status={membership.status} pendingLabel={t('app.people.deciding')}>
       <AssigneeControl
         label={t('app.people.also_on_it')}
         {candidates}
@@ -223,6 +220,7 @@
       />
     </CapabilityGate>
   </section>
+  {/if}
 
   {#if failure}
     <p class="failure" role="alert">{failure}</p>

@@ -60,9 +60,10 @@ type Request struct {
 	// On names the entry the request is about, when it is about one. Zero means the request is
 	// about a container and the permission alone decides it.
 	On ItemSubject
-	// Grants is the role the request hands out, empty where it hands out none. The actor must
-	// then also hold a role along the path at least as strong (service.MayGrant): MANAGE_MEMBERS
-	// alone would let an administrator make somebody an owner.
+	// Grants is the role the request places or takes away, empty where it touches none. The actor
+	// must then also hold a role along the path at least as strong (service.MayGrant):
+	// MANAGE_MEMBERS alone would let an administrator make somebody an owner, or unmake one.
+	// A revocation and a change of who is in a group name it as a grant does - one rule, one name.
 	Grants identity.Role
 }
 

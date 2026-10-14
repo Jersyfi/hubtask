@@ -102,6 +102,14 @@ flow into it, and the workspace owner reaches it only through the transparent em
 a group's members are the workspace administrators' to change ([identity.md](./identity.md) §22).
 `Group(id, tenantId, name, members[])` is the target for assignment strategies and permissions.
 
+**A person given a role is told by mail** (UC-NOT-01 check 9): `GrantMembership` writes a
+`MEMBERSHIP` notification naming the grant in its own transaction — a grant is not an event (§4) —
+and the mail names who gave it, the role and the place, and links to it. Not for a role the person
+already held at that scope, and not for a grant to a group: the group's members did not change, and
+a grant to a large group would mail all of them at once — joining a group mails nobody either. The
+grants made as a side effect (the owner of a new private hub, a provider newcomer, a managed
+account) tell nobody. A role revoked before its mail went takes the record with it.
+
 Roles and rights (an extract):
 
 | Role | Read | Write items | Structure (buckets/labels) | Members | Automation | Delete (container) | Read configuration | Read the trail |
@@ -125,7 +133,15 @@ it ([audit.md](./audit.md) §5, §9).
 table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub
 gives `OWNER` on that hub and below it. A grant above is refused with `access.role_above_own` (403)
 and recorded, before any step-up is asked; this holds for every door that places a role, the
-managed account's creation included (`service.MayGrant`). `ListMemberships` answers
+managed account's creation included (`service.MayGrant`). Taking a role away is held to the same
+ceiling: revoking a membership needs a role along its scope's path at least as strong as the one it
+takes, before any step-up, so an administrator does not unmake an owner, and a downgrade (a
+revocation and a grant) meets it twice. A group passes on every role it holds, so changing who is
+in it, or deleting it, is held to the ceiling for each of them at its own scope: an administrator
+does not join a group that holds `OWNER`. An unchanged member list places nothing and is not
+judged; the group's row is locked while its roles are compared, and a grant to the group takes the
+same lock, so a role given meanwhile answers `groups.roles_changed` (409) rather than slipping
+through. `ListMemberships` answers
 `grantable_roles`, the roles the caller may give at that scope by the same rule and along the path
 the grant is decided on, and a client offers exactly those.
 

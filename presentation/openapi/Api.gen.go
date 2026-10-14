@@ -6191,8 +6191,11 @@ type GroupDetail struct {
 	Description *string              `json:"description,omitempty"`
 	Id          openapi_types.UUID   `json:"id"`
 	Members     []openapi_types.UUID `json:"members"`
-	Name        string               `json:"name"`
-	Version     int                  `json:"version"`
+
+	// MembersChangeable Whether the reader may change who is in the group and delete it. A group passes on every role it holds, so this needs the right to manage members on the workspace and, for each role the group holds, a role of the reader's own at least as strong where it applies. False where a change would be refused; renaming is not affected.
+	MembersChangeable bool   `json:"members_changeable"`
+	Name              string `json:"name"`
+	Version           int    `json:"version"`
 }
 
 // GroupPage defines model for GroupPage.
@@ -9397,7 +9400,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -9491,6 +9494,9 @@ type TrashEntry struct {
 
 	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
+
+	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold keeps it: the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
+	PurgeAfter time.Time `json:"purge_after"`
 
 	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
 	Subtype string `json:"subtype"`
