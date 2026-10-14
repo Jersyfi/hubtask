@@ -7,10 +7,17 @@ package integration
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"golang.org/x/crypto/argon2"
+
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // rehashAccountIn seeds an account of the test's own with a stored hash, a password moment and a
@@ -92,5 +99,63 @@ func TestARehashWritesOnlyTheCurrentHashAndOnlyInItsTenant(t *testing.T) {
 	if !after.setAt.Equal(before.setAt) || !after.startAt.Equal(before.startAt) ||
 		after.version != before.version || after.history != before.history {
 		t.Errorf("the rehash moved what belongs to the password: %+v, was %+v", after, before)
+	}
+}
+
+// rehashSignals counts what the sign-in reports of the rehash and ignores the rest.
+type rehashSignals struct{ rehashed int }
+
+func (*rehashSignals) AuthFailure(context.Context, string)    {}
+func (*rehashSignals) SignInStep(context.Context, string)     {}
+func (*rehashSignals) PasswordResetRequested(context.Context) {}
+func (s *rehashSignals) PasswordRehashed(context.Context)     { s.rehashed++ }
+
+// T-02, identity.md §5.3, end to end: a hash an older build wrote under a lower cost is replaced
+// by the next sign-in that proves its password - through the real Argon2id adapter, a real
+// transaction and the application's role under row level security - and the new hash carries the
+// build's cost and still verifies. A second sign-in finds nothing to do.
+func TestASignInBringsAnOldCostHashUpToTheBuildsCost(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	writer, _, _ := realWriter(ctx, t)
+	signals := &rehashSignals{}
+	writer.Signals = signals
+
+	const passphrase = "an older build hashed this one"
+	salt := []byte("sixteen-byte-slt")
+	cheap := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, 8*1024, 1, 1,
+		base64.RawStdEncoding.EncodeToString(salt),
+		base64.RawStdEncoding.EncodeToString(argon2.IDKey([]byte(passphrase), salt, 1, 8*1024, 1, 32)))
+	account := rehashAccountIn(ctx, t, tenantA, cheap)
+	var email string
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT email FROM account WHERE id = $1`,
+		account.String()).Scan(&email); err != nil {
+		t.Fatalf("reading the address: %v", err)
+	}
+
+	signIn := func() {
+		t.Helper()
+		if _, err := (identityservice.SignIn{Writer: writer}).Execute(ctx, identityservice.SignInCommand{
+			Email: email, Password: secret.New(passphrase), TenantHeader: tenantA.String(),
+		}); err != nil {
+			t.Fatalf("signing in: %v", err)
+		}
+	}
+
+	signIn()
+	stored := storedPasswordOf(ctx, t, account)
+	if stored.hash == cheap || !strings.Contains(stored.hash, "$m=65536,t=3,p=2$") {
+		t.Fatalf("the stored hash %q is not at the build's cost", stored.hash)
+	}
+	if ok, err := writer.Passwords.Verify(stored.hash, secret.New(passphrase)); err != nil || !ok {
+		t.Fatalf("the new hash does not verify the same password (%v, %v)", ok, err)
+	}
+	if signals.rehashed != 1 {
+		t.Errorf("counted %d rehashes, want one", signals.rehashed)
+	}
+
+	signIn()
+	if again := storedPasswordOf(ctx, t, account); again.hash != stored.hash || signals.rehashed != 1 {
+		t.Errorf("a current hash was rehashed again (%d counted)", signals.rehashed)
 	}
 }
