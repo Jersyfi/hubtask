@@ -156,11 +156,17 @@ type Expired interface {
 	//
 	// The cutoff is an instant rather than a period, so that one run reads the clock once - two
 	// readings would let a long batch use two different definitions of "expired".
-	Items(ctx context.Context, cutoff time.Time, batchSize int) ([]ExpiredItem, error)
+	//
+	// Rows deleted after due - past their period, still inside the offline window - come after every
+	// row deleted by then, whatever their depth. A batch read in the depth order alone could fill with
+	// recently deleted deep entries the caller can only count as held back, pass after pass, and never
+	// reach a removable row behind them. Within each of the two groups the order is deepest first.
+	Items(ctx context.Context, cutoff, due time.Time, batchSize int) ([]ExpiredItem, error)
 
 	// Containers returns hubs and collections deleted before the cutoff, collections before the hubs
-	// that hold them - which is the order `container.parent_id` being ON DELETE RESTRICT insists on.
-	Containers(ctx context.Context, cutoff time.Time, batchSize int) ([]ExpiredContainer, error)
+	// that hold them - which is the order `container.parent_id` being ON DELETE RESTRICT insists on -
+	// and those deleted after due last, for the reason Items gives.
+	Containers(ctx context.Context, cutoff, due time.Time, batchSize int) ([]ExpiredContainer, error)
 }
 
 // Policies stores the periods a tenant keeps things for (ADR-0020: periods are data, not code).
