@@ -32,6 +32,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -267,16 +268,18 @@
 
     <Stack gap="150">
       <h2 class="section">{t('app.groups.new_title')}</h2>
-      <form class="panel" onsubmit={create}>
-        <Stack gap="150">
-          <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired />
-          <div>
-            <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.groups.working')}>
-              {t('app.groups.create')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+      <WorkspaceGate permission="MANAGE_MEMBERS">
+        <form class="panel" onsubmit={create}>
+          <Stack gap="150">
+            <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired />
+            <div>
+              <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.groups.working')}>
+                {t('app.groups.create')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
     </Stack>
     </Stack>
 </Stack>
