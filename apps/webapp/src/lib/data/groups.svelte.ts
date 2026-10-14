@@ -23,6 +23,7 @@
 import type { Group, GroupDetail, GroupPage, ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/groups';
 /** A group's grants are memberships, so a write here changes what a members screen shows. */
@@ -83,16 +84,20 @@ class Groups {
     groupId: string,
     change: { name?: string; description?: string | null; members?: readonly string[] },
   ): Promise<Group> {
-    const group = await engine.mutate<Group>('PATCH', `${PATH}/${groupId}`, change, {
-      invalidates: TOUCHES,
-    });
+    // A member change of a group holding OWNER is changing who holds OWNER, and the server asks a
+    // fresh proof for it (identity.md §16.3); which groups those are is the server's to say.
+    const group = await stepUp.around((stepUpToken) =>
+      engine.mutate<Group>('PATCH', `${PATH}/${groupId}`, change, { invalidates: TOUCHES, stepUpToken }),
+    );
     await this.read(groupId);
     return group;
   }
 
-  /** Removes it, and with it every membership it granted. */
+  /** Removes it, and with it every membership it granted — behind a proof where it holds OWNER. */
   async remove(groupId: string): Promise<void> {
-    await engine.mutate('DELETE', `${PATH}/${groupId}`, undefined, { invalidates: TOUCHES });
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('DELETE', `${PATH}/${groupId}`, undefined, { invalidates: TOUCHES, stepUpToken }),
+    );
     const { [groupId]: _gone, ...rest } = this.#details;
     this.#details = rest;
   }

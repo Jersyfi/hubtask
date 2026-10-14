@@ -4130,6 +4130,7 @@
   "app.people.inherited": "From above",
   "app.people.granted_elsewhere": "This role was granted further up. Change it where it was granted.",
   "app.people.revoke": "Revoke",
+  "app.people.last_owner": "The workspace needs an owner. Give somebody else Owner first.",
   "app.people.revoke_title": "Revoke this role?",
   "app.people.revoke_body": "{who} loses the {role} role at {where}, and what it reached is out of their reach at once. A role can be granted again afterwards.",
   "app.people.revoke_confirm": "Revoke the role",

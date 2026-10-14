@@ -2968,6 +2968,7 @@
   "app.people.inherited": "Von oben",
   "app.people.granted_elsewhere": "Diese Rolle wurde weiter oben vergeben. Ändere sie dort, wo sie vergeben wurde.",
   "app.people.revoke": "Entziehen",
+  "app.people.last_owner": "Der Arbeitsbereich braucht einen Eigentümer. Gib zuerst jemand anderem die Rolle Eigentümer.",
   "app.people.revoke_title": "Diese Rolle entziehen?",
   "app.people.revoke_body": "{who} verliert die Rolle {role} (Geltungsbereich: {where}), und was sie erreicht hat, ist sofort außer Reichweite. Eine Rolle kann danach wieder vergeben werden.",
   "app.people.revoke_confirm": "Rolle entziehen",

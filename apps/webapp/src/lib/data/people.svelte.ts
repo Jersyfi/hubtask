@@ -39,6 +39,7 @@ class People {
   #refused = $state<Record<string, true>>({});
   /** What the server says the reader may grant at each scope it was asked about. */
   #grantable = $state<Record<string, readonly MembershipRole[]>>({});
+  #complete = $state<Record<string, boolean>>({});
   /** The accounts in each group a membership named. */
   #groups = $state<Record<string, readonly string[]>>({});
   #openScopes = new Map<string, () => void>();
@@ -116,6 +117,11 @@ class People {
    */
   grantableAt(scope: Scope): readonly MembershipRole[] | undefined {
     return this.#grantable[membershipsPath(scope)];
+  }
+
+  /** Whether the rows held for a scope are all of them: a first page with more behind it is not. */
+  isCompleteAt(scope: Scope): boolean {
+    return this.#complete[membershipsPath(scope)] ?? false;
   }
 
   /** The accounts in a group, once it has been read. Empty while the request is still out. */
@@ -324,6 +330,7 @@ class People {
     this.#scopes = { ...this.#scopes, [path]: page.data ?? [] };
     // An answer without the list - a server older than the field - offers nothing rather than all.
     this.#grantable = { ...this.#grantable, [path]: page.grantable_roles ?? [] };
+    this.#complete = { ...this.#complete, [path]: page.page?.has_more === false };
   }
 
   /** Asks for the members of every group these memberships name, each group once per session. */
