@@ -179,6 +179,19 @@ const (
 	// what a timeout catches too late - a deeply nested expression or a long concatenation is
 	// refused before it has been allowed to spend the fifty milliseconds.
 	CostLimit = 1_000_000
+
+	// MaxDepth is how deeply an expression may nest, as the parser counts it: a sum of n terms is n
+	// deep, n parentheses n+1, a chain of n calls n+1. The length limit does not bound the work of
+	// type-checking - each `.map` in a chain wraps the type once more, and the checker's cost grows
+	// about with the cube of that depth - so the depth is what keeps a compile in the tens of
+	// milliseconds. The deepest expression this repository ships is 6.
+	MaxDepth = 64
+
+	// CompileTimeout bounds one compilation (rule 7). A backstop, not the bound: MaxDepth is what
+	// keeps a compile short, and this catches only a shape nobody has found yet. Generous, because
+	// a run compiles its conditions every time, and a deadline near the real cost would refuse a
+	// legitimate rule on a loaded machine.
+	CompileTimeout = time.Second
 )
 
 // The message codes this port's refusals carry. Here rather than in each adapter, because a caller
@@ -191,6 +204,9 @@ const (
 	CodeUnknownName = "expression.unknown_name"
 	// CodeTooLong is an expression past MaxLength.
 	CodeTooLong = "expression.too_long"
+	// CodeTooComplex is an expression nested past MaxDepth, or one whose compilation outlasted
+	// CompileTimeout. Not a syntax error: the expression may be well formed.
+	CodeTooComplex = "expression.too_complex"
 	// CodeNotBoolean is a condition that compiles and does not answer true or false. A condition
 	// that returned a number would be a condition whose author believes it filters.
 	CodeNotBoolean = "expression.not_boolean"

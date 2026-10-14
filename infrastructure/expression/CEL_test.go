@@ -244,6 +244,72 @@ func TestAnExpressionPastTheLengthLimitIsRefusedUnparsed(t *testing.T) {
 	}
 }
 
+// mapChain is the shape that made a compile take seconds: every `.map` wraps the type in another
+// list, and the checker's cost grows with the cube of that depth. n maps are n+1 deep.
+func mapChain(n int) string {
+	return "size([1]" + strings.Repeat(".map(a,[a])", n) + ") > 0"
+}
+
+// Depth bounds the compile, which length could not: 240 maps are 2.6 KB, inside the length limit,
+// and took 3.7 s before the depth limit.
+func TestADeeplyNestedExpressionIsRefusedBeforeTheChecker(t *testing.T) {
+	text := mapChain(240)
+	if len(text) > port.MaxLength {
+		t.Fatalf("the fixture is %d bytes, past the length limit it should stay inside", len(text))
+	}
+
+	started := time.Now()
+	_, err := expression.New().Compile(text, ruleEnvironment(), port.Boolean)
+	if took := time.Since(started); took > 500*time.Millisecond {
+		t.Errorf("refusing took %v", took)
+	}
+	if !errors.Is(err, shared.ErrValidation) {
+		t.Fatalf("error %v, want ErrValidation", err)
+	}
+	if code := detailOf(t, err); code != port.CodeTooComplex {
+		t.Errorf("code %q, want %q", code, port.CodeTooComplex)
+	}
+}
+
+// The edges of port.MaxDepth as the parser counts them: a sum of n terms is n deep, n parentheses
+// n+1 deep, n maps n+1 deep. A long `&&` chain is balanced by the parser and is not deep at all.
+//
+// The accepted map chain is 30 long rather than 63: 63 compiles in about 90 ms, but this suite runs
+// under the race detector, where it takes 600 ms and would race the deadline on a slower machine.
+// The edge itself is held by the sum and the parentheses, which cost nothing to compile.
+func TestTheDepthLimitsEdges(t *testing.T) {
+	sum := func(terms int) string { return strings.Repeat("1 + ", terms-1) + "1 > 0" }
+	parens := func(n int) string { return strings.Repeat("(", n) + "true" + strings.Repeat(")", n) }
+
+	for _, tc := range []struct {
+		name    string
+		text    string
+		refused bool
+	}{
+		{"a sum of 64 terms", sum(port.MaxDepth), false},
+		{"a sum of 65 terms", sum(port.MaxDepth + 1), true},
+		{"a sum of 40 terms", sum(40), false},
+		{"63 parentheses", parens(port.MaxDepth - 1), false},
+		{"64 parentheses", parens(port.MaxDepth), true},
+		{"30 maps", mapChain(30), false},
+		{"64 maps", mapChain(port.MaxDepth), true},
+		{"151 conditions joined by &&", strings.Repeat("item.title == 'a' && ", 150) + "true", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := expression.New().Compile(tc.text, ruleEnvironment(), port.Boolean)
+			if !tc.refused {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			if code := detailOf(t, err); code != port.CodeTooComplex {
+				t.Errorf("code %q, want %q", code, port.CodeTooComplex)
+			}
+		})
+	}
+}
+
 // The second: an expression whose worst case is expensive is refused rather than allowed to spend
 // the timeout. A concatenation inside a comprehension over a large list is the cheapest way to
 // write an expensive-but-finite program.

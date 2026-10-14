@@ -18,7 +18,7 @@ import (
 // SG-8 for CEL input: the condition an automation rule's author writes, compiled against the rule
 // vocabulary and run against a delivery that may itself come from outside (`payload`).
 //
-// An ordinary test over its seeds in `make gate-unit`, a fuzz target in the nightly. Four
+// An ordinary test over its seeds in `make gate-unit`, a fuzz target in the nightly. Five
 // properties:
 //
 //  1. Nothing written makes the compiler or the evaluator panic.
@@ -28,6 +28,8 @@ import (
 //     a value of another kind as if it were one.
 //  4. One evaluation ends near the port's bound (automation.md §1.2): the cost limit and the
 //     interrupt are what stand between a hostile expression and a stalled rule engine.
+//  5. One compilation ends near its deadline (rule 7): the depth limit keeps the checker short,
+//     and the deadline is the backstop.
 func FuzzCompileCondition(f *testing.F) {
 	for _, seed := range []string{
 		`item.type == 'TASK'`,
@@ -50,6 +52,8 @@ func FuzzCompileCondition(f *testing.F) {
 		`"` + strings.Repeat("a", port.MaxLength) + `"`,
 		`item.title + item.title + item.title == ''`,
 		"payload.items.exists(x, x.matches('(a+)+$'))",
+		// Each `.map` wraps the type in another list; 240 of them took the checker 3.7 s.
+		"size([1]" + strings.Repeat(".map(a,[a])", 240) + ") > 0",
 	} {
 		f.Add(seed)
 	}
@@ -69,7 +73,11 @@ func FuzzCompileCondition(f *testing.F) {
 	})
 
 	f.Fuzz(func(t *testing.T, text string) {
+		compiling := time.Now()
 		program, err := compiler.Compile(text, environment, port.Boolean)
+		if took := time.Since(compiling); took > 2*port.CompileTimeout {
+			t.Fatalf("compiling %q took %v, past the %v deadline", text, took, port.CompileTimeout)
+		}
 		if err != nil {
 			portRefusal(t, "compiling", text, err)
 			return
