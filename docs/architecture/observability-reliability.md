@@ -126,12 +126,13 @@ Four levels, deliberately kept separate:
 | Endpoint | Semantics | Who uses it |
 |---|---|---|
 | `/healthz` | The process is alive. **Checks no dependency** — otherwise a database outage kills every pod at once | Liveness probe |
-| `/startupz` | Initialisation is complete | Startup probe |
-| `/readyz` | The process can serve traffic: every mandatory dependency answers (PostgreSQL is the only one) and it is not shutting down. Answers a status code and a short reason only | Readiness probe, load balancer |
+| `/startupz` | Initialisation is complete. It does not compare the schema: a pod waiting for its migration would be restarted in a loop | Startup probe |
+| `/readyz` | The process can serve traffic: every mandatory dependency answers (PostgreSQL is the only one), every migration this build embeds is applied (`migration:behind` otherwise; a newer schema is fine), and it is not shutting down. Answers a status code and a short reason only | Readiness probe, load balancer |
 | `GET /api/v1/meta/health` (authenticated) | **Deep self-diagnosis**: per dependency the status, latency, last error and breaker state; per feature the degradation state; backlogs (outbox, queue, webhook retries); configuration warnings. **One route, two answers:** a credential holding `admin:tenants` reads all of it; anybody else needs `ops:read` and a workspace administrator's permission, and reads `status`, `version` and `degraded_features` only. The same full report is served unauthenticated at `/meta/health` on the operations listener, which answers `503` when the status is `down` | Operators, support, a status page, the client's health banner |
 
-Neither `/startupz` nor `/readyz` compares the pod's schema with the database's yet
-([deployment.md](./deployment.md) §8, D-5).
+The report's `migration` is answered only when it was compared: `applied` is the database's
+highest migration, `expected` this build's, and a missing one makes the status `down`
+([deployment.md](./deployment.md) §5).
 
 The report's shape is the `/meta/health` schema in `api/openapi.yaml`. Its `warnings` say what the
 installation is missing, each a code with a severity, never free text (`Warnings` in

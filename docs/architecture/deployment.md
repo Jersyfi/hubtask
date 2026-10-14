@@ -203,7 +203,8 @@ who runs `helm`.
 | `maxUnavailable: 0`, `maxSurge: 1` | No capacity loss during the rollout |
 | Readiness gate + a PodDisruptionBudget per role (`minAvailable: 1`) | No pod disappears before its replacement is ready |
 | Migration before the rollout, expand/contract | The old and new versions run simultaneously without harm |
-| Migration versions watched across pods | `hubtask_migration_version` per pod; alert A-13 fires when pods disagree for more than 15 minutes. A pod does **not** yet compare its schema at startup or readiness (§8, D-5) |
+| Migration versions watched across pods | `hubtask_migration_version` per pod; alert A-13 fires when pods disagree for more than 15 minutes |
+| Readiness compares the schema | A pod is ready only when every migration it embeds is applied (`/readyz` answers `migration:behind` otherwise, and the health report's `migration` says `behind`); a database migrated further is `ahead` and fine — the expand step of the next release. Read through `applied_schema_versions()`, numbers only; the ledger stays closed to the application role. `/startupz` does not compare: a failing startup probe restarts a pod that is only waiting for its migration |
 | Graceful shutdown | On `SIGTERM` the process marks itself not ready, keeps serving for `HUBTASK_SHUTDOWN_DEREGISTER_SECONDS`, then drains in-flight requests within `HUBTASK_SHUTDOWN_GRACE_SECONDS` and releases job leases |
 | `terminationGracePeriodSeconds` (120) ≥ the job timeout plus the drain budget | No job is cut off mid-work |
 
@@ -329,4 +330,4 @@ path deploys from this repository to production.
 
 | # | Point | Needed by |
 |---|---|---|
-| D-5 | A pod compares the schema it was built for with the database's at startup and readiness, and reports itself not ready on a mismatch. Today only the `migration` field of the health report and alert A-13 exist, and nothing fills the field | Before `1.0.0` |
+| D-5 | Closed: a pod compares its embedded migrations with the database's at readiness and is not ready while one is missing (§5, "Readiness compares the schema"). Deliberately not at startup — a failing startup probe restarts the pod in a loop instead of letting it wait; the start logs the comparison | — |
