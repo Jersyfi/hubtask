@@ -12,9 +12,36 @@
 // run time, and db/schema.sql is a reference for readers.
 package db
 
-import "embed"
+import (
+	"embed"
+	"sort"
+	"strconv"
+	"strings"
+)
 
 // Migrations is db/migrations, in the order goose applies them.
 //
 //go:embed migrations/*.sql
 var Migrations embed.FS
+
+// Versions answers the version of every embedded migration, ascending - the set a database must
+// hold all of before this binary may serve against it (deployment.md §5). The set rather than the
+// highest, because migrations are applied out of order.
+func Versions() []int64 {
+	entries, err := Migrations.ReadDir("migrations")
+	if err != nil {
+		return nil
+	}
+	versions := make([]int64, 0, len(entries))
+	for _, entry := range entries {
+		number, _, found := strings.Cut(entry.Name(), "_")
+		if !found {
+			continue
+		}
+		if version, err := strconv.ParseInt(number, 10, 64); err == nil {
+			versions = append(versions, version)
+		}
+	}
+	sort.Slice(versions, func(i, j int) bool { return versions[i] < versions[j] })
+	return versions
+}

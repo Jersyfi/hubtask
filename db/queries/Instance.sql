@@ -1,3 +1,8 @@
+-- name: AppliedSchemaVersions :one
+-- The migrations the database has applied, for the readiness probe (deployment.md §5). Through the
+-- function because the ledger is closed to the application role; it answers numbers only.
+SELECT applied_schema_versions()::bigint[] AS versions;
+
 -- name: ReadInstanceSettings :many
 -- The installation's own level (ADR-0070 §2).
 --

@@ -2740,6 +2740,26 @@ $$;
 REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
 
+-- Which migrations the database has applied, for the readiness probe (deployment.md §5; migration
+-- 0146): the ledger is closed to the application role, so it reads the numbers through this, and
+-- nothing else. plpgsql, because this file is loaded without goose, where the ledger is absent and
+-- the function answers NULL.
+CREATE OR REPLACE FUNCTION applied_schema_versions()
+RETURNS bigint[]
+LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+BEGIN
+  RETURN (
+    SELECT coalesce(array_agg(DISTINCT version_id ORDER BY version_id), ARRAY[]::bigint[])
+    FROM public.goose_db_version
+    WHERE is_applied
+  );
+EXCEPTION WHEN undefined_table THEN
+  RETURN NULL;
+END;
+$$;
+REVOKE ALL ON FUNCTION applied_schema_versions() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION applied_schema_versions() TO hubtask_app;
+
 -- ============ The instance's own journal ============================
 -- Evidence of acts whose per-tenant trail cannot hold them - above all a hard delete, after
 -- which the tenant's own audit chain is gone by design. Identifiers, a slug, counts and
