@@ -183,13 +183,17 @@ ON CONFLICT (tenant_id, entity, entity_id) DO NOTHING;
 -- batch-full of recently deleted deep entries would otherwise fill every pass and keep it from ever
 -- reaching a due row behind them. Among the due rows the order is unchanged, which is the order the
 -- removal needs; a due parent above a held child is kept back by the engine, not by this order.
+--
+-- `skip` pages past rows the caller read and could not remove - those a legal hold keeps, which
+-- this statement cannot judge - so that a batch-full of them does not hide a due row behind them.
+-- Stable within the caller's transaction, which removes nothing until it has read.
 SELECT i.id, i.type, i.path, i.collection_id, col.parent_id AS hub_id, i.deleted_at
 FROM work_item i
 JOIN container col ON col.id = i.collection_id
 WHERE i.deleted_at IS NOT NULL
   AND i.deleted_at < sqlc.arg('cutoff')::timestamptz
 ORDER BY (i.deleted_at > sqlc.arg('due')::timestamptz), i.depth DESC, i.deleted_at, i.id
-LIMIT sqlc.arg('batch_size');
+LIMIT sqlc.arg('batch_size') OFFSET sqlc.arg('skip');
 
 -- name: ExpiredTrashContainers :many
 -- The hubs and collections whose time in the trash is up, collections before the hubs that hold them.
@@ -198,13 +202,14 @@ LIMIT sqlc.arg('batch_size');
 -- ON DELETE RESTRICT, so a hub whose collections are still there refuses to go - the database
 -- insists on the order, and this is where it is obeyed rather than discovered.
 --
--- Rows deleted after `due` come last, for the reason the entries' statement gives.
+-- Rows deleted after `due` come last, and `skip` pages past held ones, for the reasons the entries'
+-- statement gives.
 SELECT c.id, c.type, c.parent_id, c.deleted_at
 FROM container c
 WHERE c.deleted_at IS NOT NULL
   AND c.deleted_at < sqlc.arg('cutoff')::timestamptz
 ORDER BY (c.deleted_at > sqlc.arg('due')::timestamptz), (c.type = 'HUB'), c.deleted_at, c.id
-LIMIT sqlc.arg('batch_size');
+LIMIT sqlc.arg('batch_size') OFFSET sqlc.arg('skip');
 
 -- name: EnsureRetentionPolicy :exec
 -- The default period for one kind, written for a tenant that has none.

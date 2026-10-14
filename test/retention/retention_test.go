@@ -466,6 +466,57 @@ func TestRE6RowsInsideTheWindowDoNotStarveADueOne(t *testing.T) {
 	}
 }
 
+// RE-2 with more held than a batch holds: rows a legal hold keeps must not fill the batch ahead of
+// a due one. The held rows are older, so they come first in the read; a batch-full of them would
+// otherwise be read, counted and skipped on every pass, and the due row behind them never reached.
+// A pass that removed what it could, with only held rows left, is the end of the trash.
+func TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	held := s.collection(t)
+	s.trashedItem(t, held, 300)
+	s.trashedItem(t, held, 300)
+	if _, err := s.admin.Exec(s.ctx, `
+		INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by)
+		VALUES ($1, $2, 'CONTAINER', $3, 'Pending litigation', $4)`,
+		freshID(t).String(), s.tenant.String(), held.String(), s.author.String()); err != nil {
+		t.Fatalf("placing the hold: %v", err)
+	}
+	overdue := s.trashedItem(t, s.collection(t), 200)
+
+	outcome := s.sweep(t)
+
+	if s.exists(t, overdue) {
+		t.Fatalf("a due entry is still there behind a batch a legal hold keeps (%+v)", outcome)
+	}
+	if outcome.Removed != 1 || outcome.Blocked[lifecycle.BlockedByLegalHold] != 2 {
+		t.Errorf("the pass reports %+v, want one removed and two held", outcome)
+	}
+	if !s.run.Exhausted(outcome) {
+		t.Errorf("a pass that left only held rows reads as unfinished (%+v)", outcome)
+	}
+}
+
+// A batch the offline window holds entirely is the end of the pass: nothing in it can go before the
+// window has passed, and a job that came straight back would find the same rows again, every time.
+func TestABatchHeldByTheWindowEndsThePass(t *testing.T) {
+	s := newSuite(t, 90*24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	collectionID := s.collection(t)
+	// Sixty days: past the thirty-day period, inside the ninety-day window.
+	s.trashedItem(t, collectionID, 60)
+	s.trashedItem(t, collectionID, 60)
+
+	outcome := s.sweep(t)
+
+	if outcome.Removed != 0 || outcome.Blocked[lifecycle.BlockedByTombstoneWindow] != 2 {
+		t.Fatalf("the pass reports %+v, want both held by the window", outcome)
+	}
+	if !s.run.Exhausted(outcome) {
+		t.Errorf("a batch held entirely by the window reads as unfinished (%+v)", outcome)
+	}
+}
+
 // trashedChild writes one work package under a trashed task, deleted `daysAgo` days before the run.
 func (s *suite) trashedChild(t *testing.T, collectionID, parent shared.ID, daysAgo int) shared.ID {
 	t.Helper()

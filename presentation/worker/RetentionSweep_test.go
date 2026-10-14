@@ -46,13 +46,16 @@ func (silentRuns) Finish(context.Context, shared.ID, repository.RunResult) error
 type expiredRows struct{ items []repository.ExpiredItem }
 
 func (e expiredRows) Items(
-	context.Context, time.Time, time.Time, int,
+	_ context.Context, _, _ time.Time, skip, _ int,
 ) ([]repository.ExpiredItem, error) {
+	if skip > 0 {
+		return nil, nil
+	}
 	return e.items, nil
 }
 
 func (e expiredRows) Containers(
-	context.Context, time.Time, time.Time, int,
+	context.Context, time.Time, time.Time, int, int,
 ) ([]repository.ExpiredContainer, error) {
 	return nil, nil
 }

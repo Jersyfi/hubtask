@@ -174,12 +174,16 @@ type Expired interface {
 	// row deleted by then, whatever their depth. A batch read in the depth order alone could fill with
 	// recently deleted deep entries the caller can only count as held back, pass after pass, and never
 	// reach a removable row behind them. Within each of the two groups the order is deepest first.
-	Items(ctx context.Context, cutoff, due time.Time, batchSize int) ([]ExpiredItem, error)
+	//
+	// skip is how many rows of that order to pass over: a caller that read a page and could remove
+	// little of it - a legal hold, which no statement here can judge, keeps the rest - reads the
+	// next one in the same transaction.
+	Items(ctx context.Context, cutoff, due time.Time, skip, batchSize int) ([]ExpiredItem, error)
 
 	// Containers returns hubs and collections deleted before the cutoff, collections before the hubs
 	// that hold them - which is the order `container.parent_id` being ON DELETE RESTRICT insists on -
-	// and those deleted after due last, for the reason Items gives.
-	Containers(ctx context.Context, cutoff, due time.Time, batchSize int) ([]ExpiredContainer, error)
+	// and those deleted after due last, for the reason Items gives; skip as Items reads it.
+	Containers(ctx context.Context, cutoff, due time.Time, skip, batchSize int) ([]ExpiredContainer, error)
 }
 
 // Policies stores the periods a tenant keeps things for (ADR-0020: periods are data, not code).
