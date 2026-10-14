@@ -89,12 +89,15 @@ SELECT DISTINCT account_id FROM (
 -- should not have to know which identifier is which. Trashed and archived rows answer as they are
 -- stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
 -- hub's trash is as private as the hub (ADR-0073 §1).
-SELECT c.id AS named_id, h.id AS hub_id, h.private
+--
+-- An entry also answers its collection, so that a path naming only the entry is completed with
+-- both levels above it; a container answers none.
+SELECT c.id AS named_id, h.id AS hub_id, h.private, NULL::uuid AS collection_id
 FROM container c
 JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
 WHERE c.id = ANY(sqlc.arg('ids')::uuid[])
 UNION ALL
-SELECT w.id AS named_id, h.id AS hub_id, h.private
+SELECT w.id AS named_id, h.id AS hub_id, h.private, w.collection_id AS collection_id
 FROM work_item w
 JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id

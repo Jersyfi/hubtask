@@ -117,11 +117,13 @@ type Memberships interface {
 	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
 
 	// HubsOf answers the hub each named container or entry sits under: a hub answers itself, a
-	// collection its parent, an entry its collection's parent. An identifier that names nothing in
-	// the transaction's tenant is absent from the answer rather than an error.
+	// collection its parent, an entry its collection's parent - and, for an entry, the collection
+	// too. An identifier that names nothing in the transaction's tenant is absent from the answer
+	// rather than an error.
 	//
 	// It exists so that the authoriser judges a path by storage rather than by how carefully its
-	// caller built it: a path that names a collection without its hub is completed here, and
+	// caller built it: a path that names a collection without its hub, or an entry without either,
+	// is completed here, and
 	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
 
@@ -159,6 +161,8 @@ type Hub struct {
 	ID shared.ID
 	// Private is the hub's own flag (ADR-0073 §1): only a membership on it or below it reaches it.
 	Private bool
+	// Collection is the collection an entry sits in, zero for a container.
+	Collection shared.ID
 }
 
 // Accounts is the store of people and service accounts.
