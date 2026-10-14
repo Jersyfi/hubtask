@@ -29,14 +29,23 @@
     id: string;
     /** The editor. Rendered only while open. */
     children: Snippet;
+    /**
+     * The reader may not change this entry (P-05): the row says what is set and opens nothing, and
+     * a field with nothing set is not drawn - "add" would be an offer the server refuses.
+     */
+    isReadOnly?: boolean;
   }
 
-  const { label, value, id, children }: Props = $props();
+  const { label, value, id, children, isReadOnly = false }: Props = $props();
 
   let isOpen = $state(false);
 </script>
 
-{#if viewport.isCompact}
+{#if isReadOnly}
+  {#if value !== undefined}
+    <div class="detail-row" data-detail={id}>{@render face()}</div>
+  {/if}
+{:else if viewport.isCompact}
   <button type="button" class="detail-row" data-detail={id} aria-haspopup="dialog" aria-expanded={isOpen} onclick={() => (isOpen = true)}>
     {@render face()}
   </button>
@@ -82,7 +91,9 @@
     cursor: pointer;
   }
 
-  .detail-row:hover { background: var(--bg-surface-hover); }
+  button.detail-row:hover { background: var(--bg-surface-hover); }
+
+  div.detail-row { cursor: default; }
 
   .detail-row:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);

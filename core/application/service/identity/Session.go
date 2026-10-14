@@ -54,10 +54,24 @@ const (
 	FailureOidc = "oidc_refused"
 )
 
-// AuthSignals is what the sign-in flow reports about itself: one counter, by reason. An
-// implementation must never receive a subject - the reasons are the whole label set.
+// AuthSignals is what the sign-in flow reports about itself. An implementation must never receive
+// a subject - the reasons and the steps are the whole label set (rule 10).
 type AuthSignals interface {
 	AuthFailure(ctx context.Context, reason string)
+	// SignInStep counts a step a sign-in was handed before its session: the purpose of the pending
+	// credential, a closed set (identity.md §4.2).
+	SignInStep(ctx context.Context, step string)
+	// PasswordResetRequested counts a forgotten-password request, every one alike - whether an
+	// account stands behind the address is exactly what it must not say.
+	PasswordResetRequested(ctx context.Context)
+}
+
+// stepOwed reports a pending step handed out. Only after the credential is written, so a step
+// that failed to mint is not counted as one somebody was asked to take.
+func (w SessionWriter) stepOwed(ctx context.Context, purpose domain.PendingPurpose) {
+	if w.Signals != nil {
+		w.Signals.SignInStep(ctx, strings.ToLower(string(purpose)))
+	}
 }
 
 // IdentityConnector finishes connecting a provider identity to an account once the account's own

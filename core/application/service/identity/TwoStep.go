@@ -110,6 +110,7 @@ func (w SessionWriter) challengeFor(
 		if err := w.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
 		}
+		w.stepOwed(ctx, purpose)
 
 		// The password was proved: the sign-in ledger's slate is wiped here, and the second
 		// step guards itself through its own per-account subject.
@@ -441,6 +442,7 @@ func (w SessionWriter) owedChange(
 	}); err != nil {
 		return nil, err
 	}
+	w.stepOwed(ctx, credential.Purpose)
 	rules := verdict.Rules
 	return &SignInChallenge{
 		Token: secret.New(presented.Secret()), ExpiresAt: credential.ExpiresAt,

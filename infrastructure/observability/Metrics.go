@@ -73,6 +73,8 @@ type Metrics struct {
 	pullRecords       metric.Int64Counter
 	pushResults       metric.Int64Counter
 	authFailures      metric.Int64Counter
+	signInSteps       metric.Int64Counter
+	resetRequests     metric.Int64Counter
 	poolConnections   metric.Int64Gauge
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
@@ -358,6 +360,18 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Refused sign-in and refresh attempts, by reason. refresh_reused is the alarming one: a rotated refresh token presented again means two holders of one credential."),
 	); err != nil {
 		return fmt.Errorf("auth failure counter: %w", err)
+	}
+	if m.signInSteps, err = meter.Int64Counter(
+		namespace+"_auth_sign_in_step_total",
+		metric.WithDescription("Steps a sign-in was handed before its session, by step: totp, enroll, password, link, terms."),
+	); err != nil {
+		return fmt.Errorf("sign-in step counter: %w", err)
+	}
+	if m.resetRequests, err = meter.Int64Counter(
+		namespace+"_auth_password_reset_requested_total",
+		metric.WithDescription("Forgotten-password requests, every one alike - with or without an account behind the address."),
+	); err != nil {
+		return fmt.Errorf("password reset request counter: %w", err)
 	}
 	if m.ruleRuns, err = meter.Int64Counter(
 		namespace+"_rule_runs_total",
@@ -690,6 +704,17 @@ func (m *Metrics) retentionInstruments(meter metric.Meter) error {
 // closed set the identity service declares - never a subject, never an address (§3.2, rule 10).
 func (m *Metrics) AuthFailure(ctx context.Context, reason string) {
 	m.authFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// SignInStep counts one step a sign-in was handed, by step - a closed set, never a subject.
+func (m *Metrics) SignInStep(ctx context.Context, step string) {
+	m.signInSteps.Add(ctx, 1, metric.WithAttributes(attribute.String("step", step)))
+}
+
+// PasswordResetRequested counts one forgotten-password request. No label: which ones reached an
+// account is what the request must not reveal, and a counter split by it would.
+func (m *Metrics) PasswordResetRequested(ctx context.Context) {
+	m.resetRequests.Add(ctx, 1)
 }
 
 // RetentionDeleted counts what a pass removed. Written even when it is zero: a counter that has
