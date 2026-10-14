@@ -1956,6 +1956,7 @@ func run() error {
 		work.ListTrash{
 			Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork,
 			Policies: lifecycleStore, TombstoneWindow: cfg.Retention.TombstoneWindow,
+			Holds: legalHolds.Holds, Contributors: lifecycleStore,
 		}.Descriptor(),
 		lifecycle.PurgeWorkItem{
 			Items: items, Containers: containers, Purger: purger,
