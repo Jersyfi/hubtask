@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
@@ -131,5 +132,98 @@ func TestARuleWhoseSecretsAreAllForeignIsNotRewritten(t *testing.T) {
 	}
 	if len(store.rewritten) != 0 {
 		t.Error("a rule with nothing to move was written back")
+	}
+}
+
+type callSealings struct {
+	calls     []repository.PendingCall
+	rewritten map[string]domain.SealedSecret
+}
+
+func (s *callSealings) SealedNotUnder(context.Context, string) ([]repository.PendingCall, error) {
+	return s.calls, nil
+}
+
+func (s *callSealings) RewrapCall(_ context.Context, id shared.ID, sealed domain.SealedSecret, expected string) (bool, error) {
+	if s.rewritten == nil {
+		s.rewritten = map[string]domain.SealedSecret{}
+	}
+	if expected != "k1" {
+		return false, nil
+	}
+	s.rewritten[id.String()] = sealed
+	return true, nil
+}
+
+// refusingRing refuses a ciphertext that was not sealed for the purpose it names, the way the
+// envelope does, so the round can be shown to continue past a caller-shaped job.
+type refusingRing struct{ rotatingRing }
+
+func (r *refusingRing) Rewrap(ctx context.Context, sealed crypto.Sealed, purpose crypto.Purpose) (crypto.Sealed, error) {
+	switch string(sealed.Ciphertext) {
+	case "forged":
+		r.purposes = append(r.purposes, purpose)
+		return crypto.Sealed{}, crypto.NotAuthentic()
+	case "junk":
+		r.purposes = append(r.purposes, purpose)
+		return crypto.Sealed{}, shared.ErrValidation.WithDetail(crypto.CodeCiphertextMalformed)
+	}
+	return r.rotatingRing.Rewrap(ctx, sealed, purpose)
+}
+
+func pendingCall(job, request, keyID, ciphertext, purpose string) repository.PendingCall {
+	return repository.PendingCall{
+		JobID: shared.MustParseID(job), RequestID: request,
+		Sealed: domain.SealedSecret{
+			Ciphertext: base64.StdEncoding.EncodeToString([]byte(ciphertext)), KeyID: keyID, Purpose: purpose,
+		},
+	}
+}
+
+// UC-INS-16 check 2: a call still on its ladder moves under the current key, under the purpose it
+// was sealed for - the request's own, or the rule's it was carried over from - and the round goes on
+// past every job it cannot move rather than failing the workspace on one of them.
+func TestPendingCallSecretsMoveUnderTheirOwnPurposeAndTheRestIsSkipped(t *testing.T) {
+	request := "018f2a1b-0000-7000-8000-0000000000f1"
+	other := "018f2a1b-0000-7000-8000-0000000000f2"
+	rule := shared.MustParseID("018f2a1b-0000-7000-8000-0000000000f3")
+	requestPurpose := string(requestSecretPurpose(shared.MustParseID(request)))
+	rulePurpose := string(ruleSecretPurpose(rule))
+	store := &callSealings{calls: []repository.PendingCall{
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a1", request, "k1", "direct", requestPurpose),
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a2", request, "k1", "from-a-rule", rulePurpose),
+		// Another request's purpose: no job of this system is written so.
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a3", other, "k1", "lifted", requestPurpose),
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a4", request, "k1", "x", "webhook.secret:whatever"),
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a5", request, "gone", "lost", requestPurpose),
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a6", request, "k1", "forged", requestPurpose),
+		pendingCall("018f2a1b-0000-7000-8000-0000000000a7", request, "k1", "junk", requestPurpose),
+		{JobID: shared.MustParseID("018f2a1b-0000-7000-8000-0000000000a8"), RequestID: request,
+			Sealed: domain.SealedSecret{Ciphertext: "%%not base64", KeyID: "k1", Purpose: requestPurpose}},
+	}}
+	ring := &refusingRing{}
+
+	outcome, err := CallResealer{Calls: store, Encryptor: ring}.Reseal(t.Context(), shared.ID(""))
+	if err != nil {
+		t.Fatalf("re-sealing: %v", err)
+	}
+	if outcome.Rewrapped != 2 || outcome.Skipped != 6 {
+		t.Errorf("outcome %+v, want 2 moved and 6 skipped", outcome)
+	}
+	direct := store.rewritten["018f2a1b-0000-7000-8000-0000000000a1"]
+	if direct.KeyID != "k2" || direct.Purpose != requestPurpose {
+		t.Errorf("the direct call's secret after the round: %+v", direct)
+	}
+	carried := store.rewritten["018f2a1b-0000-7000-8000-0000000000a2"]
+	if carried.KeyID != "k2" || carried.Purpose != rulePurpose {
+		t.Errorf("the rule's carried secret after the round: %+v", carried)
+	}
+	if len(store.rewritten) != 2 {
+		t.Errorf("jobs written back: %v", store.rewritten)
+	}
+	for _, seen := range ring.purposes {
+		if string(seen) != requestPurpose && string(seen) != rulePurpose {
+			t.Errorf("a rewrap was attempted under %q", seen)
+		}
 	}
 }

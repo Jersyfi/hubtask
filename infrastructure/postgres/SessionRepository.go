@@ -1005,6 +1005,33 @@ func (r SignInRepository) PasswordHashOf(
 	return secret.New(stringFrom(hash)), nil
 }
 
+// RehashPassword replaces the stored hash only while it is still the one the sign-in verified -
+// the compare-and-set that keeps a password changed in between from being overwritten.
+func (r SignInRepository) RehashPassword(
+	ctx context.Context, accountID shared.ID, current, replacement string, at time.Time,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	changed, err := queries.RehashPassword(ctx, sqlc.RehashPasswordParams{
+		Replacement: &replacement,
+		At:          pgtype.Timestamptz{Time: at, Valid: true},
+		ID:          id,
+		Current:     &current,
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("rehashing the stored password: %w", err))
+	}
+	return changed > 0, nil
+}
+
 // StepUpRepository maintains the step-up proof on the session rows. A type of its own for
 // RefreshTokenRepository's reason: it hashes a different credential under a different label.
 type StepUpRepository struct {

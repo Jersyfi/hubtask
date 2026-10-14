@@ -525,6 +525,19 @@ SELECT settings FROM tenant WHERE id = current_tenant_id();
 SELECT password_hash FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
+-- name: RehashPassword :execrows
+-- The same password under the build's current cost, after a sign-in proved it. Conditional on the
+-- hash the sign-in read, so a password changed (or already rehashed) in between is never
+-- overwritten. Only the hash and updated_at move: the password's age, its start-password mark,
+-- its history and the row's version are about the password, which did not change - but the
+-- incremental backup selects account rows by updated_at, and must carry the new hash.
+UPDATE account
+   SET password_hash = sqlc.arg('replacement'),
+       updated_at    = sqlc.arg('at')
+ WHERE id = sqlc.arg('id')
+   AND password_hash = sqlc.arg('current')
+   AND deleted_at IS NULL;
+
 -- ============================ The step-up ============================
 
 -- name: RecordStepUp :execrows

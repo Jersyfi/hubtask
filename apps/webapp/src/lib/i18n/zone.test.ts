@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { dateIn, instantOf, timeIn, todayIn, zoneName } from './zone.ts';
+import { dateIn, endOfDayIn, instantOf, timeIn, todayIn, zoneName } from './zone.ts';
 
 test('a wall clock in a zone becomes the instant behind it', () => {
   // Berlin is UTC+1 in winter and UTC+2 in summer, and the same wall clock is therefore two
@@ -64,4 +64,19 @@ test('a value that is not a date is not turned into one', () => {
   assert.equal(timeIn('not an instant', 'UTC'), undefined);
   // A zone name is the honest fallback when there is no instant to name it at.
   assert.equal(zoneName('not an instant', 'Europe/Berlin', 'en'), 'Europe/Berlin');
+});
+
+test('a day typed as a deadline ends at the end of that day where the person is', () => {
+  // The token expiry typed as 31 December was sent as 23:59:59 UTC and listed in Berlin as
+  // 1 January. The end of the day in the person's own zone reads back as the day they typed.
+  const berlin = endOfDayIn('2026-12-31', 'Europe/Berlin');
+  assert.equal(berlin, '2026-12-31T22:59:59.000Z');
+  assert.equal(dateIn(berlin!, 'Europe/Berlin'), '2026-12-31');
+  const saoPaulo = endOfDayIn('2026-12-31', 'America/Sao_Paulo');
+  assert.equal(saoPaulo, '2027-01-01T02:59:59.000Z');
+  assert.equal(dateIn(saoPaulo!, 'America/Sao_Paulo'), '2026-12-31');
+  // The night a zone springs forward is an hour short, and the day still ends at its own midnight.
+  assert.equal(endOfDayIn('2026-03-28', 'Europe/Berlin'), '2026-03-28T22:59:59.000Z');
+  assert.equal(endOfDayIn('2026-03-29', 'Europe/Berlin'), '2026-03-29T21:59:59.000Z');
+  assert.equal(endOfDayIn('31.12.2026', 'Europe/Berlin'), undefined);
 });

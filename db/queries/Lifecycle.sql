@@ -177,12 +177,18 @@ ON CONFLICT (tenant_id, entity, entity_id) DO NOTHING;
 --
 -- The limit is the batch: a retention run removes in batches so that a large deletion does not hold
 -- one transaction open across the whole of it (data-retention.md §5).
+--
+-- Rows deleted after `due` come last: past their period, still inside the offline window, and so
+-- read only to be counted as held back. Ahead of the depth order rather than inside it, because a
+-- batch-full of recently deleted deep entries would otherwise fill every pass and keep it from ever
+-- reaching a due row behind them. Among the due rows the order is unchanged, which is the order the
+-- removal needs; a due parent above a held child is kept back by the engine, not by this order.
 SELECT i.id, i.type, i.path, i.collection_id, col.parent_id AS hub_id, i.deleted_at
 FROM work_item i
 JOIN container col ON col.id = i.collection_id
 WHERE i.deleted_at IS NOT NULL
   AND i.deleted_at < sqlc.arg('cutoff')::timestamptz
-ORDER BY i.depth DESC, i.deleted_at, i.id
+ORDER BY (i.deleted_at > sqlc.arg('due')::timestamptz), i.depth DESC, i.deleted_at, i.id
 LIMIT sqlc.arg('batch_size');
 
 -- name: ExpiredTrashContainers :many
@@ -191,11 +197,13 @@ LIMIT sqlc.arg('batch_size');
 -- The order is the same bottom-up rule and the same reason: `container.parent_id` is
 -- ON DELETE RESTRICT, so a hub whose collections are still there refuses to go - the database
 -- insists on the order, and this is where it is obeyed rather than discovered.
+--
+-- Rows deleted after `due` come last, for the reason the entries' statement gives.
 SELECT c.id, c.type, c.parent_id, c.deleted_at
 FROM container c
 WHERE c.deleted_at IS NOT NULL
   AND c.deleted_at < sqlc.arg('cutoff')::timestamptz
-ORDER BY (c.type = 'HUB'), c.deleted_at, c.id
+ORDER BY (c.deleted_at > sqlc.arg('due')::timestamptz), (c.type = 'HUB'), c.deleted_at, c.id
 LIMIT sqlc.arg('batch_size');
 
 -- name: EnsureRetentionPolicy :exec

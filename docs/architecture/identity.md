@@ -165,8 +165,12 @@ is §18.
 
 ### 5.3 Hashing
 
-Argon2id with `m=64 MiB, t=3, p=2`. The parameters travel in the hash string; a hash with older
-parameters is recomputed at sign-in, so a change needs no job.
+Argon2id with `m=64 MiB, t=3, p=2`. The parameters travel in the hash string; a hash with a lower
+cost is recomputed at the next sign-in that proves its password, so a change needs no job. The new
+hash replaces the old one only while the old one is still stored, and leaves the password's age and
+history alone; each counts in `hubtask_auth_password_rehashed_total`. Lower, not different: during
+a rolling update an older build leaves the newer build's hashes alone, so a cost lowered on purpose
+reaches a hash only when the password is next set.
 
 ### 5.4 The rules are data
 
@@ -723,7 +727,9 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   operator opening and agreement to the terms of use is audited ([audit.md](./audit.md)); every
   refused sign-in or refresh counts in `hubtask_auth_failures_total{reason}`, every step a sign-in
   is handed before its session in `hubtask_auth_sign_in_step_total{step}`, and every
-  forgotten-password request alike, with no label, in `hubtask_auth_password_reset_requested_total`.
+  forgotten-password request alike, with no label, in `hubtask_auth_password_reset_requested_total`,
+and every stored hash brought up to the current cost (§5.3), with no label, in
+`hubtask_auth_password_rehashed_total`.
 * The session's user agent, IP class and method, the reset and invitation tokens, the opening's
   requester, the provider identities and the latest agreement to the terms are personal data in the
   [data catalogue](../privacy/data-catalog.md).

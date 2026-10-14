@@ -1257,6 +1257,40 @@ func (q *Queries) RedeemInvitation(ctx context.Context, arg RedeemInvitationPara
 	return result.RowsAffected(), nil
 }
 
+const rehashPassword = `-- name: RehashPassword :execrows
+UPDATE account
+   SET password_hash = $1,
+       updated_at    = $2
+ WHERE id = $3
+   AND password_hash = $4
+   AND deleted_at IS NULL
+`
+
+type RehashPasswordParams struct {
+	Replacement *string
+	At          pgtype.Timestamptz
+	ID          pgtype.UUID
+	Current     *string
+}
+
+// The same password under the build's current cost, after a sign-in proved it. Conditional on the
+// hash the sign-in read, so a password changed (or already rehashed) in between is never
+// overwritten. Only the hash and updated_at move: the password's age, its start-password mark,
+// its history and the row's version are about the password, which did not change - but the
+// incremental backup selects account rows by updated_at, and must carry the new hash.
+func (q *Queries) RehashPassword(ctx context.Context, arg RehashPasswordParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rehashPassword,
+		arg.Replacement,
+		arg.At,
+		arg.ID,
+		arg.Current,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const resolveTenant = `-- name: ResolveTenant :one
 
 SELECT resolve_tenant($1)::uuid AS tenant_id

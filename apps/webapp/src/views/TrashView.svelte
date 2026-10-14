@@ -37,6 +37,7 @@
   import type { TrashEntry } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { daysUntil, isContainer, remainingDays } from '../lib/data/lifecycle.ts';
@@ -53,10 +54,16 @@
   // `untrack` for the reason every store here records: the load writes the store and writing it
   // reads it, so an effect that tracks that read re-runs on its own first answer.
   $effect(() => {
-    void untrack(() => {
-      void trash.load();
-      void retention.start();
-    });
+    void untrack(() => trash.load());
+  });
+
+  // The policies only where the manifest says the server will answer them: `STRUCTURE`, or the
+  // auditor's `READ_CONFIGURATION`, on the workspace - the condition the read itself asks. Asked of
+  // anybody else it is refused, and every refusal is a DENIED entry in the trail. Tracked, so a
+  // manifest that arrives after the screen still starts the read.
+  const mayReadPolicies = $derived(holdsHere('STRUCTURE') === true || holdsHere('READ_CONFIGURATION') === true);
+  $effect(() => {
+    if (mayReadPolicies) void untrack(() => retention.start());
   });
 
   const now = Date.now();

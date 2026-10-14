@@ -67,6 +67,8 @@ WHERE sqlc.arg('overwrite')::boolean;
 SELECT EXISTS (SELECT 1 FROM tenant WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
 
 -- name: ImportAccount :execrows
+-- ai_consent is neither written nor updated: an archive from before tenant-export.md §11 still
+-- carries it, jsonb_populate_record accepts the key, and the column keeps what it holds.
 INSERT INTO account (
   id,
   tenant_id,
@@ -79,7 +81,6 @@ INSERT INTO account (
   time_zone,
   week_start,
   status,
-  ai_consent,
   sign_in_name,
   start_password_at,
   terms_url,
@@ -102,7 +103,6 @@ SELECT
   r.time_zone,
   r.week_start,
   r.status,
-  r.ai_consent,
   r.sign_in_name,
   r.start_password_at,
   r.terms_url,
@@ -127,7 +127,6 @@ ON CONFLICT (id) DO UPDATE SET
   time_zone = EXCLUDED.time_zone,
   week_start = EXCLUDED.week_start,
   status = EXCLUDED.status,
-  ai_consent = EXCLUDED.ai_consent,
   sign_in_name = EXCLUDED.sign_in_name,
   start_password_at = EXCLUDED.start_password_at,
   terms_url = EXCLUDED.terms_url,

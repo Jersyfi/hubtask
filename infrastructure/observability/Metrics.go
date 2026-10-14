@@ -75,6 +75,7 @@ type Metrics struct {
 	authFailures      metric.Int64Counter
 	signInSteps       metric.Int64Counter
 	resetRequests     metric.Int64Counter
+	rehashes          metric.Int64Counter
 	poolConnections   metric.Int64Gauge
 	migrationVersion  metric.Int64Gauge
 	ruleRuns          metric.Int64Counter
@@ -372,6 +373,12 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Forgotten-password requests, every one alike - with or without an account behind the address."),
 	); err != nil {
 		return fmt.Errorf("password reset request counter: %w", err)
+	}
+	if m.rehashes, err = meter.Int64Counter(
+		namespace+"_auth_password_rehashed_total",
+		metric.WithDescription("Stored password hashes brought up to the current cost after a sign-in proved the password."),
+	); err != nil {
+		return fmt.Errorf("password rehash counter: %w", err)
 	}
 	if m.ruleRuns, err = meter.Int64Counter(
 		namespace+"_rule_runs_total",
@@ -715,6 +722,12 @@ func (m *Metrics) SignInStep(ctx context.Context, step string) {
 // account is what the request must not reveal, and a counter split by it would.
 func (m *Metrics) PasswordResetRequested(ctx context.Context) {
 	m.resetRequests.Add(ctx, 1)
+}
+
+// PasswordRehashed counts one stored hash brought up to the current cost. No label: the counter
+// shows how far an upgrade of the cost has reached, never whose.
+func (m *Metrics) PasswordRehashed(ctx context.Context) {
+	m.rehashes.Add(ctx, 1)
 }
 
 // RetentionDeleted counts what a pass removed. Written even when it is zero: a counter that has

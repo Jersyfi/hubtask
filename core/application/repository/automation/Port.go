@@ -273,3 +273,25 @@ type RuleSealings interface {
 	// moved on in between.
 	RewrapActions(ctx context.Context, id shared.ID, actions []domain.Action, expectedVersion int) (bool, error)
 }
+
+// PendingCall is an HTTP call's job that may still run, as the re-seal sees it: the job, the
+// request identity its payload names, and the header secret it carries.
+type PendingCall struct {
+	JobID shared.ID
+	// RequestID is the payload's `request_id` as written, empty when it names none.
+	RequestID string
+	Sealed    domain.SealedSecret
+}
+
+// CallSealings is the re-seal's view of the HTTP calls still waiting to be made or retried
+// (ADR-0045): their header secret lives in the job's payload, under the key it was sealed with,
+// until the job ends.
+type CallSealings interface {
+	// SealedNotUnder answers the current tenant's call jobs that may still run and whose header
+	// secret names a key other than keyID.
+	SealedNotUnder(ctx context.Context, keyID string) ([]PendingCall, error)
+
+	// RewrapCall replaces one job's header secret, guarded by the key the job named when it was
+	// read and by the job still being able to run. False means it moved on in between.
+	RewrapCall(ctx context.Context, jobID shared.ID, sealed domain.SealedSecret, expectedKeyID string) (bool, error)
+}

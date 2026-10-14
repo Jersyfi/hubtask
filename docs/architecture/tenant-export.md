@@ -101,7 +101,7 @@ Each line of a `data/<entity>.jsonl` file is one JSON object:
 | `id` | string | The row's identity: the entity's key columns (§6), joined with `/` when there are several. Never contains the tenant — the archive's scope carries it once. |
 | `op` | string | `UPSERT` — the row as it stood at the snapshot. (`DELETE` markers exist only in incremental backups.) |
 | `updated_at` | RFC 3339 | When the row last changed. Always present; a table with no change stamp gives the archive's `snapshot_at`. |
-| `data` | object | **The row's columns, under their column names, minus `tenant_id`** (`db/schema.sql` at the manifest's `schema_version`). Values as JSON: text as strings, numerics as numbers, `timestamptz` as RFC 3339 strings, `jsonb` embedded as-is, arrays as arrays, `NULL` as `null`. |
+| `data` | object | **The row's columns, under their column names, minus `tenant_id`** (`db/schema.sql` at the manifest's `schema_version`) and minus the columns §11 names as left out. Values as JSON: text as strings, numerics as numbers, `timestamptz` as RFC 3339 strings, `jsonb` embedded as-is, arrays as arrays, `NULL` as `null`. |
 | `blobs` | array | Only on `media_objects` records whose bytes are in the archive: `[{"sha256": "<64 lower hex>", "bytes": <int>}]` — the reference into `media/` (§7). |
 
 A line is at most 4 MiB. A record whose bytes were already gone at export time is still written,
@@ -250,6 +250,12 @@ expected to keep sign-ins working. The export is handed outwards.
   version-1 reader would misread does.
 * A file version 1 gained later (§6: `private_hub_accesses`) is additive too: every archive written
   since carries it, and one written before reads as holding none of its rows.
+* A field a writer stops writing is additive in the other direction: a reader tolerates it in an
+  older archive and takes nothing from it. `accounts` no longer carries `ai_consent`, a column
+  nothing reads or writes - the person's AI objection is a `consent_records` row
+  ([data-protection.md](./data-protection.md) §4.1), and an always-false flag beside it read as a
+  consent nobody gave. An import ignores it in an archive written before; the column leaves the
+  schema in a later contract migration.
 * Readers refuse a `format_version` above what they know, and accept everything from the minimum
   readable version (currently 1) up.
 * This document is versioned with the repository; the manifest's `product_version` and

@@ -7,7 +7,7 @@ deployments: [D1, D4, D5, D6, D7]
 serves: [P-03, P-11]
 state: verified
 tasks: [SC-12]
-checked_by: [test/integration/installation_census_test.go, test/integration/installation_rotation_test.go, test/integration/sealing_test.go, core/application/service/sealing/Sealing_test.go, core/application/service/sealing/KeyHealth_test.go, apps/webapp/e2e/instanceencryption.test.mjs, docs/evidence/SC-12-2026-10-12.md]
+checked_by: [test/integration/installation_census_test.go, test/integration/installation_rotation_test.go, test/integration/sealing_test.go, test/integration/key_rotation_test.go, core/application/service/automation/Reseal_test.go, core/application/service/sealing/Sealing_test.go, core/application/service/sealing/KeyHealth_test.go, apps/webapp/e2e/instanceencryption.test.mjs, docs/evidence/SC-12-2026-10-12.md]
 ---
 
 # Rotate the installation's keys and know every secret moved

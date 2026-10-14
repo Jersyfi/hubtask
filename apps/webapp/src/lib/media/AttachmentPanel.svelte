@@ -52,6 +52,13 @@
   const page = resource<MediaPage>({ path: untrack(() => attachmentsPath(item.id)) });
   const rows = $derived(page.state.status === 'ready' ? (page.state.data.data ?? []) : []);
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
+  /** What the last press of *Show more* brought; empty until asked, as the entry's history is. */
+  let arrived = $state<string | undefined>(undefined);
+
+  async function more(): Promise<void> {
+    await page.loadMore();
+    arrived = t('app.media.arrived', { count: rows.length });
+  }
   const readFailure = $derived(
     page.state.status === 'failed' ? renderProblem(page.state.error, messages) : undefined,
   );
@@ -171,11 +178,12 @@
           </li>
         {/each}
       </ul>
-      {#if hasMore}
+      {#if hasMore || arrived}
         <LoadMore
           label={t('app.media.more')}
-          arrivedLabel={t('app.media.arrived', { count: rows.length })}
-          onLoadMore={() => page.loadMore()}
+          {hasMore}
+          arrivedLabel={arrived}
+          onLoadMore={() => void more()}
         />
       {/if}
     {/if}
