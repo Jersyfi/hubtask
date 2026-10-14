@@ -198,10 +198,10 @@ func TestTheLastOwnersAreNotTakenOutOfTheirGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			groups, grants, owners := ownersGroupWorld(t)
 			handler := updateHandler(groups, newAccounts(invitedAccount(t), activePerson(ownerA), activePerson(ownerB)), &authorizer{}, &auditSink{})
-			handler.Grants, handler.Owners = grants, owners
+			handler.Grants, handler.Owners, handler.StepUp = grants, owners, &stepUpFake{satisfied: true}
 
 			_, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
-				GroupID: groupID, Members: tc.members, ReplaceMembers: true,
+				GroupID: groupID, Members: tc.members, ReplaceMembers: true, StepUpToken: "hbt_sup_x",
 			})
 
 			if tc.refused {
@@ -228,15 +228,19 @@ func TestTheLastOwnersAreNotTakenOutOfTheirGroup(t *testing.T) {
 func TestTheLastOwnersGroupIsNotDeleted(t *testing.T) {
 	groups, grants, owners := ownersGroupWorld(t)
 	handler := deleteHandler(groups, &authorizer{}, &auditSink{})
-	handler.Grants, handler.Owners = grants, owners
+	proof := &stepUpFake{satisfied: true}
+	handler.Grants, handler.Owners, handler.StepUp = grants, owners, proof
 
-	err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID})
+	err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID, StepUpToken: "hbt_sup_x"})
 	if shared.AsError(err).DetailCode != "memberships.last_owner" || len(groups.deleted) != 0 {
 		t.Fatalf("deleting answered %v and deleted %v, want memberships.last_owner and nothing", err, groups.deleted)
 	}
+	if len(proof.presented) != 0 {
+		t.Errorf("the proof was spent on a refused deletion: %v", proof.presented)
+	}
 
 	owners.paths = append(owners.paths, repository.OwnerPath{MembershipID: ownerGrant, AccountID: ownerB})
-	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID}); err != nil {
+	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID, StepUpToken: "hbt_sup_x"}); err != nil {
 		t.Fatalf("deleting with another owner left: %v", err)
 	}
 	if len(groups.deleted) != 1 {
@@ -253,8 +257,83 @@ func TestAGroupOwningAHubIsNotCountedAsTheWorkspacesOwners(t *testing.T) {
 	groups := newGroups(settledGroup(t))
 	groups.members[groupID] = []shared.ID{ownerA}
 	handler := deleteHandler(groups, &authorizer{}, &auditSink{})
-	handler.Grants = newGrants(held)
-	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID}); err != nil {
+	handler.Grants, handler.StepUp = newGrants(held), &stepUpFake{satisfied: true}
+	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID, StepUpToken: "hbt_sup_x"}); err != nil {
 		t.Fatalf("deleting a hub's owners' group: %v", err)
+	}
+}
+
+// #1430 (identity.md §16.3): changing who is in a group that holds OWNER anywhere, or deleting it,
+// changes who holds OWNER, and demands the fresh proof - after the ceiling and the guard, before
+// anything is written. A rename, an unchanged list and a group without OWNER ask none.
+func TestAGroupHoldingOwnerAsksAProof(t *testing.T) {
+	hubOwner, err := domain.NewGrant(membershipID, tenant, "", groupID, domain.HubScope(hubID), domain.RoleOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	world := func(held domain.Grant) (*groupStore, *grantStore, *ownersFake) {
+		groups := newGroups(settledGroup(t))
+		groups.members[groupID] = []shared.ID{ownerA}
+		owners := &ownersFake{paths: []repository.OwnerPath{{MembershipID: ownerGrant, AccountID: ownerB}}}
+		return groups, newGrants(held), owners
+	}
+	accounts := newAccounts(activePerson(ownerA), activePerson(ownerB))
+	rename := "Owners"
+
+	for _, held := range []domain.Grant{workspaceOwnerGrant(t, membershipID, "", groupID), hubOwner} {
+		t.Run(string(held.Scope.Type), func(t *testing.T) {
+			groups, grants, owners := world(held)
+			update := updateHandler(groups, accounts, &authorizer{}, &auditSink{})
+			update.Grants, update.Owners, update.StepUp = grants, owners, &stepUpFake{}
+			change := UpdateGroupCommand{GroupID: groupID, Members: []shared.ID{ownerA, ownerB}, ReplaceMembers: true}
+
+			_, err := update.Execute(t.Context(), admin(), change)
+			if shared.AsError(err).DetailCode != "auth.step_up_required" {
+				t.Fatalf("a member change without a proof answered %v, want auth.step_up_required", err)
+			}
+			if len(groups.members[groupID]) != 1 {
+				t.Errorf("members %v, want nothing written", groups.members[groupID])
+			}
+
+			proof := &stepUpFake{satisfied: true}
+			update.StepUp = proof
+			change.StepUpToken = "hbt_sup_x"
+			if _, err := update.Execute(t.Context(), admin(), change); err != nil {
+				t.Fatalf("a member change with the proof: %v", err)
+			}
+			if !slices.Equal(proof.presented, []string{"hbt_sup_x"}) {
+				t.Errorf("proofs presented %v, want the one sent", proof.presented)
+			}
+
+			// The list now unchanged, beside a rename: nothing placed, no proof.
+			update.StepUp = &stepUpFake{}
+			change = UpdateGroupCommand{GroupID: groupID, Name: &rename, Members: []shared.ID{ownerA, ownerB}, ReplaceMembers: true}
+			if _, err := update.Execute(t.Context(), admin(), change); err != nil {
+				t.Errorf("an unchanged list beside a rename asked: %v", err)
+			}
+
+			remove := deleteHandler(groups, &authorizer{}, &auditSink{})
+			remove.Grants, remove.Owners, remove.StepUp = grants, owners, &stepUpFake{}
+			err = remove.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID})
+			if shared.AsError(err).DetailCode != "auth.step_up_required" || len(groups.deleted) != 0 {
+				t.Fatalf("a deletion without a proof answered %v, want auth.step_up_required and nothing deleted", err)
+			}
+		})
+	}
+
+	// A group holding less than OWNER asks no proof.
+	groups, grants, owners := world(func() domain.Grant {
+		g, err := domain.NewGrant(membershipID, tenant, "", groupID, domain.TenantScope(), domain.RoleAdmin)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}())
+	update := updateHandler(groups, accounts, &authorizer{}, &auditSink{})
+	update.Grants, update.Owners, update.StepUp = grants, owners, &stepUpFake{}
+	if _, err := update.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{ownerB}, ReplaceMembers: true,
+	}); err != nil {
+		t.Errorf("a member change of a group holding ADMIN asked: %v", err)
 	}
 }

@@ -107,7 +107,7 @@ func (pending) UpdateGroup(w http.ResponseWriter, r *http.Request, _ openapi.Gro
 	notAvailable(w, r)
 }
 
-func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.GroupId) {
+func (pending) DeleteGroup(w http.ResponseWriter, r *http.Request, _ openapi.GroupId, _ openapi.DeleteGroupParams) {
 	notAvailable(w, r)
 }
 

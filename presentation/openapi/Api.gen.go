@@ -10442,10 +10442,19 @@ type CreateGroupParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DeleteGroupParams defines parameters for DeleteGroup.
+type DeleteGroupParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // UpdateGroupParams defines parameters for UpdateGroup.
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -11951,7 +11960,7 @@ type ServerInterface interface {
 	CreateGroup(w http.ResponseWriter, r *http.Request, params CreateGroupParams)
 	// DeleteGroup Delete a group
 	// (DELETE /groups/{groupId})
-	DeleteGroup(w http.ResponseWriter, r *http.Request, groupId GroupId)
+	DeleteGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params DeleteGroupParams)
 	// GetGroup One group, with who is in it
 	// (GET /groups/{groupId})
 	GetGroup(w http.ResponseWriter, r *http.Request, groupId GroupId)
@@ -16989,8 +16998,32 @@ func (siw *ServerInterfaceWrapper) DeleteGroup(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteGroup(w, r, groupId)
+		siw.Handler.DeleteGroup(w, r, groupId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -17062,6 +17095,25 @@ func (siw *ServerInterfaceWrapper) UpdateGroup(w http.ResponseWriter, r *http.Re
 		}
 
 		params.IfMatch = &IfMatch
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
 
 	}
 

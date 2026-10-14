@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -207,6 +208,8 @@ type UpdateGroupCommand struct {
 	Members         []shared.ID
 	ReplaceMembers  bool
 	ExpectedVersion int
+	// StepUpToken is the fresh proof a member change of a group holding OWNER demands.
+	StepUpToken string
 }
 
 // UpdateGroup renames a group, changes its description, or replaces who is in it.
@@ -231,6 +234,9 @@ type UpdateGroup struct {
 	// Owners keeps the workspace's last owner when the group holds OWNER on it (domain-model.md
 	// §3.2). Nil refuses such a member change rather than letting it pass unguarded.
 	Owners repository.Owners
+	// StepUp judges the fresh proof a member change of a group holding OWNER demands. Nil refuses
+	// rather than permits, the seam's own rule.
+	StepUp stepup.Verifier
 }
 
 // Execute applies the change and returns the group.
@@ -269,6 +275,9 @@ func (h UpdateGroup) Execute(
 			if err != nil {
 				return domain.Group{}, err
 			}
+		}
+		if err := demandForOwner(ctx, h.StepUp, actor, asked, cmd.StepUpToken); err != nil {
+			return domain.Group{}, err
 		}
 	}
 
@@ -445,6 +454,29 @@ func sameMembers(current, wanted []shared.ID) bool {
 // roleSet is the roles, each at its scope, the ceiling was asked about.
 type roleSet map[domain.Scope]map[domain.Role]bool
 
+// holdsOwner is whether OWNER is among the roles, at any scope.
+func (s roleSet) holdsOwner() bool {
+	for _, roles := range s {
+		if roles[domain.RoleOwner] {
+			return true
+		}
+	}
+	return false
+}
+
+// demandForOwner asks the fresh proof when the group's change places or takes OWNER: changing who
+// is in a group holding it, or deleting it, is changing the OWNER role (identity.md §16.3). Decided
+// on the roles the ceiling asked about; one given meanwhile is refused under the group's lock as
+// groups.roles_changed, so it never slips past the proof either.
+func demandForOwner(
+	ctx context.Context, verifier stepup.Verifier, actor appshared.ActorContext, asked roleSet, token string,
+) error {
+	if !asked.holdsOwner() {
+		return nil
+	}
+	return stepup.Demand(ctx, verifier, actor.TenantID, actor.AccountID, token)
+}
+
 // covers refuses a role held now that the ceiling was not asked about.
 func (s roleSet) covers(held []domain.Grant) error {
 	for _, grant := range held {
@@ -566,7 +598,12 @@ func (h UpdateGroup) Descriptor() usecase.Descriptor {
 				Name: "members", Kind: usecase.KindIDList,
 				Description: "The complete membership after the change. Omitted leaves it as it is.",
 			},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof a member change of a group holding OWNER demands.",
+			},
 		},
+		StepUp: "changing who is in a group that holds the OWNER role",
 		Audit: usecase.AuditDeclaration{
 			Action: GroupUpdatedAction, TargetType: groupTarget,
 			Severity: audit.SeverityInfo, Required: true,
@@ -595,6 +632,7 @@ func (h UpdateGroup) invoke(
 		// The list is only a replacement when the caller sent one at all. Absent leaves the
 		// membership alone; an empty list empties the group, which is a legitimate thing to want.
 		ReplaceMembers: in.Present("members"),
+		StepUpToken:    in.String("step_up_token"),
 	})
 	if err != nil {
 		return nil, err
@@ -605,6 +643,8 @@ func (h UpdateGroup) invoke(
 // DeleteGroupCommand is the input, typed.
 type DeleteGroupCommand struct {
 	GroupID shared.ID
+	// StepUpToken is the fresh proof deleting a group holding OWNER demands.
+	StepUpToken string
 }
 
 // DeleteGroup removes a group.
@@ -628,6 +668,8 @@ type DeleteGroup struct {
 	// Owners keeps the workspace's last owner when the group holds OWNER on it (domain-model.md
 	// §3.2). Nil refuses such a deletion rather than letting it pass unguarded.
 	Owners repository.Owners
+	// StepUp judges the fresh proof deleting a group holding OWNER demands.
+	StepUp stepup.Verifier
 }
 
 // Execute deletes the group.
@@ -674,6 +716,9 @@ func (h DeleteGroup) Execute(
 		if err != nil {
 			return err
 		}
+	}
+	if err := demandForOwner(ctx, h.StepUp, actor, asked, cmd.StepUpToken); err != nil {
+		return err
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -750,7 +795,12 @@ func (h DeleteGroup) Descriptor() usecase.Descriptor {
 		Destructive: true,
 		Input: []usecase.Field{
 			{Name: "group_id", Kind: usecase.KindID, Required: true},
+			{
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof deleting a group holding OWNER demands.",
+			},
 		},
+		StepUp: "deleting a group that holds the OWNER role",
 		Audit: usecase.AuditDeclaration{
 			Action: GroupDeletedAction, TargetType: groupTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -766,7 +816,7 @@ func (h DeleteGroup) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, DeleteGroupCommand{GroupID: groupID}); err != nil {
+	if err := h.Execute(ctx, actor, DeleteGroupCommand{GroupID: groupID, StepUpToken: in.String("step_up_token")}); err != nil {
 		return nil, err
 	}
 	return usecase.Output{}, nil

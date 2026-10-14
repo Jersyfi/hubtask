@@ -1491,11 +1491,12 @@ func run() error {
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
-			Owners: grants,
+			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),

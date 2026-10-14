@@ -431,6 +431,40 @@ func TestReadingAGroupAnswersItsMembersAndItsTag(t *testing.T) {
 	}
 }
 
+// A member change or deletion of a group holding OWNER demands a proof (identity.md §16.3): both
+// routes carry the X-Hubtask-Step-Up header through to the use case.
+func TestTheGroupWritesCarryTheStepUp(t *testing.T) {
+	group := "0192f000-0000-7000-8000-0000000000c1"
+	for _, tc := range []struct {
+		method, body, useCase string
+	}{
+		{http.MethodPatch, `{"members":[]}`, updateGroupUseCase},
+		{http.MethodDelete, "", deleteGroupUseCase},
+	} {
+		registry := &catalogue{out: usecase.Output{"id": group, "name": "Owners", "version": 2}}
+		controller := NewRestController()
+		controller.UseCases = registry
+		ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+			Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+			AccountID: shared.MustParseID(signedInAccount),
+		})
+		request := httptest.NewRequestWithContext(ctx, tc.method, APIBasePath+"/groups/"+group, strings.NewReader(tc.body))
+		if tc.body != "" {
+			request.Header.Set("Content-Type", "application/merge-patch+json")
+		}
+		request.Header.Set("X-Hubtask-Step-Up", "hbt_sup_proof")
+		recorder := httptest.NewRecorder()
+		controller.Routes().ServeHTTP(recorder, request)
+
+		if recorder.Code >= 300 {
+			t.Fatalf("%s answered %d: %s", tc.method, recorder.Code, recorder.Body)
+		}
+		if registry.name != tc.useCase || registry.in.String("step_up_token") != "hbt_sup_proof" {
+			t.Errorf("%s invoked %q with %v, want the proof passed on", tc.method, registry.name, registry.in)
+		}
+	}
+}
+
 // The settings form's read: one row per pair, the default marked and carrying no timestamp.
 func TestListingNotificationPreferencesMarksTheDefaults(t *testing.T) {
 	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{

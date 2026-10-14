@@ -157,8 +157,8 @@ func TestTheWorkspaceKeepsAnOwner(t *testing.T) {
 	err := identityservice.DeleteGroup{
 		Groups: postgres.NewGroupRepository(pageCursors()), Grants: grants, Authorizer: authoriser,
 		Revocations: revocationsFor(t, authoriser), Audit: sink, UnitOfWork: unitOfWork,
-		Clock: portclock.Fixed(created), Owners: grants,
-	}.Execute(ctx, paula, identityservice.DeleteGroupCommand{GroupID: w.group})
+		Clock: portclock.Fixed(created), Owners: grants, StepUp: provenStepUp{},
+	}.Execute(ctx, paula, identityservice.DeleteGroupCommand{GroupID: w.group, StepUpToken: "hbt_sup_x"})
 	if err != nil {
 		t.Fatalf("deleting the owners' group while Paula owns the workspace: %v", err)
 	}
