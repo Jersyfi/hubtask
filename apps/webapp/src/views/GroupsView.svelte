@@ -12,6 +12,11 @@
   // change", so adding one person means sending the list with them in it. The screen composes it;
   // a caller that sent one identifier would empty the group.
   //
+  // **A group passes on every role it holds.** Joining one that holds a role above the reader's
+  // own would make them more than they are, so the server answers `members_changeable` and the
+  // member controls and the delete are drawn only where it says yes (domain-model.md §3.2, P-05);
+  // the screen says why where they are left out. Renaming places nothing and stays.
+  //
   // **Any member may read this.** The contract's reasoning, not a relaxation: a membership granted
   // to a group is unreadable until the group can be shown as the people it reaches. What it
   // discloses is a name and identifiers that resolve through the same minimal read as everywhere
@@ -62,6 +67,11 @@
 
   function membersOf(groupId: string): readonly string[] {
     return groups.detail(groupId)?.members ?? [];
+  }
+
+  /** Whether the server lets this reader change who is in the group, and delete it. */
+  function changeable(groupId: string): boolean {
+    return groups.detail(groupId)?.members_changeable === true;
   }
 
   function nameFor(accountId: string): string {
@@ -173,6 +183,7 @@
               {#each membersOf(group.id) as member (member)}
                 <li>
                   <span>{nameFor(member)}</span>
+                  {#if changeable(group.id)}
                   <Button
                     size="sm"
                     tone="subtle"
@@ -183,12 +194,18 @@
                   >
                     {t('app.groups.remove_member')}
                   </Button>
+                  {/if}
                 </li>
               {:else}
                 <li class="quiet small">{t('app.groups.empty')}</li>
               {/each}
             </ul>
 
+            {#if !changeable(group.id)}
+              {#if groups.detail(group.id)}
+                <p class="quiet small">{t('app.groups.above_own')}</p>
+              {/if}
+            {:else}
             <div class="add">
               <Select
                 label={t('app.groups.add_member')}
@@ -239,6 +256,7 @@
                   {t('app.groups.delete')}
                 </Button>
               </div>
+            {/if}
             {/if}
           </Stack>
         </section>

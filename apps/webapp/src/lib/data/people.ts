@@ -185,3 +185,12 @@ export function grantableOf(
   if (!grantable) return [];
   return installed.filter((role) => grantable.includes(role));
 }
+
+/**
+ * Whether a membership at a scope may be revoked by this reader: taking a role away needs what
+ * handing it out needs (domain-model.md §3.2), so it is the scope's `grantable_roles` that answers.
+ * Before the scope has answered, no (P-05): an administrator is never offered to revoke an owner.
+ */
+export function mayRevoke(role: MembershipRole, grantable: readonly MembershipRole[] | undefined): boolean {
+  return grantable?.includes(role) ?? false;
+}

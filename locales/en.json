@@ -3227,6 +3227,7 @@
   "app.groups.add": "Add",
   "app.groups.remove_member": "Take out",
   "app.groups.delete": "Delete the group",
+  "app.groups.above_own": "This group gives a role you do not hold yourself, so only someone who holds it may change who is in the group or delete it.",
   "app.groups.delete_cost": "Deleting the group takes its roles with it: whatever it granted, nobody holds afterwards. The people stay; what they could do through this group stops.",
   "app.groups.delete_now": "Delete it",
   "app.groups.keep": "Keep it",

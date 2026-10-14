@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, grantableOf, groupsNamedBy, holdersOf, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -158,4 +158,13 @@ test('a form offers only the roles the server says the reader may grant, in the 
   assert.deepEqual(grantableOf(installed, undefined), []);
   // A role the installation does not declare is never offered, whatever the scope said.
   assert.deepEqual(grantableOf(['MEMBER'], ['OWNER', 'MEMBER']), ['MEMBER']);
+});
+
+test('a role is revoked only by somebody who may grant it there (domain-model.md §3.2)', () => {
+  const belowOwner = ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'] as const;
+  assert.equal(mayRevoke('OWNER', belowOwner), false);
+  assert.equal(mayRevoke('ADMIN', belowOwner), true);
+  assert.equal(mayRevoke('MEMBER', []), false);
+  // Not yet answered is not "yes".
+  assert.equal(mayRevoke('GUEST', undefined), false);
 });
