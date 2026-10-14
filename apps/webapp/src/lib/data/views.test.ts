@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  scopeIdOf,
   caldavAddressOf,
   exportFileName,
   feedStateOf,
@@ -102,4 +103,14 @@ test('the CalDAV address is the calendar at the origin, beside the API rather th
     'https://hub.example.org/caldav/calendars/acc-1/feed-1/',
   );
   assert.equal(caldavAddressOf('http://localhost:8080', 'a', 'f'), 'http://localhost:8080/caldav/calendars/a/f/');
+});
+
+test('a view saved at hub scope names the hub, never the collection the screen is on', () => {
+  const at = { collectionId: 'collection-1', hubId: 'hub-1' };
+  assert.equal(scopeIdOf('HUB', at), 'hub-1');
+  assert.equal(scopeIdOf('COLLECTION', at), 'collection-1');
+  assert.equal(scopeIdOf('ACCOUNT', at), null);
+  assert.equal(scopeIdOf('TENANT', at), null);
+  // The hub not known yet: there is nothing to name, so the scope cannot be saved at.
+  assert.equal(scopeIdOf('HUB', { collectionId: 'collection-1' }), undefined);
 });

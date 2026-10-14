@@ -59,7 +59,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { childTypes, declaresType, supports } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, childTypes, declaresType, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor } from '../lib/data/customfields.ts';
@@ -77,6 +77,7 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
+  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
@@ -321,6 +322,8 @@
   const typeName = (type: string) => humanise(type.toLowerCase());
   const subtreeHeading = $derived(childType ? typeName(childType) : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
+  /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
+  let duplicating = $state<WorkItem | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
   /** The entry's own menu. What the head and the details rows do is not repeated in it. */
@@ -369,6 +372,34 @@
     collectionId: item?.collection_id,
     itemId: item?.id,
   });
+
+  /**
+   * What the reader's role lets them do to this entry (UC-WRK-22 checks 1-3): their effective role
+   * along its path, the role the server decides the entry by, and the matrix's per-entry cell -
+   * `ASSIGNED` against whether it is theirs. Each `undefined` while the role is still being read;
+   * then nothing that writes is drawn, and no reason either.
+   */
+  const role = $derived(item ? people.roleOf(peoplePath, actor.account?.id, roleOrder()) : undefined);
+  const isMine = $derived(item?.assignee_id != null && item.assignee_id === actor.account?.id);
+  const mayChangeHere = $derived(mayDo(role, 'change', isMine));
+  const mayCreateHere = $derived(mayDo(role, 'create', isMine) === true);
+  const mayCommentHere = $derived(mayDo(role, 'comment', isMine));
+  /**
+   * The one line that says why nothing here can be changed (UC-WRK-22 check 2): the role reads and
+   * does not change, or changes only what is assigned to the reader. Not while the role is unknown.
+   */
+  const roleReason = $derived.by(() => {
+    if (mayChangeHere !== false) return undefined;
+    const code = changeRefusalCode(role, isMine);
+    return code ? t(code) : undefined;
+  });
+  /** Whether the controls that write this entry are drawn: only where the role is known to allow it. */
+  const isChangeable = $derived(mayChangeHere === true);
+  /** What a row of the subtree may not have changed, by the same rule, for each row's own assignee. */
+  function changeRefusalOf(row: WorkItem): string | undefined {
+    const code = changeRefusalCode(role, row.assignee_id != null && row.assignee_id === actor.account?.id);
+    return code ? t(code) : undefined;
+  }
 
   // The scopes are opened once the entry has told us where it sits. `people.open` is idempotent
   // per scope, so a re-render adds nothing.
@@ -692,13 +723,15 @@
       {/if}
       <div class="title-row">
         <!-- Completing the entry from its own page: the same control the row has, the same write. -->
-        <Checkbox
-          label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
-          isLabelHidden
-          checked={item.completion?.is_completed ?? false}
-          disabledReason={frozenReason}
-          onchange={() => void toggleCompleted()}
-        />
+        {#if isChangeable}
+          <Checkbox
+            label={t(item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: item.title })}
+            isLabelHidden
+            checked={item.completion?.is_completed ?? false}
+            disabledReason={frozenReason}
+            onchange={() => void toggleCompleted()}
+          />
+        {/if}
         <!-- The title, in place: text until it has focus. Enter saves, Escape restores, leaving
              saves; the label is announced and not drawn, because it is the title. -->
         <textarea
@@ -709,8 +742,8 @@
           aria-invalid={isTitleFailure ? 'true' : undefined}
           rows="1"
           bind:value={inlineTitle}
-          readonly={frozenReason !== undefined}
-          title={frozenReason}
+          readonly={frozenReason !== undefined || !isChangeable}
+          title={frozenReason ?? roleReason}
           oninput={() => (isInlineDirty = true)}
           onblur={() => void commitInline()}
           onkeydown={onTitleKey}
@@ -740,7 +773,7 @@
            nothing yet, so the field is pending rather than absent. -->
       {#if !isTypeKnown}
         {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
-      {:else if carries('NOTES')}
+      {:else if carries('NOTES') && (isChangeable || inlineNotes.trim() !== '')}
       <textarea
         class="notes-field"
         lang={entryLang}
@@ -748,7 +781,7 @@
         placeholder={t('app.item.notes_placeholder')}
         rows="3"
         bind:value={inlineNotes}
-        readonly={frozenReason !== undefined}
+        readonly={frozenReason !== undefined || !isChangeable}
         oninput={() => (isInlineDirty = true)}
         onblur={() => void commitInline()}
         onkeydown={onNotesKey}
@@ -759,6 +792,10 @@
       {/if}
       {#if completionFailure}
         <p class="failure" role="alert">{completionFailure.message}</p>
+      {/if}
+      {#if roleReason}
+        <!-- Why there is nothing to press: said once, not on every control (UC-WRK-22 check 2). -->
+        <p class="role-reason">{roleReason}</p>
       {/if}
     </div>
 
@@ -793,7 +830,7 @@
       </aside>
 
       <div class="main-column">
-        {#if hasAi}
+        {#if hasAi && isChangeable}
           <Stack gap="150" data-ai>
             <h2 class="section">{t('app.suggestions.title')}</h2>
             <SuggestionStrip {item} />
@@ -822,7 +859,7 @@
                 </Button>
               {/if}
             </div>
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
 
@@ -840,7 +877,7 @@
           onselect={(chosen) => (activeTab = chosen)}
         >
           {#if shownTab === 'comments'}
-            <CommentPanel {item} path={peoplePath} />
+            <CommentPanel {item} path={peoplePath} mayComment={mayCommentHere} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}
@@ -882,7 +919,7 @@
 {#snippet detailRows()}
   {#if item}
             {#if carries('ASSIGNMENT') || carries('MEMBERS')}
-              <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined}>
+              <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined} isReadOnly={!isChangeable}>
                 <AssigneePanel {item} path={peoplePath} />
               </DetailRow>
             {/if}
@@ -890,26 +927,26 @@
               <!-- One row, because `DuePanel` is one editor: it writes the start and the due
                    together, and two rows opening it showed the reader the other date wherever
                    they pressed. -->
-              <DetailRow id="due" label={t('app.due.title')} value={datesValue}>
+              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isChangeable}>
                 <DuePanel {item} disabledReason={frozenReason} />
               </DetailRow>
             {/if}
             {#if carries('LABELS')}
-              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined}>
+              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isChangeable}>
                 <LabelsPanel {item} disabledReason={frozenReason} />
               </DetailRow>
             {/if}
             {#if carries('REMINDER')}
-              <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined}>
+              <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isChangeable}>
                 <ReminderPanel {item} path={peoplePath} />
               </DetailRow>
             {/if}
             {#if carries('RECURRENCE')}
-              <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue}>
+              <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isChangeable}>
                 <RecurrencePanel {item} />
               </DetailRow>
             {/if}
-            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined}>
+            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isChangeable}>
               <Stack gap="150">
                 <LanguagePicker
                   {languages}
@@ -926,25 +963,36 @@
               </Stack>
             </DetailRow>
             {#if carries('COVER')}
-              <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined}>
+              <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isChangeable}>
                 <CoverPanel {item} />
               </DetailRow>
             {/if}
-            {#if carries('ATTACHMENTS')}
+            {#if carries('ATTACHMENTS') && (isChangeable || attachmentCount)}
               <DetailRow id="attachments" label={t('app.media.attachments')} value={attachmentCount ? t('app.item.attachments_count', { count: String(attachmentCount) }) : undefined}>
-                <AttachmentPanel {item} />
+                <AttachmentPanel {item} {isChangeable} />
               </DetailRow>
             {/if}
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)}>
+                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)} isReadOnly={!isChangeable}>
                   <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
                 </DetailRow>
               {/each}
             {/if}
   {/if}
 {/snippet}
+
+<!-- The same copy the collection's list makes: a duplicate ends on the copy, which is a page. -->
+<DuplicateDialog
+  item={duplicating}
+  hubId={peoplePath.hubId}
+  onclose={() => (duplicating = undefined)}
+  onopened={(itemId) => {
+    duplicating = undefined;
+    onnavigate?.(`/items/${itemId}`);
+  }}
+/>
 
 {#if item}
   <MembersDialog
@@ -968,6 +1016,8 @@
   .section-count { margin-inline-start: var(--sp-100); color: var(--text-subtle); font-size: var(--fs-100); font-weight: var(--fw-regular); font-variant-numeric: tabular-nums; }
 
   .head { display: flex; flex-direction: column; gap: var(--sp-150); position: relative; }
+
+  .role-reason { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
 
   .title-row { display: flex; align-items: center; gap: var(--sp-150); }
 

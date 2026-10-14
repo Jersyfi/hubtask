@@ -68,6 +68,7 @@
     onLoadMore?: () => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
+    /** Absent where the reader may not comment: no reply is offered then (P-05). */
     onReply?: (id: string) => void;
   }
 
@@ -96,7 +97,7 @@
     <ol class="list">
       {#each comments as comment (comment.id)}
         <li class="entry">
-          {@render row(comment, true)}
+          {@render row(comment, onReply !== undefined)}
           {#if comment.replies && comment.replies.length > 0}
             <ol class="replies">
               {#each comment.replies as reply (reply.id)}

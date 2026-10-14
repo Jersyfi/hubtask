@@ -540,6 +540,7 @@
   "app.gate.permission_missing": "Eine Rolle {role} kann das nicht. Dazu braucht sie die Berechtigung {permission}.",
   "app.gate.change_none": "Deine Rolle kann Einträge hier lesen, aber nicht ändern.",
   "app.gate.change_assigned_only": "Deine Rolle ändert nur die Einträge, die dir zugewiesen sind.",
+  "app.gate.deciding": "Was deine Rolle hier darf, wird gelesen…",
   "app.sign_in.title": "Anmelden",
   "app.legal.imprint": "Impressum",
   "app.legal.privacy": "Datenschutz",

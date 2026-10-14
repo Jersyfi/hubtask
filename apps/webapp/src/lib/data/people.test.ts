@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, effectiveRole, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -167,4 +167,40 @@ test('a role is revoked only by somebody who may grant it there (domain-model.md
   assert.equal(mayRevoke('MEMBER', []), false);
   // Not yet answered is not "yes".
   assert.equal(mayRevoke('GUEST', undefined), false);
+});
+
+const ORDER = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
+
+test('the effective role is the strongest along the path, as the server decides an entry by', () => {
+  const tenant = [grant({ id: 'm0', scope_type: 'TENANT', account_id: AMELIE, role: 'VIEWER' })];
+  const hub = [grant({ id: 'm1', scope_type: 'HUB', scope_id: HUB, account_id: AMELIE, role: 'MEMBER' })];
+  const item = [grant({ id: 'm2', scope_type: 'ITEM', scope_id: ITEM, account_id: AMELIE, role: 'GUEST' })];
+  assert.equal(effectiveRole({ answers: [tenant, hub, item], accountId: AMELIE, groupMembers: {}, order: ORDER }), 'MEMBER');
+  assert.equal(effectiveRole({ answers: [tenant, hub, item], accountId: JONAS, groupMembers: {}, order: ORDER }), null);
+});
+
+test('a refused scope holds nothing, and a scope not yet answered leaves the role unknown', () => {
+  const item = [grant({ id: 'm2', scope_type: 'ITEM', scope_id: ITEM, account_id: AMELIE, role: 'GUEST' })];
+  // A guest on one entry: the workspace's and the collection's reads are refused.
+  assert.equal(effectiveRole({ answers: ['refused', 'refused', item], accountId: AMELIE, groupMembers: {}, order: ORDER }), 'GUEST');
+  assert.equal(effectiveRole({ answers: ['refused', undefined, item], accountId: AMELIE, groupMembers: {}, order: ORDER }), undefined);
+  // Before the manifest has said which roles there are, nothing is ordered.
+  assert.equal(effectiveRole({ answers: [item], accountId: AMELIE, groupMembers: {}, order: [] }), undefined);
+  assert.equal(effectiveRole({ answers: [item], accountId: undefined, groupMembers: {}, order: ORDER }), undefined);
+});
+
+test('a role held through a group counts once its members are read, and not before', () => {
+  const hub = [
+    grant({ id: 'm1', scope_type: 'HUB', scope_id: HUB, group_id: FITTERS, role: 'ADMIN' }),
+    grant({ id: 'm3', scope_type: 'HUB', scope_id: HUB, account_id: AMELIE, role: 'VIEWER' }),
+  ];
+  assert.equal(effectiveRole({ answers: [hub], accountId: AMELIE, groupMembers: {}, order: ORDER }), undefined);
+  assert.equal(effectiveRole({ answers: [hub], accountId: AMELIE, groupMembers: { [FITTERS]: [AMELIE] }, order: ORDER }), 'ADMIN');
+  // A group that could not be read contributes nobody.
+  assert.equal(effectiveRole({ answers: [hub], accountId: AMELIE, groupMembers: { [FITTERS]: [] }, order: ORDER }), 'VIEWER');
+});
+
+test('a role this installation does not order counts for nothing', () => {
+  const hub = [grant({ id: 'm1', scope_type: 'HUB', scope_id: HUB, account_id: AMELIE, role: 'SUPERUSER' as never })];
+  assert.equal(effectiveRole({ answers: [hub], accountId: AMELIE, groupMembers: {}, order: ORDER }), null);
 });

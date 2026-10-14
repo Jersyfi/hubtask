@@ -235,6 +235,26 @@ export function changeVerdict(
 }
 
 /**
+ * Whether the reader may do this to one entry, the qualifier taken into account: `ASSIGNED` is
+ * only on an entry assigned to them. `undefined` while the role or the manifest is unknown - the
+ * three answers again, because "may not" drawn before anything is known is a screen that changes
+ * its mind a moment later.
+ */
+export function itemPermitted(
+  manifest: Capabilities | undefined,
+  role: string | null | undefined,
+  kind: 'read' | 'create' | 'change' | 'comment',
+  isAssignedToActor: boolean,
+): boolean | undefined {
+  if (role === undefined || !manifest) return undefined;
+  if (role === null) return false;
+  const access = itemAccess(manifest, role, kind);
+  if (access === 'ALL') return true;
+  if (access === 'ASSIGNED') return isAssignedToActor;
+  return false;
+}
+
+/**
  * Whether the reader holds a permission on the workspace itself, as the manifest answers it for
  * them (`workspace_permissions`). `undefined` until it has: a manifest read anonymously - the one
  * held for the moment between a sign-in and the read that follows it - answers nothing about

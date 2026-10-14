@@ -25,12 +25,14 @@
 import type { Membership, MembershipRole, MembershipScope } from '@hubtask/sync-engine';
 
 /**
- * There is no "strongest role" here, and that is the model rather than an omission.
+ * A subject is **shown** with every membership they hold: `AUDITOR` is not a rung on the same
+ * ladder - it reads the trail and no content - and "the rights add up rather than the stronger one
+ * winning" for what a role carries on the workspace. A client that collapsed them into one badge
+ * would be inventing an order to show.
  *
- * `AUDITOR` is explicitly not a rung on the same ladder — it reads the trail and no content —
- * and the contract says what happens to somebody who needs two: "the rights add up rather than
- * the stronger one winning". So a subject is shown with every membership they hold, and a client
- * that collapsed them into one badge would be inventing an order the server does not have.
+ * What may be done **to one entry** is the exception, and it is the server's own: it takes the
+ * strongest role along the entry's path (`service.EffectiveRole`, in the role order the manifest
+ * reports) and applies that role's per-entry cell. `effectiveRole` below predicts exactly that.
  */
 
 /** Where an entry sits. Each level that exists contributes one list of memberships. */
@@ -193,4 +195,42 @@ export function grantableOf(
  */
 export function mayRevoke(role: MembershipRole, grantable: readonly MembershipRole[] | undefined): boolean {
   return grantable?.includes(role) ?? false;
+}
+
+/**
+ * What the read of one scope's memberships has answered: its rows, `refused` where the server
+ * refused the read - which it does exactly where the reader holds no role that reads there, so it
+ * holds nothing there - or `undefined` while it has not answered.
+ */
+export type ScopeAnswer = readonly Membership[] | 'refused' | undefined;
+
+/**
+ * The reader's effective role along a path: the strongest role they hold on it, their own or a
+ * group's, in the manifest's order (strongest first) - the role the server decides an entry by.
+ *
+ * Three answers. `undefined` while anything that could change it is unknown: a scope not answered,
+ * a group named on the path whose members have not been read, no account, no role order. `null`
+ * where everything has answered and the reader holds nothing. Otherwise the role.
+ */
+export function effectiveRole(input: {
+  readonly answers: readonly ScopeAnswer[];
+  readonly accountId: string | undefined;
+  readonly groupMembers: Readonly<Record<string, readonly string[]>>;
+  readonly order: readonly string[];
+}): string | null | undefined {
+  const { answers, accountId, groupMembers, order } = input;
+  if (!accountId || order.length === 0 || answers.some((answer) => answer === undefined)) return undefined;
+  const memberships = answers.flatMap((answer) => (Array.isArray(answer) ? answer : []));
+  if (groupsNamedBy(memberships).some((group) => groupMembers[group] === undefined)) return undefined;
+
+  let best: number | undefined;
+  for (const membership of memberships) {
+    const reaches =
+      membership.account_id === accountId ||
+      (membership.group_id ? (groupMembers[membership.group_id] ?? []).includes(accountId) : false);
+    if (!reaches) continue;
+    const rank = order.indexOf(membership.role);
+    if (rank >= 0 && (best === undefined || rank < best)) best = rank;
+  }
+  return best === undefined ? null : (order[best] ?? null);
 }
