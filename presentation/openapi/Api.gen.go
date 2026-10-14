@@ -6429,10 +6429,13 @@ type IdentityProviderPreset struct {
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
 	Particular *string `json:"particular,omitempty"`
 
+	// PersonalIssuerPaths The first path segments that make an issuer of this provider one that also serves personal accounts, such as `consumers` in `https://login.microsoftonline.com/consumers/v2.0`. An issuer whose first path segment is one of them is refused `ANY` (`identity_provider.provisioning_personal`), whatever `provisioning` lists. Empty where the provider has no such issuer.
+	PersonalIssuerPaths []string `json:"personal_issuer_paths"`
+
 	// Provisioning The modes this preset permits for a workspace's own provider, strictest first.
 	Provisioning []IdentityProviderProvisioning `json:"provisioning"`
 
-	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation. A preset that is public only at some of its issuers is not marked public: Microsoft's `consumers` and `common` issuers, and the personal-account directory's own, are refused `ANY` when configured (`identity_provider.provisioning_personal`), so `provisioning` may list a mode such an issuer refuses.
+	// Public Whether anybody in the world can hold an account at this issuer - personal accounts, not only an organisation's. A public provider is never `ANY`, and that is not an operator's to relax; under `DOMAINS` it admits only the organisations named, which a personal account belongs to none of, so a personal account comes in only by invitation. A preset that is public only at some of its issuers is not marked public: Microsoft's `consumers` and `common` issuers, and the personal-account directory's own, are refused `ANY` when configured (`identity_provider.provisioning_personal`), so `provisioning` may list a mode such an issuer refuses; `personal_issuer_paths` names those issuers.
 	Public bool `json:"public"`
 
 	// RedirectUri This installation's own callback, which every registration form asks for. Nothing about it comes from a request.

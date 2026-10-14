@@ -6,10 +6,12 @@ import assert from 'node:assert/strict';
 
 import type { IdentityProviderPreset } from '@hubtask/sync-engine';
 
-import { admissionLists, isSharedIssuer, issuerAfterChoosing } from './issuer.ts';
+import { admissionLists, isPersonalIssuer, isSharedIssuer, issuerAfterChoosing, offeredModes } from './issuer.ts';
 
+const PERSONAL_DIRECTORY = '9188040d-6c67-4c5b-b112-36a304b66dad';
 const MICROSOFT = {
   kind: 'MICROSOFT', directory_claim: 'tid', shared_issuer_paths: ['common', 'organizations'],
+  personal_issuer_paths: ['common', 'consumers', PERSONAL_DIRECTORY],
 } as unknown as IdentityProviderPreset;
 const GENERIC = { kind: 'GENERIC', shared_issuer_paths: [] } as unknown as IdentityProviderPreset;
 
@@ -21,6 +23,23 @@ test("a shared endpoint is told by its first path segment, from the preset's own
   assert.equal(isSharedIssuer(MICROSOFT, 'not a url'), false);
   assert.equal(isSharedIssuer(GENERIC, 'https://idp.example/organizations'), false);
   assert.equal(isSharedIssuer(undefined, 'https://login.microsoftonline.com/organizations/v2.0'), false);
+});
+
+test("an issuer serving personal accounts is told by its first path segment, from the preset's own list", () => {
+  assert.equal(isPersonalIssuer(MICROSOFT, 'https://login.microsoftonline.com/consumers/v2.0'), true);
+  assert.equal(isPersonalIssuer(MICROSOFT, ' https://login.microsoftonline.com/Common/v2.0 '), true);
+  assert.equal(isPersonalIssuer(MICROSOFT, `https://login.microsoftonline.com/${PERSONAL_DIRECTORY}/v2.0`), true);
+  assert.equal(isPersonalIssuer(MICROSOFT, 'https://login.microsoftonline.com/organizations/v2.0'), false);
+  assert.equal(isPersonalIssuer(MICROSOFT, 'https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0'), false);
+  assert.equal(isPersonalIssuer(MICROSOFT, 'not a url'), false);
+  assert.equal(isPersonalIssuer(GENERIC, 'https://idp.example/consumers'), false);
+});
+
+test('Anyone is not offered where the server refuses it, unless a stored row already has it', () => {
+  const modes = ['INVITED_ONLY', 'DOMAINS', 'ANY'] as const;
+  assert.deepEqual(offeredModes(modes, true, 'INVITED_ONLY'), ['INVITED_ONLY', 'DOMAINS']);
+  assert.deepEqual(offeredModes(modes, true, 'ANY'), ['INVITED_ONLY', 'DOMAINS', 'ANY']);
+  assert.deepEqual(offeredModes(modes, false, 'DOMAINS'), ['INVITED_ONLY', 'DOMAINS', 'ANY']);
 });
 
 test('the form draws the list the server reads: on a shared endpoint the directories, required, in every mode', () => {

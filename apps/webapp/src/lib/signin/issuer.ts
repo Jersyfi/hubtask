@@ -27,8 +27,33 @@ export function issuerAfterChoosing(
  * `shared_issuer_paths` - which the server saves only with a directory list, in every mode.
  */
 export function isSharedIssuer(preset: IdentityProviderPreset | undefined, issuer: string): boolean {
-  const shared = preset?.shared_issuer_paths ?? [];
-  if (shared.length === 0) return false;
+  return firstSegmentIn(preset?.shared_issuer_paths ?? [], issuer);
+}
+
+/**
+ * Whether the typed issuer also serves personal accounts - its first path segment one of
+ * `personal_issuer_paths` - where the server refuses `ANY` in every form.
+ */
+export function isPersonalIssuer(preset: IdentityProviderPreset | undefined, issuer: string): boolean {
+  return firstSegmentIn(preset?.personal_issuer_paths ?? [], issuer);
+}
+
+/**
+ * The admission modes a form offers: the ones the preset permits, without `ANY` on an issuer that
+ * serves personal accounts. `ANY` stays while it is the current value - a row stored before the
+ * refusal - so the form never shows a mode the row does not have; the form says why it cannot be
+ * saved so, and the person chooses another.
+ */
+export function offeredModes<Mode extends string>(
+  modes: readonly Mode[],
+  personal: boolean,
+  current: string,
+): Mode[] {
+  return modes.filter((mode) => mode !== 'ANY' || !personal || current === 'ANY');
+}
+
+function firstSegmentIn(segments: readonly string[], issuer: string): boolean {
+  if (segments.length === 0) return false;
   let path: string;
   try {
     path = new URL(issuer.trim()).pathname;
@@ -36,7 +61,7 @@ export function isSharedIssuer(preset: IdentityProviderPreset | undefined, issue
     return false;
   }
   const first = path.replace(/^\//, '').split('/')[0]?.toLowerCase() ?? '';
-  return first !== '' && shared.some((segment) => segment.toLowerCase() === first);
+  return first !== '' && segments.some((segment) => segment.toLowerCase() === first);
 }
 
 /** Which admission list a provider form draws, and whether the server requires it. */

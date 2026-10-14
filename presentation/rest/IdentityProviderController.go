@@ -474,6 +474,14 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 			}
 		}
 	}
+	answer.PersonalIssuerPaths = []string{}
+	if paths, held := out["personal_issuer_paths"].([]any); held {
+		for _, path := range paths {
+			if text, ok := path.(string); ok {
+				answer.PersonalIssuerPaths = append(answer.PersonalIssuerPaths, text)
+			}
+		}
+	}
 	return answer
 }
 

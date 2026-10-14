@@ -524,8 +524,7 @@ func personalIssuer(issuer string, preset ProviderPreset) bool {
 		return false
 	}
 	first, _, _ := strings.Cut(strings.TrimPrefix(parsed.Path, "/"), "/")
-	return first != "" &&
-		(containsFold(preset.PersonalIssuerPaths, first) || containsFold(preset.PersonalDirectories, first))
+	return first != "" && containsFold(preset.PersonalIssuerSegments(), first)
 }
 
 // resolvedProvisioning reads the mode and holds it to what the preset permits.

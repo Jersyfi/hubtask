@@ -241,6 +241,16 @@ func (p ProviderPreset) SharedIssuerPaths() []string {
 	return paths
 }
 
+// PersonalIssuerSegments answers the first path segments that make an issuer of this preset one
+// serving personal accounts - where `ANY` is refused (personalIssuer): the personal issuer paths and
+// the personal directories, which an issuer spells as its first segment too. Empty, never nil, for a
+// preset with neither. A form reads it to leave `ANY` out there rather than keeping a copy.
+func (p ProviderPreset) PersonalIssuerSegments() []string {
+	segments := make([]string, 0, len(p.PersonalIssuerPaths)+len(p.PersonalDirectories))
+	segments = append(segments, p.PersonalIssuerPaths...)
+	return append(segments, p.PersonalDirectories...)
+}
+
 // ParseProviderKind reads a kind and refuses what is not one.
 func ParseProviderKind(raw string) (ProviderKind, error) {
 	kind := ProviderKind(strings.ToUpper(strings.TrimSpace(raw)))

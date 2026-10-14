@@ -39,7 +39,13 @@
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
-  import { admissionLists, isSharedIssuer, issuerAfterChoosing } from '../lib/signin/issuer.ts';
+  import {
+    admissionLists,
+    isPersonalIssuer,
+    isSharedIssuer,
+    issuerAfterChoosing,
+    offeredModes,
+  } from '../lib/signin/issuer.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -115,8 +121,10 @@
    * The modes this preset permits, in the order they tighten. Empty until the presets are read,
    * which is the third value of every capability question here: not yet known is not "all of them".
    */
+  /** Whether the issuer also serves personal accounts, where the server refuses `ANY`. */
+  const personal = $derived(isPersonalIssuer(preset, issuer));
   const provisioningOptions = $derived(
-    (preset?.provisioning ?? []).map((mode) => ({
+    offeredModes(preset?.provisioning ?? [], personal, provisioning).map((mode) => ({
       value: mode,
       label: t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
     })),
@@ -478,6 +486,12 @@
               options={provisioningOptions}
               bind:value={provisioning}
             />
+            {#if personal && provisioning === 'ANY'}
+              <!-- Said where the choice is made: the save refuses ANY on this issuer, and the
+                   sentence names what may be chosen instead. Not moved for the person - a row
+                   stored so still admits organisation accounts. -->
+              <Banner tone="info">{t('identity_provider.provisioning_personal', { issuer: issuer.trim() })}</Banner>
+            {/if}
             <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which it
                  is comes from the preset's `directory_claim`: a provider that names organisations
                  is admitted on the organisation, and one that does not has nothing but the

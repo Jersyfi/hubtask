@@ -35,6 +35,30 @@ func TestThePresetNamesTheSharedPathsTheRefusalReads(t *testing.T) {
 	}
 }
 
+// The segments a form is told about are exactly the ones the refusal of `ANY` reads: every one of
+// them, as an issuer, is refused `ANY`; Google and the generic preset have none.
+func TestThePresetNamesThePersonalSegmentsTheRefusalReads(t *testing.T) {
+	microsoft, _ := PresetOf(KindMicrosoft)
+	segments := microsoft.PersonalIssuerSegments()
+	if len(segments) != 3 {
+		t.Fatalf("Microsoft names %v, want common, consumers and the personal directory", segments)
+	}
+	for _, segment := range segments {
+		if !personalIssuer(microsoftHost+segment+"/v2.0", microsoft) {
+			t.Errorf("%q is named but not read as personal", segment)
+		}
+	}
+	if personalIssuer(microsoftHost+"organizations/v2.0", microsoft) {
+		t.Error("organizations is read as personal")
+	}
+	for _, kind := range []ProviderKind{KindGoogle, KindGeneric} {
+		preset, _ := PresetOf(kind)
+		if got := preset.PersonalIssuerSegments(); got == nil || len(got) != 0 {
+			t.Errorf("%s names %v, want an empty list", kind, got)
+		}
+	}
+}
+
 const (
 	listedCompany = "72f988bf-86f1-41af-91ab-2d7cd011db47"
 	otherCompany  = "0f1e2d3c-4b5a-4968-8776-655443322110"
