@@ -27,6 +27,8 @@
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -151,6 +153,9 @@
 
   const actionWord = (result: ActionResult) =>
     result.path ? `${result.kind} · ${result.path}` : result.kind;
+
+  /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
+  const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
 </script>
 
 <div class="screen">
@@ -168,6 +173,7 @@
     <Stack gap="150">
       <h2 class="section">{t('app.runs.try_title')}</h2>
       <p class="quiet small">{t('app.runs.try_hint')}</p>
+      <WorkspaceGate permission="AUTOMATION">
       <Select
         label={t('app.runs.which_rule')}
         bind:value={testing}
@@ -191,6 +197,7 @@
           </Button>
         </div>
       {/if}
+      </WorkspaceGate>
 
       {#if tested}
         <div class="result">
@@ -373,6 +380,7 @@
                   <Banner tone="info">
                     {t('app.runs.replay_note', { count: String(alreadyDone(detail).length) })}
                   </Banner>
+                  {#if mayAutomate}
                   <div>
                     <Button
                       tone="primary"
@@ -383,6 +391,7 @@
                       {t('app.runs.replay')}
                     </Button>
                   </div>
+                  {/if}
                 {/if}
               {/if}
             </Stack>

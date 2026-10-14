@@ -65,7 +65,14 @@ const SCREENS = [
   { path: '/administration/groups', buttons: ['Create the group'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/service-accounts', buttons: ['Create it'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/privacy', buttons: ['Record it'], gates: ['MANAGE_MEMBERS'] },
+  { path: '/administration/rules', buttons: ['Write a rule'], gates: ['AUTOMATION'] },
+  { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
+  { path: '/administration/runs', buttons: [{ role: 'combobox', name: 'Which rule' }], gates: ['AUTOMATION'] },
+  { path: '/administration/webhooks', buttons: ['Subscribe'], gates: ['AUTOMATION'] },
 ];
+
+/** A control as the table names it: a button by its words, or another role by its name. */
+const controlOf = (entry) => (typeof entry === 'string' ? { role: 'button', name: entry } : entry);
 
 /** A signed-in tab as somebody holding `permissions` on the workspace. */
 async function as(browser, permissions) {
@@ -91,8 +98,8 @@ async function as(browser, permissions) {
  * takes a control out of the tab order and the accessibility tree (Playwright's role query still
  * lists it, so the walk asks the DOM).
  */
-const reachable = (page, name) =>
-  page.getByRole('button', { name, exact: true }).evaluateAll((controls) => controls.filter((control) => !control.closest('[inert]')).length);
+const reachable = (page, { role, name }) =>
+  page.getByRole(role, { name, exact: true }).evaluateAll((controls) => controls.filter((control) => !control.closest('[inert]')).length);
 
 for (const screen of SCREENS) {
   test(`chromium: ${screen.path} — an auditor reads it and is offered no write; an owner is offered each`, async (t) => {
@@ -102,8 +109,8 @@ for (const screen of SCREENS) {
     const owner = await as(browser, PERMISSIONS.OWNER);
     t.after(() => owner.context.close());
     await owner.page.goto(`${served.origin}${screen.path}`);
-    for (const name of screen.buttons) {
-      await owner.page.getByRole('button', { name, exact: true }).first().waitFor({ timeout: 15_000 })
+    for (const { role, name } of screen.buttons.map(controlOf)) {
+      await owner.page.getByRole(role, { name, exact: true }).first().waitFor({ timeout: 15_000 })
         .catch(() => assert.fail(`the owner is not offered "${name}" on ${screen.path}`));
     }
     for (const permission of screen.gates) {
@@ -118,8 +125,8 @@ for (const screen of SCREENS) {
       await auditor.page.getByText(refusedFor(permission)).first().waitFor({ timeout: 15_000 })
         .catch(() => assert.fail(`the auditor is not told why on ${screen.path} (${permission})`));
     }
-    for (const name of screen.buttons) {
-      assert.equal(await reachable(auditor.page, name), 0, `the auditor is offered "${name}" on ${screen.path}`);
+    for (const control of screen.buttons.map(controlOf)) {
+      assert.equal(await reachable(auditor.page, control), 0, `the auditor is offered "${control.name}" on ${screen.path}`);
     }
     assert.deepEqual(auditor.failures, []);
   });
