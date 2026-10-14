@@ -25,6 +25,7 @@ import {
   workspaceVerdict,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
+import { t } from '../i18n/i18n.svelte.ts';
 
 /** Whether the type carries the capability, according to this installation. */
 export const supports = (type: string, capability: string): Verdict =>
@@ -59,6 +60,18 @@ export const holdsHere = (permission: string): boolean | undefined =>
 
 /** Whether the reader may do what asks this permission on the workspace, as a gate's verdict. */
 export const mayHere = (permission: string): Verdict => workspaceVerdict(manifest.value, permission);
+
+/**
+ * Why the reader may not do what asks this permission on the workspace, in words - the permission
+ * by the name the roles screen gives it, never the contract's constant - or nothing where they may.
+ * Before the manifest has answered, that it is still being read.
+ */
+export function workspaceRefusal(permission: string): string | undefined {
+  const verdict = mayHere(permission);
+  if (verdict.status === 'permitted') return undefined;
+  if (verdict.status === 'undetermined') return t('app.gate.deciding');
+  return t(verdict.code, { ...verdict.params, permission: t(`app.permissions.name.${permission.toLowerCase()}`) });
+}
 
 /** Whether the reader reaches the administration; `undefined` while unknown. */
 export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);

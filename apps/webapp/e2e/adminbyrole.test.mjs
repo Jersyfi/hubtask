@@ -29,8 +29,9 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 /** The gate's sentence for one permission, as `app.gate.workspace_permission_missing` words it. */
+const NAMES = { STRUCTURE: 'Structure', MANAGE_MEMBERS: 'People', AUTOMATION: 'Automation', DELETE_CONTAINER: 'Delete containers' };
 const refusedFor = (permission) =>
-  `You can read this, but your role in this workspace cannot change it. That needs the ${permission} permission.`;
+  `You can read this, but your role in this workspace cannot change it. That needs the permission “${NAMES[permission]}”.`;
 
 /** One rule of the sign-in policy as the contract answers it, unlocked and from the defaults. */
 const rule = (value) => ({ value, installation: value, lock: null, source: 'DEFAULT', installation_source: 'DEFAULT' });

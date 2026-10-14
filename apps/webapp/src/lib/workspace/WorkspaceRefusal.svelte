@@ -11,8 +11,7 @@
 
   import { Banner } from '@hubtask/design-system/components';
 
-  import { mayHere } from '../data/capability.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { mayHere, workspaceRefusal } from '../data/capability.svelte.ts';
 
   interface Props {
     /** The column of the role matrix the screen's writes ask on the server. */
@@ -25,5 +24,5 @@
 </script>
 
 {#if verdict.status === 'refused'}
-  <Banner tone="info">{t(verdict.code, verdict.params)}</Banner>
+  <Banner tone="info">{workspaceRefusal(permission)}</Banner>
 {/if}

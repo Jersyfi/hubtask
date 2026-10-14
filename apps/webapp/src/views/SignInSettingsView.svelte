@@ -63,7 +63,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -344,11 +344,7 @@
    * Why the provider switches are off for this reader, if they are: offering a provider here goes
    * through `:offer`, which asks `MANAGE_MEMBERS` - a different column from the rule's `STRUCTURE`.
    */
-  const offerRefusal = $derived.by(() => {
-    const verdict = mayHere('MANAGE_MEMBERS');
-    if (verdict.status === 'permitted') return undefined;
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.gate.deciding');
-  });
+  const offerRefusal = $derived(workspaceRefusal('MANAGE_MEMBERS'));
 </script>
 
 {#snippet origin(text: string)}

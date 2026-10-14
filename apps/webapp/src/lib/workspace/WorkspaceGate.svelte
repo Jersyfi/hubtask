@@ -12,7 +12,7 @@
 
   import { CapabilityGate } from '@hubtask/design-system/components';
 
-  import { mayHere } from '../data/capability.svelte.ts';
+  import { mayHere, workspaceRefusal } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -28,7 +28,7 @@
 
 <CapabilityGate
   status={verdict.status}
-  reason={verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined}
+  reason={workspaceRefusal(permission)}
   pendingLabel={t('app.gate.deciding')}
 >
   {@render children()}

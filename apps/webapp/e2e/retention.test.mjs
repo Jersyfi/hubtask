@@ -138,7 +138,7 @@ test('chromium: an administrator reads the holds and is offered neither placing 
     // The form stays readable behind its gate, inert, with the permission it needs named.
     const place = page.locator('form', { hasText: 'Place a hold' });
     assert.equal(await place.evaluate((form) => form.closest('[inert]') !== null), true, 'placing a hold is offered');
-    await page.getByText('That needs the DELETE_CONTAINER permission.', { exact: false }).first().waitFor();
+    await page.getByText('That needs the permission “Delete containers”.', { exact: false }).first().waitFor();
     assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 0);
     assert.deepEqual(failures, []);
     await close();

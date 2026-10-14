@@ -1661,7 +1661,7 @@
   "app.gate.change_none": "Your role can read entries here but not change them.",
   "app.gate.change_assigned_only": "Your role changes only the entries assigned to you.",
   "app.gate.deciding": "Reading what your role may do here…",
-  "app.gate.workspace_permission_missing": "You can read this, but your role in this workspace cannot change it. That needs the {permission} permission.",
+  "app.gate.workspace_permission_missing": "You can read this, but your role in this workspace cannot change it. That needs the permission “{permission}”.",
   "app.sign_in.title": "Sign in",
   "app.sign_in.email_label": "Email address",
   "app.sign_in.password_label": "Password",

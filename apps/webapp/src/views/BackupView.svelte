@@ -34,7 +34,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { mayHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -266,11 +266,7 @@
   const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
   const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
   /** Why a schedule's switch is off for this reader, where it is. */
-  const ownRefusal = $derived.by(() => {
-    const verdict = mayHere('DELETE_CONTAINER');
-    if (verdict.status === 'permitted') return undefined;
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.gate.deciding');
-  });
+  const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
 </script>
 
 <Stack gap="300">
