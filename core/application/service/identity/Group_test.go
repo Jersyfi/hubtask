@@ -24,6 +24,7 @@ type groupStore struct {
 	members  map[shared.ID][]shared.ID
 	deleted  []shared.ID
 	versions []int
+	locked   []shared.ID
 
 	listedPage repository.Page
 }
@@ -80,6 +81,15 @@ func (s *groupStore) AddMember(_ context.Context, groupID, accountID shared.ID) 
 func (s *groupStore) RemoveMember(_ context.Context, groupID, accountID shared.ID) error {
 	s.members[groupID] = slices.DeleteFunc(s.members[groupID],
 		func(id shared.ID) bool { return id == accountID })
+	return nil
+}
+
+// Lock notes the group locked; a group that is not there is not found, as the row lock answers.
+func (s *groupStore) Lock(_ context.Context, id shared.ID) error {
+	if _, found := s.byID[id]; !found {
+		return shared.ErrNotFound.WithDetail("groups.not_found")
+	}
+	s.locked = append(s.locked, id)
 	return nil
 }
 
@@ -156,8 +166,8 @@ func TestAMemberThatIsNotHereIsRefused(t *testing.T) {
 
 func updateHandler(groups *groupStore, accounts *accountStore, auth *authorizer, sink *auditSink) UpdateGroup {
 	return UpdateGroup{
-		Groups: groups, Accounts: accounts, Authorizer: auth, Revocations: &revoker{}, Audit: sink,
-		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
+		Groups: groups, Accounts: accounts, Grants: newGrants(), Authorizer: auth, Revocations: &revoker{},
+		Audit: sink, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
 
@@ -276,7 +286,7 @@ func TestAStaleVersionIsRefused(t *testing.T) {
 
 func deleteHandler(groups *groupStore, auth *authorizer, sink *auditSink) DeleteGroup {
 	return DeleteGroup{
-		Groups: groups, Authorizer: auth, Revocations: &revoker{}, Audit: sink,
+		Groups: groups, Grants: newGrants(), Authorizer: auth, Revocations: &revoker{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
@@ -450,5 +460,189 @@ func TestTheVerbsThatNeedAnIdentifierSaySo(t *testing.T) {
 		Execute(t.Context(), admin(), RevokeMembershipCommand{}); err == nil ||
 		shared.AsError(err).DetailCode != "memberships.identifier_required" {
 		t.Errorf("revoke: %v", err)
+	}
+}
+
+// groupHolding is a group that holds the role on the whole workspace, and the store that says so.
+func groupHolding(t *testing.T, role domain.Role) *grantStore {
+	t.Helper()
+	held, err := domain.NewGrant(membershipID, tenant, "", groupID, domain.TenantScope(), role)
+	if err != nil {
+		t.Fatalf("preparing the group's grant: %v", err)
+	}
+	return newGrants(held)
+}
+
+// Joining a group that holds OWNER is being made an owner (domain-model.md §3.2): the change is
+// asked with the group's role, and the ceiling's refusal writes nothing - not the member, not the
+// entry, which the authoriser writes itself.
+func TestAnAdministratorCannotJoinAGroupThatHoldsOwner(t *testing.T) {
+	groups, sink := newGroups(settledGroup(t)), &auditSink{}
+	auth := &authorizer{refuseRole: domain.RoleOwner}
+	handler := updateHandler(groups, newAccounts(invitedAccount(t)), auth, sink)
+	handler.Grants = groupHolding(t, domain.RoleOwner)
+
+	_, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{invitedID}, ReplaceMembers: true,
+	})
+
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own", err)
+	}
+	if len(groups.members[groupID]) != 0 || len(sink.entries) != 0 || len(groups.versions) != 0 {
+		t.Errorf("a refused change wrote members %v, entries %v, versions %v",
+			groups.members[groupID], sink.entries, groups.versions)
+	}
+	last := auth.requests[len(auth.requests)-1]
+	if last.Grants != domain.RoleOwner || last.Action != GroupUpdatedAction || len(last.Path) != 1 {
+		t.Errorf("the change was asked as %+v, want OWNER on the workspace against group.updated", last)
+	}
+}
+
+// Taking somebody out of a group that holds OWNER is taking OWNER away, the mirror of joining.
+func TestAnAdministratorCannotTakeSomebodyOutOfAGroupThatHoldsOwner(t *testing.T) {
+	groups := newGroups(settledGroup(t))
+	groups.members[groupID] = []shared.ID{invitedID}
+	handler := updateHandler(groups, newAccounts(invitedAccount(t)), &authorizer{refuseRole: domain.RoleOwner}, &auditSink{})
+	handler.Grants = groupHolding(t, domain.RoleOwner)
+
+	_, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{}, ReplaceMembers: true,
+	})
+
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own", err)
+	}
+	if len(groups.members[groupID]) != 1 {
+		t.Errorf("members %v, want the member kept", groups.members[groupID])
+	}
+}
+
+// A client that resends the whole group - its unchanged member list beside a new name - places and
+// takes nothing, and is not refused for a change it did not make. A rename alone is the same.
+func TestAnUnchangedMemberListIsNotJudgedAgainstTheGroupsRoles(t *testing.T) {
+	groups := newGroups(settledGroup(t))
+	groups.members[groupID] = []shared.ID{invitedID}
+	auth := &authorizer{refuseRole: domain.RoleOwner}
+	handler := updateHandler(groups, newAccounts(invitedAccount(t)), auth, &auditSink{})
+	handler.Grants = groupHolding(t, domain.RoleOwner)
+	name := "Platform"
+
+	if _, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Name: &name, Members: []shared.ID{invitedID}, ReplaceMembers: true,
+	}); err != nil {
+		t.Fatalf("resending the unchanged list: %v", err)
+	}
+	renamed := "Design"
+	if _, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{GroupID: groupID, Name: &renamed}); err != nil {
+		t.Fatalf("renaming: %v", err)
+	}
+	for _, request := range auth.requests {
+		if request.Grants != "" {
+			t.Errorf("asked %+v, want no role at stake", request)
+		}
+	}
+}
+
+// A group that holds less than the actor's own role changes as before, under the group's lock.
+func TestAMemberChangeWithinTheCeilingIsMade(t *testing.T) {
+	groups := newGroups(settledGroup(t))
+	auth := &authorizer{refuseRole: domain.RoleOwner}
+	handler := updateHandler(groups, newAccounts(invitedAccount(t)), auth, &auditSink{})
+	handler.Grants = groupHolding(t, domain.RoleAdmin)
+
+	if _, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{invitedID}, ReplaceMembers: true,
+	}); err != nil {
+		t.Fatalf("adding to a group holding ADMIN: %v", err)
+	}
+	if len(groups.members[groupID]) != 1 || !slices.Contains(groups.locked, groupID) {
+		t.Errorf("members %v, locked %v - want the member added under the group's lock",
+			groups.members[groupID], groups.locked)
+	}
+}
+
+// laterGrants answers the group's roles as they were at the first read, then with OWNER given to it
+// meanwhile: the grant that raced the member change.
+type laterGrants struct {
+	*grantStore
+	reads int
+	owner domain.Grant
+}
+
+func (l *laterGrants) OfGroup(ctx context.Context, id shared.ID) ([]domain.Grant, error) {
+	l.reads++
+	if l.reads > 1 {
+		l.byID[l.owner.ID] = l.owner
+	}
+	return l.grantStore.OfGroup(ctx, id)
+}
+
+// A role given to the group after the ceiling was asked would reach whoever joins unjudged; under
+// the group's lock it is seen, and the change is a conflict to retry rather than a permission.
+func TestARoleGivenToTheGroupMeanwhileStopsTheMemberChange(t *testing.T) {
+	owner, err := domain.NewGrant("01936f2a-7c1e-7000-8000-0000000000b9", tenant, "", groupID,
+		domain.TenantScope(), domain.RoleOwner)
+	if err != nil {
+		t.Fatalf("preparing: %v", err)
+	}
+	groups := newGroups(settledGroup(t))
+	handler := updateHandler(groups, newAccounts(invitedAccount(t)), &authorizer{}, &auditSink{})
+	handler.Grants = &laterGrants{grantStore: groupHolding(t, domain.RoleMember), owner: owner}
+
+	_, err = handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+		GroupID: groupID, Members: []shared.ID{invitedID}, ReplaceMembers: true,
+	})
+
+	if shared.AsError(err).DetailCode != "groups.roles_changed" || !errors.Is(err, shared.ErrConflict) {
+		t.Fatalf("error %v, want groups.roles_changed", err)
+	}
+	if len(groups.members[groupID]) != 0 {
+		t.Errorf("members %v, want nobody added", groups.members[groupID])
+	}
+}
+
+// Deleting a group takes every role it holds from everybody in it, so it meets the ceiling.
+func TestAnAdministratorCannotDeleteAGroupThatHoldsOwner(t *testing.T) {
+	groups := newGroups(settledGroup(t))
+	auth := &authorizer{refuseRole: domain.RoleOwner}
+	handler := deleteHandler(groups, auth, &auditSink{})
+	handler.Grants = groupHolding(t, domain.RoleOwner)
+
+	err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID})
+
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own", err)
+	}
+	if len(groups.deleted) != 0 {
+		t.Error("a refused deletion removed the group")
+	}
+	if last := auth.requests[len(auth.requests)-1]; last.Action != GroupDeletedAction {
+		t.Errorf("asked against %q, want group.deleted", last.Action)
+	}
+}
+
+// Giving a group a role is ceilinged as giving it to a person is, and takes the group's lock, so a
+// member change judged meanwhile sees it.
+func TestAGroupIsNotGivenARoleAboveTheGrantors(t *testing.T) {
+	groups, grants := newGroups(settledGroup(t)), newGrants()
+	auth := &authorizer{refuseRole: domain.RoleOwner}
+
+	_, err := grantHandler(grants, newAccounts(), groups, auth, &auditSink{}).
+		Execute(t.Context(), admin(), GrantMembershipCommand{
+			GroupID: groupID, Scope: domain.TenantScope(), Role: domain.RoleOwner,
+		})
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own", err)
+	}
+
+	if _, err := grantHandler(grants, newAccounts(), groups, auth, &auditSink{}).
+		Execute(t.Context(), admin(), GrantMembershipCommand{
+			GroupID: groupID, Scope: domain.TenantScope(), Role: domain.RoleAdmin,
+		}); err != nil {
+		t.Fatalf("giving the group ADMIN: %v", err)
+	}
+	if !slices.Contains(groups.locked, groupID) {
+		t.Error("the grant to the group did not take the group's lock")
 	}
 }

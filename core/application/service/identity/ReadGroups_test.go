@@ -4,12 +4,16 @@
 package identity
 
 import (
+	"context"
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 func namedGroup(t *testing.T, id shared.ID, name string) domain.Group {
@@ -108,5 +112,73 @@ func TestTheGroupOutputCarriesTheMembersAsIdentifiers(t *testing.T) {
 	members, _ := out["members"].([]string)
 	if len(members) != 1 || members[0] != invitedID.String() {
 		t.Errorf("members %v", out["members"])
+	}
+}
+
+// byDepth answers grantable roles by how far down the path runs: the workspace, or a hub below it.
+type byDepth struct {
+	atWorkspace, atHub []domain.Role
+	requests           []access.Request
+}
+
+func (b *byDepth) GrantableRoles(_ context.Context, _ appshared.ActorContext, request access.Request) ([]domain.Role, error) {
+	b.requests = append(b.requests, request)
+	if len(request.Path) > 1 {
+		return b.atHub, nil
+	}
+	return b.atWorkspace, nil
+}
+
+// The group tells the reader whether they may change who is in it, by the condition UpdateGroup and
+// DeleteGroup refuse on (domain-model.md §3.2, P-05): the right to manage members on the workspace,
+// and every role the group holds within the reader's own where it applies.
+func TestTheGroupSaysWhetherTheReaderMayChangeItsMembers(t *testing.T) {
+	everyRole := domain.Roles()
+	belowOwner := everyRole[1:]
+	held := func(role domain.Role, scope domain.Scope) []domain.Grant {
+		grant, err := domain.NewGrant(membershipID, tenant, "", groupID, scope, role)
+		if err != nil {
+			t.Fatalf("preparing: %v", err)
+		}
+		return []domain.Grant{grant}
+	}
+
+	for _, row := range []struct {
+		name   string
+		reader *byDepth
+		held   []domain.Grant
+		want   bool
+	}{
+		{"an owner, the group holds OWNER", &byDepth{atWorkspace: everyRole, atHub: everyRole}, held(domain.RoleOwner, domain.TenantScope()), true},
+		{"an administrator, the group holds OWNER", &byDepth{atWorkspace: belowOwner, atHub: belowOwner}, held(domain.RoleOwner, domain.TenantScope()), false},
+		{"an administrator, the group holds ADMIN on a hub", &byDepth{atWorkspace: belowOwner, atHub: belowOwner}, held(domain.RoleAdmin, domain.HubScope(hubID)), true},
+		{"an administrator who owns the hub the group holds OWNER on", &byDepth{atWorkspace: belowOwner, atHub: everyRole}, held(domain.RoleOwner, domain.HubScope(hubID)), true},
+		{"an administrator, the group holds nothing", &byDepth{atWorkspace: belowOwner}, nil, true},
+		{"a member, the group holds nothing", &byDepth{}, nil, false},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			groups := newGroups(namedGroup(t, groupID, "Leads"))
+			grants := newGrants(row.held...)
+			out, err := GetGroup{Groups: groups, Grants: grants, Grantable: row.reader, UnitOfWork: &unitOfWork{}}.
+				invoke(t.Context(), reader(), usecase.Input{"group_id": groupID.String()})
+			if err != nil {
+				t.Fatalf("reading: %v", err)
+			}
+			if out["members_changeable"] != row.want {
+				t.Errorf("members_changeable %v, want %v", out["members_changeable"], row.want)
+			}
+			for _, request := range row.reader.requests {
+				if request.TokenScope != membersWrite || request.Permission != service.PermissionManageMembers {
+					t.Errorf("asked %+v, want the update's own request", request)
+				}
+			}
+		})
+	}
+
+	// Wired without the answer, nothing is offered.
+	out, err := GetGroup{Groups: newGroups(namedGroup(t, groupID, "Leads")), UnitOfWork: &unitOfWork{}}.
+		invoke(t.Context(), reader(), usecase.Input{"group_id": groupID.String()})
+	if err != nil || out["members_changeable"] != false {
+		t.Errorf("unwired: %v (%v), want false", out["members_changeable"], err)
 	}
 }

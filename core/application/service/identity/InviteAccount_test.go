@@ -128,13 +128,20 @@ type authorizer struct {
 	refuse error
 	// refuseGrant answers only a request that hands out a role, as the authoriser's ceiling does.
 	refuseGrant error
-	requests    []access.Request
+	// refuseRole answers access.role_above_own to a request at stake for that role only, as the
+	// ceiling does for an administrator and OWNER.
+	refuseRole domain.Role
+	requests   []access.Request
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
 	if request.Grants != "" && a.refuseGrant != nil {
 		return a.refuseGrant
+	}
+	if a.refuseRole != "" && request.Grants == a.refuseRole {
+		return shared.ErrForbidden.WithDetail("access.role_above_own").
+			WithParams(map[string]string{"role": string(a.refuseRole)})
 	}
 	return a.refuse
 }

@@ -479,3 +479,29 @@ func TestARefusedRevocationRemovesNothing(t *testing.T) {
 		t.Errorf("authorised against %v, want the scope the membership is at", auth.requests)
 	}
 }
+
+// Nobody takes away a role above their own (domain-model.md §3.2): the revocation asks with the
+// role it takes, and the ceiling's refusal stops it before the step-up is asked and before anything
+// is removed. A downgrade is a revocation and a grant, so it meets the ceiling here.
+func TestAnAdministratorCannotRevokeAnOwner(t *testing.T) {
+	owner, err := domain.NewGrant(membershipID, tenant, invitedID, "", domain.TenantScope(), domain.RoleOwner)
+	if err != nil {
+		t.Fatalf("preparing the grant: %v", err)
+	}
+	above := shared.ErrForbidden.WithDetail("access.role_above_own").WithParams(map[string]string{"role": "OWNER"})
+	auth := &authorizer{refuseGrant: above}
+	grants, sink := newGrants(owner), &auditSink{}
+
+	err = revokeHandler(grants, auth, sink).
+		Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: membershipID})
+
+	if shared.AsError(err).DetailCode != "access.role_above_own" {
+		t.Fatalf("error %v, want access.role_above_own before the step-up", err)
+	}
+	if len(auth.requests) != 1 || auth.requests[0].Grants != domain.RoleOwner {
+		t.Errorf("the revocation was asked as %+v, want it to name OWNER", auth.requests)
+	}
+	if len(grants.revoked) != 0 || len(sink.entries) != 0 {
+		t.Errorf("a refused revocation removed %v and wrote %v", grants.revoked, sink.entries)
+	}
+}
