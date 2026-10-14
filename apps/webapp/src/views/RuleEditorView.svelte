@@ -397,16 +397,18 @@
 
   /** One line under a step's title: its settings, identifiers replaced by their names. */
   function describe(step: Step): string {
-    const named = (value: unknown): string => {
+    const named = (key: string, value: unknown): string => {
       for (const choices of Object.values(pickers)) {
         const found = choices.find((choice) => choice.value === value);
         if (found) return found.label;
       }
+      // A reference the choices do not hold is said as such, never as its identifier (P-08).
+      if (REFERENCE[key]) return t('app.flow.field_unlisted');
       return typeof value === 'object' ? JSON.stringify(value) : String(value);
     };
     return Object.entries(step.params)
       .filter(([, value]) => value !== undefined && value !== '' && value !== null)
-      .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${named(value)}`)
+      .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${named(key, value)}`)
       .join(' · ');
   }
 
@@ -864,6 +866,7 @@
             {itemTypes}
             {errors}
             {marks}
+            {findings}
             onupdate={update}
             onremovestep={remove}
             onremovecondition={removeCondition}
@@ -897,6 +900,7 @@
             {itemTypes}
             {errors}
             {marks}
+            {findings}
             onupdate={update}
             onremovestep={remove}
             onremovecondition={removeCondition}

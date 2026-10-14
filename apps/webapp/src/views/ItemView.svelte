@@ -101,7 +101,6 @@
   import { resource } from '../lib/data/resource.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
-  import { humanise } from '../lib/i18n/messages.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -318,8 +317,8 @@
 
   /** The subtree's head: the child type as the manifest names it, and how much of it is done. */
   const childType = $derived(item ? childTypes(item.type)[0] : undefined);
-  /** A type as words: the manifest's identifier, read as `humanise` reads a code ("Work package"). */
-  const typeName = (type: string) => humanise(type.toLowerCase());
+  /** A type as a name standing on its own - a heading, a badge - in the catalogue's words. */
+  const typeName = (type: string) => t('app.item.type_name', { type });
   const subtreeHeading = $derived(childType ? typeName(childType) : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
   /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
@@ -812,7 +811,7 @@
             {:else if isTypeKnown}
               <!-- The manifest answered and does not declare this type. Its own sentence, once,
                    rather than fourteen refusals drawn as an empty column. -->
-              <p class="unread" role="status">{t('items.type_unsupported', { item_type: typeName(item.type) })}</p>
+              <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
             {:else if typeFailure}
               <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
                    on. The rows are missing because the installation could not be read, and that

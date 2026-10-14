@@ -151,8 +151,8 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.equal(await page.evaluate((id) => sessionStorage.getItem(`hubtask.subtree.${id}`), ENTRY.id), '[]');
   await page.getByRole('button', { name: 'Open every level' }).click();
   assert.equal(await page.locator('.level [data-row]').count(), 4);
-  // A child from the entry's page: "+ Work package" at the end, and "+ Activity" inside a row.
-  await page.getByRole('button', { name: 'Add Work package' }).click();
+  // A child from the entry's page: "Add a work package" at the end, "Add an activity" inside a row.
+  await page.getByRole('button', { name: 'Add a work package' }).click();
   const field = page.getByRole('textbox', { name: 'Title' }).last();
   await field.waitFor({ timeout: 5_000 });
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT');
@@ -161,7 +161,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   const created = written.find((w) => w.method === 'POST' && w.path.endsWith('/items') && w.body?.title === 'Grout');
   assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'WORK_PACKAGE', parent_id: ENTRY.id });
-  await page.getByRole('button', { name: `Add Activity inside ${CHILDREN[ENTRY.id][0].title}` }).click();
+  await page.getByRole('button', { name: `Add an activity inside ${CHILDREN[ENTRY.id][0].title}` }).click();
   await page.getByRole('textbox', { name: 'Title' }).last().fill('Cut the tiles');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForTimeout(300);
