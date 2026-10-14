@@ -309,7 +309,7 @@ An unverified address comes in nowhere. Then:
 |---|---|---|---|
 | `INVITED_ONLY` | "Only people invited here" | A verified address the provider is **authoritative** for, meeting an account that already exists | No |
 | `DOMAINS` | "Anyone from these organisations" | A preset with a directory claim: the directory is in `allowed_directories`. `GENERIC`: the address's domain is in `allowed_email_domains` | Yes |
-| `ANY` | "Anyone this provider knows" | Every verified address | Yes |
+| `ANY` | "Anyone this provider knows" | Every verified address; on a shared endpoint, from a listed directory (below) | Yes |
 
 * **A preset with a directory claim ignores `allowed_email_domains`** — two lists that both admit are
   two doors. An empty list under `DOMAINS` admits nobody; domains without directories under such a
@@ -317,6 +317,9 @@ An unverified address comes in nowhere. Then:
 * **A directory list narrows `INVITED_ONLY`** for a preset with a directory claim: an
   authoritative address from a directory not listed is not admitted on the provider's word. An
   empty list does not narrow.
+* **A shared endpoint's list bounds `ANY`** (§10.3): on Microsoft's `/organizations` or `/common`
+  only a directory in `allowed_directories` comes in, and a row stored without a list admits nobody
+  new. One directory's own issuer is bounded by the issuer.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
