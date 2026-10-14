@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import {
@@ -66,6 +66,35 @@
   let removing = $state('');
 
   $effect(() => untrack(() => webhooks.open()));
+
+  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by another subscription or outcome. */
+  let arrived = $state<string | undefined>(undefined);
+  let isLoadingMore = $state(false);
+  /** Why the last press of *Show more* brought nothing; cleared by the next press and by another subscription or outcome. */
+  let moreFailed = $state<string | undefined>(undefined);
+  $effect(() => {
+    void opened;
+    void outcome;
+    arrived = undefined;
+    moreFailed = undefined;
+  });
+
+  /** A subscription's next page of deliveries, appended, and what arrived said once it has (P-13). */
+  async function moreDeliveries(webhookId: string): Promise<void> {
+    const status = outcome || undefined;
+    const before = webhooks.deliveriesOf(webhookId, status).length;
+    moreFailed = undefined;
+    isLoadingMore = true;
+    try {
+      await webhooks.more(webhookId, status);
+      arrived = t('app.webhooks.arrived', { count: webhooks.deliveriesOf(webhookId, status).length - before });
+    } catch (error) {
+      // Beside the button that asked, not in the page's banner: the deliveries already shown are still right.
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
+  }
 
   const reading = $derived(webhooks.state);
   const listed = $derived(webhooks.all);
@@ -452,17 +481,19 @@
                     {/each}
                   </ul>
 
-                  {#if webhooks.moreAfter(subscription.id, outcome || undefined)}
-                    <div>
-                      <Button
-                        size="sm"
-                        tone="secondary"
-                        onclick={() =>
-                          void attempt(() => webhooks.more(subscription.id, outcome || undefined))}
-                      >
-                        {t('app.webhooks.more')}
-                      </Button>
-                    </div>
+                  <!-- Drawn whole while something is to be said after the last page: the live
+                       regions go with the component, and one removed with the button is one
+                       nobody hears. -->
+                  {#if webhooks.moreAfter(subscription.id, outcome || undefined) || arrived || moreFailed}
+                    <LoadMore
+                      label={t('app.webhooks.more')}
+                      busyLabel={t('app.webhooks.loading_more')}
+                      hasMore={Boolean(webhooks.moreAfter(subscription.id, outcome || undefined))}
+                      isBusy={isLoadingMore}
+                      arrivedLabel={arrived}
+                      failedLabel={moreFailed}
+                      onLoadMore={() => void moreDeliveries(subscription.id)}
+                    />
                   {/if}
                 {/if}
               </Stack>

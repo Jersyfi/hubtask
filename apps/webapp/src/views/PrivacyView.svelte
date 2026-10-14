@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
@@ -125,6 +125,34 @@
       | undefined,
   );
   const mayDestroy = $derived(holds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
+
+  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared when the closed cases are shown or hidden. */
+  let arrived = $state<string | undefined>(undefined);
+  let isLoadingMore = $state(false);
+  /** Why the last press of *Show more* brought nothing; cleared by the next press and by showing or hiding the closed cases. */
+  let moreFailed = $state<string | undefined>(undefined);
+  $effect(() => {
+    void includeClosed;
+    arrived = undefined;
+    moreFailed = undefined;
+  });
+
+  /** The next page, appended, and what arrived said once it has (P-13). */
+  async function more(): Promise<void> {
+    const closed = includeClosed;
+    const before = privacy.of(closed).length;
+    moreFailed = undefined;
+    isLoadingMore = true;
+    try {
+      await privacy.more(closed);
+      arrived = t('app.privacy.arrived', { count: privacy.of(closed).length - before });
+    } catch (error) {
+      // Beside the button that asked, not in the page's banner: the cases already shown are still right.
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
+  }
 
   const reading = $derived(privacy.stateOf(includeClosed));
   const listed = $derived(byDeadline(privacy.of(includeClosed)));
@@ -532,12 +560,18 @@
           <p class="quiet">{t('app.privacy.none')}</p>
         {/each}
 
-        {#if privacy.moreAfter(includeClosed)}
-          <div>
-            <Button tone="secondary" onclick={() => void attempt(() => privacy.more(includeClosed))}>
-              {t('app.privacy.more')}
-            </Button>
-          </div>
+        <!-- Drawn whole while something is to be said after the last page: the live regions go
+             with the component, and one removed with the button is one nobody hears. -->
+        {#if privacy.moreAfter(includeClosed) || arrived || moreFailed}
+          <LoadMore
+            label={t('app.privacy.more')}
+            busyLabel={t('app.privacy.loading_more')}
+            hasMore={Boolean(privacy.moreAfter(includeClosed))}
+            isBusy={isLoadingMore}
+            arrivedLabel={arrived}
+            failedLabel={moreFailed}
+            onLoadMore={() => void more()}
+          />
         {/if}
       {/if}
     </Stack>
