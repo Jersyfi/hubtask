@@ -14781,7 +14781,8 @@ type ClientInterface interface {
 	// GrantMembershipWithBody Grant a role at a scope
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
-	// a role at a hub applies to its collections and their items.
+	// a role at a hub applies to its collections and their items. A subject holds a role at a
+	// scope once: granting it again changes nothing and answers the membership already there.
 	//
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
@@ -14801,7 +14802,8 @@ type ClientInterface interface {
 	// GrantMembership Grant a role at a scope
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
-	// a role at a hub applies to its collections and their items.
+	// a role at a hub applies to its collections and their items. A subject holds a role at a
+	// scope once: granting it again changes nothing and answers the membership already there.
 	//
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
@@ -22553,7 +22555,8 @@ func (c *Client) ListMemberships(ctx context.Context, params *ListMembershipsPar
 // GrantMembershipWithBody Grant a role at a scope
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
-// a role at a hub applies to its collections and their items.
+// a role at a hub applies to its collections and their items. A subject holds a role at a
+// scope once: granting it again changes nothing and answers the membership already there.
 //
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
@@ -22583,7 +22586,8 @@ func (c *Client) GrantMembershipWithBody(ctx context.Context, params *GrantMembe
 // GrantMembership Grant a role at a scope
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
-// a role at a hub applies to its collections and their items.
+// a role at a hub applies to its collections and their items. A subject holds a role at a
+// scope once: granting it again changes nothing and answers the membership already there.
 //
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
@@ -42641,7 +42645,8 @@ type ClientWithResponsesInterface interface {
 	// GrantMembershipWithBodyWithResponse Grant a role at a scope
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
-	// a role at a hub applies to its collections and their items.
+	// a role at a hub applies to its collections and their items. A subject holds a role at a
+	// scope once: granting it again changes nothing and answers the membership already there.
 	//
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
@@ -42661,7 +42666,8 @@ type ClientWithResponsesInterface interface {
 	// GrantMembershipWithResponse Grant a role at a scope
 	//
 	// To an account or to a group, never both. The role applies downwards from the scope:
-	// a role at a hub applies to its collections and their items.
+	// a role at a hub applies to its collections and their items. A subject holds a role at a
+	// scope once: granting it again changes nothing and answers the membership already there.
 	//
 	// Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 	// role along its path at least as strong as the one granted - an owner gives any role, an
@@ -64455,7 +64461,8 @@ func (c *ClientWithResponses) ListMembershipsWithResponse(ctx context.Context, p
 // GrantMembershipWithBodyWithResponse Grant a role at a scope
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
-// a role at a hub applies to its collections and their items.
+// a role at a hub applies to its collections and their items. A subject holds a role at a
+// scope once: granting it again changes nothing and answers the membership already there.
 //
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an
@@ -64481,7 +64488,8 @@ func (c *ClientWithResponses) GrantMembershipWithBodyWithResponse(ctx context.Co
 // GrantMembershipWithResponse Grant a role at a scope
 //
 // To an account or to a group, never both. The role applies downwards from the scope:
-// a role at a hub applies to its collections and their items.
+// a role at a hub applies to its collections and their items. A subject holds a role at a
+// scope once: granting it again changes nothing and answers the membership already there.
 //
 // Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
 // role along its path at least as strong as the one granted - an owner gives any role, an

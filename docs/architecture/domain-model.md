@@ -95,6 +95,8 @@ API exists in multi mode only.
 | `status` | `ACTIVE` \| `INVITED` \| `DISABLED` \| `RESTRICTED` \| `ANONYMIZED` | `RESTRICTED` is restriction of processing (Art. 18): the person still works, and no automatic decision or AI touches their data — not a lockout. `ANONYMIZED` ends an erasure that keeps authorship; such an account cannot act |
 
 `Membership(accountId, scopeType, scopeId, role)` with `scopeType ∈ {TENANT, HUB, COLLECTION, ITEM}`.
+An account or a group holds a role at a scope once: granting it again changes nothing and answers
+the membership already there, so revoking that one membership takes the role away.
 The effective permission is the highest role along the path (inherited downwards). One exception: a
 **private hub** is reached only through a membership on the hub or below it — roles higher up do not
 flow into it, and the workspace owner reaches it only through the transparent emergency access of
