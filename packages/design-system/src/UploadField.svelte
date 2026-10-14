@@ -76,10 +76,13 @@
   // The input needs an id of its own: a `<label for>` pointing at nothing leaves a file input
   // announced as "button", which is the exact failure this component's comment warns about and
   // the workbench's keyboard-order panel is what caught it.
-  const inputId = `upload-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const inputId = `upload-${instanceId}`;
   const unavailable = $derived(disabledReason !== undefined);
-  const reasonId = $derived(unavailable ? `reason-${Math.random().toString(36).slice(2, 9)}` : undefined);
-  const hintId = $derived(hint ? `hint-${Math.random().toString(36).slice(2, 9)}` : undefined);
+  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  const hintId = $derived(hint ? `hint-${instanceId}` : undefined);
   const isUploading = $derived(progress !== undefined);
 
   function take(files: FileList | null | undefined) {

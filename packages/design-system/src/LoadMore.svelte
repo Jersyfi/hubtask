@@ -34,6 +34,12 @@
     arrivedLabel?: string;
     /** What the end of the list says, where a list wants to say anything at all. */
     endLabel?: string;
+    /**
+     * Why the last page did not arrive, resolved by the caller from the failure. Drawn beside the
+     * control and announced at once; the control stays, so pressing it again is the retry. The
+     * caller clears it when the reader asks again.
+     */
+    failedLabel?: string;
     onLoadMore?: () => void;
   }
 
@@ -44,6 +50,7 @@
     isBusy = false,
     arrivedLabel,
     endLabel,
+    failedLabel,
     onLoadMore,
   }: Props = $props();
 </script>
@@ -59,6 +66,10 @@
        has something to say is a region the screen reader was not watching, and the announcement is
        lost. It is empty until there is something in it. -->
   <p class="announcement" role="status" aria-live="polite">{arrivedLabel ?? ''}</p>
+  <!-- Shown as well as said, and assertive: a page that did not arrive is a failure the reader is
+       waiting on, and without it they press again into the same silence. Mounted empty for the same
+       reason as the region above. -->
+  <p class="failed" role="alert">{failedLabel ?? ''}</p>
 </div>
 
 <style>
@@ -75,6 +86,17 @@
     color: var(--text-subtle);
     font-size: var(--fs-075);
   }
+
+  .failed {
+    margin: 0;
+    color: var(--text-danger);
+    font-size: var(--fs-075);
+    text-align: center;
+  }
+
+  /* Empty, it takes back the gap above it rather than leaving the hole of a line nobody wrote.
+     Not hidden: a live region taken out of the tree is one the screen reader stops watching. */
+  .failed:empty { margin-block-start: calc(var(--sp-100) * -1); }
 
   /* Announced and not shown: the count is already visible as six new rows, so repeating it in
      print would be noise for the reader who does not need it. `VisuallyHidden`'s technique, kept

@@ -259,14 +259,36 @@ test('no component hides a control from the accessibility tree', () => {
   }
 });
 
-test('a table names itself by an id that is the same on every render', () => {
-  // The website prerenders its API pages through `ParameterTable`, and a table's id that came from
+test('a component names its parts by ids that are the same on every render', () => {
+  // The website prerenders its API pages through `ParameterTable`, and an id that came from
   // `Math.random()` made every build of those pages differ while the rest of the HTML stayed
-  // byte-identical - a diff that hides real changes and a cache that never hits. `$props.id()` is
-  // unique per instance and stable between the server's render and the client's.
+  // byte-identical - a diff that hides real changes and a cache that never hits - and a page the
+  // server rendered named its parts differently from the one the client hydrated. `$props.id()` is
+  // unique per instance and stable between the server's render and the client's. The whole
+  // package, scripts included: a rule held for one file was how twenty more kept the old way.
+  const scripts = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const joined = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(joined);
+      else if (/\.(svelte|ts)$/.test(entry.name)) scripts.push(joined);
+    }
+  };
+  walk(sourceDir);
+  assert.ok(scripts.length >= ALL.length, 'the walk over src/ found fewer files than components');
+  const offenders = scripts.filter((file) => {
+    const code = fs
+      .readFileSync(file, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    return /Math\.random\(/.test(code);
+  });
+  assert.deepEqual(
+    offenders.map((file) => path.relative(packageRoot, file)),
+    [],
+    'these take an id from Math.random(), so no two builds agree - use $props.id()',
+  );
   const table = ALL.find((component) => component.name === 'Table.svelte');
   assert.ok(table, 'Table.svelte was not read');
-  const script = scriptOf(table.source).replace(/^\s*\/\/.*$/gm, '');
-  assert.doesNotMatch(script, /Math\.random\(/, 'Table.svelte takes an id from Math.random(), so no two builds agree');
-  assert.match(script, /\$props\.id\(\)/, 'Table.svelte no longer names itself through $props.id()');
+  assert.match(scriptOf(table.source), /\$props\.id\(\)/, 'Table.svelte no longer names itself through $props.id()');
 });

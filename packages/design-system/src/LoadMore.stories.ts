@@ -30,3 +30,10 @@ export const busy: Story = {
     'voice-and-tone.md §2.4: the control keeps its place and changes its verb rather than disappearing. A button that vanished while it worked would move everything below it at the moment the reader was aiming at something.',
   args: { mode: 'busy' },
 };
+
+export const failed: Story = {
+  name: 'A page that did not arrive',
+  about:
+    'Press it: the page fails. The rows already shown stay, the reason is drawn beside the control and announced at once in an alert region, and the control stays where it was, so pressing it again is the retry. Without this the button simply came back and a screen-reader user heard nothing at all. The sentence is the caller’s, resolved from the failure.',
+  args: { mode: 'failed' },
+};

@@ -85,7 +85,10 @@
   let active = $state(0);
 
   const unavailable = $derived(disabledReason !== undefined);
-  const reasonId = $derived(unavailable ? `reason-${Math.random().toString(36).slice(2, 9)}` : undefined);
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
 
   const shown = $derived(
     term.trim() === ''

@@ -65,6 +65,8 @@
     /** What the control that fetches it is called, and what it says once a page has landed. */
     loadMoreLabel?: string;
     arrivedLabel?: string;
+    /** Why the last page of comments did not arrive, resolved by the caller (see `LoadMore`). */
+    loadMoreFailedLabel?: string;
     onLoadMore?: () => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
@@ -83,6 +85,7 @@
     hasMore = false,
     loadMoreLabel,
     arrivedLabel,
+    loadMoreFailedLabel,
     onLoadMore,
     onEdit,
     onDelete,
@@ -110,7 +113,7 @@
     </ol>
 
     {#if hasMore && loadMoreLabel}
-      <LoadMore label={loadMoreLabel} {hasMore} {arrivedLabel} {onLoadMore} />
+      <LoadMore label={loadMoreLabel} {hasMore} {arrivedLabel} failedLabel={loadMoreFailedLabel} {onLoadMore} />
     {/if}
   {/if}
 </section>

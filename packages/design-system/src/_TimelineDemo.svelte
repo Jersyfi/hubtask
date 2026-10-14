@@ -7,7 +7,7 @@
 
   import Timeline, { type TimelineCarry, type TimelineRow, type TimelineTick } from './Timeline.svelte';
 
-  const { mode = 'mixed', scale = 'day' }: { mode?: 'mixed' | 'undatedOnly' | 'empty'; scale?: 'day' | 'week' | 'month' } =
+  const { mode = 'mixed', scale = 'day' }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked'; scale?: 'day' | 'week' | 'month' } =
     $props();
 
   let rows = $state<TimelineRow[]>([
@@ -46,6 +46,19 @@
     });
   }
 
+  // A reader who may change only what is on them: the fit-out and one undated entry are someone
+  // else's, so they show where they are and cannot be carried.
+  const LOCKED = new Set(['r1', 'r5']);
+  const shown = $derived(
+    mode === 'empty'
+      ? []
+      : mode === 'undatedOnly'
+        ? rows.filter((row) => !row.start && !row.due)
+        : mode === 'locked'
+          ? rows.map((row) => ({ ...row, isLocked: LOCKED.has(row.id) }))
+          : rows,
+  );
+
   const columnOf = (date: string) => Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${FROM}T00:00:00Z`)) / DAY);
 </script>
 
@@ -54,7 +67,7 @@
   from={FROM}
   to="2026-09-21"
   {scale}
-  rows={mode === 'empty' ? [] : mode === 'undatedOnly' ? rows.filter((row) => !row.start && !row.due) : rows}
+  rows={shown}
   gridlines={mode === 'empty' ? [] : gridlines}
   today="2026-09-11"
   todayLabel="Today is Friday 11 September"

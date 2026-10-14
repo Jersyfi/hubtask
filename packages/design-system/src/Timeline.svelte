@@ -49,6 +49,12 @@
     readonly start?: string;
     /** `YYYY-MM-DD`. Alone it makes a point. */
     readonly due?: string;
+    /**
+     * Whether the reader may not move it. A locked row draws no ends and takes no drag, on the axis
+     * or in the tray; its title still opens it. The caller decides from the reader's role, because
+     * a bar that can be dragged is a promise the server will accept the dates.
+     */
+    readonly isLocked?: boolean;
   }
 
   /** One mark on the axis: where it sits, and what it says. */
@@ -222,6 +228,7 @@
       if (!(surface instanceof HTMLElement)) return;
       const id = surface.closest<HTMLElement>('[data-row]')?.dataset.row;
       if (id === undefined) return;
+      if (rows.find((row) => row.id === id)?.isLocked) return;
       // `hasAttribute`, not the dataset value: `data-track` carries no value, and `''` is falsy -
       // read as a truth test it made every bar drag look like a tray entry being placed.
       const grab = (
@@ -311,7 +318,12 @@
 
       <ul class="rows" bind:this={list}>
         {#each placed as entry, index (entry.row.id)}
-          <li class="row" data-row={entry.row.id} data-carrying={carry?.id === entry.row.id ? '' : undefined}>
+          <li
+            class="row"
+            data-row={entry.row.id}
+            data-carrying={carry?.id === entry.row.id ? '' : undefined}
+            data-locked={entry.row.isLocked ? '' : undefined}
+          >
             <button
               type="button"
               class="title"
@@ -341,13 +353,13 @@
                     ? ''
                     : undefined}
                 >
-                  {#if hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
+                  {#if !entry.row.isLocked && hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
                     <!-- `tabindex="-1"`: the keyboard path to a date is the entry's own editor, not
                          a handle that would have to invent key bindings for a calendar. -->
                     <button type="button" class="end" data-end="start" aria-label={startHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
-                  {#if hasEnds(entry.at) && isFilled && entry.row.due && column === entry.at.last && dueHandleLabel}
+                  {#if !entry.row.isLocked && hasEnds(entry.at) && isFilled && entry.row.due && column === entry.at.last && dueHandleLabel}
                     <button type="button" class="end" data-end="due" aria-label={dueHandleLabel} tabindex="-1"
                     ></button>
                   {/if}
@@ -380,7 +392,7 @@
         <summary class="name">{undatedLabel}</summary>
         <ul class="plain">
           {#each undated as row (row.id)}
-            <li data-row={row.id}>
+            <li data-row={row.id} data-locked={row.isLocked ? '' : undefined}>
               <button type="button" class="entry" data-tray onclick={() => onSelect?.(row.id)}>
                 {row.title}
               </button>
@@ -591,6 +603,11 @@
   }
 
   .entry:hover { background: var(--bg-surface-hover); }
+
+  /* A row the reader may not move offers no grip: the cursor says what a press does, which is
+     open the entry. */
+  .row[data-locked] .cell[data-filled] { cursor: default; }
+  [data-locked] > .entry { cursor: pointer; }
 
   .said { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
 
