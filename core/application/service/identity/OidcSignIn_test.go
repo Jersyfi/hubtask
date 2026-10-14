@@ -652,3 +652,36 @@ func pairOf(result SignInResult) SessionPair {
 	}
 	return *result.Pair
 }
+
+// UC-AUD-01 check 2: an entry names its target. A sign-in begun and a subject refused happen at a
+// provider, so the entry names that provider's row - not the workspace it belongs to, which the
+// entry already carries as its tenant.
+func TestTheProviderTrailEntriesNameTheProvider(t *testing.T) {
+	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	f := newOidcFixture(t, at)
+	f.relying.identity = provider.Identity{
+		Subject: "s-3", Email: "ada@elsewhere.org", EmailVerified: true, DisplayName: "Ada"}
+
+	_, err := CompleteOidcSignIn{Writer: f.writer}.
+		Execute(t.Context(), CompleteOidcSignInCommand{Code: "x", State: start(t, f)})
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("completing answered %v, want a refusal", err)
+	}
+
+	for _, action := range []audit.Action{OidcSignInStartedAction, OidcRefusedAction} {
+		found := false
+		for _, entry := range f.session.audit.entries {
+			if entry.Action != action {
+				continue
+			}
+			found = true
+			if entry.TargetType != identityProviderTarget || entry.TargetID != oidcProviderRow {
+				t.Errorf("%s names %s %s, want the provider %s",
+					action, entry.TargetType, entry.TargetID, oidcProviderRow)
+			}
+		}
+		if !found {
+			t.Errorf("%s was not recorded", action)
+		}
+	}
+}
