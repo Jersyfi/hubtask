@@ -33,14 +33,16 @@ const HOLD = {
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, role) {
+async function open(browser, role, { policies = [], kinds = [] } = {}) {
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, roles: ROLES } });
+    if (path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, roles: ROLES, retention_data_kinds: kinds } });
+    }
     if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
       return route.fulfill({ json: { data: [
         { id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role },
@@ -52,7 +54,7 @@ async function open(browser, role) {
       written.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { ...HOLD, id: '01a0e2e0-0000-7000-8000-0000000003a2', ...request.postDataJSON() } });
     }
-    if (path === '/retention-policies') return route.fulfill({ json: [] });
+    if (path === '/retention-policies') return route.fulfill({ json: policies });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -103,6 +105,33 @@ test('chromium: an administrator reads the holds and is offered neither placing 
     await page.waitForTimeout(200);
     assert.equal(await page.locator('form', { hasText: 'Place a hold' }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 0);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// P-12, UC-LIF-04: a rule and the classes a rule can name are drawn in words, never as the constant
+// the server keys them by.
+test('chromium: the rules and the form name each class of data in words', async () => {
+  const browser = await chromium.launch();
+  try {
+    const kinds = [
+      { data_kind: 'COMPLETED_ITEM', anchor: 'completed_at', actions: ['ARCHIVE', 'TRASH', 'NOTIFY_ONLY'] },
+      { data_kind: 'AI_SUGGESTION', anchor: 'created_at', actions: ['HARD_DELETE'] },
+    ];
+    const policies = [{
+      id: '01a0e2e0-0000-7000-8000-0000000003b1', scope: { kind: 'TENANT' }, data_kind: 'AI_SUGGESTION',
+      retain_days: 30, action: 'HARD_DELETE', enabled: true,
+    }];
+    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds });
+    await page.locator('.name', { hasText: 'AI suggestions' }).waitFor();
+    const options = await page.getByLabel('What it applies to').locator('option').allTextContents();
+    assert.ok(options.includes('Completed tasks, work packages and activities'), options.join(' | '));
+    assert.ok(options.includes('AI suggestions'), options.join(' | '));
+    const text = await page.locator('main').innerText();
+    for (const key of ['AI_SUGGESTION', 'COMPLETED_ITEM']) assert.ok(!text.includes(key), `${key} is on the screen`);
     assert.deepEqual(failures, []);
     await close();
   } finally {

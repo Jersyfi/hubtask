@@ -34,6 +34,8 @@
 
   import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderPreset } from '@hubtask/sync-engine';
+
+  import { issuerAfterChoosing } from '../lib/signin/issuer.ts';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -385,6 +387,7 @@
     <Select
       label={t('app.instance.provider_kind_label')}
       bind:value={kind}
+      onchange={(event) => (issuer = issuerAfterChoosing(presets, (event.currentTarget as HTMLSelectElement).value, issuer))}
       options={presets.map((each) => ({
         value: each.kind,
         label: t(`app.identity_provider.kind.${each.kind.toLowerCase()}`),

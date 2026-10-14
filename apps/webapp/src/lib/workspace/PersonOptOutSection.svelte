@@ -9,6 +9,10 @@
   // the server does not. Where the installation or a plan holds the workspace at the default, the
   // screen says who decided and offers no control (P-05, P-07).
   //
+  // **Alone, nothing is asked** (P-10, UC-PRV-05 check 8): with one person there is nobody whose
+  // content could be kept out, so the choice is not drawn. A stored *AI for everybody* stays
+  // drawn, because it is still in force and only here can it be taken back.
+  //
   // **How many people it touches is said before it is done** (P-04): a number, never who - the
   // consent register on *Data subject requests* is where names are.
 
@@ -16,6 +20,7 @@
   import type { AiOptOutBasis, AiPersonOptOut, AiSource } from '@hubtask/sync-engine';
 
   import { aiProvider } from '../data/aiprovider.svelte.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -41,6 +46,9 @@
     contact = source.person_opt_out_contact ?? '';
   });
 
+  const isAsked = $derived(
+    workspace.workspace?.several_people === true || source.person_opt_out === 'NOT_OFFERED',
+  );
   const lockedBy = $derived(
     source.person_opt_out_lock
       ? source.person_opt_out_lock === 'PLAN'
@@ -73,6 +81,7 @@
   }
 </script>
 
+{#if isAsked}
 <section class="panel" aria-labelledby="person-opt-out-title" data-person-opt-out>
   <Stack gap="200">
     <h2 class="section" id="person-opt-out-title">{t('app.ai.opt_out_title')}</h2>
@@ -132,6 +141,7 @@
     {/if}
   </Stack>
 </section>
+{/if}
 
 <style>
   /* Prose and two fields: a measure of its own, as the form above it carries one. */

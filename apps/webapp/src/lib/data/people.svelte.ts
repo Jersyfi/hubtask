@@ -159,7 +159,8 @@ class People {
    *
    * **Where no mail goes out the answer carries the link, once**, and it is answered to the caller
    * whatever the grant does: a link swallowed by the grant's failure would be an invitation nobody
-   * holds. The grant's failure travels beside it.
+   * holds. The grant's failure travels beside it - by mail too, because a mail that went out is an
+   * invitation the form must not offer to send a second time. Only a refused invitation throws.
    */
   async invite(
     email: string,
@@ -179,8 +180,7 @@ class People {
       if (!answer?.id) throw new Error('the invitation answered no account');
       await this.grant({ accountId: answer.id }, role, scope);
     } catch (grantFailure) {
-      if (link === undefined) throw grantFailure;
-      return { link, grantFailure };
+      return link === undefined ? { grantFailure } : { link, grantFailure };
     }
     return link === undefined ? {} : { link };
   }

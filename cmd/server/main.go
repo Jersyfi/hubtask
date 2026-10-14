@@ -136,6 +136,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "operator" {
 		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The rest of that way: a workspace its own state locks every operator out of.
+	if len(os.Args) > 1 && os.Args[1] == "workspace" {
+		os.Exit(runWorkspaceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).

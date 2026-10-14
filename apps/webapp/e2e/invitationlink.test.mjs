@@ -30,8 +30,8 @@ const roles = [
   { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS'] },
 ];
 
-async function open(browser, { mail, invite, grants = OWNER_GRANTS }, sent) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+async function open(browser, { mail, invite, grants = OWNER_GRANTS, width = 1280, height = 900, grant }, sent) {
+  const context = await browser.newContext({ viewport: { width, height } });
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
@@ -48,6 +48,7 @@ async function open(browser, { mail, invite, grants = OWNER_GRANTS }, sent) {
     }
     if (path === '/memberships' && request.method() === 'POST') {
       sent.grant = request.postDataJSON();
+      if (grant) return route.fulfill(grant);
       return route.fulfill({ status: 201, json: { id: 'm-new', scope_type: 'TENANT', account_id: NEWCOMER, role: 'MEMBER' } });
     }
     if (path === '/accounts:invite') {
@@ -79,6 +80,24 @@ async function invite(page, address) {
   await form.getByLabel('Email address').fill(address);
   await form.getByLabel('Role').selectOption('MEMBER');
   return form;
+}
+
+/**
+ * UC-ID-14 check 6, WCAG 3.3.1 and 4.1.3: a refused invitation is said at the address field,
+ * inside the screen of whoever pressed the button, the address still typed and focused, and said
+ * once through the one live region.
+ */
+async function saidAtTheForm(page, form, sentence, address) {
+  const field = form.getByLabel('Email address');
+  assert.equal(await field.inputValue(), address, 'the typed address was cleared');
+  assert.equal(await field.evaluate((input) => input === document.activeElement), true, 'the address field is not focused');
+  const described = await field.evaluate((input) =>
+    (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.match(described, sentence, 'the sentence is not tied to the address field');
+  const box = await form.getByText(sentence).boundingBox();
+  const viewport = page.viewportSize();
+  assert.ok(box && box.y >= 0 && box.y + box.height <= viewport.height, `the sentence is out of view: ${JSON.stringify(box)}`);
+  assert.match(await page.locator('[role="status"][aria-live="polite"]').first().textContent() ?? '', sentence, 'it was not announced');
 }
 
 test('without mail the form promises a link, shows it once, and keeps it nowhere after', async () => {
@@ -152,9 +171,10 @@ test('an address already invited is named as one, and nothing is shown as sent (
     const form = await invite(page, INVITED.email);
     await form.getByRole('button', { name: 'Create the invitation link' }).click();
 
-    await page.getByText('That address was invited already and has not accepted yet.', { exact: false }).waitFor();
+    await page.getByText('That address was invited already and has not accepted yet.', { exact: false }).first().waitFor();
     assert.equal(sent.grant, undefined, 'a role was given after the refusal');
     assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a link panel was drawn');
+    await saidAtTheForm(page, form, /That address was invited already/, INVITED.email);
   } finally {
     await close();
     await browser.close();
@@ -174,7 +194,8 @@ test('an address of somebody already here is named as one, and nothing is shown 
     const form = await invite(page, ACCOUNT.email);
     await form.getByRole('button', { name: 'Create the invitation link' }).click();
 
-    await page.getByText('Somebody with that address is already in this workspace.', { exact: false }).waitFor();
+    await page.getByText('Somebody with that address is already in this workspace.', { exact: false }).first().waitFor();
+    await saidAtTheForm(page, form, /Somebody with that address is already in this workspace/, ACCOUNT.email);
     assert.equal(sent.grant, undefined, 'a role was given after the refusal');
     assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a link panel was drawn');
     assert.equal(await page.getByText('Invitation sent', { exact: false }).count(), 0, 'an invitation was said to be sent');
@@ -239,6 +260,58 @@ test('a reader who may grant nothing sees the people and no form', async () => {
     await page.getByRole('row').filter({ hasText: 'Bert' }).waitFor();
     assert.equal(await page.getByLabel('Email address').count(), 0, 'the invitation is drawn');
     assert.equal(await page.getByRole('button', { name: 'Grant' }).count(), 0, 'the grant is drawn');
+  } finally {
+    await close();
+    await browser.close();
+  }
+});
+
+const takenRefusal = {
+  status: 409,
+  json: { code: 'errors.conflict', detail_code: 'accounts.email_taken', status: 409, params: { account_id: ACCOUNT.id }, request_id: 'req_e2e' },
+};
+
+// The same at a phone's width, and with mail: the refusal is at the form in either way of inviting.
+for (const { mail, width, height, button } of [
+  { mail: false, width: 375, height: 812, button: 'Create the invitation link' },
+  { mail: true, width: 1280, height: 900, button: 'Send the invitation' },
+]) {
+  test(`a refused invitation is said at the form (${mail ? 'mail' : 'link'}, ${width} px)`, async () => {
+    const browser = await chromium.launch();
+    const sent = {};
+    const { page, close } = await open(browser, { mail, invite: takenRefusal, width, height }, sent);
+    try {
+      await page.goto(`${served.origin}/administration/people`);
+      const form = await invite(page, ACCOUNT.email);
+      await form.getByRole('button', { name: button }).click();
+      await form.getByText('Somebody with that address is already in this workspace.', { exact: false }).waitFor();
+      await saidAtTheForm(page, form, /Somebody with that address is already in this workspace/, ACCOUNT.email);
+    } finally {
+      await close();
+      await browser.close();
+    }
+  });
+}
+
+// A mailed invitation whose role could not be given: the invitation went out, so the form empties,
+// and why the role is missing is said at the form rather than at the top of the page.
+test('a mailed invitation whose role could not be given says so at the form', async () => {
+  const browser = await chromium.launch();
+  const sent = {};
+  const mailed = { status: 201, json: { id: NEWCOMER, kind: 'USER', display_name: 'anna', email: 'anna@example.invalid', status: 'INVITED' } };
+  const grant = {
+    status: 403,
+    json: { code: 'errors.forbidden', detail_code: 'auth.permission_denied', status: 403, request_id: 'req_g' },
+  };
+  const { page, close } = await open(browser, { mail: true, invite: mailed, grant }, sent);
+  try {
+    await page.goto(`${served.origin}/administration/people`);
+    const form = await invite(page, 'anna@example.invalid');
+    await form.getByRole('button', { name: 'Send the invitation' }).click();
+    await page.getByText('Invitation sent', { exact: false }).first().waitFor();
+    assert.equal(await form.getByLabel('Email address').inputValue(), '', 'a sent invitation stayed in the form');
+    const warning = form.locator('.banner[data-tone="warning"]');
+    assert.ok(await warning.count() > 0, 'why the role is missing is not said at the form');
   } finally {
     await close();
     await browser.close();
