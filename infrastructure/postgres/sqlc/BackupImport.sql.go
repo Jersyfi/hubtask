@@ -725,7 +725,6 @@ INSERT INTO account (
   time_zone,
   week_start,
   status,
-  ai_consent,
   sign_in_name,
   start_password_at,
   terms_url,
@@ -748,7 +747,6 @@ SELECT
   r.time_zone,
   r.week_start,
   r.status,
-  r.ai_consent,
   r.sign_in_name,
   r.start_password_at,
   r.terms_url,
@@ -773,7 +771,6 @@ ON CONFLICT (id) DO UPDATE SET
   time_zone = EXCLUDED.time_zone,
   week_start = EXCLUDED.week_start,
   status = EXCLUDED.status,
-  ai_consent = EXCLUDED.ai_consent,
   sign_in_name = EXCLUDED.sign_in_name,
   start_password_at = EXCLUDED.start_password_at,
   terms_url = EXCLUDED.terms_url,
@@ -791,6 +788,8 @@ type ImportAccountParams struct {
 	Overwrite bool
 }
 
+// ai_consent is neither written nor updated: an archive from before tenant-export.md §11 still
+// carries it, jsonb_populate_record accepts the key, and the column keeps what it holds.
 // A restricted account is neither deleted nor changed (data-retention.md §4 item 2): the archive's
 // version of it would lift a restriction of processing - one a legal hold may be keeping - by going
 // back in time, which only a deliberate act may do (Art. 18).
