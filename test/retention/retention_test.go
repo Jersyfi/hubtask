@@ -433,6 +433,58 @@ func TestRE6TheTombstoneWindowHoldsTheRemovalBack(t *testing.T) {
 	}
 }
 
+// RE-6, with more waiting than a batch holds: rows still inside the offline window must not fill the
+// batch ahead of one past both bounds. Deeper entries come first in the bottom-up order, so a full
+// batch of them deleted recently would otherwise keep every pass from reaching the due one behind
+// them until they themselves came due.
+func TestRE6RowsInsideTheWindowDoNotStarveADueOne(t *testing.T) {
+	s := newSuite(t, 90*24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	collectionID := s.collection(t)
+
+	// A task with two work packages, all sixty days in the trash: past the period, inside the window,
+	// and the packages deeper than anything else here.
+	parent := s.trashedItem(t, collectionID, 60)
+	s.trashedChild(t, collectionID, parent, 60)
+	s.trashedChild(t, collectionID, parent, 60)
+	// Two hundred days: past both, and shallower than the packages.
+	overdue := s.trashedItem(t, collectionID, 200)
+
+	outcome := s.sweep(t)
+
+	if s.exists(t, overdue) {
+		t.Fatalf("an entry past both bounds is still there behind a batch held by the window (%+v)", outcome)
+	}
+	if outcome.Removed != 1 {
+		t.Errorf("the pass removed %d rows, want 1", outcome.Removed)
+	}
+	if outcome.Blocked[lifecycle.BlockedByTombstoneWindow] != 1 {
+		t.Errorf("the pass reports %+v, want the rest of the batch held by the offline window", outcome)
+	}
+	if !s.exists(t, parent) {
+		t.Error("an entry still inside the offline window was removed")
+	}
+}
+
+// trashedChild writes one work package under a trashed task, deleted `daysAgo` days before the run.
+func (s *suite) trashedChild(t *testing.T, collectionID, parent shared.ID, daysAgo int) shared.ID {
+	t.Helper()
+	id := freshID(t)
+	deletedAt := now.AddDate(0, 0, -daysAgo)
+
+	if _, err := s.admin.Exec(s.ctx, `
+		INSERT INTO work_item (
+			id, tenant_id, collection_id, type, parent_id, path, depth, title, order_key,
+			deleted_at, trash_batch_id, created_by
+		) VALUES ($1, $2, $3, 'WORK_PACKAGE', $4, $5, 2, $6, 'a0', $7, $8, $9)`,
+		id.String(), s.tenant.String(), collectionID.String(), parent.String(),
+		work.RootPath(parent)+id.String()+work.PathSeparator, "Package "+id.String(), deletedAt,
+		freshID(t).String(), s.author.String()); err != nil {
+		t.Fatalf("seeding the trashed work package: %v", err)
+	}
+	return id
+}
+
 // RE-8: one tenant's run never reaches another tenant's objects. The boundary is row level security
 // rather than a filter in the query, which is why this is worth proving against the database: the
 // run names no tenant anywhere.

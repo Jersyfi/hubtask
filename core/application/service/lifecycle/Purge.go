@@ -215,7 +215,11 @@ func (p Purger) Sweep(
 		safe = now
 	}
 
-	items, err := p.Expired.Items(ctx, cutoff, p.BatchSize)
+	// The read hands over what is removable by safe ahead of what the window still holds, so the
+	// held rows are reported only when the batch has room left: in the bottom-up order alone a
+	// batch-full of recently deleted deep entries would be read, counted and skipped on every pass,
+	// and a row past both bounds behind them would never be reached.
+	items, err := p.Expired.Items(ctx, cutoff, safe, p.BatchSize)
 	if err != nil {
 		return outcome, err
 	}
@@ -246,7 +250,7 @@ func (p Purger) Sweep(
 		removableItems = append(removableItems, expired.ID)
 	}
 
-	containers, err := p.Expired.Containers(ctx, cutoff, p.BatchSize)
+	containers, err := p.Expired.Containers(ctx, cutoff, safe, p.BatchSize)
 	if err != nil {
 		return outcome, err
 	}

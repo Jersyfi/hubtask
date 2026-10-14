@@ -83,22 +83,31 @@ func (s *trashStore) KeptBelow(
 	return kept, nil
 }
 
+// expiredStore hands over its rows in the order they were given. Putting the removable ones first is
+// the statement's work, proven against the database (RE-6); what this records is the instant the
+// engine asks it to order by.
 type expiredStore struct {
 	items      []repository.ExpiredItem
 	containers []repository.ExpiredContainer
 	askedAt    time.Time
+	askedDue   time.Time
 	askedBatch int
+	// containersAskedAt and containersAskedDue are what the second read was asked, so a pass that
+	// read its two halves with two definitions of "expired" or "due" shows.
+	containersAskedAt  time.Time
+	containersAskedDue time.Time
 }
 
 func (s *expiredStore) Items(
-	_ context.Context, cutoff time.Time, batch int,
+	_ context.Context, cutoff, due time.Time, batch int,
 ) ([]repository.ExpiredItem, error) {
-	s.askedAt, s.askedBatch = cutoff, batch
+	s.askedAt, s.askedDue, s.askedBatch = cutoff, due, batch
 	return s.items, nil
 }
 func (s *expiredStore) Containers(
-	context.Context, time.Time, int,
+	_ context.Context, cutoff, due time.Time, _ int,
 ) ([]repository.ExpiredContainer, error) {
+	s.containersAskedAt, s.containersAskedDue = cutoff, due
 	return s.containers, nil
 }
 
@@ -376,7 +385,8 @@ func TestASweepRespectsTheTombstoneWindow(t *testing.T) {
 }
 
 // Entries before containers, and the cutoff read once for the whole pass: two readings of the clock
-// would let a long batch use two definitions of "expired".
+// would let a long batch use two definitions of "expired". Both reads are asked to put what the
+// offline window no longer holds first, by the same instant the engine then judges each row by.
 func TestASweepRemovesEntriesBeforeContainersAndAsksOneCutoff(t *testing.T) {
 	h := newHarness()
 	longAgo := now.Add(-120 * 24 * time.Hour)
@@ -394,8 +404,13 @@ func TestASweepRemovesEntriesBeforeContainersAndAsksOneCutoff(t *testing.T) {
 		t.Fatalf("the sweep failed: %v", err)
 	}
 
-	if !h.expired.askedAt.Equal(cutoff) {
-		t.Errorf("the read was asked for %v, want the cutoff %v", h.expired.askedAt, cutoff)
+	if !h.expired.askedAt.Equal(cutoff) || !h.expired.containersAskedAt.Equal(cutoff) {
+		t.Errorf("the reads were asked for %v and %v, want the cutoff %v",
+			h.expired.askedAt, h.expired.containersAskedAt, cutoff)
+	}
+	if due := now.Add(-window); !h.expired.askedDue.Equal(due) || !h.expired.containersAskedDue.Equal(due) {
+		t.Errorf("the reads put first what was deleted by %v and %v, want the edge of the window %v",
+			h.expired.askedDue, h.expired.containersAskedDue, due)
 	}
 	if h.expired.askedBatch != 1000 {
 		t.Errorf("the batch was %d, want the configured 1000", h.expired.askedBatch)
@@ -487,6 +502,11 @@ func TestAnExplicitSweepDoesNotWaitOutTheOfflineWindow(t *testing.T) {
 
 	if outcome.Removed != 1 || outcome.Blocked[BlockedByTombstoneWindow] != 0 {
 		t.Errorf("an explicit sweep reports %+v, want the entry removed", outcome)
+	}
+	// Everything it selects is removable, so nothing is to be put behind anything else.
+	if !h.expired.askedDue.Equal(now) || !h.expired.containersAskedDue.Equal(now) {
+		t.Errorf("an explicit sweep put first what was deleted by %v and %v, want now %v",
+			h.expired.askedDue, h.expired.containersAskedDue, now)
 	}
 	// The marker still outlives the row by the whole window, which is what makes it safe.
 	if h.removals.purgeAfter.Sub(h.removals.deletedAt) != window {
