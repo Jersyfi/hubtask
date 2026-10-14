@@ -203,3 +203,24 @@ test('chromium: each offered provider says what the lock on the ways to sign in 
   assert.match(await mandated.textContent() ?? '', /Locking the ways to sign in with providers among them turns it on/);
   assert.equal(await byDomain.locator('[data-lock]').count(), 0);
 });
+
+// UC-INS-11 check 1, #1322: choosing Google fills the one issuer it has; choosing another provider
+// takes it out again, and what somebody typed stays.
+test('chromium: choosing Google fills its issuer, another provider takes it out', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/providers`);
+  await page.getByRole('button', { name: 'Offer a provider' }).click();
+  const kind = page.getByLabel('Which provider');
+  const issuer = page.getByLabel(/^Issuer/);
+  await kind.selectOption('GOOGLE');
+  assert.equal(await issuer.inputValue(), 'https://accounts.google.com');
+  await kind.selectOption('MICROSOFT');
+  assert.equal(await issuer.inputValue(), '');
+  await issuer.fill('https://login.microsoftonline.com/1234/v2.0');
+  await kind.selectOption('GENERIC');
+  assert.equal(await issuer.inputValue(), 'https://login.microsoftonline.com/1234/v2.0');
+});
