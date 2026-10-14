@@ -22,10 +22,10 @@ import { pollDelay } from './jobs.ts';
 /**
  * The six operations of an entry (`ai-first.md` §2, every row but translation and templates).
  *
- * Each is a `POST /items/{id}:<operation>` answered `202` with no body, or - for `duplicates` -
- * `200` with the suggestion or `204` with nothing near. Nothing here is a job the client can
- * follow: the answer appears under `GET /suggestions`, and the store re-reads that listing on the
- * job watcher's schedule until it does.
+ * Each is a `POST /items/{id}:<operation>` answered `202` with the job it queued, or - for
+ * `duplicates` - `200` with the suggestion or `204` with nothing near. The answer appears under
+ * `GET /suggestions`, and the store re-reads that listing on the job watcher's schedule until it
+ * does - reading the job beside it, which is where a refusal met after the ask is said.
  */
 export type Operation =
   | 'suggest-fields'
@@ -380,14 +380,32 @@ export interface ListingReader {
   >;
 }
 
+/** A job that ended with a refusal: the code and parameters its sentence is rendered from. */
+export interface Refused {
+  readonly refused: { readonly code: string; readonly params?: Readonly<Record<string, string>> };
+}
+
+/** What a follow came to. */
+export type FollowOutcome = 'arrived' | 'gave_up' | 'left' | Refused;
+
+/** The part of `GET /jobs/{id}` a follow reads. */
+interface JobRead {
+  readonly status?: string;
+  readonly error_code?: string | null;
+  readonly error_params?: Readonly<Record<string, string>> | null;
+}
+
 /**
  * Re-reads the listing on the job watcher's schedule until a proposal made after `askedAt`
- * stands in it, or the schedule runs out.
+ * stands in it, the job the ask queued says it ended refused, or the schedule runs out.
  *
- * An ask answers `202` with no body - the provider has not been asked yet, so there is no job to
- * name - and the change stream carries no suggestion record, so the listing is the one place the
- * answer arrives. `wait` is injected so that a test runs the schedule without the clock; `isLive`
- * lets a screen that was left stop the follow between two reads.
+ * An ask answers `202` with the job that will put the question, and the change stream carries no
+ * suggestion record, so the answer arrives in the listing - and a refusal the job meets on the way
+ * (the workspace's AI budget spent since, AI switched off) arrives on the job and nowhere else. The
+ * job is read beside the listing each round; a job read that is refused, still running, or absent
+ * (`jobId` empty, an older server) leaves the follow to the listing alone. `wait` is injected so
+ * that a test runs the schedule without the clock; `isLive` lets a screen that was left stop the
+ * follow between two reads.
  */
 export async function followArrival(
   reader: ListingReader,
@@ -396,7 +414,8 @@ export async function followArrival(
   wait: (ms: number) => Promise<void>,
   isLive: () => boolean = () => true,
   target: Target = 'WORK_ITEM',
-): Promise<'arrived' | 'gave_up' | 'left'> {
+  jobId?: string,
+): Promise<FollowOutcome> {
   for (let attempt = 0; attempt < FOLLOW_ATTEMPTS; attempt++) {
     await wait(pollDelay(attempt));
     if (!isLive()) return 'left';
@@ -405,8 +424,26 @@ export async function followArrival(
     if (read.status === 'ready' && arrivedSince((read as { data: SuggestionPage }).data.items ?? [], askedAt)) {
       return 'arrived';
     }
+    if (jobId) {
+      const refusal = await refusalOf(reader, jobId);
+      if (!isLive()) return 'left';
+      if (refusal) return refusal;
+    }
   }
   return 'gave_up';
+}
+
+/** The refusal a job ended with, or nothing - for a job still going, one that answered, or a read that failed. */
+async function refusalOf(reader: ListingReader, jobId: string): Promise<Refused | undefined> {
+  try {
+    const read = await reader.refresh<JobRead>({ path: `/jobs/${jobId}`, timeoutMs: FOLLOW_READ_TIMEOUT_MS });
+    if (read.status !== 'ready') return undefined;
+    const job = (read as { data: JobRead }).data;
+    if (job.status !== 'FAILED' || !job.error_code) return undefined;
+    return { refused: { code: job.error_code, params: job.error_params ?? undefined } };
+  } catch {
+    return undefined;
+  }
 }
 
 /** How long one re-read of the listing may take. */

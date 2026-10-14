@@ -25,7 +25,7 @@
   import { formatDateTime, formatDue } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { renderProblem } from '../problem.ts';
+  import { renderProblem, renderRefusal } from '../problem.ts';
 
   interface Props {
     entry: JumbleEntry;
@@ -58,11 +58,13 @@
     if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
     announcedFor = now.askedAt;
     announcer.say(
-      now.outcome === 'arrived'
-        ? t('app.suggestions.arrived_announced')
-        : now.outcome === 'gave_up'
-          ? t('app.suggestions.gave_up')
-          : t('app.suggestions.nothing_near'),
+      now.outcome === 'refused' && now.refusal
+        ? renderRefusal(now.refusal, messages)
+        : now.outcome === 'arrived'
+          ? t('app.suggestions.arrived_announced')
+          : now.outcome === 'gave_up'
+            ? t('app.suggestions.gave_up')
+            : t('app.suggestions.nothing_near'),
     );
   });
   const listingFailure = $derived(
@@ -136,6 +138,8 @@
     <AISuggestion heading={t('app.jumble.suggested')} state="pending" pendingLabel={t('app.suggestions.pending')} />
   {:else if asking?.outcome === 'gave_up'}
     <p class="note">{t('app.suggestions.gave_up')}</p>
+  {:else if asking?.outcome === 'refused' && asking.refusal}
+    <p class="note">{renderRefusal(asking.refusal, messages)}</p>
   {/if}
 
   {#if listingFailure}
