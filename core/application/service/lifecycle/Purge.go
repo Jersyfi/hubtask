@@ -79,6 +79,9 @@ type Outcome struct {
 	Held int
 	// Removed is how many actually went.
 	Removed int
+	// Read is how many rows the rule sweep judged, matched or not: what reading past entries it
+	// cannot act on costs, set beside what it removed.
+	Read int
 	// Blocked counts what was refused, by reason. The reasons are the closed set above, so this is
 	// a report an operator can read and a metric can be labelled from.
 	Blocked map[string]int

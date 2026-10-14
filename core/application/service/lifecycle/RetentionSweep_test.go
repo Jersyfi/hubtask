@@ -852,3 +852,131 @@ func TestAFullBatchBesideAHeldOneIsUnfinished(t *testing.T) {
 		t.Errorf("a pass that marked a full batch reads as the end (%+v)", outcome)
 	}
 }
+
+// Entries the read answers first and the pass cannot act on, two of them - a full batch of the
+// harness's two - and the due one behind them.
+var (
+	firstKept  = shared.MustParseID("0192f000-0000-7000-8000-000000000021")
+	secondKept = shared.MustParseID("0192f000-0000-7000-8000-000000000022")
+	behind     = shared.MustParseID("0192f000-0000-7000-8000-000000000023")
+)
+
+func (h *sweepHarness) holdEach(ids ...shared.ID) {
+	for _, id := range ids {
+		h.holds.holds = append(h.holds.holds, domain.LegalHold{
+			ID: id, Scope: domain.HoldItem, ScopeID: id, Reason: "Pending litigation", PlacedAt: now,
+		})
+	}
+}
+
+// Phase one and a chain's second stage read past a batch-full of entries they cannot announce to
+// the due one behind it - in the pass, not never.
+func TestPhaseOneReadsPastWhatItCannotAnnounce(t *testing.T) {
+	old := now.AddDate(0, 0, -800)
+	for _, tc := range []struct {
+		name    string
+		arrange func(*testing.T, *sweepHarness, *Sweeper)
+	}{
+		{"held by a legal hold", func(t *testing.T, h *sweepHarness, _ *Sweeper) {
+			h.ruleIn(t, func(*domain.NewRuleInput) {})
+			h.holdEach(firstKept, secondKept)
+			h.marking.due = []repository.Candidate{
+				candidate(firstKept, old), candidate(secondKept, old), candidate(behind, old),
+			}
+		}},
+		{"excluded by the condition", func(t *testing.T, h *sweepHarness, sweeper *Sweeper) {
+			h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+			engine := newConditions()
+			for _, id := range []shared.ID{firstKept, secondKept, behind} {
+				h.items.stored[id] = work.WorkItem{ID: id, Type: work.ItemTask}
+			}
+			engine.answer[behind] = true
+			sweeper.Conditions = engine
+			h.marking.due = []repository.Candidate{
+				candidate(firstKept, old), candidate(secondKept, old), candidate(behind, old),
+			}
+		}},
+		{"kept longer by a narrower rule", func(t *testing.T, h *sweepHarness, _ *Sweeper) {
+			h.ruleIn(t, func(in *domain.NewRuleInput) { in.RetainDays = 30 })
+			h.ruleIn(t, func(in *domain.NewRuleInput) {
+				in.ID = shared.MustParseID("0192f000-0000-7000-8000-0000000000e2")
+				in.Scope = domain.Scope{Kind: domain.ScopeCollection, ID: collectionID}
+				in.RetainDays = 365
+			})
+			// Ninety days: past the tenant's thirty, inside the collection's year.
+			kept := func(id shared.ID) repository.Candidate { return candidate(id, now.AddDate(0, 0, -90)) }
+			elsewhere := candidate(behind, now.AddDate(0, 0, -60))
+			elsewhere.CollectionID = shared.MustParseID("0192f000-0000-7000-8000-0000000000c2")
+			h.marking.due = []repository.Candidate{kept(firstKept), kept(secondKept), elsewhere}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newSweepHarness()
+			sweeper, run := h.heldBatch()
+			tc.arrange(t, h, &sweeper)
+
+			outcome, err := sweeper.Pass(context.Background(), actor())
+			if err != nil {
+				t.Fatalf("sweeping: %v", err)
+			}
+
+			if len(h.marking.marked) != 1 || h.marking.marked[0] != behind {
+				t.Fatalf("announced %v, want the due entry behind the batch", h.marking.marked)
+			}
+			if outcome.Read != 3 {
+				t.Errorf("read %d rows, want all three", outcome.Read)
+			}
+			if !run.Exhausted(outcome) {
+				t.Errorf("a pass that read to the end reads as unfinished (%+v)", outcome)
+			}
+		})
+	}
+}
+
+func TestAChainsSecondStageReadsPastWhatAHoldKeeps(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) {
+		in.ThenAfterDays, in.ThenAction = 730, domain.ActionHardDelete
+	})
+	h.holdEach(firstKept, secondKept)
+	old := now.AddDate(0, 0, -800)
+	h.marking.inChain = []repository.Candidate{
+		candidate(firstKept, old), candidate(secondKept, old), candidate(behind, old),
+	}
+	sweeper, _ := h.heldBatch()
+
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 1 || h.marking.marked[0] != behind {
+		t.Fatalf("the second stage announced %v, want the entry behind the held ones", h.marking.marked)
+	}
+	if outcome.Held != 2 {
+		t.Errorf("held %d, want 2", outcome.Held)
+	}
+}
+
+// The read stops at a full batch it can act on: what lies behind is the next pass's.
+func TestPhaseOneStopsReadingAtAFullBatch(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	old := now.AddDate(0, 0, -800)
+	h.marking.due = []repository.Candidate{
+		candidate(firstKept, old), candidate(secondKept, old), candidate(behind, old),
+	}
+	sweeper, run := h.heldBatch()
+
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 2 || outcome.Read != 2 {
+		t.Fatalf("marked %v after reading %d, want the first batch only", h.marking.marked, outcome.Read)
+	}
+	if run.Exhausted(outcome) {
+		t.Errorf("a full batch reads as the end (%+v)", outcome)
+	}
+}

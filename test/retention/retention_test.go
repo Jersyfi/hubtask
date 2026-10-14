@@ -497,6 +497,66 @@ func TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne(t *testing.T) {
 	}
 }
 
+// itemHold places a legal hold on one entry.
+func (s *suite) itemHold(t *testing.T, id shared.ID) {
+	t.Helper()
+	if _, err := s.admin.Exec(s.ctx, `
+		INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by)
+		VALUES ($1, $2, 'ITEM', $3, 'Pending litigation', $4)`,
+		freshID(t).String(), s.tenant.String(), id.String(), s.author.String()); err != nil {
+		t.Fatalf("placing the hold: %v", err)
+	}
+}
+
+// RE-2 for the rule sweep: a batch-full of entries the pass cannot announce - held, or excluded by
+// the rule's condition - is older than a due one, so it comes first in the read. Read alone, it
+// would hide the due entry on every pass; the pass reads past it.
+func TestRE2TheRuleSweepReadsPastWhatItCannotAnnounce(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		condition string
+		keep      func(*suite, *testing.T, shared.ID)
+	}{
+		{"held", "", (*suite).itemHold},
+		{"excluded by the condition", "item.title != 'no-archive'", func(s *suite, t *testing.T, id shared.ID) {
+			if _, err := s.admin.Exec(s.ctx,
+				`UPDATE work_item SET title = 'no-archive' WHERE id = $1`, id.String()); err != nil {
+				t.Fatalf("excluding the entry: %v", err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newSuite(t, 24*time.Hour)
+			s.run.Purger.BatchSize = 2
+			s.run.Sweeper.Batch = 2
+			collectionID := s.collection(t)
+			for range 2 {
+				tc.keep(s, t, s.completedItem(t, collectionID, 500))
+			}
+			due := s.completedItem(t, collectionID, 400)
+			// A workspace with work in it, so the rule is not the broad one §5 turns into an
+			// announcement.
+			for range 60 {
+				s.completedItem(t, collectionID, 1)
+			}
+			s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+				Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+				DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+				Action: lifecycleDomain.ActionArchive, Condition: tc.condition,
+			})
+
+			outcome := s.sweep(t)
+
+			if at, _ := s.marking(t, due); at.IsZero() {
+				t.Fatalf("the due entry behind the batch was not announced (%+v)", outcome)
+			}
+			if !s.run.Exhausted(outcome) {
+				t.Errorf("a pass that read to the end reads as unfinished (%+v)", outcome)
+			}
+		})
+	}
+}
+
 // The rule sweep's batch, held entirely by a legal hold, is the end of the pass. A block sets no due
 // moment, so the next pass reads the same entries again, and a job that came straight back would
 // only find them once more.
