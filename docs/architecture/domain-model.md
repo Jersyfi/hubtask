@@ -125,7 +125,10 @@ it ([audit.md](./audit.md) §5, §9).
 table (`AUDITOR` last): an owner gives any role, an administrator any but `OWNER`, the owner of a hub
 gives `OWNER` on that hub and below it. A grant above is refused with `access.role_above_own` (403)
 and recorded, before any step-up is asked; this holds for every door that places a role, the
-managed account's creation included (`service.MayGrant`). `ListMemberships` answers
+managed account's creation included (`service.MayGrant`). Taking a role away is held to the same
+ceiling: revoking a membership needs a role along its scope's path at least as strong as the one it
+takes, before any step-up, so an administrator does not unmake an owner, and a downgrade (a
+revocation and a grant) meets it twice. `ListMemberships` answers
 `grantable_roles`, the roles the caller may give at that scope by the same rule and along the path
 the grant is decided on, and a client offers exactly those.
 

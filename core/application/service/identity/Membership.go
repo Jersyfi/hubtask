@@ -426,6 +426,10 @@ func (h RevokeMembership) Execute(
 		TokenScope: membersWrite,
 		TargetType: membershipTarget,
 		TargetID:   grant.ID,
+		// Taking a role away needs what handing it out needs (domain-model.md §3.2): an
+		// administrator who may not make an owner does not unmake one. Before the step-up, as the
+		// grant's ceiling is.
+		Grants: grant.Role,
 	}); err != nil {
 		return err
 	}
