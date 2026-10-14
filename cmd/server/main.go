@@ -1016,6 +1016,7 @@ func run() error {
 		Requests: privacyStore, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Subjects: privacyStore, Kept: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Owners: grants,
 	}
 
 	// The provider's shared dependencies.
@@ -2940,6 +2941,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
+		Owners: grants,
 	}
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore,

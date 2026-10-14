@@ -14,6 +14,7 @@ import (
 	"context"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -91,6 +92,9 @@ type Cases struct {
 	// Text brings the notes and a rejection's reason to normal form C on the way in
 	// (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Owners refuses starting the erasure of the workspace's only owner (domain-model.md §3.2),
+	// which the erasure itself would refuse later. Nil skips the question.
+	Owners identityrepo.Owners
 }
 
 // zone answers the workspace's own time zone, read in the caller's transaction. A zone this binary
@@ -403,6 +407,14 @@ func (h UpdateDataSubjectRequest) execute(
 
 	var extendable domain.Day
 	err = h.Cases.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Refused at the start rather than only by the job: the person starting it is told now that
+		// somebody else has to be made Owner first.
+		if moved.Kind == domain.KindErasure && moved.Status == domain.StatusInProgress &&
+			current.Status != domain.StatusInProgress {
+			if err := keepsAnOwner(ctx, h.Cases.Owners, moved.SubjectAccountID); err != nil {
+				return err
+			}
+		}
 		saved, err := h.Cases.Requests.Save(ctx, moved)
 		if err != nil {
 			return err

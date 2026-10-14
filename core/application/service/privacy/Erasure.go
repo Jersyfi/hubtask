@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -81,6 +82,9 @@ type Eraser struct {
 	// LastMember trashes a private hub the erased person was the last member of (ADR-0073 §5).
 	// Optional: wired without it, the retention pass finds the hub instead.
 	LastMember LastMember
+	// Owners holds the erasure to the last-owner rule (domain-model.md §3.2): a person who is the
+	// workspace's only owner is not erased until somebody else is one. Nil skips the question.
+	Owners identityrepo.Owners
 }
 
 // LastMember is the work context's answer to a person leaving: which private hubs they are a member
@@ -172,6 +176,16 @@ func (e Eraser) erase(
 				return shared.ErrConflict.
 					WithDetail(domain.CodeErasureBlockedByRule).
 					WithParams(map[string]string{"rules": strconv.Itoa(running)})
+			}
+		}
+
+		// The last-owner rule, asked of every erasure that ends the account - removed or anonymised.
+		// A kept account is still the person's and still an owner; the remainder that erases it
+		// later asks again. Refused with the code an operator can act on, like a running rule:
+		// somebody else is made Owner, and the case is carried out afterwards.
+		if plan.Account != domain.AccountKept {
+			if err := keepsAnOwner(ctx, e.Owners, subject); err != nil {
+				return err
 			}
 		}
 
