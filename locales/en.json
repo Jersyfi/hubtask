@@ -3233,6 +3233,7 @@
   "app.people.invite_where": "Where",
   "app.people.invite_here": "Invite somebody to this place",
   "app.people.invited_here": "Invitation sent to {email}, with the role here and nowhere else.",
+  "app.people.renewed_here": "The invitation to {name} went out again; the earlier link no longer works.",
   "app.people.invite_where_hint": "The whole workspace, or one hub: somebody invited to a hub sees that hub and nothing else of the workspace.",
   "app.people.invite": "Send the invitation",
   "app.people.invited_sent": "Invitation sent to {email}. They appear below as invited until they arrive.",

@@ -2073,6 +2073,7 @@
   "app.people.invite_where": "Wo",
   "app.people.invite_here": "Jemanden hierher einladen",
   "app.people.invited_here": "Einladung an {email} verschickt, mit der Rolle hier und nirgends sonst.",
+  "app.people.renewed_here": "Die Einladung an {name} ist erneut verschickt; der frühere Link gilt nicht mehr.",
   "app.people.invite_where_hint": "Der ganze Arbeitsbereich oder ein Hub: Wer zu einem Hub eingeladen wird, sieht diesen Hub und sonst nichts vom Arbeitsbereich.",
   "app.people.invite": "Einladung schicken",
   "app.people.invited_sent": "Einladung an {email} geschickt. Die Person erscheint unten als eingeladen, bis sie ankommt.",

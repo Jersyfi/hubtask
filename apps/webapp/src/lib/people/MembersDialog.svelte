@@ -130,6 +130,38 @@
   }
 
   /**
+   * Whether a row's person waits on an invitation this reader may renew here. The renewal asks
+   * `MANAGE_MEMBERS` on the workspace whatever the invitation's place (identity.md §12), so it is
+   * offered on every invited row - granted here or inherited - to a reader who manages the
+   * workspace's members, and to nobody else.
+   */
+  function mayRenew(holder: Holder): boolean {
+    return managesWorkspace && holder.accountId !== undefined && accounts.statusOf(holder.accountId) === 'INVITED';
+  }
+
+  /** A new way to arrive for somebody invited here: the mail again, or a new link shown once. */
+  function renew(holder: Holder): void {
+    const accountId = holder.accountId;
+    if (!accountId) return;
+    invited = undefined;
+    resent = undefined;
+    handedOver = undefined;
+    const who = accounts.nameOf(accountId) ?? t('app.people.unnamed');
+    void attempt(async () => {
+      const link = await people.renewInvitation(accountId);
+      if (link !== undefined) {
+        handedOver = { who, link };
+        announcer.say(t('app.people.renew_link_announced'));
+      } else {
+        resent = who;
+        announcer.say(t('app.people.invited_announced'));
+      }
+    });
+  }
+  /** Who an invitation was mailed to again, said once under the rows. */
+  let resent = $state<string | undefined>(undefined);
+
+  /**
    * Of those, the ones the server says this reader may give here (domain-model.md §3.2). With none
    * - or before the answer - the grant is absent rather than offered to be refused (P-05).
    */
@@ -212,6 +244,14 @@
               <Badge tone="neutral">{t('app.people.inherited')}</Badge>
             {/if}
 
+            {#if mayRenew(holder)}
+              <!-- An invitation not yet accepted gets a new way to arrive where its person is shown:
+                   there is no list of invitations, and a hub's invitee is not on People. -->
+              <Button size="sm" tone="secondary" isBusy={isWriting} busyLabel={t('app.people.working')} onclick={() => renew(holder)}>
+                {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
+              </Button>
+            {/if}
+
             <!-- Asks first: a single keystroke on a focused control must not end
                  somebody's access. Absent here for a role above the reader's own: taking it away
                  is refused as handing it out is. -->
@@ -281,6 +321,9 @@
       </form>
       {#if invited}
         <Banner tone="success">{t('app.people.invited_here', { email: invited })}</Banner>
+      {/if}
+      {#if resent}
+        <Banner tone="success">{t('app.people.renewed_here', { name: resent })}</Banner>
       {/if}
       {#if handedOver}
         <OneTimeSecret
