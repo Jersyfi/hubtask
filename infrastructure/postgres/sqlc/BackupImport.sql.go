@@ -1772,6 +1772,15 @@ FROM jsonb_populate_record(
   NULL::membership,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
+WHERE NOT EXISTS (
+  SELECT 1 FROM membership m
+  WHERE m.id <> r.id
+    AND m.account_id IS NOT DISTINCT FROM r.account_id
+    AND m.group_id IS NOT DISTINCT FROM r.group_id
+    AND m.scope_type = r.scope_type
+    AND m.scope_id IS NOT DISTINCT FROM r.scope_id
+    AND m.role = r.role
+)
 ON CONFLICT (id) DO UPDATE SET
   tenant_id = EXCLUDED.tenant_id,
   account_id = EXCLUDED.account_id,
@@ -1788,6 +1797,12 @@ type ImportMembershipParams struct {
 	Overwrite bool
 }
 
+// A row equal to a membership the tenant holds under another identifier is neither inserted nor,
+// under OVERWRITE, written over the row of its own identifier: a subject holds a role at a scope
+// once (0149), and the index is no arbiter of the upsert. An archive from before 0149 can carry
+// equal rows, and MERGE can meet a role granted again since; the row is reported as skipped rather
+// than failing the restore. The export orders memberships by identifier, so the oldest arrives
+// first and is the one kept, as 0149 keeps it.
 func (q *Queries) ImportMembership(ctx context.Context, arg ImportMembershipParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importMembership, arg.Payload, arg.Overwrite)
 	if err != nil {

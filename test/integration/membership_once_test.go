@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -180,5 +181,58 @@ func TestAGrantNamingAnotherTenantsAccountIsRefused(t *testing.T) {
 	if rows := countIn(ctx, t,
 		`SELECT count(*) FROM membership WHERE id = $1 AND tenant_id = $2`, own.ID.String(), tenantA.String()); rows != 1 {
 		t.Error("tenant A's membership did not survive tenant B's attempt")
+	}
+}
+
+// A restore meeting a membership equal to one the tenant holds under another identifier - an
+// archive from before membership_grant_uq, or MERGE meeting a role granted again since - writes
+// nothing, under SKIP and OVERWRITE alike, and the report counts the row as skipped rather than
+// failing on the index. Another role is still written.
+func TestARestoreSkipsAMembershipEqualToOneHeld(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := invitedIn(t, tenantA)
+	held, err := identity.NewGrant(freshID(t), tenantA, account.ID, "", identity.TenantScope(), identity.RoleMember)
+	if err != nil {
+		t.Fatalf("building: %v", err)
+	}
+	rows := map[string]map[string]any{}
+	for _, name := range []string{"skip", "overwrite", "other"} {
+		role := identity.RoleMember
+		if name == "other" {
+			role = identity.RoleViewer
+		}
+		rows[name] = map[string]any{
+			"id": freshID(t).String(), "account_id": account.ID.String(), "scope_type": "TENANT",
+			"role": string(role), "created_at": created.Format(time.RFC3339Nano),
+		}
+	}
+
+	var skipped, overwritten, other bool
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, held); err != nil {
+			return err
+		}
+		var err error
+		if skipped, err = importRepo().Write(ctx, "membership", rows["skip"], false); err != nil {
+			return err
+		}
+		if overwritten, err = importRepo().Write(ctx, "membership", rows["overwrite"], true); err != nil {
+			return err
+		}
+		other, err = importRepo().Write(ctx, "membership", rows["other"], false)
+		return err
+	}); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+	if skipped || overwritten {
+		t.Errorf("an equal membership was written (skip %v, overwrite %v)", skipped, overwritten)
+	}
+	if !other {
+		t.Error("a membership with another role was not written")
+	}
+	if count := countIn(ctx, t, `SELECT count(*) FROM membership WHERE account_id = $1 AND role = 'MEMBER'`,
+		account.ID.String()); count != 1 {
+		t.Errorf("%d MEMBER rows for the account, want 1", count)
 	}
 }
