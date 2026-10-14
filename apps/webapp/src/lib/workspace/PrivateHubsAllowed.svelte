@@ -39,10 +39,10 @@
       ?? (setting.installation ? undefined : t('app.private_hubs.allowed_off_above'));
   });
 
-  /** Where the value came from, in a sentence (P-06). */
+  /** Where the value came from, in a sentence (P-06); a lock is said once, by the switch. */
   const origin = $derived.by(() => {
     if (!setting) return '';
-    if (setting.lock !== null) return lockedBecause(setting.lock) ?? '';
+    if (setting.lock !== null) return '';
     switch (setting.source) {
       case 'WORKSPACE': return t('app.signin_settings.source_workspace');
       case 'INSTANCE': return t('app.signin_settings.source_installation');
@@ -76,7 +76,7 @@
         {disabledReason}
       />
       {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
-      <p class="origin">{origin}</p>
+      {#if origin}<p class="origin">{origin}</p>{/if}
     </Stack>
   </section>
 {/if}
