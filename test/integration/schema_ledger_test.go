@@ -68,7 +68,7 @@ func TestTheLedgerReadsBeforeAndAfterItsReaderOnAManagedDatabase(t *testing.T) {
 		t.Fatalf("migrating the rest: %v", err)
 	}
 	applied, older := readLedger(ctx, t, app)
-	if older || !slices.Contains(applied, 146) || !slices.Contains(applied, 143) {
+	if older || !slices.Contains(applied, 147) || !slices.Contains(applied, 143) {
 		t.Errorf("after the migration: older %v, applied %v", older, applied)
 	}
 }
