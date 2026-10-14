@@ -62,10 +62,25 @@ type GrantMembership struct {
 	// StepUp judges the fresh proof an OWNER grant demands. Nil refuses rather than
 	// permits, the seam's own rule.
 	StepUp stepup.Verifier
+	// Notices tells the person given the role (UC-NOT-01 check 9) - the notification service's
+	// RecordRoleGranted - inside the grant's transaction. Nil tells nobody.
+	Notices RoleNotices
+}
+
+// RoleNotices writes the record that tells a person about a role they were given, in the caller's
+// transaction. A grant to a group is passed as well; the implementation decides whom it concerns.
+type RoleNotices interface {
+	RoleGranted(ctx context.Context, grant domain.Grant, actorID shared.ID) error
 }
 
 // Execute records the grant and returns the membership in force: the new one, or the one the
 // subject already held at the scope with that role.
+//
+// Only this use case tells the person, and not record, which the managed account's creation
+// shares: the grants made as a side effect are the actor's own (the owner of a private hub they
+// create, a newcomer arriving through a provider) or a managed account's, which has no address and
+// whose start password its creator hands over in person. A role already held is not news: it was
+// told when it was given.
 func (h GrantMembership) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd GrantMembershipCommand,
 ) (domain.Grant, error) {
@@ -75,8 +90,12 @@ func (h GrantMembership) Execute(
 	}
 	var held domain.Grant
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		held, err = h.record(ctx, actor, grant)
-		return err
+		var created bool
+		held, created, err = h.record(ctx, actor, grant)
+		if err != nil || !created || h.Notices == nil {
+			return err
+		}
+		return h.Notices.RoleGranted(ctx, held, actor.AccountID)
 	})
 	if err != nil {
 		return domain.Grant{}, err
@@ -120,27 +139,27 @@ func (h GrantMembership) prepare(
 }
 
 // record writes a prepared grant and its trail entry, inside the caller's transaction, and answers
-// the membership in force.
+// the membership in force and whether it was written now.
 //
 // A role the subject already holds at the scope is answered with that membership and no entry:
 // nothing was given, and an access review that read two grants beside one revocation would read
 // access that is not there.
 func (h GrantMembership) record(
 	ctx context.Context, actor appshared.ActorContext, grant domain.Grant,
-) (domain.Grant, error) {
+) (held domain.Grant, created bool, err error) {
 	// The subject is looked up so that granting to somebody who is not here says so, rather
 	// than surfacing as a foreign key violation from three layers down.
 	if err := h.subjectExists(ctx, grant); err != nil {
-		return domain.Grant{}, err
+		return domain.Grant{}, false, err
 	}
 	if err := h.noGroupInPrivateHub(ctx, grant); err != nil {
-		return domain.Grant{}, err
+		return domain.Grant{}, false, err
 	}
-	held, created, err := h.Grants.Grant(ctx, grant)
+	held, created, err = h.Grants.Grant(ctx, grant)
 	if err != nil || !created {
-		return held, err
+		return held, created, err
 	}
-	return held, h.recordAudit(ctx, held, actor)
+	return held, true, h.recordAudit(ctx, held, actor)
 }
 
 func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) error {
@@ -155,7 +174,9 @@ func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) 
 		}
 		return nil
 	}
-	if _, err := h.Groups.Find(ctx, grant.GroupID); err != nil {
+	// Locked rather than only read: a member change judged against the group's roles holds this
+	// lock, so a role given meanwhile is either seen by it or waits for it (domain-model.md §3.2).
+	if err := h.Groups.Lock(ctx, grant.GroupID); err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
 			return shared.ErrNotFound.
 				WithDetail("groups.not_found").
@@ -437,6 +458,10 @@ func (h RevokeMembership) Execute(
 		TokenScope: membersWrite,
 		TargetType: membershipTarget,
 		TargetID:   grant.ID,
+		// Taking a role away needs what handing it out needs (domain-model.md §3.2): an
+		// administrator who may not make an owner does not unmake one. Before the step-up, as the
+		// grant's ceiling is.
+		Grants: grant.Role,
 	}); err != nil {
 		return err
 	}

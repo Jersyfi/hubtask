@@ -447,6 +447,27 @@ func (r GroupRepository) Find(ctx context.Context, groupID shared.ID) (identity.
 	}, nil
 }
 
+// Lock takes the group's row for the rest of the transaction.
+func (r GroupRepository) Lock(ctx context.Context, groupID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(groupID)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.LockGroup(ctx, id); err != nil {
+		if IsNoRows(err) {
+			return shared.ErrNotFound.WithDetail("groups.not_found")
+		}
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking group %s: %w", groupID, err))
+	}
+	return nil
+}
+
 func (r GroupRepository) List(ctx context.Context, page repository.Page) (repository.GroupPage, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -758,6 +779,33 @@ func (r MembershipGrantRepository) Find(ctx context.Context, membershipID shared
 	}
 
 	return grantFrom(row)
+}
+
+func (r MembershipGrantRepository) Holds(
+	ctx context.Context, accountID shared.ID, scope identity.Scope, role identity.Role,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	scopeID, err := optionalUUID(scope.ID)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.AccountHoldsRole(ctx, sqlc.AccountHoldsRoleParams{
+		AccountID: account, ScopeType: sqlc.MembershipScope(scope.Type), ScopeID: scopeID,
+		Role: sqlc.MembershipRole(role),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether account %s holds a role: %w", accountID, err))
+	}
+	return held, nil
 }
 
 func (r MembershipGrantRepository) ListAt(

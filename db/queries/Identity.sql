@@ -89,12 +89,15 @@ SELECT DISTINCT account_id FROM (
 -- should not have to know which identifier is which. Trashed and archived rows answer as they are
 -- stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
 -- hub's trash is as private as the hub (ADR-0073 §1).
-SELECT c.id AS named_id, h.id AS hub_id, h.private
+--
+-- An entry also answers its collection, so that a path naming only the entry is completed with
+-- both levels above it; a container answers none.
+SELECT c.id AS named_id, h.id AS hub_id, h.private, NULL::uuid AS collection_id
 FROM container c
 JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
 WHERE c.id = ANY(sqlc.arg('ids')::uuid[])
 UNION ALL
-SELECT w.id AS named_id, h.id AS hub_id, h.private
+SELECT w.id AS named_id, h.id AS hub_id, h.private, w.collection_id AS collection_id
 FROM work_item w
 JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id
@@ -266,6 +269,11 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- name: FindGroup :one
 SELECT id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
 
+-- name: LockGroup :one
+-- The group's row, held for the transaction: a member change, a deletion and a grant to the group
+-- take it first, so the roles a member change was judged against are the roles it places.
+SELECT id FROM account_group WHERE id = sqlc.arg('id') FOR UPDATE;
+
 -- name: InsertGroup :exec
 INSERT INTO account_group (id, tenant_id, name, description, version)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('name'), sqlc.narg('description'), 1);
@@ -321,6 +329,18 @@ WHERE account_id IS NOT DISTINCT FROM sqlc.narg('account_id')::uuid
   AND scope_type = sqlc.arg('scope_type')
   AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
   AND role = sqlc.arg('role');
+
+-- name: AccountHoldsRole :one
+-- Whether the account already holds exactly this role at exactly this scope through a grant of its
+-- own - not through a group, not inherited from above. What a grant asks before it writes, so that
+-- being given a role one already has is not news.
+SELECT EXISTS (
+  SELECT 1 FROM membership
+  WHERE account_id = sqlc.arg('account_id')::uuid
+    AND scope_type = sqlc.arg('scope_type')
+    AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
+    AND role = sqlc.arg('role')
+);
 
 -- name: FindMembership :one
 -- The tenant is selected although row level security already bounds the statement to it: the

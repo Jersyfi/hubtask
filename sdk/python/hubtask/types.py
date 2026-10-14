@@ -1086,6 +1086,7 @@ class GroupDetail(TypedDict, total=False):
     description: str | None
     version: Required[int]
     members: Required[list[str]]
+    members_changeable: Required[bool]
 
 class GroupPage(TypedDict, total=False):
     data: Required[list["Group"]]

@@ -117,11 +117,13 @@ type Memberships interface {
 	Administrators(ctx context.Context, path []identity.Scope) ([]shared.ID, error)
 
 	// HubsOf answers the hub each named container or entry sits under: a hub answers itself, a
-	// collection its parent, an entry its collection's parent. An identifier that names nothing in
-	// the transaction's tenant is absent from the answer rather than an error.
+	// collection its parent, an entry its collection's parent - and, for an entry, the collection
+	// too. An identifier that names nothing in the transaction's tenant is absent from the answer
+	// rather than an error.
 	//
 	// It exists so that the authoriser judges a path by storage rather than by how carefully its
-	// caller built it: a path that names a collection without its hub is completed here, and
+	// caller built it: a path that names a collection without its hub, or an entry without either,
+	// is completed here, and
 	// whether the path runs through a private hub is read here rather than carried by the path.
 	HubsOf(ctx context.Context, ids []shared.ID) (map[shared.ID]Hub, error)
 
@@ -159,6 +161,8 @@ type Hub struct {
 	ID shared.ID
 	// Private is the hub's own flag (ADR-0073 §1): only a membership on it or below it reaches it.
 	Private bool
+	// Collection is the collection an entry sits in, zero for a container.
+	Collection shared.ID
 }
 
 // Accounts is the store of people and service accounts.
@@ -316,6 +320,11 @@ type Groups interface {
 	AddMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
 	RemoveMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
 
+	// Lock takes the group's row for the rest of the transaction, or fails with shared.ErrNotFound.
+	// Changing who is in a group, deleting it and granting it a role all take it first, so the roles
+	// a member change was judged against are the roles it places (domain-model.md §3.2).
+	Lock(ctx context.Context, groupID shared.ID) error
+
 	// Members is who is in it. Read only where a replacement needs to know what to remove - a
 	// permission check never asks, because a group membership reaches it as a membership of the
 	// account (see Memberships.Along).
@@ -372,6 +381,11 @@ type MembershipGrants interface {
 	// the audit entry names the scope and the role, and a trail that only records an identifier
 	// is unreadable a year later (audit.md §2).
 	Find(ctx context.Context, membershipID shared.ID) (identity.Grant, error)
+
+	// Holds reports whether the account already holds exactly this role at exactly this scope
+	// through a grant of its own. Nothing keeps a second, equal grant from being written, so a
+	// caller that must tell a new role from a repeated one asks this before it writes.
+	Holds(ctx context.Context, accountID shared.ID, scope identity.Scope, role identity.Role) (bool, error)
 
 	// OfGroup returns every grant the group holds, for the revocation that has to know what a
 	// member taken out of the group - or every member of a group deleted - is about to lose.

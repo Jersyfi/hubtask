@@ -189,6 +189,15 @@ export function grantableOf(
 }
 
 /**
+ * Whether a membership at a scope may be revoked by this reader: taking a role away needs what
+ * handing it out needs (domain-model.md §3.2), so it is the scope's `grantable_roles` that answers.
+ * Before the scope has answered, no (P-05): an administrator is never offered to revoke an owner.
+ */
+export function mayRevoke(role: MembershipRole, grantable: readonly MembershipRole[] | undefined): boolean {
+  return grantable?.includes(role) ?? false;
+}
+
+/**
  * What the read of one scope's memberships has answered: its rows, `refused` where the server
  * refused the read - which it does exactly where the reader holds no role that reads there, so it
  * holds nothing there - or `undefined` while it has not answered.

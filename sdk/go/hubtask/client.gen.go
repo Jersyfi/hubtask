@@ -6197,8 +6197,11 @@ type GroupDetail struct {
 	Description *string              `json:"description,omitempty"`
 	Id          openapi_types.UUID   `json:"id"`
 	Members     []openapi_types.UUID `json:"members"`
-	Name        string               `json:"name"`
-	Version     int                  `json:"version"`
+
+	// MembersChangeable Whether the reader may change who is in the group and delete it. A group passes on every role it holds, so this needs the right to manage members on the workspace and, for each role the group holds, a role of the reader's own at least as strong where it applies. False where a change would be refused; renaming is not affected.
+	MembersChangeable bool   `json:"members_changeable"`
+	Name              string `json:"name"`
+	Version           int    `json:"version"`
 }
 
 // GroupPage defines model for GroupPage.
@@ -9403,7 +9406,7 @@ type TenantProvision struct {
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
-	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
+	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
@@ -14449,7 +14452,7 @@ type ClientInterface interface {
 
 	// AiTranslateWithBody Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -14458,7 +14461,7 @@ type ClientInterface interface {
 
 	// AiTranslate Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -21883,7 +21886,7 @@ func (c *Client) AiSummarizeThread(ctx context.Context, itemId ItemId, body AiSu
 
 // AiTranslateWithBody Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes any type of body and a specified content type.
 //
@@ -21902,7 +21905,7 @@ func (c *Client) AiTranslateWithBody(ctx context.Context, itemId ItemId, content
 
 // AiTranslate Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -42279,7 +42282,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiTranslateWithBodyWithResponse Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -42288,7 +42291,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiTranslateWithResponse Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -63891,7 +63894,7 @@ func (c *ClientWithResponses) AiSummarizeThreadWithResponse(ctx context.Context,
 
 // AiTranslateWithBodyWithResponse Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -63906,7 +63909,7 @@ func (c *ClientWithResponses) AiTranslateWithBodyWithResponse(ctx context.Contex
 
 // AiTranslateWithResponse Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

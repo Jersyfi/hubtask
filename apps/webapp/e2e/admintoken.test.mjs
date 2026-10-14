@@ -24,8 +24,8 @@ test.after(() => served.close());
 const SERVICE = { id: '01a0e2e0-0000-7000-8000-0000000000f1', kind: 'SERVICE', display_name: 'Shop platform', status: 'ACTIVE' };
 const OWNER = { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] };
 
-async function open(browser) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+async function open(browser, { timezoneId } = {}) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(timezoneId ? { timezoneId } : {}) });
   const mints = [];
   const proofs = [];
   await context.route('**/api/v1/**', async (route) => {
@@ -59,7 +59,7 @@ async function open(browser) {
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
-  return { page, mints, proofs, close: () => context.close() };
+  return { page, mints, proofs, context, close: () => context.close() };
 }
 
 async function mintAdministrative(page, within) {
@@ -106,4 +106,44 @@ test('chromium: a service account\'s administrative token is created behind the 
   assert.deepEqual(mints.map((each) => each.proof), [null, 'hbt_sup_tok']);
   assert.equal(mints[1].body.account_id, SERVICE.id, 'the token was not minted for the service account');
   assert.deepEqual(mints[1].body.scopes, ['admin:tenants']);
+});
+
+test('chromium: an expiry typed as a day is that day where the person is (UC-ID-17)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, mints, close } = await open(browser, { timezoneId: 'Europe/Berlin' });
+  t.after(close);
+
+  await page.goto(`${served.origin}/profile/tokens`);
+  await page.getByRole('button', { name: 'Create the token' }).waitFor();
+  // A day well inside the year the server allows, the same distance ahead whenever this runs.
+  const day = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel(/^What it is for/).fill('Nightly export');
+  await page.getByLabel(/^Expires/).fill(day);
+  await page.getByLabel('account:read', { exact: true }).check();
+  await page.getByRole('button', { name: 'Create the token' }).click();
+  await page.getByText('Your new token').first().waitFor({ timeout: 15_000 });
+
+  const sent = mints.at(-1).body.expires_at;
+  // The last second of that day in Berlin, which is still that day on a Berlin clock - not
+  // 23:59:59 UTC, which is the next day there.
+  const onBerlinClock = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(new Date(sent));
+  assert.equal(onBerlinClock, `${day}, 23:59:59`, `the expiry ${sent} is not the end of ${day} in Berlin`);
+  // And the date control offers no day the server would refuse: the last is 364 days ahead.
+  const max = await page.getByLabel(/^Expires/).getAttribute('max');
+  assert.ok(Date.parse(`${max}T23:59:59+01:00`) <= Date.now() + 365 * 86_400_000 + 3_600_000, `the control offers ${max}, past the year`);
+});
+
+test('chromium: a service account\'s token panel speaks about the service account', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/service-accounts`);
+  const section = page.locator('section', { hasText: SERVICE.display_name });
+  await section.getByRole('button', { name: 'Its tokens' }).click();
+  await section.getByRole('button', { name: 'Create the token' }).waitFor();
+  assert.equal(await section.getByText('This service account has no tokens.').count(), 1);
+  assert.equal(await section.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
 });

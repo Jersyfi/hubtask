@@ -258,3 +258,15 @@ test('no component hides a control from the accessibility tree', () => {
     }
   }
 });
+
+test('a table names itself by an id that is the same on every render', () => {
+  // The website prerenders its API pages through `ParameterTable`, and a table's id that came from
+  // `Math.random()` made every build of those pages differ while the rest of the HTML stayed
+  // byte-identical - a diff that hides real changes and a cache that never hits. `$props.id()` is
+  // unique per instance and stable between the server's render and the client's.
+  const table = ALL.find((component) => component.name === 'Table.svelte');
+  assert.ok(table, 'Table.svelte was not read');
+  const script = scriptOf(table.source).replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(script, /Math\.random\(/, 'Table.svelte takes an id from Math.random(), so no two builds agree');
+  assert.match(script, /\$props\.id\(\)/, 'Table.svelte no longer names itself through $props.id()');
+});

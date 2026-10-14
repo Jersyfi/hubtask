@@ -457,7 +457,7 @@ func (h Produce) ask(
 	if !provider.Capabilities().Completion {
 		// The workspace switched AI off, or withdrew consent, between the asking and the running.
 		// The same refusal the asking would have given, which is what makes the two consistent.
-		return Outcome{}, aiprovider.ErrUnavailable
+		return Outcome{}, aiprovider.RefusalOf(provider)
 	}
 
 	// The material is read inside a transaction and the provider is called outside one: an AI call

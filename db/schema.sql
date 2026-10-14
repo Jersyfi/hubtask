@@ -255,6 +255,8 @@ CREATE TABLE membership (
   created_at  timestamptz NOT NULL DEFAULT now(),
   CHECK ((account_id IS NULL) <> (group_id IS NULL)),
   CHECK ((scope_type = 'TENANT') = (scope_id IS NULL)),
+  -- The target of a notification's key (migration 0144).
+  CONSTRAINT membership_tenant_id_id_key UNIQUE (tenant_id, id),
   CONSTRAINT membership_account_id_fkey
     FOREIGN KEY (tenant_id, account_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT membership_group_id_fkey
@@ -1541,6 +1543,9 @@ CREATE TABLE notification (
   -- The emergency access a member is told of (migration 0138, ADR-0073 §4): the mail reads the
   -- opener, the time and the reason from it at delivery.
   private_hub_access_id uuid,
+  -- The role somebody was given (migrations 0144, 0145, UC-NOT-01 check 9): the mail reads the role,
+  -- the scope and the place's name from the grant at delivery, and a revoked grant takes it along.
+  membership_id uuid,
 
   CONSTRAINT notification_recipient_id_fkey
     FOREIGN KEY (tenant_id, recipient_id) REFERENCES account (tenant_id, id) ON DELETE CASCADE,
@@ -1556,7 +1561,9 @@ CREATE TABLE notification (
   CONSTRAINT notification_private_hub_access_id_fkey
     FOREIGN KEY (tenant_id, private_hub_access_id) REFERENCES private_hub_access (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT notification_one_subject_check
-    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id) <= 1)
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id) <= 1),
+  CONSTRAINT notification_membership_id_fkey
+    FOREIGN KEY (tenant_id, membership_id) REFERENCES membership (tenant_id, id) ON DELETE CASCADE
 );
 -- Partial: the invitation carries no event, and NULLs are all distinct to a unique index.
 CREATE UNIQUE INDEX notification_event_recipient_idx
@@ -1565,6 +1572,9 @@ CREATE UNIQUE INDEX notification_event_recipient_idx
 CREATE INDEX notification_pending_idx
   ON notification (tenant_id, created_at) WHERE state = 'PENDING';
 CREATE INDEX notification_retention_idx ON notification (tenant_id, created_at);
+-- What a revocation's cascade finds its records by.
+CREATE INDEX notification_membership_idx
+  ON notification (tenant_id, membership_id) WHERE membership_id IS NOT NULL;
 
 -- What a person has said about being told. A row is an exception; its absence is the default, on.
 CREATE TABLE notification_preference (

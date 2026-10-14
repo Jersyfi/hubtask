@@ -58,4 +58,4 @@ hub or the workspace, which can only be revoked where they were granted. Revokin
 ## Today
 
 * Check 1: not met for groups — a group holding a role is listed as "a group", without its name.
-* Check 7: not met — *Share* is on every entry's menu for every reader, and the members dialog draws its grant and revoke controls without asking the role; only the server refuses them.
+* Check 7: not met — *Share* is on every entry's menu for every reader; the members dialog's grant form and revoke buttons follow what the server says the reader may grant there.

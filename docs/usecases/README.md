@@ -243,7 +243,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INT-09](./integration/UC-INT-09-let-an-ai-agent-work-in-my-workspace.md) | Let an AI agent work in my workspace | integration | built |
 | [UC-INT-10](./integration/UC-INT-10-script-my-workspace-with-a-token.md) | Script my workspace with hubctl or the API | integration | built |
 | [UC-INT-11](./integration/UC-INT-11-connect-hubtask-to-n8n-or-zapier.md) | Connect Hubtask to n8n or Zapier | integration | partial |
-| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | partial |
+| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | built |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification | built |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification | built |
 | [UC-NOT-04](./notification/UC-NOT-04-hear-when-something-i-set-up-stops-working.md) | Hear when something I set up stops working | notification | built |
@@ -288,7 +288,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
 | [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | verified |
 | [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | verified |
-| [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | partial |
+| [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | built |
 | [UC-SYN-01](./sync/UC-SYN-01-keep-working-when-the-connection-drops.md) | Keep working when the connection drops | sync | partial |
 | [UC-SYN-02](./sync/UC-SYN-02-edit-on-two-devices-without-losing-either-change.md) | Edit on two devices without losing either change | sync | built |
 | [UC-SYN-03](./sync/UC-SYN-03-see-and-forget-my-devices.md) | See and forget my devices | sync | built |

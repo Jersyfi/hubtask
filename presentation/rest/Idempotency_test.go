@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -250,6 +251,52 @@ func TestAKeyedPostWithoutAnActorIsRefused(t *testing.T) {
 	}
 	if g.beginCalls != 0 {
 		t.Error("the guard was consulted without a tenant")
+	}
+}
+
+// api-guidelines.md §5: every POST accepts an Idempotency-Key, the public ones included - a client
+// that sends one on every write must still be able to sign in, redeem an invitation or ask for a
+// reset. An anonymous caller has no workspace to keep a record in, so the request runs and nothing
+// is reserved; each public write is held to one effect by its own single-use credential.
+func TestEveryPublicPostAcceptsAKeyWithoutABearer(t *testing.T) {
+	for route := range PublicRoutes {
+		if !strings.HasPrefix(route, http.MethodPost+" ") {
+			continue
+		}
+		path := strings.TrimPrefix(route, http.MethodPost+" ")
+		for name, actor := range map[string]*appshared.ActorContext{
+			"no actor":        nil,
+			"anonymous actor": {Kind: appshared.ActorAnonymous, Locale: "en"},
+		} {
+			t.Run(route+"/"+name, func(t *testing.T) {
+				g := &guard{}
+				reached := false
+				routes := NewMux()
+				routes.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+					reached = true
+					body, _ := io.ReadAll(r.Body)
+					if string(body) != `{"a":1}` {
+						t.Errorf("the handler read %q", body)
+					}
+					w.WriteHeader(http.StatusOK)
+				})
+				r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, strings.NewReader(`{"a":1}`))
+				r.Header.Set(IdempotencyKeyHeader, idempotencyKey)
+				if actor != nil {
+					r = r.WithContext(appshared.ContextWithActor(r.Context(), *actor))
+				}
+
+				response := httptest.NewRecorder()
+				Idempotent{Guard: g, Routes: routes, Next: routes}.ServeHTTP(response, r)
+
+				if response.Code != http.StatusOK || !reached {
+					t.Errorf("status %d, reached %v; want the route to run", response.Code, reached)
+				}
+				if g.beginCalls != 0 || g.completed {
+					t.Error("a record was kept for an anonymous caller")
+				}
+			})
+		}
 	}
 }
 

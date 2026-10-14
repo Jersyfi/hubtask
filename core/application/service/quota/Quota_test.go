@@ -614,3 +614,29 @@ func TestALockedCeilingIsAnsweredAsLocked(t *testing.T) {
 		t.Errorf("the answer carries no locked field: %v", rows[0])
 	}
 }
+
+// UC-AI-07 check 3: a spent budget renews at the workspace's next midnight - midnight of the next
+// calendar day there, so the day the clocks go back still ends at midnight, 25 hours after it began.
+func TestASpentAiBudgetRenewsAtTheWorkspacesNextMidnight(t *testing.T) {
+	for name, c := range map[string]struct {
+		zone  string
+		at    time.Time
+		renew time.Time
+	}{
+		"UTC":            {"UTC", time.Date(2026, 9, 9, 11, 0, 0, 0, time.UTC), time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)},
+		"east of UTC":    {"Pacific/Kiritimati", time.Date(2026, 10, 1, 10, 30, 0, 0, time.UTC), time.Date(2026, 10, 2, 10, 0, 0, 0, time.UTC)},
+		"DST change":     {"Europe/Berlin", time.Date(2026, 10, 24, 22, 30, 0, 0, time.UTC), time.Date(2026, 10, 25, 23, 0, 0, 0, time.UTC)},
+		"unknown is UTC": {"Mars/Olympus_Mons", time.Date(2026, 9, 9, 23, 59, 0, 0, time.UTC), time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			guard := Guard{Store: &storeFake{zone: c.zone}, Tenancy: env.TenancySingle}
+			renews, err := guard.AiRenewal(t.Context(), c.at)
+			if err != nil {
+				t.Fatalf("asking the renewal: %v", err)
+			}
+			if !renews.Equal(c.renew) {
+				t.Errorf("renews %s, want %s", renews.UTC(), c.renew)
+			}
+		})
+	}
+}

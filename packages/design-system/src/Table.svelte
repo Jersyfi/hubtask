@@ -120,8 +120,11 @@
 
   // The drawn name and the table are tied together by an id, the way `IconButton` ties a control
   // to its reason. Generated rather than taken from the caller: a table has no natural key, and
-  // two of them on one screen with the same id would name the wrong one.
-  const titleId = `table-${Math.random().toString(36).slice(2, 9)}`;
+  // two of them on one screen with the same id would name the wrong one. Svelte's own id rather
+  // than a random one: it is unique per instance and the same on every render of the same page,
+  // so a prerendered page is byte-identical between builds and a hydrated one matches its HTML.
+  const uid = $props.id();
+  const titleId = `table-${uid}`;
 
   /** `aria-sort` for one column: the attribute, not a word drawn anywhere. */
   function ariaSort(column: Column): 'ascending' | 'descending' | 'none' | undefined {

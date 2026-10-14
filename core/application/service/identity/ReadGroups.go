@@ -6,12 +6,15 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -116,7 +119,11 @@ func (h ListGroups) invoke(
 // see ListGroups. The members are identifiers rather than names, for the reason every record
 // that says who is: the name is one request away, and a copy of it should not outlive the row.
 type GetGroup struct {
-	Groups     repository.Groups
+	Groups repository.Groups
+	// Grants and Grantable answer whether the reader may change who is in the group. Either nil
+	// answers no, the side on which a client draws no control the server would refuse (P-05).
+	Grants     repository.MembershipGrants
+	Grantable  GrantableRoles
 	UnitOfWork persistence.UnitOfWork
 }
 
@@ -124,6 +131,10 @@ type GetGroup struct {
 type GroupDetail struct {
 	Group   domain.Group
 	Members []shared.ID
+	// MembersChangeable is whether the reader may change who is in the group and delete it: the
+	// condition UpdateGroup and DeleteGroup refuse on (domain-model.md §3.2).
+	MembersChangeable bool
+	held              []domain.Grant
 }
 
 // Execute returns the group and its members.
@@ -153,12 +164,55 @@ func (h GetGroup) Execute(
 			return err
 		}
 		detail = GroupDetail{Group: group, Members: members}
-		return nil
+		if h.Grants != nil {
+			detail.held, err = h.Grants.OfGroup(ctx, group.ID)
+		}
+		return err
 	})
 	if err != nil {
 		return GroupDetail{}, err
 	}
+	if detail.MembersChangeable, err = h.membersChangeable(ctx, actor, detail); err != nil {
+		return GroupDetail{}, err
+	}
 	return detail, nil
+}
+
+// membersChangeable asks what UpdateGroup and DeleteGroup ask, by the function their refusals come
+// from: MANAGE_MEMBERS on the workspace under the token's members:write, and every role the group
+// holds grantable at its own scope. Nothing is audited; nobody tried anything.
+func (h GetGroup) membersChangeable(
+	ctx context.Context, actor appshared.ActorContext, detail GroupDetail,
+) (bool, error) {
+	if h.Grants == nil || h.Grantable == nil {
+		return false, nil
+	}
+	ask := func(scope domain.Scope) ([]domain.Role, error) {
+		return h.Grantable.GrantableRoles(ctx, actor, access.Request{
+			Permission: service.PermissionManageMembers,
+			Path:       pathTo(scope),
+			Action:     GroupUpdatedAction,
+			TokenScope: membersWrite,
+			TargetType: groupTarget,
+			TargetID:   detail.Group.ID,
+		})
+	}
+	// The group verbs are authorised on the workspace; a group holding nothing is changed by
+	// whoever may manage members there.
+	atWorkspace, err := ask(domain.TenantScope())
+	if err != nil || len(atWorkspace) == 0 {
+		return false, err
+	}
+	for _, grant := range detail.held {
+		roles, err := ask(grant.Scope)
+		if err != nil {
+			return false, err
+		}
+		if !slices.Contains(roles, grant.Role) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // Descriptor registers the use case in all three channels.
@@ -199,5 +253,6 @@ func (h GetGroup) invoke(
 		members = append(members, member.String())
 	}
 	out["members"] = members
+	out["members_changeable"] = detail.MembersChangeable
 	return out, nil
 }

@@ -165,8 +165,12 @@ is §18.
 
 ### 5.3 Hashing
 
-Argon2id with `m=64 MiB, t=3, p=2`. The parameters travel in the hash string; a hash with older
-parameters is recomputed at sign-in, so a change needs no job.
+Argon2id with `m=64 MiB, t=3, p=2`. The parameters travel in the hash string; a hash with a lower
+cost is recomputed at the next sign-in that proves its password, so a change needs no job. The new
+hash replaces the old one only while the old one is still stored, and leaves the password's age and
+history alone; each counts in `hubtask_auth_password_rehashed_total`. Lower, not different: during
+a rolling update an older build leaves the newer build's hashes alone, so a cost lowered on purpose
+reaches a hash only when the password is next set.
 
 ### 5.4 The rules are data
 
@@ -309,7 +313,7 @@ An unverified address comes in nowhere. Then:
 |---|---|---|---|
 | `INVITED_ONLY` | "Only people invited here" | A verified address the provider is **authoritative** for, meeting an account that already exists | No |
 | `DOMAINS` | "Anyone from these organisations" | A preset with a directory claim: the directory is in `allowed_directories`. `GENERIC`: the address's domain is in `allowed_email_domains` | Yes |
-| `ANY` | "Anyone this provider knows" | Every verified address | Yes |
+| `ANY` | "Anyone this provider knows" | Every verified address; on a shared endpoint, from a listed directory (below) | Yes |
 
 * **A preset with a directory claim ignores `allowed_email_domains`** — two lists that both admit are
   two doors. An empty list under `DOMAINS` admits nobody; domains without directories under such a
@@ -317,6 +321,9 @@ An unverified address comes in nowhere. Then:
 * **A directory list narrows `INVITED_ONLY`** for a preset with a directory claim: an
   authoritative address from a directory not listed is not admitted on the provider's word. An
   empty list does not narrow.
+* **A shared endpoint's list bounds `ANY`** (§10.3): on Microsoft's `/organizations` or `/common`
+  only a directory in `allowed_directories` comes in, and a row stored without a list admits nobody
+  new. One directory's own issuer is bounded by the issuer.
 * The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
   invitation's link (§12) is not new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
@@ -719,7 +726,9 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   operator opening and agreement to the terms of use is audited ([audit.md](./audit.md)); every
   refused sign-in or refresh counts in `hubtask_auth_failures_total{reason}`, every step a sign-in
   is handed before its session in `hubtask_auth_sign_in_step_total{step}`, and every
-  forgotten-password request alike, with no label, in `hubtask_auth_password_reset_requested_total`.
+  forgotten-password request alike, with no label, in `hubtask_auth_password_reset_requested_total`,
+and every stored hash brought up to the current cost (§5.3), with no label, in
+`hubtask_auth_password_rehashed_total`.
 * The session's user agent, IP class and method, the reset and invitation tokens, the opening's
   requester, the provider identities and the latest agreement to the terms are personal data in the
   [data catalogue](../privacy/data-catalog.md).

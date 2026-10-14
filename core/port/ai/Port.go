@@ -65,6 +65,39 @@ const FeatureSemanticSearch = "semantic_search"
 // shape arc42 QS-09 fixes.
 var ErrUnavailable = shared.ErrUnavailable.WithDetail("ai.unavailable")
 
+// ReasonBudgetSpent is the `reason` parameter of the refusal of a workspace whose day's AI budget
+// is used up.
+const ReasonBudgetSpent = "budget_spent"
+
+// BudgetSpent is the one refusal as a spent budget answers it (UC-AI-07 check 3): ErrUnavailable,
+// `ai.unavailable`, unchanged for every caller and client, with two parameters for the sentence a
+// person reads - `reason` and `renews_at`, the moment the budget has room again (RFC 3339). "AI is
+// off here" and "come back after midnight" ask different things of a reader and the same of a
+// caller, so they differ in parameters and not in the code.
+func BudgetSpent(renewsAt time.Time) error {
+	return ErrUnavailable.WithParams(map[string]string{
+		"reason": ReasonBudgetSpent, "renews_at": renewsAt.UTC().Format(time.RFC3339),
+	})
+}
+
+// Refusing is a provider that refuses every call and can say why - before anybody calls it. A
+// caller that short-cuts on Capabilities, so as not to queue or read anything for a provider that
+// cannot answer, asks RefusalOf rather than naming the refusal itself.
+type Refusing interface {
+	Refusal() error
+}
+
+// RefusalOf is the refusal a provider that cannot complete would answer: its own where it says
+// one, ErrUnavailable otherwise.
+func RefusalOf(provider Provider) error {
+	if refusing, can := provider.(Refusing); can {
+		if err := refusing.Refusal(); err != nil {
+			return err
+		}
+	}
+	return ErrUnavailable
+}
+
 // Role is who a message in a completion request is speaking as.
 //
 // The vocabulary is two words on purpose. System is the installation's own instruction, written by

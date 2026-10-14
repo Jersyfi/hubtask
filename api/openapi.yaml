@@ -5584,7 +5584,8 @@ paths:
         Synchronous, the way the search's meaning is, and bounded the same way: the caller is
         waiting, so the call has a short timeout and every way of not getting an answer — no
         consent, no provider, a spent budget, an open breaker, a slow model — is `503` with
-        `ai.unavailable`. Reading the entry is the permission asked, because reading it is what
+        `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and
+        `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what
         this does; the workspace's consent to send its content to a provider is asked after it.
         The audit records that a translation was asked for an entry and into
         which language, never the text.
@@ -12382,7 +12383,8 @@ components:
             not bounded by it, only by the workspace's own optional budget. Unlimited in single mode
             by default and a real number in multi, like every
             other quota. A workspace over its budget stops making
-            suggestions and keeps working: the refusal is `ai.unavailable`, the same one an absent
+            suggestions and keeps working: the refusal is `ai.unavailable` with the parameters
+            `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
             degrade.
 
@@ -12632,11 +12634,18 @@ components:
       allOf:
         - $ref: "#/components/schemas/Group"
         - type: object
-          required: [members]
+          required: [members, members_changeable]
           properties:
             members:
               type: array
               items: { type: string, format: uuid }
+            members_changeable:
+              type: boolean
+              description: >
+                Whether the reader may change who is in the group and delete it. A group passes on
+                every role it holds, so this needs the right to manage members on the workspace and,
+                for each role the group holds, a role of the reader's own at least as strong where it
+                applies. False where a change would be refused; renaming is not affected.
 
     GroupPage:
       type: object

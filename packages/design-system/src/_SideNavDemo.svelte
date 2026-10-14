@@ -47,6 +47,9 @@
         { id: 'shopping', label: 'Wocheneinkaufsliste', icon: 'collection', href: '/c/s' },
       ],
     },
+    // A row whose label is the explanation of the place, the way the installation's is in the
+    // administration: it wraps to a second line rather than losing its end.
+    { id: 'instance', label: 'Gilt für jeden Arbeitsbereich, den Sie anlegen', icon: 'gauge', href: '/instance' },
   ];
 
   // The same list in bands: the places, the workspace's own structure under its caption, and a
