@@ -230,8 +230,14 @@ func (c Cases) decide(
 		return domain.Suggestion{}, err
 	}
 
+	// Accepting performs the write use case inside this transaction, so its refusal - recorded
+	// where it is asked - would be rolled back by the refusal itself. The authoriser holds such
+	// entries until the transaction has ended.
+	writing, refusals := access.HoldRefusals(ctx)
+	defer refusals.Record(ctx)
+
 	var answered domain.Suggestion
-	err := c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err := c.UnitOfWork.Within(writing, actor.PersistenceScope(), func(ctx context.Context) error {
 		proposal, err := c.Suggestions.Find(ctx, id)
 		if err != nil {
 			return err
