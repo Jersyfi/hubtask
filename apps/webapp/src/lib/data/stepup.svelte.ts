@@ -29,6 +29,8 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { messages } from '../i18n/i18n.svelte.ts';
+import { renderProblem, type RenderedProblem } from '../problem.ts';
 import type { Handoff } from './oidc.ts';
 import { navigableUrl } from './oidc.ts';
 import {
@@ -93,7 +95,7 @@ interface Pending {
 
 class StepUp {
   #pending = $state<Pending | undefined>(undefined);
-  #failure = $state<string | undefined>(undefined);
+  #failure = $state<RenderedProblem | undefined>(undefined);
   #working = $state(false);
   /** The grant the provider's return earned, while it is held: what the frame's note says. */
   #confirmed = $state<HeldGrant | undefined>(heldGrant(store, Date.now()));
@@ -108,8 +110,11 @@ class StepUp {
     return this.#pending;
   }
 
-  /** Why the last proof was refused, as the server's own code. */
-  get failure(): string | undefined {
+  /**
+   * Why the last proof was refused: the server's own sentence, rendered as every refusal is - a
+   * server fault with the reference to quote, never the bare category.
+   */
+  get failure(): RenderedProblem | undefined {
     return this.#failure;
   }
 
@@ -167,7 +172,7 @@ class StepUp {
       // The dialog stays open. A wrong password here is a retry, not the end of the operation -
       // and the server's own code is what the screen renders, because "which of the two was
       // wrong" is not something this client gets to say.
-      this.#failure = codeOf(cause);
+      this.#failure = problemOf(cause);
     } finally {
       this.#working = false;
     }
@@ -189,13 +194,13 @@ class StepUp {
       });
       const url = navigableUrl(started.authorization_url);
       if (url === undefined) {
-        this.#failure = 'errors.internal';
+        this.#failure = ownCode('app.something_went_wrong', true);
         return;
       }
       rememberReturn(store, location.pathname + location.search, started.provider_name, Date.now());
       location.assign(url);
     } catch (cause) {
-      this.#failure = codeOf(cause);
+      this.#failure = problemOf(cause);
     } finally {
       this.#working = false;
     }
@@ -238,7 +243,7 @@ class StepUp {
       this.#confirmed = held;
       return { ok: true, returnTo };
     } catch (cause) {
-      this.#failure = codeOf(cause);
+      this.#failure = problemOf(cause);
       return { ok: false, returnTo };
     } finally {
       this.#working = false;
@@ -250,7 +255,7 @@ class StepUp {
    * step-up did not happen; the way back is answered so the callback can offer it.
    */
   abandonAtProvider(): string {
-    this.#failure = 'auth.oidc_failed';
+    this.#failure = ownCode('auth.oidc_failed');
     return takeReturn(store)?.returnTo ?? '/';
   }
 
@@ -263,10 +268,18 @@ class StepUp {
   }
 }
 
-function codeOf(cause: unknown): string {
+function problemOf(cause: unknown): RenderedProblem {
   return cause instanceof TransportError
-    ? (cause.detailCode ?? cause.code ?? 'errors.internal')
-    : 'errors.internal';
+    ? renderProblem(cause, messages)
+    : ownCode('app.something_went_wrong', true);
+}
+
+/**
+ * A sentence this module says itself, in the shape the server's are drawn in. A defect with no
+ * answer to quote is not `errors.internal`, whose sentence carries a request id there is none of.
+ */
+function ownCode(code: string, isServerFault = false): RenderedProblem {
+  return { message: messages.t(code, {}), fields: new Map(), isServerFault };
 }
 
 export const stepUp = new StepUp();

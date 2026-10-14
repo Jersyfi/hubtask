@@ -302,9 +302,10 @@
               {/if}
               {#each entry.changes ?? [] as change (change.field)}
                 <p class="quiet small">
-                  {#if change.from_hash !== undefined && change.from_hash !== null}
-                    <!-- A sensitive field: that it changed, and two hashes, which makes two
-                         entries comparable without either being readable. -->
+                  {#if change.changed === true || change.from_hash != null || change.to_hash != null}
+                    <!-- A sensitive field: that it changed, and its hashes, which make two
+                         entries comparable without either being readable. A field set for the
+                         first time has no previous value and so only the hash of what it became. -->
                     {t('app.audit.changed_sensitive', { field: change.field ?? '' })}
                   {:else}
                     {t('app.audit.changed', {

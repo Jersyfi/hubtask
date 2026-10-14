@@ -125,14 +125,19 @@
     // Out of the component's state whatever happened.
     password = '';
     if (signedIn) onnavigate?.('/');
+    // The workspace demands a second factor before the first session: the card at the sign-in
+    // address draws its setup, and the session opens there once the factor is armed.
+    else if (session.secondFactorOwed) onnavigate?.('/sign-in');
   }
 </script>
 
 {#snippet notice()}
   {#if oidc.failure}
-    <!-- The server's own code: an invitation that cannot be redeemed, or a provider that is not
+    <!-- The server's own sentence: an invitation that cannot be redeemed, or a provider that is not
          there. -->
-    <Banner tone="danger">{t(oidc.failure)}</Banner>
+    <Banner tone="danger" title={oidc.failure.message}>
+      {#if oidc.failure.reference}{oidc.failure.reference}{/if}
+    </Banner>
   {:else if session.problem}
     <Banner tone="danger" title={session.problem.message}>
       {#if session.problem.reference}{session.problem.reference}{/if}

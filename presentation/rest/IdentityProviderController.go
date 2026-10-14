@@ -456,6 +456,9 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 	if particular := out.String("particular"); particular != "" {
 		answer.Particular = &particular
 	}
+	if issuer := out.String("issuer"); issuer != "" {
+		answer.Issuer = &issuer
+	}
 	if claim := out.String("directory_claim"); claim != "" {
 		answer.DirectoryClaim = &claim
 	}

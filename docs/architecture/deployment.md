@@ -52,7 +52,10 @@ no database shell. The code lasts thirty minutes; `docker compose restart app` p
 nothing is set up. Operators can also be named in the environment (`HUBTASK_OPERATORS`), and an
 installation nobody can run any more gets one back on the machine:
 `docker compose exec app hubtask operator add --workspace <short name> --email <address>`
-([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)). Installation
+([UC-INS-03](../usecases/admin/UC-INS-03-get-back-into-a-locked-installation.md)); a workspace
+suspended or set for deletion with every operator inside it comes back with
+`hubtask workspace cancel-deletion --workspace <short name>` and
+`hubtask workspace resume --workspace <short name>`. Installation
 settings can be seeded or enforced from a file (`HUBTASK_INSTANCE_FILE`, §6.1).
 
 The application connects as `hubtask_app` — created by the migration without `SUPERUSER` or

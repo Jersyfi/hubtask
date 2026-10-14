@@ -22,7 +22,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { fallback, unstubbedSoFar } from './fixture.mjs';
+import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -52,7 +52,7 @@ async function stub(route) {
   // The manifest, for the one thing the frame reads out of it here: the product's version, which
   // the account menu's foot carries so that somebody reporting a problem can quote it.
   if (path.endsWith('/api/v1/meta/capabilities')) {
-    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }] } });
+    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER } });
   }
   if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
   if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [COLLECTION] } });

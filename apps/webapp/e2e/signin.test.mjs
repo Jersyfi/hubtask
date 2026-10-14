@@ -449,6 +449,106 @@ test('a setup forced during sign-in confirms in the code field and shows the cod
   }
 });
 
+// UC-ID-03 check 8: under "Required of: Everyone" an invitation is accepted and the card continues
+// into the setup, naming the invited address - no session before the factor is armed and
+// *Continue* pressed.
+test('an invitation under a factor rule continues into the setup and opens the session only after it', async () => {
+  const { origin, close } = await serve(DIST);
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    if (path.endsWith('/api/v1/auth/invitations:redeem')) {
+      sent.redeem = request.postDataJSON();
+      return route.fulfill({ status: 202, json: { pending_token: 'enroll-r', methods: ['ENROLL'], email: 'bert@contoso.example', expires_at: new Date(Date.now() + 300_000).toISOString() } });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:enroll')) {
+      sent.enroll = request.postDataJSON();
+      return route.fulfill({ json: ENROLLMENT });
+    }
+    if (path.endsWith('/api/v1/auth/mfa/totp:confirm')) {
+      sent.confirm = request.postDataJSON();
+      return route.fulfill({ json: { armed: true, tokens: { access_token: 'e2e-access', refresh_token: 'e2e-refresh' } } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Set the password and sign in' }).click();
+
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.equal(new URL(page.url()).pathname, '/sign-in');
+    assert.equal(sent.redeem?.token, 'invitation-token');
+    assert.ok(await page.getByText('Your workspace requires a second factor.', { exact: false }).isVisible(), 'the card does not say why');
+    assert.ok(await page.getByText('bert@contoso.example').isVisible(), 'the identity line names the invited address');
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('hubtask.bearer')), null, 'a session opened before the factor');
+
+    await walkSetup(page, sent);
+    assert.deepEqual(sent.enroll, { pending_token: 'enroll-r' });
+    assert.equal(sent.confirm?.pending_token, 'enroll-r');
+    await page.getByRole('button', { name: 'Continue' }).waitFor({ state: 'detached' });
+    assert.equal(await page.getByText(ENROLLMENT.recovery_codes[0]).count(), 0, 'the codes outlived the panel');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// The pending credential lives five minutes, and a newcomer may first have to install an
+// authenticator: at zero the card returns to step one with the invited address in its field, and
+// signing in with the password just chosen meets the setup again.
+test('an invitation whose setup waited too long signs in with the new password and meets the setup again', async () => {
+  const { origin, close } = await serve(DIST);
+  const started = Date.parse('2026-10-01T12:00:00Z');
+  const sent = {};
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/api/v1/auth/invitations:inspect')) {
+      return route.fulfill({ json: { workspace_name: 'Contoso', email: 'bert@contoso.example' } });
+    }
+    if (path.endsWith('/api/v1/auth/invitations:redeem')) {
+      return route.fulfill({ status: 202, json: { pending_token: 'enroll-r', methods: ['ENROLL'], email: 'bert@contoso.example', expires_at: new Date(started + 300_000).toISOString() } });
+    }
+    if (path.endsWith('/api/v1/auth/sessions') && request.method() === 'POST') {
+      sent.signIn = request.postDataJSON();
+    }
+    return stubFor({
+      answer: () => ({ status: 202, json: { pending_token: 'enroll-s', methods: ['ENROLL'], expires_at: new Date(started + 900_000).toISOString() } }),
+    })(route);
+  });
+  const page = await context.newPage();
+  await page.clock.install({ time: started });
+  try {
+    await page.goto(`${origin}/redeem#token=invitation-token`);
+    await page.getByLabel(/New password/).fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Set the password and sign in' }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+
+    await page.clock.runFor(301_000);
+    await page.getByText('The sign-in waited too long').waitFor();
+    assert.equal(await page.locator('input[type="email"]').inputValue(), 'bert@contoso.example', 'the invited address is not in the field');
+
+    await page.locator('input[autocomplete="current-password"]').fill('seven blue lanterns over the harbour');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await page.getByRole('heading', { name: 'Second factor' }).waitFor();
+    assert.deepEqual(sent.signIn, { identifier: 'bert@contoso.example', password: 'seven blue lanterns over the harbour' });
+    assert.ok(await page.getByRole('button', { name: 'Set up a second factor' }).isVisible(), 'the sign-in does not meet the setup');
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
 // Before there is an account, the browser's language decides (i18n-l10n.md §2) - on the signed-out
 // card as much as inside the application. If only the frame read the installation's list of languages,
 // the card would render the source language whatever the browser asked for.
@@ -1077,6 +1177,75 @@ test('where the password is on, the card keeps Forgot your password and no sign-
       'a second link beside the password');
     await page.getByRole('button', { name: 'Forgot your password?' }).click();
     await page.getByRole('heading', { name: 'Reset your password' }).waitFor();
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// deployments.md D1, P-05: an installation without a mail server cannot send the link, so the
+// detour promises none and asks for no address - it says what works instead. Under both doors: the
+// password's reset, and the sign-in link where the password is off.
+test('without a mail server, the detour promises no link and says what works instead', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  try {
+    for (const methods of [['PASSWORD', 'OIDC'], ['OIDC']]) {
+      const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+      const base = stubFor({ answer: refused });
+      const asked = [];
+      await context.route('**/api/v1/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.endsWith('/api/v1/meta/capabilities')) {
+          return route.fulfill({ json: { product_version: 'e2e', api_version: 'v1', tenancy_mode: 'single', item_types: [], view_layouts: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], roles: [], limits: {}, features: { sign_in_rules: true, mail: false } } });
+        }
+        if (path.endsWith('/api/v1/auth/sign-in-rules')) return route.fulfill({ json: { ...RULES, methods } });
+        if (path.endsWith('/api/v1/auth/password:forgot')) {
+          asked.push(route.request().postDataJSON());
+          return route.fulfill({ status: 202, body: '' });
+        }
+        return base(route);
+      });
+      const page = await context.newPage();
+      await page.goto(origin);
+      const door = methods.includes('PASSWORD') ? 'Forgot your password?' : 'Get a sign-in link by mail';
+      await page.getByRole('button', { name: door }).click();
+      await page.getByText('This installation sends no mail', { exact: false }).waitFor();
+      assert.equal(await page.getByRole('button', { name: 'Send the link' }).count(), 0, `${door}: a link is offered that cannot arrive`);
+      assert.equal(await page.getByText(/on its way/).count(), 0, `${door}: the card still promises a mail`);
+      assert.equal(await page.locator('input[type="email"]').count(), 0, `${door}: an address is asked for nothing`);
+      assert.deepEqual(asked, []);
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= 375), `${door}: the card scrolls sideways`);
+
+      await page.getByRole('button', { name: 'Back to sign in' }).click();
+      await page.getByRole('button', { name: door }).waitFor();
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+    await close();
+  }
+});
+
+// The error presentation rule: a server failure on the provider's return is a sentence with the
+// reference to quote, the way every other refusal on the card is - never the bare category.
+test('a provider return the server fails is a sentence with its reference, not a bare word', async () => {
+  const { origin, close } = await serve(DIST);
+  const browser = await chromium.launch();
+  const context = await browser.newContext({ viewport: { width: 375, height: 812 } });
+  await context.route('**/api/v1/**', async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith('/api/v1/auth/oidc:callback')) {
+      return route.fulfill({ status: 500, json: { code: 'internal', status: 500, request_id: 'req_e2e_500' } });
+    }
+    return stubFor({ answer: refused })(route);
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/auth/callback?code=the-code&state=the-state`);
+    await page.getByRole('heading', { name: 'Not signed in' }).waitFor();
+    const said = await page.getByRole('alert').innerText();
+    assert.match(said, /Something went wrong on our side/, said);
+    assert.match(said, /req_e2e_500/, `no reference: ${said}`);
   } finally {
     await browser.close();
     await close();

@@ -101,7 +101,9 @@ type RedeemInvitationCommand struct {
 
 // RedeemInvitation closes the invitation loop: the token from the mail, a password under
 // the policy, and the account moves from INVITED to ACTIVE - signed in, because making somebody
-// who just proved control of the mailbox type the password again teaches nothing.
+// who just proved control of the mailbox type the password again teaches nothing. Signed in the way
+// a sign-in would be: where the workspace demands a second factor of the person, the answer is the
+// ENROLL step rather than the pair (identity.md §12).
 //
 // The first of the four doors a password is set through (ADR-0068 §5). The rule it is judged
 // against is the workspace's own, resolved from the tenant the token names - which is known before
@@ -119,16 +121,16 @@ type RedeemInvitation struct {
 // which addresses hold unredeemed invitations is not for a probe to enumerate.
 func (h RedeemInvitation) Execute(
 	ctx context.Context, cmd RedeemInvitationCommand,
-) (SessionPair, error) {
+) (SignInResult, error) {
 	w := h.Writer
 
 	token, err := domain.ParseRedemptionToken(cmd.Token.Reveal())
 	if err != nil {
 		w.failure(ctx, FailureRedemption)
-		return SessionPair{}, redemptionRefused()
+		return SignInResult{}, redemptionRefused()
 	}
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
-		return SessionPair{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
+		return SignInResult{}, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	// A workspace that switched the password off sets none, however the invitation arrived:
 	// the person signs in through the workspace's provider. Asked before the token is looked up -
@@ -140,7 +142,7 @@ func (h RedeemInvitation) Execute(
 	if h.Passwords != nil {
 		open, viaFallback, err := h.Passwords.PasswordOpen(ctx, token.TenantID())
 		if err := refuseShut(open, viaFallback, err); err != nil {
-			return SessionPair{}, err
+			return SignInResult{}, err
 		}
 		fallback = viaFallback
 	}
@@ -150,7 +152,7 @@ func (h RedeemInvitation) Execute(
 	// token names rather than from a row anybody had to find.
 	rules, err := h.rulesFor(ctx, token.TenantID())
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	if err := domain.CheckPasswordAgainst(
 		rules.Effective.Policy.Password, h.form(), cmd.Password.Reveal(),
@@ -158,13 +160,13 @@ func (h RedeemInvitation) Execute(
 			WorkspaceName: rules.Workspace.DisplayName, WorkspaceHost: rules.Workspace.Slug,
 		},
 	); err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 	// The terms of use in force are agreed on the card or the invitation is not accepted - checked,
 	// like the policy, before the token is looked up, so nothing is spent and nothing disclosed.
 	terms, err := w.termsToAgree(ctx, token.TenantID(), cmd.TermsURL, cmd.TermsVersion)
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	// The hash is computed outside the transaction, Argon2id being deliberately slow. Of the
@@ -172,7 +174,7 @@ func (h RedeemInvitation) Execute(
 	passwordHash, err := w.Passwords.Hash(
 		secret.New(domain.NormalisePassword(h.form(), cmd.Password.Reveal())))
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
 	scope := persistence.Scope{TenantID: token.TenantID()}
@@ -250,12 +252,34 @@ func (h RedeemInvitation) Execute(
 		return w.Audit.Append(ctx, fallbackEntry(ctx, token.TenantID(), account, now, fallback))
 	})
 	if err != nil {
-		return SessionPair{}, err
+		return SignInResult{}, err
 	}
 
-	return w.openSessionWith(ctx, scope, token.TenantID(), account,
+	// After the commit, as the reset does: the invitation is accepted whatever follows, and a person
+	// who leaves the setup signs in with the password just set and meets the step there.
+	challenge, _, err := w.challengeFor(ctx, scope, account, SignInCommand{
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		// The empty candidate: the password was judged in full a moment ago, so the change step must
+		// not fire on it; the factor is the verdict's answer that is wanted.
+		Password: secret.Secret{},
+	}, nil)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	if challenge != nil {
+		// The person typed no address on the invitation card, so the step names the account. The
+		// token proved the mailbox: the address tells them nothing they lack.
+		challenge.Email = account.Email
+		return SignInResult{Challenge: challenge}, nil
+	}
+
+	pair, err := w.openSessionWith(ctx, scope, token.TenantID(), account,
 		cmd.UserAgent, cmd.RemoteAddr, SignedInAction, nil,
 		rules.Effective.Policy.Sessions, domain.SignedInWithInvitation)
+	if err != nil {
+		return SignInResult{}, err
+	}
+	return SignInResult{Pair: &pair}, nil
 }
 
 // rulesFor resolves the workspace's rule, or the product's default on an installation wired
@@ -303,10 +327,12 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 		Name: RedeemInvitationName,
 		Summary: "Redeems an invitation: the token from the invitation mail, a password under " +
 			"the policy, and the account moves from INVITED to ACTIVE - signed in, with the " +
-			"same pair sign-in answers. The token dies on redemption, so a second redemption " +
-			"is refused; an expired or unknown token is the same indistinguishable refusal.",
+			"same answer sign-in gives: the pair, or the ENROLL step where the workspace demands " +
+			"a second factor of the person, the session opening once it is set up. The token " +
+			"dies on redemption, so a second redemption is refused; an expired or unknown token " +
+			"is the same indistinguishable refusal.",
 		SideEffects: "Sets the first password, activates the account, kills the token, opens a " +
-			"session, and writes audit entries.",
+			"session or mints the pending credential of the ENROLL step, and writes audit entries.",
 		Input: []usecase.Field{
 			{
 				Name: "token", Kind: usecase.KindString, Required: true,
@@ -353,7 +379,7 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 func (h RedeemInvitation) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	pair, err := h.Execute(ctx, RedeemInvitationCommand{
+	result, err := h.Execute(ctx, RedeemInvitationCommand{
 		Token:        secret.New(in.String("token")),
 		Password:     secret.New(in.String("password")),
 		UserAgent:    in.String("user_agent"),
@@ -365,5 +391,8 @@ func (h RedeemInvitation) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return pairOutput(pair), nil
+	if result.Challenge != nil {
+		return challengeOutput(*result.Challenge), nil
+	}
+	return pairOutput(*result.Pair), nil
 }

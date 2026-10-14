@@ -24,6 +24,12 @@ On the machine: `hubtask operator add --workspace demo --email jerome@example.eu
 the database connection the server already has, adds the entry, writes it into the instance journal
 as done from the machine, and says so. The person signs in, opens *Installation*, and is in.
 
+Where the workspace itself is locked — a household's only workspace suspended or set for deletion,
+so the operator's own sign-in is refused — `hubtask workspace cancel-deletion --workspace demo` and
+`hubtask workspace resume --workspace demo` bring it back first, the same acts as *Cancel deletion*
+and *Resume* ([UC-INS-08](UC-INS-08-suspend-resume-and-delete-a-workspace.md)), recorded as the
+machine's.
+
 ## How to check
 
 1. The command exists in the server binary (not `hubctl`), needs only the server's own

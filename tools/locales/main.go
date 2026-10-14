@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 )
@@ -59,7 +58,7 @@ func report(tag string, source, translation i18n.Catalogue) {
 	byName := map[string]*family{}
 	translated := 0
 	for _, code := range source.Codes() {
-		name, _, _ := strings.Cut(code, ".")
+		name := i18n.Family(code)
 		f := byName[name]
 		if f == nil {
 			f = &family{name: name}

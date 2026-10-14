@@ -387,7 +387,10 @@ safeguard belongs to connecting, not to the provider kind.
   the account.
 * **A redemption is a sign-in for the second-factor rule**: where `mfa_required_for` covers the
   person (§8), the redemption answers the `ENROLL` step (§4.2) instead of a session, and the session
-  opens only once the factor is armed — the same as a password sign-in would.
+  opens only once the factor is armed — the same as a password sign-in would. The redemption itself
+  commits first (the password set, the token spent, the account `ACTIVE`, the terms recorded), as a
+  reset does: a person who leaves the setup signs in with the password just chosen and meets
+  `ENROLL` there.
 * **A provider activates an invited account only with a second proof**: it is authoritative for the
   address (§10.3), or the person arrives through the invitation's own link — bound to the provider
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
@@ -698,7 +701,7 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. Adding the first entry therefore adds the person adding it as well, in the same statement and under a lock, both journalled. |
 | The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
 | The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
-| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). |
+| The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). Where the workspace itself is locked - suspended or set for deletion, so every credential of its operators is refused - `hubtask workspace cancel-deletion --workspace <short name>` and `hubtask workspace resume --workspace <short name>` make the control plane's two edges back, with the same guards, trail and journal entries, recorded as the machine's (`SYSTEM`, label `machine`). |
 | The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | Who can be added | Only an active account (`admin.operator_not_active`), named by workspace and address or, for a service account, chosen from the caller's own workspace and sent by identifier. |
 | The last operator | Cannot be removed: `dismiss_operator` deletes only while more than one remains (`admin.operator_last`); an account not in the register is `admin.operator_not_registered`. |

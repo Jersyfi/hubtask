@@ -29,11 +29,22 @@
   import { viewport } from './viewport.svelte.ts';
 
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { health } from '../data/health.svelte.ts';
+  import { instance } from '../data/instance.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MATURITY, shouldAnnounce } from '../maturity.ts';
   import { renderProblem } from '../problem.ts';
   import { session } from '../session.svelte.ts';
+
+  /**
+   * Whether this reader may read the report at all: `STRUCTURE` or `READ_CONFIGURATION` on the
+   * workspace, or a session raised to the installation's scope - the two conditions
+   * `GetHealthReport` answers. Anybody else would be refused, and a refusal is recorded; asking on
+   * every page is what filled a member's trail. Derived, so the elevation's clock ticking does not
+   * start the read again every second.
+   */
+  const mayReadHealth = $derived(reachesAdministrationArea() === true || instance.isElevated);
 
   /**
    * The health report, subscribed for as long as this mark is drawn and read again when the
@@ -49,7 +60,7 @@
    */
   $effect(() => {
     void session.status;
-    return health.start();
+    return health.start(mayReadHealth);
   });
 
   /** Whether the stage is worth stating. `lib/maturity.ts` is the one place that decides. */

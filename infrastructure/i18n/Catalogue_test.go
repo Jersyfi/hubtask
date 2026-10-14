@@ -128,3 +128,19 @@ func TestABrokenCatalogueIsAnError(t *testing.T) {
 		t.Error("a catalogue whose values are not strings loaded without complaint")
 	}
 }
+
+func TestAFamilyIsTheFirstSegmentAndAScreenForTheWebAppsCodes(t *testing.T) {
+	for code, want := range map[string]string{
+		"errors.forbidden":               "errors",
+		"items.capability_not_supported": "items",
+		"app.you.back":                   "app.you",
+		"app.you":                        "app.you",
+		"app.audit.more":                 "app.audit",
+		"rest":                           "rest",
+		"application.name":               "application",
+	} {
+		if got := Family(code); got != want {
+			t.Errorf("Family(%q) = %q, want %q", code, got, want)
+		}
+	}
+}

@@ -708,6 +708,9 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 	if preset.Particular != "" {
 		out["particular"] = preset.Particular
 	}
+	if preset.Issuer != "" {
+		out["issuer"] = preset.Issuer
+	}
 	return out
 }
 

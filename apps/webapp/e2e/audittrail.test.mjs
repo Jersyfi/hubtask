@@ -67,6 +67,39 @@ test('chromium: an erased actor is named by its pseudonym, and reading is said t
   assert.match(text, /not recorded|adds no entry|is not itself recorded/i, 'the screen does not say reading adds nothing');
 });
 
+// UC-AUD-01 check 2: a sensitive field set for the first time carries only the hash of what it
+// became; it reads as changed, never as having become nothing.
+test('chromium: a sensitive field set for the first time reads as changed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/audit') {
+      return route.fulfill({ json: { items: [{
+        ...entry(1, ACCOUNT.id, ACCOUNT.display_name),
+        changes: [
+          { field: 'name', changed: true, to_hash: 'hmac-sha256:0f1e2d' },
+          { field: 'colour', from: 'blue', to: 'green' },
+        ],
+      }], next_cursor: null } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/audit`);
+  await page.getByText('colour became green').waitFor({ timeout: 15_000 });
+
+  const text = await page.locator('main').innerText();
+  assert.match(text, /name changed — the trail keeps that it changed/);
+  assert.doesNotMatch(text, /name became/);
+});
+
 test('chromium: the next page of the trail is announced, and its end is said', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

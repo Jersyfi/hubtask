@@ -81,6 +81,14 @@ async function originOf(page, label) {
   });
 }
 
+/** A control by its label; a pattern for a required field, whose name carries its marker. */
+const control = (page, label) => (label instanceof RegExp ? page.getByLabel(label) : page.getByLabel(label, { exact: true }));
+
+/** All a rule says, found by its control's label: the control, its reason, its hint, its origin. */
+async function ruleText(page, label) {
+  return control(page, label).evaluate((input) => input.closest('[data-rule]')?.textContent ?? '');
+}
+
 test('chromium: every rule says where it comes from, and looser choices are not offered', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -96,9 +104,9 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   assert.match(own, /Set here/, own);
   assert.match(own, /Installation: 12/, own);
 
-  // Locked above: said, and the control is not usable.
-  const locked = await originOf(page, 'Remember previous passwords');
-  assert.match(locked, /Set by the installation/, locked);
+  // Locked above: said once, under the control, and the control is not usable.
+  const locked = await ruleText(page, 'Remember previous passwords');
+  assert.equal(locked.match(/Set by the installation/g)?.length, 1, locked);
   assert.equal(await page.getByLabel('Remember previous passwords', { exact: true }).isDisabled(), true);
 
   // Nobody decided: Hubtask's default, and no installation column - the private installation's case.
@@ -660,5 +668,35 @@ test('chromium: a link field holds the workspace\'s own, with the installation\'
   const statement = page.getByLabel('Accessibility', { exact: true });
   assert.equal(await statement.inputValue(), 'https://provider.example/a11y');
   assert.equal(await statement.isDisabled(), true);
-  assert.match(await originOf(page, 'Accessibility'), /Set by the installation/);
+  const lockedLink = await ruleText(page, 'Accessibility');
+  assert.equal(lockedLink.match(/Set by the installation/g)?.length, 1, lockedLink);
+});
+
+// UC-ID-12 check 4, UC-ID-18 check 2: a rule or a link locked by the installation or by a plan says
+// so exactly once - under its control, where a screen reader hears it with the control - and is
+// not usable.
+test('chromium: a locked rule or link says its lock once', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const locked = policy();
+  locked.password.max_age_days = rule(90, 90, { lock: 'PLAN', source: 'PLAN', above: 'INSTANCE' });
+  locked.legal.imprint_url = rule('https://provider.example/imprint', 'https://provider.example/imprint', { lock: 'INSTANCE', source: 'INSTANCE', above: 'INSTANCE' });
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: locked } }) : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Minimum length', { exact: true }).waitFor();
+
+  for (const [label, said] of [
+    ['Remember previous passwords', /Set by the installation/g],
+    [/^Expires after, in days/, /Set by your plan/g],
+    ['Imprint', /Set by the installation/g],
+  ]) {
+    const text = await ruleText(page, label);
+    assert.equal(text.match(said)?.length, 1, `${label}: ${text}`);
+    assert.equal(await control(page, label).isDisabled(), true, String(label));
+  }
+  // An open rule keeps its origin line.
+  assert.match(await originOf(page, 'Minimum length'), /Set here/);
 });

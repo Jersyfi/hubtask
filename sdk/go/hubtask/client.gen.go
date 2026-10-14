@@ -1266,6 +1266,42 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	}
 }
 
+// Defines values for CapabilitiesWorkspacePermissions.
+const (
+	CapabilitiesWorkspacePermissionsAUDITREAD         CapabilitiesWorkspacePermissions = "AUDIT_READ"
+	CapabilitiesWorkspacePermissionsAUTOMATION        CapabilitiesWorkspacePermissions = "AUTOMATION"
+	CapabilitiesWorkspacePermissionsDELETECONTAINER   CapabilitiesWorkspacePermissions = "DELETE_CONTAINER"
+	CapabilitiesWorkspacePermissionsMANAGEMEMBERS     CapabilitiesWorkspacePermissions = "MANAGE_MEMBERS"
+	CapabilitiesWorkspacePermissionsREAD              CapabilitiesWorkspacePermissions = "READ"
+	CapabilitiesWorkspacePermissionsREADCONFIGURATION CapabilitiesWorkspacePermissions = "READ_CONFIGURATION"
+	CapabilitiesWorkspacePermissionsSTRUCTURE         CapabilitiesWorkspacePermissions = "STRUCTURE"
+	CapabilitiesWorkspacePermissionsWRITEITEMS        CapabilitiesWorkspacePermissions = "WRITE_ITEMS"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesWorkspacePermissions enum.
+func (e CapabilitiesWorkspacePermissions) Valid() bool {
+	switch e {
+	case CapabilitiesWorkspacePermissionsAUDITREAD:
+		return true
+	case CapabilitiesWorkspacePermissionsAUTOMATION:
+		return true
+	case CapabilitiesWorkspacePermissionsDELETECONTAINER:
+		return true
+	case CapabilitiesWorkspacePermissionsMANAGEMEMBERS:
+		return true
+	case CapabilitiesWorkspacePermissionsREAD:
+		return true
+	case CapabilitiesWorkspacePermissionsREADCONFIGURATION:
+		return true
+	case CapabilitiesWorkspacePermissionsSTRUCTURE:
+		return true
+	case CapabilitiesWorkspacePermissionsWRITEITEMS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -5517,6 +5553,10 @@ type Capabilities struct {
 	// Anonymous callers read it too. What a token may be asked for is not a secret, and the screen that mints one is behind a session anyway.
 	TokenScopes *[]string `json:"token_scopes,omitempty"`
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
+
+	// WorkspacePermissions The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.
+	// It answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.
+	WorkspacePermissions *[]CapabilitiesWorkspacePermissions `json:"workspace_permissions,omitempty"`
 }
 
 // CapabilitiesSupportedLocalesDirection The writing direction of the locale's script, which is what a client sets `dir` from. `rtl` for Arabic, Hebrew, Persian, Urdu and the other right-to-left scripts; the interface's layout is the client's business, the flag is the server's.
@@ -5527,6 +5567,9 @@ type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
+
+// CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
+type CapabilitiesWorkspacePermissions string
 
 // Comment defines model for Comment.
 type Comment struct {
@@ -6376,6 +6419,9 @@ type IdentityProviderPreset struct {
 
 	// Instructions A message code, rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
 	Instructions string `json:"instructions"`
+
+	// Issuer The one issuer this provider has for every account, which a form fills in when the provider is chosen. Absent where each organisation has an issuer of its own.
+	Issuer *string `json:"issuer,omitempty"`
 
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
@@ -12508,9 +12554,10 @@ type ClientInterface interface {
 
 	// RedeemInvitationWithBody Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+	// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -12519,9 +12566,10 @@ type ClientInterface interface {
 
 	// RedeemInvitation Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+	// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -17578,9 +17626,10 @@ func (c *Client) InspectInvitation(ctx context.Context, body InspectInvitationJS
 
 // RedeemInvitationWithBody Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 // Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 //
 // Takes any type of body and a specified content type.
 //
@@ -17599,9 +17648,10 @@ func (c *Client) RedeemInvitationWithBody(ctx context.Context, contentType strin
 
 // RedeemInvitation Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 // Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -40096,9 +40146,10 @@ type ClientWithResponsesInterface interface {
 
 	// RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+	// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -40107,9 +40158,10 @@ type ClientWithResponsesInterface interface {
 
 	// RedeemInvitationWithResponse Redeem an invitation and set the first password
 	//
-	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+	// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 	// Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 	// The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+	// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -46413,6 +46465,8 @@ type RedeemInvitationResult struct {
 	HTTPResponse *http.Response
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 }
@@ -46420,6 +46474,11 @@ type RedeemInvitationResult struct {
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
 func (r RedeemInvitationResult) GetJSON201() *SessionTokens {
 	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r RedeemInvitationResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -60281,9 +60340,10 @@ func (c *ClientWithResponses) InspectInvitationWithResponse(ctx context.Context,
 
 // RedeemInvitationWithBodyWithResponse Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 // Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -60298,9 +60358,10 @@ func (c *ClientWithResponses) RedeemInvitationWithBodyWithResponse(ctx context.C
 
 // RedeemInvitationWithResponse Redeem an invitation and set the first password
 //
-// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers, because making somebody who just proved control of the mailbox type the password again teaches nothing.
+// The moment an invited account becomes a person: the redemption token from the invitation mail, a password under the policy (twelve characters at least), and the account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives, because making somebody who just proved control of the mailbox type the password again teaches nothing.
 // Where the workspace has switched the password off, no password is set: the redemption is refused with `auth.password_not_offered`, and the invited person accepts the invitation by signing in through the workspace's provider, which activates the account. Where no provider is switched on either, the password is open as the fallback (`password_fallback` on the sign-in rules): the invitation is accepted with a password, and the workspace's trail records it as `auth.password_fallback`.
 // The token was shown once, in the invitation, and is stored only as a hash under its own purpose label; it dies on redemption, so a second redemption is refused however fresh the token looks. An expired or unknown token is one indistinguishable refusal - which addresses hold unredeemed invitations is not for a probe to enumerate.
+// A redemption is a sign-in for the workspace's second-factor rule: where `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step rather than `201` with the pair. The invitation is accepted either way - the password is set and the token spent - and the session opens only once the factor is set up with the pending credential.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67927,6 +67988,13 @@ func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, e
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

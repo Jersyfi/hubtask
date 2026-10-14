@@ -69,6 +69,13 @@ export function draftEntry(draft: InstanceSettings | undefined, area: Area, key:
 }
 
 /**
+ * Whether a count is a number of bytes, which is said as a size rather than as its digits. The
+ * attachment storage is the one; the contract declares no unit, so it is named here as the limits
+ * screen names it.
+ */
+export const isBytes = (area: Area, key: string): boolean => area === 'quotas' && key === 'media_bytes';
+
+/**
  * Reads what was typed into a count. Empty is undecided; a whole number is a number; anything else
  * travels as it was typed, for the server to refuse at the row rather than for this screen to
  * swallow.

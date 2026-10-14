@@ -325,7 +325,7 @@ func (h CompleteSignIn) Execute(
 			}
 			if !burned {
 				w.failure(ctx, FailureMfa)
-				return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid"))
+				return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail(recoveryCodeInvalid))
 			}
 			left, err := w.Recovery.Remaining(ctx, lookup.Account.ID)
 			if err != nil {

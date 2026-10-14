@@ -46,6 +46,8 @@ const manifestWith = (ai) => ({
   limits: {},
   features: { ai_suggestions: ai, semantic_search: ai, mail: false, storage: true, web_ui: true },
   token_scopes: [],
+  // A member: the jumble's controls are drawn only for somebody who may write there.
+  workspace_permissions: ['READ', 'WRITE_ITEMS', 'AUTOMATION'],
 });
 
 const item = {

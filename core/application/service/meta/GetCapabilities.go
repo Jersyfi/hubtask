@@ -137,6 +137,11 @@ type Capabilities struct {
 	// read, never compiled in, and a capability that is refused outright is absent rather than
 	// disabled. A caller with no credential is false, which is also the honest answer.
 	InstanceReachable bool
+	// WorkspacePermissions is what the caller holds on the workspace itself, nil for an anonymous
+	// caller. Caller-scoped like InstanceReachable and for its reason: a client decides from it
+	// whether to draw the administration or the jumble at all, rather than probing a route whose
+	// refusal is recorded.
+	WorkspacePermissions []service.Permission
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -196,6 +201,12 @@ type OperatorRegister interface {
 	Holds(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
+// WorkspacePermissions is the authoriser as the manifest asks it: what the caller holds on the
+// workspace, recording nothing (access.Service.HeldOnWorkspace).
+type WorkspacePermissions interface {
+	HeldOnWorkspace(ctx context.Context, actor appshared.ActorContext) ([]service.Permission, error)
+}
+
 // SetupState answers whether the installation is still empty - no workspace, nobody in the operator
 // register - which is the whole condition under which the first start's setup is offered (UC-INS-01).
 type SetupState interface {
@@ -244,6 +255,10 @@ type GetCapabilities struct {
 	// Optional: a build wired without it answers false, which draws no way in - the safe direction,
 	// because a control that is not drawn is one nobody is refused at.
 	Operators OperatorRegister
+	// Workspace answers what the caller holds on the workspace. Optional: a build wired without
+	// it answers nothing, which draws neither the administration nor the jumble - the safe
+	// direction, for Operators' reason.
+	Workspace WorkspacePermissions
 	// Setup answers `features.setup_open`. Optional: a build wired without it answers false, which
 	// draws the sign-in card - the safe direction.
 	Setup      SetupState
@@ -358,6 +373,17 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			}); err != nil {
 			return Capabilities{}, err
 		}
+	}
+
+	// What the caller holds on the workspace. Outside every transaction above, for the operator
+	// register's reason: the authoriser opens its own read in the caller's tenant.
+	var workspacePermissions []service.Permission
+	if g.Workspace != nil && actor.IsAuthenticated() {
+		held, err := g.Workspace.HeldOnWorkspace(ctx, actor)
+		if err != nil {
+			return Capabilities{}, err
+		}
+		workspacePermissions = held
 	}
 
 	var ai aiprovider.ProviderCapabilities
@@ -493,8 +519,9 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// setup card in place of the sign-in card and never offers a setup the server refuses.
 			"setup_open": setupOpen,
 		},
-		Legal:             legal,
-		InstanceReachable: instanceReachable,
+		Legal:                legal,
+		InstanceReachable:    instanceReachable,
+		WorkspacePermissions: workspacePermissions,
 	}, nil
 }
 
