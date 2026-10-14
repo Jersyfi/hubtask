@@ -202,9 +202,9 @@ func (s *redemptionStore) SetRedemptionToken(
 
 type grantsStore struct{ grants []domain.Grant }
 
-func (s *grantsStore) Grant(_ context.Context, grant domain.Grant) error {
+func (s *grantsStore) Grant(_ context.Context, grant domain.Grant) (domain.Grant, bool, error) {
 	s.grants = append(s.grants, grant)
-	return nil
+	return grant, true, nil
 }
 
 type containersStore struct{ inserted []work.Container }

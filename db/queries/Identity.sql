@@ -307,10 +307,10 @@ SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id'
 
 -- ============================ Memberships =============================
 
--- name: GrantMembership :exec
--- Only the primary key can conflict, and every grant carries a fresh identifier: no index keeps a
--- subject from holding one role twice at one scope, so a repeated grant is a second, equal row.
--- AccountHoldsRole is how a caller asks before writing.
+-- name: GrantMembership :execrows
+-- Writes nothing when the subject already holds the role at the scope: `membership_grant_uq`
+-- (0149) keeps one row per tenant, subject, scope and role. No row affected means the grant is
+-- there already, and EqualMembership answers it.
 INSERT INTO membership (id, tenant_id, account_id, group_id, scope_type, scope_id, role)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('account_id'), sqlc.narg('group_id'),
@@ -318,17 +318,17 @@ VALUES (
 )
 ON CONFLICT DO NOTHING;
 
--- name: AccountHoldsRole :one
--- Whether the account already holds exactly this role at exactly this scope through a grant of its
--- own - not through a group, not inherited from above. What a grant asks before it writes, so that
--- being given a role one already has is not news.
-SELECT EXISTS (
-  SELECT 1 FROM membership
-  WHERE account_id = sqlc.arg('account_id')::uuid
-    AND scope_type = sqlc.arg('scope_type')
-    AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
-    AND role = sqlc.arg('role')
-);
+-- name: EqualMembership :one
+-- The membership a grant met instead of writing. A statement of its own rather than part of the
+-- insert: under READ COMMITTED it sees a row a concurrent grant committed while the insert waited
+-- on it, which the insert's own snapshot does not. The tenant is the transaction's (ADR-0010).
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
+FROM membership
+WHERE account_id IS NOT DISTINCT FROM sqlc.narg('account_id')::uuid
+  AND group_id IS NOT DISTINCT FROM sqlc.narg('group_id')::uuid
+  AND scope_type = sqlc.arg('scope_type')
+  AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
+  AND role = sqlc.arg('role');
 
 -- name: FindMembership :one
 -- The tenant is selected although row level security already bounds the statement to it: the

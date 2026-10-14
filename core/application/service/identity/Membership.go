@@ -73,12 +73,14 @@ type RoleNotices interface {
 	RoleGranted(ctx context.Context, grant domain.Grant, actorID shared.ID) error
 }
 
-// Execute records the grant and returns it.
+// Execute records the grant and returns the membership in force: the new one, or the one the
+// subject already held at the scope with that role.
 //
 // Only this use case tells the person, and not record, which the managed account's creation
 // shares: the grants made as a side effect are the actor's own (the owner of a private hub they
 // create, a newcomer arriving through a provider) or a managed account's, which has no address and
-// whose start password its creator hands over in person.
+// whose start password its creator hands over in person. A role already held is not news: it was
+// told when it was given.
 func (h GrantMembership) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd GrantMembershipCommand,
 ) (domain.Grant, error) {
@@ -86,34 +88,19 @@ func (h GrantMembership) Execute(
 	if err != nil {
 		return domain.Grant{}, err
 	}
+	var held domain.Grant
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		news, err := h.isNews(ctx, grant)
-		if err != nil {
+		var created bool
+		held, created, err = h.record(ctx, actor, grant)
+		if err != nil || !created || h.Notices == nil {
 			return err
 		}
-		if err := h.record(ctx, actor, grant); err != nil {
-			return err
-		}
-		if !news {
-			return nil
-		}
-		return h.Notices.RoleGranted(ctx, grant, actor.AccountID)
+		return h.Notices.RoleGranted(ctx, held, actor.AccountID)
 	})
 	if err != nil {
 		return domain.Grant{}, err
 	}
-	return grant, nil
-}
-
-// isNews reports whether the grant is one to tell its person about. Asked before the grant is
-// written: nothing keeps a second, equal grant out of the table, so a role the person already
-// holds at this scope is told about once, when it was first given.
-func (h GrantMembership) isNews(ctx context.Context, grant domain.Grant) (bool, error) {
-	if h.Notices == nil || grant.AccountID.IsZero() {
-		return h.Notices != nil, nil
-	}
-	held, err := h.Grants.Holds(ctx, grant.AccountID, grant.Scope, grant.Role)
-	return !held, err
+	return held, nil
 }
 
 // prepare builds the grant and asks everything that is asked before a write: the permission at the
@@ -151,20 +138,28 @@ func (h GrantMembership) prepare(
 	return grant, nil
 }
 
-// record writes a prepared grant and its trail entry, inside the caller's transaction.
-func (h GrantMembership) record(ctx context.Context, actor appshared.ActorContext, grant domain.Grant) error {
+// record writes a prepared grant and its trail entry, inside the caller's transaction, and answers
+// the membership in force and whether it was written now.
+//
+// A role the subject already holds at the scope is answered with that membership and no entry:
+// nothing was given, and an access review that read two grants beside one revocation would read
+// access that is not there.
+func (h GrantMembership) record(
+	ctx context.Context, actor appshared.ActorContext, grant domain.Grant,
+) (held domain.Grant, created bool, err error) {
 	// The subject is looked up so that granting to somebody who is not here says so, rather
 	// than surfacing as a foreign key violation from three layers down.
 	if err := h.subjectExists(ctx, grant); err != nil {
-		return err
+		return domain.Grant{}, false, err
 	}
 	if err := h.noGroupInPrivateHub(ctx, grant); err != nil {
-		return err
+		return domain.Grant{}, false, err
 	}
-	if err := h.Grants.Grant(ctx, grant); err != nil {
-		return err
+	held, created, err = h.Grants.Grant(ctx, grant)
+	if err != nil || !created {
+		return held, created, err
 	}
-	return h.recordAudit(ctx, grant, actor)
+	return held, true, h.recordAudit(ctx, held, actor)
 }
 
 func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) error {

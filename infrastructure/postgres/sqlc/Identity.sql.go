@@ -89,38 +89,6 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 	return items, nil
 }
 
-const accountHoldsRole = `-- name: AccountHoldsRole :one
-SELECT EXISTS (
-  SELECT 1 FROM membership
-  WHERE account_id = $1::uuid
-    AND scope_type = $2
-    AND scope_id IS NOT DISTINCT FROM $3::uuid
-    AND role = $4
-)
-`
-
-type AccountHoldsRoleParams struct {
-	AccountID pgtype.UUID
-	ScopeType MembershipScope
-	ScopeID   pgtype.UUID
-	Role      MembershipRole
-}
-
-// Whether the account already holds exactly this role at exactly this scope through a grant of its
-// own - not through a group, not inherited from above. What a grant asks before it writes, so that
-// being given a role one already has is not news.
-func (q *Queries) AccountHoldsRole(ctx context.Context, arg AccountHoldsRoleParams) (bool, error) {
-	row := q.db.QueryRow(ctx, accountHoldsRole,
-		arg.AccountID,
-		arg.ScopeType,
-		arg.ScopeID,
-		arg.Role,
-	)
-	var exists bool
-	err := row.Scan(&exists)
-	return exists, err
-}
-
 const accountsOfKind = `-- name: AccountsOfKind :many
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
@@ -281,6 +249,58 @@ func (q *Queries) DeleteGroup(ctx context.Context, id pgtype.UUID) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const equalMembership = `-- name: EqualMembership :one
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
+FROM membership
+WHERE account_id IS NOT DISTINCT FROM $1::uuid
+  AND group_id IS NOT DISTINCT FROM $2::uuid
+  AND scope_type = $3
+  AND scope_id IS NOT DISTINCT FROM $4::uuid
+  AND role = $5
+`
+
+type EqualMembershipParams struct {
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+type EqualMembershipRow struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	GroupID   pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// The membership a grant met instead of writing. A statement of its own rather than part of the
+// insert: under READ COMMITTED it sees a row a concurrent grant committed while the insert waited
+// on it, which the insert's own snapshot does not. The tenant is the transaction's (ADR-0010).
+func (q *Queries) EqualMembership(ctx context.Context, arg EqualMembershipParams) (EqualMembershipRow, error) {
+	row := q.db.QueryRow(ctx, equalMembership,
+		arg.AccountID,
+		arg.GroupID,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.Role,
+	)
+	var i EqualMembershipRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.GroupID,
+		&i.ScopeType,
+		&i.ScopeID,
+		&i.Role,
+	)
+	return i, err
 }
 
 const findAccessToken = `-- name: FindAccessToken :one
@@ -593,7 +613,7 @@ func (q *Queries) FindMembership(ctx context.Context, id pgtype.UUID) (FindMembe
 	return i, err
 }
 
-const grantMembership = `-- name: GrantMembership :exec
+const grantMembership = `-- name: GrantMembership :execrows
 
 INSERT INTO membership (id, tenant_id, account_id, group_id, scope_type, scope_id, role)
 VALUES (
@@ -613,11 +633,11 @@ type GrantMembershipParams struct {
 }
 
 // ============================ Memberships =============================
-// Only the primary key can conflict, and every grant carries a fresh identifier: no index keeps a
-// subject from holding one role twice at one scope, so a repeated grant is a second, equal row.
-// AccountHoldsRole is how a caller asks before writing.
-func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams) error {
-	_, err := q.db.Exec(ctx, grantMembership,
+// Writes nothing when the subject already holds the role at the scope: `membership_grant_uq`
+// (0149) keeps one row per tenant, subject, scope and role. No row affected means the grant is
+// there already, and EqualMembership answers it.
+func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams) (int64, error) {
+	result, err := q.db.Exec(ctx, grantMembership,
 		arg.ID,
 		arg.AccountID,
 		arg.GroupID,
@@ -625,7 +645,10 @@ func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams
 		arg.ScopeID,
 		arg.Role,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const groupHoldsRoleUnderHub = `-- name: GroupHoldsRoleUnderHub :one

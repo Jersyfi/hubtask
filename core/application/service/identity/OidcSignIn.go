@@ -775,8 +775,14 @@ func (w OidcWriter) welcome(
 		if grant.Role == domain.RoleOwner {
 			return newcomerGiven(nil, nil), nil
 		}
-		if err := w.Grants.Grant(ctx, grant); err != nil {
+		// The account arrived in this transaction, so the grant is always new; were it not, the
+		// role would be held already and there would be nothing to record.
+		held, created, err := w.Grants.Grant(ctx, grant)
+		if err != nil {
 			return nil, err
+		}
+		if !created {
+			return newcomerGiven(string(held.Role), nil), nil
 		}
 		// The grant reads in the trail as every other grant does, which is what an access review
 		// filters on; the system made it, for the account it was made for.

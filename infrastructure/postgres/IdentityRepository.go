@@ -677,29 +677,31 @@ func NewMembershipGrantRepository(cursors security.CursorCodec) MembershipGrantR
 
 var _ repository.MembershipGrants = MembershipGrantRepository{}
 
-func (r MembershipGrantRepository) Grant(ctx context.Context, grant identity.Grant) error {
+func (r MembershipGrantRepository) Grant(
+	ctx context.Context, grant identity.Grant,
+) (identity.Grant, bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return err
+		return identity.Grant{}, false, err
 	}
 	id, err := uuidOf(grant.ID)
 	if err != nil {
-		return err
+		return identity.Grant{}, false, err
 	}
 	accountID, err := optionalUUID(grant.AccountID)
 	if err != nil {
-		return err
+		return identity.Grant{}, false, err
 	}
 	groupID, err := optionalUUID(grant.GroupID)
 	if err != nil {
-		return err
+		return identity.Grant{}, false, err
 	}
 	scopeID, err := optionalUUID(grant.Scope.ID)
 	if err != nil {
-		return err
+		return identity.Grant{}, false, err
 	}
 
-	err = queries.GrantMembership(ctx, sqlc.GrantMembershipParams{
+	written, err := queries.GrantMembership(ctx, sqlc.GrantMembershipParams{
 		ID:        id,
 		AccountID: accountID,
 		GroupID:   groupID,
@@ -708,11 +710,33 @@ func (r MembershipGrantRepository) Grant(ctx context.Context, grant identity.Gra
 		Role:      sqlc.MembershipRole(grant.Role),
 	})
 	if err != nil {
-		return shared.ErrUnavailable.
+		return identity.Grant{}, false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("granting a membership: %w", err))
 	}
-	return nil
+	if written > 0 {
+		return grant, true, nil
+	}
+
+	row, err := queries.EqualMembership(ctx, sqlc.EqualMembershipParams{
+		AccountID: accountID,
+		GroupID:   groupID,
+		ScopeType: sqlc.MembershipScope(grant.Scope.Type),
+		ScopeID:   scopeID,
+		Role:      sqlc.MembershipRole(grant.Role),
+	})
+	if err != nil {
+		// No equal row after an insert that wrote nothing: the conflict was the primary key of a
+		// grant with other content, which only a reused identifier produces.
+		return identity.Grant{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the membership a grant met: %w", err))
+	}
+	held, err := grantFrom(sqlc.FindMembershipRow(row))
+	if err != nil {
+		return identity.Grant{}, false, err
+	}
+	return held, false, nil
 }
 
 func (r MembershipGrantRepository) Revoke(ctx context.Context, membershipID shared.ID) (bool, error) {
@@ -755,33 +779,6 @@ func (r MembershipGrantRepository) Find(ctx context.Context, membershipID shared
 	}
 
 	return grantFrom(row)
-}
-
-func (r MembershipGrantRepository) Holds(
-	ctx context.Context, accountID shared.ID, scope identity.Scope, role identity.Role,
-) (bool, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return false, err
-	}
-	account, err := uuidOf(accountID)
-	if err != nil {
-		return false, err
-	}
-	scopeID, err := optionalUUID(scope.ID)
-	if err != nil {
-		return false, err
-	}
-	held, err := queries.AccountHoldsRole(ctx, sqlc.AccountHoldsRoleParams{
-		AccountID: account, ScopeType: sqlc.MembershipScope(scope.Type), ScopeID: scopeID,
-		Role: sqlc.MembershipRole(role),
-	})
-	if err != nil {
-		return false, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("asking whether account %s holds a role: %w", accountID, err))
-	}
-	return held, nil
 }
 
 func (r MembershipGrantRepository) ListAt(

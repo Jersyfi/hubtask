@@ -6572,7 +6572,8 @@ paths:
       summary: Grant a role at a scope
       description: |
         To an account or to a group, never both. The role applies downwards from the scope:
-        a role at a hub applies to its collections and their items.
+        a role at a hub applies to its collections and their items. A subject holds a role at a
+        scope once: granting it again changes nothing and answers the membership already there.
 
         Nobody grants above their own role: the caller needs `MANAGE_MEMBERS` at the scope and a
         role along its path at least as strong as the one granted - an owner gives any role, an

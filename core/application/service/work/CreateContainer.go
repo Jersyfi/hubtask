@@ -256,7 +256,8 @@ func (h CreateContainer) ownedBy(
 	if err != nil {
 		return err
 	}
-	if err := h.Grants.Grant(ctx, grant); err != nil {
+	// The hub was made in this transaction, so nobody holds a role on it yet and the grant is new.
+	if _, created, err := h.Grants.Grant(ctx, grant); err != nil || !created {
 		return err
 	}
 	return h.Audit.Append(ctx, identityservice.GrantedEntry(ctx, grant, actor, now))

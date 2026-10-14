@@ -50,9 +50,9 @@ type grantsMade struct {
 	granted []identity.Grant
 }
 
-func (g *grantsMade) Grant(_ context.Context, grant identity.Grant) error {
+func (g *grantsMade) Grant(_ context.Context, grant identity.Grant) (identity.Grant, bool, error) {
 	g.granted = append(g.granted, grant)
-	return nil
+	return grant, true, nil
 }
 
 // privateHubsSwitch is *Private hubs allowed* as the rule in force answers it.

@@ -136,7 +136,8 @@ func (h CreateManagedAccount) Execute(
 		if err := h.recordAudit(ctx, account, actor); err != nil {
 			return err
 		}
-		return h.Grant.record(ctx, actor, grant)
+		grant, _, err = h.Grant.record(ctx, actor, grant)
+		return err
 	})
 	if err != nil {
 		return ManagedAccountCreated{}, err
