@@ -287,13 +287,13 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
   });
   assert.equal(off.button, 0, 'a policy that is switched off still offered to choose');
 
-  // A type that carries no member list keeps both parts and names the second one's refusal, rather
-  // than dropping a part and leaving the reader to wonder where it went (`domain-model.md` §2).
+  // A type that carries no member list has no such part: a capability the type refuses is absent,
+  // not drawn with its reason (design-system.md §11).
   const activityId = CHILDREN[CHILDREN[ENTRY.id][0].id][0].id;
   const activity = await panelWith({ completion_policy: 'MANUAL' }, activityId);
-  assert.deepEqual(activity.parts, ['Responsible', 'Also on it']);
+  assert.deepEqual(activity.parts, ['Responsible']);
   assert.deepEqual(activity.lists, ['Responsible'], 'an activity was offered a member list it can reach');
-  assert.deepEqual(activity.refusals, ['An activity has no members.']);
+  assert.deepEqual(activity.refusals, [], 'a part the type refuses was drawn with its reason');
   assert.deepEqual(without.refusals, [], 'a task was refused one of the two');
 });
 

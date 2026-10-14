@@ -99,3 +99,38 @@ test('chromium: a sensitive field set for the first time reads as changed', asyn
   assert.match(text, /name changed — the trail keeps that it changed/);
   assert.doesNotMatch(text, /name became/);
 });
+
+test('chromium: the next page of the trail is announced, and its end is said', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/audit' && url.searchParams.get('cursor') === 'c2') {
+      return route.fulfill({ json: { items: [entry(3, ACCOUNT.id, ACCOUNT.display_name), entry(4, ACCOUNT.id, ACCOUNT.display_name)], next_cursor: null } });
+    }
+    if (path === '/audit') {
+      return route.fulfill({ json: { items: [entry(1, ACCOUNT.id, ACCOUNT.display_name), entry(2, ACCOUNT.id, ACCOUNT.display_name)], next_cursor: 'c2' } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/audit`);
+  const more = page.getByRole('button', { name: 'Show more' });
+  await more.waitFor({ timeout: 15_000 });
+  // The live region is there, empty, before anything arrives: one that appears already filled is
+  // not announced.
+  const status = page.locator('.load-more [role="status"]');
+  assert.equal(await status.count(), 1);
+  assert.equal((await status.textContent()).trim(), '');
+  await more.click();
+  await page.getByText('That is every entry for this query.').waitFor();
+  assert.equal((await status.textContent()).trim(), '2 more entries arrived.');
+  assert.equal(await more.count(), 0, 'the button stayed after the last page');
+});
