@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -159,6 +160,35 @@ func TestTheParametersOfAProblemReachTheMessage(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "01J8ZQ") {
 		t.Errorf("the message %q does not quote the request ID the user is asked to reference", err.Error())
+	}
+}
+
+// A moment in a refusal is written the way hubctl writes every moment - in the reader's own zone, to
+// the minute - not as the wire's RFC 3339; the parameter itself stays exact for a caller that acts
+// on it.
+func TestAMomentInARefusalIsWrittenInTheReadersZone(t *testing.T) {
+	zone := time.FixedZone("CEST", 2*60*60)
+	local := time.Local
+	time.Local = zone
+	t.Cleanup(func() { time.Local = local })
+
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusServiceUnavailable, map[string]any{
+			"status": 503, "code": "dependency_unavailable", "detail_code": "ai.unavailable",
+			"params": map[string]any{"reason": "budget_spent", "renews_at": "2026-09-01T22:00:00Z"},
+		})
+	})
+
+	err := clientFor(t, stub).Get(context.Background(), "/containers", nil, nil)
+	if err == nil {
+		t.Fatal("a refusal came back as a success")
+	}
+	if !strings.Contains(err.Error(), "2026-09-02 00:00") || strings.Contains(err.Error(), "T22:00:00Z") {
+		t.Errorf("the renewal reads %q, want the reader's 2026-09-02 00:00", err.Error())
+	}
+	var failure APIError
+	if !errors.As(err, &failure) || failure.Params["renews_at"] != "2026-09-01T22:00:00Z" {
+		t.Errorf("the parameter a caller acts on changed: %+v", failure.Params)
 	}
 }
 

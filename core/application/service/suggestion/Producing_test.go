@@ -303,6 +303,27 @@ func TestAProviderThatCannotCompleteRefusesAndStoresNothing(t *testing.T) {
 	}
 }
 
+// A refusal with a reason is still the refusal that ends a job: a source the installation no longer
+// allows is a switch somebody turned, and retrying against it fills the queue with questions nobody
+// will answer. Anything else unavailable is a provider out of reach, which retries.
+func TestARefusalWithAReasonEndsTheJobLikeTheBareOne(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"the bare refusal", aiprovider.ErrUnavailable, true},
+		{"a spent budget", aiprovider.BudgetSpent(time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)), true},
+		{"a source not allowed", shared.ErrUnavailable.WithDetail("ai.source_not_allowed"), true},
+		{"another dependency", shared.ErrUnavailable.WithDetail("postgres.query_failed"), false},
+		{"no error", nil, false},
+	} {
+		if got := IsUnavailable(testCase.err); got != testCase.want {
+			t.Errorf("%s: IsUnavailable = %v, want %v", testCase.name, got, testCase.want)
+		}
+	}
+}
+
 // An entry with nothing in it produces no proposal and no call: an empty answer is not a
 // suggestion, and asking about nothing spends a budget for nothing.
 func TestAnEmptyTargetIsNotAsked(t *testing.T) {

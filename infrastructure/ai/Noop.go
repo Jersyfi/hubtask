@@ -49,7 +49,14 @@ func (Noop) Capabilities() port.ProviderCapabilities {
 // so that "AI is off here" and "this AI is no longer allowed here" are told apart.
 type Refused struct{ Detail string }
 
-var _ port.Provider = Refused{}
+var (
+	_ port.Provider = Refused{}
+	_ port.Refusing = Refused{}
+)
+
+// Refusal is what every call answers, asked before any is made: Suggest refuses before it queues,
+// and would otherwise answer the bare `ai.unavailable` in place of the reason.
+func (r Refused) Refusal() error { return r.err() }
 
 func (r Refused) err() error {
 	if r.Detail == "" || r.Detail == "ai.unavailable" {
