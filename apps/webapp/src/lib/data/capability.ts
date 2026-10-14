@@ -233,3 +233,32 @@ export function changeVerdict(
   if (access === 'NONE') return refused('app.gate.change_none');
   return isAssignedToActor ? PERMITTED : refused('app.gate.change_assigned_only');
 }
+
+/**
+ * Whether the reader holds a permission on the workspace itself, as the manifest answers it for
+ * them (`workspace_permissions`). `undefined` until it has: a manifest read anonymously - the one
+ * held for the moment between a sign-in and the read that follows it - answers nothing about
+ * anybody, and not yet known is not "no".
+ *
+ * The level of the workspace only: a role granted on a hub, a collection or an entry adds to this
+ * there, and says nothing here.
+ */
+export function holdsOnWorkspace(
+  manifest: Capabilities | undefined,
+  permission: string,
+): boolean | undefined {
+  const held = manifest?.workspace_permissions as readonly string[] | undefined;
+  if (held === undefined) return undefined;
+  return held.includes(permission);
+}
+
+/**
+ * Whether the reader reaches the administration: `STRUCTURE`, or the auditor's
+ * `READ_CONFIGURATION`, on the workspace - the condition the area's reads ask (`quota/Read.go`),
+ * answered before anything is asked rather than by a read the server refuses and records.
+ */
+export function reachesAdministration(manifest: Capabilities | undefined): boolean | undefined {
+  const structure = holdsOnWorkspace(manifest, 'STRUCTURE');
+  if (structure === undefined) return undefined;
+  return structure || holdsOnWorkspace(manifest, 'READ_CONFIGURATION') === true;
+}

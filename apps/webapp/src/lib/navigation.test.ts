@@ -37,7 +37,7 @@ test('nothing is in two bands, and nothing is outside one', () => {
   // The three bands are `places` (the primary group), the tree (the containers, which are data
   // rather than a list here) and `keeping`. A destination in both would be drawn twice, which is
   // the failure the one list exists to prevent (ADR-0063 decision 1).
-  const places = new Set(primary().map((destination) => destination.id));
+  const places = new Set(primary({ hasJumble: true }).map((destination) => destination.id));
   const keeping = new Set(KEEPING.map((row) => row.id));
   for (const id of keeping) assert.equal(places.has(id), false, `${id} is in two bands`);
   assert.equal(keeping.size, KEEPING.length, 'a row of the keeping band is in it twice');
@@ -76,8 +76,10 @@ test('every word is a code the catalogue has', () => {
 test('the bottom bar can draw the primary group and "You"', () => {
   // `BottomBar` takes three to five destinations: the primary group plus the account group's
   // head. Fewer is a switch, more is narrower than a thumb.
-  const count = primary().length + 1;
-  assert.ok(count >= 3 && count <= 5, `${count} destinations on a phone`);
+  for (const hasJumble of [true, false]) {
+    const count = primary({ hasJumble }).length + 1;
+    assert.ok(count >= 3 && count <= 5, `${count} destinations on a phone`);
+  }
 });
 
 test('the search exists once', () => {
@@ -226,4 +228,9 @@ test('the installation offers no AI row where it runs one workspace', () => {
   assert.ok(!rowsOf(true).includes('ai'), 'a private installation is offered an AI row');
   assert.ok(rowsOf(false).includes('ai'), 'a multi-workspace installation lost its AI row');
   assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => id !== 'ai'), 'more than the AI row went');
+});
+
+test('the jumble is a place only for somebody it is drawn for', () => {
+  assert.ok(primary({ hasJumble: true }).some((destination) => destination.id === 'jumble'));
+  assert.deepEqual(primary({ hasJumble: false }).map((destination) => destination.id), ['workspace', 'search']);
 });

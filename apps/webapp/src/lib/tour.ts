@@ -29,6 +29,8 @@ export interface Workspace {
   readonly collectionId?: string;
   /** Any entry's identifier, or nothing. */
   readonly itemId?: string;
+  /** Whether the jumble is the reader's to see: `READ` on the workspace itself. */
+  readonly hasJumble: boolean;
 }
 
 /** The steps a workspace can be walked through, in order. */
@@ -40,8 +42,10 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   if (workspace.itemId) {
     steps.push({ id: 'entry', route: `/items/${workspace.itemId}`, selector: '[data-tour="entry"]', side: 'block-end' });
   }
+  if (workspace.hasJumble) {
+    steps.push({ id: 'jumble', route: '/jumble', selector: '[data-tour="jumble"]', side: 'block-end' });
+  }
   steps.push(
-    { id: 'jumble', route: '/jumble', selector: '[data-tour="jumble"]', side: 'block-end' },
     { id: 'search', route: '/search', selector: '[data-tour="search"]', side: 'block-end' },
     { id: 'profile', route: '/profile', selector: '[data-tour="profile"]', side: 'block-end' },
   );

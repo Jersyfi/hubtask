@@ -196,6 +196,25 @@ func Allows(
 	return false
 }
 
+// columns is every permission, in the order the matrix's columns are written.
+var columns = []Permission{
+	PermissionRead, PermissionWriteItems, PermissionStructure, PermissionManageMembers,
+	PermissionAutomation, PermissionDeleteContainer, PermissionReadConfiguration, PermissionAuditRead,
+}
+
+// Held is every permission Allows grants along the path, in the order of the matrix's columns:
+// what a client is told the account holds there, decided by the function every request is decided
+// by, so a permission reported is never one a request is refused for (P-05).
+func Held(memberships []identity.Membership, path []identity.Scope, privacy Privacy) []Permission {
+	held := []Permission{}
+	for _, permission := range columns {
+		if Allows(memberships, path, privacy, permission) {
+			held = append(held, permission)
+		}
+	}
+	return held
+}
+
 // MayGrant is whether what the account holds along the path lets it hand out the role there:
 // MANAGE_MEMBERS, and a role along the path at least as strong as the one handed out
 // (domain-model.md §3.2). An owner gives any role, an administrator any but OWNER.

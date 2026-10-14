@@ -254,3 +254,57 @@ func TestRoleOfAnotherAccountKnowsAPrivateHub(t *testing.T) {
 		t.Errorf("found %v, error %v; want no role in a private hub", found, err)
 	}
 }
+
+// What the manifest tells the caller they hold on the workspace: the union of their memberships
+// there, and no entry in the trail for having asked - a member's every page load asks it.
+func TestHeldOnWorkspaceAnswersTheUnionAndRecordsNothing(t *testing.T) {
+	authorizer, store, trail, uow := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleMember},
+		{AccountID: accountID, Scope: identity.TenantScope(), Role: identity.RoleAuditor},
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleOwner},
+	})
+
+	held, err := authorizer.HeldOnWorkspace(context.Background(), actorWithScopes())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []service.Permission{
+		service.PermissionRead, service.PermissionWriteItems, service.PermissionAutomation,
+		service.PermissionReadConfiguration, service.PermissionAuditRead,
+	}
+	if len(held) != len(want) {
+		t.Fatalf("held %v, want %v", held, want)
+	}
+	for i := range want {
+		if held[i] != want[i] {
+			t.Errorf("held %v, want %v", held, want)
+		}
+	}
+	if len(store.path) != 1 || store.path[0] != identity.TenantScope() {
+		t.Errorf("the memberships were read along %v, want the workspace alone", store.path)
+	}
+	if len(trail.entries) != 0 || uow.writes != 0 {
+		t.Errorf("asking wrote to the trail: %+v, %d writes", trail.entries, uow.writes)
+	}
+}
+
+func TestHeldOnWorkspaceIsNothingForSomebodyWhoHoldsNothingThere(t *testing.T) {
+	authorizer, _, trail, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleGuest},
+	})
+	held, err := authorizer.HeldOnWorkspace(context.Background(), actorWithScopes())
+	if err != nil || held == nil || len(held) != 0 {
+		t.Errorf("held %v (%v), want an empty list", held, err)
+	}
+	if len(trail.entries) != 0 {
+		t.Errorf("asking wrote to the trail: %+v", trail.entries)
+	}
+}
+
+func TestHeldOnWorkspaceFailsWhenTheMembershipsCannotBeRead(t *testing.T) {
+	authorizer, store, _, _ := serviceWith(nil)
+	store.err = shared.ErrUnavailable.WithDetail("postgres.query_failed")
+	if _, err := authorizer.HeldOnWorkspace(context.Background(), actorWithScopes()); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("error %v, want unavailable rather than an empty list", err)
+	}
+}

@@ -17009,6 +17009,26 @@ components:
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
             rather than disabled.
+        workspace_permissions:
+          type: array
+          description: >
+            The columns of the role matrix the caller holds on the workspace itself, from every
+            membership they hold there - their own and their groups' - decided as every request is
+            decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`:
+            absent for an anonymous caller, empty for somebody whose roles sit only on hubs,
+            collections or entries.
+
+            It answers what a client offers at the level of the workspace before anybody presses
+            anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble
+            (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) -
+            rather than a client probing a route that refuses. It says nothing about a hub, a
+            collection or an entry, where roles granted there add to these, and nothing about the
+            presenting credential: a token's scopes bound it further.
+          items:
+            type: string
+            enum:
+              [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER,
+               READ_CONFIGURATION, AUDIT_READ]
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }
