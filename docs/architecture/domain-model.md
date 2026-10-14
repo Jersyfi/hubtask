@@ -102,6 +102,14 @@ flow into it, and the workspace owner reaches it only through the transparent em
 a group's members are the workspace administrators' to change ([identity.md](./identity.md) §22).
 `Group(id, tenantId, name, members[])` is the target for assignment strategies and permissions.
 
+**A person given a role is told by mail** (UC-NOT-01 check 9): `GrantMembership` writes a
+`MEMBERSHIP` notification naming the grant in its own transaction — a grant is not an event (§4) —
+and the mail names who gave it, the role and the place, and links to it. Not for a role the person
+already held at that scope, and not for a grant to a group: the group's members did not change, and
+a grant to a large group would mail all of them at once — joining a group mails nobody either. The
+grants made as a side effect (the owner of a new private hub, a provider newcomer, a managed
+account) tell nobody. A role revoked before its mail went takes the record with it.
+
 Roles and rights (an extract):
 
 | Role | Read | Write items | Structure (buckets/labels) | Members | Automation | Delete (container) | Read configuration | Read the trail |
