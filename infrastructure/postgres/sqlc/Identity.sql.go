@@ -1036,6 +1036,18 @@ func (q *Queries) LockHubOf(ctx context.Context, id pgtype.UUID) (LockHubOfRow, 
 	return i, err
 }
 
+const lockOwners = `-- name: LockOwners :exec
+SELECT pg_advisory_xact_lock(hashtext('owners:' || current_tenant_id()::text))
+`
+
+// Taken by every door that could end the workspace's last owner, inside its write transaction and
+// before it counts the owners again: two owners revoking each other at once would otherwise each
+// see the other still there. Transaction-scoped, per tenant, like the audit chain's (Audit.sql).
+func (q *Queries) LockOwners(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockOwners)
+	return err
+}
+
 const membershipsAlongPath = `-- name: MembershipsAlongPath :many
 SELECT m.scope_type, m.scope_id, m.role
 FROM membership m
@@ -1365,4 +1377,50 @@ func (q *Queries) UpdateGroup(ctx context.Context, arg UpdateGroupParams) (int64
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const workspaceOwnerPaths = `-- name: WorkspaceOwnerPaths :many
+SELECT m.id AS membership_id, a.id AS account_id, m.group_id
+FROM membership m
+JOIN account a ON a.id = m.account_id
+WHERE m.scope_type = 'TENANT' AND m.role = 'OWNER'
+  AND a.kind = 'USER' AND a.status IN ('ACTIVE', 'RESTRICTED') AND a.deleted_at IS NULL
+UNION ALL
+SELECT m.id AS membership_id, a.id AS account_id, m.group_id
+FROM membership m
+JOIN account_group_member gm ON gm.group_id = m.group_id
+JOIN account a ON a.id = gm.account_id
+WHERE m.scope_type = 'TENANT' AND m.role = 'OWNER'
+  AND a.kind = 'USER' AND a.status IN ('ACTIVE', 'RESTRICTED') AND a.deleted_at IS NULL
+ORDER BY membership_id, account_id
+`
+
+type WorkspaceOwnerPathsRow struct {
+	MembershipID pgtype.UUID
+	AccountID    pgtype.UUID
+	GroupID      pgtype.UUID
+}
+
+// Every way a person holds OWNER on the workspace: a grant of their own, or a grant to a group they
+// are in. Only a person who can act counts - a USER, active or restricted, not deleted - so an
+// invitation never redeemed or an erased account does not keep the workspace administered.
+// One row per grant and account; the tenant boundary is the transaction's (ADR-0010).
+func (q *Queries) WorkspaceOwnerPaths(ctx context.Context) ([]WorkspaceOwnerPathsRow, error) {
+	rows, err := q.db.Query(ctx, workspaceOwnerPaths)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkspaceOwnerPathsRow{}
+	for rows.Next() {
+		var i WorkspaceOwnerPathsRow
+		if err := rows.Scan(&i.MembershipID, &i.AccountID, &i.GroupID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

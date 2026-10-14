@@ -380,3 +380,26 @@ type MembershipGrants interface {
 	// Unpaged: a group holds a handful of roles.
 	OfGroup(ctx context.Context, groupID shared.ID) ([]identity.Grant, error)
 }
+
+// OwnerPath is one way a person holds OWNER on the workspace: the grant, and the group it names when
+// the person holds it as a member rather than in their own right.
+type OwnerPath struct {
+	MembershipID shared.ID
+	AccountID    shared.ID
+	// GroupID is zero for a grant of the person's own.
+	GroupID shared.ID
+}
+
+// Owners answers who keeps the workspace administered, for the guard that refuses to end its last
+// owner (domain-model.md §3.2).
+type Owners interface {
+	// LockOwners takes the workspace's owner lock for the rest of the transaction. Every door that
+	// could end the last owner takes it before it reads OwnerPaths again, so two such doors at once
+	// are decided one after the other.
+	LockOwners(ctx context.Context) error
+
+	// OwnerPaths answers every grant through which a person who can act - a USER, active or
+	// restricted, not deleted - holds OWNER on the workspace, directly or through a group. Unpaged:
+	// a workspace has a handful of owners. The tenant boundary is the transaction's (ADR-0010).
+	OwnerPaths(ctx context.Context) ([]OwnerPath, error)
+}

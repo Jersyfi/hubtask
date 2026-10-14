@@ -832,6 +832,51 @@ func (r MembershipGrantRepository) OfGroup(ctx context.Context, groupID shared.I
 	return grants, nil
 }
 
+var _ repository.Owners = MembershipGrantRepository{}
+
+func (r MembershipGrantRepository) LockOwners(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockOwners(ctx); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking the workspace's owners: %w", err))
+	}
+	return nil
+}
+
+func (r MembershipGrantRepository) OwnerPaths(ctx context.Context) ([]repository.OwnerPath, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.WorkspaceOwnerPaths(ctx)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the workspace's owners: %w", err))
+	}
+	paths := make([]repository.OwnerPath, 0, len(rows))
+	for _, row := range rows {
+		membershipID, err := idFrom(row.MembershipID)
+		if err != nil {
+			return nil, err
+		}
+		accountID, err := idFrom(row.AccountID)
+		if err != nil {
+			return nil, err
+		}
+		groupID, err := optionalID(row.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, repository.OwnerPath{MembershipID: membershipID, AccountID: accountID, GroupID: groupID})
+	}
+	return paths, nil
+}
+
 func (r MembershipGrantRepository) boundary(cursor string) (pgtype.UUID, error) {
 	if cursor == "" {
 		return pgtype.UUID{}, nil
