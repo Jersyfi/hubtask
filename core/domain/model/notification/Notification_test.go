@@ -244,3 +244,29 @@ func TestAnAccessIsOneSubject(t *testing.T) {
 		t.Errorf("an access beside an entry was accepted: %v", err)
 	}
 }
+
+// A role given is a membership message about a grant (UC-NOT-01 check 9): one subject, kept, and
+// never read as the trashed hub's message - which is what a membership record with no subject is.
+func TestARoleGivenNamesTheGrantAndIsNotTheTrashedHub(t *testing.T) {
+	grant := shared.ID("01936f2a-7c1e-7000-8000-00000000000a")
+	in := notification.NewInput{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-000000000001"), TenantID: tenant, RecipientID: recipient,
+		Category: notification.CategoryMembership, Channel: notification.ChannelEmail,
+		MembershipID: grant, ActorID: actor,
+	}
+	written, err := notification.New(in)
+	if err != nil {
+		t.Fatalf("writing the record: %v", err)
+	}
+	if written.MembershipID != grant {
+		t.Errorf("the grant was not kept: %+v", written)
+	}
+	if written.PrivateHubTrashed() {
+		t.Error("a role given reads as the trashed hub's message")
+	}
+
+	in.ItemID = item
+	if _, err := notification.New(in); err == nil || !strings.Contains(err.Error(), "notifications.subject_ambiguous") {
+		t.Errorf("a grant beside an entry was accepted: %v", err)
+	}
+}

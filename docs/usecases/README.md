@@ -243,7 +243,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INT-09](./integration/UC-INT-09-let-an-ai-agent-work-in-my-workspace.md) | Let an AI agent work in my workspace | integration | built |
 | [UC-INT-10](./integration/UC-INT-10-script-my-workspace-with-a-token.md) | Script my workspace with hubctl or the API | integration | built |
 | [UC-INT-11](./integration/UC-INT-11-connect-hubtask-to-n8n-or-zapier.md) | Connect Hubtask to n8n or Zapier | integration | partial |
-| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | partial |
+| [UC-NOT-01](./notification/UC-NOT-01-hear-by-mail-when-work-lands-on-me.md) | Hear by mail when work lands on me | notification | built |
 | [UC-NOT-02](./notification/UC-NOT-02-get-my-reminders-by-mail.md) | Get my reminders by mail | notification | built |
 | [UC-NOT-03](./notification/UC-NOT-03-choose-which-mails-i-get.md) | Choose which mails I get | notification | built |
 | [UC-NOT-04](./notification/UC-NOT-04-hear-when-something-i-set-up-stops-working.md) | Hear when something I set up stops working | notification | built |

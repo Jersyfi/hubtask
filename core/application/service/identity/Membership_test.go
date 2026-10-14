@@ -65,6 +65,15 @@ func (s *grantStore) Find(_ context.Context, id shared.ID) (domain.Grant, error)
 	return grant, nil
 }
 
+func (s *grantStore) Holds(_ context.Context, accountID shared.ID, scope domain.Scope, role domain.Role) (bool, error) {
+	for _, grant := range s.byID {
+		if grant.AccountID == accountID && grant.Scope == scope && grant.Role == role {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ListAt answers what is granted at exactly the scope asked, newest first by identifier, and
 // remembers what it was asked so that a test can see the scope and the page.
 func (s *grantStore) ListAt(_ context.Context, scope domain.Scope, page repository.Page) (repository.GrantPage, error) {
@@ -182,6 +191,63 @@ func TestARoleIsGrantedToAnAccountAndRecorded(t *testing.T) {
 	}
 	if len(sink.entries) != 1 || sink.entries[0].Severity != audit.SeverityNotice {
 		t.Errorf("audit entries %v, want one notice - this is what an access review reads", sink.entries)
+	}
+}
+
+// roleNotices records what the grant asked to be told.
+type roleNotices struct {
+	told []domain.Grant
+	by   []shared.ID
+	err  error
+}
+
+func (n *roleNotices) RoleGranted(_ context.Context, grant domain.Grant, actorID shared.ID) error {
+	n.told, n.by = append(n.told, grant), append(n.by, actorID)
+	return n.err
+}
+
+// UC-NOT-01 check 9 at the grant: the person given a role is told once, in the grant's own
+// transaction (its failure fails the grant) and with who gave it - not again for a role they already hold at that scope, and not
+// at all when the grant is refused. A notice that cannot be written takes the grant with it.
+func TestTheGrantTellsItsPersonOnce(t *testing.T) {
+	grants, accounts := newGrants(), newAccounts(invitedAccount(t))
+	notices := &roleNotices{}
+	handler := grantHandler(grants, accounts, newGroups(), &authorizer{}, &auditSink{})
+	handler.Notices = notices
+	cmd := GrantMembershipCommand{AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleMember}
+
+	if _, err := handler.Execute(t.Context(), admin(), cmd); err != nil {
+		t.Fatalf("granting: %v", err)
+	}
+	if len(notices.told) != 1 || notices.told[0].AccountID != invitedID || notices.by[0] != adminID {
+		t.Fatalf("told %v by %v, want the person once, by the actor", notices.told, notices.by)
+	}
+
+	handler.IDs = ids{next: shared.ID("01936f2a-7c1e-7000-8000-0000000000e9")}
+	if _, err := handler.Execute(t.Context(), admin(), cmd); err != nil {
+		t.Fatalf("granting again: %v", err)
+	}
+	if len(notices.told) != 1 {
+		t.Errorf("told %d times, want once: the role was already held", len(notices.told))
+	}
+
+	refused := grantHandler(newGrants(), accounts, newGroups(), &authorizer{refuse: shared.ErrForbidden}, &auditSink{})
+	refused.Notices = notices
+	if _, err := refused.Execute(t.Context(), admin(), GrantMembershipCommand{
+		AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleViewer,
+	}); err == nil {
+		t.Fatal("the refused grant went through")
+	}
+	if len(notices.told) != 1 {
+		t.Errorf("a refused grant told somebody: %v", notices.told)
+	}
+
+	failing := grantHandler(newGrants(), accounts, newGroups(), &authorizer{}, &auditSink{})
+	failing.Notices = &roleNotices{err: shared.ErrUnavailable.WithDetail("postgres.query_failed")}
+	if _, err := failing.Execute(t.Context(), admin(), GrantMembershipCommand{
+		AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleViewer,
+	}); !errors.Is(err, shared.ErrUnavailable) {
+		t.Errorf("a grant whose notice failed answered %v, want the failure", err)
 	}
 }
 
