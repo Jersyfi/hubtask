@@ -421,15 +421,18 @@ class Session {
   /**
    * Redeems an invitation: the token from the mail, and the first password.
    *
-   * It answers the same pair a sign-in answers, because the person has just proved control of the
-   * mailbox — making them type the password again teaches nothing.
+   * It answers what a sign-in answers, because the person has just proved control of the mailbox —
+   * making them type the password again teaches nothing. That is the pair, or the setup of a second
+   * factor where the workspace demands one (identity.md §12): `false`, with `secondFactorOwed` set.
    */
   async redeem(token: string, password: string, terms?: TermsInForce): Promise<boolean> {
     // The terms agreed on the card, as they were shown (UC-ID-19 check 1); absent where none are set.
     const agreed = terms
       ? { terms_url: terms.url, ...(terms.version ? { terms_version: terms.version } : {}) }
       : {};
-    return this.#open(() => engine.mutate<SessionTokens>('POST', REDEEM, { token, password, ...agreed }));
+    return this.#open(() =>
+      engine.mutate<SessionTokens | SecondFactorAnswer>('POST', REDEEM, { token, password, ...agreed }),
+    );
   }
 
   /**
@@ -472,6 +475,8 @@ class Session {
           ...(answer.terms ? { terms: answer.terms } : {}),
         };
         this.#pending = answer.pending_token;
+        // An invitation card typed no address, so the identity line takes the one the server names.
+        if (answer.email !== undefined) this.#email = answer.email;
         this.#status = 'signed-out';
         return false;
       }
@@ -604,6 +609,7 @@ interface SecondFactorAnswer {
   readonly expires_at?: string;
   readonly password_rules?: unknown;
   readonly terms?: TermsInForce;
+  readonly email?: string;
 }
 
 /**
