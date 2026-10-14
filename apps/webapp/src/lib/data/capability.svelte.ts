@@ -18,6 +18,7 @@ import {
   declaresType as declaresTypeIn,
   itemPermitted,
   holdsOnWorkspace,
+  hubCreation,
   permissionVerdict,
   reachesAdministration,
   rootTypes as rootTypesOf,
@@ -72,6 +73,9 @@ export function workspaceRefusal(permission: string): string | undefined {
   if (verdict.status === 'undetermined') return t('app.gate.deciding');
   return t(verdict.code, { ...verdict.params, permission: t(`app.permissions.name.${permission.toLowerCase()}`) });
 }
+
+/** Which hub the reader may create - `shared`, `private` or `none`; `undefined` while unknown. */
+export const hubCreationHere = (): 'shared' | 'private' | 'none' | undefined => hubCreation(manifest.value);
 
 /** Whether the reader reaches the administration; `undefined` while unknown. */
 export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);

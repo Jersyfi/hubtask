@@ -25,7 +25,7 @@
   import DueMark from '../lib/entries/DueMark.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { holdsHere } from '../lib/data/capability.svelte.ts';
+  import { holdsHere, hubCreationHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { isOverdue } from '../lib/data/due.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
@@ -44,6 +44,13 @@
   const { onnavigate }: Props = $props();
 
   let isCreatingHub = $state(false);
+  // A shared hub with STRUCTURE on the workspace, a private one of one's own where the manifest
+  // offers it, and nothing otherwise or before the manifest answered (UC-WRK-01 check 6, UC-ID-16
+  // check 1): the server refuses a shared hub to everybody else.
+  const creation = $derived(hubCreationHere());
+  const createLabel = $derived(
+    creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined,
+  );
 
   $effect(() => page.entitle(t('app.nav.overview')));
 
@@ -87,9 +94,9 @@
   <PageHeader
     title={t('app.nav.overview')}
     isTitleInBar={viewport.isCompact}
-    primary={actor.hasNoAccess
+    primary={actor.hasNoAccess || !createLabel
       ? undefined
-      : { label: t('app.workspace.create_hub'), icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
+      : { label: createLabel, icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
   />
 
   {#if actor.hasNoAccess}
@@ -102,7 +109,9 @@
          three empty sentences, which is what the rest of this screen would be. -->
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
       {#snippet action()}
-        <Button icon="plus" onclick={() => (isCreatingHub = true)}>{t('app.workspace.create_hub')}</Button>
+        {#if createLabel}
+          <Button icon="plus" onclick={() => (isCreatingHub = true)}>{createLabel}</Button>
+        {/if}
       {/snippet}
     </EmptyState>
   {:else}
@@ -209,7 +218,7 @@
   {/if}
 </Stack>
 
-<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
+<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
 
 <style>
   /* One column on a phone, two from where there is room for two. The panels are equal citizens;

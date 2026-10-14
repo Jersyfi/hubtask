@@ -862,6 +862,7 @@
   "app.overview.recent": "Was du offen hattest",
   "app.overview.recent_none": "Was du öffnest, steht hier – nur auf diesem Gerät.",
   "app.workspace.create_hub": "Hub anlegen",
+  "app.workspace.create_private_hub": "Privaten Hub anlegen",
   "app.workspace.create_collection": "Sammlung anlegen",
   "app.workspace.hub_name": "Name des Hubs",
   "app.workspace.collection_name": "Name der Sammlung",

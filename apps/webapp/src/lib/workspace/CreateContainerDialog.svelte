@@ -20,6 +20,9 @@
   // *Private* is offered for a hub where the workspace has more than one person
   // (`private_hubs_offered`, UC-ID-16 check 8): a workspace of one has nobody to keep a hub from.
   // Every person may make one, whatever their role, so the switch carries no gate of its own.
+  // Somebody without the right to shape the workspace may create *only* a private hub of their own
+  // (UC-ID-16 check 1): for them the dialog is that and nothing else - no switch, the hub is private.
+  // Whoever opens it decides which, from the manifest (`hubCreation`).
 
   import { untrack } from 'svelte';
 
@@ -38,11 +41,16 @@
     type: 'HUB' | 'COLLECTION';
     /** The hub a collection goes into. Ignored for a hub, which sits in nothing. */
     parentId?: string;
+    /**
+     * A hub that can only be private: the reader may not create a shared one. Ignored for a
+     * collection.
+     */
+    isPrivateOnly?: boolean;
     /** Ran after the write succeeded, with the container the server answered. */
     oncreated?: (id: string) => void;
   }
 
-  let { isOpen = $bindable(), type, parentId, oncreated }: Props = $props();
+  let { isOpen = $bindable(), type, parentId, isPrivateOnly = false, oncreated }: Props = $props();
 
   let name = $state('');
   let description = $state('');
@@ -64,10 +72,12 @@
   const isHub = $derived(type === 'HUB');
 
   $effect(() => {
-    if (!isOpen || type !== 'HUB') return;
+    if (!isOpen || type !== 'HUB' || isPrivateOnly) return;
     return untrack(() => workspace.open());
   });
-  const isPrivacyOffered = $derived(isHub && workspace.workspace?.private_hubs_offered === true);
+  const isPrivateHubOnly = $derived(isHub && isPrivateOnly);
+  const isPrivacyOffered = $derived(isHub && !isPrivateOnly && workspace.workspace?.private_hubs_offered === true);
+  const title = $derived(t(isPrivateHubOnly ? 'app.workspace.create_private_hub' : isHub ? 'app.workspace.create_hub' : 'app.workspace.create_collection'));
 
   async function create() {
     if (name.trim() === '' || isSaving) return;
@@ -83,7 +93,7 @@
           parent_id: isHub ? null : parentId,
           name: name.trim(),
           description: description.trim() === '' ? null : description.trim(),
-          ...(isPrivacyOffered && isPrivate ? { private: true } : {}),
+          ...(isPrivateHubOnly || (isPrivacyOffered && isPrivate) ? { private: true } : {}),
         },
         crypto.randomUUID(),
       );
@@ -104,7 +114,7 @@
 
 <Dialog
   bind:isOpen
-  title={t(isHub ? 'app.workspace.create_hub' : 'app.workspace.create_collection')}
+  {title}
   dismissLabel={t('app.workspace.cancel')}
 >
   <Stack gap="150">
@@ -114,7 +124,9 @@
       error={isNameFailure ? failure?.message : undefined}
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
-    {#if isPrivacyOffered}
+    {#if isPrivateHubOnly}
+      <p class="private">{t('app.workspace.private_hint')}</p>
+    {:else if isPrivacyOffered}
       <Switch label={t('app.workspace.private')} hint={t('app.workspace.private_hint')} bind:checked={isPrivate} />
     {/if}
     <!-- Everything that is not about the name is a sentence above the buttons rather than a field
@@ -132,11 +144,12 @@
       disabledReason={name.trim() === '' ? t('app.workspace.name_required') : undefined}
       onclick={create}
     >
-      {t(isHub ? 'app.workspace.create_hub' : 'app.workspace.create_collection')}
+      {title}
     </Button>
   {/snippet}
 </Dialog>
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+  .private { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
 </style>

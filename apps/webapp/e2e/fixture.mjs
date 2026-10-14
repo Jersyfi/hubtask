@@ -90,6 +90,9 @@ export const MANIFEST = {
   // What the reader - the workspace's owner - holds on the workspace itself, as the server answers
   // a signed-in caller. A walk as another role answers `PERMISSIONS[role]` instead.
   workspace_permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'DELETE_CONTAINER', 'READ_CONFIGURATION', 'AUDIT_READ'],
+  // Whether this reader may create a private hub of their own: a person holding a role, where the
+  // workspace allows private hubs and holds more than one person - the fixture's workspace does.
+  private_hub_offered: true,
 };
 
 /**

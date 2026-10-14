@@ -8,8 +8,9 @@
 // visually-hidden label is in the tree and not on the screen, an overlay is placed by CSS anchor
 // positioning. What runs is `dist/`, served the way the binary serves it (serve.mjs).
 //
-// The API is stubbed at the network edge, once, with the two answers the frame needs to draw a
-// signed-in workspace - an account and one hub - and nothing else: the stream is refused, every
+// The API is stubbed at the network edge, once, with the three answers the frame needs to draw a
+// signed-in workspace - an account, one hub, and a manifest saying the account may shape the
+// workspace (so *Create hub* is drawn) - and nothing else: the stream is refused, every
 // other call answers an empty page. That is the least a workspace can be, and it is enough for a
 // dialog, a focus ring and a hidden label; deeper screens have walks of their own.
 //
@@ -63,6 +64,9 @@ async function stub(route) {
     return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   }
   if (url.pathname.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  if (url.pathname.endsWith('/api/v1/meta/capabilities')) {
+    return route.fulfill({ json: { ...EMPTY_PAGE, workspace_permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE'], private_hub_offered: true } });
+  }
   if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
     return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
   }

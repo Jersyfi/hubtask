@@ -294,3 +294,19 @@ export function reachesAdministration(manifest: Capabilities | undefined): boole
   if (structure === undefined) return undefined;
   return structure || holdsOnWorkspace(manifest, 'READ_CONFIGURATION') === true;
 }
+
+/**
+ * Which hub the reader may create from the workspace's own controls: a shared one with `STRUCTURE`
+ * on the workspace, otherwise a private one of their own where the manifest says creating it would
+ * succeed (`private_hub_offered`), otherwise none. `undefined` while the manifest has not answered
+ * for this reader - not yet known is not "no", and nothing is offered meanwhile.
+ *
+ * Two answers rather than one because they are two things to the server: a shared hub changes the
+ * workspace's shape, a private hub of one's own changes nobody else's.
+ */
+export function hubCreation(manifest: Capabilities | undefined): 'shared' | 'private' | 'none' | undefined {
+  const structure = holdsOnWorkspace(manifest, 'STRUCTURE');
+  if (structure === undefined) return undefined;
+  if (structure) return 'shared';
+  return manifest?.private_hub_offered === true ? 'private' : 'none';
+}

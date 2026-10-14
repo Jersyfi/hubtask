@@ -5,9 +5,9 @@ context: work
 actors: [PE-member, PE-guest, PE-child, PE-auditor, PE-agent]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-11, P-12]
-state: partial
+state: built
 tasks: [B-02, F2-07]
-checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/timeline.test.mjs]
+checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/createhub.test.mjs]
 ---
 
 # Work within what my role allows
@@ -56,7 +56,3 @@ not exist.
 * Giving somebody a role is [UC-WRK-21](./UC-WRK-21-share-a-hub-a-collection-or-one-entry.md).
 * A simpler view designed for children is not asked for here; a child uses the same screens with
   a narrower role.
-
-## Today
-
-* Check 4: not met in part — *Create hub* is offered without asking the role (UC-WRK-01 check 6), tracked in #1080.
