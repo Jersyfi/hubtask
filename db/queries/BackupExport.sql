@@ -31,11 +31,14 @@ FROM (
   LIMIT sqlc.arg('batch')::int;
 
 -- name: ExportAccounts :many
+-- ai_consent is left out too: nothing reads or writes it, the person's AI objection is the consent
+-- record, and an archive carrying an always-false "consent" would state one nobody gave
+-- (tenant-export.md §11). The column itself goes in a later contract migration (rule 12).
 SELECT s.record_id, s.changed_at, s.payload
 FROM (
   SELECT (a.id)::text AS record_id,
          a.updated_at AS changed_at,
-         (to_jsonb(a) - 'tenant_id')::jsonb AS payload,
+         (to_jsonb(a) - 'tenant_id' - 'ai_consent')::jsonb AS payload,
          a.id AS key_1
   FROM account a
 ) s

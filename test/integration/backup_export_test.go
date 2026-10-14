@@ -107,6 +107,28 @@ func TestAnExportedRowCarriesNoTenantIdentifier(t *testing.T) {
 	t.Fatal("the container was not exported")
 }
 
+// account.ai_consent is a column nothing reads or writes; the person's AI objection is the consent
+// record (data-protection.md §4.1). An archive that carried it would hand a receiver a "consent"
+// nobody gave, so the account record leaves without it (tenant-export.md §11).
+func TestAnExportedAccountCarriesNoAIConsentColumn(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+
+	for _, row := range exported(ctx, t, tenantA, 100, "account", time.Time{}) {
+		if row.ID != authorA.String() {
+			continue
+		}
+		if _, carries := row.Data["ai_consent"]; carries {
+			t.Fatalf("the account record carries ai_consent: %v", row.Data)
+		}
+		if row.Data["display_name"] == nil {
+			t.Fatalf("the row is not the row: %v", row.Data)
+		}
+		return
+	}
+	t.Fatal("the account was not exported")
+}
+
 // The period is what makes an incremental incremental.
 func TestADeltaExportAnswersOnlyWhatChangedAfterThePeriod(t *testing.T) {
 	ctx := context.Background()

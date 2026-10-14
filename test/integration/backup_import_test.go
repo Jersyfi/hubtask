@@ -942,7 +942,7 @@ func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 	tenant, restricted, active := restrictedTenant(ctx, t)
 	archived := func(id shared.ID) map[string]any {
 		return map[string]any{
-			"id": id.String(), "kind": "USER", "display_name": "From the archive", "status": "ACTIVE", "ai_consent": false,
+			"id": id.String(), "kind": "USER", "display_name": "From the archive", "status": "ACTIVE",
 			"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
 			"version": 1,
 		}
@@ -986,7 +986,7 @@ func TestARestoredManagedAccountKeepsItsNameAndItsStartPasswordMark(t *testing.T
 	tenant, _, account := restrictedTenant(ctx, t)
 	drawn := created.Add(time.Hour)
 	archived := map[string]any{
-		"id": account.String(), "kind": "USER", "display_name": "Lena", "status": "ACTIVE", "ai_consent": false,
+		"id": account.String(), "kind": "USER", "display_name": "Lena", "status": "ACTIVE",
 		"sign_in_name": "lena", "start_password_at": drawn.Format(time.RFC3339Nano),
 		"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
 		"version": 1,
@@ -1012,6 +1012,45 @@ func TestARestoredManagedAccountKeepsItsNameAndItsStartPasswordMark(t *testing.T
 	}
 	if marked == nil || !marked.Equal(drawn) {
 		t.Errorf("the start password's mark came back as %v, want %v", marked, drawn)
+	}
+}
+
+// An archive written before the account record lost ai_consent still carries it: the import accepts
+// it and takes nothing from it, so an old archive restores and the column holds nothing an archive
+// claimed (tenant-export.md §11).
+func TestAnArchivedAIConsentIsAcceptedAndIgnored(t *testing.T) {
+	ctx := context.Background()
+	tenant, _, account := restrictedTenant(ctx, t)
+	fresh := freshID(t)
+	archived := func(id shared.ID) map[string]any {
+		return map[string]any{
+			"id": id.String(), "kind": "USER", "display_name": "From an old archive", "status": "ACTIVE",
+			"ai_consent": true,
+			"created_at": created.Format(time.RFC3339Nano), "updated_at": created.Format(time.RFC3339Nano),
+			"version": 1,
+		}
+	}
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		for _, id := range []shared.ID{account, fresh} {
+			if _, err := importRepo().Write(ctx, "account", archived(id), true); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("restoring an old archive's accounts: %v", err)
+	}
+
+	for _, id := range []shared.ID{account, fresh} {
+		var consent bool
+		if err := adminPool(ctx, t).QueryRow(ctx,
+			`SELECT ai_consent FROM account WHERE tenant_id = $1 AND id = $2`,
+			tenant.String(), id.String()).Scan(&consent); err != nil {
+			t.Fatalf("reading account %s back: %v", id, err)
+		}
+		if consent {
+			t.Errorf("account %s took ai_consent from the archive", id)
+		}
 	}
 }
 
