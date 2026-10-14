@@ -189,7 +189,8 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 day — midnight in `tenant.default_time_zone`, which is when it renews (UC-AI-07 check 2) — from the
 billing ledger, whose two AI rows are dated by that day while every other metric keeps the UTC day.
 A zone changed mid-day takes effect from the next call. A workspace over a budget **stops getting
-answers from that source and keeps working** (`ai.unavailable`). `ai_tokens_per_day` limits the
+answers from that source and keeps working** (`ai.unavailable` with `reason` `budget_spent` and
+`renews_at`, the next midnight in its zone). `ai_tokens_per_day` limits the
 models the installation **offers**, with the installation's default and the operator's exception per
 workspace; a workspace's own model only by its optional `ai_own_tokens_per_day`, off by default,
 which the workspace's administrator sets (`PUT /ai-budget`) and no installation value reaches

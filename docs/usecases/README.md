@@ -288,7 +288,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
 | [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | verified |
 | [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | verified |
-| [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | partial |
+| [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | built |
 | [UC-SYN-01](./sync/UC-SYN-01-keep-working-when-the-connection-drops.md) | Keep working when the connection drops | sync | partial |
 | [UC-SYN-02](./sync/UC-SYN-02-edit-on-two-devices-without-losing-either-change.md) | Edit on two devices without losing either change | sync | built |
 | [UC-SYN-03](./sync/UC-SYN-03-see-and-forget-my-devices.md) | See and forget my devices | sync | built |
