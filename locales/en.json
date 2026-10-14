@@ -2499,6 +2499,8 @@
   "app.backup.target_host": "Host",
   "app.backup.target_user": "User",
   "app.backup.target_password": "Password",
+  "app.backup.target_host_key": "Host key",
+  "app.backup.target_host_key_hint": "The server's public key as ssh-keyscan prints it, or its SHA256 fingerprint. Required: a server nobody named is never trusted.",
   "app.backup.credentials_write_only": "Credentials are stored sealed and are never answered back. To change one, type it again.",
   "app.backup.test": "Test the connection",
   "app.backup.testing": "Testing",

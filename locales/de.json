@@ -985,6 +985,8 @@
   "app.backup.target_host": "Host",
   "app.backup.target_user": "Benutzer",
   "app.backup.target_password": "Passwort",
+  "app.backup.target_host_key": "Host-Schlüssel",
+  "app.backup.target_host_key_hint": "Der öffentliche Schlüssel des Servers, wie ssh-keyscan ihn ausgibt, oder sein SHA256-Fingerabdruck. Pflicht: Einem Server, den niemand benannt hat, wird nie vertraut.",
   "app.backup.credentials_write_only": "Zugangsdaten werden versiegelt gespeichert und nie zurückgegeben. Um eines zu ändern, tippe es noch einmal ein.",
   "app.backup.test": "Verbindung testen",
   "app.backup.testing": "Wird getestet",
