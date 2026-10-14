@@ -308,9 +308,9 @@ func atoi(text string) (int, error) {
 	return value, nil
 }
 
-// evaluationError separates the two ways an evaluation stops early, because they mean different
-// things to whoever reads the run log: one is an expression that costs too much and the other is a
-// process that was too slow.
+// evaluationError separates the ways an evaluation stops early, because they mean different things
+// to whoever reads the run log: an expression that costs too much, a process that was too slow, a
+// caller that went away, and an expression that failed on the values it was given.
 func evaluationError(ctx context.Context, err error) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return shared.ErrUnavailable.
@@ -318,15 +318,55 @@ func evaluationError(ctx context.Context, err error) error {
 			WithParams(map[string]string{"timeout_ms": itoa(int(port.Timeout / time.Millisecond))}).
 			WithCause(err)
 	}
-	if strings.Contains(err.Error(), "cost limit exceeded") ||
-		strings.Contains(err.Error(), "operation cancelled: actual cost limit exceeded") {
+	var cancelled interpreter.EvalCancelledError
+	if errors.As(err, &cancelled) && cancelled.Cause == interpreter.CostLimitExceeded {
 		return shared.ErrUnavailable.
 			WithDetail(port.CodeTooExpensive).
 			WithCause(err)
 	}
-	return shared.ErrUnavailable.
-		WithDetail(port.CodeTimedOut).
-		WithCause(err)
+	if ctx.Err() != nil {
+		// The caller cancelled: nobody is waiting for an answer, and the expression is not what
+		// went wrong.
+		return fmt.Errorf("evaluating an expression: %w", ctx.Err())
+	}
+	// Validation rather than unavailable: the same expression on the same values fails the same
+	// way, so another attempt is no remedy. The cause is the kind alone - CEL's own text can quote
+	// a key or a value from the data (rule 10).
+	kind := failureOf(err)
+	return shared.ErrValidation.
+		WithDetail(port.CodeEvaluationFailed).
+		WithParams(map[string]string{"kind": string(kind)}).
+		WithCause(errors.New("expression evaluation failed: " + string(kind)))
+}
+
+// failureOf names a runtime error from CEL's message, which is the only place the library says
+// what went wrong. A prefix the library rewords reads as `other`; the table test in CEL_test.go
+// holds every kind to a real expression so that a library update which rewords one fails there.
+func failureOf(err error) port.Failure {
+	message := err.Error()
+	for _, each := range []struct {
+		prefix string
+		kind   port.Failure
+	}{
+		{"division by zero", port.FailureDivisionByZero},
+		{"modulus by zero", port.FailureModulusByZero},
+		{"integer overflow", port.FailureOverflow},
+		{"unsigned integer overflow", port.FailureOverflow},
+		{"duration overflow", port.FailureOverflow},
+		{"timestamp overflow", port.FailureOverflow},
+		{"no such key", port.FailureNoSuchKey},
+		{"no such attribute", port.FailureNoSuchKey},
+		{"no such overload", port.FailureNoSuchOverload},
+		{"type conversion error", port.FailureConversion},
+		{"unsupported conversion", port.FailureConversion},
+		{"index out of bounds", port.FailureIndexOutOfRange},
+		{"index '", port.FailureIndexOutOfRange},
+	} {
+		if strings.HasPrefix(message, each.prefix) {
+			return each.kind
+		}
+	}
+	return port.FailureOther
 }
 
 // wrongResult names the code for a value that is neither of the two shapes an expression may have.

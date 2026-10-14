@@ -200,6 +200,10 @@ const (
 	CodeTooExpensive = "expression.too_expensive"
 	// CodeTimedOut is an evaluation that exceeded the timeout.
 	CodeTimedOut = "expression.timed_out"
+	// CodeEvaluationFailed is an evaluation the expression itself stopped - a division by zero, a
+	// key the value does not have, a conversion that cannot be made. It carries `kind`, one of the
+	// Failure values, and never the engine's words: those can quote the data (rule 10).
+	CodeEvaluationFailed = "expression.evaluation_failed"
 	// CodeUnavailable is a name the environment declared and the activation could not produce.
 	CodeUnavailable = "expression.value_unavailable"
 )
@@ -227,3 +231,18 @@ func itoa(n int) string {
 	}
 	return string(digits)
 }
+
+// Failure is the `kind` parameter of CodeEvaluationFailed: a closed list, so that what reaches a
+// log or a client is a word this system chose and not text the evaluator built from the data.
+type Failure string
+
+const (
+	FailureDivisionByZero  Failure = "division_by_zero"
+	FailureModulusByZero   Failure = "modulus_by_zero"
+	FailureOverflow        Failure = "overflow"
+	FailureNoSuchKey       Failure = "no_such_key"
+	FailureNoSuchOverload  Failure = "no_such_overload"
+	FailureConversion      Failure = "conversion"
+	FailureIndexOutOfRange Failure = "index_out_of_range"
+	FailureOther           Failure = "other"
+)
