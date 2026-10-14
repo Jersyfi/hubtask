@@ -12,8 +12,10 @@
 
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
   import Composer from './Composer.svelte';
+  import { goneAt } from './findings.ts';
   import { isRung, listAt, parentOf, pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
   import type { Selection } from './selection.ts';
+  import type { RuleFinding } from '../data/rules.svelte.ts';
   import { eventGroups, kindWord } from './words.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -38,6 +40,8 @@
     errors: ReadonlyMap<string, string>;
     /** What the check or the draft's own review says at a card, by card (`run_as`, `trigger`, a step path). */
     marks?: ReadonlyMap<string, string>;
+    /** What the check found, by pointer: a step's form marks a reference that names nothing any more. */
+    findings?: readonly RuleFinding[];
     onupdate: (change: (draft: Draft) => Draft) => void;
     onremovestep: (path: string) => void;
     onremovecondition: (index: number) => void;
@@ -62,6 +66,7 @@
     itemTypes,
     errors,
     marks,
+    findings = [],
     onupdate,
     onremovestep,
     onremovecondition,
@@ -404,6 +409,7 @@
         params={step.params}
         {pickers}
         errors={errorsAt(path)}
+        gone={goneAt(words, findings, pointerOf(path, 'params/'))}
         onchange={(params) => onupdate((current) => ({ ...current, actions: replaceAt(current.actions, path, { ...step, params }) }))}
       />
     {/if}

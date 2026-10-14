@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -120,11 +121,14 @@ func (w WorkspaceWriter) applyPolicy(
 		patch.RotationFrom = &moment
 	}
 
-	if _, moved, err := resolved.Effective.Tightened(resolved.Installation, patch); err != nil {
+	moved, err := tightenedMethods(resolved, &patch)
+	if err != nil {
 		return domain.Workspace{}, nil, err
-	} else if err := w.keepsAWayIn(ctx, stored, patch); err != nil {
+	}
+	if err := w.keepsAWayIn(ctx, stored, patch); err != nil {
 		return domain.Workspace{}, nil, err
-	} else if len(moved) > 0 || change.RotateNow {
+	}
+	if len(moved) > 0 || change.RotateNow {
 		changed := stored
 		changed.Settings.SignIn = stored.Settings.SignIn.Merge(patch)
 		// `require_admin_totp` is what `mfa_required_for` derives from, and it is written back so
@@ -151,6 +155,25 @@ func (w WorkspaceWriter) applyPolicy(
 	changed := stored
 	changed.Settings.Legal = links
 	return changed, legalMoved, nil
+}
+
+// tightenedMethods holds the patch to the level above (EffectivePolicy.Tightened) and answers what
+// moved, dropping `methods` from the patch when it did not move. A client that sends the whole
+// settings object resends the methods in force; judged by the last-way-in guard, that unchanged
+// value refused every other change while the installation locks `[OIDC]` with no provider on, and
+// merged into the workspace's own row it would pin the level above's methods here, to take effect
+// with no guard once that level lifts its lock or changes them.
+func tightenedMethods(resolved ResolvedPolicy, patch *domain.PolicyPatch) ([]domain.FieldChange, error) {
+	_, moved, err := resolved.Effective.Tightened(resolved.Installation, *patch)
+	if err != nil {
+		return nil, err
+	}
+	if patch.Methods != nil && !slices.ContainsFunc(moved, func(change domain.FieldChange) bool {
+		return change.Field == string(domain.SwitchMethods)
+	}) {
+		patch.Methods = nil
+	}
+	return moved, nil
 }
 
 // keepsAWayIn refuses switching the password off where no provider is on here: a workspace nobody

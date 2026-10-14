@@ -43,8 +43,8 @@ func hubsOf(ctx context.Context, t *testing.T, tenant shared.ID, ids ...shared.I
 	return hubs
 }
 
-// A hub answers itself, a collection its hub, an entry its collection's hub: the authoriser
-// completes a path from this, so a role on the hub counts below it.
+// A hub answers itself, a collection its hub, an entry its collection's hub and its collection: the
+// authoriser completes a path from this, so a role on the hub or the collection counts below it.
 func TestTheHubOfAContainerAndAnEntryIsFound(t *testing.T) {
 	ctx := context.Background()
 	hub, collection, item := hubCollectionAndEntry(ctx, t, tenantA, authorA)
@@ -53,6 +53,14 @@ func TestTheHubOfAContainerAndAnEntryIsFound(t *testing.T) {
 	for _, id := range []shared.ID{hub, collection, item} {
 		if hubs[id].ID != hub {
 			t.Errorf("%s sits under %q, want the hub %s", id, hubs[id].ID, hub)
+		}
+	}
+	if hubs[item].Collection != collection {
+		t.Errorf("the entry sits in %q, want the collection %s", hubs[item].Collection, collection)
+	}
+	for _, id := range []shared.ID{hub, collection} {
+		if !hubs[id].Collection.IsZero() {
+			t.Errorf("the container %s answered a collection %s", id, hubs[id].Collection)
 		}
 	}
 	if len(hubs) != 3 {

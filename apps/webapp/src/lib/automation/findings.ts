@@ -11,6 +11,9 @@ import type { RuleFinding } from '../data/rules.svelte.ts';
 import { pathOf } from './model.ts';
 import type { Catalogue } from './words.ts';
 
+/** The check's code for an identifier that names nothing any more (automation.md §2.3). */
+const REFERENCE_GONE = 'automation.finding.reference_gone';
+
 /** The card a finding is about: `trigger`, `run_as`, `conditions/1`, or a step's path. */
 export function cardOf(pointer: string): string | undefined {
   if (pointer.startsWith('/trigger')) return 'trigger';
@@ -33,6 +36,21 @@ export function marksOf(words: Catalogue, findings: readonly RuleFinding[]): Map
     if (card && !marks.has(card)) marks.set(card, findingWords(words, finding));
   }
   return marks;
+}
+
+/**
+ * The parameters of one step whose reference the check found gone, by field name, with the
+ * finding's sentence: what the step's form marks, so that a deleted label or template reads as
+ * gone rather than as the identifier it was (P-08).
+ */
+export function goneAt(words: Catalogue, findings: readonly RuleFinding[], paramsPointer: string): Map<string, string> {
+  const gone = new Map<string, string>();
+  for (const finding of findings) {
+    if (finding.code !== REFERENCE_GONE || !finding.path.startsWith(paramsPointer)) continue;
+    const field = finding.path.slice(paramsPointer.length);
+    if (field !== '' && !field.includes('/') && !gone.has(field)) gone.set(field, findingWords(words, finding));
+  }
+  return gone;
 }
 
 /** The health of a rule as the list sees it: from its findings and its switch alone, without a page of runs per card. */

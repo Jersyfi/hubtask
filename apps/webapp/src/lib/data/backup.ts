@@ -155,3 +155,31 @@ export function generations(retention: Retention | undefined): readonly Generati
   ];
   return lines.filter((line) => line.keep > 0);
 }
+
+/** What the SFTP target form holds, as typed. */
+export interface SftpDraft {
+  readonly host: string;
+  readonly path: string;
+  readonly username: string;
+  readonly hostKey: string;
+  readonly password: string;
+}
+
+/**
+ * An SFTP target as the server reads it: who connects and which server it trusts are
+ * configuration, and only the password is a credential.
+ *
+ * The host key is required - the server trusts no key on first use - and is accepted in either
+ * spelling an operator has to hand: the whole public key as `ssh-keyscan` prints it, or its
+ * `SHA256:` fingerprint as `ssh-keygen -lf` prints it. Each goes in its own key.
+ */
+export function sftpTarget(draft: SftpDraft): { config: Record<string, string>; credentials?: Record<string, string> } {
+  const hostKey = draft.hostKey.trim();
+  const config: Record<string, string> = {
+    host: draft.host.trim(),
+    path: draft.path.trim(),
+    ...(draft.username.trim() ? { username: draft.username.trim() } : {}),
+    ...(hostKey === '' ? {} : hostKey.startsWith('SHA256:') ? { host_key_fingerprint: hostKey } : { host_key: hostKey }),
+  };
+  return draft.password ? { config, credentials: { password: draft.password } } : { config };
+}

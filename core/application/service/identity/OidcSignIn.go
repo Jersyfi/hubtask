@@ -1276,6 +1276,7 @@ func (w OidcWriter) challengeLink(
 		if err := w.Session.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
 		}
+		w.Session.stepOwed(ctx, credential.Purpose)
 		challenge = SignInChallenge{
 			Token:        secret.New(presented.Secret()),
 			ExpiresAt:    credential.ExpiresAt,

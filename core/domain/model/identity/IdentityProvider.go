@@ -673,7 +673,10 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 		return arriving.AddressAuthoritative &&
 			(len(p.AllowedDirectories) == 0 || containsFold(p.AllowedDirectories, arriving.Directory))
 	case ProvisionAny:
-		return true
+		// A shared endpoint stands for every directory at the provider, so its list is the bound
+		// here as under DOMAINS (identity.md §10.3), and a row stored without one admits nobody.
+		// One directory's own issuer is bounded by the issuer itself.
+		return !p.sharedEndpoint() || p.admitsDirectoryOf(arriving)
 	case ProvisionDomains:
 		return p.admitsDirectoryOf(arriving)
 	default:
@@ -687,15 +690,14 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 // only with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
 // flow, for the one invited account it names, or an existing account's own proof at the LINK step.
 //
-// Everything `MayAdmit` admits, and under `INVITED_ONLY` and `DOMAINS` one more: an address the
+// Everything `MayAdmit` admits, and in every mode it knows one more: an address the
 // provider verified but would not admit on its own word - not authoritative for it, or outside the
 // directory or domain list. Authority and the list decide who comes in *new*, on the provider's
 // word alone - a new account, an invitation activated without its link. An existing account that
 // brings its own proof - its password at the LINK step, its mailbox through the connect link, an
 // invitation's link - is not coming in new: it is a member connecting a provider, with the
 // provider's verified address equal to its own (the caller checks that), and nothing is created
-// through this (identity.md §10.4). `ANY` admits every verified address already, and a mode this
-// build does not know admits nobody.
+// through this (identity.md §10.4). A mode this build does not know admits nobody.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
@@ -740,6 +742,14 @@ func (p IdentityProvider) admitsDirectoryOf(arriving Arriving) bool {
 		return arriving.Directory != "" && containsFold(p.AllowedDirectories, arriving.Directory)
 	}
 	return p.linksDomain(arriving.Email)
+}
+
+// sharedEndpoint reports whether this row's issuer is a shared endpoint of a preset with a templated
+// issuer - Microsoft's `/organizations` or `/common` - rather than one directory's own: the rows
+// configuration refuses without a directory list (identity_provider.directories_required).
+func (p IdentityProvider) sharedEndpoint() bool {
+	preset, known := PresetOf(p.Kind)
+	return known && preset.SupportsTemplatedIssuer && multiDirectoryIssuer(p.Issuer)
 }
 
 // containsFold is the comparison both lists use: a directory identifier is a GUID or a host, and

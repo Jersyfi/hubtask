@@ -9495,6 +9495,9 @@ type TrashEntry struct {
 	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
 
+	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold keeps it: the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
+	PurgeAfter time.Time `json:"purge_after"`
+
 	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
 	Subtype string `json:"subtype"`
 

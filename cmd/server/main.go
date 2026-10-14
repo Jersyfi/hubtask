@@ -1929,7 +1929,10 @@ func run() error {
 		work.UnarchiveWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.TrashWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
 		work.RestoreWorkItem{Lifecycle: itemLifecycle}.Descriptor(),
-		work.ListTrash{Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListTrash{
+			Trash: trash, Reader: authorizer, UnitOfWork: unitOfWork,
+			Policies: lifecycleStore, TombstoneWindow: cfg.Retention.TombstoneWindow,
+		}.Descriptor(),
 		lifecycle.PurgeWorkItem{
 			Items: items, Containers: containers, Purger: purger,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
