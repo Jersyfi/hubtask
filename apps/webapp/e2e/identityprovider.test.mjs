@@ -200,3 +200,42 @@ test('chromium: choosing Google fills its issuer in a workspace too', async (t) 
   await kind.selectOption('GENERIC');
   assert.equal(await issuer.inputValue(), '');
 });
+
+// #1432: a shared Microsoft endpoint is saved only with its directories (identity.md §10.3), so
+// under *Anyone this provider knows* the form asks for them there and sends them; a directory's own
+// issuer under the same mode asks for none, and a list typed under another mode is not sent unseen.
+test('chromium: a shared endpoint under Anyone asks for the directories and sends them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await open(browser, 'en');
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByRole('button', { name: 'Add a provider' }).click();
+  const form = page.locator('form.panel');
+  await form.getByLabel('Which provider').selectOption('MICROSOFT');
+  const admission = form.getByRole('combobox').nth(1);
+  const directories = form.getByLabel(/^Microsoft directories that may sign in/);
+  const issuer = form.getByLabel(/^Issuer/);
+
+  // A list typed by organisation, then a directory's own issuer under Anyone: no field, nothing sent.
+  await admission.selectOption('DOMAINS');
+  await directories.fill('0f1e2d3c-4b5a-4968-8776-655443322110');
+  await issuer.fill('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0');
+  await admission.selectOption('ANY');
+  assert.equal(await directories.count(), 0, 'a directory list is drawn where the server does not read it');
+
+  // The shared endpoint: the field is back, required, and its list is sent.
+  await issuer.fill('https://login.microsoftonline.com/organizations/v2.0');
+  await directories.waitFor();
+  assert.match(await form.innerText(), /stands for every organisation at the provider/);
+  await directories.fill('72f988bf-86f1-41af-91ab-2d7cd011db47');
+  await form.getByLabel(/^Client id/).fill('hubtask');
+  await form.getByLabel(/^Client secret/).fill('s3cr3t');
+  await form.getByRole('button', { name: 'Save the provider' }).click();
+  await form.waitFor({ state: 'detached' });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].provisioning, 'ANY');
+  assert.deepEqual(sent[0].allowed_directories, ['72f988bf-86f1-41af-91ab-2d7cd011db47']);
+  assert.deepEqual(sent[0].allowed_email_domains, []);
+});

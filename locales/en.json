@@ -2730,6 +2730,7 @@
   "app.identity_provider.newcomers_nothing": "No access until an administrator gives it",
   "app.identity_provider.newcomers_role": "The role {role} on the whole workspace",
   "app.identity_provider.newcomers_group": "Membership of the group {group}",
+  "app.identity_provider.directories_shared_hint": "Required: this address stands for every organisation at the provider, so only people from the directories named here may sign in through it.",
   "app.identity_provider.directories_narrow_hint": "Optional. One per line: only invited people from these may sign in through this provider. Left empty, every invited person may.",
   "app.identity_provider.redirect_label": "Redirect address",
   "app.identity_provider.redirect_hint": "Enter it at the provider exactly as shown.",

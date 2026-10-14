@@ -1207,6 +1207,7 @@
   "app.identity_provider.newcomers_nothing": "Keinen Zugang, bis eine Administratorin oder ein Administrator ihn gibt",
   "app.identity_provider.newcomers_role": "Die Rolle {role} für den ganzen Arbeitsbereich",
   "app.identity_provider.newcomers_group": "Mitgliedschaft in der Gruppe {group}",
+  "app.identity_provider.directories_shared_hint": "Pflicht: Diese Adresse steht für jede Organisation beim Anbieter, darum dürfen sich nur Personen aus den hier genannten Verzeichnissen über sie anmelden.",
   "app.identity_provider.directories_narrow_hint": "Optional. Eine je Zeile: Nur Eingeladene von hier dürfen sich über diesen Anbieter anmelden. Leer gelassen dürfen es alle Eingeladenen.",
   "app.identity_provider.redirect_label": "Weiterleitungsadresse",
   "app.identity_provider.redirect_hint": "Trage sie beim Anbieter genau so ein, wie sie hier steht.",
