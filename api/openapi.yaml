@@ -11210,7 +11210,7 @@ components:
         What follows from which provider a workspace picked: the scopes its registration has to
         permit, whether it may sign in people nobody invited, the one thing about it that is not
         like the others, and the instructions for registering with it.
-      required: [kind, scopes, addresses_verified, public, provisioning, installation_provisioning, redirect_uri, instructions, supports_templated_issuer]
+      required: [kind, scopes, addresses_verified, public, provisioning, installation_provisioning, redirect_uri, instructions, supports_templated_issuer, shared_issuer_paths]
       properties:
         kind: { $ref: "#/components/schemas/IdentityProviderKind" }
         issuer:
@@ -11282,6 +11282,14 @@ components:
             Whether this provider publishes a multi-directory issuer with a `{tenantid}`
             placeholder. Where it does, its shared endpoints can be configured, and naming the
             directories is then required rather than optional.
+        shared_issuer_paths:
+          type: array
+          items: { type: string }
+          description: >
+            The first path segments that make an issuer of this provider a shared endpoint, such as
+            `organizations` in `https://login.microsoftonline.com/organizations/v2.0`. An issuer
+            whose first path segment is one of them is saved only with `allowed_directories`
+            named, in every provisioning mode. Empty where `supports_templated_issuer` is false.
 
     InstanceReach:
       type: object

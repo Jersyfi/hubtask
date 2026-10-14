@@ -35,7 +35,7 @@
   import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderPreset } from '@hubtask/sync-engine';
 
-  import { issuerAfterChoosing } from '../lib/signin/issuer.ts';
+  import { admissionLists, isSharedIssuer, issuerAfterChoosing } from '../lib/signin/issuer.ts';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -132,6 +132,8 @@
    * server's list rather than a rule repeated here, so the two cannot disagree.
    */
   const modes = $derived(preset === undefined ? [] : preset.installation_provisioning);
+  /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
+  const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
   /** Whether the installation's level narrows this preset to the invited, which the form says. */
   const narrowedToInvited = $derived(
     preset !== undefined && modes.length === 1 && preset.provisioning.length > 1,
@@ -253,8 +255,9 @@
       ...(displayName.trim() === '' ? {} : { display_name: displayName.trim() }),
       kind: kind as IdentityProvider['kind'],
       provisioning: provisioning as IdentityProvider['provisioning'],
-      allowed_email_domains: split(domains),
-      allowed_directories: split(directories),
+      // Only the list drawn: one typed under another mode and hidden since is not saved unseen.
+      allowed_email_domains: lists.domains ? split(domains) : [],
+      allowed_directories: lists.directories ? split(directories) : [],
       position: Number(position) || 0,
       enabled: isEnabled,
     };
@@ -426,35 +429,30 @@
       options={modes.map((mode) => ({ value: mode, label: admissionLabel(mode) }))}
     />
 
-    {#if provisioning === 'INVITED_ONLY' && preset?.directory_claim}
-      <!-- Optional here: a list narrows who of the invited may come in (ADR-0071 §4). -->
+    <!-- The list the server will read, and only that one (ADR-0071 §2): under INVITED_ONLY a
+         narrowing, on a shared endpoint required in every mode, ANY included. -->
+    {#if lists.directories && preset?.directory_claim}
       <Input
         label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-        hint={t('app.identity_provider.directories_narrow_hint')}
+        hint={isSharedIssuer(preset, issuer)
+          ? t('app.identity_provider.directories_shared_hint')
+          : lists.required
+            ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
+            : t('app.identity_provider.directories_narrow_hint')}
         bind:value={directories}
         autocomplete="off"
         spellcheck={false}
+        isRequired={lists.required}
       />
     {/if}
-    {#if provisioning === 'DOMAINS'}
-      <!-- The list the server will read, and only that one (ADR-0071 §2). -->
-      {#if preset?.directory_claim}
-        <Input
-          label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-          hint={t(`app.identity_provider.directories_hint_${preset.directory_claim}`)}
-          bind:value={directories}
-          autocomplete="off"
-          spellcheck={false}
-        />
-      {:else}
-        <Input
-          label={t('app.instance.provider_domains_label')}
-          hint={t('app.instance.provider_domains_hint')}
-          bind:value={domains}
-          autocomplete="off"
-          spellcheck={false}
-        />
-      {/if}
+    {#if lists.domains}
+      <Input
+        label={t('app.instance.provider_domains_label')}
+        hint={t('app.instance.provider_domains_hint')}
+        bind:value={domains}
+        autocomplete="off"
+        spellcheck={false}
+      />
     {/if}
     {#if preset?.supports_templated_issuer}
       <!-- The platform case, said where the issuer is typed: one registration at the provider

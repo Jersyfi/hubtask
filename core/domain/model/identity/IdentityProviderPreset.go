@@ -226,6 +226,21 @@ func PresetOf(kind ProviderKind) (ProviderPreset, bool) {
 // who was invited, since a personal account is never admitted new (PersonalIssuerPaths).
 var microsoftMultiDirectorySegments = []string{"/common", "/organizations"}
 
+// SharedIssuerPaths answers the first path segments that make an issuer of this preset a shared
+// endpoint - one the configuration refuses without a directory list - spelled as
+// PersonalIssuerPaths are, without the slash. Empty for a preset without a templated issuer. A
+// form reads it to ask for the list where the server requires it, rather than keeping a copy.
+func (p ProviderPreset) SharedIssuerPaths() []string {
+	if !p.SupportsTemplatedIssuer {
+		return []string{}
+	}
+	paths := make([]string, 0, len(microsoftMultiDirectorySegments))
+	for _, segment := range microsoftMultiDirectorySegments {
+		paths = append(paths, strings.TrimPrefix(segment, "/"))
+	}
+	return paths
+}
+
 // ParseProviderKind reads a kind and refuses what is not one.
 func ParseProviderKind(raw string) (ProviderKind, error) {
 	kind := ProviderKind(strings.ToUpper(strings.TrimSpace(raw)))

@@ -14903,7 +14903,8 @@
           "installation_provisioning",
           "redirect_uri",
           "instructions",
-          "supports_templated_issuer"
+          "supports_templated_issuer",
+          "shared_issuer_paths"
         ],
         "properties": {
           "kind": {
@@ -14973,6 +14974,13 @@
           "supports_templated_issuer": {
             "type": "boolean",
             "description": "Whether this provider publishes a multi-directory issuer with a `{tenantid}` placeholder. Where it does, its shared endpoints can be configured, and naming the directories is then required rather than optional.\n"
+          },
+          "shared_issuer_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The first path segments that make an issuer of this provider a shared endpoint, such as `organizations` in `https://login.microsoftonline.com/organizations/v2.0`. An issuer whose first path segment is one of them is saved only with `allowed_directories` named, in every provisioning mode. Empty where `supports_templated_issuer` is false.\n"
           }
         }
       },

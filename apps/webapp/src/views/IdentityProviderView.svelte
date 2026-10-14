@@ -39,7 +39,7 @@
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
-  import { issuerAfterChoosing } from '../lib/signin/issuer.ts';
+  import { admissionLists, isSharedIssuer, issuerAfterChoosing } from '../lib/signin/issuer.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -99,6 +99,8 @@
 
   /** The preset of whichever kind the form is set to, where the presets have been read. */
   const preset = $derived(identityProvider.presetOf(kind as IdentityProvider['kind']));
+  /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
+  const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
 
   const kindOptions = $derived(
     identityProvider.presets.map((one) => ({
@@ -198,8 +200,9 @@
       // No `enabled`: the field is deprecated, and the list of ways to sign in is the one place a
       // way in is turned on or off (UC-ID-11 check 8, ADR-0076 §5). A new provider is created off -
       // configuring is not offering - and a replaced one keeps its switch.
-      allowed_email_domains: readDomains(domains),
-      allowed_directories: readDomains(directories),
+      // Only the list drawn: one typed under another mode and hidden since is not saved unseen.
+      allowed_email_domains: lists.domains ? readDomains(domains) : [],
+      allowed_directories: lists.directories ? readDomains(directories) : [],
     };
     // Sent only where somebody new arrives: the server refuses a newcomer setting under a mode that
     // creates nobody, and the configuration is set whole, so leaving it out is "nothing".
@@ -464,39 +467,33 @@
               options={provisioningOptions}
               bind:value={provisioning}
             />
-            {#if provisioning === 'INVITED_ONLY' && preset?.directory_claim}
-              <!-- Optional here: a list narrows who of the invited may come in (ADR-0071 §4), and an
-                   empty one narrows nothing. -->
+            <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which it
+                 is comes from the preset's `directory_claim`: a provider that names organisations
+                 is admitted on the organisation, and one that does not has nothing but the
+                 address's domain. Under INVITED_ONLY a list only narrows; on a shared endpoint it
+                 is required in every mode, ANY included. -->
+            {#if lists.directories && preset?.directory_claim}
               <Textarea
                 label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-                hint={t('app.identity_provider.directories_narrow_hint')}
+                hint={isSharedIssuer(preset, issuer)
+                  ? t('app.identity_provider.directories_shared_hint')
+                  : lists.required
+                    ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
+                    : t('app.identity_provider.directories_narrow_hint')}
                 bind:value={directories}
                 rows={3}
                 spellcheck={false}
+                isRequired={lists.required}
               />
             {/if}
-            {#if provisioning === 'DOMAINS'}
-              <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which
-                   it is comes from the preset's `directory_claim`: a provider that names
-                   organisations is admitted on the organisation, and one that does not has nothing
-                   but the address's domain. Drawing both would draw one that is ignored. -->
-              {#if preset?.directory_claim}
-                <Textarea
-                  label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-                  hint={t(`app.identity_provider.directories_hint_${preset.directory_claim}`)}
-                  bind:value={directories}
-                  rows={3}
-                  spellcheck={false}
-                />
-              {:else}
-                <Textarea
-                  label={t('app.identity_provider.domains_label')}
-                  hint={t('app.identity_provider.domains_hint')}
-                  bind:value={domains}
-                  rows={3}
-                  spellcheck={false}
-                />
-              {/if}
+            {#if lists.domains}
+              <Textarea
+                label={t('app.identity_provider.domains_label')}
+                hint={t('app.identity_provider.domains_hint')}
+                bind:value={domains}
+                rows={3}
+                spellcheck={false}
+              />
             {/if}
             {#if createsAccounts}
               <Select

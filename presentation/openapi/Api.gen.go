@@ -6441,6 +6441,9 @@ type IdentityProviderPreset struct {
 	// Scopes What the authorization request asks for, and what the registration must permit.
 	Scopes []string `json:"scopes"`
 
+	// SharedIssuerPaths The first path segments that make an issuer of this provider a shared endpoint, such as `organizations` in `https://login.microsoftonline.com/organizations/v2.0`. An issuer whose first path segment is one of them is saved only with `allowed_directories` named, in every provisioning mode. Empty where `supports_templated_issuer` is false.
+	SharedIssuerPaths []string `json:"shared_issuer_paths"`
+
 	// SupportsTemplatedIssuer Whether this provider publishes a multi-directory issuer with a `{tenantid}` placeholder. Where it does, its shared endpoints can be configured, and naming the directories is then required rather than optional.
 	SupportsTemplatedIssuer bool `json:"supports_templated_issuer"`
 }

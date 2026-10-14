@@ -88,6 +88,20 @@ func TestAPresetAnswersTheModesOfBothLevels(t *testing.T) {
 	}
 }
 
+// A form asks for the directory list wherever the server requires it: the shared issuer paths
+// travel to the response, and a preset with none answers an empty list rather than null.
+func TestAPresetAnswersItsSharedIssuerPaths(t *testing.T) {
+	microsoft := identityProviderPresetResponse(usecase.Output{
+		"kind": "MICROSOFT", "shared_issuer_paths": []any{"common", "organizations"},
+	})
+	if len(microsoft.SharedIssuerPaths) != 2 || microsoft.SharedIssuerPaths[1] != "organizations" {
+		t.Errorf("shared_issuer_paths = %v", microsoft.SharedIssuerPaths)
+	}
+	if generic := identityProviderPresetResponse(usecase.Output{"kind": "GENERIC"}); generic.SharedIssuerPaths == nil {
+		t.Error("a preset without shared issuers answered null")
+	}
+}
+
 func TestAPresetAnswersItsOneIssuerAndOnlyThen(t *testing.T) {
 	google := identityProviderPresetResponse(usecase.Output{"kind": "GOOGLE", "issuer": "https://accounts.google.com"})
 	if google.Issuer == nil || *google.Issuer != "https://accounts.google.com" {

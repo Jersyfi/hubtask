@@ -682,6 +682,15 @@ const (
 
 // presetOutput is a preset as a screen needs it, with the instructions already carrying this
 // installation's own callback - the one value every registration form at every provider asks for.
+func sharedPathsOutput(preset domain.ProviderPreset) []any {
+	paths := preset.SharedIssuerPaths()
+	out := make([]any, 0, len(paths))
+	for _, path := range paths {
+		out = append(out, path)
+	}
+	return out
+}
+
 func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Output {
 	scopes := make([]any, 0, len(preset.Scopes))
 	for _, scope := range preset.Scopes {
@@ -701,6 +710,8 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 		// What a screen needs to ask for the list the server will actually read (ADR-0071 §2),
 		// rather than the one that would be ignored.
 		"supports_templated_issuer": preset.SupportsTemplatedIssuer,
+		// Which issuers need the directory list in every mode, from the list the refusal reads.
+		"shared_issuer_paths": sharedPathsOutput(preset),
 	}
 	if preset.DirectoryClaim != "" {
 		out["directory_claim"] = preset.DirectoryClaim
