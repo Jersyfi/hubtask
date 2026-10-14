@@ -913,6 +913,8 @@
             <TimelineView
               collectionId={container.id}
               {query}
+              {isReadOnly}
+              changeRefusal={changeRefusalOf}
               onopen={(itemId) => onnavigate(`/items/${itemId}`)}
             />
           {:else if layout === 'KANBAN'}
