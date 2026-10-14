@@ -120,3 +120,17 @@ func TestAPresetAnswersItsOneIssuerAndOnlyThen(t *testing.T) {
 		t.Errorf("a preset without one issuer answered %q", *generic.Issuer)
 	}
 }
+
+// The personal directories travel to the response, and a preset with none answers an empty list
+// rather than null.
+func TestAPresetAnswersItsPersonalDirectories(t *testing.T) {
+	microsoft := identityProviderPresetResponse(usecase.Output{
+		"kind": "MICROSOFT", "personal_directories": []any{"9188040d-6c67-4c5b-b112-36a304b66dad"},
+	})
+	if len(microsoft.PersonalDirectories) != 1 || microsoft.PersonalDirectories[0] != "9188040d-6c67-4c5b-b112-36a304b66dad" {
+		t.Errorf("personal_directories = %v", microsoft.PersonalDirectories)
+	}
+	if generic := identityProviderPresetResponse(usecase.Output{"kind": "GENERIC"}); generic.PersonalDirectories == nil {
+		t.Error("a preset without personal directories answered null")
+	}
+}

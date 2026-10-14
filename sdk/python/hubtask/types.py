@@ -659,6 +659,7 @@ class IdentityProviderPreset(TypedDict, total=False):
     supports_templated_issuer: Required[bool]
     shared_issuer_paths: Required[list[str]]
     personal_issuer_paths: Required[list[str]]
+    personal_directories: Required[list[str]]
 
 class InstanceReach(TypedDict, total=False):
     """Whether the caller may reach the level above the workspaces, and nothing about anybody else. It answers about the account asking; it is not a directory of operators and cannot be asked about one."""

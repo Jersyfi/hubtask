@@ -14961,7 +14961,8 @@
           "instructions",
           "supports_templated_issuer",
           "shared_issuer_paths",
-          "personal_issuer_paths"
+          "personal_issuer_paths",
+          "personal_directories"
         ],
         "properties": {
           "kind": {
@@ -15045,6 +15046,13 @@
               "type": "string"
             },
             "description": "The first path segments that make an issuer of this provider one that also serves personal accounts, such as `consumers` in `https://login.microsoftonline.com/consumers/v2.0`. An issuer whose first path segment is one of them is refused `ANY` (`identity_provider.provisioning_personal`), whatever `provisioning` lists. Empty where the provider has no such issuer.\n"
+          },
+          "personal_directories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The directories this provider's personal accounts live in, in `directory_claim`'s identifiers, lower case. A provider whose mode creates accounts - anything but `INVITED_ONLY` - is refused one of them in `allowed_directories` (`identity_provider.directory_personal`), compared without regard to case or surrounding spaces; under `INVITED_ONLY` the list only narrows and may name one. Empty where the provider has no personal accounts.\n"
           }
         }
       },

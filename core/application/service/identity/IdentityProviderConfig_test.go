@@ -675,3 +675,45 @@ func TestTheConfiguringEntryCarriesTheModeAndNeverTheSecret(t *testing.T) {
 		}
 	}
 }
+
+// A form refuses the personal directory before the save from the preset's own list: Microsoft
+// answers the directory its refusal reads, apart from the issuer paths, and a provider without
+// personal accounts answers an empty list.
+func TestAPresetAnswersItsPersonalDirectories(t *testing.T) {
+	f := newProviderFixture(time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC))
+	registry, err := usecase.NewRegistry(nil, ListIdentityProviderPresets{Writer: f.writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	presets, err := registry.Invoke(t.Context(), ListIdentityProviderPresetsName, providerActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("reading the presets: %v", err)
+	}
+	rows, _ := presets["data"].([]usecase.Output)
+	answered := map[string][]any{}
+	for _, row := range rows {
+		directories, held := row["personal_directories"].([]any)
+		if !held {
+			t.Fatalf("the %v preset answers no personal_directories", row["kind"])
+		}
+		answered[row["kind"].(string)] = directories
+	}
+	for _, preset := range domain.ProviderPresets() {
+		got := answered[string(preset.Kind)]
+		if len(got) != len(preset.PersonalDirectories) {
+			t.Errorf("%s answered %v, the refusal reads %v", preset.Kind, got, preset.PersonalDirectories)
+			continue
+		}
+		for i, directory := range preset.PersonalDirectories {
+			if got[i] != directory {
+				t.Errorf("%s answered %v, the refusal reads %v", preset.Kind, got, preset.PersonalDirectories)
+			}
+		}
+	}
+	if microsoft := answered["MICROSOFT"]; len(microsoft) != 1 || microsoft[0] != "9188040d-6c67-4c5b-b112-36a304b66dad" {
+		t.Errorf("Microsoft answered %v", microsoft)
+	}
+	if google := answered["GOOGLE"]; len(google) != 0 {
+		t.Errorf("Google answered %v, it has no personal directory", google)
+	}
+}

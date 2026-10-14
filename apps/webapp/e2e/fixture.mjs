@@ -140,6 +140,7 @@ const preset = (kind, provisioning, extra = {}) => ({
   supports_templated_issuer: kind === 'MICROSOFT',
   shared_issuer_paths: kind === 'MICROSOFT' ? ['common', 'organizations'] : [],
   personal_issuer_paths: kind === 'MICROSOFT' ? ['common', 'consumers', '9188040d-6c67-4c5b-b112-36a304b66dad'] : [],
+  personal_directories: kind === 'MICROSOFT' ? ['9188040d-6c67-4c5b-b112-36a304b66dad'] : [],
   ...extra,
 });
 
@@ -148,7 +149,9 @@ export const PROVIDER_PRESETS = [
   preset('GOOGLE', ['INVITED_ONLY', 'DOMAINS'], {
     issuer: 'https://accounts.google.com', directory_claim: 'hd', particular: 'identity_provider.preset.google.particular',
   }),
-  preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid' }),
+  // A preset with a directory claim is offered to every workspace with the same modes it has for
+  // one (the installation's list is narrower only without a claim), as the server answers it.
+  preset('MICROSOFT', ['INVITED_ONLY', 'DOMAINS', 'ANY'], { directory_claim: 'tid', installation_provisioning: ['INVITED_ONLY', 'DOMAINS', 'ANY'] }),
   preset('GENERIC', ['INVITED_ONLY', 'DOMAINS', 'ANY']),
 ];
 

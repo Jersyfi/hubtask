@@ -255,3 +255,42 @@ test('chromium: a refusal about a provider names it in words', async (t) => {
   await said.waitFor({ timeout: 10_000 });
   assert.doesNotMatch((await page.locator('body').innerText()), /GENERIC/);
 });
+
+// #1480: offered to every workspace, a provider that admits by organisation is refused the personal
+// accounts' directory as a workspace's is (identity_provider.directory_personal): said on the field
+// as it is typed, and *Save* waits for it; under *Only people invited here* it may be named.
+test('chromium: the personal directory is refused in the installation provider list before the save', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let posted = 0;
+  const { page, close } = await open(browser, (route, request, path) => {
+    if (path !== '/admin/identity-providers' || request.method() !== 'POST') return undefined;
+    posted += 1;
+    return route.fulfill({ status: 201, json: { ...offered(), id: 'entra', kind: 'MICROSOFT' } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/providers`);
+  await page.getByRole('button', { name: 'Offer a provider' }).click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.getByLabel('Which provider').selectOption('MICROSOFT');
+  await dialog.getByLabel(/^Issuer/).fill('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0');
+  await dialog.getByLabel(/^Client id/).fill('hubtask');
+  await dialog.getByLabel(/^Client secret/).fill('s3cr3t');
+  const admission = dialog.getByLabel(/^Who this provider may admit/);
+  const save = dialog.getByRole('button', { name: 'Save the provider' });
+  const refusal = /is where this provider's personal accounts live/;
+
+  await admission.selectOption('DOMAINS');
+  const directories = dialog.getByLabel(/^Microsoft directories that may sign in/);
+  await directories.fill(' 9188040D-6C67-4C5B-B112-36A304B66DAD , 72f988bf-86f1-41af-91ab-2d7cd011db47');
+  await dialog.getByText(refusal).first().waitFor({ timeout: 5_000 });
+  assert.equal(await save.isDisabled(), true, 'Save is offered for a list the server refuses');
+
+  await admission.selectOption('INVITED_ONLY');
+  assert.equal(await dialog.getByText(refusal).count(), 0, 'the sentence stands where the list only narrows');
+  assert.equal(await save.isDisabled(), false);
+  await save.click();
+  await page.waitForFunction(() => document.querySelector('dialog[open]') === null, null, { timeout: 5_000 }).catch(() => {});
+  assert.equal(posted, 1, 'the permitted list was not sent');
+});
