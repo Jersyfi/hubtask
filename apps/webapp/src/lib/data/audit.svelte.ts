@@ -75,6 +75,9 @@ class Audit {
     const cursor = this.#cursors[key];
     if (!cursor) return;
     const next = await engine.refresh<Page>({ path: auditPath(query, cursor) });
+    // A page that failed is thrown rather than dropped: the screen says it beside the button, and
+    // a silent return left the reader pressing into nothing.
+    if (next.status === 'failed') throw next.error;
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.items ?? [])] };
     this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };

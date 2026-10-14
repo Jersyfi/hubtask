@@ -55,9 +55,17 @@
   /** What the last press of *Show more* brought; empty until asked, as the entry's history is. */
   let arrived = $state<string | undefined>(undefined);
 
+  /** Why the last press of *Show more* brought nothing; cleared by the next press. */
+  let moreFailed = $state<string | undefined>(undefined);
+
   async function more(): Promise<void> {
-    await page.loadMore();
-    arrived = t('app.media.arrived', { count: rows.length });
+    moreFailed = undefined;
+    try {
+      await page.loadMore();
+      arrived = t('app.media.arrived', { count: rows.length });
+    } catch (error) {
+      moreFailed = renderProblem(error as never, messages).message;
+    }
   }
   const readFailure = $derived(
     page.state.status === 'failed' ? renderProblem(page.state.error, messages) : undefined,
@@ -183,6 +191,7 @@
           label={t('app.media.more')}
           {hasMore}
           arrivedLabel={arrived}
+          failedLabel={moreFailed}
           onLoadMore={() => void more()}
         />
       {/if}

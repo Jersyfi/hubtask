@@ -555,9 +555,19 @@
    */
   let historyArrived = $state<string | undefined>(undefined);
 
+  /** Why the last press of *Show more history* brought nothing; cleared by the next press. */
+  let historyMoreFailed = $state<string | undefined>(undefined);
+
   async function moreHistory(): Promise<void> {
-    await history.loadMore();
-    historyArrived = t('app.activity.arrived', { count: steps.length });
+    historyMoreFailed = undefined;
+    try {
+      await history.loadMore();
+      historyArrived = t('app.activity.arrived', { count: steps.length });
+    } catch (error) {
+      // The pages already shown stay (the engine keeps them); what is missing is said beside the
+      // button that asked for it.
+      historyMoreFailed = renderProblem(error as never, messages).message;
+    }
   }
   const historyFailure = $derived(
     history.state.status === 'failed' ? renderProblem(history.state.error, messages) : undefined,
@@ -917,6 +927,7 @@
                     label={t('app.activity.more')}
                     {hasMore}
                     arrivedLabel={historyArrived}
+                    failedLabel={historyMoreFailed}
                     onLoadMore={() => void moreHistory()}
                   />
                 {/if}

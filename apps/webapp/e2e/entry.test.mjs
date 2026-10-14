@@ -472,3 +472,63 @@ test('chromium: the attachments announce a page only after the reader asked for 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
+
+test('chromium: a page of history that did not arrive is said beside the button, and the button is the retry', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+
+  const step = (n) => ({
+    id: `01a0e2e0-0000-7000-8000-0000000007${String(n).padStart(2, '0')}`,
+    code: 'activity.item_updated',
+    actor: { kind: 'USER', id: ACCOUNT.id },
+    occurred_at: `2026-10-0${n}T08:00:00Z`,
+    change_set: {},
+  });
+  // The second page is refused once and then answers: what a reader meets when a permission or
+  // the connection fails between two presses.
+  let refusals = 0;
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/activity`)) {
+      if (url.searchParams.get('cursor') === 'h2') {
+        if (refusals === 0) {
+          refusals += 1;
+          return route.fulfill({ status: 403, contentType: 'application/problem+json', body: JSON.stringify({ status: 403, code: 'forbidden' }) });
+        }
+        return route.fulfill({ json: { data: [step(3)], page: { next_cursor: null, has_more: false } } });
+      }
+      return route.fulfill({ json: { data: [step(1), step(2)], page: { next_cursor: 'h2', has_more: true } } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab', { name: 'History' }).click();
+
+  const more = page.getByRole('button', { name: 'Show more history' });
+  await more.waitFor({ timeout: 5_000 });
+  const alert = page.locator('.load-more [role="alert"]');
+  // Mounted empty, so that what fills it later is announced.
+  assert.equal(await alert.count(), 1, 'there is no alert region beside the button');
+  assert.equal((await alert.textContent()).trim(), '');
+  const shown = () => page.locator('.load-more').locator('xpath=..').locator('li').count();
+  const before = await shown();
+
+  await more.click();
+  await page.waitForFunction(() => (document.querySelector('.load-more [role="alert"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  assert.equal((await alert.textContent()).trim(), 'You do not have permission for this action.');
+  assert.ok(await alert.isVisible(), 'the refusal is announced but not shown');
+  assert.equal(await more.count(), 1, 'the button went away with the failure, so there is no retry');
+  assert.equal(await shown(), before, 'the rows already shown were lost');
+
+  // Pressed again, the page arrives and the refusal is gone.
+  await more.click();
+  await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  assert.equal((await alert.textContent()).trim(), '');
+  assert.equal((await page.locator('.load-more [role="status"]').textContent()).trim(), 'History loaded: 3.');
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});

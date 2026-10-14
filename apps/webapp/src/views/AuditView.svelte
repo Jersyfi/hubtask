@@ -57,19 +57,30 @@
   /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new query. */
   let arrived = $state<string | undefined>(undefined);
   let isLoadingMore = $state(false);
+  /** Why the last press of *Show more* brought nothing; cleared by the next press and a new query. */
+  let moreFailed = $state<string | undefined>(undefined);
   $effect(() => {
     void applied;
     arrived = undefined;
+    moreFailed = undefined;
   });
 
   /** The next page, appended, and what arrived said once it has (P-13). */
   async function more(): Promise<void> {
     const query = applied;
     const before = audit.of(query).length;
+    moreFailed = undefined;
     isLoadingMore = true;
-    await attempt(() => audit.more(query));
-    isLoadingMore = false;
-    arrived = t('app.audit.arrived', { count: audit.of(query).length - before });
+    try {
+      await audit.more(query);
+      arrived = t('app.audit.arrived', { count: audit.of(query).length - before });
+    } catch (error) {
+      // Beside the button that asked, not in the page's banner: it is about the next page, and
+      // the trail already shown is still right.
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
   }
 
   let verifyFrom = $state('');
@@ -331,6 +342,7 @@
           hasMore={Boolean(audit.moreAfter(applied))}
           isBusy={isLoadingMore}
           arrivedLabel={arrived}
+          failedLabel={moreFailed}
           endLabel={t('app.audit.end')}
           onLoadMore={() => void more()}
         />
