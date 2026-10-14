@@ -119,6 +119,15 @@
      * destination comes from the tree the view holds.
      */
     onduplicate?: (item: WorkItem) => void;
+    /**
+     * Why the reader may not change this entry, in their words, or nothing where they may - from
+     * their role along the path (UC-WRK-22 checks 1, 2). The view decides, because the role is the
+     * view's to know; a row it answers for has no control that writes it, only its completion mark
+     * with the reason.
+     */
+    changeRefusal: (item: WorkItem) => string | undefined;
+    /** Whether the reader may create entries here: the add controls are drawn only then. */
+    mayCreate: boolean;
   }
 
   const {
@@ -131,6 +140,8 @@
     onopen,
     currentId,
     onduplicate,
+    changeRefusal,
+    mayCreate,
   }: Props = $props();
 
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
@@ -275,11 +286,22 @@
     readonly archival: Archival;
   }
 
-  /** Whether a row may be written to at all. Archived is read-only, whichever way it got there. */
-  const isFrozen = (row: Row) => row.archival !== 'active';
+  /**
+   * Whether a row may be written to at all. Archived is read-only, whichever way it got there; and
+   * so is a row the reader's role may not change.
+   */
+  const isFrozen = (row: Row) => row.archival !== 'active' || changeRefusal(row.item) !== undefined;
+
+  /**
+   * Whether the reader's role keeps them from changing this row: then its changing controls are
+   * absent rather than off (P-05), and only the completion mark stays, with the reason.
+   */
+  const isRoleRefused = (row: Row) => changeRefusal(row.item) !== undefined;
 
   /** Why it may not, in the reader's words. There is no `disabled` boolean anywhere. */
   function frozenReason(row: Row): string | undefined {
+    const refusal = changeRefusal(row.item);
+    if (refusal) return refusal;
     if (row.archival === 'archived') return t('app.entries.archived');
     if (row.archival === 'inherited') {
       return isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above');
@@ -412,7 +434,7 @@
    * form's state, which is the list's.
    */
   export function addEntry() {
-    if (isReadOnly || topTypes().length === 0) return;
+    if (isReadOnly || !mayCreate || topTypes().length === 0) return;
     startAdding('root');
   }
 
@@ -696,6 +718,13 @@
    * about which control. The separator is where the level stops being the level.
    */
   function menuItems(row: Row) {
+    // A row the role may not change offers only what does not write it: a copy, where the reader
+    // may create one. Nothing else is drawn, not even off.
+    if (isRoleRefused(row)) return everyItem(row).filter((each) => each.id === 'duplicate' && mayCreate);
+    return everyItem(row).filter((each) => each.id !== 'duplicate' || mayCreate);
+  }
+
+  function everyItem(row: Row) {
     const above = previousSibling(row);
     return [
       ...RANK_COMMANDS.map((command) => ({
@@ -991,7 +1020,7 @@
       {:else}
         <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
           {#snippet action()}
-            {#if !isReadOnly && topTypes().length > 0}
+            {#if !isReadOnly && mayCreate && topTypes().length > 0}
               <Button data-opener="add-entry" onclick={() => startAdding('root')}>{addLabel}</Button>
             {/if}
           {/snippet}
@@ -1053,9 +1082,11 @@
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
                  access. -->
-            <span class="grip" data-grip aria-hidden="true">
-              <Icon name="grip-vertical" size="sm" />
-            </span>
+            {#if !isRoleRefused(row)}
+              <span class="grip" data-grip aria-hidden="true">
+                <Icon name="grip-vertical" size="sm" />
+              </span>
+            {/if}
             {#if moment && moment.tier !== 3 && slotRowId === row.item.id}
               <!-- Tier 1 on the completed row, tier 2 across the parent's - or the completed row
                    where the parent is not on this screen. -->
@@ -1154,7 +1185,7 @@
                   {/if}
                 {/if}
 
-                {#if !isFrozen(row) && row.takesChildren}
+                {#if row.archival === 'active' && mayCreate && row.takesChildren}
                   <!-- The label names what it adds. The control at the end of the list adds to the
                        collection and this one adds inside this entry; sharing "Add an entry"
                        between them made a list of seven rows carry eight controls of that name,
@@ -1173,20 +1204,22 @@
                 <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
                      first: every position a drag can reach is an item here, each with the reason it
                      cannot be used rather than a control that goes grey for no stated cause. -->
-                <Menu
-                  label={t('app.rank.actions', { title: row.item.title })}
-                  items={menuItems(row)}
-                  onselect={(id) => chose(row, id)}
-                >
-                  {#snippet trigger(props)}
-                    <IconButton
-                      icon="ellipsis"
-                      label={t('app.rank.actions', { title: row.item.title })}
-                      size="sm"
-                      {...props}
-                    />
-                  {/snippet}
-                </Menu>
+                {#if menuItems(row).length > 0}
+                  <Menu
+                    label={t('app.rank.actions', { title: row.item.title })}
+                    items={menuItems(row)}
+                    onselect={(id) => chose(row, id)}
+                  >
+                    {#snippet trigger(props)}
+                      <IconButton
+                        icon="ellipsis"
+                        label={t('app.rank.actions', { title: row.item.title })}
+                        size="sm"
+                        {...props}
+                      />
+                    {/snippet}
+                  </Menu>
+                {/if}
               {/snippet}
             </TaskRow>
 
@@ -1202,7 +1235,7 @@
         {/each}
       </div>
 
-      {#if !isReadOnly && topTypes().length > 0}
+      {#if !isReadOnly && mayCreate && topTypes().length > 0}
         {#if addingUnder === 'root'}
           {@render addForm()}
         {:else}

@@ -143,7 +143,10 @@ An entry nothing on its path grants the actor anything on is **not found**, like
 ([security.md](./security.md) T-04); a creation is refused like any other write. **A list is
 narrowed inside the statement** (the reachable shares bound as an array), never filtered after
 reading, so a page is never short and a cursor never skips. `/meta/capabilities` reports the whole
-matrix with both qualifiers.
+matrix with both qualifiers, and to a signed-in caller the permissions they hold on the workspace
+itself (`workspace_permissions`, `service.Held`): decided as a request is, recording nothing, and
+what a client draws the administration and the jumble from rather than probing a route that
+refuses. It is the account's roles; a token's scopes bound it further.
 
 ### 3.3 `Container` (hub / collection)
 

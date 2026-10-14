@@ -391,3 +391,36 @@ func TestGrantableRolesAreWhatMayGrantPermits(t *testing.T) {
 		})
 	}
 }
+
+// What the manifest tells a caller they hold on the workspace: the union of what counts there, in
+// the matrix's column order, and nothing a role below the workspace carries.
+func TestHeldOnTheWorkspace(t *testing.T) {
+	workspace := []identity.Scope{identity.TenantScope()}
+	cases := []struct {
+		name        string
+		memberships []identity.Membership
+		want        []service.Permission
+	}{
+		{"nothing held", nil, []service.Permission{}},
+		{"a member", []identity.Membership{grant(identity.TenantScope(), identity.RoleMember)},
+			[]service.Permission{service.PermissionRead, service.PermissionWriteItems, service.PermissionAutomation}},
+		{"a viewer", []identity.Membership{grant(identity.TenantScope(), identity.RoleViewer)},
+			[]service.Permission{service.PermissionRead}},
+		{"an auditor", []identity.Membership{grant(identity.TenantScope(), identity.RoleAuditor)},
+			[]service.Permission{service.PermissionReadConfiguration, service.PermissionAuditRead}},
+		{"an auditor and a viewer add up", []identity.Membership{
+			grant(identity.TenantScope(), identity.RoleAuditor), grant(identity.TenantScope(), identity.RoleViewer)},
+			[]service.Permission{service.PermissionRead, service.PermissionReadConfiguration, service.PermissionAuditRead}},
+		{"an owner of a hub holds nothing on the workspace", []identity.Membership{grant(identity.HubScope(hub), identity.RoleOwner)},
+			[]service.Permission{}},
+		{"an owner", []identity.Membership{grant(identity.TenantScope(), identity.RoleOwner)},
+			service.PermissionsOf(identity.RoleOwner)},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := service.Held(c.memberships, workspace, service.SharedPath); !slices.Equal(got, c.want) {
+				t.Errorf("Held = %v, want %v", got, c.want)
+			}
+		})
+	}
+}

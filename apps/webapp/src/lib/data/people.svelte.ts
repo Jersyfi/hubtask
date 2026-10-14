@@ -23,7 +23,7 @@ import { containers } from './containers.svelte.ts';
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
 import { handedOverLink } from '../people/invitation.ts';
-import { candidatesOf, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
+import { candidatesOf, effectiveRole, groupsNamedBy, holdersOf, membershipsPath, scopesAlong, scopesInForce, type Holder, type Path, type Scope } from './people.ts';
 
 /** A membership write changes who may be named, and therefore every list composed from one. */
 const TOUCHES = ['/memberships'];
@@ -31,6 +31,12 @@ const TOUCHES = ['/memberships'];
 class People {
   /** One entry per scope path, so two screens asking the same question share one read. */
   #scopes = $state<Record<string, readonly Membership[]>>({});
+  /**
+   * The scopes whose read was refused: the reader holds no role that reads there, so nothing of
+   * theirs is there (`effectiveRole`). Kept apart from an empty answer, which is the same for the
+   * reader and not the same for the list of others.
+   */
+  #refused = $state<Record<string, true>>({});
   /** What the server says the reader may grant at each scope it was asked about. */
   #grantable = $state<Record<string, readonly MembershipRole[]>>({});
   /** The accounts in each group a membership named. */
@@ -79,6 +85,25 @@ class People {
     }
     accounts.resolve([...ids]);
     return [...ids];
+  }
+
+  /**
+   * The reader's effective role along a path - the role the server decides an entry by - or
+   * `undefined` while any part of the answer is still out (`effectiveRole`). Opens nothing: the
+   * caller has opened the path, as every screen reading people along one does.
+   *
+   * A path through a hub whose standing is not yet known is unknown too: on a private hub the
+   * workspace's roles do not count, and counting them before knowing would offer what is refused.
+   */
+  roleOf(path: Path, accountId: string | undefined, order: readonly string[]): string | null | undefined {
+    if (path.hubId && !containers.find(path.hubId)) return undefined;
+    const isPrivate = path.hubId ? containers.find(path.hubId)?.private === true : false;
+    const answers = scopesInForce(path, isPrivate).map((scope) => {
+      const key = membershipsPath(scope);
+      return this.#refused[key] ? ('refused' as const) : this.#scopes[key];
+    });
+    this.#resolveGroups(answers.flatMap((answer) => (Array.isArray(answer) ? answer : [])));
+    return effectiveRole({ answers, accountId, groupMembers: this.#groups, order });
   }
 
   /** Who may be named on an entry at this path: the accounts, with the groups expanded. */
@@ -282,6 +307,10 @@ class People {
     const path = membershipsPath(scope);
     if (this.#openScopes.has(path)) return;
     const stop = engine.subscribe<MembershipPage>({ path }, (next) => {
+      if (next.status === 'failed' && (next.error.status === 403 || next.error.status === 404)) {
+        this.#refused = { ...this.#refused, [path]: true };
+        return;
+      }
       if (next.status !== 'ready') return;
       this.#keep(path, next.data);
     });
@@ -303,6 +332,10 @@ class People {
 
   /** Holds one scope's answer: its rows, and the roles the reader may grant there. */
   #keep(path: string, page: MembershipPage): void {
+    if (this.#refused[path]) {
+      const { [path]: _answered, ...rest } = this.#refused;
+      this.#refused = rest;
+    }
     this.#scopes = { ...this.#scopes, [path]: page.data ?? [] };
     // An answer without the list - a server older than the field - offers nothing rather than all.
     this.#grantable = { ...this.#grantable, [path]: page.grantable_roles ?? [] };
@@ -320,10 +353,11 @@ class People {
   async #readGroup(groupId: string): Promise<void> {
     try {
       const state = await engine.refresh<GroupDetail>({ path: `/groups/${groupId}` });
-      if (state.status === 'ready') {
-        this.#groups = { ...this.#groups, [groupId]: state.data.members ?? [] };
-      }
+      // Answered either way: a group that could not be read contributes nobody, and a role
+      // waiting on it would otherwise wait for ever.
+      this.#groups = { ...this.#groups, [groupId]: state.status === 'ready' ? (state.data.members ?? []) : [] };
     } catch {
+      this.#groups = { ...this.#groups, [groupId]: [] };
       // A group this actor may not read contributes nobody. It is not an error on the screen: the
       // picker is a courtesy, and the server is what refuses an account that cannot see the entry.
     }

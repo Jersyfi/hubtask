@@ -16,8 +16,10 @@
   import { Checkbox, Input, Select } from '@hubtask/design-system/components';
   import type { InstanceSetting } from '@hubtask/sync-engine';
 
-  import { t } from '../i18n/i18n.svelte.ts';
-  import { choiceCode, countOf, lockCode, nameCode, type Area } from './values.ts';
+  import { formatBytes } from '../i18n/bytes.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { languageName } from '../i18n/locale.ts';
+  import { choiceCode, countOf, isBytes, lockCode, nameCode, type Area } from './values.ts';
 
   interface Props {
     area: Area;
@@ -62,6 +64,13 @@
     put(next.length === 0 ? undefined : next);
   }
 
+  /** A number of bytes, said as a size under the field that takes the digits. */
+  const size = $derived(
+    isBytes(area, key) && decided && typeof current?.value === 'number' && current.value > 0
+      ? t('app.instance.value_size', { size: formatBytes(current.value, messages.locale) })
+      : undefined,
+  );
+
   const lockOpen = $derived(lockCode(declared, false));
   const lockClosed = $derived(lockCode(declared, true));
 </script>
@@ -76,6 +85,7 @@
       max={declared.maximum}
       value={decided ? String(current?.value ?? '') : ''}
       placeholder={undecided}
+      hint={size}
       oninput={(event) => put(countOf((event.currentTarget as HTMLInputElement).value))}
       {error}
     />
@@ -119,7 +129,7 @@
     <Select
       {label}
       value={decided ? String(current?.value) : ''}
-      options={[{ value: '', label: undecided }, ...locales.map((each) => ({ value: each, label: each }))]}
+      options={[{ value: '', label: undecided }, ...locales.map((each) => ({ value: each, label: languageName(each, messages.locale) }))]}
       onchange={(event) => put((event.currentTarget as HTMLSelectElement).value)}
       {error}
     />

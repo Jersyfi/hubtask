@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12]
-state: partial
+state: built
 tasks: [C-11, F3-11]
-checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go]
+checked_by: [test/integration/bulk_and_duplicate_test.go, test/integration/copy_test.go, core/application/service/work/DuplicateWorkItem_test.go, apps/webapp/e2e/subtreeviews.test.mjs]
 ---
 
 # Duplicate a task
@@ -51,7 +51,3 @@ exist or do not apply in the destination are listed by kind.
   (as references to the same files) and custom field values.
 * A reusable shape somebody stamps out again and again is a template
   ([UC-WRK-16](./UC-WRK-16-start-a-routine-from-a-template.md)).
-
-## Today
-
-* Check 1: not met on the entry page — the subtree's row menu offers *Duplicate*, but the page passes no handler, so the choice does nothing, tracked in #1082.

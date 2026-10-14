@@ -215,3 +215,31 @@ test('chromium: at 375 px the form keeps every value and its lock inside the scr
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
 });
+
+// P-12: a language is named, not its tag, and stored files are a size - in the table and at the
+// field that takes the bytes.
+test('chromium: a language is named and stored files are a size', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const level = {
+    ...LEVEL,
+    quotas: { ...LEVEL.quotas, media_bytes: { set: true, value: 10737418240, locked: false, kind: 'COUNT', minimum: 0, workspace_may: 'RAISE' } },
+  };
+  const { page, close } = await open(browser, { level });
+  t.after(close);
+
+  const row = (name) => page.getByRole('row').filter({ hasText: name });
+  const language = (await row('Language').textContent()) ?? '';
+  assert.match(language, /Deutsch/, language);
+  const stored = (await row('Stored files').textContent()) ?? '';
+  assert.match(stored, /10\.7\s?GB/, stored);
+  assert.doesNotMatch(stored, /10737418240/, stored);
+
+  await page.getByRole('button', { name: 'Change these values' }).click();
+  const form = page.locator('form');
+  const options = await form.getByRole('combobox', { name: 'Language' }).locator('option').allTextContents();
+  assert.ok(options.some((each) => /English/.test(each)) && options.some((each) => /Deutsch/.test(each)), options.join(' | '));
+  assert.ok(!options.includes('en') && !options.includes('de'), options.join(' | '));
+  const field = await form.locator('[data-value="quotas.media_bytes"]').textContent() ?? '';
+  assert.match(field, /That is 10\.7\s?GB/, field);
+});

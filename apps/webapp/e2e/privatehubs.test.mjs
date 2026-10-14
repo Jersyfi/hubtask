@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, EMERGENCY_ACCESS, HUB, MANIFEST, OTHER, PRIVATE_HUBS, WORKSPACE, signedIn } from './fixture.mjs';
+import { ACCOUNT, EMERGENCY_ACCESS, HUB, OTHER, PRIVATE_HUBS, WORKSPACE, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -120,10 +120,7 @@ test('chromium: an owner of the hub without the right to create hubs is offered 
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   let isPrivate = false;
-  // A member of the workspace, the hub's owner: MEMBER carries no STRUCTURE in the matrix.
-  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: {
-    ...MANIFEST, roles: [...MANIFEST.roles, { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS'] }],
-  } }));
+  // A member of the workspace, the hub's owner: MEMBER carries no STRUCTURE in the fixture's matrix.
   await context.route((url) => url.pathname.endsWith('/api/v1/memberships') && url.searchParams.get('scope_type') === 'TENANT', (route) =>
     route.fulfill({ json: { data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'MEMBER' }], items: [], page: { next_cursor: null, has_more: false } } }));
   await context.route((url) => url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB', (route) =>

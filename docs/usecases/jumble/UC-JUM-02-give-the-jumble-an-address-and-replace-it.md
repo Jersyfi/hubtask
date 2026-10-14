@@ -5,9 +5,9 @@ context: jumble
 actors: [PE-owner, PE-admin, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-11, P-12]
-state: partial
+state: built
 tasks: [G-10, G-11, F4-12]
-checked_by: [core/application/service/jumble/Intake_test.go, test/integration/jumble_test.go]
+checked_by: [core/application/service/jumble/Intake_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs]
 ---
 
 # Give the jumble an address, and replace it when it leaks
@@ -49,7 +49,3 @@ cases that follow).
   collection is a rule's job, or the person's.
 * No "switch the address off" without a replacement: replacing it is how it is revoked.
 * No address that can be read back later. A lost address is replaced.
-
-## Today
-
-* Check 7: not met in the web app — the intake section and *Make a new address* are drawn for every reader, by a choice the client's code states (the server refuses, the screen does not guess); the owner decides which stands, tracked in #1083.

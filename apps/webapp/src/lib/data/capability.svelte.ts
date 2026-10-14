@@ -16,7 +16,10 @@ import {
   changeVerdict,
   childVerdict,
   declaresType as declaresTypeIn,
+  itemPermitted,
+  holdsOnWorkspace,
   permissionVerdict,
+  reachesAdministration,
   rootTypes as rootTypesOf,
   typesWith as typesWithOf,
 } from './capability.ts';
@@ -49,6 +52,38 @@ export const childTypes = (type: string): readonly string[] =>
 export const holds = (role: string | undefined, permission: string): Verdict =>
   permissionVerdict(manifest.value, role, permission);
 
+/** Whether the reader holds the permission on the workspace itself; `undefined` while unknown. */
+export const holdsHere = (permission: string): boolean | undefined =>
+  holdsOnWorkspace(manifest.value, permission);
+
+/** Whether the reader reaches the administration; `undefined` while unknown. */
+export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);
+
 /** Whether this entry may be changed, `ASSIGNED` taken into account. */
 export const mayChange = (role: string | undefined, isAssignedToActor: boolean): Verdict =>
   changeVerdict(manifest.value, role, isAssignedToActor);
+
+/**
+ * The installation's roles, strongest first, as the manifest reports them - the order the server's
+ * effective role is taken in. Empty until the manifest is read, which leaves every role unknown.
+ */
+export const roleOrder = (): readonly string[] =>
+  (manifest.value?.roles ?? []).map((description) => description.role as string | undefined).filter((role): role is string => role !== undefined);
+
+/** Whether the reader may do this to one entry, from their effective role; `undefined` while unknown. */
+export const mayDo = (
+  role: string | null | undefined,
+  kind: 'read' | 'create' | 'change' | 'comment',
+  isAssignedToActor: boolean,
+): boolean | undefined => itemPermitted(manifest.value, role, kind, isAssignedToActor);
+
+/**
+ * Why the reader may not change an entry, as the message code a screen renders, or nothing where
+ * they may: still being read, changes only what is assigned to them, or reads and does not change.
+ */
+export function changeRefusalCode(role: string | null | undefined, isAssignedToActor: boolean): string | undefined {
+  const permitted = mayDo(role, 'change', isAssignedToActor);
+  if (permitted === true) return undefined;
+  if (permitted === undefined) return 'app.gate.deciding';
+  return mayDo(role, 'change', true) === true ? 'app.gate.change_assigned_only' : 'app.gate.change_none';
+}

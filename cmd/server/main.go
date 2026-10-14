@@ -2378,6 +2378,9 @@ func run() error {
 			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
 			Operators: operators,
+			// What the caller holds on the workspace, from the authoriser every request is
+			// decided by, so the manifest cannot offer what a route refuses.
+			Workspace: authorizer,
 			// Whether the first start's setup is offered: the same function the setup's claim
 			// reads, so the card is drawn exactly where the route would accept it.
 			Setup:      setupCodes,

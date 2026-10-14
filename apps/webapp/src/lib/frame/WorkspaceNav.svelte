@@ -24,6 +24,7 @@
   import ReplicaMark from './ReplicaMark.svelte';
 
   import { actor } from '../data/account.svelte.ts';
+  import { holdsHere } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -46,10 +47,13 @@
 
   const { current, hasDestinations = true, isRail = false, onnavigate }: Props = $props();
 
+  /** Whether the jumble is the reader's, which decides whether its row is drawn. */
+  const hasJumble = $derived(holdsHere('READ') === true);
+
   /** The one list's primary group, as nodes of the same tree. */
   const destinationNodes = $derived(
     hasDestinations
-      ? primary().map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
+      ? primary({ hasJumble }).map((destination) => ({ id: destination.id, label: t(destination.code), icon: destination.icon }))
       : [],
   );
 
@@ -149,7 +153,7 @@
   const isTreeReady = $derived(containers.hubsState.status !== 'loading' && containers.hubsState.status !== 'idle');
 
   function navigate(id: string) {
-    const destination = primary().find((each) => each.id === id);
+    const destination = primary({ hasJumble }).find((each) => each.id === id);
     if (destination && destination.target.kind === 'route') return onnavigate(destination.target.path);
     const keeping = KEEPING.find((each) => each.id === id);
     if (keeping) return onnavigate(keeping.path);

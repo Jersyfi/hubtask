@@ -20,6 +20,7 @@
   import { Banner, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -92,7 +93,7 @@
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="200">
-      <p class="prose">{t('app.instance.journal_intro')}</p>
+      <p class="prose">{t(manifest.isSingleTenant ? 'app.instance.journal_intro_single' : 'app.instance.journal_intro')}</p>
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="quiet">

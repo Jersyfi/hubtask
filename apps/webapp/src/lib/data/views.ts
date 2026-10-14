@@ -57,6 +57,21 @@ export function needsStructure(scope: ViewScope): boolean {
 }
 
 /**
+ * The container a view saved at this scope names: the collection for `COLLECTION`, **its hub** for
+ * `HUB` - the server refuses a hub-scoped view that names a collection
+ * (`views.scope_container_mismatched`) - and none for `ACCOUNT` and `TENANT`. `undefined` where a
+ * container scope cannot be named yet (the hub not known), so the scope is not offered.
+ */
+export function scopeIdOf(
+  scope: ViewScope,
+  at: { readonly collectionId: string; readonly hubId?: string },
+): string | null | undefined {
+  if (scope === 'COLLECTION') return at.collectionId;
+  if (scope === 'HUB') return at.hubId;
+  return null;
+}
+
+/**
  * What a view stores as its query: a whole, anchored query — in the shape the **use case** takes.
  *
  * Two things a running server settles, and neither is guessable from the schema.
