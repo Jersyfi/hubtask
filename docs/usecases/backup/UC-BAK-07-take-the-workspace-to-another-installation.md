@@ -5,7 +5,7 @@ context: backup
 actors: [PE-owner, PE-operator, PE-platform, PE-selfhoster, PE-integrator]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-01, P-08, P-09, P-15]
-state: built
+state: partial
 tasks: [H-07, F4-02]
 checked_by: [test/integration/tenant_export_test.go, core/application/service/admin/Export_test.go, test/integration/restore_foreign_test.go]
 ---
@@ -50,3 +50,7 @@ self-hoster (`D1`) does the same as the operator of their own installation.
 * Importing from other tools (CSV, Trello, Google Tasks, Microsoft To Do) belongs to the importer
   context.
 * No billing or contract steps around a move ([NG-billing](../../vision/non-goals.md)).
+
+## Today
+
+* Check 1: not met in multi-tenant operation — the export's target must be one the workspace itself can see, and with tenant targets off (the default) an installation-wide target is hidden from it, so the workspace cannot be exported, tracked in #1158.
