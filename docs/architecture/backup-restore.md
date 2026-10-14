@@ -471,9 +471,9 @@ array; `config.backup_*` is about **the installation**.
 |---|---|
 | `backup.target_unencrypted` (on the resource) | This target stores archives unencrypted |
 | `backup.target_plaintext_protocol` (on the resource) | This target is reached over a connection anybody on the wire can read — judged by the configured scheme for every URL-addressed kind, and by the name for `ftp` |
-| `config.backup_not_configured` | No target configured |
+| `config.backup_not_configured` | No enabled target that an enabled schedule writes to |
 | `config.backup_unencrypted` | A target without encryption |
-| `config.backup_single_target` | Only one target — a pointer to 3-2-1 |
+| `config.backup_single_target` | Only one target a schedule writes to — a pointer to 3-2-1 |
 | `config.backup_coverage_unchecked` | The targets could not be counted (yet) — never read as "configured" |
 | A-12 | No successful backup in 24 hours, **per target**, so a healthy target cannot hide a broken one; the metric is absent, not zero, for a target that never had one ([RB-A12](../../deploy/observability/runbooks/RB-A12-backup-stale.md)) |
 | A-20 | The system restore drill (§8.5) is older than 90 days — a ticket, not a page. Read from `HUBTASK_RESTORE_DRILL_RECORD_FILE`; the tenant-level `NEW_TENANT` trial does not write it. No `absent()` rule, because a Compose installation records nothing; where the chart owns the database, `HubtaskRestoreDrillNeverRan` fires on the absence ([RB-A20](../../deploy/observability/runbooks/RB-A20-restore-drill-stale.md)) |

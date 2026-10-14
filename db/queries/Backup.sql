@@ -72,15 +72,22 @@ UPDATE backup_target SET
   last_test_error = sqlc.narg('error_code')
 WHERE id = sqlc.arg('id');
 
--- Whether this tenant has any target at all, and whether any of them is unencrypted. Two counts
--- rather than a list, because the health surface asks a question about the installation rather
--- than about a target (backup-restore.md §10).
+-- Whether this tenant backs up anywhere, and whether any target is unencrypted. Two counts rather
+-- than a list, because the health surface asks a question about the installation rather than about
+-- a target (backup-restore.md §10).
+--
+-- Configured counts only the enabled targets an enabled schedule writes to: a target nothing writes
+-- to backs nothing up, and counting it would silence config.backup_not_configured while nothing is
+-- backed up. Unencrypted counts every enabled target, because a run started by hand writes to one
+-- whether a schedule does or not.
 -- name: CountBackupTargets :one
 SELECT
-  count(*) AS configured,
-  count(*) FILTER (WHERE encryption_mode = 'NONE') AS unencrypted
-FROM backup_target
-WHERE enabled;
+  count(*) FILTER (WHERE EXISTS (
+    SELECT 1 FROM backup_schedule s WHERE s.target_id = t.id AND s.enabled
+  )) AS configured,
+  count(*) FILTER (WHERE t.encryption_mode = 'NONE') AS unencrypted
+FROM backup_target t
+WHERE t.enabled;
 
 -- ─────────────────────────── The schedules and the runs ───────────────────────────
 --
