@@ -153,7 +153,9 @@ func parseInstant(raw, field string) (time.Time, error) {
 	return at, nil
 }
 
-// Pseudonymised replaces the label of every actor an erasure has taken, on the way out.
+// Pseudonymised replaces the label of every actor and every target an erasure has taken, on the
+// way out: a person who was acted upon - invited, given a role, removed - is named by the target's
+// label as plainly as one who acted is by the actor's.
 //
 // audit.md §6: the trail is exempt from erasure and cannot be edited in place, so the substitution
 // happens at the boundary. One lookup for the whole page rather than one per entry - a page has a
@@ -161,7 +163,8 @@ func parseInstant(raw, field string) (time.Time, error) {
 // not cost a hundred reads to show one screen.
 //
 // The identifier stays. It is what lets an auditor tell one actor's entries from another's, it was
-// never a name, and hiding it would make the trail unusable for the thing it is for.
+// never a name, and hiding it would make the trail unusable for the thing it is for. The same holds
+// for `on_behalf_of`, which the entry stores as an identifier alone and which needs nothing here.
 func Pseudonymised(
 	ctx context.Context, pseudonyms Pseudonyms, records []repository.Record,
 ) ([]repository.Record, error) {
@@ -170,15 +173,17 @@ func Pseudonymised(
 	}
 
 	seen := map[shared.ID]bool{}
-	actors := make([]shared.ID, 0, len(records))
+	people := make([]shared.ID, 0, len(records))
 	for _, record := range records {
-		if actor := record.Entry.ActorID; !actor.IsZero() && !seen[actor] {
-			seen[actor] = true
-			actors = append(actors, actor)
+		for _, id := range []shared.ID{record.Entry.ActorID, record.Entry.TargetID} {
+			if !id.IsZero() && !seen[id] {
+				seen[id] = true
+				people = append(people, id)
+			}
 		}
 	}
 
-	substitutions, err := pseudonyms.For(ctx, actors)
+	substitutions, err := pseudonyms.For(ctx, people)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +195,11 @@ func Pseudonymised(
 	for _, record := range records {
 		if pseudonym, erased := substitutions[record.Entry.ActorID]; erased {
 			record.Entry.ActorLabel = pseudonym
+		}
+		// An erased account's identifier is its own, so a target that carries it is that account,
+		// whatever type the entry gives it.
+		if pseudonym, erased := substitutions[record.Entry.TargetID]; erased {
+			record.Entry.TargetLabel = pseudonym
 		}
 		out = append(out, record)
 	}

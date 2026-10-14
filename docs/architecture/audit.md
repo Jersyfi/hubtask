@@ -138,8 +138,8 @@ change of `HUBTASK_SECRET_KEY`, and not with a hash stored without the prefix by
 the key: stored entries are never rewritten (§3), so those keep their unkeyed form until their
 period ends, and never equal a keyed one.
 
-**One exception:** the **actor's label** (`PERSONAL_BASIC`) travels in clear (§2); after an erasure
-the boundary answers it with a pseudonym (§6).
+**One exception:** the **actor's and the target's label** (`PERSONAL_BASIC`) travel in clear (§2);
+after an erasure the boundary answers them with a pseudonym (§6).
 
 ---
 
@@ -201,8 +201,9 @@ retention period (§1), holds no content, and cannot be edited in place (§3). S
 happens at the two points where it can:
 
 * **At the boundary.** Once an account is erased, a read and an export of the trail answer the actor
-  as a pseudonym derived per tenant from the identifier (`audit_pseudonym`). The row is untouched,
-  the chain still verifies, and one actor's entries stay one actor's.
+  — and a target that is that account — as a pseudonym derived per tenant from the identifier
+  (`audit_pseudonym`). The row is untouched, the chain still verifies, and one actor's entries stay
+  one actor's. `on_behalf_of` is stored as an identifier alone and needs no substitution.
 * **At the end of life.** The partition is dropped whole when the period is up (§3; not built yet).
 
 The erasure itself is audited with `legal_basis = dsr.erasure`: the entry about the erasure is the
