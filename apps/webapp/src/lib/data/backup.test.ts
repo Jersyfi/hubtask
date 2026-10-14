@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generations, readRule } from './backup.ts';
+import { generations, readRule, sftpTarget } from './backup.ts';
 
 test('the rule the contract gives as its own example reads as what it means', () => {
   const reading = readRule('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
@@ -83,4 +83,17 @@ test('min_keep is not a generation', () => {
 
 test('a schedule with no plan at all lists nothing', () => {
   assert.deepEqual(generations(undefined), []);
+});
+
+test('an SFTP target names its user and the host key in its configuration, and only the password is a credential', () => {
+  const key = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyNotARealKey backup';
+  assert.deepEqual(sftpTarget({ host: ' nas.local ', path: '/backups', username: 'hubtask', hostKey: ` ${key}\n`, password: 'pw' }), {
+    config: { host: 'nas.local', path: '/backups', username: 'hubtask', host_key: key },
+    credentials: { password: 'pw' },
+  });
+});
+
+test('an SFTP host key given as its fingerprint goes in the fingerprint key', () => {
+  const { config } = sftpTarget({ host: 'nas.local', path: '/b', username: 'u', hostKey: 'SHA256:abc123', password: '' });
+  assert.deepEqual(config, { host: 'nas.local', path: '/b', username: 'u', host_key_fingerprint: 'SHA256:abc123' });
 });

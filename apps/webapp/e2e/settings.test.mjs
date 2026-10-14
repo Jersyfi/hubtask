@@ -670,3 +670,29 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
   await page.getByText('Saved.').waitFor({ timeout: 10_000 });
   assert.deepEqual(sent.at(-1), { default_week_start: 'MONDAY' });
 });
+
+test('chromium: 1280 px — in a German session the settings menu is German throughout', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale: 'de' } });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/profile`);
+  await page.waitForFunction(() => document.documentElement.lang === 'de', null, { timeout: 15_000 });
+  const back = page.getByRole('treeitem', { name: 'Der Arbeitsbereich', exact: true });
+  await back.waitFor({ timeout: 15_000 });
+  const rows = (await page.getByRole('treeitem').allTextContents()).map((row) => row.trim());
+  for (const english of ['The workspace', 'Language and clock', 'Notifications', 'Signed in', 'Devices']) {
+    assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
+  }
+  assert.ok(rows.includes('Sprache und Uhr'), rows.join(', '));
+});
