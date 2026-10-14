@@ -161,6 +161,17 @@ func (g Guard) MeterAi(ctx context.Context, own bool, at time.Time, tokens int64
 	return g.Meter.Add(ctx, aiQuota(own), day, tokens)
 }
 
+// AiRenewal is the next midnight in the workspace's time zone after `now`: when the day a spent AI
+// budget belongs to ends. Midnight of the next calendar day rather than 24 hours on, so a day that
+// a daylight-saving change makes 23 or 25 hours long still renews at midnight.
+func (g Guard) AiRenewal(ctx context.Context, now time.Time) (time.Time, error) {
+	day, err := g.day(ctx, now)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return day.AddDate(0, 0, 1), nil
+}
+
 func aiQuota(own bool) string {
 	if own {
 		return AiOwnTokensPerDay
