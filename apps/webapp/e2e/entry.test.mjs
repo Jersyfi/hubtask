@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -378,5 +378,94 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: the history announces a page only after the reader asked for it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+
+  // Two pages of history: the first arrives with the tab, the second only on *Show more history*.
+  const step = (n) => ({
+    id: `01a0e2e0-0000-7000-8000-0000000007${String(n).padStart(2, '0')}`,
+    code: 'activity.item_updated',
+    actor: { kind: 'USER', id: ACCOUNT.id },
+    occurred_at: `2026-10-0${n}T08:00:00Z`,
+    change_set: {},
+  });
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/activity`)) {
+      if (url.searchParams.get('cursor') === 'h2') {
+        return route.fulfill({ json: { data: [step(3)], page: { next_cursor: null, has_more: false } } });
+      }
+      return route.fulfill({ json: { data: [step(1), step(2)], page: { next_cursor: 'h2', has_more: true } } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab', { name: 'History' }).click();
+
+  const more = page.getByRole('button', { name: 'Show more history' });
+  await more.waitFor({ timeout: 5_000 });
+  // The live region is there and empty: nobody asked for the first page, so nothing is said about it.
+  const status = page.locator('.load-more [role="status"]');
+  assert.equal(await status.count(), 1);
+  assert.equal((await status.textContent()).trim(), '', 'the history announced a page nobody asked for');
+
+  // Asked for, the page is said - and by the same region, which stays when the last page has
+  // taken the button away: a region removed with the button is one whose sentence nobody hears.
+  await more.click();
+  await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  assert.equal((await status.textContent()).trim(), 'History loaded: 3.');
+  assert.equal(await more.count(), 0, 'the button stayed after the last page');
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: the attachments announce a page only after the reader asked for it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+
+  const file = (n) => ({
+    id: `01a0e2e0-0000-7000-8000-0000000008${String(n).padStart(2, '0')}`,
+    file_name: `plan-${n}.pdf`,
+    content_type: 'application/pdf',
+    size: 2048,
+    status: 'READY',
+    created_at: `2026-10-0${n}T08:00:00Z`,
+  });
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/attachments`)) {
+      if (url.searchParams.get('cursor') === 'a2') {
+        return route.fulfill({ json: { data: [file(3)], page: { next_cursor: null, has_more: false } } });
+      }
+      return route.fulfill({ json: { data: [file(1), file(2)], page: { next_cursor: 'a2', has_more: true } } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.locator('[data-detail="attachments"]').click();
+
+  const more = page.getByRole('button', { name: 'Older attachments' });
+  await more.waitFor({ timeout: 5_000 });
+  const status = page.locator('.load-more [role="status"]');
+  assert.equal(await status.count(), 1);
+  assert.equal((await status.textContent()).trim(), '', 'the attachments announced a page nobody asked for');
+
+  await more.click();
+  await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  assert.equal((await status.textContent()).trim(), '3 attachments are listed.');
+  assert.equal(await more.count(), 0, 'the button stayed after the last page');
+  assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
