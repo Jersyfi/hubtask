@@ -447,7 +447,9 @@ A **managed account** is one with a sign-in name and no address (`AccountSummary
   account ended, the next sign-in into `PASSWORD_CHANGE` after an armed factor. Personal access
   tokens, the factor and the recovery codes stay; the attempt ledger is not cleared. Refused for
   every account that is not managed (`409 accounts.not_managed`) before the step-up is spent, and
-  for an automation rule's act.
+  for an automation rule's act. Whoever issues it can sign in as the account and reaches whatever
+  the account reaches, a private hub it holds a role in included — without the emergency access's
+  notice to the hub's members (§22); see I-12.
 * What needs a mailbox says "not possible without a mailbox".
 * **An address later:** the person, or whoever holds `MANAGE_MEMBERS` at the workspace, names one
   (`POST /accounts/{id}:add-address`). It waits on a pending credential of purpose `ADDRESS` for a
@@ -749,6 +751,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
+| I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
 
 ---
 
