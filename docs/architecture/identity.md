@@ -714,7 +714,9 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   audit entry or error (rule 10, [security.md](./security.md) §4 T-18).
 * Every sign-in, refusal, step-up, credential or provider change, withdrawal, fallback use,
   operator opening and agreement to the terms of use is audited ([audit.md](./audit.md)); every
-  refused sign-in or refresh counts in `hubtask_auth_failures_total{reason}`.
+  refused sign-in or refresh counts in `hubtask_auth_failures_total{reason}`, every step a sign-in
+  is handed before its session in `hubtask_auth_sign_in_step_total{step}`, and every
+  forgotten-password request alike, with no label, in `hubtask_auth_password_reset_requested_total`.
 * The session's user agent, IP class and method, the reset and invitation tokens, the opening's
   requester, the provider identities and the latest agreement to the terms are personal data in the
   [data catalogue](../privacy/data-catalog.md).

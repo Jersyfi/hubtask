@@ -82,6 +82,10 @@ type ForgetPassword struct {
 // failed, a queue that refused the job. What a caller learns is that the request arrived, which is
 // all there is to learn.
 func (h ForgetPassword) Execute(ctx context.Context, cmd ForgetPasswordCommand) error {
+	// Counted before anything is looked up: every request alike, whatever answers behind it.
+	if h.Writer.Session.Signals != nil {
+		h.Writer.Session.Signals.PasswordResetRequested(ctx)
+	}
 	tenantID, err := h.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
 	if err != nil || tenantID.IsZero() {
 		// No workspace answers here. The same silence, for the same reason.
