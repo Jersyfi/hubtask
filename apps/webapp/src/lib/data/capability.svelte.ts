@@ -22,6 +22,7 @@ import {
   reachesAdministration,
   rootTypes as rootTypesOf,
   typesWith as typesWithOf,
+  workspaceVerdict,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
 
@@ -55,6 +56,9 @@ export const holds = (role: string | undefined, permission: string): Verdict =>
 /** Whether the reader holds the permission on the workspace itself; `undefined` while unknown. */
 export const holdsHere = (permission: string): boolean | undefined =>
   holdsOnWorkspace(manifest.value, permission);
+
+/** Whether the reader may do what asks this permission on the workspace, as a gate's verdict. */
+export const mayHere = (permission: string): Verdict => workspaceVerdict(manifest.value, permission);
 
 /** Whether the reader reaches the administration; `undefined` while unknown. */
 export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);

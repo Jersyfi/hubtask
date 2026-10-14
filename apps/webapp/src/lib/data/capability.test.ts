@@ -26,6 +26,7 @@ import {
   reachesAdministration,
   rootTypes,
   typesWith,
+  workspaceVerdict,
 } from './capability.ts';
 
 /** The three types of `0.2.0`, as the capability matrix in domain-model.md §2 has them. */
@@ -320,6 +321,21 @@ test('what the reader holds on the workspace is the manifest answer, and unknown
   assert.equal(holdsOnWorkspace(undefined, 'READ'), undefined);
   // Somebody whose roles sit only below the workspace holds nothing on it.
   assert.equal(holdsOnWorkspace({ workspace_permissions: [] } as unknown as Capabilities, 'READ'), false);
+});
+
+test('a write on the workspace is offered for the permission it asks, refused naming it, and undecided before the manifest', () => {
+  const auditor = { workspace_permissions: ['READ_CONFIGURATION', 'AUDIT_READ'] } as unknown as Capabilities;
+  const admin = { workspace_permissions: ['READ', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'READ_CONFIGURATION'] } as unknown as Capabilities;
+  assert.deepEqual(workspaceVerdict(admin, 'STRUCTURE'), { status: 'permitted' });
+  assert.deepEqual(workspaceVerdict(auditor, 'STRUCTURE'), {
+    status: 'refused',
+    code: 'app.gate.workspace_permission_missing',
+    params: { permission: 'STRUCTURE' },
+  });
+  // The owner's own column: an administrator is refused it like anybody else without it.
+  assert.equal(workspaceVerdict(admin, 'DELETE_CONTAINER').status, 'refused');
+  assert.deepEqual(workspaceVerdict({} as Capabilities, 'STRUCTURE'), { status: 'undetermined' });
+  assert.deepEqual(workspaceVerdict(undefined, 'STRUCTURE'), { status: 'undetermined' });
 });
 
 test('the administration is reached with STRUCTURE or the auditor READ_CONFIGURATION, and by nobody else', () => {
