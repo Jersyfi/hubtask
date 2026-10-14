@@ -20,8 +20,13 @@ func TestAskingQueuesAQuestionAndChangesNothing(t *testing.T) {
 	ask, jobs, h := suggester(true)
 	entry := seedEntry(t, h, "Call the customer back")
 
-	if err := ask.Execute(context.Background(), actor(), entry.ID); err != nil {
+	jobID, err := ask.Ask(context.Background(), actor(), entry.ID)
+	if err != nil {
 		t.Fatalf("asking: %v", err)
+	}
+	// The job is what the asker follows: a refusal it meets is said there.
+	if jobID != shared.MustParseID("0192f000-0000-7000-8000-00000000ab09") {
+		t.Errorf("the ask answered job %s, not the one it queued", jobID)
 	}
 
 	if len(jobs.queued) != 1 {

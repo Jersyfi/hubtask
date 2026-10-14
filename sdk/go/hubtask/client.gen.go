@@ -50510,10 +50510,17 @@ func (r RestoreContainerResult) ContentType() string {
 type AiSummarizeContainerResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiSummarizeContainerResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -53886,10 +53893,17 @@ func (r AutoAssignWorkItemResult) ContentType() string {
 type AiClassifyResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiClassifyResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -53989,10 +54003,17 @@ func (r CompleteWorkItemResult) ContentType() string {
 type SuggestDecompositionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r SuggestDecompositionResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -54450,10 +54471,17 @@ func (r RetainItemResult) ContentType() string {
 type AiSuggestFieldsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiSuggestFieldsResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -54498,10 +54526,17 @@ func (r AiSuggestFieldsResult) ContentType() string {
 type AiSummarizeResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiSummarizeResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -54546,10 +54581,17 @@ func (r AiSummarizeResult) ContentType() string {
 type AiSummarizeThreadResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiSummarizeThreadResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -55154,10 +55196,17 @@ func (r DismissJumbleEntryResult) ContentType() string {
 type SuggestFromJumbleEntryResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r SuggestFromJumbleEntryResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -58260,10 +58309,17 @@ func (r InstantiateTemplateResult) ContentType() string {
 type AiGenerateTemplateResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
 	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
 	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AiGenerateTemplateResult) GetJSON202() *JobRef {
+	return r.JSON202
 }
 
 // GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
@@ -70958,8 +71014,12 @@ func ParseAiSummarizeContainerResult(rsp *http.Response) (*AiSummarizeContainerR
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -73476,8 +73536,12 @@ func ParseAiClassifyResult(rsp *http.Response) (*AiClassifyResult, error) {
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -73558,8 +73622,12 @@ func ParseSuggestDecompositionResult(rsp *http.Response) (*SuggestDecompositionR
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -73929,8 +73997,12 @@ func ParseAiSuggestFieldsResult(rsp *http.Response) (*AiSuggestFieldsResult, err
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -73965,8 +74037,12 @@ func ParseAiSummarizeResult(rsp *http.Response) (*AiSummarizeResult, error) {
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -74001,8 +74077,12 @@ func ParseAiSummarizeThreadResult(rsp *http.Response) (*AiSummarizeThreadResult,
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -74442,8 +74522,12 @@ func ParseSuggestFromJumbleEntryResult(rsp *http.Response) (*SuggestFromJumbleEn
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -76622,8 +76706,12 @@ func ParseAiGenerateTemplateResult(rsp *http.Response) (*AiGenerateTemplateResul
 	}
 
 	switch {
-	case rsp.StatusCode == 202:
-		break // No content-type
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

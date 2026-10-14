@@ -78,6 +78,15 @@ type KeptOutReader interface {
 func (h SuggestFromJumbleEntry) Execute(
 	ctx context.Context, actor appshared.ActorContext, entryID shared.ID,
 ) error {
+	_, err := h.Ask(ctx, actor, entryID)
+	return err
+}
+
+// Ask is Execute with the job it queued, which is what the asker follows: a refusal the job meets
+// - a budget spent since, AI switched off - is said there rather than nowhere.
+func (h SuggestFromJumbleEntry) Ask(
+	ctx context.Context, actor appshared.ActorContext, entryID shared.ID,
+) (shared.ID, error) {
 	w := h.Writer
 	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
 		// Asking costs the workspace's own budget and sends its content somewhere, so it asks for
@@ -89,24 +98,25 @@ func (h SuggestFromJumbleEntry) Execute(
 		TargetType: entryTarget,
 		TargetID:   entryID,
 	}); err != nil {
-		return err
+		return shared.ID(""), err
 	}
 
 	// The availability question comes before the read, so that a workspace with AI switched off is
 	// told so whatever the entry is - and after the permission check, so that it does not become a
 	// way to learn what an installation has configured.
 	if h.AI == nil {
-		return aiUnavailable
+		return shared.ID(""), aiUnavailable
 	}
 	available, err := h.AI.CanSuggest(ctx, actor)
 	if err != nil {
-		return err
+		return shared.ID(""), err
 	}
 	if !available {
-		return aiUnavailable
+		return shared.ID(""), aiUnavailable
 	}
 
-	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	var jobID shared.ID
+	err = w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		entry, err := w.Entries.Find(ctx, entryID)
 		if err != nil {
 			return err
@@ -135,7 +145,7 @@ func (h SuggestFromJumbleEntry) Execute(
 		// the body would be a second copy of the least trusted text in the system, sitting in a
 		// table with no row level security (core/port/queue), and it would be a snapshot the
 		// worker might act on after the entry had changed.
-		if _, err := h.Queue.Enqueue(ctx, queue.Request{
+		queued, err := h.Queue.Enqueue(ctx, queue.Request{
 			Kind:     queue.KindAiSuggest,
 			TenantID: actor.TenantID,
 			Payload: map[string]any{
@@ -143,11 +153,17 @@ func (h SuggestFromJumbleEntry) Execute(
 				"target_id":   entryID.String(),
 				"asked_by":    actor.AccountID.String(),
 			},
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
+		jobID = queued
 		return h.record(ctx, actor, entry.ID)
 	})
+	if err != nil {
+		return shared.ID(""), err
+	}
+	return jobID, nil
 }
 
 // aiUnavailable is what a workspace without AI is told, and it is the port's own one refusal: the
@@ -216,8 +232,9 @@ func (h SuggestFromJumbleEntry) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, entryID); err != nil {
+	jobID, err := h.Ask(ctx, actor, entryID)
+	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{}, nil
+	return usecase.Output{"job_id": jobID.String()}, nil
 }

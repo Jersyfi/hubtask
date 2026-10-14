@@ -78,7 +78,7 @@ type AiSummarizeContainer struct {
 // Execute asks for fields.
 func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply, "")
 }
@@ -86,7 +86,7 @@ func (h AiSuggestFields) Execute(
 // Execute asks for a summary.
 func (h AiSummarize) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		SummaryAskedAction, domain.KindFields, "summarize", apply, "")
 }
@@ -94,7 +94,7 @@ func (h AiSummarize) Execute(
 // Execute asks for labels.
 func (h AiClassify) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		ClassifyAskedAction, domain.KindFields, "classify", apply, "")
 }
@@ -102,7 +102,7 @@ func (h AiClassify) Execute(
 // Execute asks for a summary of the discussion.
 func (h AiSummarizeThread) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		SummaryAskedAction, domain.KindFields, threadPrompt, apply, "")
 }
@@ -113,7 +113,7 @@ func (h AiSummarizeThread) Execute(
 // flag that applied one would be a flag with nothing behind it.
 func (h AiSummarizeContainer) Execute(
 	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetContainer, containerID,
 		SummaryAskedAction, domain.KindFields, collectionPrompt, false, "")
 }
@@ -277,16 +277,17 @@ func (h AiSummarizeContainer) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, containerID); err != nil {
+	jobID, err := h.Execute(ctx, actor, containerID)
+	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{}, nil
+	return queued(jobID), nil
 }
 
 // askInvoke is the three invocations, which differ in nothing.
 func askInvoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
-	run func(context.Context, appshared.ActorContext, shared.ID, bool) error,
+	run func(context.Context, appshared.ActorContext, shared.ID, bool) (shared.ID, error),
 ) (usecase.Output, error) {
 	itemID, err := in.ID("item_id")
 	if err != nil {
@@ -296,8 +297,9 @@ func askInvoke(
 	if in.Present("apply") {
 		apply = in.Bool("apply")
 	}
-	if err := run(ctx, actor, itemID, apply); err != nil {
+	jobID, err := run(ctx, actor, itemID, apply)
+	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{}, nil
+	return queued(jobID), nil
 }

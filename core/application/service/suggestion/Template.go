@@ -47,10 +47,10 @@ type AiGenerateTemplate struct {
 // Execute checks, holds the words, then queues.
 func (h AiGenerateTemplate) Execute(
 	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, description string,
-) error {
+) (shared.ID, error) {
 	description = strings.TrimSpace(description)
 	if description == "" || len([]rune(description)) > MaxTemplateDescription {
-		return shared.ErrValidation.WithDetail("suggestions.description_invalid").
+		return shared.ID(""), shared.ErrValidation.WithDetail("suggestions.description_invalid").
 			WithFields(shared.FieldError{Path: "/description", Code: "suggestions.description_invalid"})
 	}
 	return Ask(h).queue(ctx, actor, domain.TargetContainer, collectionID,
@@ -97,10 +97,11 @@ func (h AiGenerateTemplate) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, collectionID, in.String("description")); err != nil {
+	jobID, err := h.Execute(ctx, actor, collectionID, in.String("description"))
+	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{}, nil
+	return queued(jobID), nil
 }
 
 // templateMaterial is what a template is drafted against: the collection by name, and the shape

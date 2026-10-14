@@ -142,8 +142,8 @@ export class HubtaskClient {
   }
 
   /** Ask AI to draft a template from a description */
-  aiGenerateTemplate(body: NonNullable<operations["aiGenerateTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
-    return this.call("POST", "/templates:generate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "void", options.signal);
+  aiGenerateTemplate(body: NonNullable<operations["aiGenerateTemplate"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["aiGenerateTemplate"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/templates:generate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
   /** GET /views */
@@ -197,8 +197,8 @@ export class HubtaskClient {
   }
 
   /** Ask AI what this entry should become */
-  suggestFromJumbleEntry(entryId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
-    return this.call("POST", "/jumble/entries/{entryId}:suggest", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "void", options.signal);
+  suggestFromJumbleEntry(entryId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["suggestFromJumbleEntry"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/jumble/entries/{entryId}:suggest", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Decide against an entry */
@@ -1050,18 +1050,18 @@ export class HubtaskClient {
   }
 
   /** Ask AI what work sits under this entry */
-  suggestDecomposition(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<void> {
-    return this.call("POST", "/items/{itemId}:decompose", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "void", options.signal);
+  suggestDecomposition(itemId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["suggestDecomposition"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:decompose", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Ask AI to propose this entry's fields */
-  aiSuggestFields(itemId: string, body: NonNullable<operations["aiSuggestFields"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/items/{itemId}:suggest-fields", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  aiSuggestFields(itemId: string, body: NonNullable<operations["aiSuggestFields"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["aiSuggestFields"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:suggest-fields", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Ask AI to summarise this entry */
-  aiSummarize(itemId: string, body: NonNullable<operations["aiSummarize"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/items/{itemId}:summarize", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  aiSummarize(itemId: string, body: NonNullable<operations["aiSummarize"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["aiSummarize"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:summarize", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Read this entry in another language */
@@ -1070,18 +1070,18 @@ export class HubtaskClient {
   }
 
   /** Ask AI to propose labels for this entry */
-  aiClassify(itemId: string, body: NonNullable<operations["aiClassify"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/items/{itemId}:classify", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  aiClassify(itemId: string, body: NonNullable<operations["aiClassify"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["aiClassify"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:classify", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Ask AI to summarise this entry's discussion */
-  aiSummarizeThread(itemId: string, body: NonNullable<operations["aiSummarizeThread"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/items/{itemId}:summarize-thread", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  aiSummarizeThread(itemId: string, body: NonNullable<operations["aiSummarizeThread"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["aiSummarizeThread"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/items/{itemId}:summarize-thread", { "itemId": itemId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Ask AI how a collection stands */
-  aiSummarizeContainer(containerId: string, body: NonNullable<operations["aiSummarizeContainer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<void> {
-    return this.call("POST", "/containers/{containerId}:summarize", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "void", options.signal);
+  aiSummarizeContainer(containerId: string, body: NonNullable<operations["aiSummarizeContainer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["aiSummarizeContainer"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}:summarize", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Which entries look like this one */
