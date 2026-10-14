@@ -39,10 +39,18 @@ type Registry struct {
 	// recovery can be published as a zero. A gauge that is only ever set to 1 never comes back
 	// down, and the dashboard keeps showing an outage that ended hours ago.
 	degradedSeen map[string]bool
+
+	// embedded and ledger are the migration comparison (SetMigration); the state last read is
+	// kept for migrationKept unless it was behind.
+	embedded       []int64
+	ledger         MigrationLedger
+	migrationState port.MigrationState
+	migrationAt    time.Time
+	now            func() time.Time
 }
 
 func NewRegistry(version string, roles []string) *Registry {
-	return &Registry{version: version, roles: roles, degradedSeen: map[string]bool{}}
+	return &Registry{version: version, roles: roles, degradedSeen: map[string]bool{}, now: time.Now}
 }
 
 // SetSignals wires the report into the metrics. Optional: a process without a meter still
@@ -108,6 +116,11 @@ func (r *Registry) Ready(ctx context.Context) (bool, string) {
 			return false, p.Name() + ":" + string(res.Status)
 		}
 	}
+	// After the database: a database that cannot be reached says so first, and the comparison
+	// needs it anyway.
+	if state, known := r.Migration(ctx); known && state.Status == MigrationBehind {
+		return false, "migration:" + MigrationBehind
+	}
 	return true, ""
 }
 
@@ -165,6 +178,15 @@ func (r *Registry) Report(ctx context.Context) port.Report {
 			rep.DegradedFeatures = append(rep.DegradedFeatures, port.DegradedFeature{
 				Feature: f, ReasonCode: reason, Since: res.Since,
 			})
+		}
+	}
+
+	// A schema behind the binary is an outage of this process, not a degradation: it is not
+	// ready, and it does not serve (deployment.md §5).
+	if state, known := r.Migration(ctx); known {
+		rep.Migration = state
+		if state.Status == MigrationBehind {
+			rep.Status = port.StatusDown
 		}
 	}
 

@@ -333,6 +333,14 @@ func run() error {
 	// with the observer on the way in, so no use case can run without its metric and its span
 	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
 	unitOfWork := postgres.NewUnitOfWork(pool)
+	// Readiness compares the database's migrations with the ones this build embeds (deployment.md
+	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
+	// restart a pod that is merely waiting for its migration.
+	registry.SetMigration(dbfiles.Versions(), postgres.SchemaLedger{UnitOfWork: unitOfWork}.Applied)
+	if state, known := registry.Migration(ctx); known && state.Status == healthadapter.MigrationBehind {
+		slog.Warn("the database lacks migrations this build needs; not ready until they have run",
+			slog.Int("applied", state.Applied), slog.Int("expected", state.Expected))
+	}
 	ids := clockadapter.NewUUIDv7(clockadapter.System{})
 	// The device identifier of this process. Two replicas are two devices, which is what breaks a
 	// tie between two changes stamped in the same millisecond (offline-sync.md §4.1).

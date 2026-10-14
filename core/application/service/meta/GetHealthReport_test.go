@@ -266,3 +266,16 @@ func TestTheDescriptorRecordsARefusalAndNotAPoll(t *testing.T) {
 			descriptor.RESTOperation())
 	}
 }
+
+// A report whose migration was not compared answers no `migration` at all: zeros with an empty
+// status would read as a statement about the schema, and the contract knows no empty status.
+func TestAnUncomparedMigrationIsAbsentFromTheAnswer(t *testing.T) {
+	report := fullReport()
+	if _, present := healthOutput(report)["migration"]; !present {
+		t.Error("a compared migration is missing from the answer")
+	}
+	report.Migration = health.MigrationState{}
+	if migration, present := healthOutput(report)["migration"]; present {
+		t.Errorf("an uncompared migration was answered: %v", migration)
+	}
+}
