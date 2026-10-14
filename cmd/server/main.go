@@ -1477,6 +1477,7 @@ func run() error {
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
+			Owners:     grants,
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},

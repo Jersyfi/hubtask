@@ -386,6 +386,9 @@ type RevokeMembership struct {
 	Clock      clock.Clock
 	// StepUp judges the fresh proof revoking an OWNER membership demands.
 	StepUp stepup.Verifier
+	// Owners keeps the workspace's last owner (domain-model.md §3.2). Asked only for an OWNER grant
+	// on the workspace; nil refuses that revocation rather than letting it pass unguarded.
+	Owners repository.Owners
 }
 
 // LastMember is the work context's answer to a membership that ended: a private hub nobody is left
@@ -436,6 +439,19 @@ func (h RevokeMembership) Execute(
 		return err
 	}
 
+	// The workspace keeps an owner. Asked once before the proof, so that it is not spent on a
+	// revocation refused anyway, and again under the owners' lock, where it is decided.
+	lastOwner := ownerChange{ends: func(path repository.OwnerPath) bool { return path.MembershipID == grant.ID }}
+	guarded := holdsWorkspaceOwner([]domain.Grant{grant})
+	if guarded {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			return keepsAnOwner(ctx, h.Owners, false, lastOwner)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	// Taking OWNER away is changing the OWNER role as much as handing it out is
 	// (identity.md §16.3).
 	if grant.Role == domain.RoleOwner {
@@ -445,6 +461,11 @@ func (h RevokeMembership) Execute(
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if guarded {
+			if err := keepsAnOwner(ctx, h.Owners, true, lastOwner); err != nil {
+				return err
+			}
+		}
 		// Who held the role is read before the row goes: a group's members are the group's, and
 		// the grant that named the group is about to be gone.
 		loss, err := h.Revocations.AfterGrantRevoked(ctx, grant)
