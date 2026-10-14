@@ -1264,6 +1264,14 @@ func run() error {
 	}
 	keyHealth.Refresh(ctx)
 	registry.AddWarningSource(keyHealth.Warnings)
+	// Whether a single-tenant installation's workspaces back up anywhere (backup-restore.md §10),
+	// counted per workspace in the background like the keys above.
+	targetWarnings := &backupservice.TargetWarnings{
+		Tenancy: cfg.Tenancy, Workspaces: postgres.NewAdminTenantRepository(), Targets: backupTargets,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+	targetWarnings.Refresh(ctx)
+	registry.AddWarningSource(targetWarnings.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses
