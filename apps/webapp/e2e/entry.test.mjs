@@ -87,8 +87,11 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   const titleWrite = written.find((w) => w.method === 'PATCH' && w.path.endsWith(`/items/${ENTRY.id}`) && 'title' in (w.body ?? {}));
   assert.deepEqual(titleWrite?.body, { title: 'Order the tiles, both rooms' });
   // What a title costs: the write, the entry, its history and the subtree in one
-  // query - and not the thread, the reminders or the attachments, none of which moved.
-  const afterTitle = written.slice(beforeTitle).map((w) => `${w.method} ${w.path.replace(/^.*\/api\/v1/, '')}`).sort();
+  // query - and not the thread, the reminders or the attachments, none of which moved. The live
+  // stream and the sync pull run on their own clock, so they are not what the title cost: under
+  // load one of them lands inside the window and would be counted against it.
+  const background = (w) => w.path.endsWith('/stream') || w.path.endsWith('/sync:pull');
+  const afterTitle = written.slice(beforeTitle).filter((w) => !background(w)).map((w) => `${w.method} ${w.path.replace(/^.*\/api\/v1/, '')}`).sort();
   assert.deepEqual(afterTitle, [
     `GET /items/${ENTRY.id}`,
     `GET /items/${ENTRY.id}/activity`,

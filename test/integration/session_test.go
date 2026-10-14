@@ -616,8 +616,8 @@ func TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver(t *testing.T) {
 	if _, err := admin.Exec(ctx, `
 		INSERT INTO session (id, tenant_id, account_id, created_at, last_seen_at, expires_at, revoked_at)
 		VALUES
-			($1, $4, $6, now() - interval '90 days', now() - interval '60 days', now() - interval '30 days', NULL),
-			($2, $5, $7, now() - interval '90 days', now() - interval '60 days', now() - interval '30 days', NULL),
+			($1, $4, $6, now() - interval '90 days', now() - interval '60 days', now() - interval '31 days', NULL),
+			($2, $5, $7, now() - interval '90 days', now() - interval '60 days', now() - interval '31 days', NULL),
 			($3, $4, $6, now() - interval '90 days', now() - interval '60 days', now() + interval '10 days', NULL)
 		ON CONFLICT (id) DO NOTHING`,
 		overA.String(), overB.String(), idleButLive.String(),
@@ -626,6 +626,9 @@ func TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver(t *testing.T) {
 		t.Fatalf("seeding expired sessions: %v", err)
 	}
 
+	// A day clear of the cutoff on either side: the rows are stamped by the database's clock and the
+	// cutoff by this process's, and a session ending exactly at the cutoff made the test depend on
+	// which of the two was a moment ahead.
 	cutoff := time.Now().Add(-30 * 24 * time.Hour)
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
 		due, err := sessions.CountExpired(ctx, cutoff, 100)
