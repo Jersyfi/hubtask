@@ -557,6 +557,39 @@ func TestRE2TheRuleSweepReadsPastWhatItCannotAnnounce(t *testing.T) {
 	}
 }
 
+// A pass reads past held entries on every run; one that already says what is stopping it is not
+// written again, so a long hold costs a read per pass and not a row version.
+func TestABlockThatAlreadyStandsIsNotRewritten(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	collectionID := s.collection(t)
+	held := s.completedItem(t, collectionID, 500)
+	s.itemHold(t, held)
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+	})
+	version := func() string {
+		var xmin string
+		if err := s.admin.QueryRow(s.ctx,
+			`SELECT xmin::text FROM work_item WHERE id = $1`, held.String()).Scan(&xmin); err != nil {
+			t.Fatalf("reading the row version: %v", err)
+		}
+		return xmin
+	}
+
+	s.sweep(t)
+	first := version()
+	s.sweep(t)
+
+	if again := version(); again != first {
+		t.Errorf("the second pass rewrote an unchanged block (row version %s, then %s)", first, again)
+	}
+}
+
 // RE-2 for phase two: marked entries a legal hold keeps fell due first, so they come first in the
 // read; the pass reads past them and acts on the one behind.
 func TestRE2PhaseTwoReadsPastWhatAHoldKeeps(t *testing.T) {

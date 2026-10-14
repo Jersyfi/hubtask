@@ -170,6 +170,7 @@ func (s Sweeper) announce(
 		if err != nil {
 			return Outcome{}, err
 		}
+		blocks := pageBlocks{}
 
 		for _, candidate := range candidates {
 			if markable >= s.batch() {
@@ -200,10 +201,7 @@ func (s Sweeper) announce(
 				// The object is told what is stopping it. §6's whole argument is that retention
 				// nobody can see surprises somebody, and "this would have been deleted and a legal
 				// hold is holding it back" is the half of it a count in a run's report cannot say.
-				if _, err := s.Marking.Block(ctx, []shared.ID{candidate.ID},
-					rule.ID, rule.Action, reason); err != nil {
-					return outcome, err
-				}
+				blocks.add(rule, reason, candidate.ID)
 				continue
 			}
 			if _, seen := byRule[rule.ID]; !seen {
@@ -211,6 +209,11 @@ func (s Sweeper) announce(
 			}
 			byRule[rule.ID] = append(byRule[rule.ID], candidate)
 			markable++
+		}
+		// One statement per rule and reason on the page rather than one per entry: a read-past
+		// over a held collection would otherwise cost an update per row it reads.
+		if err := blocks.flush(ctx, s.Marking); err != nil {
+			return outcome, err
 		}
 		if markable >= s.batch() || lastPage(s.batch(), candidates) {
 			break
@@ -250,6 +253,39 @@ func (s Sweeper) announce(
 		}
 	}
 	return outcome, nil
+}
+
+// pageBlocks gathers the blocks of one page by rule and reason, in the order they were met, so
+// they are written in one statement each.
+type pageBlocks struct {
+	keys []blockKey
+	ids  map[blockKey][]shared.ID
+}
+
+type blockKey struct {
+	rule   shared.ID
+	action domain.Action
+	reason string
+}
+
+func (b *pageBlocks) add(rule domain.Rule, reason string, id shared.ID) {
+	key := blockKey{rule: rule.ID, action: rule.Action, reason: reason}
+	if b.ids == nil {
+		b.ids = map[blockKey][]shared.ID{}
+	}
+	if _, seen := b.ids[key]; !seen {
+		b.keys = append(b.keys, key)
+	}
+	b.ids[key] = append(b.ids[key], id)
+}
+
+func (b *pageBlocks) flush(ctx context.Context, marking repository.Marking) error {
+	for _, key := range b.keys {
+		if _, err := marking.Block(ctx, b.ids[key], key.rule, key.action, key.reason); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // warn tells the rule's audience about one marked entry, and does nothing for a rule that names

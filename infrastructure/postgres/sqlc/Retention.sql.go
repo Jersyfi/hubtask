@@ -43,6 +43,9 @@ UPDATE work_item SET
   retention_blocked_by = $3
 WHERE id = ANY($4::uuid[])
   AND retention_pending_until IS NULL
+  AND (retention_rule_id    IS DISTINCT FROM $1
+    OR retention_action     IS DISTINCT FROM $2
+    OR retention_blocked_by IS DISTINCT FROM $3)
 `
 
 type BlockItemsForRetentionParams struct {
@@ -57,7 +60,9 @@ type BlockItemsForRetentionParams struct {
 // No `retention_pending_until`, deliberately: an entry that is held back has no due moment, and the
 // absence of one is what keeps phase two off it rather than a flag somebody has to remember to
 // check. Re-run on every pass, because a block is a fact about now - the hold may have been lifted
-// since, and then the marking above takes over.
+// since, and then the marking above takes over. A row that already says so is left alone: a pass
+// reads past held rows on every run, and rewriting each unchanged one would be a row version per
+// held entry per pass.
 func (q *Queries) BlockItemsForRetention(ctx context.Context, arg BlockItemsForRetentionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, blockItemsForRetention,
 		arg.RuleID,
