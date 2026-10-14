@@ -42,7 +42,9 @@ const manifestWith = (ai) => ({
   query_fields: [],
   supported_locales: [{ locale: 'en', direction: 'ltr' }],
   text_languages: ['en'],
-  roles: [],
+  // The tester owns the workspace: the screens draw what a role lets them do, and the AI controls
+  // are among what changes an entry.
+  roles: [{ role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE'], item_access: { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' } }],
   limits: {},
   features: { ai_suggestions: ai, semantic_search: ai, mail: false, storage: true, web_ui: true },
   token_scopes: [],
@@ -110,10 +112,12 @@ function answerFor(url, ai) {
     '/api/v1/accounts/me': { id: '0192f000-0000-7000-8000-00000000000d', tenant_id: TENANT, kind: 'USER', display_name: 'Tester', status: 'ACTIVE', locale: 'en', time_zone: 'UTC', version: 1 },
     [`/api/v1/items/${ITEM}`]: item,
     [`/api/v1/containers/${COLLECTION}`]: collection,
+    [`/api/v1/containers/${collection.parent_id}`]: { ...collection, id: collection.parent_id, type: 'HUB', parent_id: null, name: 'A hub' },
     '/api/v1/jumble/entries': { data: [entry], next_cursor: null },
     '/api/v1/suggestions': { items: [], has_more: false },
     '/api/v1/items:query': { data: [], page: { has_more: false, next_cursor: null } },
     '/api/v1/containers': { data: [], page: { has_more: false, next_cursor: null } },
+    '/api/v1/memberships': { data: [{ id: 'm0', scope_type: 'TENANT', account_id: '0192f000-0000-7000-8000-00000000000d', role: 'OWNER' }], grantable_roles: [] },
   };
   return table[pathname];
 }
@@ -184,9 +188,19 @@ async function boot() {
   // subscription - which an effect starts in the browser and this starts here.
   stops.push(jumble.open('NEW'));
   await engine.refresh({ path: '/jumble/entries?status=NEW' });
+  // What the reader holds along the entry's and the collection's path, which the screens open in an
+  // effect: the workspace answers the tester's ownership, every narrower scope nothing.
+  const { people } = await import('../src/lib/data/people.svelte.ts');
+  const { membershipsPath, scopesAlong } = await import('../src/lib/data/people.ts');
+  const path = { hubId: collection.parent_id, collectionId: COLLECTION, itemId: ITEM };
+  people.open(path);
+  for (const scope of scopesAlong(path)) await engine.refresh({ path: membershipsPath(scope) });
   // The collection screen reads its container through the containers store the same way.
   stops.push(containers.openSingle(COLLECTION));
   await engine.refresh({ path: `/containers/${COLLECTION}` });
+  // And its hub, whose standing decides whether the workspace's roles count along the path.
+  stops.push(containers.openSingle(collection.parent_id));
+  await engine.refresh({ path: `/containers/${collection.parent_id}` });
   return () => stops.forEach((stop) => stop());
 }
 

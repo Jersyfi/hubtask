@@ -38,7 +38,11 @@
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
 
-  const { item }: { item: WorkItem } = $props();
+  /**
+   * `isChangeable`: whether the reader may change the entry. Reading and downloading are anybody's
+   * who reads it; attaching and detaching are a change the server refuses otherwise (P-05).
+   */
+  const { item, isChangeable }: { item: WorkItem; isChangeable: boolean } = $props();
 
   const capability = $derived(supports(item.type, 'ATTACHMENTS'));
   const limit = $derived(uploadLimitOf(manifest.value));
@@ -154,9 +158,11 @@
                   <Button size="sm" tone="secondary" onclick={() => void download(object)}>
                     {t('app.media.download')}
                   </Button>
-                  <Button size="sm" tone="secondary" onclick={() => void detach(object)}>
-                    {t('app.media.detach')}
-                  </Button>
+                  {#if isChangeable}
+                    <Button size="sm" tone="secondary" onclick={() => void detach(object)}>
+                      {t('app.media.detach')}
+                    </Button>
+                  {/if}
                 </div>
               {/snippet}
               <span class="name">{object.file_name ?? t('app.media.unnamed')}</span>
@@ -174,21 +180,23 @@
       {/if}
     {/if}
 
-    <UploadField
-      label={t('app.media.attachments')}
-      hint={t('app.media.attach_hint')}
-      chooseLabel={t('app.media.attach_choose')}
-      dropLabel={t('app.media.drop')}
-      cancelLabel={t('app.media.cancel')}
-      accept={acceptFor('ATTACHMENT')}
-      file={chosen ?? null}
-      {sizeLabel}
-      overLimitLabel={overLimit ? t('app.media.over_limit') : undefined}
-      progress={isUploading ? percent : undefined}
-      progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
-      onChoose={(file) => void choose(file)}
-      onCancel={() => controller?.abort()}
-    />
+    {#if isChangeable}
+      <UploadField
+        label={t('app.media.attachments')}
+        hint={t('app.media.attach_hint')}
+        chooseLabel={t('app.media.attach_choose')}
+        dropLabel={t('app.media.drop')}
+        cancelLabel={t('app.media.cancel')}
+        accept={acceptFor('ATTACHMENT')}
+        file={chosen ?? null}
+        {sizeLabel}
+        overLimitLabel={overLimit ? t('app.media.over_limit') : undefined}
+        progress={isUploading ? percent : undefined}
+        progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
+        onChoose={(file) => void choose(file)}
+        onCancel={() => controller?.abort()}
+      />
+    {/if}
 
     {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
