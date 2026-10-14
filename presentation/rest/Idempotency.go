@@ -84,8 +84,18 @@ func (i Idempotent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	actor, ok := appshared.ActorFrom(r.Context())
 	if !ok || !actor.IsAuthenticated() {
-		// Unreachable behind the authentication middleware, and a fail-closed guard rather than
-		// an assumption: a record without a tenant has nowhere to live.
+		if _, route := i.Routes.Handler(r); PublicRoutes[route] {
+			// A public route's anonymous caller: the key is accepted and nothing is kept. A record
+			// lives in a workspace and this caller has none here - a token in the body or the path
+			// is the route's to resolve - and keeping it by the key alone would let whoever learns
+			// a key read a stranger's answer. A repeat is the route's to answer: a single-use
+			// token is spent once, a sign-in opens a further session, and an inbound delivery is
+			// a new arrival, collapsed by the rule's own dedupe where one is set.
+			i.Next.ServeHTTP(w, r)
+			return
+		}
+		// Anywhere else unreachable behind the authentication middleware, and a fail-closed guard
+		// rather than an assumption: a record without a tenant has nowhere to live.
 		WriteProblem(w, shared.ErrUnauthenticated.WithDetail("access.credential_required"), requestID)
 		return
 	}
