@@ -253,6 +253,31 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[]);
 DELETE FROM container
 WHERE id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: TrashBatchMembers :many
+-- Every row still in the trash that one of these deletions took, the root included, with the
+-- levels a legal hold could name it by: an entry's hub, collection and path, a container's hub.
+--
+-- Read for the trash list, which says whether a hold keeps a deletion by judging each of its rows
+-- as the retention pass does (`lifecycle.Holds.Blocking`). The tenant is the transaction's, as row
+-- level security has it; naming it again keeps the partial trash indices in play.
+SELECT 'ITEM'::text      AS kind,
+       i.id              AS id,
+       i.trash_batch_id  AS trash_batch_id,
+       col.parent_id     AS hub_id,
+       i.collection_id   AS collection_id,
+       i.path            AS path
+FROM work_item i
+JOIN container col ON col.id = i.collection_id
+WHERE i.tenant_id = current_tenant_id()
+  AND i.deleted_at IS NOT NULL
+  AND i.trash_batch_id = ANY(sqlc.arg('batch_ids')::uuid[])
+UNION ALL
+SELECT 'CONTAINER'::text, c.id, c.trash_batch_id, c.parent_id, NULL::uuid, ''::text
+FROM container c
+WHERE c.tenant_id = current_tenant_id()
+  AND c.deleted_at IS NOT NULL
+  AND c.trash_batch_id = ANY(sqlc.arg('batch_ids')::uuid[]);
+
 -- name: TrashKeptBelow :many
 -- What stays below each of these when a purge removes only the rows it was handed
 -- (data-retention.md §4 item 6): an entry's descendants, a collection's entries, a hub's

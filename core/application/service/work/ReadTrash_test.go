@@ -25,6 +25,9 @@ type trashStore struct {
 	subtree    []shared.ID
 	purgedItem []shared.ID
 	purgedCont []shared.ID
+	// members are the rows of the deletions asked for; askedBatches what was asked.
+	members      []repository.TrashMember
+	askedBatches []shared.ID
 }
 
 func (s *trashStore) List(_ context.Context, page repository.Page) (repository.TrashPage, error) {
@@ -50,6 +53,11 @@ func (s *trashStore) PurgeContainers(_ context.Context, ids []shared.ID) (int, e
 }
 func (s *trashStore) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[shared.ID]int, error) {
 	return map[shared.ID]int{}, nil
+}
+
+func (s *trashStore) BatchMembers(_ context.Context, batches []shared.ID) ([]repository.TrashMember, error) {
+	s.askedBatches = append(s.askedBatches, batches...)
+	return s.members, nil
 }
 
 var deletedEarlier = now.Add(-time.Hour)

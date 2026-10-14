@@ -83,6 +83,10 @@ func (s *trashStore) KeptBelow(
 	return kept, nil
 }
 
+func (s *trashStore) BatchMembers(context.Context, []shared.ID) ([]workrepo.TrashMember, error) {
+	return nil, nil
+}
+
 // expiredStore hands over its rows in the order they were given. Putting the removable ones first is
 // the statement's work, proven against the database (RE-6); what this records is the instant the
 // engine asks it to order by.
