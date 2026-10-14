@@ -323,6 +323,11 @@ func TestAGroupKeepsItsMembersAndItsVersion(t *testing.T) {
 	if read.Version != 1 {
 		t.Errorf("version %d, want 1", read.Version)
 	}
+	// The workspace travels with the row: the trail entry of a rename or a deletion is written
+	// under it, and an entry without one is refused (audit.entry_incomplete).
+	if read.TenantID != tenantA {
+		t.Errorf("workspace %q, want %q", read.TenantID, tenantA)
+	}
 }
 
 // Optimistic locking against the real row: the second writer of two loses cleanly.

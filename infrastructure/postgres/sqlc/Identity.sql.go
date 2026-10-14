@@ -505,22 +505,25 @@ func (q *Queries) FindAccountBySignInName(ctx context.Context, signInName *strin
 
 const findGroup = `-- name: FindGroup :one
 
-SELECT id, name, description, version FROM account_group WHERE id = $1
+SELECT id, tenant_id, name, description, version FROM account_group WHERE id = $1
 `
 
 type FindGroupRow struct {
 	ID          pgtype.UUID
+	TenantID    pgtype.UUID
 	Name        string
 	Description *string
 	Version     int32
 }
 
 // =============================== Groups ===============================
+// The workspace travels with the row: a rename's or a deletion's trail entry is written under it.
 func (q *Queries) FindGroup(ctx context.Context, id pgtype.UUID) (FindGroupRow, error) {
 	row := q.db.QueryRow(ctx, findGroup, id)
 	var i FindGroupRow
 	err := row.Scan(
 		&i.ID,
+		&i.TenantID,
 		&i.Name,
 		&i.Description,
 		&i.Version,

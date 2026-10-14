@@ -439,8 +439,13 @@ func (r GroupRepository) Find(ctx context.Context, groupID shared.ID) (identity.
 	if err != nil {
 		return identity.Group{}, err
 	}
+	tenantID, err := idFrom(row.TenantID)
+	if err != nil {
+		return identity.Group{}, err
+	}
 	return identity.Group{
 		ID:          id2,
+		TenantID:    tenantID,
 		Name:        row.Name,
 		Description: stringFrom(row.Description),
 		Version:     int(row.Version),

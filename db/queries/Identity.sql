@@ -264,7 +264,8 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- =============================== Groups ===============================
 
 -- name: FindGroup :one
-SELECT id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
+-- The workspace travels with the row: a rename's or a deletion's trail entry is written under it.
+SELECT id, tenant_id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
 
 -- name: LockGroup :one
 -- The group's row, held for the transaction: a member change, a deletion and a grant to the group
