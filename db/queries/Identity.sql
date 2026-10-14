@@ -330,18 +330,6 @@ WHERE account_id IS NOT DISTINCT FROM sqlc.narg('account_id')::uuid
   AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
   AND role = sqlc.arg('role');
 
--- name: AccountHoldsRole :one
--- Whether the account already holds exactly this role at exactly this scope through a grant of its
--- own - not through a group, not inherited from above. What a grant asks before it writes, so that
--- being given a role one already has is not news.
-SELECT EXISTS (
-  SELECT 1 FROM membership
-  WHERE account_id = sqlc.arg('account_id')::uuid
-    AND scope_type = sqlc.arg('scope_type')
-    AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
-    AND role = sqlc.arg('role')
-);
-
 -- name: FindMembership :one
 -- The tenant is selected although row level security already bounds the statement to it: the
 -- grant this answers is what the revocation writes its audit entry from, and an entry without a
