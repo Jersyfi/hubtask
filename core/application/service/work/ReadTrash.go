@@ -5,12 +5,17 @@ package work
 
 import (
 	"context"
+	"errors"
+	"time"
 
+	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -42,6 +47,24 @@ type ListTrash struct {
 	Trash      repository.Trash
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
+	// Policies and TombstoneWindow are the two numbers the retention pass removes by - the trash
+	// period it reads and the installation's offline window the Purger is given - so that the date
+	// each entry carries is the pass's own.
+	Policies        lifecyclerepo.Policies
+	TombstoneWindow time.Duration
+}
+
+// TrashListing is one page of the trash and when the automatic pass may take each entry.
+type TrashListing struct {
+	repository.TrashPage
+	policy lifecycle.Policy
+	window time.Duration
+}
+
+// PurgeAfter is the moment after which the automatic pass may remove the entry, unless a legal hold
+// keeps it.
+func (l TrashListing) PurgeAfter(entry domain.TrashEntry) time.Time {
+	return l.policy.RemovableAfter(entry.DeletedAt, l.window)
 }
 
 // ListTrashQuery is the input, typed.
@@ -59,23 +82,42 @@ type ListTrashQuery struct {
 // actor may see: "what did I delete" is answered with what they may see, not with a 403.
 func (h ListTrash) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListTrashQuery,
-) (repository.TrashPage, error) {
-	var page repository.TrashPage
+) (TrashListing, error) {
+	listing := TrashListing{window: h.TombstoneWindow}
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		page, err = h.Trash.List(ctx, repository.Page{
+		listing.TrashPage, err = h.Trash.List(ctx, repository.Page{
 			Cursor: query.Cursor, Size: PageSize(query.Size),
 		})
+		if err != nil {
+			return err
+		}
+		listing.policy, err = h.trashPolicy(ctx)
 		return err
 	})
 	if err != nil {
-		return repository.TrashPage{}, err
+		return TrashListing{}, err
 	}
 
-	if page.Entries, err = h.visible(ctx, actor, page.Entries); err != nil {
-		return repository.TrashPage{}, err
+	if listing.Entries, err = h.visible(ctx, actor, listing.Entries); err != nil {
+		return TrashListing{}, err
 	}
-	return page, nil
+	return listing, nil
+}
+
+// trashPolicy is the period the retention pass reads. A tenant the pass has not reached yet has no
+// row, and the documented default is what the pass is about to write for it; writing it here is not
+// an option, because this read is read-only.
+func (h ListTrash) trashPolicy(ctx context.Context) (lifecycle.Policy, error) {
+	policy, err := h.Policies.Find(ctx, lifecycle.KindTrash)
+	if errors.Is(err, shared.ErrNotFound) {
+		for _, fallback := range lifecycle.DefaultPolicies() {
+			if fallback.DataKind == lifecycle.KindTrash {
+				return fallback, nil
+			}
+		}
+	}
+	return policy, err
 }
 
 // visible drops the entries the actor may not read.
@@ -182,7 +224,9 @@ func (h ListTrash) invoke(
 
 	entries := make([]usecase.Output, 0, len(page.Entries))
 	for _, entry := range page.Entries {
-		entries = append(entries, trashEntryOutput(entry))
+		output := trashEntryOutput(entry)
+		output["purge_after"] = page.PurgeAfter(entry)
+		entries = append(entries, output)
 	}
 	return pageOutput(entries, page.Info), nil
 }

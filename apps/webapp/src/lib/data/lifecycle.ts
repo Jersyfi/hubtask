@@ -71,3 +71,13 @@ export function remainingDays(
 export function isContainer(kind: string): boolean {
   return kind === 'CONTAINER';
 }
+
+/**
+ * How many whole days are left until a moment the server named - the trash entry's `purge_after`,
+ * the pass's own date. Rounded up and never below zero, for the reasons `remainingDays` gives.
+ */
+export function daysUntil(at: string, now: number): number | undefined {
+  const moment = Date.parse(at);
+  if (Number.isNaN(moment)) return undefined;
+  return Math.max(0, Math.ceil((moment - now) / DAY));
+}

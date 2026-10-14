@@ -71,7 +71,10 @@ func readerRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 			Comments: postgres.NewCommentRepository(pageCursors()), Items: items, Containers: containers,
 			Authorizer: authoriser, UnitOfWork: unitOfWork,
 		}.Descriptor(),
-		work.ListTrash{Trash: postgres.NewTrashRepository(pageCursors()), Reader: authoriser, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListTrash{
+			Trash: postgres.NewTrashRepository(pageCursors()), Reader: authoriser, UnitOfWork: unitOfWork,
+			Policies: postgres.NewLifecycleRepository(),
+		}.Descriptor(),
 		work.QueryItems{
 			Items: items, ItemLabels: labels, Containers: containers, Authorizer: authoriser,
 			UnitOfWork: unitOfWork, Clock: fixed,

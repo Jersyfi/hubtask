@@ -132,3 +132,35 @@ func TestAKindWithNoDefaultHasNoFloor(t *testing.T) {
 		t.Errorf("the trash floor is %d days, want 7", floor)
 	}
 }
+
+// The moment a screen names is the moment the pass would act: the later of the period and the
+// offline window, the floor applied as Cutoff applies it. A moment later the row passes both of the
+// pass's comparisons.
+func TestARowIsRemovableAfterTheLaterOfThePeriodAndTheWindow(t *testing.T) {
+	const day = 24 * time.Hour
+	for _, c := range []struct {
+		name       string
+		retainDays int
+		window     time.Duration
+		want       time.Time
+	}{
+		{"the window outlasts the period", 30, 90 * day, noon.Add(90 * day)},
+		{"the period outlasts the window", 120, 90 * day, noon.AddDate(0, 0, 120)},
+		{"a period below the floor counts as the floor", 3, 0, noon.AddDate(0, 0, 7)},
+		{"no window", 30, 0, noon.AddDate(0, 0, 30)},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			policy := lifecycle.Policy{DataKind: lifecycle.KindTrash, RetainDays: c.retainDays}
+			got := policy.RemovableAfter(noon, c.window)
+			if !got.Equal(c.want) {
+				t.Fatalf("removable after %v, want %v", got, c.want)
+			}
+			if !policy.Cutoff(got.Add(time.Second)).After(noon) {
+				t.Errorf("a moment after %v the row is still not older than the pass's cutoff", got)
+			}
+			if got.Add(time.Second).Add(-c.window).Before(noon) {
+				t.Errorf("a moment after %v the row is still inside the offline window", got)
+			}
+		})
+	}
+}
