@@ -7,7 +7,7 @@ deployments: [D4, D5, D6]
 serves: [P-03, P-11, P-15]
 state: built
 tasks: [J-15, SC-12]
-checked_by: [core/application/service/integration/AiBudget_test.go, core/application/service/quota/Quota_test.go, test/integration/ai_budget_source_test.go, core/application/service/admin/Quotas_test.go, apps/webapp/e2e/aisettings.test.mjs, docs/evidence/SC-15-D5-2026-10-13.md, core/application/service/suggestion/Availability_test.go, infrastructure/i18n/Renderer_test.go, apps/webapp/src/lib/problem.test.ts]
+checked_by: [core/application/service/integration/AiBudget_test.go, core/application/service/quota/Quota_test.go, test/integration/ai_budget_source_test.go, core/application/service/admin/Quotas_test.go, apps/webapp/e2e/aisettings.test.mjs, docs/evidence/SC-15-D5-2026-10-13.md, core/application/service/suggestion/Availability_test.go, infrastructure/i18n/Renderer_test.go, apps/webapp/src/lib/problem.test.ts, presentation/worker/AiSuggestion_test.go, test/integration/job_test.go, apps/webapp/src/lib/data/suggestions.test.ts]
 ---
 
 # Keep AI use within a budget
