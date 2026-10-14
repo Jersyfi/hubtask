@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 
 import { TransportError } from '@hubtask/sync-engine';
 
+import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
 import { renderProblem } from './problem.ts';
 
@@ -129,6 +130,30 @@ test('a query the server refuses by name still reads as a sentence', () => {
     'invented_field is not something you can filter on here.',
   );
   assert.ok(!rendered.message.includes('{'), 'a placeholder reached the reader');
+});
+
+// UC-AI-07 check 3: a spent budget is the one refusal with the budget's reason and the moment it
+// renews, and the reader is told both - the moment in their own locale, never as wire text.
+test('a spent AI budget says so and when it renews, the moment written for the reader', () => {
+  const renewsAt = '2026-09-09T22:00:00Z';
+  const rendered = renderProblem(
+    new TransportError('problem', {
+      status: 503,
+      code: 'dependency_unavailable',
+      detailCode: 'ai.unavailable',
+      params: { reason: 'budget_spent', renews_at: renewsAt },
+    }),
+    messages,
+  );
+  assert.match(rendered.message, /AI budget/);
+  assert.ok(rendered.message.includes(formatDateTime(renewsAt, 'en')), rendered.message);
+  assert.ok(!rendered.message.includes(renewsAt), rendered.message);
+
+  const off = renderProblem(
+    new TransportError('problem', { status: 503, code: 'dependency_unavailable', detailCode: 'ai.unavailable' }),
+    messages,
+  );
+  assert.doesNotMatch(off.message, /budget/);
 });
 
 test('a legal hold reads as its own sentence, not as a generic failure', () => {
