@@ -6371,6 +6371,9 @@ type IdentityProviderPreset struct {
 	// Instructions A message code, rendered with `redirect_uri` as its parameter. What an operator has to do at the provider for this to work.
 	Instructions string `json:"instructions"`
 
+	// Issuer The one issuer this provider has for every account, which a form fills in when the provider is chosen. Absent where each organisation has an issuer of its own.
+	Issuer *string `json:"issuer,omitempty"`
+
 	// Kind The preset a provider was configured from, which decides the mark its button draws `GENERIC` draws the letter tile - the honest answer rather than a borrowed logo. A stated kind the issuer does not belong to is refused: a Google mark over somebody else's issuer is borrowed trust on a sign-in screen.
 	Kind IdentityProviderKind `json:"kind"`
 

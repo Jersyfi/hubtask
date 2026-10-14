@@ -646,6 +646,7 @@ class ProviderWithdrawal(TypedDict, total=False):
 class IdentityProviderPreset(TypedDict, total=False):
     """What follows from which provider a workspace picked: the scopes its registration has to permit, whether it may sign in people nobody invited, the one thing about it that is not like the others, and the instructions for registering with it."""
     kind: Required["IdentityProviderKind"]
+    issuer: str | None
     scopes: Required[list[str]]
     addresses_verified: Required[bool]
     public: Required[bool]

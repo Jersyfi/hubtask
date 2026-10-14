@@ -11183,6 +11183,13 @@ components:
       required: [kind, scopes, addresses_verified, public, provisioning, installation_provisioning, redirect_uri, instructions, supports_templated_issuer]
       properties:
         kind: { $ref: "#/components/schemas/IdentityProviderKind" }
+        issuer:
+          type: [string, "null"]
+          format: uri
+          readOnly: true
+          description: >
+            The one issuer this provider has for every account, which a form fills in when the
+            provider is chosen. Absent where each organisation has an issuer of its own.
         scopes:
           type: array
           items: { type: string }
