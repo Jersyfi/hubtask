@@ -1119,6 +1119,7 @@ type Notification struct {
 	RuleID             pgtype.UUID
 	SubscriptionID     pgtype.UUID
 	PrivateHubAccessID pgtype.UUID
+	MembershipID       pgtype.UUID
 }
 
 type NotificationPreference struct {

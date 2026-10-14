@@ -80,6 +80,13 @@ func (w *budgetWorld) AiTokens(_ context.Context, _ string, own bool, _ time.Tim
 	return w.room, w.roomErr
 }
 
+// AiRenewal answers the next midnight in Berlin, the workspace's zone in these tests.
+func (w *budgetWorld) AiRenewal(_ context.Context, now time.Time) (time.Time, error) {
+	berlin, _ := time.LoadLocation("Europe/Berlin")
+	local := now.In(berlin)
+	return time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, berlin), nil
+}
+
 func (w *budgetWorld) MeterAi(_ context.Context, own bool, _ time.Time, tokens int64) error {
 	w.meterOn = append(w.meterOn, own)
 	if w.openTransactions > 0 {
@@ -172,6 +179,33 @@ func TestAWorkspaceOverItsBudgetLooksLikeOneWithNoProvider(t *testing.T) {
 	}
 	if world.calls != 0 {
 		t.Errorf("%d calls reached the provider over budget", world.calls)
+	}
+}
+
+// UC-AI-07 check 3: the refusal names the budget and when it renews - the workspace's next
+// midnight - and says so before anybody calls, so a caller that short-cuts on the capabilities
+// can tell the person too. The class is the one refusal's: nothing downstream handles it apart.
+func TestASpentBudgetSaysSoAndWhenItRenews(t *testing.T) {
+	provider, err := budgeted(&budgetWorld{room: false}).For(t.Context(), budgetActor())
+	if err != nil {
+		t.Fatalf("resolving was refused: %v", err)
+	}
+
+	_, completed := provider.Complete(t.Context(), aiprovider.CompletionRequest{})
+	for name, refusal := range map[string]error{
+		"asked first": aiprovider.RefusalOf(provider),
+		"completing":  completed,
+	} {
+		if !errors.Is(refusal, aiprovider.ErrUnavailable) {
+			t.Errorf("%s: %v is not the one refusal's class", name, refusal)
+		}
+		answer := shared.AsError(refusal)
+		// 11:00 UTC on 9 September is 13:00 in Berlin; the day ends at midnight there, 22:00 UTC.
+		if answer.DetailCode != "ai.unavailable" || answer.Params["reason"] != aiprovider.ReasonBudgetSpent ||
+			answer.Params["renews_at"] != "2026-09-09T22:00:00Z" {
+			t.Errorf("%s: %s %v, want ai.unavailable for the budget, renewing at Berlin's midnight",
+				name, answer.DetailCode, answer.Params)
+		}
 	}
 }
 

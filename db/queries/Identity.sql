@@ -308,14 +308,27 @@ SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id'
 -- ============================ Memberships =============================
 
 -- name: GrantMembership :exec
--- Idempotent by the same index that keeps a subject from holding one role twice at one scope: a
--- retried request is not a second grant.
+-- Only the primary key can conflict, and every grant carries a fresh identifier: no index keeps a
+-- subject from holding one role twice at one scope, so a repeated grant is a second, equal row.
+-- AccountHoldsRole is how a caller asks before writing.
 INSERT INTO membership (id, tenant_id, account_id, group_id, scope_type, scope_id, role)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('account_id'), sqlc.narg('group_id'),
   sqlc.arg('scope_type'), sqlc.narg('scope_id'), sqlc.arg('role')
 )
 ON CONFLICT DO NOTHING;
+
+-- name: AccountHoldsRole :one
+-- Whether the account already holds exactly this role at exactly this scope through a grant of its
+-- own - not through a group, not inherited from above. What a grant asks before it writes, so that
+-- being given a role one already has is not news.
+SELECT EXISTS (
+  SELECT 1 FROM membership
+  WHERE account_id = sqlc.arg('account_id')::uuid
+    AND scope_type = sqlc.arg('scope_type')
+    AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
+    AND role = sqlc.arg('role')
+);
 
 -- name: FindMembership :one
 -- The tenant is selected although row level security already bounds the statement to it: the

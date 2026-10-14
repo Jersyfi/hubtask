@@ -757,6 +757,33 @@ func (r MembershipGrantRepository) Find(ctx context.Context, membershipID shared
 	return grantFrom(row)
 }
 
+func (r MembershipGrantRepository) Holds(
+	ctx context.Context, accountID shared.ID, scope identity.Scope, role identity.Role,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	scopeID, err := optionalUUID(scope.ID)
+	if err != nil {
+		return false, err
+	}
+	held, err := queries.AccountHoldsRole(ctx, sqlc.AccountHoldsRoleParams{
+		AccountID: account, ScopeType: sqlc.MembershipScope(scope.Type), ScopeID: scopeID,
+		Role: sqlc.MembershipRole(role),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether account %s holds a role: %w", accountID, err))
+	}
+	return held, nil
+}
+
 func (r MembershipGrantRepository) ListAt(
 	ctx context.Context, scope identity.Scope, page repository.Page,
 ) (repository.GrantPage, error) {

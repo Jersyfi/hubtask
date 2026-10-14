@@ -76,7 +76,10 @@ only within one model and search must notice a model change and re-embed
 sealed key, the declared `jurisdiction`, and the separate consent `processing_allowed`. Every adapter
 uses `infrastructure/httpclient.GuardedClient` (timeout, retry, SSRF refusal) and brings no
 dependency. A refusal is always `ErrUnavailable` with `ai.unavailable`, never an empty result: "the
-model said nothing" and "there is no model" must differ.
+model said nothing" and "there is no model" must differ. A spent budget is the same refusal with the
+parameters `reason` (`budget_spent`) and `renews_at`, so the person reads when it renews (UC-AI-07
+check 3); a provider that refuses says so before it is called (`ai.Refusing`), so a caller that
+short-cuts on its capabilities passes the same refusal on.
 
 **Models the installation offers** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md);
 UC-AI-05, UC-AI-06). Operators offer models as `ai_provider` rows with no workspace
