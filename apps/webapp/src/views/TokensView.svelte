@@ -66,6 +66,10 @@
   $effect(() => () => (minted = undefined));
 
   const reading = $derived(tokens.stateOf(accountId));
+  // A service account's panel speaks about the service account: "You have no tokens" said to the
+  // administrator looking at it was about the wrong person. So is the CalDAV note, which tells
+  // somebody their own address is the user name.
+  const readingLabel = $derived(accountId ? t('app.tokens.reading_service') : t('app.tokens.reading'));
   const held = $derived(tokens.of(accountId));
 
   /** Every scope this installation declares, from the manifest and never a list written here. */
@@ -176,7 +180,7 @@
     />
     <!-- The one other thing a token is for, said here because no other screen says it: what a calendar
          client asks for as the password. -->
-    <p class="quiet">{t('app.tokens.caldav_note')}</p>
+    {#if !accountId}<p class="quiet">{t('app.tokens.caldav_note')}</p>{/if}
   {/if}
 
   {#if failure}
@@ -186,13 +190,13 @@
   {/if}
 
   {#if reading.status === 'loading' || reading.status === 'idle'}
-    <p class="waiting"><Spinner label={t('app.tokens.reading')} /> <span>{t('app.tokens.reading')}</span></p>
+    <p class="waiting"><Spinner label={readingLabel} /> <span>{readingLabel}</span></p>
   {:else if refusal}
     <Banner tone="danger" title={refusal.message}>
       {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
     </Banner>
   {:else if held.length === 0}
-    <p class="quiet">{t('app.tokens.none')}</p>
+    <p class="quiet">{accountId ? t('app.tokens.none_service') : t('app.tokens.none')}</p>
   {:else}
     <Table
       label={t('app.tokens.title')}

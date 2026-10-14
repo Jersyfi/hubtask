@@ -133,3 +133,17 @@ test('chromium: an expiry typed as a day is that day where the person is (UC-ID-
   const max = await page.getByLabel(/^Expires/).getAttribute('max');
   assert.ok(Date.parse(`${max}T23:59:59+01:00`) <= Date.now() + 365 * 86_400_000 + 3_600_000, `the control offers ${max}, past the year`);
 });
+
+test('chromium: a service account\'s token panel speaks about the service account', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/service-accounts`);
+  const section = page.locator('section', { hasText: SERVICE.display_name });
+  await section.getByRole('button', { name: 'Its tokens' }).click();
+  await section.getByRole('button', { name: 'Create the token' }).waitFor();
+  assert.equal(await section.getByText('This service account has no tokens.').count(), 1);
+  assert.equal(await section.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
+});
