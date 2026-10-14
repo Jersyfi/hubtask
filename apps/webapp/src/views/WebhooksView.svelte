@@ -39,6 +39,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -141,6 +143,9 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.webhooks.title')));
+
+  /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
+  const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
 </script>
 
 <Stack gap="300">
@@ -236,7 +241,9 @@
             {/if}
 
             <div class="row">
-              {#if subscription.state === 'ACTIVE'}
+              {#if !mayAutomate}
+                <!-- Pause, rotate and unsubscribe are absent; the form's gate below says why. -->
+              {:else if subscription.state === 'ACTIVE'}
                 <Button
                   size="sm"
                   tone="secondary"
@@ -268,6 +275,7 @@
                   ? t('app.webhooks.hide_deliveries')
                   : t('app.webhooks.show_deliveries')}
               </Button>
+              {#if mayAutomate}
               <Button
                 size="sm"
                 tone="secondary"
@@ -282,6 +290,7 @@
               >
                 {t('app.webhooks.unsubscribe')}
               </Button>
+              {/if}
             </div>
 
             {#if rotating === subscription.id}
@@ -410,7 +419,7 @@
                               })}
                             </span>
                           {/if}
-                          {#if delivery.status === 'DEAD_LETTER'}
+                          {#if delivery.status === 'DEAD_LETTER' && mayAutomate}
                             <Stack gap="025">
                               <!-- Said before the button: the replay carries the same event id, so
                                    a subscriber that deduplicates recognises the repeat. That is
@@ -465,50 +474,52 @@
       {/each}
     {/if}
 
-    <form class="panel" onsubmit={subscribe}>
-      <Stack gap="150">
-        <h2 class="section">{t('app.webhooks.add_title')}</h2>
-        <Input
-          label={t('app.webhooks.target_url')}
-          hint={t('app.webhooks.target_url_hint')}
-          bind:value={draftUrl}
-          isRequired
-        />
+    <WorkspaceGate permission="AUTOMATION">
+      <form class="panel" onsubmit={subscribe}>
+        <Stack gap="150">
+          <h2 class="section">{t('app.webhooks.add_title')}</h2>
+          <Input
+            label={t('app.webhooks.target_url')}
+            hint={t('app.webhooks.target_url_hint')}
+            bind:value={draftUrl}
+            isRequired
+          />
 
-        <fieldset class="types">
-          <legend>{t('app.webhooks.event_types')}</legend>
-          {#if eventTypes.length === 0}
-            <!-- Nothing is knowable before the manifest is read, and a guess would be a choice the
-                 server refuses at the end. -->
-            <p class="quiet small">{t('app.webhooks.types_unknown')}</p>
-          {:else}
-            <div class="type-grid">
-              {#each eventTypes as type (type)}
-                <Checkbox
-                  label={type}
-                  checked={draftTypes.includes(type)}
-                  onchange={(event) =>
-                    toggleType(type, (event.currentTarget as HTMLInputElement).checked)}
-                />
-              {/each}
-            </div>
-          {/if}
-        </fieldset>
-        <p class="quiet small">{t('app.webhooks.types_note')}</p>
-        <p class="quiet small">{t('app.webhooks.egress_note')}</p>
+          <fieldset class="types">
+            <legend>{t('app.webhooks.event_types')}</legend>
+            {#if eventTypes.length === 0}
+              <!-- Nothing is knowable before the manifest is read, and a guess would be a choice the
+                   server refuses at the end. -->
+              <p class="quiet small">{t('app.webhooks.types_unknown')}</p>
+            {:else}
+              <div class="type-grid">
+                {#each eventTypes as type (type)}
+                  <Checkbox
+                    label={type}
+                    checked={draftTypes.includes(type)}
+                    onchange={(event) =>
+                      toggleType(type, (event.currentTarget as HTMLInputElement).checked)}
+                  />
+                {/each}
+              </div>
+            {/if}
+          </fieldset>
+          <p class="quiet small">{t('app.webhooks.types_note')}</p>
+          <p class="quiet small">{t('app.webhooks.egress_note')}</p>
 
-        <div>
-          <Button
-            type="submit"
-            tone="primary"
-            isBusy={isWorking}
-            busyLabel={t('app.webhooks.subscribing')}
-          >
-            {t('app.webhooks.subscribe')}
-          </Button>
-        </div>
-      </Stack>
-    </form>
+          <div>
+            <Button
+              type="submit"
+              tone="primary"
+              isBusy={isWorking}
+              busyLabel={t('app.webhooks.subscribing')}
+            >
+              {t('app.webhooks.subscribe')}
+            </Button>
+          </div>
+        </Stack>
+      </form>
+    </WorkspaceGate>
     </Stack>
 </Stack>
 

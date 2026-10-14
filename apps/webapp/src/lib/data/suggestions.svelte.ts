@@ -4,11 +4,11 @@
 /**
  * One entry's proposals: reading what stands, asking for more, and deciding each.
  *
- * **Asking is a `202` with no body.** The contract answers every AI ask that way on purpose - the
- * provider has not been asked yet, so there is nothing to answer with - and the change stream
- * carries no suggestion record. So the strip cannot follow a job; it follows the *listing*,
- * re-read on the job watcher's schedule (`followArrival`) until a proposal made after the ask
- * stands in it, and gives up after ten reads rather than polling a tab forever. `duplicates` is
+ * **Asking is a `202` with the job.** The provider has not been asked yet, so the job is all there
+ * is to answer with, and the change stream carries no suggestion record. So the strip follows the
+ * *listing*, re-read on the job watcher's schedule (`followArrival`) until a proposal made after
+ * the ask stands in it - and the job beside it, which is where a refusal met after the ask (a spent
+ * budget, AI switched off) is said - and gives up after ten reads rather than polling forever. `duplicates` is
  * the exception the contract makes: it is a query, answered now with the suggestion or with
  * nothing near.
  *
@@ -23,7 +23,7 @@
 import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { followArrival, suggestionsPath, type Operation, type Target } from './suggestions.ts';
+import { followArrival, suggestionsPath, type FollowOutcome, type Operation, type Target } from './suggestions.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 export { suggestionsPath } from './suggestions.ts';
@@ -33,8 +33,20 @@ export type { SuggestionPage };
 export interface Asking {
   readonly operation: Operation | 'jumble' | 'container' | 'template';
   readonly askedAt: string;
-  /** `following` while the listing is re-read; the other three are how it ended. */
-  readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near';
+  /** `following` while the listing is re-read; the others are how it ended. */
+  readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near' | 'refused';
+  /** With `refused`: the refusal the job ended with, for `renderRefusal` to say. */
+  readonly refusal?: { readonly code: string; readonly params?: Readonly<Record<string, string>> };
+}
+
+/** The pointer a `202` hands back; only its identifier is read here. */
+interface Accepted {
+  readonly job_id?: string;
+}
+
+/** A finished follow as the strip records it. */
+function ended(outcome: Exclude<FollowOutcome, 'left'>): Pick<Asking, 'outcome' | 'refusal'> {
+  return typeof outcome === 'string' ? { outcome } : { outcome: 'refused', refusal: outcome.refused };
 }
 
 /** How long an ask may take to be accepted. It queues and returns; it does not wait for the model. */
@@ -74,7 +86,7 @@ class Suggestions {
       return;
     }
 
-    await engine.mutate<void>('POST', `/items/${itemId}:${operation}`, {}, {
+    const accepted = await engine.mutate<Accepted | undefined>('POST', `/items/${itemId}:${operation}`, {}, {
       idempotencyKey: crypto.randomUUID(),
       timeoutMs: ASK_TIMEOUT_MS,
       // Nothing to invalidate: the answer is not there yet, and the follow reads the listing itself.
@@ -89,10 +101,12 @@ class Suggestions {
       askedAt,
       (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       () => this.#follows.get(itemId) === token,
+      'WORK_ITEM',
+      accepted?.job_id,
     );
     if (outcome === 'left') return;
     this.#follows.delete(itemId);
-    this.#put(itemId, { operation, askedAt, outcome });
+    this.#put(itemId, { operation, askedAt, ...ended(outcome) });
   }
 
   /**
@@ -104,7 +118,7 @@ class Suggestions {
   async askJumble(entryId: string): Promise<void> {
     const askedAt = new Date().toISOString();
     this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' });
-    await engine.mutate<void>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
+    const accepted = await engine.mutate<Accepted | undefined>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
       idempotencyKey: crypto.randomUUID(),
       timeoutMs: ASK_TIMEOUT_MS,
       invalidates: [],
@@ -118,10 +132,11 @@ class Suggestions {
       (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       () => this.#follows.get(entryId) === token,
       'JUMBLE_ENTRY',
+      accepted?.job_id,
     );
     if (outcome === 'left') return;
     this.#follows.delete(entryId);
-    this.#put(entryId, { operation: 'jumble', askedAt, outcome });
+    this.#put(entryId, { operation: 'jumble', askedAt, ...ended(outcome) });
   }
 
   /**
@@ -132,7 +147,7 @@ class Suggestions {
   async askContainer(containerId: string): Promise<void> {
     const askedAt = new Date().toISOString();
     this.#put(containerId, { operation: 'container', askedAt, outcome: 'following' });
-    await engine.mutate<void>('POST', `/containers/${containerId}:summarize`, undefined, {
+    const accepted = await engine.mutate<Accepted | undefined>('POST', `/containers/${containerId}:summarize`, undefined, {
       idempotencyKey: crypto.randomUUID(),
       timeoutMs: ASK_TIMEOUT_MS,
       invalidates: [],
@@ -146,10 +161,11 @@ class Suggestions {
       (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       () => this.#follows.get(containerId) === token,
       'CONTAINER',
+      accepted?.job_id,
     );
     if (outcome === 'left') return;
     this.#follows.delete(containerId);
-    this.#put(containerId, { operation: 'container', askedAt, outcome });
+    this.#put(containerId, { operation: 'container', askedAt, ...ended(outcome) });
   }
 
   /**
@@ -159,7 +175,7 @@ class Suggestions {
    */
   async generateTemplate(collectionId: string, description: string): Promise<void> {
     const askedAt = new Date().toISOString();
-    await engine.mutate<void>('POST', '/templates:generate', { collection_id: collectionId, description }, {
+    const accepted = await engine.mutate<Accepted | undefined>('POST', '/templates:generate', { collection_id: collectionId, description }, {
       idempotencyKey: crypto.randomUUID(),
       timeoutMs: ASK_TIMEOUT_MS,
       invalidates: [],
@@ -167,10 +183,10 @@ class Suggestions {
     // Answered once the ask is accepted, not once the draft lands: the dialog that asked closes,
     // and the follow's outcome is the strip's to show.
     this.#put(collectionId, { operation: 'template', askedAt, outcome: 'following' });
-    void this.#followTemplate(collectionId, askedAt);
+    void this.#followTemplate(collectionId, askedAt, accepted?.job_id);
   }
 
-  async #followTemplate(collectionId: string, askedAt: string): Promise<void> {
+  async #followTemplate(collectionId: string, askedAt: string, jobId?: string): Promise<void> {
     const token = Symbol('template');
     this.#follows.set(collectionId, token);
     const outcome = await followArrival(
@@ -180,10 +196,11 @@ class Suggestions {
       (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
       () => this.#follows.get(collectionId) === token,
       'CONTAINER',
+      jobId,
     );
     if (outcome === 'left') return;
     this.#follows.delete(collectionId);
-    this.#put(collectionId, { operation: 'template', askedAt, outcome });
+    this.#put(collectionId, { operation: 'template', askedAt, ...ended(outcome) });
   }
 
   /**

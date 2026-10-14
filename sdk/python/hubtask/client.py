@@ -127,9 +127,9 @@ class Client:
         """POST /templates/{templateId}:instantiate"""
         return self._call("POST", "/templates/{templateId}:instantiate", {"templateId": template_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def ai_generate_template(self, body: "TemplateGeneration", *, idempotency_key: str | None = None) -> None:
+    def ai_generate_template(self, body: "TemplateGeneration", *, idempotency_key: str | None = None) -> "JobRef":
         """Ask AI to draft a template from a description"""
-        return self._call("POST", "/templates:generate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "void")
+        return self._call("POST", "/templates:generate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def list_saved_views(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """GET /views"""
@@ -171,9 +171,9 @@ class Client:
         """Turn an entry into work"""
         return self._call("POST", "/jumble/entries/{entryId}:convert", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def suggest_from_jumble_entry(self, entry_id: str, *, idempotency_key: str | None = None) -> None:
+    def suggest_from_jumble_entry(self, entry_id: str, *, idempotency_key: str | None = None) -> "JobRef":
         """Ask AI what this entry should become"""
-        return self._call("POST", "/jumble/entries/{entryId}:suggest", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "void")
+        return self._call("POST", "/jumble/entries/{entryId}:suggest", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
     def dismiss_jumble_entry(self, entry_id: str, *, idempotency_key: str | None = None) -> "JumbleEntry":
         """Decide against an entry"""
@@ -835,33 +835,33 @@ class Client:
         """The providers Hubtask has a preset for, and what registering takes"""
         return self._call("GET", "/identity-provider-presets", {}, None, {}, None, "none", None, "json")
 
-    def suggest_decomposition(self, item_id: str, *, idempotency_key: str | None = None) -> None:
+    def suggest_decomposition(self, item_id: str, *, idempotency_key: str | None = None) -> "JobRef":
         """Ask AI what work sits under this entry"""
-        return self._call("POST", "/items/{itemId}:decompose", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "void")
+        return self._call("POST", "/items/{itemId}:decompose", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
-    def ai_suggest_fields(self, item_id: str, body: "AiAsk") -> None:
+    def ai_suggest_fields(self, item_id: str, body: "AiAsk") -> "JobRef":
         """Ask AI to propose this entry's fields"""
-        return self._call("POST", "/items/{itemId}:suggest-fields", {"itemId": item_id}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/items/{itemId}:suggest-fields", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_summarize(self, item_id: str, body: "AiAsk") -> None:
+    def ai_summarize(self, item_id: str, body: "AiAsk") -> "JobRef":
         """Ask AI to summarise this entry"""
-        return self._call("POST", "/items/{itemId}:summarize", {"itemId": item_id}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/items/{itemId}:summarize", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
     def ai_translate(self, item_id: str, body: "AiTranslateRequest") -> "AiTranslation":
         """Read this entry in another language"""
         return self._call("POST", "/items/{itemId}:translate", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_classify(self, item_id: str, body: "AiAsk") -> None:
+    def ai_classify(self, item_id: str, body: "AiAsk") -> "JobRef":
         """Ask AI to propose labels for this entry"""
-        return self._call("POST", "/items/{itemId}:classify", {"itemId": item_id}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/items/{itemId}:classify", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_summarize_thread(self, item_id: str, body: "AiAsk") -> None:
+    def ai_summarize_thread(self, item_id: str, body: "AiAsk") -> "JobRef":
         """Ask AI to summarise this entry's discussion"""
-        return self._call("POST", "/items/{itemId}:summarize-thread", {"itemId": item_id}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/items/{itemId}:summarize-thread", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
-    def ai_summarize_container(self, container_id: str, body: "AiAsk") -> None:
+    def ai_summarize_container(self, container_id: str, body: "AiAsk") -> "JobRef":
         """Ask AI how a collection stands"""
-        return self._call("POST", "/containers/{containerId}:summarize", {"containerId": container_id}, None, {}, body, "json", "application/json", "void")
+        return self._call("POST", "/containers/{containerId}:summarize", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
 
     def suggest_duplicates(self, item_id: str) -> "Suggestion":
         """Which entries look like this one"""

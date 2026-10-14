@@ -164,7 +164,7 @@ func TestARefusedQuestionIsInTheTrail(t *testing.T) {
 	owner.Scopes = append(owner.Scopes, "items:write", "suggestions:write")
 
 	before := deniedEntries(ctx, t, w.tenant, w.administrator, w.item)
-	err := suggestion.SuggestDecomposition{
+	_, err := suggestion.SuggestDecomposition{
 		Cases: suggestionCases(ctx, t), AI: aiOffered{}, Queue: jobsNever{t},
 	}.Execute(ctx, owner, w.item)
 	if !errors.Is(err, shared.ErrNotFound) {

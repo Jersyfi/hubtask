@@ -72,7 +72,10 @@
   }: Props = $props();
 
   const unavailable = $derived(disabledReason !== undefined);
-  const reasonId = $derived(unavailable ? `reason-${Math.random().toString(36).slice(2, 9)}` : undefined);
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
 
   const isAllDay = $derived(value !== null && value.time === undefined);
   /** Foreign means "not the reader's". An entry with no zone of its own is in theirs by definition. */

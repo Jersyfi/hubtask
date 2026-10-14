@@ -256,6 +256,7 @@ class ListingTransport implements Transport {
   readonly sends: { method: string; path: string; body: unknown }[] = [];
   #listing: unknown[];
   #refusals = new Map<string, TransportError>();
+  #answers = new Map<string, unknown>();
 
   constructor(listing: unknown[]) {
     this.#listing = listing;
@@ -266,9 +267,18 @@ class ListingTransport implements Transport {
     return this;
   }
 
+  /** A job read's answer, by path; any other path reads the listing. */
+  answer(path: string, body: unknown): this {
+    this.#answers.set(path, body);
+    return this;
+  }
+
   async get<T>(path: string): Promise<Response<T>> {
     await Promise.resolve();
     this.reads.push(path);
+    const refusal = this.#refusals.get(path);
+    if (refusal) throw refusal;
+    if (this.#answers.has(path)) return { status: 200, body: this.#answers.get(path) as T };
     const body = this.#listing.length > 1 ? this.#listing.shift() : this.#listing[0];
     return { status: 200, body: body as T };
   }
@@ -330,6 +340,47 @@ test('a screen that was left stops the follow between two reads', async () => {
   const outcome = await followArrival(engine, ITEM, '2026-09-16T12:00:00Z', noWait, () => reads++ < 3);
   assert.equal(outcome, 'left');
   assert.ok(transport.reads.length <= 2);
+});
+
+const JOB = '0192f000-0000-7000-8000-00000000ac01';
+
+test('a job that ended refused ends the follow with its refusal, not with a silent give-up', async () => {
+  const transport = new ListingTransport([page()]).answer(`/jobs/${JOB}`, {
+    job_id: JOB,
+    status: 'FAILED',
+    error_code: 'ai.unavailable',
+    error_params: { reason: 'budget_spent', renews_at: '2026-09-17T00:00:00Z' },
+  });
+  const engine = new SyncEngine({ transport });
+
+  const outcome = await followArrival(engine, ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB);
+
+  assert.deepEqual(outcome, {
+    refused: { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: '2026-09-17T00:00:00Z' } },
+  });
+  assert.ok(transport.reads.length < FOLLOW_ATTEMPTS * 2, 'stops at the read that shows the refusal');
+});
+
+test('a job still running, or one this reader may not see, leaves the follow to the listing', async () => {
+  const running = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'RUNNING' });
+  assert.equal(
+    await followArrival(new SyncEngine({ transport: running }), ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB),
+    'gave_up',
+  );
+
+  const hidden = new ListingTransport([page()]).refuse(
+    `/jobs/${JOB}`,
+    new TransportError('problem', { status: 404, code: 'not_found', detailCode: 'jobs.not_found' }),
+  );
+  assert.equal(
+    await followArrival(new SyncEngine({ transport: hidden }), ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB),
+    'gave_up',
+  );
+
+  // An older server that answered no job: the listing alone, exactly as before.
+  const before = new ListingTransport([page()]);
+  await followArrival(new SyncEngine({ transport: before }), ITEM, '2026-09-16T12:00:00Z', noWait);
+  assert.ok(before.reads.every((path) => path === suggestionsPath(ITEM)));
 });
 
 test('arrivedSince reads the listing the way the follow does', () => {

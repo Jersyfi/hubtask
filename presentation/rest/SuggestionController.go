@@ -69,14 +69,15 @@ func (c *RestController) AiSummarizeContainer(
 		return
 	}
 
-	if _, err := c.UseCases.Invoke(
+	out, err := c.UseCases.Invoke(
 		r.Context(), aiSummarizeContainerUseCase, actorOf(r),
 		usecase.Input{"container_id": containerID.String()},
-	); err != nil {
+	)
+	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
 // AiTranslate answers POST /items/{itemId}:translate: a read, answered now, stored nowhere.
@@ -135,16 +136,17 @@ func (c *RestController) askAi(
 		}
 	}
 
-	if _, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in); err != nil {
+	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in)
+	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
 // SuggestDecomposition answers POST /items/{itemId}:decompose.
 //
-// 202 and no body: the provider has not been asked yet, so there is nothing to answer with.
+// 202 and the job: the provider has not been asked yet, so the job is all there is to answer with.
 func (c *RestController) SuggestDecomposition(
 	w http.ResponseWriter, r *http.Request, itemID openapi.ItemId,
 	_ openapi.SuggestDecompositionParams,
@@ -155,14 +157,15 @@ func (c *RestController) SuggestDecomposition(
 		return
 	}
 
-	if _, err := c.UseCases.Invoke(
+	out, err := c.UseCases.Invoke(
 		r.Context(), suggestDecompositionUseCase, actorOf(r),
 		usecase.Input{"item_id": itemID.String()},
-	); err != nil {
+	)
+	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
 // AiGenerateTemplate answers POST /templates:generate.
@@ -182,14 +185,15 @@ func (c *RestController) AiGenerateTemplate(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	if _, err := c.UseCases.Invoke(
+	out, err := c.UseCases.Invoke(
 		r.Context(), aiGenerateTemplateUseCase, actorOf(r),
 		usecase.Input{"collection_id": body.CollectionId.String(), "description": body.Description},
-	); err != nil {
+	)
+	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	w.WriteHeader(http.StatusAccepted)
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
 // SuggestDuplicates answers POST /items/{itemId}:duplicates.
@@ -355,4 +359,10 @@ func suggestionResponse(out usecase.Output) openapi.Suggestion {
 		answer.Version = version
 	}
 	return answer
+}
+
+// acceptedAsk is what an AI ask answers: the job that will put the question. A client follows it to
+// learn that the job met a refusal - a budget spent since, AI switched off - rather than an answer.
+func acceptedAsk(out usecase.Output) openapi.JobRef {
+	return openapi.JobRef{JobId: uuidValue(out.String("job_id")), Status: openapi.JobStatusQUEUED}
 }

@@ -384,6 +384,40 @@ func TestAnErasedActorIsAnsweredAsAPseudonym(t *testing.T) {
 	}
 }
 
+// The same substitution for a target: an erased person who was the thing acted upon - invited,
+// given a role, removed - is answered as the same pseudonym, never as the label stored then.
+func TestAnErasedTargetIsAnsweredAsAPseudonym(t *testing.T) {
+	list, trail, _, _ := newListHarness(true)
+	list.Pseudonyms = pseudonymStore{names: map[shared.ID]string{colleagueID: "former-user-7c4"}}
+	trail.records = []repository.Record{
+		record("0192f000-0000-7000-8000-0000000000b1", 1, func(r *repository.Record) {
+			r.Entry.TargetType = "account"
+			r.Entry.TargetID = colleagueID
+			r.Entry.TargetLabel = "Bert Beispiel"
+		}),
+		record("0192f000-0000-7000-8000-0000000000b2", 2, func(r *repository.Record) {
+			r.Entry.TargetType = "account"
+			r.Entry.TargetID = accountID
+			r.Entry.TargetLabel = "Anna Beispiel"
+		}),
+	}
+
+	page, err := list.Execute(context.Background(), actor(), EntryQuery{})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+
+	if page.Records[0].Entry.TargetLabel != "former-user-7c4" {
+		t.Errorf("the erased target is answered as %q", page.Records[0].Entry.TargetLabel)
+	}
+	if page.Records[0].Entry.TargetID != colleagueID {
+		t.Errorf("the entry lost its target: %s", page.Records[0].Entry.TargetID)
+	}
+	if page.Records[1].Entry.TargetLabel != "Anna Beispiel" {
+		t.Errorf("a target nobody erased is answered as %q", page.Records[1].Entry.TargetLabel)
+	}
+}
+
 // An installation with no substitutions pays for nothing: the page comes back as it was read.
 func TestATrailWithNoErasuresIsAnsweredAsItIs(t *testing.T) {
 	list, trail, _, _ := newListHarness(true)

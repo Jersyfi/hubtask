@@ -72,9 +72,14 @@ func TestAskingForATemplateHoldsTheWordsAndQueuesAReference(t *testing.T) {
 	requests := newRequestStore()
 	a.ask.Cases.Requests, a.ask.Cases.IDs = requests, sequentialIDs{}
 
-	if err := (AiGenerateTemplate(a.ask)).Execute(context.Background(), person(),
-		containerTargetID, "  Onboarding a new colleague: accounts, introductions, the first week.  "); err != nil {
+	jobID, err := (AiGenerateTemplate(a.ask)).Execute(context.Background(), person(),
+		containerTargetID, "  Onboarding a new colleague: accounts, introductions, the first week.  ")
+	if err != nil {
 		t.Fatalf("asking: %v", err)
+	}
+	// The job is what the asker follows: a refusal it meets is said there.
+	if jobID != shared.MustParseID("0192f000-0000-7000-8000-00000000ac01") {
+		t.Errorf("the ask answered job %s, not the one it queued", jobID)
 	}
 	if len(a.jobs.queued) != 1 {
 		t.Fatalf("%d jobs queued", len(a.jobs.queued))
@@ -108,7 +113,7 @@ func TestAskingForATemplateRefusesNoWordsAndTooMany(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a := newAsker(true)
 			a.ask.Cases.Requests, a.ask.Cases.IDs = newRequestStore(), sequentialIDs{}
-			err := (AiGenerateTemplate(a.ask)).Execute(context.Background(), person(), containerTargetID, description)
+			err := errOf(AiGenerateTemplate(a.ask).Execute(context.Background(), person(), containerTargetID, description))
 			if !errors.Is(err, shared.ErrValidation) {
 				t.Errorf("the answer was %v", err)
 			}
@@ -123,7 +128,7 @@ func TestAskingForATemplateIsRefusedWithoutAProvider(t *testing.T) {
 	a := newAsker(false)
 	requests := newRequestStore()
 	a.ask.Cases.Requests, a.ask.Cases.IDs = requests, sequentialIDs{}
-	err := (AiGenerateTemplate(a.ask)).Execute(context.Background(), person(), containerTargetID, "a template")
+	err := errOf(AiGenerateTemplate(a.ask).Execute(context.Background(), person(), containerTargetID, "a template"))
 	if !IsUnavailable(err) {
 		t.Fatalf("the answer was %v, want ai.unavailable", err)
 	}

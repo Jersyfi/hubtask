@@ -34,6 +34,9 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { mayHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -287,6 +290,16 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.backup.title')));
+
+  /**
+   * What the reader may do here, as the server asks it: testing and running behind `STRUCTURE`,
+   * adding, changing and removing a target, a schedule, a rule or a hold behind the owner's
+   * `DELETE_CONTAINER` - which an administrator does not hold either.
+   */
+  const mayStructure = $derived(mayHere('STRUCTURE').status === 'permitted');
+  const mayOwn = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
+  /** Why a schedule's switch is off for this reader, where it is. */
+  const ownRefusal = $derived(workspaceRefusal('DELETE_CONTAINER'));
 </script>
 
 <Stack gap="300">
@@ -305,6 +318,7 @@
 
     <Stack gap="300">
     <p class="quiet">{t('app.backup.intro')}</p>
+    <WorkspaceRefusal permission="STRUCTURE" />
 
     {#if failure}
       <Banner tone="danger" title={failure.message}>
@@ -332,7 +346,7 @@
                     percent: String(Math.round(watched.job.progress * 100)),
                   })}
             />
-            {#if mayCancel(watched.job.status)}
+            {#if mayCancel(watched.job.status) && mayStructure}
               <div>
                 <Button
                   size="sm"
@@ -422,6 +436,7 @@
               {/if}
 
               <div class="row">
+                {#if mayStructure}
                 <Button
                   size="sm"
                   tone="secondary"
@@ -440,11 +455,13 @@
                 >
                   {t('app.backup.start')}
                 </Button>
+                {/if}
                 <Button size="sm" tone="subtle" onclick={() => void openTarget(target.id)}>
                   {openedTarget === target.id
                     ? t('app.backup.hide_archives')
                     : t('app.backup.show_archives')}
                 </Button>
+                {#if mayOwn}
                 <Button
                   size="sm"
                   tone="danger"
@@ -452,6 +469,7 @@
                 >
                   {t('app.backup.remove')}
                 </Button>
+                {/if}
               </div>
 
               {#if removing === target.id}
@@ -525,6 +543,7 @@
                               · {t('app.backup.not_verified')}
                             {/if}
                           </span>
+                          {#if mayStructure}
                           <div>
                             <Button
                               size="sm"
@@ -536,6 +555,7 @@
                               {t('app.backup.verify')}
                             </Button>
                           </div>
+                          {/if}
                         </Stack>
                       </li>
                     {:else}
@@ -553,106 +573,108 @@
         {/each}
       {/if}
 
-      <form class="panel" onsubmit={createTarget}>
-        <Stack gap="150">
-          <h3 class="section">{t('app.backup.add_target')}</h3>
-          <Input label={t('app.backup.target_name')} bind:value={draftName} isRequired />
-          <Select
-            label={t('app.backup.target_kind')}
-            bind:value={draftKind}
-            options={KINDS.map((kind) => ({ value: kind, label: kind }))}
-          />
-          {#if draftKind === 'LOCAL'}
-            <Input
-              label={t('app.backup.target_path')}
-              hint={t('app.backup.target_path_hint')}
-              bind:value={draftPath}
+      <WorkspaceGate permission="DELETE_CONTAINER">
+        <form class="panel" onsubmit={createTarget}>
+          <Stack gap="150">
+            <h3 class="section">{t('app.backup.add_target')}</h3>
+            <Input label={t('app.backup.target_name')} bind:value={draftName} isRequired />
+            <Select
+              label={t('app.backup.target_kind')}
+              bind:value={draftKind}
+              options={KINDS.map((kind) => ({ value: kind, label: kind }))}
             />
-          {:else if draftKind === 'S3'}
-            <Input label={t('app.backup.target_endpoint')} bind:value={draftEndpoint} />
-            <Input label={t('app.backup.target_bucket')} bind:value={draftBucket} />
-            <Input label={t('app.backup.target_region')} hint={t('app.backup.target_region_hint')} bind:value={draftRegion} />
-            <Input label={t('app.backup.target_access_key')} bind:value={draftAccessKey} />
-            <Input
-              label={t('app.backup.target_secret_key')}
-              type="password"
-              bind:value={draftSecretKey}
-            />
-          {:else if draftKind === 'WEBDAV'}
-            <Input
-              label={t('app.backup.target_url')}
-              hint={t('app.backup.target_url_hint')}
-              type="url"
-              bind:value={draftUrl}
-              isRequired
-            />
-            <Input label={t('app.backup.target_user')} bind:value={draftUser} />
-            <Input label={t('app.backup.target_password')} type="password" bind:value={draftPassword} />
-          {:else}
-            <Input label={t('app.backup.target_host')} bind:value={draftHost} />
-            <Input label={t('app.backup.target_path')} bind:value={draftPath} />
-            <Input label={t('app.backup.target_user')} bind:value={draftUser} />
-            <Textarea
-              label={t('app.backup.target_host_key')}
-              hint={t('app.backup.target_host_key_hint')}
-              rows={3}
-              spellcheck={false}
-              bind:value={draftHostKey}
-              isRequired
-            />
-            <Input
-              label={t('app.backup.target_password')}
-              type="password"
-              bind:value={draftPassword}
-            />
-            <!-- A key is a credential like the password: typed in, sent once, never shown back. -->
-            <Textarea
-              label={t('app.backup.target_private_key')}
-              hint={t('app.backup.target_private_key_hint')}
-              rows={4}
-              spellcheck={false}
-              autocomplete="off"
-              bind:value={draftPrivateKey}
-            />
-            {#if draftPrivateKey.trim()}
-              <Input label={t('app.backup.target_key_passphrase')} type="password" bind:value={draftKeyPassphrase} />
+            {#if draftKind === 'LOCAL'}
+              <Input
+                label={t('app.backup.target_path')}
+                hint={t('app.backup.target_path_hint')}
+                bind:value={draftPath}
+              />
+            {:else if draftKind === 'S3'}
+              <Input label={t('app.backup.target_endpoint')} bind:value={draftEndpoint} />
+              <Input label={t('app.backup.target_bucket')} bind:value={draftBucket} />
+              <Input label={t('app.backup.target_region')} hint={t('app.backup.target_region_hint')} bind:value={draftRegion} />
+              <Input label={t('app.backup.target_access_key')} bind:value={draftAccessKey} />
+              <Input
+                label={t('app.backup.target_secret_key')}
+                type="password"
+                bind:value={draftSecretKey}
+              />
+            {:else if draftKind === 'WEBDAV'}
+              <Input
+                label={t('app.backup.target_url')}
+                hint={t('app.backup.target_url_hint')}
+                type="url"
+                bind:value={draftUrl}
+                isRequired
+              />
+              <Input label={t('app.backup.target_user')} bind:value={draftUser} />
+              <Input label={t('app.backup.target_password')} type="password" bind:value={draftPassword} />
+            {:else}
+              <Input label={t('app.backup.target_host')} bind:value={draftHost} />
+              <Input label={t('app.backup.target_path')} bind:value={draftPath} />
+              <Input label={t('app.backup.target_user')} bind:value={draftUser} />
+              <Textarea
+                label={t('app.backup.target_host_key')}
+                hint={t('app.backup.target_host_key_hint')}
+                rows={3}
+                spellcheck={false}
+                bind:value={draftHostKey}
+                isRequired
+              />
+              <Input
+                label={t('app.backup.target_password')}
+                type="password"
+                bind:value={draftPassword}
+              />
+              <!-- A key is a credential like the password: typed in, sent once, never shown back. -->
+              <Textarea
+                label={t('app.backup.target_private_key')}
+                hint={t('app.backup.target_private_key_hint')}
+                rows={4}
+                spellcheck={false}
+                autocomplete="off"
+                bind:value={draftPrivateKey}
+              />
+              {#if draftPrivateKey.trim()}
+                <Input label={t('app.backup.target_key_passphrase')} type="password" bind:value={draftKeyPassphrase} />
+              {/if}
             {/if}
-          {/if}
-          <Select
-            label={t('app.backup.encryption')}
-            hint={t('app.backup.encryption_hint')}
-            bind:value={draftEncryption}
-            options={[
-              { value: 'AES256_GCM', label: t('app.backup.encryption_aes') },
-              { value: 'NONE', label: t('app.backup.encryption_none') },
-            ]}
-          />
-          {#if insecure.length > 0}
-            <!-- The risk in the server's own words, and the owner's acceptance of it, before the
-                 add: the server refuses such a target without it (UC-BAK-01 check 6). -->
-            <Banner tone="warning" title={t('app.backup.insecure_title')}>
-              <ul class="reasons">
-                {#each insecure as reason (reason)}<li>{t(reason)}</li>{/each}
-              </ul>
-            </Banner>
-            <Checkbox label={t('app.backup.insecure_accept')} bind:checked={draftAccepted} />
-          {/if}
-          <!-- Said where the credentials are typed: they go in and the contract answers `config`
-               without them, so there is nothing to come back and check later. -->
-          <p class="quiet small">{t('app.backup.credentials_write_only')}</p>
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.backup.adding')}
-              disabledReason={insecure.length > 0 && !draftAccepted ? t('app.backup.insecure_first') : undefined}
-            >
-              {t('app.backup.add')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+            <Select
+              label={t('app.backup.encryption')}
+              hint={t('app.backup.encryption_hint')}
+              bind:value={draftEncryption}
+              options={[
+                { value: 'AES256_GCM', label: t('app.backup.encryption_aes') },
+                { value: 'NONE', label: t('app.backup.encryption_none') },
+              ]}
+            />
+            {#if insecure.length > 0}
+              <!-- The risk in the server's own words, and the owner's acceptance of it, before the
+                   add: the server refuses such a target without it (UC-BAK-01 check 6). -->
+              <Banner tone="warning" title={t('app.backup.insecure_title')}>
+                <ul class="reasons">
+                  {#each insecure as reason (reason)}<li>{t(reason)}</li>{/each}
+                </ul>
+              </Banner>
+              <Checkbox label={t('app.backup.insecure_accept')} bind:checked={draftAccepted} />
+            {/if}
+            <!-- Said where the credentials are typed: they go in and the contract answers `config`
+                 without them, so there is nothing to come back and check later. -->
+            <p class="quiet small">{t('app.backup.credentials_write_only')}</p>
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.backup.adding')}
+                disabledReason={insecure.length > 0 && !draftAccepted ? t('app.backup.insecure_first') : undefined}
+              >
+                {t('app.backup.add')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
     </Stack>
 
     <Stack gap="150">
@@ -703,6 +725,7 @@
               <Switch
                 label={t('app.backup.enabled')}
                 checked={schedule.enabled !== false}
+                disabledReason={ownRefusal}
                 onchange={(event) =>
                   void attempt(() =>
                     backup.updateSchedule(schedule.id, {
@@ -710,6 +733,7 @@
                     }), t('app.backup.schedule_saved_announced')
                   )}
               />
+              {#if mayOwn}
               <Button
                 size="sm"
                 tone="danger"
@@ -719,6 +743,7 @@
               >
                 {t('app.backup.remove_schedule')}
               </Button>
+              {/if}
             </div>
             <p class="quiet small">{t('app.backup.switch_off_rather_than_delete')}</p>
           </Stack>
@@ -728,40 +753,42 @@
       {/each}
 
       {#if targets.length > 0}
-        <form class="panel" onsubmit={createSchedule}>
-          <Stack gap="150">
-            <h3 class="section">{t('app.backup.add_schedule')}</h3>
-            <Select
-              label={t('app.backup.schedule_target')}
-              bind:value={scheduleTarget}
-              placeholder={t('app.backup.choose_target')}
-              options={targets.map((target) => ({ value: target.id, label: target.name }))}
-            />
-            <Input
-              label={t('app.backup.schedule_rule')}
-              hint={t('app.backup.schedule_rule_hint')}
-              bind:value={scheduleRule}
-            />
-            <Input label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
-            <Input
-              label={t('app.backup.schedule_min_keep')}
-              hint={t('app.backup.schedule_min_keep_hint')}
-              type="number"
-              bind:value={scheduleMinKeep}
-            />
-            <p class="quiet small">{t('app.backup.rule_is_the_servers')}</p>
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.backup.adding')}
-              >
-                {t('app.backup.add')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
+        <WorkspaceGate permission="DELETE_CONTAINER">
+          <form class="panel" onsubmit={createSchedule}>
+            <Stack gap="150">
+              <h3 class="section">{t('app.backup.add_schedule')}</h3>
+              <Select
+                label={t('app.backup.schedule_target')}
+                bind:value={scheduleTarget}
+                placeholder={t('app.backup.choose_target')}
+                options={targets.map((target) => ({ value: target.id, label: target.name }))}
+              />
+              <Input
+                label={t('app.backup.schedule_rule')}
+                hint={t('app.backup.schedule_rule_hint')}
+                bind:value={scheduleRule}
+              />
+              <Input label={t('app.backup.schedule_zone_field')} bind:value={scheduleZone} />
+              <Input
+                label={t('app.backup.schedule_min_keep')}
+                hint={t('app.backup.schedule_min_keep_hint')}
+                type="number"
+                bind:value={scheduleMinKeep}
+              />
+              <p class="quiet small">{t('app.backup.rule_is_the_servers')}</p>
+              <div>
+                <Button
+                  type="submit"
+                  tone="primary"
+                  isBusy={isWorking}
+                  busyLabel={t('app.backup.adding')}
+                >
+                  {t('app.backup.add')}
+                </Button>
+              </div>
+            </Stack>
+          </form>
+        </WorkspaceGate>
       {/if}
     </Stack>
     </Stack>

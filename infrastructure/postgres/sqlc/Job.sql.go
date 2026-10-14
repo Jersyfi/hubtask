@@ -312,7 +312,7 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) ([]pgtyp
 }
 
 const findJob = `-- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
+SELECT id, tenant_id, state, last_error, last_error_params, created_at, finished_at, progress
 FROM job
 WHERE id = $1 AND tenant_id = $2
 `
@@ -323,13 +323,14 @@ type FindJobParams struct {
 }
 
 type FindJobRow struct {
-	ID         pgtype.UUID
-	TenantID   pgtype.UUID
-	State      string
-	LastError  *string
-	CreatedAt  pgtype.Timestamptz
-	FinishedAt pgtype.Timestamptz
-	Progress   *float32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	State           string
+	LastError       *string
+	LastErrorParams []byte
+	CreatedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	Progress        *float32
 }
 
 // What a caller polls, and the only two statements here that are asked on somebody's behalf
@@ -348,6 +349,7 @@ func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, e
 		&i.TenantID,
 		&i.State,
 		&i.LastError,
+		&i.LastErrorParams,
 		&i.CreatedAt,
 		&i.FinishedAt,
 		&i.Progress,
@@ -432,6 +434,41 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const refuseJob = `-- name: RefuseJob :execrows
+UPDATE job SET
+  state             = 'FAILED',
+  finished_at       = $1,
+  locked_until      = NULL,
+  last_error        = $2,
+  last_error_params = $3
+WHERE id = $4 AND state = 'RUNNING' AND locked_until = $5
+`
+
+type RefuseJobParams struct {
+	Now             pgtype.Timestamptz
+	LastError       *string
+	LastErrorParams []byte
+	ID              pgtype.UUID
+	Lease           pgtype.Timestamptz
+}
+
+// A refusal the job met - an AI budget spent since it was queued, AI switched off - ends it as
+// FAILED rather than in the dead letter: it is an answer for whoever asked, not work waiting for an
+// operator. The parameters are the refusal's own, codes and moments (rule 10).
+func (q *Queries) RefuseJob(ctx context.Context, arg RefuseJobParams) (int64, error) {
+	result, err := q.db.Exec(ctx, refuseJob,
+		arg.Now,
+		arg.LastError,
+		arg.LastErrorParams,
+		arg.ID,
+		arg.Lease,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const repeatJob = `-- name: RepeatJob :execrows

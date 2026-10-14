@@ -69,12 +69,12 @@ func (a Ask) queue(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID,
 	action audit.Action, kind domain.Kind, promptID string, apply bool, text string,
-) error {
+) (shared.ID, error) {
 	if _, asked := AsksAbout(promptID, targetType, kind); !asked {
 		// Before the permission, the consent and the audit entry, because those are what a
 		// refusal in the worker would already have spent. A pair nothing declares is a defect in
 		// this build rather than anything about the caller.
-		return shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
+		return shared.ID(""), shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
 			WithParams(map[string]string{
 				"prompt": promptID, "target_type": string(targetType),
 			})
@@ -91,21 +91,21 @@ func (a Ask) queue(
 		TargetType: suggestionTarget,
 		TargetID:   targetID,
 	}); err != nil {
-		return err
+		return shared.ID(""), err
 	}
 
 	// After the permission check, so that it cannot become a way to learn what an installation has
 	// configured; before the read, so that a workspace with AI switched off is told so whatever
 	// the entry is.
 	if a.AI == nil {
-		return aiUnavailable
+		return shared.ID(""), aiUnavailable
 	}
 	available, err := a.AI.CanSuggest(ctx, actor)
 	if err != nil {
-		return err
+		return shared.ID(""), err
 	}
 	if !available {
-		return aiUnavailable
+		return shared.ID(""), aiUnavailable
 	}
 
 	// The entry is read through its own use case, which is the permission check and the existence
@@ -119,10 +119,11 @@ func (a Ask) queue(
 		}
 		return c.workable(ctx, actor, targetType, targetID, promptID, text)
 	}); err != nil {
-		return err
+		return shared.ID(""), err
 	}
 
-	return c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	var jobID shared.ID
+	err = c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		payload := map[string]any{
 			"target_type": string(targetType),
 			"target_id":   targetID.String(),
@@ -149,11 +150,13 @@ func (a Ask) queue(
 			}
 			payload["request_id"] = requestID.String()
 		}
-		if _, err := a.Queue.Enqueue(ctx, queue.Request{
+		queued, err := a.Queue.Enqueue(ctx, queue.Request{
 			Kind: queue.KindAiSuggest, TenantID: actor.TenantID, Payload: payload,
-		}); err != nil {
+		})
+		if err != nil {
 			return err
 		}
+		jobID = queued
 		return c.Audit.Append(ctx, audit.Entry{
 			TenantID:   actor.TenantID,
 			OccurredAt: c.Clock.Now(),
@@ -172,6 +175,10 @@ func (a Ask) queue(
 			),
 		})
 	})
+	if err != nil {
+		return shared.ID(""), err
+	}
+	return jobID, nil
 }
 
 func boolText(value bool) string {
@@ -199,7 +206,7 @@ type SuggestDecomposition struct {
 // Execute checks, then queues.
 func (h SuggestDecomposition) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
-) error {
+) (shared.ID, error) {
 	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
 		DecompositionAskedAction, domain.KindDecomposition, "decompose", false, "")
 }
@@ -243,10 +250,17 @@ func (h SuggestDecomposition) invoke(
 	if err != nil {
 		return nil, err
 	}
-	if err := h.Execute(ctx, actor, itemID); err != nil {
+	jobID, err := h.Execute(ctx, actor, itemID)
+	if err != nil {
 		return nil, err
 	}
-	return usecase.Output{}, nil
+	return queued(jobID), nil
+}
+
+// queued is what every ask answers: the job that will put the question, which is what a client
+// follows to learn that the job met a refusal rather than an answer.
+func queued(jobID shared.ID) usecase.Output {
+	return usecase.Output{"job_id": jobID.String()}
 }
 
 // workable reads the material the producer will read, with the same exclusion: a person who keeps

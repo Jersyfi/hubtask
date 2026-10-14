@@ -273,6 +273,18 @@ export function holdsOnWorkspace(
 }
 
 /**
+ * Whether the reader may do what asks `permission` on the workspace itself, as a verdict a
+ * `CapabilityGate` draws: undetermined until the manifest answers for this reader, refused with the
+ * permission named where `workspace_permissions` lacks it. What the administration's write controls
+ * stand behind - an auditor reads the configuration (`READ_CONFIGURATION`) and changes none of it.
+ */
+export function workspaceVerdict(manifest: Capabilities | undefined, permission: string): Verdict {
+  const held = holdsOnWorkspace(manifest, permission);
+  if (held === undefined) return UNDETERMINED;
+  return held ? PERMITTED : refused('app.gate.workspace_permission_missing', { permission });
+}
+
+/**
  * Whether the reader reaches the administration: `STRUCTURE`, or the auditor's
  * `READ_CONFIGURATION`, on the workspace - the condition the area's reads ask (`quota/Read.go`),
  * answered before anything is asked rather than by a read the server refuses and records.

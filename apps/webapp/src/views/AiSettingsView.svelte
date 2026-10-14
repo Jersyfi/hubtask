@@ -36,6 +36,7 @@
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -302,6 +303,7 @@
         {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
       </Banner>
     {:else}
+      <WorkspaceGate permission="STRUCTURE">
       {#if source?.search_rebuilding}
         <Banner tone="info">{t('app.ai.rebuilding')}</Banner>
       {/if}
@@ -492,6 +494,7 @@
           {/if}
         </Stack>
       {/if}
+      </WorkspaceGate>
     {/if}
     </Stack>
 </Stack>

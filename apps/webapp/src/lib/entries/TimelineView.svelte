@@ -54,9 +54,17 @@
     /** What the reader has asked of the entries. The window is asked on top of it, never instead. */
     query?: ItemsQuery;
     onopen: (itemId: string) => void;
+    /** An archived collection's entries move nowhere (I-C3), whatever the role. */
+    isReadOnly?: boolean;
+    /**
+     * Why the reader may not change this entry, or nothing where they may - the board's verdict
+     * (`changeRefusalCode`). A row it refuses is locked: a bar that drags is a promise the server
+     * will take the dates, and for a viewer or somebody else's entry it will not (P-05).
+     */
+    changeRefusal: (item: WorkItem) => string | undefined;
   }
 
-  const { collectionId, query, onopen }: Props = $props();
+  const { collectionId, query, onopen, isReadOnly = false, changeRefusal }: Props = $props();
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
@@ -112,6 +120,7 @@
       title: entry.title,
       start: entry.start_at ? dateIn(entry.start_at, zone) : undefined,
       due: entry.due_at ? dateIn(entry.due_at, zone) : undefined,
+      isLocked: isReadOnly || changeRefusal(entry) !== undefined,
     })),
   );
 
@@ -184,7 +193,7 @@
    */
   async function carried(carry: TimelineCarry) {
     const entry = entries.find((each: WorkItem) => each.id === carry.id);
-    if (!entry) return;
+    if (!entry || isReadOnly || changeRefusal(entry) !== undefined) return;
     const was: Span = {
       start: entry.start_at ? dateIn(entry.start_at, zone) : undefined,
       due: entry.due_at ? dateIn(entry.due_at, zone) : undefined,

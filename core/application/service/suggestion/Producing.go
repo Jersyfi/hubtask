@@ -1130,7 +1130,14 @@ func objectFrom(text string) (map[string]any, bool) {
 
 // IsUnavailable reports whether an error is the AI port's one refusal, so a caller can tell "the
 // provider is out of reach" from "something went wrong" without importing the port's sentinel.
+// A source the installation no longer allows is the same refusal with its reason named.
 func IsUnavailable(err error) bool {
-	return errors.Is(err, shared.ErrUnavailable) &&
-		shared.AsError(err).DetailCode == "ai.unavailable"
+	if !errors.Is(err, shared.ErrUnavailable) {
+		return false
+	}
+	switch shared.AsError(err).DetailCode {
+	case "ai.unavailable", "ai.source_not_allowed":
+		return true
+	}
+	return false
 }

@@ -241,7 +241,10 @@ paths:
               $ref: "#/components/schemas/TemplateGeneration"
       responses:
         "202":
-          description: The provider will be asked; the draft appears under /suggestions
+          description: The provider will be asked by the job named here; the draft appears under /suggestions, and a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -589,7 +592,10 @@ paths:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: The provider will be asked; the suggestion appears under /suggestions
+          description: The provider will be asked by the job named here; the suggestion appears under /suggestions, and a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5513,7 +5519,10 @@ paths:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "202":
-          description: The provider will be asked; the breakdown appears under /suggestions
+          description: The provider will be asked by the job named here; the breakdown appears under /suggestions, and a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5538,7 +5547,10 @@ paths:
               $ref: "#/components/schemas/AiAsk"
       responses:
         "202":
-          description: The provider will be asked
+          description: The provider will be asked by the job named here; a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5563,7 +5575,10 @@ paths:
               $ref: "#/components/schemas/AiAsk"
       responses:
         "202":
-          description: The provider will be asked
+          description: The provider will be asked by the job named here; a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5626,7 +5641,10 @@ paths:
               $ref: "#/components/schemas/AiAsk"
       responses:
         "202":
-          description: The provider will be asked
+          description: The provider will be asked by the job named here; a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5661,7 +5679,10 @@ paths:
               $ref: "#/components/schemas/AiAsk"
       responses:
         "202":
-          description: The provider will be asked
+          description: The provider will be asked by the job named here; a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -5694,7 +5715,10 @@ paths:
               $ref: "#/components/schemas/AiAsk"
       responses:
         "202":
-          description: The provider will be asked
+          description: The provider will be asked by the job named here; a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
         "4XX":
           $ref: "#/components/responses/Problem"
         "503":
@@ -16692,6 +16716,14 @@ components:
           type: [string, "null"]
           description: >
             The message code of the last failure, never a message and never free text. Set on a `FAILED` job, and on a job that is being retried.
+        error_params:
+          type: object
+          additionalProperties: { type: string }
+          description: >
+            The parameters the sentence of `error_code` reads, where the job ended with a refusal
+            that has some - an AI budget spent since the job was accepted carries `reason`
+            (`budget_spent`) and `renews_at`, exactly as the same refusal does on a request.
+            Absent otherwise.
         created_at: { type: string, format: date-time }
         finished_at:
           type: [string, "null"]

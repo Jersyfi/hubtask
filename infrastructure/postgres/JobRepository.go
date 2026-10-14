@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -63,6 +64,11 @@ func (r JobRepository) Find(ctx context.Context, id shared.ID) (domain.Job, erro
 	if row.Progress != nil {
 		fraction := float64(*row.Progress)
 		job.Progress = &fraction
+	}
+	if len(row.LastErrorParams) > 0 {
+		if err := json.Unmarshal(row.LastErrorParams, &job.ErrorParams); err != nil {
+			return domain.Job{}, shared.ErrInternal.WithDetail("jobs.error_params_unreadable").WithCause(err)
+		}
 	}
 	return job, nil
 }

@@ -49,6 +49,18 @@
   const page = resource<CommentPage>({ path: untrack(() => commentsPath(item.id)) });
   const rows = $derived(page.state.status === 'ready' ? (page.state.data.data ?? []) : []);
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
+  /** Why the last press of *Older comments* brought nothing; cleared by the next press. */
+  let olderFailed = $state<string | undefined>(undefined);
+
+  async function older(): Promise<void> {
+    olderFailed = undefined;
+    try {
+      await page.loadMore();
+    } catch (error) {
+      olderFailed = renderProblem(error as never, messages).message;
+    }
+  }
+
   const failure = $derived(
     page.state.status === 'failed' ? renderProblem(page.state.error, messages) : undefined,
   );
@@ -173,7 +185,8 @@
       replyLabel={t('app.comments.reply')}
       {hasMore}
       loadMoreLabel={t('app.comments.older')}
-      onLoadMore={() => void page.loadMore()}
+      loadMoreFailedLabel={olderFailed}
+      onLoadMore={() => void older()}
       onEdit={startEdit}
       onDelete={remove}
       onReply={mayComment ? startReply : undefined}

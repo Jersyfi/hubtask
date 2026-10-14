@@ -109,3 +109,19 @@ export function renderProblem(error: TransportError, messages: Messages): Render
 
   return { message, fields, reference, isServerFault };
 }
+
+/** A refusal a job ended with: the code and parameters `GET /jobs/{id}` answers. */
+export interface Refusal {
+  readonly code: string;
+  readonly params?: Readonly<Record<string, string>>;
+}
+
+/**
+ * The sentence of a refusal a job met after it was accepted - a spent AI budget, AI switched off.
+ * The same catalogue and the same rule for moments as a refusal on a request, so a budget spent
+ * before the job ran reads exactly as one spent before the ask: what is used up, and when it renews.
+ */
+export function renderRefusal(refusal: Refusal, messages: Messages): string {
+  const code = messages.has(refusal.code) ? refusal.code : 'app.something_went_wrong';
+  return messages.t(code, readable(refusal.params, messages.locale));
+}

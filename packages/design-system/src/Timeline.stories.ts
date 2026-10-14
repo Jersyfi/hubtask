@@ -23,6 +23,13 @@ export const carried: Story = {
     'A bar dragged moves both dates and keeps its length; an end dragged moves one. The span redraws where it would land rather than being carried, because what a reader wants to see is the span they would get. A drag names columns and nothing else — what they mean for a date is the application’s (ADR-0063 decision 12). Drag a tray entry across the axis and it is given its first dates. The single-pointer alternative SC 2.5.7 asks for is the row itself, which opens the entry and its date editor.',
 };
 
+export const locked: Story = {
+  name: 'Rows the reader may not move',
+  about:
+    'A row the caller marks `isLocked` draws no ends and takes no drag, on the axis or in the tray: a bar that can be dragged promises that the server will accept the new dates, and for a viewer, or a contributor on somebody else’s entry, it will not. The title still opens the entry, so reading it is unchanged. Here *Kitchen fit-out* and *Choose the tiles* are locked; the others still move.',
+  args: { mode: 'locked' },
+};
+
 export const monthScale: Story = {
   name: 'Half a year, ruled by months',
   about:

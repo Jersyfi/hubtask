@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-11, P-12]
 state: partial
 tasks: [B-02, F2-07]
-checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go, apps/webapp/e2e/entrybyrole.test.mjs]
+checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/timeline.test.mjs]
 ---
 
 # Work within what my role allows

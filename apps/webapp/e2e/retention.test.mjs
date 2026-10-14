@@ -44,7 +44,10 @@ async function open(browser, role, { policies = [], kinds = [] } = {}) {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') {
-      return route.fulfill({ json: { ...MANIFEST, roles: ROLES, retention_data_kinds: kinds } });
+      // What the reader holds on the workspace is the role's column set: the screen asks the
+      // manifest's `workspace_permissions`, as the server decides from every membership.
+      const held = ROLES.find((each) => each.role === role)?.permissions ?? [];
+      return route.fulfill({ json: { ...MANIFEST, roles: ROLES, retention_data_kinds: kinds, workspace_permissions: held } });
     }
     if (path === '/memberships' && url.searchParams.get('scope_type') === 'TENANT') {
       return route.fulfill({ json: { data: [
@@ -132,7 +135,10 @@ test('chromium: an administrator reads the holds and is offered neither placing 
   try {
     const { page, failures, close } = await open(browser, 'ADMIN');
     await page.waitForTimeout(200);
-    assert.equal(await page.locator('form', { hasText: 'Place a hold' }).count(), 0);
+    // The form stays readable behind its gate, inert, with the permission it needs named.
+    const place = page.locator('form', { hasText: 'Place a hold' });
+    assert.equal(await place.evaluate((form) => form.closest('[inert]') !== null), true, 'placing a hold is offered');
+    await page.getByText('That needs the permission “Delete containers”.', { exact: false }).first().waitFor();
     assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 0);
     assert.deepEqual(failures, []);
     await close();

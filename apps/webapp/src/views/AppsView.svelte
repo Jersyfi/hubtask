@@ -33,6 +33,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -87,6 +89,9 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.apps.title')));
+
+  /** Whether the reader may register and remove apps (`MANAGE_MEMBERS`), as the server asks. */
+  const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
 </script>
 
 <Stack gap="300">
@@ -167,7 +172,8 @@
                 </Button>
                 <Button tone="subtle" onclick={() => (removing = undefined)}>{t('app.apps.keep')}</Button>
               </div>
-            {:else}
+            {:else if mayManage}
+              <!-- Absent where refused: the registration form's gate below says why. -->
               <div>
                 <Button size="sm" tone="secondary" onclick={() => (removing = app.id)}>
                   {t('app.apps.remove')}
@@ -183,29 +189,31 @@
 
     <Stack gap="150">
       <h2 class="section">{t('app.apps.new_title')}</h2>
-      <form class="panel" onsubmit={register}>
-        <Stack gap="200">
-          <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired />
-          <Textarea
-            label={t('app.apps.uris')}
-            hint={t('app.apps.uris_hint')}
-            bind:value={uris}
-            rows={3}
-            spellcheck={false}
-          />
-          <Checkbox
-            label={t('app.apps.is_confidential')}
-            hint={t('app.apps.is_confidential_hint')}
-            checked={confidential}
-            onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
-          />
-          <div>
-            <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.apps.registering')}>
-              {t('app.apps.register')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+      <WorkspaceGate permission="MANAGE_MEMBERS">
+        <form class="panel" onsubmit={register}>
+          <Stack gap="200">
+            <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired />
+            <Textarea
+              label={t('app.apps.uris')}
+              hint={t('app.apps.uris_hint')}
+              bind:value={uris}
+              rows={3}
+              spellcheck={false}
+            />
+            <Checkbox
+              label={t('app.apps.is_confidential')}
+              hint={t('app.apps.is_confidential_hint')}
+              checked={confidential}
+              onchange={(event: Event) => (confidential = (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <div>
+              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.apps.registering')}>
+                {t('app.apps.register')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
     </Stack>
     </Stack>
 </Stack>

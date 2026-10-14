@@ -48,7 +48,10 @@
 
   const { label, hint, error, disabledReason, isRequired = false, describedBy: extra, isInvalid = false, children }: Props = $props();
 
-  const uid = `field-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const uid = `field-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
   const errorId = $derived(error ? `${uid}-error` : undefined);
   const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);

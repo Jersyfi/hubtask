@@ -127,6 +127,42 @@ func TestAMalformedAcceptanceIsRefused(t *testing.T) {
 	}
 }
 
+// Every AI ask answers the job it queued: the provider has not been asked yet, and the job is
+// where a refusal it meets later - a budget spent since, AI switched off - is said.
+func TestEveryAiAskAnswersTheJobItQueued(t *testing.T) {
+	const entity = "0192f000-0000-7000-8000-000000000e11"
+	const queued = "0192f000-0000-7000-8000-00000000ac01"
+	for _, ask := range []struct{ path, body string }{
+		{"/items/" + entity + ":suggest-fields", ""},
+		{"/items/" + entity + ":summarize", ""},
+		{"/items/" + entity + ":classify", ""},
+		{"/items/" + entity + ":summarize-thread", ""},
+		{"/items/" + entity + ":decompose", ""},
+		{"/containers/" + entity + ":summarize", ""},
+		{"/jumble/entries/" + entity + ":suggest", ""},
+		{"/templates:generate", `{"collection_id":"` + entity + `","description":"onboarding"}`},
+	} {
+		t.Run(ask.path, func(t *testing.T) {
+			registry := &catalogue{out: usecase.Output{"job_id": queued}}
+
+			recorder := suggestionRequest(t, registry, ask.path, ask.body)
+			if recorder.Code != http.StatusAccepted {
+				t.Fatalf("status %d, want 202: %s", recorder.Code, recorder.Body)
+			}
+			var body struct {
+				JobID  string `json:"job_id"`
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decoding %q: %v", recorder.Body, err)
+			}
+			if body.JobID != queued || body.Status != "QUEUED" {
+				t.Errorf("the answer is %+v, want the queued job", body)
+			}
+		})
+	}
+}
+
 // What the narrowing dropped travels on the answer, so that a client can say a draft
 // is not the whole of what the provider answered.
 func TestTheAnswerCarriesWhatTheNarrowingDropped(t *testing.T) {

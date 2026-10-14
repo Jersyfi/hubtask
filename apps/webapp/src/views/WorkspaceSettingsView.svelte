@@ -28,6 +28,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -147,90 +148,92 @@
         <Banner tone="success">{t('app.workspace.saved')}</Banner>
       {/if}
 
-      <form class="panel" onsubmit={save}>
-        <Stack gap="200">
-          <Input
-            label={t('app.workspace.name')}
-            hint={t('app.workspace.name_hint')}
-            bind:value={displayName}
-            error={failure?.fields.get('display_name')}
-            isRequired
-          />
+      <WorkspaceGate permission="STRUCTURE">
+        <form class="panel" onsubmit={save}>
+          <Stack gap="200">
+            <Input
+              label={t('app.workspace.name')}
+              hint={t('app.workspace.name_hint')}
+              bind:value={displayName}
+              error={failure?.fields.get('display_name')}
+              isRequired
+            />
 
-          <!-- Read-only and said so, rather than absent: the address people reach this workspace
-               at is a thing they look for on this screen, and leaving it out reads as a gap. -->
-          <Stack gap="050">
-            <span class="label">{t('app.workspace.slug')}</span>
-            <p class="fixed">{current.slug}</p>
-            <p class="quiet small">{t('app.workspace.slug_fixed')}</p>
+            <!-- Read-only and said so, rather than absent: the address people reach this workspace
+                 at is a thing they look for on this screen, and leaving it out reads as a gap. -->
+            <Stack gap="050">
+              <span class="label">{t('app.workspace.slug')}</span>
+              <p class="fixed">{current.slug}</p>
+              <p class="quiet small">{t('app.workspace.slug_fixed')}</p>
+            </Stack>
+
+            {#if locales.length > 0}
+              <Select
+                label={t('app.workspace.locale')}
+                hint={above.locale
+                  ? `${t('app.workspace.locale_hint')} ${t('app.workspace.installation_default', { value: languageName(above.locale, messages.locale) })}`
+                  : t('app.workspace.locale_hint')}
+                bind:value={locale}
+                options={locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) }))}
+              />
+            {:else}
+              <!-- An installation that declares no locales has none to choose between, and the
+                   server still refuses one it cannot resolve. -->
+              <Input
+                label={t('app.workspace.locale')}
+                hint={t('app.workspace.locale_free')}
+                bind:value={locale}
+                error={failure?.fields.get('default_locale')}
+              />
+            {/if}
+
+            {#if zones.length > 0}
+              <Select
+                label={t('app.workspace.zone')}
+                hint={above.time_zone
+                  ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
+                  : t('app.workspace.zone_hint')}
+                bind:value={zone}
+                options={zones.map((each) => ({ value: each, label: each }))}
+              />
+            {:else}
+              <Input
+                label={t('app.workspace.zone')}
+                hint={t('app.workspace.zone_free')}
+                bind:value={zone}
+                error={failure?.fields.get('default_time_zone')}
+              />
+            {/if}
+
+            <Select
+              label={t('app.workspace.week_start')}
+              hint={t('app.workspace.week_start_hint')}
+              bind:value={weekStart}
+              options={[
+                { value: '', label: weekStartAbove },
+                ...WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
+              ]}
+              error={failure?.fields.get('/default_week_start')}
+            />
+
+            <!-- No second-factor switch here: who needs one is the sign-in rule's, set on the sign-in
+                 screen with its step-up, its lock and its direction. A switch here was a second place
+                 for the same rule, stored apart from it, and the two disagreed (UC-ID-12 check 1). -->
+
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.workspace.saving')}
+                disabledReason={hasChanges ? undefined : t('app.workspace.nothing_changed')}
+              >
+                {t('app.workspace.save')}
+              </Button>
+            </div>
           </Stack>
-
-          {#if locales.length > 0}
-            <Select
-              label={t('app.workspace.locale')}
-              hint={above.locale
-                ? `${t('app.workspace.locale_hint')} ${t('app.workspace.installation_default', { value: languageName(above.locale, messages.locale) })}`
-                : t('app.workspace.locale_hint')}
-              bind:value={locale}
-              options={locales.map((each) => ({ value: each.locale, label: languageName(each.locale, messages.locale) }))}
-            />
-          {:else}
-            <!-- An installation that declares no locales has none to choose between, and the
-                 server still refuses one it cannot resolve. -->
-            <Input
-              label={t('app.workspace.locale')}
-              hint={t('app.workspace.locale_free')}
-              bind:value={locale}
-              error={failure?.fields.get('default_locale')}
-            />
-          {/if}
-
-          {#if zones.length > 0}
-            <Select
-              label={t('app.workspace.zone')}
-              hint={above.time_zone
-                ? `${t('app.workspace.zone_hint')} ${t('app.workspace.installation_default', { value: above.time_zone })}`
-                : t('app.workspace.zone_hint')}
-              bind:value={zone}
-              options={zones.map((each) => ({ value: each, label: each }))}
-            />
-          {:else}
-            <Input
-              label={t('app.workspace.zone')}
-              hint={t('app.workspace.zone_free')}
-              bind:value={zone}
-              error={failure?.fields.get('default_time_zone')}
-            />
-          {/if}
-
-          <Select
-            label={t('app.workspace.week_start')}
-            hint={t('app.workspace.week_start_hint')}
-            bind:value={weekStart}
-            options={[
-              { value: '', label: weekStartAbove },
-              ...WEEK_STARTS.map((each) => ({ value: each, label: t(`app.profile.week_${each}`) })),
-            ]}
-            error={failure?.fields.get('/default_week_start')}
-          />
-
-          <!-- No second-factor switch here: who needs one is the sign-in rule's, set on the sign-in
-               screen with its step-up, its lock and its direction. A switch here was a second place
-               for the same rule, stored apart from it, and the two disagreed (UC-ID-12 check 1). -->
-
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.workspace.saving')}
-              disabledReason={hasChanges ? undefined : t('app.workspace.nothing_changed')}
-            >
-              {t('app.workspace.save')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+        </form>
+      </WorkspaceGate>
     {/if}
     </Stack>
 </Stack>

@@ -576,6 +576,50 @@ func TestADetachedFailureStillGoesBackToTheQueue(t *testing.T) {
 	}
 }
 
+// A refusal the job met is an answer for whoever asked: the job ends FAILED with the refusal's code
+// and parameters, at once, on its first attempt - and nothing counts it as a failure or a dead
+// letter, because nobody has anything to repair. Both paths: wrapped, and detached (which the AI
+// suggestion handler is).
+func TestARefusedJobEndsRefusedWithoutAFailureOrADeadLetter(t *testing.T) {
+	refusal := &queue.Refusal{
+		Code: "ai.unavailable", Params: map[string]string{"reason": "budget_spent", "renews_at": "2026-09-02T00:00:00Z"},
+	}
+	refusing := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{Refusal: refusal}, nil
+	})
+	for name, handler := range map[string]queue.Handler{
+		"wrapped": refusing, "detached": detachedHandler{refusing},
+	} {
+		t.Run(name, func(t *testing.T) {
+			jobs := newQueue()
+			work := &unitOfWork{}
+			signals := &signalsDouble{}
+
+			runner(jobs, work, handler, signals).execute(t.Context(), job(1))
+
+			if len(jobs.failures) != 1 {
+				t.Fatalf("failures = %v, want the refusal written once", jobs.failures)
+			}
+			written := jobs.failures[0]
+			if !written.Refused || written.Code != "ai.unavailable" || written.Params["renews_at"] != "2026-09-02T00:00:00Z" {
+				t.Errorf("the refusal was written as %+v", written)
+			}
+			if !written.RetryAt.IsZero() {
+				t.Error("a refusal was given another attempt")
+			}
+			if len(jobs.completed) != 0 {
+				t.Error("a refused job was completed as succeeded")
+			}
+			if len(signals.failed) != 0 || len(signals.deadLetters) != 0 {
+				t.Errorf("a refusal counted as a failure: %v, %v", signals.failed, signals.deadLetters)
+			}
+			if len(work.scopes) == 0 || work.scopes[len(work.scopes)-1].TenantID != tenantID {
+				t.Errorf("the refusal was written as %+v, want the job's tenant", work.scopes)
+			}
+		})
+	}
+}
+
 // The doorbell (ADR-0007). A poll interval far longer than the test's patience, so that a
 // round happening at all can only be the notification's doing.
 func TestANotificationWakesTheLoopBeforeThePollInterval(t *testing.T) {

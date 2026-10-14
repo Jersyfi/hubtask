@@ -30,6 +30,10 @@ content (rule 10). The codes and what they mean:
 | `dependency.unavailable` | Something the job needs stayed down through every retry | Fix the dependency, then requeue |
 | `outbox.dispatch_without_tenant` | A malformed job row | A defect; keep the row for the issue |
 
+A job that met a refusal — an AI suggestion whose workspace spent its budget or switched AI off
+before the job ran — is never here: it ends `FAILED` at once with the refusal's code, for the
+person who asked, and counts toward no alert.
+
 ## Requeueing, once the cause is fixed
 
 ```sql

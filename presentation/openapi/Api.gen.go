@@ -6881,6 +6881,9 @@ type Job struct {
 	// ErrorCode The message code of the last failure, never a message and never free text. Set on a `FAILED` job, and on a job that is being retried.
 	ErrorCode *string `json:"error_code"`
 
+	// ErrorParams The parameters the sentence of `error_code` reads, where the job ended with a refusal that has some - an AI budget spent since the job was accepted carries `reason` (`budget_spent`) and `renews_at`, exactly as the same refusal does on a request. Absent otherwise.
+	ErrorParams *map[string]string `json:"error_params,omitempty"`
+
 	// FinishedAt When the job reached a terminal state. `null` while it has not.
 	FinishedAt *time.Time         `json:"finished_at"`
 	JobId      openapi_types.UUID `json:"job_id"`

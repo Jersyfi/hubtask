@@ -42,7 +42,10 @@
     ...rest
   }: Props = $props();
 
-  const id = `search-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const id = `search-${instanceId}`;
 
   let input = $state<HTMLInputElement | null>(null);
 

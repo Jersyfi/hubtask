@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { COLLECTION, ITEMS, PAGE, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, ITEMS, OWNER_GRANTS, PAGE, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -41,7 +41,7 @@ const dayIn = (iso, zone) => new Intl.DateTimeFormat('en-CA', { timeZone: zone, 
  * first read answers, so a collection whose work is a season away has to be a different answer
  * rather than a different assertion.
  */
-async function timeline(browser, { width = 1280, rows, zone = 'UTC', now } = {}) {
+async function timeline(browser, { width = 1280, rows, zone = 'UTC', now, role } = {}) {
   const written = [];
   // The zone is the walk's, never the machine's: a timeline is drawn in days, and a day computed
   // here in one zone and drawn there in another is a day apart for some hours of every night.
@@ -53,6 +53,12 @@ async function timeline(browser, { width = 1280, rows, zone = 'UTC', now } = {})
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (request.method() !== 'GET') written.push({ method: request.method(), path, body: request.postDataJSON() });
+    // A reader who holds `role` on the workspace and nothing below it, where a walk names one.
+    if (role && path.endsWith('/api/v1/memberships')) {
+      const scope = new URL(request.url()).searchParams.get('scope_type');
+      const held = scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }] : [];
+      return route.fulfill({ json: { ...PAGE, data: held, grantable_roles: role === 'OWNER' ? OWNER_GRANTS : [] } });
+    }
     if (rows && path.endsWith('/api/v1/items:query') && !request.postDataJSON()?.group_by) {
       return route.fulfill({ json: { data: rows, groups: [], page: PAGE.page, total: rows.length } });
     }
@@ -347,4 +353,64 @@ test('chromium: 375 px — the scale is reachable and the axis shows a usable ra
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
   assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: 1280 px — a reader who may not change an entry cannot drag it, on the axis or from the tray', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const today = new Date().toISOString().slice(0, 10);
+  const mine = { ...ITEMS[0], assignee_id: ACCOUNT.id, start_at: `${addDays(today, 1)}T09:00:00Z`, due_at: `${addDays(today, 4)}T09:00:00Z` };
+  const theirs = { ...ITEMS[1], assignee_id: null, start_at: `${addDays(today, 2)}T09:00:00Z`, due_at: `${addDays(today, 5)}T09:00:00Z` };
+  const undatedEntry = { ...ITEMS.slice(2).find((each) => !each.due_at && !each.completion?.is_completed), assignee_id: null };
+
+  /** Drags the first bar of `title` three columns along, then the tray entry onto the axis. */
+  const tryEverything = async (page, title) => {
+    await page.getByLabel('Scale').selectOption('day');
+    await page.waitForTimeout(400);
+    const at = await axisOf(page);
+    const bar = page.locator('.timeline .rows .row', { hasText: title }).locator('.cell[data-filled]').nth(1);
+    const box = await bar.boundingBox();
+    const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await carry(page, middle, { x: middle.x + at.width * 3, y: middle.y });
+    const entry = page.locator('.timeline details.undated .entry', { hasText: undatedEntry.title });
+    const tray = await entry.boundingBox();
+    await carry(page, { x: tray.x + tray.width / 2, y: tray.y + tray.height / 2 }, { x: at.x + at.width * 6.5, y: at.y + 40 });
+  };
+
+  // A viewer: no row of theirs moves, no end is offered, and nothing is written.
+  {
+    const { page, failures, written, close, unstubbed } = await timeline(browser, { role: 'VIEWER', rows: [mine, theirs, undatedEntry] });
+    t.after(close);
+    await tryEverything(page, theirs.title);
+    assert.equal(await page.locator('.timeline .end').count(), 0, 'a viewer is offered the ends of a bar');
+    assert.equal(await page.locator('.timeline .rows .row[data-locked]').count(), 2, 'not every row is locked for a viewer');
+    const writes = written.filter((each) => each.method === 'PATCH' || each.method === 'PUT');
+    assert.deepEqual(writes, [], `a viewer's drag wrote ${JSON.stringify(writes.map((each) => `${each.method} ${each.path}`))}`);
+    // The title still opens the entry: reading it is not what the lock takes away.
+    await page.locator('.timeline .rows .row button.title', { hasText: theirs.title }).click();
+    await page.waitForFunction((id) => location.pathname === `/items/${id}`, theirs.id, { timeout: 5_000 });
+    assert.deepEqual(failures, []);
+    assert.deepEqual(unstubbed(), []);
+  }
+
+  // A contributor: somebody else's bar and the unassigned tray entry stay put; their own moves.
+  {
+    const { page, failures, written, close, unstubbed } = await timeline(browser, { role: 'CONTRIBUTOR', rows: [mine, theirs, undatedEntry] });
+    t.after(close);
+    await tryEverything(page, theirs.title);
+    const touched = (id) => written.some((each) => (each.method === 'PATCH' || each.method === 'PUT') && each.path.includes(id));
+    assert.equal(touched(theirs.id), false, "a contributor moved somebody else's entry");
+    assert.equal(touched(undatedEntry.id), false, "a contributor dated somebody else's entry from the tray");
+    assert.equal(await page.locator('.timeline .rows .row', { hasText: mine.title }).locator('.end').count(), 2, 'their own bar lost its ends');
+
+    const at = await axisOf(page);
+    const own = page.locator('.timeline .rows .row', { hasText: mine.title }).locator('.cell[data-filled]').nth(1);
+    const box = await own.boundingBox();
+    const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    await carry(page, middle, { x: middle.x + at.width * 2, y: middle.y });
+    assert.ok(touched(mine.id), 'a contributor could not move their own entry');
+    assert.deepEqual(failures, []);
+    assert.deepEqual(unstubbed(), []);
+  }
 });

@@ -1440,7 +1440,7 @@ func (w OidcWriter) recordStart(
 		Severity:   audit.SeverityInfo,
 		ActorKind:  shared.ActorSystem,
 		TargetType: identityProviderTarget,
-		TargetID:   tenantID,
+		TargetID:   configured.ID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes: audit.Changes(
 			audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer}),
@@ -1469,7 +1469,7 @@ func (w OidcWriter) recordRefusal(
 			Severity:   audit.SeverityWarning,
 			ActorKind:  shared.ActorSystem,
 			TargetType: identityProviderTarget,
-			TargetID:   scope.TenantID,
+			TargetID:   configured.ID,
 			Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 			Changes: audit.Changes(
 				audit.Change{Field: "issuer", Classification: audit.Open, To: configured.Issuer},

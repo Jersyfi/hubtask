@@ -132,6 +132,18 @@ UPDATE job SET
   last_error   = sqlc.arg('last_error')
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
 
+-- A refusal the job met - an AI budget spent since it was queued, AI switched off - ends it as
+-- FAILED rather than in the dead letter: it is an answer for whoever asked, not work waiting for an
+-- operator. The parameters are the refusal's own, codes and moments (rule 10).
+-- name: RefuseJob :execrows
+UPDATE job SET
+  state             = 'FAILED',
+  finished_at       = sqlc.arg('now'),
+  locked_until      = NULL,
+  last_error        = sqlc.arg('last_error'),
+  last_error_params = sqlc.narg('last_error_params')
+WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
+
 -- The backlog: what is due and waiting, not what is running. Counting work in flight would make a
 -- busy queue look like a stuck one, and the alert hangs off this number rising (alert A-06).
 -- name: JobQueueDepth :many
@@ -156,7 +168,7 @@ WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now')
 -- dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
 -- response by accident.
 -- name: FindJob :one
-SELECT id, tenant_id, state, last_error, created_at, finished_at, progress
+SELECT id, tenant_id, state, last_error, last_error_params, created_at, finished_at, progress
 FROM job
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
 

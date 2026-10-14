@@ -96,11 +96,13 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 
 	outcome, err := h.Produce.Ask(ctx, actor, request)
 	if suggestion.IsUnavailable(err) {
-		// The workspace switched AI off, withdrew consent, or its provider is out of reach
-		// between the asking and the running. Finished rather than retried: a retry ladder
-		// against a switch somebody turned off is a queue that fills with questions nobody wants
-		// answered any more.
-		return queue.Result{}, nil
+		// The workspace switched AI off, withdrew consent, or spent its budget between the asking
+		// and the running. Ended refused rather than retried - a retry ladder against a switch
+		// somebody turned off is a queue that fills with questions nobody wants answered any more -
+		// and refused rather than finished, because the person who asked follows this job and is
+		// owed the sentence: the refusal's code and parameters (UC-AI-07 check 3).
+		refused := shared.AsError(err)
+		return queue.Result{Refusal: &queue.Refusal{Code: refused.DetailCode, Params: refused.Params}}, nil
 	}
 	if err != nil {
 		return queue.Result{}, err

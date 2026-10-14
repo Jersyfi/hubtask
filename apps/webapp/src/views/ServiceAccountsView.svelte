@@ -25,6 +25,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -144,21 +145,23 @@
 
     <Stack gap="150">
       <h2 class="section">{t('app.service_accounts.new_title')}</h2>
-      <form class="panel" onsubmit={create}>
-        <Stack gap="150">
-          <Input
-            label={t('app.service_accounts.name')}
-            hint={t('app.service_accounts.name_hint')}
-            bind:value={newName}
-            isRequired
-          />
-          <div>
-            <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.service_accounts.creating')}>
-              {t('app.service_accounts.create')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+      <WorkspaceGate permission="MANAGE_MEMBERS">
+        <form class="panel" onsubmit={create}>
+          <Stack gap="150">
+            <Input
+              label={t('app.service_accounts.name')}
+              hint={t('app.service_accounts.name_hint')}
+              bind:value={newName}
+              isRequired
+            />
+            <div>
+              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.service_accounts.creating')}>
+                {t('app.service_accounts.create')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
       <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
     </Stack>
     </Stack>
