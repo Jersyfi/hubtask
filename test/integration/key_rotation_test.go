@@ -274,6 +274,18 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 	target := targetIn(t, tenantA, authorA, freshName(t))
 	targetPurpose := cryptoport.Purpose("backup_target.credential:" + target.ID.String())
 	rule := sealedHTTPRuleUnder(ctx, t, before, tenantA, runAs, authorA)
+	// Two HTTP calls still on their ladder: a direct one, sealed under its request's purpose, and
+	// one the rule queued, carrying the rule's sealed secret as it stood.
+	request := freshID(t)
+	callPurpose := cryptoport.Purpose("automation.http:" + request.String())
+	callSecret := seal("call-token", callPurpose)
+	directCall := seedCallJobCarrying(ctx, t, tenantA, "automation.http", "PENDING", request,
+		automation.SealedSecret{
+			Ciphertext: base64.StdEncoding.EncodeToString(callSecret.Ciphertext),
+			KeyID:      callSecret.KeyID, Purpose: string(callPurpose),
+		}.Document())
+	ruleCall := seedCallJobCarrying(ctx, t, tenantA, "automation.http", "RUNNING", freshID(t),
+		rule.Actions[0].Params["secret_header_sealed"].(map[string]any))
 
 	webhookSecret := seal("signing-secret", webhookPurpose)
 	inTenant(t, uow, tenantA, func(ctx context.Context) error {
@@ -297,7 +309,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 			t.Fatalf("storing the rule: %v", err)
 		}
 		counts, err := byKey(census.Count(ctx))
-		if err != nil || counts[oldKey.ID] != 5 {
+		if err != nil || counts[oldKey.ID] != 7 {
 			t.Fatalf("the census before the rotation: %v (%v)", counts, err)
 		}
 		return nil
@@ -314,6 +326,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 			integrationservice.WebhookResealer{Subscriptions: subscriptions, Encryptor: after},
 			backupservice.TargetResealer{Targets: targets, Encryptor: after},
 			automationservice.RuleResealer{Rules: rules, Encryptor: after},
+			automationservice.CallResealer{Calls: postgres.NewCallSealingRepository(), Encryptor: after},
 		},
 		Encryptor: after, Audit: trail, Clock: clockadapter.System{},
 	}
@@ -327,10 +340,10 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		outcome = moved
 		return nil
 	})
-	// Exactly this drill's five moved; whatever other tests left under keys this ring does not
+	// Exactly this drill's seven moved; whatever other tests left under keys this ring does not
 	// hold was skipped and counted rather than failed on.
-	if outcome.Rewrapped != 5 {
-		t.Fatalf("the round moved %d and skipped %d, want exactly 5 moved", outcome.Rewrapped, outcome.Skipped)
+	if outcome.Rewrapped != 7 {
+		t.Fatalf("the round moved %d and skipped %d, want exactly 7 moved", outcome.Rewrapped, outcome.Skipped)
 	}
 	if len(trail.entries) != 1 || trail.entries[0].Action != sealing.ResealedAction {
 		t.Errorf("the round left %+v in the trail", trail.entries)
@@ -342,7 +355,7 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if counts[oldKey.ID] != 0 || counts[newKey.ID] != 5 {
+		if counts[oldKey.ID] != 0 || counts[newKey.ID] != 7 {
 			t.Fatalf("after the round the census answers %v", counts)
 		}
 		again, err := round.Execute(ctx, system)
@@ -402,4 +415,20 @@ func TestARotationCompletesWhenTheCensusReachesZero(t *testing.T) {
 		}
 		return nil
 	})
+	// The calls open the way the worker opens them: from the payload, under the purpose it names.
+	for job, want := range map[shared.ID]string{directCall: "call-token", ruleCall: "hook-token"} {
+		var stored automation.SealedSecret
+		if err := adminPool(ctx, t).QueryRow(ctx, `
+			SELECT payload #>> '{secret_header_sealed,ciphertext}', payload #>> '{secret_header_sealed,key_id}',
+			       payload #>> '{secret_header_sealed,purpose}'
+			FROM job WHERE id = $1`, job.String()).Scan(&stored.Ciphertext, &stored.KeyID, &stored.Purpose); err != nil {
+			t.Fatalf("reading the call back: %v", err)
+		}
+		ciphertext, _ := base64.StdEncoding.DecodeString(stored.Ciphertext)
+		opened, err := retired.Open(ctx, cryptoport.Sealed{KeyID: stored.KeyID, Ciphertext: ciphertext},
+			cryptoport.Purpose(stored.Purpose))
+		if err != nil || opened.Reveal() != want {
+			t.Errorf("a pending call's header secret after retirement: %v", err)
+		}
+	}
 }

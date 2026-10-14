@@ -193,3 +193,26 @@ SET progress = LEAST(1.0, GREATEST(0.0, sqlc.arg('progress')::real))
 WHERE id = sqlc.arg('id')
   AND state = 'RUNNING'
   AND locked_until = sqlc.arg('lease')::timestamptz;
+
+-- name: CallJobsSealedNotUnder :many
+-- The HTTP calls a re-seal visits (ADR-0045): a job that may still run whose header secret names a
+-- key other than the current one. Only the current workspace's - the table has no policy to say so.
+SELECT id, payload
+FROM job
+WHERE tenant_id = current_tenant_id()
+  AND kind = 'automation.http'
+  AND state IN ('PENDING', 'RUNNING')
+  AND payload #>> '{secret_header_sealed,key_id}' <> sqlc.arg('key_id')::text
+ORDER BY id;
+
+-- name: RewrapCallJobSecret :execrows
+-- Only the sealed secret, guarded by the key it named when it was read: a job that finished, or
+-- that another round moved, in between is left alone. The lease columns are not touched, so a
+-- worker holding the job finishes it as it would have.
+UPDATE job
+SET payload = jsonb_set(payload, '{secret_header_sealed}', sqlc.arg('sealed')::jsonb)
+WHERE id = sqlc.arg('id')
+  AND tenant_id = current_tenant_id()
+  AND kind = 'automation.http'
+  AND state IN ('PENDING', 'RUNNING')
+  AND payload #>> '{secret_header_sealed,key_id}' = sqlc.arg('expected_key_id')::text;
