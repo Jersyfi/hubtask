@@ -267,7 +267,8 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- =============================== Groups ===============================
 
 -- name: FindGroup :one
-SELECT id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
+-- The workspace travels with the row: a rename's or a deletion's trail entry is written under it.
+SELECT id, tenant_id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
 
 -- name: LockGroup :one
 -- The group's row, held for the transaction: a member change, a deletion and a grant to the group
@@ -347,6 +348,31 @@ DELETE FROM membership WHERE id = sqlc.arg('id');
 SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
 FROM membership WHERE group_id = sqlc.arg('group_id')
 ORDER BY id;
+
+-- name: LockOwners :exec
+-- Taken by every door that could end the workspace's last owner, inside its write transaction and
+-- before it counts the owners again: two owners revoking each other at once would otherwise each
+-- see the other still there. Transaction-scoped, per tenant, like the audit chain's (Audit.sql).
+SELECT pg_advisory_xact_lock(hashtext('owners:' || current_tenant_id()::text));
+
+-- name: WorkspaceOwnerPaths :many
+-- Every way a person holds OWNER on the workspace: a grant of their own, or a grant to a group they
+-- are in. Only a person who can act counts - a USER, active or restricted, not deleted - so an
+-- invitation never redeemed or an erased account does not keep the workspace administered.
+-- One row per grant and account; the tenant boundary is the transaction's (ADR-0010).
+SELECT m.id AS membership_id, a.id AS account_id, m.group_id
+FROM membership m
+JOIN account a ON a.id = m.account_id
+WHERE m.scope_type = 'TENANT' AND m.role = 'OWNER'
+  AND a.kind = 'USER' AND a.status IN ('ACTIVE', 'RESTRICTED') AND a.deleted_at IS NULL
+UNION ALL
+SELECT m.id AS membership_id, a.id AS account_id, m.group_id
+FROM membership m
+JOIN account_group_member gm ON gm.group_id = m.group_id
+JOIN account a ON a.id = gm.account_id
+WHERE m.scope_type = 'TENANT' AND m.role = 'OWNER'
+  AND a.kind = 'USER' AND a.status IN ('ACTIVE', 'RESTRICTED') AND a.deleted_at IS NULL
+ORDER BY membership_id, account_id;
 
 -- name: RestrictedAccounts :many
 -- Which of the accounts named may not be processed automatically (Art. 18, data-protection.md §4).

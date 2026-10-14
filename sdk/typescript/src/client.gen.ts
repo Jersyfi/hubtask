@@ -1266,13 +1266,13 @@ export class HubtaskClient {
   }
 
   /** Rename a group or change its description */
-  updateGroup(groupId: string, body: NonNullable<operations["updateGroup"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateGroup"]['responses'][200]['content']["application/json"]> {
-    return this.call("PATCH", "/groups/{groupId}", { "groupId": groupId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  updateGroup(groupId: string, body: NonNullable<operations["updateGroup"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["updateGroup"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/groups/{groupId}", { "groupId": groupId }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
   /** Delete a group */
-  deleteGroup(groupId: string, options: CallOptions = {}): Promise<void> {
-    return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  deleteGroup(groupId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** GET /containers */

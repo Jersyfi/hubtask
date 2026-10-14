@@ -6615,7 +6615,8 @@ paths:
         that is the group's membership, revoked separately.
 
         Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-        in the `X-Hubtask-Step-Up` header.
+        in the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`
+        on the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.
       parameters:
         - $ref: "#/components/parameters/StepUpToken"
       responses:
@@ -6698,8 +6699,14 @@ paths:
       tags: [identity]
       operationId: updateGroup
       summary: Rename a group or change its description
+      description: |
+        `members`, when sent, is the complete membership afterwards. A changed member list of a
+        group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+        in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+        leave the workspace without an owner is refused with `409 memberships.last_owner`.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/StepUpToken"
       requestBody:
         required: true
         content:
@@ -6725,6 +6732,12 @@ paths:
       description: |
         Its memberships go with it: what the group granted, nobody holds afterwards. Members of
         the group keep whatever they hold in their own right.
+
+        Deleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh
+        step-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without
+        an owner is refused with `409 memberships.last_owner`.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
       responses:
         "204":
           description: Deleted

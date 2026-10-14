@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, effectiveRole, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -134,6 +134,36 @@ test('a revocation is somebody else\'s, the reader\'s own, or the reader\'s last
   assert.equal(ownershipOf(holders, 'm-jonas', JONAS, fitters), 'own');
   assert.equal(ownershipOf(holders, 'm-fitters', JONAS, fitters), 'own');
   assert.equal(ownershipOf(holders, 'm-fitters', AMELIE, fitters), 'other');
+});
+
+test('the last owner\'s Revoke is left out only where the refusal is certain', () => {
+  const here = { scopeType: 'TENANT' } as const;
+  const active = () => true;
+  const alone = holdersOf(
+    [
+      grant({ id: 'm-amelie', scope_type: 'TENANT', role: 'OWNER', account_id: AMELIE }),
+      grant({ id: 'm-jonas', scope_type: 'TENANT', role: 'ADMIN', account_id: JONAS }),
+    ],
+    here,
+  );
+  // The only OWNER row, a person who can act, every row read: the server refuses it.
+  assert.equal(endsTheLastOwner(alone, 'm-amelie', true, active), true);
+  // Another row is no owner; a page with more behind it may hide one; an invitation does not count.
+  assert.equal(endsTheLastOwner(alone, 'm-jonas', true, active), false);
+  assert.equal(endsTheLastOwner(alone, 'm-amelie', false, active), false);
+  assert.equal(endsTheLastOwner(alone, 'm-amelie', true, () => false), false);
+
+  // A second OWNER row - a person or a group whose members the screen does not know - leaves the
+  // control, and the refusal's sentence covers the case it cannot judge.
+  const withGroup = holdersOf(
+    [
+      grant({ id: 'm-amelie', scope_type: 'TENANT', role: 'OWNER', account_id: AMELIE }),
+      grant({ id: 'm-fitters', scope_type: 'TENANT', role: 'OWNER', group_id: FITTERS }),
+    ],
+    here,
+  );
+  assert.equal(endsTheLastOwner(withGroup, 'm-amelie', true, active), false);
+  assert.equal(endsTheLastOwner(withGroup, 'm-fitters', true, active), false);
 });
 
 test('a role inherited from above counts as one that remains', () => {

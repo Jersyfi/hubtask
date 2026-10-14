@@ -1007,13 +1007,13 @@ class Client:
         """One group, with who is in it"""
         return self._call("GET", "/groups/{groupId}", {"groupId": group_id}, None, {}, None, "none", None, "json")
 
-    def update_group(self, group_id: str, body: "GroupUpdate", *, if_match: str | None = None) -> "Group":
+    def update_group(self, group_id: str, body: "GroupUpdate", *, if_match: str | None = None, step_up: str | None = None) -> "Group":
         """Rename a group or change its description"""
-        return self._call("PATCH", "/groups/{groupId}", {"groupId": group_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+        return self._call("PATCH", "/groups/{groupId}", {"groupId": group_id}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
-    def delete_group(self, group_id: str) -> None:
+    def delete_group(self, group_id: str, *, step_up: str | None = None) -> None:
         """Delete a group"""
-        return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {}, None, "none", None, "void")
+        return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def list_containers(self, *, query: dict[str, Any] | None = None) -> "ContainerPage":
         """GET /containers"""

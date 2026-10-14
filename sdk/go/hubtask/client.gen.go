@@ -10451,10 +10451,19 @@ type CreateGroupParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DeleteGroupParams defines parameters for DeleteGroup.
+type DeleteGroupParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // UpdateGroupParams defines parameters for UpdateGroup.
 type UpdateGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // ConfigureFirstIdentityProviderParams defines parameters for ConfigureFirstIdentityProvider.
@@ -13685,8 +13694,12 @@ type ClientInterface interface {
 	// Its memberships go with it: what the group granted, nobody holds afterwards. Members of
 	// the group keep whatever they hold in their own right.
 	//
+	// Deleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh
+	// step-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without
+	// an owner is refused with `409 memberships.last_owner`.
+	//
 	// Corresponds with DELETE /groups/{groupId} (the `DeleteGroup` operationId).
-	DeleteGroup(ctx context.Context, groupId GroupId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	DeleteGroup(ctx context.Context, groupId GroupId, params *DeleteGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetGroup One group, with who is in it
 	//
@@ -13698,12 +13711,22 @@ type ClientInterface interface {
 
 	// UpdateGroupWithBody Rename a group or change its description
 	//
+	// `members`, when sent, is the complete membership afterwards. A changed member list of a
+	// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+	// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+	// leave the workspace without an owner is refused with `409 memberships.last_owner`.
+	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateGroupWithApplicationMergePatchPlusJSONBody Rename a group or change its description
+	//
+	// `members`, when sent, is the complete membership afterwards. A changed member list of a
+	// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+	// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+	// leave the workspace without an owner is refused with `409 memberships.last_owner`.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
 	//
@@ -14832,7 +14855,8 @@ type ClientInterface interface {
 	// that is the group's membership, revoked separately.
 	//
 	// Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-	// in the `X-Hubtask-Step-Up` header.
+	// in the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`
+	// on the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.
 	//
 	// Corresponds with DELETE /memberships/{membershipId} (the `RevokeMembership` operationId).
 	RevokeMembership(ctx context.Context, membershipId MembershipId, params *RevokeMembershipParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -20069,9 +20093,13 @@ func (c *Client) CreateGroup(ctx context.Context, params *CreateGroupParams, bod
 // Its memberships go with it: what the group granted, nobody holds afterwards. Members of
 // the group keep whatever they hold in their own right.
 //
+// Deleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh
+// step-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without
+// an owner is refused with `409 memberships.last_owner`.
+//
 // Corresponds with DELETE /groups/{groupId} (the `DeleteGroup` operationId).
-func (c *Client) DeleteGroup(ctx context.Context, groupId GroupId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewDeleteGroupRequest(c.Server, groupId)
+func (c *Client) DeleteGroup(ctx context.Context, groupId GroupId, params *DeleteGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteGroupRequest(c.Server, groupId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -20102,6 +20130,11 @@ func (c *Client) GetGroup(ctx context.Context, groupId GroupId, reqEditors ...Re
 
 // UpdateGroupWithBody Rename a group or change its description
 //
+// `members`, when sent, is the complete membership afterwards. A changed member list of a
+// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+// leave the workspace without an owner is refused with `409 memberships.last_owner`.
+//
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
@@ -20118,6 +20151,11 @@ func (c *Client) UpdateGroupWithBody(ctx context.Context, groupId GroupId, param
 }
 
 // UpdateGroupWithApplicationMergePatchPlusJSONBody Rename a group or change its description
+//
+// `members`, when sent, is the complete membership afterwards. A changed member list of a
+// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+// leave the workspace without an owner is refused with `409 memberships.last_owner`.
 //
 // Takes a body of the `application/merge-patch+json` content type.
 //
@@ -22626,7 +22664,8 @@ func (c *Client) GrantMembership(ctx context.Context, params *GrantMembershipPar
 // that is the group's membership, revoked separately.
 //
 // Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-// in the `X-Hubtask-Step-Up` header.
+// in the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`
+// on the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.
 //
 // Corresponds with DELETE /memberships/{membershipId} (the `RevokeMembership` operationId).
 func (c *Client) RevokeMembership(ctx context.Context, membershipId MembershipId, params *RevokeMembershipParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -31062,7 +31101,7 @@ func NewCreateGroupRequestWithBody(server string, params *CreateGroupParams, con
 }
 
 // NewDeleteGroupRequest constructs an http.Request for the DeleteGroup method
-func NewDeleteGroupRequest(server string, groupId GroupId) (*http.Request, error) {
+func NewDeleteGroupRequest(server string, groupId GroupId, params *DeleteGroupParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -31090,6 +31129,21 @@ func NewDeleteGroupRequest(server string, groupId GroupId) (*http.Request, error
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -31184,6 +31238,17 @@ func NewUpdateGroupRequestWithBody(server string, groupId GroupId, params *Updat
 			}
 
 			req.Header.Set("If-Match", headerParam0)
+		}
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
 		}
 
 	}
@@ -41397,10 +41462,14 @@ type ClientWithResponsesInterface interface {
 	// Its memberships go with it: what the group granted, nobody holds afterwards. Members of
 	// the group keep whatever they hold in their own right.
 	//
+	// Deleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh
+	// step-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without
+	// an owner is refused with `409 memberships.last_owner`.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with DELETE /groups/{groupId} (the `DeleteGroup` operationId).
-	DeleteGroupWithResponse(ctx context.Context, groupId GroupId, reqEditors ...RequestEditorFn) (*DeleteGroupResult, error)
+	DeleteGroupWithResponse(ctx context.Context, groupId GroupId, params *DeleteGroupParams, reqEditors ...RequestEditorFn) (*DeleteGroupResult, error)
 
 	// GetGroupWithResponse One group, with who is in it
 	//
@@ -41414,12 +41483,22 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateGroupWithBodyWithResponse Rename a group or change its description
 	//
+	// `members`, when sent, is the complete membership afterwards. A changed member list of a
+	// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+	// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+	// leave the workspace without an owner is refused with `409 memberships.last_owner`.
+	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
 	// UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse Rename a group or change its description
+	//
+	// `members`, when sent, is the complete membership afterwards. A changed member list of a
+	// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+	// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+	// leave the workspace without an owner is refused with `409 memberships.last_owner`.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -42696,7 +42775,8 @@ type ClientWithResponsesInterface interface {
 	// that is the group's membership, revoked separately.
 	//
 	// Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-	// in the `X-Hubtask-Step-Up` header.
+	// in the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`
+	// on the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -62379,11 +62459,15 @@ func (c *ClientWithResponses) CreateGroupWithResponse(ctx context.Context, param
 // Its memberships go with it: what the group granted, nobody holds afterwards. Members of
 // the group keep whatever they hold in their own right.
 //
+// Deleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh
+// step-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without
+// an owner is refused with `409 memberships.last_owner`.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with DELETE /groups/{groupId} (the `DeleteGroup` operationId).
-func (c *ClientWithResponses) DeleteGroupWithResponse(ctx context.Context, groupId GroupId, reqEditors ...RequestEditorFn) (*DeleteGroupResult, error) {
-	rsp, err := c.DeleteGroup(ctx, groupId, reqEditors...)
+func (c *ClientWithResponses) DeleteGroupWithResponse(ctx context.Context, groupId GroupId, params *DeleteGroupParams, reqEditors ...RequestEditorFn) (*DeleteGroupResult, error) {
+	rsp, err := c.DeleteGroup(ctx, groupId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -62408,6 +62492,11 @@ func (c *ClientWithResponses) GetGroupWithResponse(ctx context.Context, groupId 
 
 // UpdateGroupWithBodyWithResponse Rename a group or change its description
 //
+// `members`, when sent, is the complete membership afterwards. A changed member list of a
+// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+// leave the workspace without an owner is refused with `409 memberships.last_owner`.
+//
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
@@ -62420,6 +62509,11 @@ func (c *ClientWithResponses) UpdateGroupWithBodyWithResponse(ctx context.Contex
 }
 
 // UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse Rename a group or change its description
+//
+// `members`, when sent, is the complete membership afterwards. A changed member list of a
+// group that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up
+// in the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would
+// leave the workspace without an owner is refused with `409 memberships.last_owner`.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -64524,7 +64618,8 @@ func (c *ClientWithResponses) GrantMembershipWithResponse(ctx context.Context, p
 // that is the group's membership, revoked separately.
 //
 // Revoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up
-// in the `X-Hubtask-Step-Up` header.
+// in the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`
+// on the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.
 //
 // Returns a wrapper object for the known response body format(s).
 //

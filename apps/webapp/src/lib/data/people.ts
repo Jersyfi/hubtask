@@ -198,6 +198,31 @@ export function mayRevoke(role: MembershipRole, grantable: readonly MembershipRo
 }
 
 /**
+ * Whether revoking this row would end the workspace's last owner, which the server refuses
+ * (`memberships.last_owner`, domain-model.md §3.2): a person's own `OWNER` on the workspace, the
+ * person able to act, and no other `OWNER` row on the workspace at all.
+ *
+ * `true` only where the refusal is certain from what the screen holds — every row of the workspace
+ * read (`complete`), no group holding `OWNER` whose members the screen does not know, no second
+ * holder whose standing it cannot judge. Anywhere less certain the control stays and the refusal's
+ * sentence says why, rather than a control hidden that the server would have allowed.
+ */
+export function endsTheLastOwner(
+  holders: readonly Holder[],
+  membershipId: string,
+  complete: boolean,
+  canAct: (accountId: string) => boolean,
+): boolean {
+  if (!complete) return false;
+  const revoked = holders.find((holder) => holder.membershipId === membershipId);
+  if (!revoked || revoked.role !== 'OWNER' || revoked.scopeType !== 'TENANT' || !revoked.accountId) return false;
+  if (!canAct(revoked.accountId)) return false;
+  return !holders.some(
+    (holder) => holder.membershipId !== membershipId && holder.role === 'OWNER' && holder.scopeType === 'TENANT',
+  );
+}
+
+/**
  * What the read of one scope's memberships has answered: its rows, `refused` where the server
  * refused the read - which it does exactly where the reader holds no role that reads there, so it
  * holds nothing there - or `undefined` while it has not answered.

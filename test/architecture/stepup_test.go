@@ -28,6 +28,8 @@ var privilegedUseCases = map[string]string{
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",
+	"UpdateGroup":                              "changing who is in a group holding OWNER places or takes the OWNER role",
+	"DeleteGroup":                              "deleting a group holding OWNER takes the OWNER role",
 	"CreateAccessToken":                        "an admin-scoped token reaches the control plane",
 	"RequestTenantDeletion":                    "it is the request that ends a workspace (multi-tenancy.md §5)",
 	"OpenTenantPassword":                       "it widens the way into somebody else's workspace (ADR-0078 §3)",

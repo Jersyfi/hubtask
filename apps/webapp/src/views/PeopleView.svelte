@@ -40,7 +40,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { grantableOf, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { endsTheLastOwner, grantableOf, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
@@ -246,6 +246,12 @@
 
   function statusOf(accountId: string | undefined): string | undefined {
     return accountId ? accounts.statusOf(accountId) : undefined;
+  }
+
+  /** Whether the account counts as an owner who can act: active or restricted, as the server counts. */
+  function canAct(accountId: string): boolean {
+    const status = statusOf(accountId);
+    return status === 'ACTIVE' || status === 'RESTRICTED';
   }
 
   async function attempt(work: () => Promise<unknown>, said?: string): Promise<void> {
@@ -462,8 +468,11 @@
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. Absent for a role above the reader's own: taking it away
-                     is refused as handing it out is. -->
-                {#if mayRevoke(holder.role, people.grantableAt(TENANT))}
+                     is refused as handing it out is. Absent, and said why, on the workspace's last
+                     owner, which the server keeps. -->
+                {#if endsTheLastOwner(holders, holder.membershipId, people.isCompleteAt(TENANT), canAct)}
+                  <span class="quiet small">{t('app.people.last_owner')}</span>
+                {:else if mayRevoke(holder.role, people.grantableAt(TENANT))}
                 <Button
                   size="sm"
                   tone="danger"

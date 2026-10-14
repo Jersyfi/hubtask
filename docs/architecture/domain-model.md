@@ -143,7 +143,18 @@ in it, or deleting it, is held to the ceiling for each of them at its own scope:
 does not join a group that holds `OWNER`. An unchanged member list places nothing and is not
 judged; the group's row is locked while its roles are compared, and a grant to the group takes the
 same lock, so a role given meanwhile answers `groups.roles_changed` (409) rather than slipping
-through. `ListMemberships` answers
+through.
+
+**The workspace keeps an owner.** A door that would end the last `OWNER` on the workspace held by a
+person who can act — a `USER`, active or restricted, not deleted, holding it in their own right or
+through a group — is refused with `memberships.last_owner` (409): revoking that grant, taking the
+last such people out of a group that holds it, or deleting the group. An invitation never redeemed
+and a service account do not count; a workspace that had no such owner loses nothing and is not
+refused. Every such door takes the workspace's owner lock in its write before it counts again, so
+two owners revoking each other at once cannot both pass; the count is asked once before a step-up
+too, so a proof is not spent on a refused change. An erasure is not held to it.
+
+`ListMemberships` answers
 `grantable_roles`, the roles the caller may give at that scope by the same rule and along the path
 the grant is decided on, and a client offers exactly those.
 

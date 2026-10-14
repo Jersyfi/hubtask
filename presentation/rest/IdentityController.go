@@ -429,9 +429,10 @@ func (c *RestController) UpdateGroup(w http.ResponseWriter, r *http.Request, gro
 		}
 
 		input := usecase.Input{
-			"group_id":    groupID.String(),
-			"name":        optionalStringField(body.Name),
-			"description": optionalStringField(body.Description),
+			"group_id":      groupID.String(),
+			"name":          optionalStringField(body.Name),
+			"description":   optionalStringField(body.Description),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 		}
 		// Absent leaves the membership alone; an empty array empties the group. Setting the key
 		// only when the client sent one is what carries that distinction into the catalogue.
@@ -449,10 +450,11 @@ func (c *RestController) UpdateGroup(w http.ResponseWriter, r *http.Request, gro
 }
 
 // DeleteGroup answers DELETE /groups/{groupId}.
-func (c *RestController) DeleteGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId) {
+func (c *RestController) DeleteGroup(w http.ResponseWriter, r *http.Request, groupID openapi.GroupId, params openapi.DeleteGroupParams) {
 	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
 		return c.UseCases.Invoke(r.Context(), deleteGroupUseCase, actor, usecase.Input{
-			"group_id": groupID.String(),
+			"group_id":      groupID.String(),
+			"step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
 		})
 	}, func(usecase.Output) {
 		w.WriteHeader(http.StatusNoContent)

@@ -587,7 +587,8 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
-request, granting or revoking `OWNER`, an `admin:*` token, the workspace's `sign_in_policy` (the one
+request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
+such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
 member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
 (§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
 [backup-restore.md](./backup-restore.md) §8's destructive modes.

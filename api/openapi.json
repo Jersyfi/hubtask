@@ -8235,7 +8235,7 @@
         ],
         "operationId": "revokeMembership",
         "summary": "Take a role away",
-        "description": "Takes effect on the next request. What the account holds through a group is unaffected —\nthat is the group's membership, revoked separately.\n\nRevoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up\nin the `X-Hubtask-Step-Up` header.\n",
+        "description": "Takes effect on the next request. What the account holds through a group is unaffected —\nthat is the group's membership, revoked separately.\n\nRevoking an `OWNER` membership is changing the `OWNER` role, and demands a fresh step-up\nin the `X-Hubtask-Step-Up` header. Revoking the last way a person who can act holds `OWNER`\non the workspace is refused with `409 memberships.last_owner`: the workspace keeps an owner.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -8370,9 +8370,13 @@
         ],
         "operationId": "updateGroup",
         "summary": "Rename a group or change its description",
+        "description": "`members`, when sent, is the complete membership afterwards. A changed member list of a\ngroup that holds `OWNER` anywhere places or takes that role, so it demands a fresh step-up\nin the `X-Hubtask-Step-Up` header, as granting or revoking `OWNER` does. A change that would\nleave the workspace without an owner is refused with `409 memberships.last_owner`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
           }
         ],
         "requestBody": {
@@ -8414,7 +8418,12 @@
         ],
         "operationId": "deleteGroup",
         "summary": "Delete a group",
-        "description": "Its memberships go with it: what the group granted, nobody holds afterwards. Members of\nthe group keep whatever they hold in their own right.\n",
+        "description": "Its memberships go with it: what the group granted, nobody holds afterwards. Members of\nthe group keep whatever they hold in their own right.\n\nDeleting a group that holds `OWNER` anywhere takes that role away, so it demands a fresh\nstep-up in the `X-Hubtask-Step-Up` header. A deletion that would leave the workspace without\nan owner is refused with `409 memberships.last_owner`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
         "responses": {
           "204": {
             "description": "Deleted"
