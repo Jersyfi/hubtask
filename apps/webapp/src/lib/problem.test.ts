@@ -8,7 +8,7 @@ import { TransportError } from '@hubtask/sync-engine';
 
 import { formatDateTime } from './i18n/datetime.ts';
 import { createMessages } from './i18n/messages.ts';
-import { renderProblem } from './problem.ts';
+import { renderProblem, renderRefusal } from './problem.ts';
 
 const messages = createMessages({ locale: 'en', onProblem: () => {} });
 
@@ -154,6 +154,21 @@ test('a spent AI budget says so and when it renews, the moment written for the r
     messages,
   );
   assert.doesNotMatch(off.message, /budget/);
+});
+
+test('a budget spent after the ask, as the job says it, reads like one spent before', () => {
+  const renewsAt = '2026-09-09T22:00:00Z';
+  const sentence = renderRefusal(
+    { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: renewsAt } },
+    messages,
+  );
+  assert.match(sentence, /AI budget/);
+  assert.ok(sentence.includes(formatDateTime(renewsAt, 'en')), sentence);
+  assert.ok(!sentence.includes(renewsAt), sentence);
+
+  assert.doesNotMatch(renderRefusal({ code: 'ai.unavailable' }, messages), /budget/);
+  // A code this build has no sentence for still says something true rather than its key.
+  assert.ok(!renderRefusal({ code: 'ai.invented_for_this_test' }, messages).includes('ai.invented'));
 });
 
 test('a legal hold reads as its own sentence, not as a generic failure', () => {

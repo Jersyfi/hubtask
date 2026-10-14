@@ -240,3 +240,52 @@ func TestAPassUnderWayFindsItsJobTakenFromItAndWritesNothing(t *testing.T) {
 		t.Fatalf("the row says %q, so the pass overwrote the cancellation", state)
 	}
 }
+
+// A refusal the job met - a spent AI budget - ends it FAILED, not in the operator's dead letter,
+// and the asker reads the refusal's code and its parameters back; another tenant reads nothing of
+// it, the read's own tenant condition being the only boundary on this table.
+func TestARefusedJobIsReadBackWithItsRefusalAndOnlyByItsTenant(t *testing.T) {
+	ctx := context.Background()
+	id := enqueueFor(ctx, t, tenantA, freshName(t))
+
+	var mine queue.Job
+	for _, job := range claim(ctx, t, queueClock.Now(), time.Minute, 20) {
+		if job.ID == id {
+			mine = job
+		}
+	}
+	if mine.ID.IsZero() {
+		t.Fatal("the job was not claimed")
+	}
+	params := map[string]string{"reason": "budget_spent", "renews_at": "2026-09-02T00:00:00Z"}
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Fail(ctx, queue.Failure{
+			Job: mine, Code: "ai.unavailable", Refused: true, Params: params,
+		})
+	}); err != nil {
+		t.Fatalf("recording the refusal: %v", err)
+	}
+
+	var state string
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT state FROM job WHERE id = $1`, id.String()).Scan(&state); err != nil {
+		t.Fatalf("reading the row: %v", err)
+	}
+	if state != domain.StoredFailed {
+		t.Fatalf("the row says %q, want FAILED rather than the dead letter", state)
+	}
+
+	job, err := findJob(ctx, t, tenantA, id)
+	if err != nil {
+		t.Fatalf("reading the job: %v", err)
+	}
+	if job.State != domain.StateFailed || job.ErrorCode != "ai.unavailable" ||
+		job.ErrorParams["reason"] != "budget_spent" || job.ErrorParams["renews_at"] != "2026-09-02T00:00:00Z" ||
+		job.FinishedAt.IsZero() {
+		t.Fatalf("read back %+v", job)
+	}
+
+	if _, err := findJob(ctx, t, tenantB, id); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("tenant B read tenant A's refused job: %v", err)
+	}
+}

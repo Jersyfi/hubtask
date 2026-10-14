@@ -62,8 +62,8 @@ func (c *RestController) ConvertJumbleEntry(
 
 // SuggestFromJumbleEntry answers POST /jumble/entries/{entryId}:suggest.
 //
-// 202 and no body: the provider has not been asked yet, so there is nothing to answer with. The
-// proposal appears under /suggestions when it has.
+// 202 and the job: the provider has not been asked yet, so the job is all there is to answer with.
+// The proposal appears under /suggestions when it has.
 func (c *RestController) SuggestFromJumbleEntry(
 	w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID,
 	_ openapi.SuggestFromJumbleEntryParams,
@@ -72,8 +72,8 @@ func (c *RestController) SuggestFromJumbleEntry(
 		return c.UseCases.Invoke(r.Context(), suggestFromJumbleEntryUseCase, actor, usecase.Input{
 			"entry_id": entryID.String(),
 		})
-	}, func(usecase.Output) {
-		w.WriteHeader(http.StatusAccepted)
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 	})
 }
 

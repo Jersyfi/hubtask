@@ -267,7 +267,8 @@ func (q Queue) Repeat(ctx context.Context, job queue.Job, runAt time.Time) error
 	return leaseHeld(affected, job)
 }
 
-// Fail records an attempt that did not work: back to the queue, or to the dead letter.
+// Fail records an attempt that did not work: back to the queue, to the dead letter, or - for a
+// refusal the job met - finished as FAILED with the refusal's parameters.
 //
 // It runs in a transaction of its own, because the handler's has just been rolled back - which is
 // also why the failure has to be written from a code path that shares nothing with the failure
@@ -289,14 +290,29 @@ func (q Queue) Fail(ctx context.Context, failure queue.Failure) error {
 	code := failure.Code
 
 	var affected int64
-	if failure.RetryAt.IsZero() {
+	switch {
+	case failure.Refused:
+		var params []byte
+		if len(failure.Params) > 0 {
+			if params, err = json.Marshal(failure.Params); err != nil {
+				return shared.ErrInternal.WithDetail("queue.refusal_params_invalid").WithCause(err)
+			}
+		}
+		affected, err = queries.RefuseJob(ctx, sqlc.RefuseJobParams{
+			Now:             timestampOf(q.now.Now()),
+			LastError:       &code,
+			LastErrorParams: params,
+			ID:              id,
+			Lease:           lease,
+		})
+	case failure.RetryAt.IsZero():
 		affected, err = queries.DeadLetterJob(ctx, sqlc.DeadLetterJobParams{
 			Now:       timestampOf(q.now.Now()),
 			LastError: &code,
 			ID:        id,
 			Lease:     lease,
 		})
-	} else {
+	default:
 		affected, err = queries.RetryJob(ctx, sqlc.RetryJobParams{
 			RunAt:     timestampOf(failure.RetryAt),
 			LastError: &code,

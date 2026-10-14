@@ -25,13 +25,13 @@ func TestEachActionAsksItsOwnQuestion(t *testing.T) {
 		prompt string
 	}{
 		{"AI_SUGGEST_FIELDS", func(a asker) error {
-			return AiSuggestFields(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSuggestFields(a.ask).Execute(context.Background(), person(), targetID, false))
 		}, itemFieldsPrompt},
 		{"AI_SUMMARIZE", func(a asker) error {
-			return AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false))
 		}, "summarize"},
 		{"AI_CLASSIFY", func(a asker) error {
-			return AiClassify(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiClassify(a.ask).Execute(context.Background(), person(), targetID, false))
 		}, "classify"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestEachActionAsksItsOwnQuestion(t *testing.T) {
 func TestApplyingDirectlyIsSaidRatherThanAssumed(t *testing.T) {
 	a := newAsker(true)
 
-	if err := (AiSummarize(a.ask)).Execute(context.Background(), person(), targetID, true); err != nil {
+	if err := errOf((AiSummarize(a.ask)).Execute(context.Background(), person(), targetID, true)); err != nil {
 		t.Fatalf("asking: %v", err)
 	}
 	if a.jobs.queued[0].Payload["apply"] != true {
@@ -93,13 +93,13 @@ func TestEveryActionIsRefusedWithoutAProvider(t *testing.T) {
 
 	for _, run := range []func() error{
 		func() error {
-			return AiSuggestFields(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSuggestFields(a.ask).Execute(context.Background(), person(), targetID, false))
 		},
 		func() error {
-			return AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false))
 		},
 		func() error {
-			return AiClassify(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiClassify(a.ask).Execute(context.Background(), person(), targetID, false))
 		},
 	} {
 		if err := run(); !errors.Is(err, shared.ErrUnavailable) {
@@ -168,10 +168,10 @@ func TestTheTwoSummariesAskTheirOwnQuestionsAboutTheirOwnTargets(t *testing.T) {
 		declaredKeys []string
 	}{
 		{"AI_SUMMARIZE_THREAD", func(a asker) error {
-			return AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false))
 		}, "summarize-thread", "WORK_ITEM", targetID, "AI_SUMMARIZE_THREAD", []string{"item_id", "apply"}},
 		{"AI_SUMMARIZE_CONTAINER", func(a asker) error {
-			return AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID)
+			return errOf(AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID))
 		}, "summarize-collection", "CONTAINER", containerTargetID, "AI_SUMMARIZE_CONTAINER",
 			[]string{"container_id"}},
 	} {
@@ -238,12 +238,12 @@ func TestAContainerSummaryIsAskedForByContainer(t *testing.T) {
 func TestTheSummariesAreRefusedWithoutAProvider(t *testing.T) {
 	a := newAsker(false)
 
-	if err := (AiSummarizeThread(a.ask)).
-		Execute(context.Background(), person(), targetID, false); !errors.Is(err, shared.ErrUnavailable) {
+	if err := errOf((AiSummarizeThread(a.ask)).
+		Execute(context.Background(), person(), targetID, false)); !errors.Is(err, shared.ErrUnavailable) {
 		t.Fatalf("the answer was %v", err)
 	}
-	if err := (AiSummarizeContainer(a.ask)).
-		Execute(context.Background(), person(), containerTargetID); !errors.Is(err, shared.ErrUnavailable) {
+	if err := errOf((AiSummarizeContainer(a.ask)).
+		Execute(context.Background(), person(), containerTargetID)); !errors.Is(err, shared.ErrUnavailable) {
 		t.Fatalf("the answer was %v", err)
 	}
 	if len(a.jobs.queued) != 0 {
@@ -260,10 +260,10 @@ func TestASummaryIsRefusedForWhatTheAskerMayNotRead(t *testing.T) {
 		run  func(asker) error
 	}{
 		{"an entry", func(a asker) error {
-			return AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false)
+			return errOf(AiSummarizeThread(a.ask).Execute(context.Background(), person(), targetID, false))
 		}},
 		{"a collection", func(a asker) error {
-			return AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID)
+			return errOf(AiSummarizeContainer(a.ask).Execute(context.Background(), person(), containerTargetID))
 		}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -313,3 +313,6 @@ type availabilityDouble struct{ available bool }
 func (a availabilityDouble) CanSuggest(context.Context, appshared.ActorContext) (bool, error) {
 	return a.available, nil
 }
+
+// errOf is the error of an ask, for the tests that read the job off the queue double instead.
+func errOf(_ shared.ID, err error) error { return err }

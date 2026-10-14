@@ -1678,7 +1678,9 @@ CREATE TABLE job (
   created_at   timestamptz NOT NULL DEFAULT now(),
   finished_at  timestamptz,
   -- How far along, between 0 and 1, or NULL from a job that cannot say (migration 0032).
-  progress     real
+  progress     real,
+  -- The parameters of the refusal a job ended with, beside its code (migration 0151).
+  last_error_params jsonb
 );
 CREATE INDEX job_pickup_idx ON job (state, run_at, priority);
 CREATE UNIQUE INDEX job_dedupe_uq ON job (kind, dedupe_key)

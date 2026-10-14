@@ -79,7 +79,10 @@ dependency. A refusal is always `ErrUnavailable` with `ai.unavailable`, never an
 model said nothing" and "there is no model" must differ. A spent budget is the same refusal with the
 parameters `reason` (`budget_spent`) and `renews_at`, so the person reads when it renews (UC-AI-07
 check 3); a provider that refuses says so before it is called (`ai.Refusing`), so a caller that
-short-cuts on its capabilities passes the same refusal on.
+short-cuts on its capabilities passes the same refusal on. An ask answers `202` with the job it
+queued; a refusal the job meets after that - the budget spent since, AI switched off - ends the job
+`FAILED` with the refusal's code and parameters (`error_code`, `error_params`), not in the dead
+letter, and the client that follows the job says it the way it says the refusal on a request.
 
 **Models the installation offers** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md);
 UC-AI-05, UC-AI-06). Operators offer models as `ai_provider` rows with no workspace

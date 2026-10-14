@@ -64,6 +64,9 @@ func jobResponse(out usecase.Output) openapi.Job {
 	if code := out.String("error_code"); code != "" {
 		job.ErrorCode = &code
 	}
+	if params, ok := out["error_params"].(map[string]string); ok && len(params) > 0 {
+		job.ErrorParams = &params
+	}
 	if finished := timeValue(out["finished_at"]); !finished.IsZero() {
 		job.FinishedAt = &finished
 	}
