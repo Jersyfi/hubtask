@@ -224,6 +224,9 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 				return err
 			}
 			logCounts(txCtx, job, result)
+			if result.Refusal != nil {
+				return r.refuse(txCtx, job, *result.Refusal)
+			}
 			if result.Repeat {
 				// A poller: the same row goes back to the queue for its next round rather than
 				// finishing, so the deduplication of a pending job keeps it a single row.
@@ -258,10 +261,30 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 	logCounts(ctx, job, result)
 
 	return r.UnitOfWork.Within(ctx, scopeOf(job), func(txCtx context.Context) error {
+		if result.Refusal != nil {
+			return r.refuse(txCtx, job, *result.Refusal)
+		}
 		if result.Repeat {
 			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
 		}
 		return r.Queue.Complete(txCtx, job)
+	})
+}
+
+// refuse ends a job that met a refusal (queue.Result.Refusal): FAILED with the refusal's code and
+// parameters, in the transaction that would have completed it.
+//
+// Not through fail, deliberately. fail is for work that broke - a retry, then the dead letter, a
+// warning and the count alert A-07 pages on - and a refusal is an answer: asking again meets the
+// same one, and there is nothing for an operator to repair. Logged at info, code and identifiers
+// only (rule 10).
+func (r Runner) refuse(ctx context.Context, job queue.Job, refusal queue.Refusal) error {
+	slog.InfoContext(ctx, "job refused",
+		slog.String("job_kind", job.Kind.String()),
+		slog.String("job_id", job.ID.String()),
+		slog.String("error_code", refusal.Code))
+	return r.Queue.Fail(ctx, queue.Failure{
+		Job: job, Code: refusal.Code, Refused: true, Params: refusal.Params,
 	})
 }
 
