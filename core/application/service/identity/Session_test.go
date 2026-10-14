@@ -183,6 +183,37 @@ type signInAccounts struct {
 	minted        []domain.Token
 	redeemChanged bool
 	redeemedHash  string
+
+	// rehashed records each compare-and-set that wrote; rehashFail makes the store refuse.
+	rehashed   []rehash
+	rehashFail bool
+	// rehashCtxErr is the context's error each rehash saw: a cancelled request must not reach it.
+	rehashCtxErr []error
+}
+
+type rehash struct {
+	account              shared.ID
+	current, replacement string
+	at                   time.Time
+}
+
+// RehashPassword writes only while the stored hash is still the current one, as the statement does.
+func (s *signInAccounts) RehashPassword(
+	ctx context.Context, accountID shared.ID, current, replacement string, at time.Time,
+) (bool, error) {
+	s.rehashCtxErr = append(s.rehashCtxErr, ctx.Err())
+	if s.rehashFail {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed")
+	}
+	for email, found := range s.byEmail {
+		if found.Account.ID == accountID && found.PasswordHash.Reveal() == current {
+			found.PasswordHash = secret.New(replacement)
+			s.byEmail[email] = found
+			s.rehashed = append(s.rehashed, rehash{accountID, current, replacement, at})
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *signInAccounts) FindForSignIn(_ context.Context, email string) (repository.SignInAccount, error) {
