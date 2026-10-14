@@ -465,6 +465,15 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 	if templated, held := out["supports_templated_issuer"].(bool); held {
 		answer.SupportsTemplatedIssuer = templated
 	}
+	// Required in the contract: an empty list, never null, where no issuer is shared.
+	answer.SharedIssuerPaths = []string{}
+	if paths, held := out["shared_issuer_paths"].([]any); held {
+		for _, path := range paths {
+			if text, ok := path.(string); ok {
+				answer.SharedIssuerPaths = append(answer.SharedIssuerPaths, text)
+			}
+		}
+	}
 	return answer
 }
 

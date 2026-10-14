@@ -14,6 +14,27 @@ import (
 // configuration refuses one without a list, and admission reads the list - `ANY` included, which
 // would otherwise admit every work account in the world.
 
+// The paths a form is told about are exactly the ones the refusal reads: every one of them, as an
+// issuer, is read as shared; Google and the generic preset have none.
+func TestThePresetNamesTheSharedPathsTheRefusalReads(t *testing.T) {
+	microsoft, _ := PresetOf(KindMicrosoft)
+	paths := microsoft.SharedIssuerPaths()
+	if len(paths) == 0 {
+		t.Fatal("Microsoft names no shared issuer path")
+	}
+	for _, path := range paths {
+		if !multiDirectoryIssuer(microsoftHost + path + "/v2.0") {
+			t.Errorf("%q is named but not read as shared", path)
+		}
+	}
+	for _, kind := range []ProviderKind{KindGoogle, KindGeneric} {
+		preset, _ := PresetOf(kind)
+		if got := preset.SharedIssuerPaths(); got == nil || len(got) != 0 {
+			t.Errorf("%s names %v, want an empty list", kind, got)
+		}
+	}
+}
+
 const (
 	listedCompany = "72f988bf-86f1-41af-91ab-2d7cd011db47"
 	otherCompany  = "0f1e2d3c-4b5a-4968-8776-655443322110"

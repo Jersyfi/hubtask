@@ -299,7 +299,9 @@ message codes carrying this installation's redirect URI.
 **A templated issuer is substituted, then compared exactly.** For Microsoft's
 `https://login.microsoftonline.com/{tenantid}/v2.0` the token's `tid` is substituted and `iss`
 compared exactly, the signature still from the template's key set. The directory list decides, so a
-templated issuer without one is refused at configuration.
+templated issuer without one is refused at configuration. The preset answers which first path
+segments make an issuer shared (`shared_issuer_paths`: `common`, `organizations`), and a form asks
+for the list there in every mode, `ANY` included.
 
 ### 10.4 Admission: one axis, who comes in
 
