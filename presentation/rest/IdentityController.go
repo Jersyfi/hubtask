@@ -392,6 +392,7 @@ func (c *RestController) GetGroup(w http.ResponseWriter, r *http.Request, groupI
 		Id: group.Id, Name: group.Name, Description: group.Description, Version: group.Version,
 		Members: []openapi_types.UUID{},
 	}
+	detail.MembersChangeable, _ = out["members_changeable"].(bool)
 	for _, member := range stringsOf(out["members"]) {
 		detail.Members = append(detail.Members, uuidValue(member))
 	}

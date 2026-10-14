@@ -2072,6 +2072,7 @@
   "app.groups.add": "Hinzufügen",
   "app.groups.remove_member": "Herausnehmen",
   "app.groups.delete": "Gruppe löschen",
+  "app.groups.above_own": "Diese Gruppe vergibt eine Rolle, die du selbst nicht hast. Wer in der Gruppe ist oder ob es sie gibt, ändert nur, wer diese Rolle hält.",
   "app.groups.delete_cost": "Die Gruppe zu löschen nimmt ihre Rollen mit: Was sie vergeben hat, hält danach niemand mehr. Die Leute bleiben; was sie über diese Gruppe konnten, hört auf.",
   "app.groups.delete_now": "Löschen",
   "app.groups.keep": "Behalten",

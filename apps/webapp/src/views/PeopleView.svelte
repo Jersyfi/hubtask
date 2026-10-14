@@ -39,7 +39,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { grantableOf, ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { grantableOf, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
@@ -425,7 +425,9 @@
                   {/if}
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
-                     somebody's access. -->
+                     somebody's access. Absent for a role above the reader's own: taking it away
+                     is refused as handing it out is. -->
+                {#if mayRevoke(holder.role, people.grantableAt(TENANT))}
                 <Button
                   size="sm"
                   tone="danger"
@@ -435,6 +437,7 @@
                 >
                   {t('app.people.revoke')}
                 </Button>
+                {/if}
               </div>
             </td>
           </tr>

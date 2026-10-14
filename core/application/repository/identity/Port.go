@@ -316,6 +316,11 @@ type Groups interface {
 	AddMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
 	RemoveMember(ctx context.Context, groupID shared.ID, accountID shared.ID) error
 
+	// Lock takes the group's row for the rest of the transaction, or fails with shared.ErrNotFound.
+	// Changing who is in a group, deleting it and granting it a role all take it first, so the roles
+	// a member change was judged against are the roles it places (domain-model.md §3.2).
+	Lock(ctx context.Context, groupID shared.ID) error
+
 	// Members is who is in it. Read only where a replacement needs to know what to remove - a
 	// permission check never asks, because a group membership reaches it as a membership of the
 	// account (see Memberships.Along).

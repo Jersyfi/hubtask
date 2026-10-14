@@ -993,6 +993,19 @@ func (q *Queries) ListMembershipsAtScope(ctx context.Context, arg ListMembership
 	return items, nil
 }
 
+const lockGroup = `-- name: LockGroup :one
+SELECT id FROM account_group WHERE id = $1 FOR UPDATE
+`
+
+// The group's row, held for the transaction: a member change, a deletion and a grant to the group
+// take it first, so the roles a member change was judged against are the roles it places.
+func (q *Queries) LockGroup(ctx context.Context, id pgtype.UUID) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, lockGroup, id)
+	var id_2 pgtype.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const lockHubOf = `-- name: LockHubOf :one
 SELECT h.id, h.private
 FROM container h

@@ -447,6 +447,27 @@ func (r GroupRepository) Find(ctx context.Context, groupID shared.ID) (identity.
 	}, nil
 }
 
+// Lock takes the group's row for the rest of the transaction.
+func (r GroupRepository) Lock(ctx context.Context, groupID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(groupID)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.LockGroup(ctx, id); err != nil {
+		if IsNoRows(err) {
+			return shared.ErrNotFound.WithDetail("groups.not_found")
+		}
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking group %s: %w", groupID, err))
+	}
+	return nil
+}
+
 func (r GroupRepository) List(ctx context.Context, page repository.Page) (repository.GroupPage, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
