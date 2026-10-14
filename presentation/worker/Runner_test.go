@@ -712,3 +712,27 @@ func TestAFailureIsDiagnosedForTheLogLine(t *testing.T) {
 		t.Errorf("a missing handler has no cause to diagnose, saw %v", diagnosed)
 	}
 }
+
+// deployment.md §5: a process whose database lacks a migration it embeds is not ready, and it claims
+// nothing either - a job run against the older schema may need a column that is not there yet. Once
+// the migration has run, it claims as before.
+func TestNothingIsClaimedWhileTheSchemaIsBehind(t *testing.T) {
+	jobs := newQueue(job(1))
+	var ran int
+	handler := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		ran++
+		return queue.Result{}, nil
+	})
+	behind := true
+	r := runner(jobs, &unitOfWork{}, handler, nil)
+	r.SchemaBehind = func(context.Context) bool { return behind }
+
+	if claimed := r.round(t.Context()); claimed != 0 || jobs.claims() != 0 || ran != 0 {
+		t.Errorf("behind: claimed %d, asked the queue %d times, ran %d; want nothing", claimed, jobs.claims(), ran)
+	}
+
+	behind = false
+	if claimed := r.round(t.Context()); claimed != 1 || ran != 1 {
+		t.Errorf("caught up: claimed %d, ran %d; want the job", claimed, ran)
+	}
+}
