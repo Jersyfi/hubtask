@@ -32,7 +32,7 @@ const offered = (withdrawAt = null) => ({
   created_at: '2026-09-01T00:00:00Z', version: 1, withdraw_at: withdrawAt, offered_workspaces: 12,
 });
 
-async function open(browser) {
+async function open(browser, answer = () => undefined) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const sent = [];
   let row = offered();
@@ -42,6 +42,8 @@ async function open(browser) {
     if (path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
+    const answered = answer(route, request, path);
+    if (answered) return answered;
     if (path === '/admin/identity-providers' && request.method() === 'GET') return route.fulfill({ json: [row] });
     if (path === '/admin/identity-providers/platform:withdraw') {
       const body = request.postDataJSON() ?? {};
@@ -223,4 +225,33 @@ test('chromium: choosing Google fills its issuer, another provider takes it out'
   await issuer.fill('https://login.microsoftonline.com/1234/v2.0');
   await kind.selectOption('GENERIC');
   assert.equal(await issuer.inputValue(), 'https://login.microsoftonline.com/1234/v2.0');
+});
+
+// UC-INS-11 check 3, P-12: the installation's refusal of a generic provider for anyone names the
+// provider in words, never by the contract's `GENERIC`.
+test('chromium: a refusal about a provider names it in words', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, request, path) =>
+    path === '/admin/identity-providers' && request.method() === 'POST'
+      ? route.fulfill({
+        status: 422,
+        json: {
+          code: 'errors.validation', detail_code: 'identity_provider.installation_invited_only', status: 422,
+          request_id: 'req_k', params: { kind: 'GENERIC' },
+        },
+      })
+      : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/providers`);
+  await page.getByRole('button', { name: 'Offer a provider' }).click();
+  await page.getByLabel('Which provider').selectOption('GENERIC');
+  await page.getByLabel(/^Issuer/).fill('https://login.platform.example');
+  await page.getByLabel(/^Client id/).fill('hubtask');
+  await page.getByLabel(/^Client secret/).fill('s3cr3t');
+  await page.getByRole('button', { name: 'Save the provider' }).click();
+  const said = page.getByText(/A provider without a directory/).first();
+  await said.waitFor({ timeout: 10_000 });
+  assert.doesNotMatch((await page.locator('body').innerText()), /GENERIC/);
 });
