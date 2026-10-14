@@ -59,6 +59,7 @@ type Metrics struct {
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
+	retentionRead     metric.Int64Counter
 	mediaReclaimed    metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
@@ -673,7 +674,7 @@ func (m *Metrics) MediaReclaimFailed(ctx context.Context, count int64) {
 	m.mediaReclaimFail.Add(ctx, count)
 }
 
-// retentionInstruments are the three numbers data-retention.md §5 asks a deletion run to publish.
+// retentionInstruments are the numbers data-retention.md §5 asks a deletion run to publish.
 //
 // Counters rather than gauges for what was removed and what was kept: the question an operator asks
 // is "how much has gone since", not "how much went in the last run", and a gauge answers only the
@@ -694,11 +695,18 @@ func (m *Metrics) retentionInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("retention block counter: %w", err)
 	}
+	if m.retentionRead, err = meter.Int64Counter(
+		namespace+"_retention_read_total",
+		metric.WithDescription("Rows the rule-driven retention sweep judged, by data kind: set "+
+			"against the rows deleted, what reading past held or excluded rows costs."),
+	); err != nil {
+		return fmt.Errorf("retention read counter: %w", err)
+	}
 	if m.retentionRun, err = meter.Float64Histogram(
 		namespace+"_retention_run_duration_seconds",
 		metric.WithDescription("How long one pass of a retention run took, by data kind."),
 		metric.WithUnit("s"),
-		// A pass is one batch, so it should be short. Past thirty seconds the question is no longer
+		// A pass acts on one batch, so it should be short. Past thirty seconds the question is no longer
 		// how long but what is holding the transaction.
 		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60),
 	); err != nil {
@@ -741,6 +749,12 @@ func (m *Metrics) RetentionDeleted(ctx context.Context, dataKind string, count i
 // is not something an operator can act on, and "twelve were kept by a legal hold" is.
 func (m *Metrics) RetentionBlocked(ctx context.Context, reason string, count int64) {
 	m.retentionBlocked.Add(ctx, count, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// RetentionRead counts what the rule sweep judged in a pass. Written even when it is zero, for the
+// reason RetentionDeleted is.
+func (m *Metrics) RetentionRead(ctx context.Context, dataKind string, count int64) {
+	m.retentionRead.Add(ctx, count, metric.WithAttributes(attribute.String("data_kind", dataKind)))
 }
 
 // RetentionRun records how long one pass took.

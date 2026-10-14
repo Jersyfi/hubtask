@@ -1003,6 +1003,32 @@ func TestPhaseTwoReadsPastWhatItCannotActOn(t *testing.T) {
 	}
 }
 
+// What reading past costs is visible: the rows the sweep judged are counted, whatever became of
+// them, beside what it deleted.
+func TestTheRowsASweepReadAreCounted(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(*domain.NewRuleInput) {})
+	h.holdEach(firstKept, secondKept)
+	old := now.AddDate(0, 0, -800)
+	h.marking.due = []repository.Candidate{
+		candidate(firstKept, old), candidate(secondKept, old), candidate(behind, old),
+	}
+	sweeper, _ := h.heldBatch()
+	signals := &signalSink{}
+	run := RunRetention{
+		Rules: h.rules, Runs: &runStore{}, Sweeper: sweeper, Signals: signals,
+		Clock: clock.Fixed(now), IDs: &idSource{},
+	}
+
+	if _, err := run.sweepRules(context.Background(), actor(), now); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if read := signals.read[string(domain.KindCompletedItem)]; read != 3 {
+		t.Errorf("%d rows counted as read, want 3", read)
+	}
+}
+
 // The read stops at a full batch it can act on: what lies behind is the next pass's.
 func TestPhaseOneStopsReadingAtAFullBatch(t *testing.T) {
 	h := newSweepHarness()
