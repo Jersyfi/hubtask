@@ -68,7 +68,8 @@ func grantOn(ctx context.Context, t *testing.T, tenant, account shared.ID, scope
 		t.Fatalf("building the grant: %v", err)
 	}
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		_, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		return err
 	}); err != nil {
 		t.Fatalf("granting: %v", err)
 	}

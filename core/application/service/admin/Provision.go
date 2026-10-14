@@ -69,7 +69,7 @@ type (
 		Insert(ctx context.Context, account domain.Account) error
 	}
 	MembershipSeeder interface {
-		Grant(ctx context.Context, grant domain.Grant) error
+		Grant(ctx context.Context, grant domain.Grant) (held domain.Grant, created bool, err error)
 	}
 	ContainerSeeder interface {
 		Insert(ctx context.Context, container work.Container) error
@@ -268,7 +268,8 @@ func (h ProvisionTenant) SeedWorkspace(
 	if err != nil {
 		return "", "", err
 	}
-	if err := h.Grants.Grant(ctx, grant); err != nil {
+	// The workspace was made in this transaction, so the owner's grant is always new.
+	if _, _, err := h.Grants.Grant(ctx, grant); err != nil {
 		return "", "", err
 	}
 

@@ -64,7 +64,8 @@ type GrantMembership struct {
 	StepUp stepup.Verifier
 }
 
-// Execute records the grant and returns it.
+// Execute records the grant and returns the membership in force: the new one, or the one the
+// subject already held at the scope with that role.
 func (h GrantMembership) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd GrantMembershipCommand,
 ) (domain.Grant, error) {
@@ -72,13 +73,15 @@ func (h GrantMembership) Execute(
 	if err != nil {
 		return domain.Grant{}, err
 	}
+	var held domain.Grant
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return h.record(ctx, actor, grant)
+		held, err = h.record(ctx, actor, grant)
+		return err
 	})
 	if err != nil {
 		return domain.Grant{}, err
 	}
-	return grant, nil
+	return held, nil
 }
 
 // prepare builds the grant and asks everything that is asked before a write: the permission at the
@@ -116,20 +119,28 @@ func (h GrantMembership) prepare(
 	return grant, nil
 }
 
-// record writes a prepared grant and its trail entry, inside the caller's transaction.
-func (h GrantMembership) record(ctx context.Context, actor appshared.ActorContext, grant domain.Grant) error {
+// record writes a prepared grant and its trail entry, inside the caller's transaction, and answers
+// the membership in force.
+//
+// A role the subject already holds at the scope is answered with that membership and no entry:
+// nothing was given, and an access review that read two grants beside one revocation would read
+// access that is not there.
+func (h GrantMembership) record(
+	ctx context.Context, actor appshared.ActorContext, grant domain.Grant,
+) (domain.Grant, error) {
 	// The subject is looked up so that granting to somebody who is not here says so, rather
 	// than surfacing as a foreign key violation from three layers down.
 	if err := h.subjectExists(ctx, grant); err != nil {
-		return err
+		return domain.Grant{}, err
 	}
 	if err := h.noGroupInPrivateHub(ctx, grant); err != nil {
-		return err
+		return domain.Grant{}, err
 	}
-	if err := h.Grants.Grant(ctx, grant); err != nil {
-		return err
+	held, created, err := h.Grants.Grant(ctx, grant)
+	if err != nil || !created {
+		return held, err
 	}
-	return h.recordAudit(ctx, grant, actor)
+	return held, h.recordAudit(ctx, held, actor)
 }
 
 func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) error {

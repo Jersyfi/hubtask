@@ -299,15 +299,28 @@ SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id'
 
 -- ============================ Memberships =============================
 
--- name: GrantMembership :exec
--- Idempotent by the same index that keeps a subject from holding one role twice at one scope: a
--- retried request is not a second grant.
+-- name: GrantMembership :execrows
+-- Writes nothing when the subject already holds the role at the scope: `membership_grant_uq`
+-- (0149) keeps one row per tenant, subject, scope and role. No row affected means the grant is
+-- there already, and EqualMembership answers it.
 INSERT INTO membership (id, tenant_id, account_id, group_id, scope_type, scope_id, role)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('account_id'), sqlc.narg('group_id'),
   sqlc.arg('scope_type'), sqlc.narg('scope_id'), sqlc.arg('role')
 )
 ON CONFLICT DO NOTHING;
+
+-- name: EqualMembership :one
+-- The membership a grant met instead of writing. A statement of its own rather than part of the
+-- insert: under READ COMMITTED it sees a row a concurrent grant committed while the insert waited
+-- on it, which the insert's own snapshot does not. The tenant is the transaction's (ADR-0010).
+SELECT id, tenant_id, account_id, group_id, scope_type, scope_id, role
+FROM membership
+WHERE account_id IS NOT DISTINCT FROM sqlc.narg('account_id')::uuid
+  AND group_id IS NOT DISTINCT FROM sqlc.narg('group_id')::uuid
+  AND scope_type = sqlc.arg('scope_type')
+  AND scope_id IS NOT DISTINCT FROM sqlc.narg('scope_id')::uuid
+  AND role = sqlc.arg('role');
 
 -- name: FindMembership :one
 -- The tenant is selected although row level security already bounds the statement to it: the

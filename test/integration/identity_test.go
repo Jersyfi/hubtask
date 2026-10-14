@@ -407,11 +407,11 @@ func TestAMembershipIsGrantedFoundAndRevoked(t *testing.T) {
 	var removed bool
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		grants := postgres.NewMembershipGrantRepository(pageCursors())
-		if err := grants.Grant(ctx, grant); err != nil {
+		if _, _, err := grants.Grant(ctx, grant); err != nil {
 			return err
 		}
 		// Idempotent: the same grant twice is one membership.
-		if err := grants.Grant(ctx, grant); err != nil {
+		if _, _, err := grants.Grant(ctx, grant); err != nil {
 			return err
 		}
 		var err error
@@ -454,7 +454,8 @@ func TestRevokingAMembershipRemovesItAndRecordsIt(t *testing.T) {
 		t.Fatalf("building the grant: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		_, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		return err
 	}); err != nil {
 		t.Fatalf("granting: %v", err)
 	}
@@ -522,7 +523,7 @@ func TestAGrantTakesEffectAndARevocationEndsIt(t *testing.T) {
 		if before, err = memberships.Along(ctx, account.ID, path); err != nil {
 			return err
 		}
-		if err := grants.Grant(ctx, grant); err != nil {
+		if _, _, err := grants.Grant(ctx, grant); err != nil {
 			return err
 		}
 		if during, err = memberships.Along(ctx, account.ID, path); err != nil {
@@ -567,7 +568,7 @@ func TestARoleHeldThroughAGroupReachesTheAccount(t *testing.T) {
 		if err := postgres.NewGroupRepository(pageCursors()).AddMember(ctx, group.ID, account.ID); err != nil {
 			return err
 		}
-		if err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant); err != nil {
+		if _, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant); err != nil {
 			return err
 		}
 		var err error
@@ -595,7 +596,8 @@ func TestAMembershipOfAnotherTenantIsUnreachable(t *testing.T) {
 		t.Fatalf("building: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		_, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		return err
 	}); err != nil {
 		t.Fatalf("granting: %v", err)
 	}
@@ -661,10 +663,10 @@ func TestDeletingAGroupTakesItsMembershipsAndNothingElse(t *testing.T) {
 		if err := groups.AddMember(ctx, group.ID, account.ID); err != nil {
 			return err
 		}
-		if err := grants.Grant(ctx, throughGroup); err != nil {
+		if _, _, err := grants.Grant(ctx, throughGroup); err != nil {
 			return err
 		}
-		if err := grants.Grant(ctx, ownRight); err != nil {
+		if _, _, err := grants.Grant(ctx, ownRight); err != nil {
 			return err
 		}
 		if err := groups.Delete(ctx, group.ID); err != nil {

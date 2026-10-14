@@ -43,11 +43,9 @@ func privateHubList(ctx context.Context, t *testing.T) *usecase.Registry {
 // name; a member is refused; another workspace sees none of it.
 func TestAdministratorsSeeWhoseAndHowMuchWithoutTheName(t *testing.T) {
 	ctx := context.Background()
+	// The member owns the hub through the world's own grant; a second, equal one is refused by
+	// membership_grant_uq.
 	w := seedPrivateWorld(ctx, t)
-	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO membership (id, tenant_id, account_id, scope_type, scope_id, role)
-		VALUES ($1, $2, $3, 'HUB', $4, 'OWNER')`, freshID(t).String(), w.tenant.String(), w.member.String(), w.hub.String()); err != nil {
-		t.Fatal(err)
-	}
 	registry := privateHubList(ctx, t)
 	owner := reader(w.tenant, w.administrator)
 	owner.Scopes = []string{"members:read"}

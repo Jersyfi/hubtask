@@ -354,12 +354,15 @@ type MembershipGrants interface {
 	// wants one. The tenant boundary is the transaction's (ADR-0010).
 	ListAt(ctx context.Context, scope identity.Scope, page Page) (GrantPage, error)
 
-	// Grant records the membership, or does nothing when the same grant already exists. The
-	// identifier is the caller's, so that the audit entry and the row agree.
+	// Grant records the membership and answers it with created true - or, when the subject
+	// already holds the role at the scope, writes nothing and answers that membership with
+	// created false: a subject holds a role at a scope once (domain-model.md §3.2), so revoking
+	// the one membership takes the role away. The identifier of a new row is the caller's, so
+	// that the audit entry and the row agree.
 	//
 	// A grant names an account or a group, never both: that is the database's constraint, and
 	// the use case checks it before it gets there.
-	Grant(ctx context.Context, grant identity.Grant) error
+	Grant(ctx context.Context, grant identity.Grant) (held identity.Grant, created bool, err error)
 
 	// Revoke removes it and reports whether anything was there. The distinction is what lets the
 	// use case answer "not found" rather than pretending it removed something.

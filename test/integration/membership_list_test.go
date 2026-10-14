@@ -33,7 +33,8 @@ func grantedAt(ctx context.Context, t *testing.T, tenant shared.ID, scope identi
 		if err := postgres.NewAccountRepository().Insert(ctx, account); err != nil {
 			return err
 		}
-		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		_, _, err := postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+		return err
 	}); err != nil {
 		t.Fatalf("granting: %v", err)
 	}

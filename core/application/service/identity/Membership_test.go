@@ -42,10 +42,18 @@ func newGrants(existing ...domain.Grant) *grantStore {
 	return store
 }
 
-func (s *grantStore) Grant(_ context.Context, grant domain.Grant) error {
+// Grant keeps one membership per subject, scope and role, as the table's unique index does: an
+// equal grant writes nothing and answers the one there.
+func (s *grantStore) Grant(_ context.Context, grant domain.Grant) (domain.Grant, bool, error) {
+	for _, held := range s.byID {
+		if held.TenantID == grant.TenantID && held.AccountID == grant.AccountID &&
+			held.GroupID == grant.GroupID && held.Scope == grant.Scope && held.Role == grant.Role {
+			return held, false, nil
+		}
+	}
 	s.byID[grant.ID] = grant
 	s.granted = append(s.granted, grant)
-	return nil
+	return grant, true, nil
 }
 
 func (s *grantStore) Revoke(_ context.Context, id shared.ID) (bool, error) {
@@ -182,6 +190,30 @@ func TestARoleIsGrantedToAnAccountAndRecorded(t *testing.T) {
 	}
 	if len(sink.entries) != 1 || sink.entries[0].Severity != audit.SeverityNotice {
 		t.Errorf("audit entries %v, want one notice - this is what an access review reads", sink.entries)
+	}
+}
+
+// A role the person already holds at the scope is answered with that membership: nothing is
+// written and the trail records no second grant, so the one revocation takes the role away.
+func TestARoleAlreadyHeldIsAnsweredWithItsMembershipAndNotRecordedAgain(t *testing.T) {
+	held := domain.Grant{
+		ID: shared.ID("01936f2a-7c1e-7000-8000-0000000000d9"), TenantID: tenant, AccountID: invitedID,
+		Scope: domain.HubScope(hubID), Role: domain.RoleMember,
+	}
+	grants, sink := newGrants(held), &auditSink{}
+
+	grant, err := grantHandler(grants, newAccounts(invitedAccount(t)), newGroups(), &authorizer{}, sink).
+		Execute(t.Context(), admin(), GrantMembershipCommand{
+			AccountID: invitedID, Scope: domain.HubScope(hubID), Role: domain.RoleMember,
+		})
+	if err != nil {
+		t.Fatalf("granting again: %v", err)
+	}
+	if grant.ID != held.ID {
+		t.Errorf("answered %s, want the membership already held, %s", grant.ID, held.ID)
+	}
+	if len(grants.granted) != 0 || len(sink.entries) != 0 {
+		t.Errorf("wrote %v and recorded %v, want neither", grants.granted, sink.entries)
 	}
 }
 
