@@ -215,59 +215,13 @@ func (p Purger) Sweep(
 		safe = now
 	}
 
-	// The read hands over what is removable by safe ahead of what the window still holds, so the
-	// held rows are reported only when the batch has room left: in the bottom-up order alone a
-	// batch-full of recently deleted deep entries would be read, counted and skipped on every pass,
-	// and a row past both bounds behind them would never be reached.
-	items, err := p.Expired.Items(ctx, cutoff, safe, p.BatchSize)
+	items, removableItems, err := p.expiredItems(ctx, holds, cutoff, safe, &outcome)
 	if err != nil {
 		return outcome, err
 	}
-	itemIDs := make([]shared.ID, 0, len(items))
-	for _, expired := range items {
-		itemIDs = append(itemIDs, expired.ID)
-	}
-	contributors, err := contributorsOf(ctx, p.Holds, holds, itemIDs)
+	removableContainers, err := p.expiredContainers(ctx, holds, cutoff, safe, &outcome)
 	if err != nil {
 		return outcome, err
-	}
-	removableItems := make([]shared.ID, 0, len(items))
-	for _, expired := range items {
-		outcome.Matched++
-		if _, held := holds.Blocking(domain.Target{
-			ItemID:          expired.ID,
-			ContainerIDs:    nonZero(expired.HubID, expired.CollectionID),
-			AncestorItemIDs: work.PathIDs(expired.Path),
-			Contributors:    contributors[expired.ID],
-		}); held {
-			outcome.blocked(BlockedByLegalHold)
-			continue
-		}
-		if expired.DeletedAt.After(safe) {
-			outcome.blocked(BlockedByTombstoneWindow)
-			continue
-		}
-		removableItems = append(removableItems, expired.ID)
-	}
-
-	containers, err := p.Expired.Containers(ctx, cutoff, safe, p.BatchSize)
-	if err != nil {
-		return outcome, err
-	}
-	removableContainers := make([]shared.ID, 0, len(containers))
-	for _, expired := range containers {
-		outcome.Matched++
-		if _, held := holds.Blocking(domain.Target{
-			ContainerIDs: nonZero(expired.ParentID, expired.ID),
-		}); held {
-			outcome.blocked(BlockedByLegalHold)
-			continue
-		}
-		if expired.DeletedAt.After(safe) {
-			outcome.blocked(BlockedByTombstoneWindow)
-			continue
-		}
-		removableContainers = append(removableContainers, expired.ID)
 	}
 
 	// The trash under data-retention.md §4 item 6: a parent or a container goes only with
@@ -322,6 +276,110 @@ func (p Purger) Sweep(
 		}
 	}
 	return outcome, nil
+}
+
+// expiredItems reads the entries past their period, judges each, and answers those read and those
+// this pass may remove.
+//
+// The read hands over what is removable by safe ahead of what the window still holds, so the
+// window's rows are reported only when the batch has room left. A legal hold is the one thing the
+// read cannot judge, so the rows it keeps are read past page by page until the batch holds what
+// can go, the window's rows begin, or the trash ends: a batch-full of held rows ahead of a due one
+// would otherwise be read, counted and skipped on every pass, and the due one never reached.
+func (p Purger) expiredItems(
+	ctx context.Context, holds domain.Holds, cutoff, safe time.Time, outcome *Outcome,
+) ([]repository.ExpiredItem, []shared.ID, error) {
+	var read []repository.ExpiredItem
+	removable := make([]shared.ID, 0, max(p.BatchSize, 0))
+	for skip := 0; ; {
+		page, err := p.Expired.Items(ctx, cutoff, safe, skip, p.BatchSize)
+		if err != nil {
+			return nil, nil, err
+		}
+		ids := make([]shared.ID, 0, len(page))
+		for _, expired := range page {
+			ids = append(ids, expired.ID)
+		}
+		contributors, err := contributorsOf(ctx, p.Holds, holds, ids)
+		if err != nil {
+			return nil, nil, err
+		}
+		windowReached := false
+		for _, expired := range page {
+			if p.full(removable) {
+				return read, removable, nil
+			}
+			read = append(read, expired)
+			outcome.Matched++
+			if _, held := holds.Blocking(domain.Target{
+				ItemID:          expired.ID,
+				ContainerIDs:    nonZero(expired.HubID, expired.CollectionID),
+				AncestorItemIDs: work.PathIDs(expired.Path),
+				Contributors:    contributors[expired.ID],
+			}); held {
+				outcome.blocked(BlockedByLegalHold)
+				continue
+			}
+			if expired.DeletedAt.After(safe) {
+				windowReached = true
+				outcome.blocked(BlockedByTombstoneWindow)
+				continue
+			}
+			removable = append(removable, expired.ID)
+		}
+		if lastPage(p.BatchSize, page) || windowReached {
+			return read, removable, nil
+		}
+		skip += len(page)
+	}
+}
+
+// expiredContainers is expiredItems for hubs and collections.
+func (p Purger) expiredContainers(
+	ctx context.Context, holds domain.Holds, cutoff, safe time.Time, outcome *Outcome,
+) ([]shared.ID, error) {
+	removable := make([]shared.ID, 0, max(p.BatchSize, 0))
+	for skip := 0; ; {
+		page, err := p.Expired.Containers(ctx, cutoff, safe, skip, p.BatchSize)
+		if err != nil {
+			return nil, err
+		}
+		windowReached := false
+		for _, expired := range page {
+			if p.full(removable) {
+				return removable, nil
+			}
+			outcome.Matched++
+			if _, held := holds.Blocking(domain.Target{
+				ContainerIDs: nonZero(expired.ParentID, expired.ID),
+			}); held {
+				outcome.blocked(BlockedByLegalHold)
+				continue
+			}
+			if expired.DeletedAt.After(safe) {
+				windowReached = true
+				outcome.blocked(BlockedByTombstoneWindow)
+				continue
+			}
+			removable = append(removable, expired.ID)
+		}
+		if lastPage(p.BatchSize, page) || windowReached {
+			return removable, nil
+		}
+		skip += len(page)
+	}
+}
+
+// full reports whether a pass holds a batch of rows to remove. Without a batch size there is one
+// page and no bound to reach.
+func (p Purger) full(removable []shared.ID) bool {
+	return p.BatchSize > 0 && len(removable) >= p.BatchSize
+}
+
+// lastPage reports whether a read reached the end of what is past its period: a page shorter than
+// the batch, or any page where there is no batch size to page by.
+func lastPage[T any](batchSize int, page []T) bool {
+	return batchSize <= 0 || len(page) < batchSize
 }
 
 // contributorsOf reads whose own data goes with each of these entries - only while an account hold

@@ -99,16 +99,29 @@ type expiredStore struct {
 }
 
 func (s *expiredStore) Items(
-	_ context.Context, cutoff, due time.Time, batch int,
+	_ context.Context, cutoff, due time.Time, skip, batch int,
 ) ([]repository.ExpiredItem, error) {
 	s.askedAt, s.askedDue, s.askedBatch = cutoff, due, batch
-	return s.items, nil
+	return page(s.items, skip, batch), nil
 }
 func (s *expiredStore) Containers(
-	_ context.Context, cutoff, due time.Time, _ int,
+	_ context.Context, cutoff, due time.Time, skip, batch int,
 ) ([]repository.ExpiredContainer, error) {
 	s.containersAskedAt, s.containersAskedDue = cutoff, due
-	return s.containers, nil
+	return page(s.containers, skip, batch), nil
+}
+
+// page is one read of rows in their order, as LIMIT and OFFSET answer it; no batch size is all of
+// them.
+func page[T any](rows []T, skip, batch int) []T {
+	if skip >= len(rows) {
+		return nil
+	}
+	rows = rows[skip:]
+	if batch > 0 && batch < len(rows) {
+		rows = rows[:batch]
+	}
+	return rows
 }
 
 type holdStore struct {
@@ -353,6 +366,40 @@ func TestASweepCountsWhatItCouldNotRemove(t *testing.T) {
 	}
 	if len(h.trash.purgedItem) != 1 || h.trash.purgedItem[0] != taskID {
 		t.Errorf("the sweep removed %v, want only the entry that is not held", h.trash.purgedItem)
+	}
+}
+
+// A batch-full of rows a legal hold keeps does not end the read: the pass reads on past them to the
+// due rows behind, and stops once it holds a batch it can remove. RE-2's starvation case against
+// PostgreSQL is test/retention's TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne.
+func TestASweepReadsPastWhatALegalHoldKeeps(t *testing.T) {
+	h := newHarness()
+	h.purger.BatchSize = 2
+	longAgo := now.Add(-120 * 24 * time.Hour)
+	held1 := shared.MustParseID("0192f000-0000-7000-8000-0000000002a1")
+	held2 := shared.MustParseID("0192f000-0000-7000-8000-0000000002a2")
+	third := shared.MustParseID("0192f000-0000-7000-8000-0000000002a3")
+	h.expired.items = []repository.ExpiredItem{
+		expiredItem(held1, longAgo), expiredItem(held2, longAgo),
+		expiredItem(taskID, longAgo), expiredItem(otherTaskID, longAgo), expiredItem(third, longAgo),
+	}
+	h.holds.holds = domain.Holds{
+		{ID: holdID, Scope: domain.HoldItem, ScopeID: held1, Reason: "Litigation"},
+		{ID: holdID, Scope: domain.HoldItem, ScopeID: held2, Reason: "Litigation"},
+	}
+
+	outcome, err := h.purger.Sweep(t.Context(), actor(), Selection{
+		Cutoff: now, Reason: domain.DeletedByRetention, ObserveTombstoneWindow: true,
+	}, now)
+	if err != nil {
+		t.Fatalf("the sweep failed: %v", err)
+	}
+
+	if len(h.trash.purgedItem) != 2 || h.trash.purgedItem[0] != taskID || h.trash.purgedItem[1] != otherTaskID {
+		t.Errorf("the sweep removed %v, want the batch of two behind the held rows", h.trash.purgedItem)
+	}
+	if outcome.Matched != 4 || outcome.Blocked[BlockedByLegalHold] != 2 {
+		t.Errorf("the pass reports %+v, want four read and two held, the third due row left for later", outcome)
 	}
 }
 

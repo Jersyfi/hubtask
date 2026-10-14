@@ -108,12 +108,13 @@ FROM container c
 WHERE c.deleted_at IS NOT NULL
   AND c.deleted_at < $1::timestamptz
 ORDER BY (c.deleted_at > $2::timestamptz), (c.type = 'HUB'), c.deleted_at, c.id
-LIMIT $3
+LIMIT $4 OFFSET $3
 `
 
 type ExpiredTrashContainersParams struct {
 	Cutoff    pgtype.Timestamptz
 	Due       pgtype.Timestamptz
+	Skip      int32
 	BatchSize int32
 }
 
@@ -130,9 +131,15 @@ type ExpiredTrashContainersRow struct {
 // ON DELETE RESTRICT, so a hub whose collections are still there refuses to go - the database
 // insists on the order, and this is where it is obeyed rather than discovered.
 //
-// Rows deleted after `due` come last, for the reason the entries' statement gives.
+// Rows deleted after `due` come last, and `skip` pages past held ones, for the reasons the entries'
+// statement gives.
 func (q *Queries) ExpiredTrashContainers(ctx context.Context, arg ExpiredTrashContainersParams) ([]ExpiredTrashContainersRow, error) {
-	rows, err := q.db.Query(ctx, expiredTrashContainers, arg.Cutoff, arg.Due, arg.BatchSize)
+	rows, err := q.db.Query(ctx, expiredTrashContainers,
+		arg.Cutoff,
+		arg.Due,
+		arg.Skip,
+		arg.BatchSize,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -163,12 +170,13 @@ JOIN container col ON col.id = i.collection_id
 WHERE i.deleted_at IS NOT NULL
   AND i.deleted_at < $1::timestamptz
 ORDER BY (i.deleted_at > $2::timestamptz), i.depth DESC, i.deleted_at, i.id
-LIMIT $3
+LIMIT $4 OFFSET $3
 `
 
 type ExpiredTrashItemsParams struct {
 	Cutoff    pgtype.Timestamptz
 	Due       pgtype.Timestamptz
+	Skip      int32
 	BatchSize int32
 }
 
@@ -203,8 +211,17 @@ type ExpiredTrashItemsRow struct {
 // batch-full of recently deleted deep entries would otherwise fill every pass and keep it from ever
 // reaching a due row behind them. Among the due rows the order is unchanged, which is the order the
 // removal needs; a due parent above a held child is kept back by the engine, not by this order.
+//
+// `skip` pages past rows the caller read and could not remove - those a legal hold keeps, which
+// this statement cannot judge - so that a batch-full of them does not hide a due row behind them.
+// Stable within the caller's transaction, which removes nothing until it has read.
 func (q *Queries) ExpiredTrashItems(ctx context.Context, arg ExpiredTrashItemsParams) ([]ExpiredTrashItemsRow, error) {
-	rows, err := q.db.Query(ctx, expiredTrashItems, arg.Cutoff, arg.Due, arg.BatchSize)
+	rows, err := q.db.Query(ctx, expiredTrashItems,
+		arg.Cutoff,
+		arg.Due,
+		arg.Skip,
+		arg.BatchSize,
+	)
 	if err != nil {
 		return nil, err
 	}

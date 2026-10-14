@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -197,7 +198,7 @@ func groupRemovals(
 // Items returns the entries whose time in the trash is up, those removable by due first, deepest
 // first within each group.
 func (r LifecycleRepository) Items(
-	ctx context.Context, cutoff, due time.Time, batchSize int,
+	ctx context.Context, cutoff, due time.Time, skip, batchSize int,
 ) ([]repository.ExpiredItem, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -206,6 +207,7 @@ func (r LifecycleRepository) Items(
 
 	rows, err := queries.ExpiredTrashItems(ctx, sqlc.ExpiredTrashItemsParams{
 		Cutoff: timestampOf(cutoff), Due: timestampOf(due), BatchSize: batchLimit(batchSize),
+		Skip: pageOffset(skip),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -236,7 +238,7 @@ func (r LifecycleRepository) Items(
 // Containers returns the hubs and collections whose time in the trash is up, those removable by due
 // first, collections first within each group.
 func (r LifecycleRepository) Containers(
-	ctx context.Context, cutoff, due time.Time, batchSize int,
+	ctx context.Context, cutoff, due time.Time, skip, batchSize int,
 ) ([]repository.ExpiredContainer, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -245,6 +247,7 @@ func (r LifecycleRepository) Containers(
 
 	rows, err := queries.ExpiredTrashContainers(ctx, sqlc.ExpiredTrashContainersParams{
 		Cutoff: timestampOf(cutoff), Due: timestampOf(due), BatchSize: batchLimit(batchSize),
+		Skip: pageOffset(skip),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -283,6 +286,18 @@ func batchLimit(size int) int32 {
 		return maxPurgeBatch
 	default:
 		return int32(size)
+	}
+}
+
+// pageOffset is how many expired rows a read passes over, held to what the statement can take.
+func pageOffset(skip int) int32 {
+	switch {
+	case skip < 1:
+		return 0
+	case skip > math.MaxInt32:
+		return math.MaxInt32
+	default:
+		return int32(skip)
 	}
 }
 
