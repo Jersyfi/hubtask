@@ -497,6 +497,48 @@ func TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne(t *testing.T) {
 	}
 }
 
+// The rule sweep's batch, held entirely by a legal hold, is the end of the pass. A block sets no due
+// moment, so the next pass reads the same entries again, and a job that came straight back would
+// only find them once more.
+func TestRE2ARuleBatchHeldEntirelyEndsThePass(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	s.run.Sweeper.Batch = 2
+	collectionID := s.collection(t)
+	held := []shared.ID{s.completedItem(t, collectionID, 400), s.completedItem(t, collectionID, 400)}
+	for _, id := range held {
+		if _, err := s.admin.Exec(s.ctx, `
+			INSERT INTO legal_hold (id, tenant_id, scope_kind, scope_id, reason, placed_by)
+			VALUES ($1, $2, 'ITEM', $3, 'Pending litigation', $4)`,
+			freshID(t).String(), s.tenant.String(), id.String(), s.author.String()); err != nil {
+			t.Fatalf("placing the hold: %v", err)
+		}
+	}
+	// A workspace with work in it, so the rule is not the broad one §5 turns into an announcement.
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+	s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+	})
+
+	outcome := s.sweep(t)
+
+	if outcome.Blocked[lifecycle.BlockedByLegalHold] != 2 || outcome.Held != 2 {
+		t.Fatalf("the pass reports %+v, want both entries held", outcome)
+	}
+	for _, id := range held {
+		if at, _ := s.marking(t, id); !at.IsZero() {
+			t.Errorf("an entry under a legal hold was announced for %s", at)
+		}
+	}
+	if !s.run.Exhausted(outcome) {
+		t.Errorf("a rule batch held entirely reads as unfinished (%+v)", outcome)
+	}
+}
+
 // A batch the offline window holds entirely is the end of the pass: nothing in it can go before the
 // window has passed, and a job that came straight back would find the same rows again, every time.
 func TestABatchHeldByTheWindowEndsThePass(t *testing.T) {
