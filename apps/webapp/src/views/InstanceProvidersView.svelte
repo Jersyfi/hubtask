@@ -35,7 +35,13 @@
   import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderPreset } from '@hubtask/sync-engine';
 
-  import { admissionLists, isSharedIssuer, issuerAfterChoosing } from '../lib/signin/issuer.ts';
+  import {
+    admissionLists,
+    isPersonalIssuer,
+    isSharedIssuer,
+    issuerAfterChoosing,
+    offeredModes,
+  } from '../lib/signin/issuer.ts';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
@@ -134,6 +140,8 @@
   const modes = $derived(preset === undefined ? [] : preset.installation_provisioning);
   /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
   const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
+  /** Whether the issuer also serves personal accounts, where the server refuses `ANY`. */
+  const personal = $derived(isPersonalIssuer(preset, issuer));
   /** Whether the installation's level narrows this preset to the invited, which the form says. */
   const narrowedToInvited = $derived(
     preset !== undefined && modes.length === 1 && preset.provisioning.length > 1,
@@ -426,8 +434,12 @@
       label={t('app.instance.provider_admission_label')}
       hint={t('app.instance.provider_admission_hint')}
       bind:value={provisioning}
-      options={modes.map((mode) => ({ value: mode, label: admissionLabel(mode) }))}
+      options={offeredModes(modes, personal, provisioning).map((mode) => ({ value: mode, label: admissionLabel(mode) }))}
     />
+    {#if personal && provisioning === 'ANY'}
+      <!-- The save refuses ANY on this issuer; the sentence names what may be chosen instead. -->
+      <Banner tone="info">{t('identity_provider.provisioning_personal', { issuer: issuer.trim() })}</Banner>
+    {/if}
 
     <!-- The list the server will read, and only that one (ADR-0071 §2): under INVITED_ONLY a
          narrowing, on a shared endpoint required in every mode, ANY included. -->

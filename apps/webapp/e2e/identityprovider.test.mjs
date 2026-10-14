@@ -239,3 +239,34 @@ test('chromium: a shared endpoint under Anyone asks for the directories and send
   assert.deepEqual(sent[0].allowed_directories, ['72f988bf-86f1-41af-91ab-2d7cd011db47']);
   assert.deepEqual(sent[0].allowed_email_domains, []);
 });
+
+// #1464: an issuer that also serves personal accounts is refused Anyone at the save
+// (identity_provider.provisioning_personal), so the form does not offer it there (P-05); chosen
+// before the issuer was typed, it stays chosen and the form says why, rather than moving silently.
+test('chromium: Anyone is not offered on an issuer that serves personal accounts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, 'en');
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByRole('button', { name: 'Add a provider' }).click();
+  const form = page.locator('form.panel');
+  await form.getByLabel('Which provider').selectOption('MICROSOFT');
+  const admission = form.getByRole('combobox').nth(1);
+  const issuer = form.getByLabel(/^Issuer/);
+  const anyone = admission.locator('option[value="ANY"]');
+
+  await issuer.fill('https://login.microsoftonline.com/organizations/v2.0');
+  assert.equal(await anyone.count(), 1, 'Anyone is not offered on a shared organisations endpoint');
+
+  await admission.selectOption('INVITED_ONLY');
+  await issuer.fill('https://login.microsoftonline.com/consumers/v2.0');
+  assert.equal(await anyone.count(), 0, 'Anyone is offered where the server refuses it');
+
+  await issuer.fill('https://login.microsoftonline.com/organizations/v2.0');
+  await admission.selectOption('ANY');
+  await issuer.fill('https://login.microsoftonline.com/common/v2.0');
+  assert.equal(await admission.inputValue(), 'ANY', 'the chosen mode was moved for the person');
+  assert.match(await form.innerText(), /also serves personal accounts/);
+});

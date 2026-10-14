@@ -135,7 +135,9 @@ const preset = (kind, provisioning, extra = {}) => ({
   public: kind === 'GOOGLE', provisioning, installation_provisioning: ['INVITED_ONLY'],
   redirect_uri: REDIRECT_URI, instructions: `identity_provider.preset.${kind.toLowerCase()}.instructions`,
   supports_templated_issuer: kind === 'MICROSOFT',
-  shared_issuer_paths: kind === 'MICROSOFT' ? ['common', 'organizations'] : [], ...extra,
+  shared_issuer_paths: kind === 'MICROSOFT' ? ['common', 'organizations'] : [],
+  personal_issuer_paths: kind === 'MICROSOFT' ? ['common', 'consumers', '9188040d-6c67-4c5b-b112-36a304b66dad'] : [],
+  ...extra,
 });
 
 /** The three presets as `GET /identity-provider-presets` answers them today (UC-ID-11). */
