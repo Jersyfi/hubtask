@@ -39,6 +39,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { tokens, type MintedToken } from '../lib/data/tokens.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { deviceZone, endOfDayIn, todayIn } from '../lib/i18n/zone.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -109,14 +110,21 @@
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;
 
-  /** A year from now, to the day: the furthest the server will accept. */
-  function latestAllowed(): string {
-    const year = new Date();
-    year.setUTCFullYear(year.getUTCFullYear() + 1);
-    return year.toISOString().slice(0, 10);
-  }
+  // The days the date control offers and the day it answers are the person's, on the clock the
+  // list beside it is drawn on (`formatDateTime` reads an instant in the browser's zone). A day
+  // taken in UTC was the next day east of Greenwich: "the 31st" was listed as the 1st.
+  const zone = deviceZone();
+  const today = todayIn(zone);
 
-  const today = new Date().toISOString().slice(0, 10);
+  /**
+   * The furthest day the server accepts: it takes at most 365 days from now, and a token ends at
+   * the end of its day, so the last day offered is the 364th after today - the 365th would end
+   * past the limit and be refused after the person had chosen it.
+   */
+  function latestAllowed(): string {
+    const [year = 0, month = 1, day = 1] = today.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day + 364)).toISOString().slice(0, 10);
+  }
 
   function toggle(scope: string, on: boolean): void {
     chosen = on ? [...chosen, scope] : chosen.filter((each) => each !== scope);
@@ -129,12 +137,12 @@
     failure = undefined;
     isWorking = true;
     try {
-      // The date control answers a day; the contract wants an instant. End of that day in UTC, so
-      // a token chosen for "the 31st" works through the 31st wherever the reader is.
+      // The date control answers a day; the contract wants an instant: the end of that day where
+      // the person is, so a token chosen for "the 31st" works through their 31st and is listed so.
       minted = await tokens.mint({
         name: name.trim(),
         scopes: chosen,
-        expiresAt: `${expiresAt}T23:59:59Z`,
+        expiresAt: endOfDayIn(expiresAt, zone) ?? `${expiresAt}T23:59:59Z`,
         accountId,
       });
       announcer.say(t('app.tokens.minted_announced'));
