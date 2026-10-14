@@ -161,3 +161,24 @@ for (const role of ['AUDITOR', 'BELOW']) {
     assert.deepEqual(failures, []);
   });
 }
+
+// The trash reads the workspace's retention policies only for a reader the server answers them for
+// (`STRUCTURE` or `READ_CONFIGURATION`); for anybody else each visit was a refused read and a DENIED
+// entry in the trail. The trash itself is everybody's.
+for (const [role, mayRead] of [['MEMBER', false], ['VIEWER', false], ['OWNER', true], ['AUDITOR', true]]) {
+  test(`chromium: ${role}'s trash ${mayRead ? 'reads' : 'does not read'} the retention policies`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
+    t.after(() => context.close());
+
+    await page.goto(`${served.origin}/trash`);
+    await page.getByRole('heading', { name: 'Trash', exact: true }).first().waitFor({ state: 'attached' });
+    for (let waited = 0; !asked.includes('/trash') && waited < 50; waited++) await page.waitForTimeout(100);
+    // The manifest has been read by now and the screen has asked what it asks; a little longer for
+    // a read that would follow the manifest.
+    await page.waitForTimeout(500);
+    assert.equal(asked.includes('/retention-policies'), mayRead, `the retention policies were ${mayRead ? 'not ' : ''}read`);
+    assert.deepEqual(failures, []);
+  });
+}

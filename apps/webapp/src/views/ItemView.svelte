@@ -548,6 +548,17 @@
   const hasMore = $derived(
     history.state.status === 'ready' && (history.state.data.page?.has_more ?? false),
   );
+  /**
+   * What the last press of *Show more history* brought, for `LoadMore`'s live region. Empty until
+   * the reader asks: the first page arrives with the tab, and a region filled at mount announces a
+   * count nobody asked for.
+   */
+  let historyArrived = $state<string | undefined>(undefined);
+
+  async function moreHistory(): Promise<void> {
+    await history.loadMore();
+    historyArrived = t('app.activity.arrived', { count: steps.length });
+  }
   const historyFailure = $derived(
     history.state.status === 'failed' ? renderProblem(history.state.error, messages) : undefined,
   );
@@ -898,11 +909,15 @@
                 <!-- Cursor pagination, never a page number: the API has none, so no component may
                      imply one. What arrived is announced, because pressing a button and being told
                      nothing is the case a live region is for. -->
-                {#if hasMore}
+                <!-- Drawn whole even after the last page: the live region goes with the
+                     component, and one removed with the button is one whose sentence about the
+                     last page nobody hears. Without a further page it draws no button. -->
+                {#if hasMore || historyArrived}
                   <LoadMore
                     label={t('app.activity.more')}
-                    arrivedLabel={t('app.activity.arrived', { count: steps.length })}
-                    onLoadMore={() => history.loadMore()}
+                    {hasMore}
+                    arrivedLabel={historyArrived}
+                    onLoadMore={() => void moreHistory()}
                   />
                 {/if}
               {/if}

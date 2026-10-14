@@ -5,9 +5,11 @@
  * How long the workspace keeps what is in its trash — read **only where the actor may read it**.
  *
  * The same shape `health.svelte.ts` has, for the same reason: `/retention-policies` needs
- * `retention:read`, which an ordinary member does not have, and a `403` is *silence* rather than a
- * message. A screen that reported "you may not see the retention policy" would be telling somebody
- * about a permission they were never going to use.
+ * `STRUCTURE` or `READ_CONFIGURATION` on the workspace, which an ordinary member does not have. The
+ * caller asks only where the manifest grants one of them (a refused read is a DENIED entry in the
+ * trail), and a `403` that comes anyway is *silence* rather than a message. A screen that reported
+ * "you may not see the retention policy" would be telling somebody about a permission they were
+ * never going to use.
  *
  * What this exists for is the sentence on the trash screen of a server that does not give each
  * entry its `purge_after`: a current one does, to every reader, and the screen counts down to that.
