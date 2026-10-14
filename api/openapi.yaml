@@ -12631,11 +12631,18 @@ components:
       allOf:
         - $ref: "#/components/schemas/Group"
         - type: object
-          required: [members]
+          required: [members, members_changeable]
           properties:
             members:
               type: array
               items: { type: string, format: uuid }
+            members_changeable:
+              type: boolean
+              description: >
+                Whether the reader may change who is in the group and delete it. A group passes on
+                every role it holds, so this needs the right to manage members on the workspace and,
+                for each role the group holds, a role of the reader's own at least as strong where it
+                applies. False where a change would be refused; renaming is not affected.
 
     GroupPage:
       type: object

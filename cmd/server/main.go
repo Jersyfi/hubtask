@@ -1482,7 +1482,7 @@ func run() error {
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
-		identity.GetGroup{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
+		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.CreateGroup{
 			Groups: groups, Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,

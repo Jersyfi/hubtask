@@ -6197,8 +6197,11 @@ type GroupDetail struct {
 	Description *string              `json:"description,omitempty"`
 	Id          openapi_types.UUID   `json:"id"`
 	Members     []openapi_types.UUID `json:"members"`
-	Name        string               `json:"name"`
-	Version     int                  `json:"version"`
+
+	// MembersChangeable Whether the reader may change who is in the group and delete it. A group passes on every role it holds, so this needs the right to manage members on the workspace and, for each role the group holds, a role of the reader's own at least as strong where it applies. False where a change would be refused; renaming is not affected.
+	MembersChangeable bool   `json:"members_changeable"`
+	Name              string `json:"name"`
+	Version           int    `json:"version"`
 }
 
 // GroupPage defines model for GroupPage.
