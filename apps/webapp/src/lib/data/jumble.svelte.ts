@@ -113,6 +113,9 @@ class Jumble {
     const cursor = this.#cursors[key];
     if (!cursor) return;
     const next = await engine.refresh<EntryPage>({ path: entriesPath(status, cursor) });
+    // A page that failed is thrown rather than dropped: the screen says it beside the button.
+    // `failed` is the only other answer a settled read gives, offline included.
+    if (next.status === 'failed') throw next.error;
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.data ?? [])] };
     this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };

@@ -32,6 +32,7 @@
     Button,
     Input,
     JumbleInboxItem,
+    LoadMore,
     OneTimeSecret,
     PageHeader,
     Select,
@@ -83,6 +84,34 @@
   /** What the reader may do here, from what the manifest says they hold on the workspace. */
   const mayWrite = $derived(holdsHere('WRITE_ITEMS') === true);
   const mayRotate = $derived(holdsHere('AUTOMATION') === true);
+
+  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new filter. */
+  let arrived = $state<string | undefined>(undefined);
+  let isLoadingMore = $state(false);
+  /** Why the last press of *Show more* brought nothing; cleared by the next press and a new filter. */
+  let moreFailed = $state<string | undefined>(undefined);
+  $effect(() => {
+    void filter;
+    arrived = undefined;
+    moreFailed = undefined;
+  });
+
+  /** The next page, appended, and what arrived said once it has (P-13). */
+  async function more(): Promise<void> {
+    const current = filter;
+    const before = jumble.of(current).length;
+    moreFailed = undefined;
+    isLoadingMore = true;
+    try {
+      await jumble.more(current);
+      arrived = t('app.jumble.arrived', { count: jumble.of(current).length - before });
+    } catch (error) {
+      // Beside the button that asked, not in the page's banner: what is already shown is still right.
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
+  }
 
   const reading = $derived(jumble.stateOf(filter));
   const entries = $derived(jumble.of(filter));
@@ -289,13 +318,19 @@
           <p class="quiet">{t('app.jumble.nothing_here')}</p>
         {/each}
 
-        {#if jumble.moreAfter(filter)}
-          <!-- Cursor pagination, never page numbers: the API has none, so nothing here implies one. -->
-          <div>
-            <Button tone="secondary" onclick={() => void jumble.more(filter)}>
-              {t('app.jumble.more')}
-            </Button>
-          </div>
+        <!-- Cursor pagination, never page numbers: the API has none, so nothing here implies one.
+             Drawn whole while something is to be said after the last page: the live regions go
+             with the component, and one removed with the button is one nobody hears. -->
+        {#if jumble.moreAfter(filter) || arrived || moreFailed}
+          <LoadMore
+            label={t('app.jumble.more')}
+            busyLabel={t('app.jumble.loading_more')}
+            hasMore={Boolean(jumble.moreAfter(filter))}
+            isBusy={isLoadingMore}
+            arrivedLabel={arrived}
+            failedLabel={moreFailed}
+            onLoadMore={() => void more()}
+          />
         {/if}
       </Stack>
     {/if}

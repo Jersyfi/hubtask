@@ -3370,6 +3370,8 @@
   "app.jumble.filter_dismissed": "Dismissed",
   "app.jumble.nothing_here": "Nothing here.",
   "app.jumble.more": "Show more",
+  "app.jumble.loading_more": "Loading more…",
+  "app.jumble.arrived": "{count, plural, =0 {Nothing more arrived.} one {# more arrival is listed.} other {# more arrivals are listed.}}",
   "app.jumble.no_subject": "No subject",
   "app.jumble.unknown_time": "at an unknown time",
   "app.jumble.sender": "From",

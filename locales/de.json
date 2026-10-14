@@ -2205,6 +2205,8 @@
   "app.jumble.filter_dismissed": "Verworfen",
   "app.jumble.nothing_here": "Nichts hier.",
   "app.jumble.more": "Mehr zeigen",
+  "app.jumble.loading_more": "Lädt mehr …",
+  "app.jumble.arrived": "{count, plural, =0 {Es kam nichts mehr dazu.} one {# weiterer Eingang ist da.} other {# weitere Eingänge sind da.}}",
   "app.jumble.no_subject": "Kein Betreff",
   "app.jumble.unknown_time": "zu unbekannter Zeit",
   "app.jumble.sender": "Von",

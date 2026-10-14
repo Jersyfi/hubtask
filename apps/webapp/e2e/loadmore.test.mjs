@@ -127,3 +127,34 @@ test('chromium: a page of runs that did not arrive is said beside the button, th
   assert.equal(await said(status(page)), '', 'a new filter kept the old arrival');
   assert.deepEqual(failures, []);
 });
+
+const ARRIVAL = (n) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000015${String(n).padStart(2, '0')}`,
+  channel: 'QUICK_CAPTURE',
+  raw_subject: `Arrival ${n}`,
+  raw_body: null,
+  attachments: [],
+  status: 'NEW',
+  received_at: `2026-10-0${n}T08:00:00Z`,
+});
+
+test('chromium: a page of the jumble that did not arrive because the connection was gone is said beside the button, and the retry brings it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await listFailingOnce(context, {
+    endsWith: '/jumble/entries',
+    failure: 'offline',
+    answer: (cursor) => (cursor === 'p2' ? { data: [ARRIVAL(3)], next_cursor: null } : { data: [ARRIVAL(1), ARRIVAL(2)], next_cursor: 'p2' }),
+  });
+  await page.goto(`${served.origin}/jumble`);
+  await failsThenRetries(page, {
+    button: 'Show more',
+    rows: () => page.locator('article.entry'),
+    // The replica is attached and cannot answer this path, so the engine says it needs the server.
+    failure: 'This needs a connection. It is not kept on this device, and the server cannot be reached right now.',
+    arrived: '1 more arrival is listed.',
+  });
+  assert.deepEqual(failures, []);
+});
