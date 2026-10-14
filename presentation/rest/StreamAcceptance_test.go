@@ -5,8 +5,11 @@ package rest
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,12 +26,16 @@ import (
 
 // The two properties of the change stream that are measurements rather than assertions.
 
-// countingStream records how often the log was read, which is the number the idle-cost measurement
-// is about.
+// countingStream records how often the log was read, per stream, which is the number the
+// idle-cost measurement is about. A stream is told apart by the number its request's context
+// carries (`streamNumber`); `Next` is handed that context.
 type countingStream struct {
 	mu     sync.Mutex
-	rounds int
+	rounds map[int]int
 }
+
+// streamNumber is the context key a test request carries its stream's number under.
+type streamNumber struct{}
 
 func (c *countingStream) Resume(
 	context.Context, appshared.ActorContext, string,
@@ -37,11 +44,15 @@ func (c *countingStream) Resume(
 }
 
 func (c *countingStream) Next(
-	context.Context, appshared.ActorContext, syncservice.Position,
+	ctx context.Context, _ appshared.ActorContext, _ syncservice.Position,
 ) (syncservice.Batch, error) {
+	number, _ := ctx.Value(streamNumber{}).(int)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.rounds++
+	if c.rounds == nil {
+		c.rounds = map[int]int{}
+	}
+	c.rounds[number]++
 	return syncservice.Batch{}, nil
 }
 
@@ -49,22 +60,44 @@ func (c *countingStream) Encode(position syncservice.Position) string {
 	return "cursor-" + strconv.FormatInt(position.Seq, 10)
 }
 
-func (c *countingStream) reads() int {
+// started is how many streams have completed at least one read.
+func (c *countingStream) started() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rounds
+	return len(c.rounds)
+}
+
+// readMoreThanOnce names every stream that read the log more than once, with its count.
+func (c *countingStream) readMoreThanOnce() map[int]int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	more := map[int]int{}
+	for number, reads := range c.rounds {
+		if reads != 1 {
+			more[number] = reads
+		}
+	}
+	return more
 }
 
 // "Several hundred idle connections cost no busy loop" — a measurement in the test, as the task
 // asks, rather than an assertion in a comment.
 //
-// What is measured is reads of the change log. An idle stream is woken by LISTEN/NOTIFY or, when
-// there is nothing to be woken by, by its idle timer at thirty seconds - so over a window far
-// shorter than that, three hundred idle connections must read the log exactly three hundred times:
-// once each, when they open. Any design with a poller per connection fails this by construction.
+// What is measured is reads of the change log, per stream. An idle stream is woken by
+// LISTEN/NOTIFY or, when there is nothing to be woken by, by its idle timer at thirty seconds - so
+// over a window far shorter than that, each of three hundred idle connections must read the log
+// exactly once, when it opens. Any design with a poller per connection fails this by construction,
+// and so does a stream that reads twice to start: the count runs from each stream's open to the end
+// of the window.
+//
+// The window starts when every stream has completed its first read, not when every stream is
+// registered: a stream is registered before it reads, and on a loaded runner a first read that
+// landed inside the window was once counted as an idle one. The deadlines only guard against a
+// hang; nothing is decided by how fast the runner is.
 func TestSeveralHundredIdleStreamsDoNotPoll(t *testing.T) {
 	const connections = 300
 	const idle = 300 * time.Millisecond
+	const hang = 30 * time.Second
 
 	changes := &countingStream{}
 	controller, registry, _ := streamController(t, nil, stream.Limits{PerProcess: connections + 10})
@@ -76,40 +109,41 @@ func TestSeveralHundredIdleStreamsDoNotPoll(t *testing.T) {
 	defer cancel()
 
 	var wg sync.WaitGroup
-	for range connections {
+	for number := range connections {
 		wg.Add(1)
 		concurrency.Go(ctx, "test.idle_stream", func(context.Context) {
 			defer wg.Done()
-			request := authenticated(
-				httptest.NewRequestWithContext(ctx, http.MethodGet, "/stream", nil))
+			request := authenticated(httptest.NewRequestWithContext(
+				context.WithValue(ctx, streamNumber{}, number), http.MethodGet, "/stream", nil))
 			controller.StreamChanges(httptest.NewRecorder(), request, openapi.StreamChangesParams{})
 		})
 	}
 
-	// Wait until every connection has opened and done its first read.
-	deadline := time.Now().Add(5 * time.Second)
-	for registry.Open() < connections && time.Now().Before(deadline) {
+	// Wait until every connection has opened and completed its first read.
+	deadline := time.Now().Add(hang)
+	for (registry.Open() < connections || changes.started() < connections) && time.Now().Before(deadline) {
 		time.Sleep(5 * time.Millisecond)
 	}
-	if open := registry.Open(); open != connections {
-		t.Fatalf("%d of %d streams opened", open, connections)
+	if open, started := registry.Open(), changes.started(); open != connections || started != connections {
+		t.Fatalf("%d of %d streams opened and %d read the log within %v", open, connections, started, hang)
 	}
-	settled := changes.reads()
 
 	time.Sleep(idle)
-	after := changes.reads()
+	more := changes.readMoreThanOnce()
 
 	cancel()
 	wg.Wait()
 
-	if settled > connections {
-		t.Errorf("%d log reads to open %d streams - a stream read more than once to start",
-			settled, connections)
-	}
-	if after != settled {
-		t.Errorf("%d idle connections read the change log %d further times in %v; "+
-			"idle streams must cost nothing until something wakes them",
-			connections, after-settled, idle)
+	if len(more) > 0 {
+		// The first few by number, so the message stays readable when every stream polls.
+		numbers := slices.Sorted(maps.Keys(more))
+		var named []string
+		for _, number := range numbers[:min(len(numbers), 5)] {
+			named = append(named, fmt.Sprintf("stream %d read %d times", number, more[number]))
+		}
+		t.Errorf("%d of %d idle streams read the change log more than once between opening and %v "+
+			"of idleness (%s); an idle stream reads once when it opens and costs nothing until "+
+			"something wakes it", len(more), connections, idle, strings.Join(named, ", "))
 	}
 }
 
