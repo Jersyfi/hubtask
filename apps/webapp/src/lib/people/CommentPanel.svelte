@@ -34,7 +34,13 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
-  const { item, path }: { item: WorkItem; path: Path } = $props();
+  /**
+   * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
+   * viewer may not, a guest may, a contributor only on what is assigned to them (UC-WRK-19 check 4).
+   * Without it there is no field and no reply, rather than a field whose every send is refused;
+   * `undefined` while the role is unknown draws neither.
+   */
+  const { item, path, mayComment }: { item: WorkItem; path: Path; mayComment: boolean | undefined } = $props();
 
   const capability = $derived(supports(item.type, 'COMMENTS'));
 
@@ -170,39 +176,41 @@
       onLoadMore={() => void page.loadMore()}
       onEdit={startEdit}
       onDelete={remove}
-      onReply={startReply}
+      onReply={mayComment ? startReply : undefined}
     />
 
-    <Stack gap="100">
-      <Textarea
-        label={editing
-          ? t('app.comments.editing')
-          : replyTo
-            ? t('app.comments.replying')
-            : t('app.comments.write')}
-        bind:value={draft}
-        rows={3}
-        error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
-      />
-      {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
-      <div class="actions">
-        <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
-          {editing ? t('app.workspace.save') : t('app.comments.send')}
-        </Button>
-        {#if replyTo || editing}
-          <Button
-            tone="secondary"
-            onclick={() => {
-              replyTo = undefined;
-              editing = undefined;
-              draft = '';
-            }}
-          >
-            {t('app.workspace.cancel')}
+    {#if mayComment}
+      <Stack gap="100">
+        <Textarea
+          label={editing
+            ? t('app.comments.editing')
+            : replyTo
+              ? t('app.comments.replying')
+              : t('app.comments.write')}
+          bind:value={draft}
+          rows={3}
+          error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
+        />
+        {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
+        <div class="actions">
+          <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
+            {editing ? t('app.workspace.save') : t('app.comments.send')}
           </Button>
-        {/if}
-      </div>
-    </Stack>
+          {#if replyTo || editing}
+            <Button
+              tone="secondary"
+              onclick={() => {
+                replyTo = undefined;
+                editing = undefined;
+                draft = '';
+              }}
+            >
+              {t('app.workspace.cancel')}
+            </Button>
+          {/if}
+        </div>
+      </Stack>
+    {/if}
   </Stack>
 </CapabilityGate>
 

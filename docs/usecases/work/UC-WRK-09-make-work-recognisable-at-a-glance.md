@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-admin, PE-agent, PE-integrator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-12, P-13]
-state: partial
+state: built
 tasks: [B-09, F2-10, C-06, F3-09]
-checked_by: [test/integration/structure_test.go, core/domain/model/work/Label_test.go, core/domain/model/work/Cover_test.go, test/integration/media_test.go, apps/webapp/e2e/entry.test.mjs]
+checked_by: [test/integration/structure_test.go, core/domain/model/work/Label_test.go, core/domain/model/work/Cover_test.go, test/integration/media_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs]
 ---
 
 # Make work recognisable at a glance
@@ -51,7 +51,3 @@ title on the entry and on the card.
 * No colour picker and no hex values ([ADR-0029](../../adr/ADR-0029-design-system-tokens.md)).
 * No creating a label from inside the entry's picker — labels are made on the collection.
 * Attachments in general belong to the media context.
-
-## Today
-
-* Check 7: not met — the labels dialog is reachable from the collection's page menu for everybody and draws its create, rename and delete controls without asking the role, tracked in #1080.

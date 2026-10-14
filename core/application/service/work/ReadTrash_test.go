@@ -12,6 +12,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -53,6 +54,23 @@ func (s *trashStore) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[s
 
 var deletedEarlier = now.Add(-time.Hour)
 
+// trashPolicies answers the trash period the retention pass reads, or a failure.
+type trashPolicies struct {
+	policy lifecycle.Policy
+	err    error
+}
+
+func (p trashPolicies) Ensure(context.Context, []lifecycle.Policy) error { return nil }
+
+func (p trashPolicies) Find(_ context.Context, kind lifecycle.DataKind) (lifecycle.Policy, error) {
+	if kind != lifecycle.KindTrash {
+		return lifecycle.Policy{}, shared.ErrNotFound
+	}
+	return p.policy, p.err
+}
+
+const trashDay = 24 * time.Hour
+
 func trashEntry(kind domain.TrashKind, id, hub, collection shared.ID, subtype string) domain.TrashEntry {
 	return domain.TrashEntry{
 		Kind: kind, ID: id, BatchID: shared.MustParseID("0192f000-0000-7000-8000-0000000000b1"),
@@ -64,7 +82,11 @@ func trashEntry(kind domain.TrashKind, id, hub, collection shared.ID, subtype st
 func newTrashReader(entries ...domain.TrashEntry) (ListTrash, *trashStore, *reader) {
 	store := &trashStore{page: repository.TrashPage{Entries: entries}}
 	permitted := &reader{}
-	return ListTrash{Trash: store, Reader: permitted, UnitOfWork: &unitOfWork{}}, store, permitted
+	return ListTrash{
+		Trash: store, Reader: permitted, UnitOfWork: &unitOfWork{},
+		Policies:        trashPolicies{policy: lifecycle.Policy{DataKind: lifecycle.KindTrash, RetainDays: 30}},
+		TombstoneWindow: 90 * trashDay,
+	}, store, permitted
 }
 
 // The read side of the trash, and the two things it owes: the page as stored, and a read-only
@@ -242,7 +264,7 @@ func TestTheTrashProjectionCarriesEveryFieldEvenWhenEmpty(t *testing.T) {
 		t.Fatalf("the answer holds %d rows, want 1", len(rows))
 	}
 	for _, field := range []string{
-		"kind", "id", "trash_batch_id", "deleted_at", "title", "subtype",
+		"kind", "id", "trash_batch_id", "deleted_at", "purge_after", "title", "subtype",
 		"hub_id", "collection_id", "parent_id", "version",
 	} {
 		if _, present := rows[0][field]; !present {
@@ -254,5 +276,48 @@ func TestTheTrashProjectionCarriesEveryFieldEvenWhenEmpty(t *testing.T) {
 	}
 	if !handler.Descriptor().ReadOnly {
 		t.Error("ListTrash is not declared read-only")
+	}
+}
+
+// Each entry says when the automatic pass may take it, by the pass's own two numbers: the trash
+// period it reads and the offline window, whichever ends later (UC-LIF-02 check 6). A tenant the pass
+// has not reached yet counts with the documented default, and a failed read fails the list rather
+// than guessing a date.
+func TestEachTrashEntrySaysWhenTheAutomaticPassMayTakeIt(t *testing.T) {
+	trash := func(days int) trashPolicies {
+		return trashPolicies{policy: lifecycle.Policy{DataKind: lifecycle.KindTrash, RetainDays: days}}
+	}
+	for _, c := range []struct {
+		name     string
+		policies trashPolicies
+		window   time.Duration
+		want     time.Time
+	}{
+		{"the window outlasts the period", trash(30), 90 * trashDay, deletedEarlier.Add(90 * trashDay)},
+		{"the period outlasts the window", trash(120), 90 * trashDay, deletedEarlier.AddDate(0, 0, 120)},
+		{"no period stored yet", trashPolicies{err: shared.ErrNotFound}, 0, deletedEarlier.AddDate(0, 0, 30)},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			handler, _, _ := newTrashReader(trashEntry(domain.TrashItemKind, taskID, hubID, collectionID, "TASK"))
+			handler.Policies, handler.TombstoneWindow = c.policies, c.window
+
+			out, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), nil)
+			if err != nil {
+				t.Fatalf("invoking through the catalogue: %v", err)
+			}
+			rows, _ := out["data"].([]usecase.Output)
+			if len(rows) != 1 {
+				t.Fatalf("the answer holds %d rows, want 1", len(rows))
+			}
+			if got, _ := rows[0]["purge_after"].(time.Time); !got.Equal(c.want) {
+				t.Errorf("purge_after is %v, want %v", rows[0]["purge_after"], c.want)
+			}
+		})
+	}
+
+	handler, _, _ := newTrashReader(trashEntry(domain.TrashItemKind, taskID, hubID, collectionID, "TASK"))
+	handler.Policies = trashPolicies{err: errors.New("the database went away")}
+	if _, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{}); err == nil {
+		t.Error("a failed read of the trash period answered a list with guessed dates")
 	}
 }

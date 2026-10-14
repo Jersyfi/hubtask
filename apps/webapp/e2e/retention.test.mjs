@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, HUB, MANIFEST, OTHER, stub, forgetUnstubbed } from './fixture.mjs';
+import { ACCOUNT, HUB, ITEMS, MANIFEST, OTHER, stub, forgetUnstubbed } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -29,6 +29,9 @@ const HOLD = {
   id: '01a0e2e0-0000-7000-8000-0000000003a1', reason: 'Pending litigation, ref. 4 O 128/26',
   placed_by: ACCOUNT.id, placed_at: '2026-09-20T08:00:00Z', scope: { kind: 'ACCOUNT', id: OTHER.id },
 };
+
+/** A hold on one entry: listed by the entry's title, never by its identifier (P-08). */
+const ENTRY_HOLD = { ...HOLD, id: '01a0e2e0-0000-7000-8000-0000000003a3', scope: { kind: 'ITEM', id: ITEMS[1].id } };
 
 const served = await serve(DIST);
 test.after(() => served.close());
@@ -49,7 +52,8 @@ async function open(browser, role, { policies = [], kinds = [] } = {}) {
         { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'MEMBER' },
       ], page: { next_cursor: null, has_more: false } } });
     }
-    if (path === '/legal-holds' && request.method() === 'GET') return route.fulfill({ json: [HOLD] });
+    if (path === '/legal-holds' && request.method() === 'GET') return route.fulfill({ json: [HOLD, ENTRY_HOLD] });
+    if (path === '/search') return route.fulfill({ json: { data: [ITEMS[0]], items: [ITEMS[0]], page: { next_cursor: null, has_more: false } } });
     if (path === '/legal-holds' && request.method() === 'POST') {
       written.push(request.postDataJSON());
       return route.fulfill({ status: 201, json: { ...HOLD, id: '01a0e2e0-0000-7000-8000-0000000003a2', ...request.postDataJSON() } });
@@ -90,7 +94,32 @@ test('chromium: the owner places a hold on a person, picked by name', async () =
     // A hub is picked from the tree, not typed.
     await form.getByLabel('What it covers').selectOption('CONTAINER');
     assert.ok((await form.getByLabel('Which hub or collection').locator('option').allTextContents()).includes(HUB.name));
-    assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 1);
+    assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 2);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: the owner holds one entry found by its title, and the list names it', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await open(browser, 'OWNER');
+    // The hold already placed on an entry reads as the entry's title.
+    await page.getByText(`The entry “${ITEMS[1].title}”, and everything under it`).waitFor();
+    assert.equal(await page.getByText(ITEMS[1].id).count(), 0, 'no identifier on the screen');
+
+    const form = page.locator('form', { hasText: 'Place a hold' });
+    await form.getByLabel('What it covers').selectOption('ITEM');
+    assert.equal(await form.locator('input:not([type="search"])').count(), 0, 'no box to type an identifier into');
+    await form.getByLabel('Which entry').fill('tiles');
+    await form.getByRole('button', { name: ITEMS[0].title }).click();
+    await form.getByText(`Chosen: ${ITEMS[0].title}`).waitFor();
+    await form.getByLabel('Why').fill('Pending litigation');
+    await form.getByRole('button', { name: 'Place it' }).click();
+    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+    assert.deepEqual(written[0], { scope: { kind: 'ITEM', id: ITEMS[0].id }, reason: 'Pending litigation' });
     assert.deepEqual(failures, []);
     await close();
   } finally {

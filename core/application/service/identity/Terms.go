@@ -217,6 +217,7 @@ func (w SessionWriter) mintTerms(
 		if err := w.Pending.Insert(ctx, credential, presented); err != nil {
 			return err
 		}
+		w.stepOwed(ctx, credential.Purpose)
 		for _, subject := range hint.Subjects {
 			if err := w.Attempts.Clear(ctx, subject); err != nil {
 				return err

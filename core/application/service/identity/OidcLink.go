@@ -215,6 +215,7 @@ func (w OidcWriter) handOnToTheFactor(
 	if err := s.Pending.Insert(ctx, next, presented); err != nil {
 		return SignInChallenge{}, err
 	}
+	s.stepOwed(ctx, next.Purpose)
 	return SignInChallenge{
 		Token:     secret.New(presented.Secret()),
 		ExpiresAt: next.ExpiresAt,

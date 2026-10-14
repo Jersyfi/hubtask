@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { WorkItem } from '@hubtask/sync-engine';
 
-import { archivalOfItem, isContainer, remainingDays } from './lifecycle.ts';
+import { archivalOfItem, daysUntil, isContainer, remainingDays } from './lifecycle.ts';
 
 const entry = (extra: Partial<WorkItem> = {}): WorkItem =>
   ({ id: 'i', type: 'TASK', title: 'Buy milk', version: 1, ...extra }) as WorkItem;
@@ -55,4 +55,12 @@ test('which endpoint restores a row is the row’s own answer', () => {
   // the subtype would be reading HUB and TASK out of a field the contract documents as free text.
   assert.equal(isContainer('CONTAINER'), true);
   assert.equal(isContainer('ITEM'), false);
+});
+
+test('the days until the server\'s date round up and never go below zero', () => {
+  const now = Date.parse('2026-09-10T00:00:00Z');
+  assert.equal(daysUntil('2026-12-09T00:00:00Z', now), 90);
+  assert.equal(daysUntil('2026-09-10T01:00:00Z', now), 1);
+  assert.equal(daysUntil('2026-09-01T00:00:00Z', now), 0);
+  assert.equal(daysUntil('not a date', now), undefined);
 });

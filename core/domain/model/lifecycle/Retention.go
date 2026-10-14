@@ -103,11 +103,29 @@ func DefaultPolicies() []Policy {
 // trash to be emptied sooner, and answering with the soonest allowed is closer to that than refusing
 // to sweep at all.
 func (p Policy) Cutoff(now time.Time) time.Time {
+	return now.AddDate(0, 0, -p.days())
+}
+
+// RemovableAfter is the moment after which the automatic pass may remove a row deleted at
+// deletedAt: the period (its floor applied, as Cutoff applies it) and the offline window, whichever
+// ends later. The pass compares the same two ways - older than its cutoff, and not more recent than
+// the window - so what a screen says and what the pass does are one statement (data-retention.md §3,
+// offline-sync.md §7). A legal hold keeps a row past this moment; that is the hold's to say.
+func (p Policy) RemovableAfter(deletedAt time.Time, window time.Duration) time.Time {
+	byPeriod := deletedAt.AddDate(0, 0, p.days())
+	if byWindow := deletedAt.Add(window); byWindow.After(byPeriod) {
+		return byWindow
+	}
+	return byPeriod
+}
+
+// days is the period in force: the configured one, raised to the kind's floor.
+func (p Policy) days() int {
 	days := p.RetainDays
 	if floor := FloorFor(p.DataKind); days < floor {
 		days = floor
 	}
-	return now.AddDate(0, 0, -days)
+	return days
 }
 
 // FloorFor is the lower bound of one kind: what no configuration may undercut.

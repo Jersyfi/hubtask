@@ -82,9 +82,22 @@
     lastResults?: ReadonlyMap<string, BulkResult>;
     /** Asked to copy a card. Handed up, because a duplicate ends on the copy and that is a route. */
     onduplicate?: (item: WorkItem) => void;
+    /**
+     * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
+     * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
+     * a copy where the reader may create one.
+     */
+    changeRefusal: (item: WorkItem) => string | undefined;
+    /** Whether the reader may create entries here - what a copy is. */
+    mayCreate: boolean;
+    /** Whether the reader may change the board's columns, which are the collection's shape (`STRUCTURE`). */
+    mayShape: boolean;
   }
 
-  const { collectionId, isReadOnly = false, query, lastResults, onduplicate }: Props = $props();
+  const { collectionId, isReadOnly = false, query, lastResults, onduplicate, changeRefusal, mayCreate, mayShape }: Props = $props();
+
+  /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
+  const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
 
   /** The sentence one card shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -421,6 +434,12 @@
    * column stops being the column — and where the call behind it stops being `:reorder`.
    */
   function menuItems(card: WorkItem, cards: readonly WorkItem[]) {
+    if (isReadOnly) return [];
+    const copy = everyItem(card, cards).filter((each) => each.id === 'duplicate' && mayCreate);
+    return isMovable(card) ? everyItem(card, cards).filter((each) => each.id !== 'duplicate' || mayCreate) : copy;
+  }
+
+  function everyItem(card: WorkItem, cards: readonly WorkItem[]) {
     return [
       ...RANK_COMMANDS.map((command) => ({
         id: command.id,
@@ -486,7 +505,8 @@
       const key = held?.getAttribute('data-column') ?? 'none';
       const cards = cardsOf(key === 'none' ? null : key);
       const index = cards.findIndex((each) => each.id === cardId);
-      if (!cardId || index < 0 || isReadOnly) return null;
+      const card = cards[index];
+      if (!cardId || index < 0 || !card || !isMovable(card)) return null;
       return { id: cardId, index, level: { key, elements: elementsOf(key) } };
     },
     // Which column the pointer is over. `elementFromPoint` rather than a rectangle kept from the
@@ -563,7 +583,7 @@
       const cards = cardsOf(column === 'none' ? null : column);
       const index = cards.findIndex((each) => each.id === cardId);
       const card = cards[index];
-      if (!card) return;
+      if (!card || !isMovable(card)) return;
 
       if (rankIntent(event, index, cards.length) === null) return;
       event.preventDefault();
@@ -595,7 +615,7 @@
        explained what a column is and offered no way to make one would be a dead end. -->
   <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket">
     {#snippet action()}
-      {#if isBucketBoard && !isReadOnly}
+      {#if isBucketBoard && !isReadOnly && mayShape}
         <Button icon="plus" onclick={() => editColumn(undefined)}>
           {t('app.board.create_column')}
         </Button>
@@ -637,7 +657,7 @@
                    Grouped by anything else the column is a value rather than a place, and there is
                    nothing to act on — so the control is absent rather than dead. Present and
                    dead, it would be the silent ignoring this project has a rule against. -->
-              {#if bucket && isBucketBoard && !isReadOnly}
+              {#if bucket && isBucketBoard && !isReadOnly && mayShape}
                 {@const column = bucket}
                 <Menu
                   label={t('app.board.column_actions', { name: column.name })}
@@ -719,7 +739,7 @@
                           <LabelChip name={label.name} colorToken={label.color_token} />
                         {/if}
                       {/each}
-                      {#if !isReadOnly}
+                      {#if menuItems(card, cards).length > 0}
                         <!-- The keyboard path to moving a card — the drag is built
                              against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
                              alternative and a rank change is a command before it is a gesture. -->
@@ -754,7 +774,7 @@
 
     <!-- After the columns rather than above them: a new column is added at the end, and the control
          sits where the column will appear. -->
-    {#if isBucketBoard && !isReadOnly}
+    {#if isBucketBoard && !isReadOnly && mayShape}
       <div class="add-column">
         <Button tone="secondary" size="sm" icon="plus" onclick={() => editColumn(undefined)}>
           {t('app.board.create_column')}

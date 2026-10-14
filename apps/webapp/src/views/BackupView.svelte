@@ -23,10 +23,10 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
 
   import { backup, type Archive, type Schedule, type Target } from '../lib/data/backup.svelte.ts';
-  import { generations, readRule } from '../lib/data/backup.ts';
+  import { generations, readRule, sftpTarget } from '../lib/data/backup.ts';
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
@@ -54,6 +54,7 @@
   let draftHost = $state('');
   let draftUser = $state('');
   let draftPassword = $state('');
+  let draftHostKey = $state('');
 
   // The schedule form.
   // Empty rather than undefined: `Select`'s `value` prop has a default, and Svelte refuses a
@@ -165,18 +166,18 @@
   /** What the chosen kind needs, as the contract's own `config`. Nothing here is a credential. */
   function configuration(): Record<string, unknown> {
     if (draftKind === 'S3') return { endpoint: draftEndpoint.trim(), bucket: draftBucket.trim() };
-    if (draftKind === 'SFTP') return { host: draftHost.trim(), path: draftPath.trim() };
+    if (draftKind === 'SFTP') return sftpTarget(sftpDraft()).config;
     return { path: draftPath.trim() };
   }
+
+  const sftpDraft = () => ({ host: draftHost, path: draftPath, username: draftUser, hostKey: draftHostKey, password: draftPassword });
 
   /** What goes in once and is never answered. */
   function credentials(): Record<string, unknown> | undefined {
     if (draftKind === 'S3' && draftAccessKey) {
       return { access_key: draftAccessKey, secret_key: draftSecretKey };
     }
-    if (draftKind === 'SFTP' && draftUser) {
-      return { username: draftUser, password: draftPassword };
-    }
+    if (draftKind === 'SFTP') return sftpTarget(sftpDraft()).credentials;
     return undefined;
   }
 
@@ -199,6 +200,7 @@
       draftHost = '';
       draftUser = '';
       draftPassword = '';
+      draftHostKey = '';
     }, t('app.backup.target_added_announced'));
   }
 
@@ -546,6 +548,14 @@
             <Input label={t('app.backup.target_host')} bind:value={draftHost} />
             <Input label={t('app.backup.target_path')} bind:value={draftPath} />
             <Input label={t('app.backup.target_user')} bind:value={draftUser} />
+            <Textarea
+              label={t('app.backup.target_host_key')}
+              hint={t('app.backup.target_host_key_hint')}
+              rows={3}
+              spellcheck={false}
+              bind:value={draftHostKey}
+              isRequired
+            />
             <Input
               label={t('app.backup.target_password')}
               type="password"
