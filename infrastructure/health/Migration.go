@@ -6,6 +6,7 @@ package health
 import (
 	"context"
 	"log/slog"
+	"math"
 	"slices"
 	"time"
 
@@ -77,11 +78,20 @@ func (r *Registry) Migration(ctx context.Context) (port.MigrationState, bool) {
 	return state, true
 }
 
+// versionNumber narrows a migration version for the report. A version is a four-digit file number;
+// one outside int32 is not a version this build could have written, and reads as none.
+func versionNumber(version int64) int {
+	if version < 0 || version > math.MaxInt32 {
+		return 0
+	}
+	return int(version)
+}
+
 // compareMigrations is the rule: every embedded migration applied, or the binary is behind.
 func compareMigrations(embedded, applied []int64, older bool) port.MigrationState {
 	expected := slices.Max(embedded)
 	if older {
-		return port.MigrationState{Applied: 0, Expected: int(expected), Status: MigrationBehind}
+		return port.MigrationState{Applied: 0, Expected: versionNumber(expected), Status: MigrationBehind}
 	}
 	highest := int64(0)
 	held := make(map[int64]bool, len(applied))
@@ -89,7 +99,7 @@ func compareMigrations(embedded, applied []int64, older bool) port.MigrationStat
 		held[version] = true
 		highest = max(highest, version)
 	}
-	state := port.MigrationState{Applied: int(highest), Expected: int(expected), Status: MigrationOK}
+	state := port.MigrationState{Applied: versionNumber(highest), Expected: versionNumber(expected), Status: MigrationOK}
 	for _, version := range embedded {
 		if !held[version] {
 			state.Status = MigrationBehind
