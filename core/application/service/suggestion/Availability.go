@@ -7,6 +7,7 @@ import (
 	"context"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 )
 
 // Availability answers "may this workspace's content be sent at all", which is the question
@@ -21,6 +22,10 @@ type Availability struct {
 }
 
 // CanSuggest reports whether asking would reach a model.
+//
+// No answers with the provider's own refusal where it says one - a spent budget, with the moment it
+// renews (UC-AI-07 check 3) - so that the caller refuses with it rather than with the bare
+// `ai.unavailable`; otherwise with no error, and the caller's refusal is the bare one.
 func (a Availability) CanSuggest(ctx context.Context, actor appshared.ActorContext) (bool, error) {
 	if a.Providers == nil {
 		return false, nil
@@ -29,5 +34,11 @@ func (a Availability) CanSuggest(ctx context.Context, actor appshared.ActorConte
 	if err != nil {
 		return false, err
 	}
-	return provider.Capabilities().Completion, nil
+	if provider.Capabilities().Completion {
+		return true, nil
+	}
+	if _, says := provider.(aiprovider.Refusing); says {
+		return false, aiprovider.RefusalOf(provider)
+	}
+	return false, nil
 }

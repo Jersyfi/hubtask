@@ -25,6 +25,7 @@
 
 import type { TransportError } from '@hubtask/sync-engine';
 
+import { formatDateTime } from './i18n/datetime.ts';
 import type { MessageParams } from './i18n/format.ts';
 import type { Messages } from './i18n/messages.ts';
 
@@ -71,10 +72,27 @@ function candidates(error: TransportError): string[] {
   return out;
 }
 
+/**
+ * The parameters as a reader reads them. A parameter named `*_at` is a moment - a spent AI budget's
+ * `renews_at`, a running access's `ends_at` - and a message cannot format one, so it is written in
+ * the reader's locale here, before the sentence takes it. A value that is not a moment stays as it
+ * arrived.
+ */
+function readable(params: Readonly<Record<string, string>> | undefined, locale: string): MessageParams {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(params ?? {})) {
+    out[name] = name.endsWith('_at') ? formatDateTime(value, locale) : value;
+  }
+  return out;
+}
+
 export function renderProblem(error: TransportError, messages: Messages): RenderedProblem {
   // The request id travels as a parameter as well as a field, because `errors.internal` renders it
   // inside its own sentence. Where it does, showing it again beneath would say it twice.
-  const params: MessageParams = { ...error.params, ...(error.requestId ? { request_id: error.requestId } : {}) };
+  const params: MessageParams = {
+    ...readable(error.params, messages.locale),
+    ...(error.requestId ? { request_id: error.requestId } : {}),
+  };
 
   const code = candidates(error).find((candidate) => messages.has(candidate)) ?? 'errors.internal';
   const message = messages.t(code, params);

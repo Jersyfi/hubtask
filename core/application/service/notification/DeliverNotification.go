@@ -60,6 +60,15 @@ const (
 	// from when until when, and why. The hub's name only where the recipient lets titles travel.
 	subjectEmergencyAccess = "email.emergency_access.subject"
 	bodyEmergencyAccess    = "email.emergency_access.body"
+	// A role somebody was given: MEMBERSHIP's category, its own sentence, naming the role and the
+	// place. A workspace-wide role has no place to name and no title to withhold.
+	subjectRoleGranted          = "email.role_granted.subject"
+	bodyRoleGranted             = "email.role_granted.body"
+	subjectRoleGrantedWorkspace = "email.role_granted.workspace.subject"
+	bodyRoleGrantedWorkspace    = "email.role_granted.workspace.body"
+	// rolePrefix and placePrefix name a role and a kind of place in the catalogue.
+	rolePrefix  = "email.role."
+	placePrefix = "email.role_granted.place."
 	// withheldSuffix names the variant of a message that has no title to put in it - because the
 	// recipient asked for none, or because the entry is gone.
 	withheldSuffix = ".withheld"
@@ -93,7 +102,12 @@ type DeliverNotification struct {
 	Subscriptions SubscriptionReader
 	// Accesses names the emergency access a member is told of. Optional like the two above: nil
 	// leaves the hub, the opener's words and the times out, which the withheld sentence survives.
-	Accesses   AccessReader
+	Accesses AccessReader
+	// Grants and Places name the role somebody was given: the grant, and the hub or collection it
+	// is on (an entry is read through Items). Grants nil leaves the role out of the message - the
+	// membership's withheld sentence; Places nil leaves the place's name out.
+	Grants     GrantReader
+	Places     PlaceReader
 	Mail       mail.Sender
 	Renderer   i18n.Renderer
 	UnitOfWork persistence.UnitOfWork
@@ -132,6 +146,16 @@ type AccessReader interface {
 	Find(ctx context.Context, id shared.ID) (work.EmergencyAccess, string, error)
 }
 
+// GrantReader answers a membership by its identifier - the identity repository's Find.
+type GrantReader interface {
+	Find(ctx context.Context, id shared.ID) (identity.Grant, error)
+}
+
+// PlaceReader answers a hub or a collection by its identifier - the container repository's Find.
+type PlaceReader interface {
+	Find(ctx context.Context, id shared.ID) (work.Container, error)
+}
+
 // RedemptionMinter is the identity service's seam. The empty secret means the account is no
 // longer waiting, and the mail carries the plain link.
 type RedemptionMinter interface {
@@ -153,6 +177,8 @@ type subject struct {
 	actorName string
 	// access is the emergency access the record names, zero for every other message.
 	access work.EmergencyAccess
+	// grant is the role the record names, zero for every other message.
+	grant identity.Grant
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -293,6 +319,20 @@ func (d DeliverNotification) load(
 				return err
 			}
 			loaded.access, loaded.title = access, hubName
+		case !record.MembershipID.IsZero() && d.Grants != nil:
+			// A grant that is gone was revoked, and its record went with it - this read lost
+			// the race by a moment. Not found, so the job ends without telling anybody of a role
+			// they no longer hold.
+			grant, err := d.Grants.Find(ctx, record.MembershipID)
+			if err != nil {
+				return err
+			}
+			loaded.grant = grant
+			title, err := d.placeName(ctx, grant.Scope)
+			if err != nil {
+				return err
+			}
+			loaded.title = title
 		case !record.ItemID.IsZero():
 			item, err := d.Items.Find(ctx, record.ItemID)
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
@@ -306,6 +346,30 @@ func (d DeliverNotification) load(
 		return subject{}, err
 	}
 	return loaded, nil
+}
+
+// placeName is the name of the hub, collection or entry a role is on; empty for the workspace and
+// for a place that is gone, which the withheld sentence survives.
+func (d DeliverNotification) placeName(ctx context.Context, scope identity.Scope) (string, error) {
+	var name string
+	var err error
+	switch scope.Type {
+	case identity.ScopeHub, identity.ScopeCollection:
+		if d.Places == nil {
+			return "", nil
+		}
+		var place work.Container
+		place, err = d.Places.Find(ctx, scope.ID)
+		name = place.Name
+	case identity.ScopeItem:
+		var item work.WorkItem
+		item, err = d.Items.Find(ctx, scope.ID)
+		name = item.Title
+	}
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return "", err
+	}
+	return name, nil
 }
 
 // send renders the message and hands it to the channel.
@@ -327,12 +391,21 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 	}
 
 	locale := loaded.recipient.locale
+	params := message.Params()
+	// The role and the place are words of the recipient's language, rendered before the sentence
+	// that carries them.
+	if message.RoleCode != "" {
+		params["role"] = d.Renderer.Render(locale, message.RoleCode, nil)
+	}
+	if message.PlaceCode != "" {
+		params["place"] = d.Renderer.Render(locale, message.PlaceCode, nil)
+	}
 	return d.Mail.Send(ctx, mail.Message{
 		To: loaded.recipient.address,
 		// The recipient's locale, never the actor's (i18n-l10n.md §1). The port takes it as an
 		// argument for exactly this reason: there is no call that can forget it.
-		Subject: d.Renderer.Render(locale, message.SubjectCode, message.Params()),
-		Body:    d.Renderer.Render(locale, message.BodyCode, message.Params()),
+		Subject: d.Renderer.Render(locale, message.SubjectCode, params),
+		Body:    d.Renderer.Render(locale, message.BodyCode, params),
 	})
 }
 
@@ -363,6 +436,17 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		Link:        d.link(loaded.record),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
+	if !loaded.grant.ID.IsZero() {
+		message.SubjectCode, message.BodyCode = subjectRoleGranted, bodyRoleGranted
+		message.RoleCode = rolePrefix + strings.ToLower(string(loaded.grant.Role))
+		message.Link = d.placeLink(loaded.grant.Scope)
+		if loaded.grant.Scope.Type == identity.ScopeTenant {
+			// The whole workspace: no place to name, so no title to withhold either.
+			message.SubjectCode, message.BodyCode = subjectRoleGrantedWorkspace, bodyRoleGrantedWorkspace
+			return message
+		}
+		message.PlaceCode = placePrefix + strings.ToLower(string(loaded.grant.Scope.Type))
+	}
 	if loaded.record.Category == domain.CategoryEmergencyAccess && !loaded.access.ID.IsZero() {
 		message.Reason = loaded.access.Reason
 		message.When = inZone(loaded.access.OpenedAt, loaded.recipient.zone)
@@ -429,11 +513,31 @@ func (d DeliverNotification) link(record domain.Notification) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.MembershipID.IsZero():
+		// The place the role is on; compose has the grant and names it.
+		return base
 	case !record.PrivateHubAccessID.IsZero():
 		// The installation, where the access is gone: compose names the hub when it is there.
 		return base
 	case record.PrivateHubTrashed():
 		return base + "/administration/private-hubs"
+	}
+	return base
+}
+
+// placeLink is where a role's place opens in the web app; the installation for the workspace.
+func (d DeliverNotification) placeLink(scope identity.Scope) string {
+	base := strings.TrimSuffix(d.BaseURL, "/")
+	if base == "" {
+		return ""
+	}
+	switch scope.Type {
+	case identity.ScopeHub:
+		return base + "/hubs/" + url.PathEscape(scope.ID.String())
+	case identity.ScopeCollection:
+		return base + "/collections/" + url.PathEscape(scope.ID.String())
+	case identity.ScopeItem:
+		return base + "/items/" + url.PathEscape(scope.ID.String())
 	}
 	return base
 }

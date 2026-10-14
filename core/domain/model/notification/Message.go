@@ -52,6 +52,12 @@ type Message struct {
 	Reason string
 	When   string
 	Until  string
+	// RoleCode and PlaceCode belong to the role somebody was given (UC-NOT-01 check 9): the role
+	// and the kind of place it is on, as catalogue codes the channel renders in the recipient's
+	// language into the `{role}` and `{place}` parameters - a role's name is a word of the
+	// interface, not of the backend (rule 8).
+	RoleCode  string
+	PlaceCode string
 }
 
 // Params is the message's parameters as the i18n port takes them.

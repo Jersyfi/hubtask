@@ -92,3 +92,44 @@ func TestTheOnlyProviderCannotBeSwitchedOffOnItsFormOrRemoved(t *testing.T) {
 		t.Errorf("saving the only provider's form, still on, was refused: %v", err)
 	}
 }
+
+// The guard judges what a save changes, not what it resends: a client that sends the whole settings
+// object resends the installation's locked `methods: [OIDC]` beside the field it did change, and a
+// workspace with no provider on is still not left with less than it had. A save that does change
+// the methods meets the lock first.
+func TestAnUnchangedLockedMethodsIsNotJudgedAsTheLastWayIn(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	fixture.writer.Providers = newProviderStore(tenant)
+	fixture.instance.level.Policy = lockedTo(&[]string{domain.MethodOidc})
+
+	resent := []string{domain.MethodOidc}
+	if _, err := (UpdateWorkspace{Writer: fixture.writer}).Execute(t.Context(), workspaceActor(),
+		UpdateWorkspaceCommand{
+			SignIn: WorkspacePolicyChange{Policy: domain.PolicyPatch{
+				Methods: &resent, MinLength: intOf(20),
+			}},
+			StepUpToken: "hbt_stp_x",
+		}); err != nil {
+		t.Fatalf("a save resending the locked methods unchanged was refused: %v", err)
+	}
+	if len(fixture.store.updates) != 1 {
+		t.Fatalf("the save beside the unchanged methods was not written: %d writes", len(fixture.store.updates))
+	}
+	written := fixture.store.updates[0].changed.Settings.SignIn
+	if written.Methods != nil {
+		t.Errorf("the resent methods were pinned to the workspace's own row: %v", *written.Methods)
+	}
+	if written.MinLength == nil || *written.MinLength != 20 {
+		t.Error("the change beside the resent methods was not written")
+	}
+
+	changed := []string{domain.MethodOidc, domain.MethodDirect}
+	_, err := (UpdateWorkspace{Writer: fixture.writer}).Execute(t.Context(), workspaceActor(),
+		UpdateWorkspaceCommand{
+			SignIn:      WorkspacePolicyChange{Policy: domain.PolicyPatch{Methods: &changed}},
+			StepUpToken: "hbt_stp_x",
+		})
+	if detail := detailOf(err); detail != "auth.policy_locked" {
+		t.Errorf("changing the locked methods was answered with %q, want auth.policy_locked", detail)
+	}
+}
