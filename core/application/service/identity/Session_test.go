@@ -272,6 +272,12 @@ func (d tenantDirectory) Resolve(_ context.Context, slug string) (shared.ID, err
 type passwordsFake struct {
 	valid   string
 	decoyed int
+	// staleBelow marks the stored hashes "under an older cost": those with this prefix.
+	staleBelow string
+}
+
+func (p *passwordsFake) NeedsRehash(stored string) bool {
+	return p.staleBelow != "" && strings.HasPrefix(stored, p.staleBelow)
 }
 
 func (p *passwordsFake) Hash(password secret.Secret) (string, error) {

@@ -22,6 +22,11 @@ type PasswordHasher interface {
 	// failure; the error path is for a stored value the adapter cannot read.
 	Verify(stored string, password secret.Secret) (bool, error)
 
+	// NeedsRehash answers whether a stored hash was computed under a lower cost than the build's
+	// current one, so that a verified password can be hashed afresh and stored. An unreadable hash
+	// answers false: Verify reports it.
+	NeedsRehash(stored string) bool
+
 	// VerifyDecoy burns the work a real verification would, against a hash of a secret nobody
 	// knows. It is what "no such account" costs, so that it costs what "wrong password" costs
 	// (T-02's constant shape).

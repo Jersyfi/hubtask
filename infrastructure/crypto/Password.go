@@ -22,7 +22,9 @@ import (
 // bound what a burst of sign-ins can demand of the scheduler.
 //
 // Raising them later is safe and expected: every hash stores the numbers it was computed under,
-// so an old hash verifies under its own cost until the next successful sign-in re-hashes it.
+// so an old hash verifies under its own cost until the next successful sign-in re-hashes it
+// (NeedsRehash). Raise them together - a change that raises one and lowers another has the old
+// and the new build rewrite each other's hashes while both serve.
 const (
 	passwordPasses      = 3
 	passwordMemoryKiB   = 64 * 1024
@@ -103,6 +105,20 @@ func (p Passwords) Verify(stored string, password secret.Secret) (bool, error) {
 	derived := argon2.IDKey([]byte(password.Reveal()), salt,
 		passes, memoryKiB, parallelism, uint32(len(key))) //nolint:gosec // G115: the key length was parsed from a bounded hash
 	return subtle.ConstantTimeCompare(derived, key) == 1, nil
+}
+
+// NeedsRehash answers whether a stored hash was computed under a lower cost than this build's: any
+// of memory, passes, lanes or key length below the constants above. Lower, not different: during a
+// rolling update an older build serves beside a newer one, and "different" would have the two
+// rewrite each other's hashes on every sign-in. A cost lowered on purpose therefore reaches a hash
+// only when the password is next set. An unreadable hash answers false - Verify reports it.
+func (p Passwords) NeedsRehash(stored string) bool {
+	_, key, passes, memoryKiB, parallelism, err := parsePasswordHash(stored)
+	if err != nil {
+		return false
+	}
+	return memoryKiB < passwordMemoryKiB || passes < passwordPasses ||
+		parallelism < passwordParallelism || len(key) < passwordKeyBytes
 }
 
 // VerifyDecoy burns the same work a real verification would, against the construction-time decoy.

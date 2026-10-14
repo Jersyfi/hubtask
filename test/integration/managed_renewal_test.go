@@ -38,6 +38,8 @@ func (plainHasher) Verify(stored string, password secret.Secret) (bool, error) {
 	return stored == "hash:"+password.Reveal(), nil
 }
 
+func (plainHasher) NeedsRehash(string) bool { return false }
+
 func (plainHasher) VerifyDecoy(secret.Secret) {}
 
 func renewal(ctx context.Context, t *testing.T) identityservice.IssueStartPassword {
