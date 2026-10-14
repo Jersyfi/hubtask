@@ -172,11 +172,6 @@ func (r MembershipRepository) Administrators(
 	return administrators, nil
 }
 
-// HubsOf answers the hub each named container or entry sits under.
-//
-// The tenant is not a parameter: row level security bounds the query to the tenant of the running
-// transaction, so another tenant's container answers nothing even when its identifier is known
-// (ADR-0010).
 // HubsOpenedFor answers, of the named hubs, those the account holds a running emergency access to.
 func (r MembershipRepository) HubsOpenedFor(
 	ctx context.Context, accountID shared.ID, hubIDs []shared.ID, now time.Time,
@@ -207,6 +202,11 @@ func (r MembershipRepository) HubsOpenedFor(
 	return idsFrom(rows)
 }
 
+// HubsOf answers the hub each named container or entry sits under.
+//
+// The tenant is not a parameter: row level security bounds the query to the tenant of the running
+// transaction, so another tenant's container answers nothing even when its identifier is known
+// (ADR-0010).
 func (r MembershipRepository) HubsOf(
 	ctx context.Context, ids []shared.ID,
 ) (map[shared.ID]repository.Hub, error) {
