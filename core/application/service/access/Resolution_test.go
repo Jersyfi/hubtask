@@ -45,6 +45,62 @@ func TestAHubsAdministratorIsJudgedOnACollectionPathWithoutTheHub(t *testing.T) 
 	}
 }
 
+// A grant on a single entry names the entry alone (identity.GrantMembership); the hub's
+// administrator must still be judged on the role they hold on the hub, along the entry's whole path.
+func TestAHubsAdministratorIsJudgedOnAnEntryPathWithoutItsLevels(t *testing.T) {
+	itemID := shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleAdmin},
+	})
+	store.hubs = map[shared.ID]identityrepository.Hub{itemID: {ID: hubID, Collection: collectionID}}
+
+	err := authorizer.Authorize(context.Background(), actorWithScopes("members:write"), Request{
+		Permission: service.PermissionManageMembers,
+		Path:       []identity.Scope{identity.TenantScope(), identity.ItemScope(itemID)},
+		Action:     "membership.granted",
+		TokenScope: "members:write",
+		Grants:     identity.RoleViewer,
+	})
+	if err != nil {
+		t.Fatalf("the hub's administrator was refused on its entry: %v", err)
+	}
+	want := []identity.Scope{
+		identity.TenantScope(), identity.HubScope(hubID), identity.CollectionScope(collectionID),
+		identity.ItemScope(itemID),
+	}
+	if len(store.path) != len(want) {
+		t.Fatalf("the memberships were read along %v, want %v", store.path, want)
+	}
+	for i := range want {
+		if store.path[i] != want[i] {
+			t.Errorf("step %d is %v, want %v", i, store.path[i], want[i])
+		}
+	}
+}
+
+// A container's identifier presented as an entry names no entry: storage answers it without a
+// collection, nothing is added, and a role on the hub does not reach it.
+func TestAContainerPresentedAsAnEntryIsJudgedAsGiven(t *testing.T) {
+	authorizer, store, _, _ := serviceWith([]identity.Membership{
+		{AccountID: accountID, Scope: identity.HubScope(hubID), Role: identity.RoleAdmin},
+	})
+	store.hubs = map[shared.ID]identityrepository.Hub{collectionID: {ID: hubID}}
+
+	allowed, err := authorizer.Permits(context.Background(), actorWithScopes(), Request{
+		Permission: service.PermissionRead,
+		Path:       []identity.Scope{identity.TenantScope(), identity.ItemScope(collectionID)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if allowed {
+		t.Error("a role on a hub reached an entry storage does not know")
+	}
+	if len(store.path) != 2 {
+		t.Errorf("the memberships were read along %v, want the path as given", store.path)
+	}
+}
+
 // The ordinary path names its hub, and asks storage nothing more than the memberships.
 func TestAPathWithItsHubAsksForNoHub(t *testing.T) {
 	authorizer, store, _, _ := serviceWith([]identity.Membership{

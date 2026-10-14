@@ -99,6 +99,15 @@ const (
 	// the queue for a process that has one (presentation/worker.Runner).
 	KindEmergencyAccessEmail Kind = "notification.emergency_access"
 
+	// KindRoleGrantedEmail sends one MEMBERSHIP notification about a role somebody was given
+	// (UC-NOT-01 check 9). The same delivery again, under its own kind for the same rolling update:
+	// a process of the previous release does not know the record's grant, would read a membership
+	// record without a subject as the trashed private hub's, and send that mail instead.
+	KindRoleGrantedEmail Kind = "notification.role_granted"
+
+	// RoleGrantedAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
+	RoleGrantedAttempts = 20
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

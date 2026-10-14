@@ -79,3 +79,17 @@ func TestAnUnknownCodeRendersAsItself(t *testing.T) {
 func TestTheRendererIsTheAdapterForThePort(t *testing.T) {
 	var _ port.Renderer = i18n.Renderer{}
 }
+
+// UC-AI-07 check 3: the one refusal reads as the budget, with when it renews, where the refusal
+// says the budget is spent - and as before where it says nothing more.
+func TestTheAiRefusalNamesASpentBudgetAndItsRenewal(t *testing.T) {
+	spent := renderer(t).Render("en", "ai.unavailable",
+		map[string]string{"reason": "budget_spent", "renews_at": "2026-09-09T22:00:00Z"})
+	if !strings.Contains(spent, "budget") || !strings.Contains(spent, "2026-09-09T22:00:00Z") || strings.Contains(spent, "{") {
+		t.Errorf("a spent budget reads %q", spent)
+	}
+	off := renderer(t).Render("en", "ai.unavailable", nil)
+	if strings.Contains(off, "budget") || strings.Contains(off, "{") || off == "" {
+		t.Errorf("an absent provider reads %q", off)
+	}
+}

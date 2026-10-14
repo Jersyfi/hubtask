@@ -75,7 +75,7 @@ async function offered(page) {
   return {
     complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
     comment: (await count(page.getByLabel('Say something'))) === 1,
-    addInside: (await count(page.getByRole('button', { name: `Add Activity inside ${CHILD.title}`, exact: true }))) === 1,
+    addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
     childMenu: (await count(page.getByRole('button', { name: `Move ${CHILD.title}` }))) === 1,
     assigneeEditor: (await count(page.locator('button[data-detail="assignee"]'))) === 1,
     notYours: (await count(page.locator('.role-reason', { hasText: 'Your role changes only the entries assigned to you.' }))) > 0,

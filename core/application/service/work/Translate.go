@@ -153,7 +153,8 @@ func (h AiTranslate) Execute(
 		return Translation{}, aiUnavailable
 	}
 	if !provider.Capabilities().Completion {
-		return Translation{}, aiUnavailable
+		// The provider's own refusal where it says one: a spent budget names when it renews.
+		return Translation{}, aiprovider.RefusalOf(provider)
 	}
 	prompt, err := h.Prompts.Get(translatePrompt)
 	if err != nil {

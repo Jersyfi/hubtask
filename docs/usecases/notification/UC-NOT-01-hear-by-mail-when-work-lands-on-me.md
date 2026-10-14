@@ -5,9 +5,9 @@ context: notification
 actors: [PE-member, PE-person, PE-guest]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12]
-state: partial
+state: built
 tasks: [C-09, C-01, C-03]
-checked_by: [core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, test/integration/notification_test.go, test/integration/notification_delivery_test.go, test/integration/notification_locale_test.go]
+checked_by: [core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, test/integration/notification_test.go, test/integration/notification_delivery_test.go, test/integration/notification_locale_test.go, core/application/service/notification/RecordRoleGranted_test.go, core/application/service/notification/DeliverRoleGranted_test.go, core/application/service/identity/Membership_test.go, test/integration/role_granted_mail_test.go]
 ---
 
 # Hear by mail when work lands on me
@@ -49,7 +49,3 @@ and its member — each receive one mail; Carla, who wrote it, receives none.
 * No digest or batching: one event, one mail.
 * No list of past notifications in the app, and no read or unread state.
 * In `D1` a person working alone assigns nothing to anybody else; there is nothing to tell.
-
-## Today
-
-* Check 9: not met — `membership.granted` maps to no notification category, so a person given access is not told, tracked in #1081.

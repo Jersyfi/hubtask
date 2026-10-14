@@ -1490,6 +1490,11 @@ func run() error {
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			// The person given the role is told in the grant's transaction (UC-NOT-01 check 9).
+			Notices: notification.RecordRoleGranted{
+				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
@@ -2847,6 +2852,8 @@ func run() error {
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			// The emergency access a member is told of: opener, times, reason and hub.
 			Accesses: postgres.NewEmergencyAccessRepository(),
+			// The role somebody was given, and the hub or collection it is on.
+			Grants: grants, Places: containers,
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
@@ -3186,11 +3193,13 @@ func run() error {
 		// The same delivery under its own kind, which a process of the previous release leaves alone
 		// (queue.KindEmergencyAccessEmail).
 		queueport.KindEmergencyAccessEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:       webhookDelivery,
-		queueport.KindAutomationRun:        automationRun,
-		queueport.KindAutomationHTTP:       outboundCall,
-		queueport.KindBackupRun:            backupRun,
-		queueport.KindBackupVerify:         worker.BackupVerify{Performer: backupPerformer},
+		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
+		queueport.KindRoleGrantedEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindAutomationRun:    automationRun,
+		queueport.KindAutomationHTTP:   outboundCall,
+		queueport.KindBackupRun:        backupRun,
+		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},
