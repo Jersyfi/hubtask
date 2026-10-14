@@ -215,3 +215,68 @@ func TestARefusedAnswerIsInTheTrail(t *testing.T) {
 		t.Errorf("the trail gained %d DENIED entries about the entry, want one", got)
 	}
 }
+
+// audit.md §7: accepting a proposal applies it through the write use case inside the answer's
+// read-write transaction, and that use case's refusal rolls the transaction back. Its DENIED entry
+// used to go with it. A workspace member who only views the private hub may answer proposals as far
+// as the workspace goes and may read the entry, but UpdateWorkItem refuses her the change.
+func TestARefusedAcceptanceIsInTheTrail(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	viewer := freshID(t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Vera Viewer')`,
+			[]any{viewer.String(), w.tenant.String()}},
+		{`INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
+		  VALUES ($1, $2, $3, 'TENANT', 'MEMBER')`,
+			[]any{freshID(t).String(), w.tenant.String(), viewer.String()}},
+		{`INSERT INTO membership (id, tenant_id, account_id, scope_type, scope_id, role)
+		  VALUES ($1, $2, $3, 'HUB', $4, 'VIEWER')`,
+			[]any{freshID(t).String(), w.tenant.String(), viewer.String(), w.hub.String()}},
+	} {
+		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding the viewer: %v", err)
+		}
+	}
+
+	catalogue := patchCatalogueFor(ctx, t)
+	cases := suggestionCases(ctx, t)
+	cases.Targets = suggestion.EntryTargets{Catalogue: catalogue}
+	cases.Catalogue = catalogue
+	actor := reader(w.tenant, viewer)
+	actor.Scopes = append(actor.Scopes, "items:write")
+
+	proposal, err := suggestiondomain.New(suggestiondomain.NewInput{
+		ID: freshID(t), TenantID: w.tenant,
+		TargetType: suggestiondomain.TargetWorkItem, TargetID: w.item,
+		Kind:    suggestiondomain.KindFields,
+		Payload: map[string]any{"title": "Buy oat milk"},
+		Provenance: suggestiondomain.Provenance{
+			Model: "a-model", PromptID: "suggest-fields", PromptVersion: "v1", ProducedAt: created,
+		},
+		InputDigest: suggestiondomain.Digest(w.title, ""),
+		Now:         created,
+	})
+	if err != nil {
+		t.Fatalf("building the proposal: %v", err)
+	}
+	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
+		return cases.Suggestions.Record(ctx, proposal)
+	}); err != nil {
+		t.Fatalf("recording the proposal: %v", err)
+	}
+
+	before := deniedEntries(ctx, t, w.tenant, viewer, w.item)
+	_, err = suggestion.AcceptSuggestion{Cases: cases}.Execute(ctx, actor, proposal.ID, nil)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the hub's viewer was answered %v, want forbidden", err)
+	}
+
+	if got := deniedEntries(ctx, t, w.tenant, viewer, w.item) - before; got != 1 {
+		t.Errorf("the trail gained %d DENIED entries about the entry, want one", got)
+	}
+}
