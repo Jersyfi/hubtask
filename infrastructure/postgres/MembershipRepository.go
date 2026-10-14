@@ -244,7 +244,13 @@ func (r MembershipRepository) HubsOf(
 		if err != nil {
 			return nil, err
 		}
-		hubs[namedID] = repository.Hub{ID: hubID, Private: row.Private}
+		hub := repository.Hub{ID: hubID, Private: row.Private}
+		if row.CollectionID.Valid {
+			if hub.Collection, err = idFrom(row.CollectionID); err != nil {
+				return nil, err
+			}
+		}
+		hubs[namedID] = hub
 	}
 	return hubs, nil
 }
