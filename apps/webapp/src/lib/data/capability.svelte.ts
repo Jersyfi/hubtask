@@ -16,7 +16,9 @@ import {
   changeVerdict,
   childVerdict,
   declaresType as declaresTypeIn,
+  holdsOnWorkspace,
   permissionVerdict,
+  reachesAdministration,
   rootTypes as rootTypesOf,
   typesWith as typesWithOf,
 } from './capability.ts';
@@ -48,6 +50,13 @@ export const childTypes = (type: string): readonly string[] =>
 /** Whether the role carries the permission unqualified. */
 export const holds = (role: string | undefined, permission: string): Verdict =>
   permissionVerdict(manifest.value, role, permission);
+
+/** Whether the reader holds the permission on the workspace itself; `undefined` while unknown. */
+export const holdsHere = (permission: string): boolean | undefined =>
+  holdsOnWorkspace(manifest.value, permission);
+
+/** Whether the reader reaches the administration; `undefined` while unknown. */
+export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);
 
 /** Whether this entry may be changed, `ASSIGNED` taken into account. */
 export const mayChange = (role: string | undefined, isAssignedToActor: boolean): Verdict =>

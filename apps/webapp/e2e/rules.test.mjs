@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { fallback, unstubbedSoFar } from './fixture.mjs';
+import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -63,6 +63,8 @@ const MANIFEST = {
   item_types: [{ type: 'TASK', capabilities: ['COMPLETION'], allowed_child_types: [], max_depth: 3 }],
   supported_locales: [{ locale: 'en', direction: 'ltr' }],
   query_fields: [], view_layouts: ['LIST'], roles: [], limits: {}, features: {},
+  // The workspace's owner: the rules are the administration's, which only they reach.
+  workspace_permissions: PERMISSIONS.OWNER,
   event_types: ['de.hubtask.work.item.created.v1', 'de.hubtask.work.item.overdue.v1'],
   automation: {
     triggers: ['EVENT', 'SCHEDULE', 'RELATIVE_DATE', 'INBOUND_WEBHOOK', 'MANUAL', 'JUMBLE_ENTRY'],

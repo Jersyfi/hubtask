@@ -12,7 +12,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { AI_SOURCE, stub } from './fixture.mjs';
+import { AI_SOURCE, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -20,13 +20,16 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, source) {
+async function open(browser, source, { alone = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const sent = [];
   let current = source;
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (alone && path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, several_people: false, private_hubs_offered: false } });
+    }
     if (path === '/ai-provider' && request.method() === 'GET') return route.fulfill({ status: 404, json: { code: 'ai.not_configured' } });
     if (path === '/ai-source' && request.method() === 'GET') return route.fulfill({ json: current });
     if (path === '/ai-person-opt-out' && request.method() === 'PUT') {
@@ -89,6 +92,38 @@ test('chromium: the consent register names who keeps their content out', async (
   const register = page.locator('[data-consent-register]');
   await register.waitFor({ timeout: 15_000 });
   assert.match((await register.textContent()) ?? '', /Kim Keeper/);
+});
+
+// P-10, UC-PRV-05 check 8 and data-protection.md §4.1: alone in a workspace there is nobody whose
+// content could be kept out, so neither the position nor the register is drawn.
+test('chromium: a workspace of one is asked nothing about people keeping their content out', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, AI_SOURCE, { alone: true });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  await page.getByRole('heading', { name: 'The budget' }).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the position is asked of a workspace of one');
+
+  await page.goto(`${served.origin}/administration/privacy`);
+  await page.getByRole('heading', { name: 'The two with their own path' }).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator('[data-consent-register]').count(), 0, 'the register is shown to a workspace of one');
+});
+
+test('chromium: a workspace of one still sees a stored AI for everybody, which stays in force', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, {
+    ...AI_SOURCE, person_opt_out: 'NOT_OFFERED', person_opt_out_basis: 'WORKS_AGREEMENT',
+    person_opt_out_contact: 'the works council', person_opt_out_origin: 'WORKSPACE',
+  }, { alone: true });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/ai`);
+  await page.locator('[data-person-opt-out]').waitFor({ timeout: 15_000 });
 });
 
 async function waitFor(condition, timeout = 10_000) {

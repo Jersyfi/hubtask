@@ -288,6 +288,29 @@ func TestEveryPresetIsReachableByItsKind(t *testing.T) {
 	}
 }
 
+// A preset answers an issuer only where the provider has one for every account (Google), and that
+// issuer is one the preset itself speaks for - a form that filled it would otherwise fill in a
+// value the save refuses as another provider's.
+func TestOnlyAProviderWithOneIssuerAnswersIt(t *testing.T) {
+	cases := []struct {
+		kind   ProviderKind
+		issuer string
+	}{
+		{KindGoogle, "https://accounts.google.com"},
+		{KindMicrosoft, ""},
+		{KindGeneric, ""},
+	}
+	for _, tc := range cases {
+		preset, _ := PresetOf(tc.kind)
+		if preset.Issuer != tc.issuer {
+			t.Errorf("%s answers issuer %q, want %q", tc.kind, preset.Issuer, tc.issuer)
+		}
+		if preset.Issuer != "" && !preset.SpeaksFor(IssuerHost(preset.Issuer)) {
+			t.Errorf("%s answers an issuer it does not speak for: %q", tc.kind, preset.Issuer)
+		}
+	}
+}
+
 // Which presets say they host a mailbox, and how (ADR-0078 §5). GENERIC says nothing and must keep
 // saying nothing: a self-hosted issuer's address is one its administrator typed, so it never
 // activates an invited account without the invitation's own link.

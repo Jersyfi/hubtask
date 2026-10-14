@@ -295,6 +295,17 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	// guess - which is the thing the manifest exists to prevent.
 	instance := openapi.InstanceReach{Reachable: source.InstanceReachable}
 
+	// What the caller holds on the workspace: absent for an anonymous caller, where nothing is
+	// held by anybody, and a list - empty included - for everybody signed in.
+	var workspacePermissions *[]openapi.CapabilitiesWorkspacePermissions
+	if source.WorkspacePermissions != nil {
+		held := make([]openapi.CapabilitiesWorkspacePermissions, 0, len(source.WorkspacePermissions))
+		for _, permission := range source.WorkspacePermissions {
+			held = append(held, openapi.CapabilitiesWorkspacePermissions(permission))
+		}
+		workspacePermissions = &held
+	}
+
 	return openapi.Capabilities{
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
@@ -317,6 +328,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Features:               &features,
 		Legal:                  legal,
 		Instance:               &instance,
+		WorkspacePermissions:   workspacePermissions,
 		Deprecations:           deprecationManifest(),
 	}
 }

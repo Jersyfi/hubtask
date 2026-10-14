@@ -66,6 +66,11 @@
   let inviteName = $state('');
   let inviteRole = $state('');
   let invited = $state<string | undefined>(undefined);
+  /** Why the address was refused, said at the address field (UC-ID-14 check 6, WCAG 3.3.1). */
+  let inviteRefusal = $state<string | undefined>(undefined);
+  /** Why the role could not be given after the invitation went out, said at the form. */
+  let grantRefusal = $state<string | undefined>(undefined);
+  let inviteAddressField = $state<HTMLElement | undefined>(undefined);
   /**
    * The one answer that carried an invitation's link - an installation that sends no mail - until
    * the reader dismisses it. Held here only: the link is a credential, and nothing keeps it.
@@ -238,22 +243,36 @@
     if (!address || !inviteRole) return;
     invited = undefined;
     handedOver = undefined;
-    let grantFailure: unknown;
-    await attempt(async () => {
-      const answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
-      grantFailure = answer.grantFailure;
-      if (answer.link !== undefined) {
-        // UC-ID-14 check 5: no mail went out, and the screen does not pretend one did.
-        await showLink(address, answer.link, t('app.people.invite_link_announced'));
-      } else {
-        invited = address;
-        announcer.say(t('app.people.invited_announced'));
-      }
-    });
-    // The link stands even where the role could not be given; the reason is said beside it.
-    if (grantFailure !== undefined) failure = renderProblem(grantFailure as never, messages).message;
-    // Out of the form whatever happened. A second press with the same address in it would be a
-    // second invitation the reader did not mean to send.
+    inviteRefusal = undefined;
+    grantRefusal = undefined;
+    // The form's own, not the page's `attempt`: a refusal drawn at the top of the page is drawn
+    // above the screen of whoever pressed the button at the form (UC-ID-14 check 6).
+    isWriting = true;
+    let answer: Awaited<ReturnType<typeof people.invite>>;
+    try {
+      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
+    } catch (error) {
+      // Nothing went out: the address stays to be corrected, the sentence is at its field, the
+      // reader is taken there, and it is said once.
+      inviteRefusal = renderProblem(error as never, messages).message;
+      announcer.say(inviteRefusal);
+      await tick();
+      inviteAddressField?.querySelector('input')?.focus();
+      return;
+    } finally {
+      isWriting = false;
+    }
+    if (answer.link !== undefined) {
+      // UC-ID-14 check 5: no mail went out, and the screen does not pretend one did.
+      await showLink(address, answer.link, t('app.people.invite_link_announced'));
+    } else {
+      invited = address;
+      announcer.say(t('app.people.invited_announced'));
+    }
+    // The invitation stands even where the role could not be given; the reason is said at the form.
+    if (answer.grantFailure !== undefined) grantRefusal = renderProblem(answer.grantFailure as never, messages).message;
+    // An invitation went out, so the form empties: a second press with the same address in it
+    // would be a second invitation the reader did not mean to send.
     inviteEmail = '';
     inviteName = '';
     inviteRole = '';
@@ -479,14 +498,18 @@
       {#if grantable.length > 0}
       <form class="panel" onsubmit={invite}>
         <Stack gap="150">
-          <Input
-            label={t('app.people.invite_email')}
-            bind:value={inviteEmail}
-            type="email"
-            autocomplete="off"
-            spellcheck={false}
-            isRequired
-          />
+          <div bind:this={inviteAddressField}>
+            <Input
+              label={t('app.people.invite_email')}
+              bind:value={inviteEmail}
+              type="email"
+              autocomplete="off"
+              spellcheck={false}
+              isRequired
+              error={inviteRefusal}
+              oninput={() => (inviteRefusal = undefined)}
+            />
+          </div>
           <Input
             label={t('app.people.invite_name')}
             hint={t('app.people.invite_name_hint')}
@@ -500,6 +523,9 @@
             placeholder={t('app.people.choose_role')}
             options={roleOptions}
           />
+          {#if grantRefusal}
+            <Banner tone="warning">{grantRefusal}</Banner>
+          {/if}
           <div>
             <Button
               type="submit"

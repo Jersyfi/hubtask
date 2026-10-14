@@ -181,3 +181,22 @@ for (const locale of ['en', 'de']) {
     assert.equal(sent[0].newcomer_role, undefined);
   });
 }
+
+// UC-ID-11: a workspace choosing Google has its one issuer filled in; another provider takes
+// it out again.
+test('chromium: choosing Google fills its issuer in a workspace too', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, 'en');
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByRole('button', { name: 'Add a provider' }).click();
+  const form = page.locator('form.panel');
+  const kind = form.getByLabel('Which provider');
+  const issuer = form.getByLabel(/^Issuer/);
+  await kind.selectOption('GOOGLE');
+  assert.equal(await issuer.inputValue(), 'https://accounts.google.com');
+  await kind.selectOption('GENERIC');
+  assert.equal(await issuer.inputValue(), '');
+});

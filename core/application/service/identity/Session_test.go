@@ -882,7 +882,7 @@ func TestARedemptionActivatesAndSignsIn(t *testing.T) {
 	token := redemptionToken(t)
 	fixture.accounts.redemption[token.Secret()] = waitingRedemption()
 
-	pair, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
+	result, err := RedeemInvitation{Writer: fixture.writer}.Execute(t.Context(), RedeemInvitationCommand{
 		Token: secret.New(token.Secret()), Password: secret.New("a long first password"),
 		RemoteAddr: "203.0.113.9:2",
 	})
@@ -896,7 +896,7 @@ func TestARedemptionActivatesAndSignsIn(t *testing.T) {
 	if len(fixture.sessions.inserted) != 1 {
 		t.Fatalf("%d sessions, want the redemption signed in", len(fixture.sessions.inserted))
 	}
-	if pair.RefreshToken.IsEmpty() {
+	if result.Pair == nil || result.Pair.RefreshToken.IsEmpty() {
 		t.Error("no pair answered")
 	}
 	redeemed, signedIn := false, false

@@ -147,12 +147,13 @@
   }
 
   /**
-   * Where a link comes from, said under its field: the installation's where it locked it or where
-   * this workspace set none, the installation's beside the workspace's own where both are set, or
-   * that nobody set one and the footer shows none (UC-ID-18 checks 1 and 3).
+   * Where a link comes from, said under its field: nothing where it is locked (the field says who
+   * locked it), the installation's where this workspace set none, the installation's beside the
+   * workspace's own where both are set, or that nobody set one and the footer shows none (UC-ID-18
+   * checks 1 to 3).
    */
   function linkOrigin(setting: Setting<string>, own: string): string {
-    if (setting.lock !== null) return lockedBecause(setting.lock) ?? '';
+    if (setting.lock !== null) return '';
     const inherited = setting.installation_source !== 'DEFAULT' && setting.installation !== '';
     if (own.trim() !== '') {
       return inherited
@@ -198,7 +199,7 @@
 
   /** Where a rule's value came from, said in a sentence; the installation's value beside it where it decided one. */
   function originOf<T>(setting: Setting<T>, shown: (value: T) => string): string {
-    if (setting.lock !== null) return lockedBecause(setting.lock) ?? '';
+    if (setting.lock !== null) return '';
     const above = setting.installation_source === 'DEFAULT'
       ? ''
       : ` ${t('app.signin_settings.installation_default', { value: shown(setting.installation) })}`;
@@ -339,8 +340,9 @@
 </script>
 
 {#snippet origin(text: string)}
-  <!-- Where the value came from, under the control it is about. -->
-  <p class="origin" data-origin>{text}</p>
+  <!-- Where the value came from, under the control it is about. A locked rule has none: its
+       control already says who locked it, as its reason, and saying it twice reads as two facts. -->
+  {#if text}<p class="origin" data-origin>{text}</p>{/if}
 {/snippet}
 
 {#snippet countRow(key: string, setting: Setting<number>, label: string, hint?: string, bounds: { min?: number; max?: number } = { min: setting.installation }, emptyIsOff = false)}

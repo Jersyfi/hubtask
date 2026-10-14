@@ -128,9 +128,10 @@ export const KEEPING: readonly KeepingRow[] = [ARCHIVE_ROW, TRASH_ROW];
  * reader is inside the section, and a tree of hubs beside sixteen settings screens would say they
  * are somewhere they are not.
  *
- * Who sees it is not decided here and not by this list. The area is offered where `GET /quotas` is
- * not refused, which is the area's condition exactly (ADR-0061 decision 1); a reader without it has
- * no row, no section and no route, and the server refuses the screens regardless.
+ * Who sees it is not decided here and not by this list. The area is offered where the manifest says
+ * the reader holds `STRUCTURE` or `READ_CONFIGURATION` on the workspace, the condition of the
+ * area's reads (ADR-0061 decision 1); a reader without it has no row, no section and no route, and
+ * the server refuses the screens regardless.
  */
 export interface SectionRow {
   readonly id: string;
@@ -393,7 +394,9 @@ export const TRASH = TRASH_ROW;
 export const YOU_CODE = 'app.nav.you';
 
 /**
- * The primary group, whole — Search included, whatever the bar is carrying.
+ * The primary group, whole — Search included, whatever the bar is carrying — and the jumble where
+ * it is the reader's: `READ` on the workspace itself (UC-JUM-01 check 7). A guest on one collection
+ * or an auditor has no jumble, and a row leading to one would lead to a refusal.
  *
  * **This reverses one sentence.** The rule was: from `medium` up the bar holds the entry to search
  * (ADR-0063 decision 4), so a row for it beside the tree would be a second entry to one
@@ -406,15 +409,17 @@ export const YOU_CODE = 'app.nav.you';
  * Below `medium` nothing changes: the tree draws no primary group there, because the bottom bar
  * holds those destinations and Search is already one of them.
  */
-export function primary(): readonly Destination[] {
-  return DESTINATIONS.filter((destination) => destination.group === 'primary');
+export function primary(options: { readonly hasJumble: boolean }): readonly Destination[] {
+  return DESTINATIONS.filter(
+    (destination) => destination.group === 'primary' && (destination.id !== 'jumble' || options.hasJumble),
+  );
 }
 
 /**
  * The account group, with the two rows the server decides.
  *
- * The administration area is offered only where `GET /quotas` is not refused — the frame's
- * `quotas.isReachable`, which is the area's condition exactly. The instance area is offered only
+ * The administration area is offered only where the manifest says this reader holds `STRUCTURE`
+ * or `READ_CONFIGURATION` on the workspace — the area's condition exactly. The instance area is offered only
  * where the manifest says this account is in the operator register (ADR-0070 §1).
  *
  * These are the places in this client where **hiding beats a gate**, and the rule that decides it

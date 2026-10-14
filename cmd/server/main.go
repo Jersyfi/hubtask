@@ -136,6 +136,10 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "operator" {
 		os.Exit(runOperatorCommand(os.Args[2:], os.Stdout, os.Stderr))
 	}
+	// The rest of that way: a workspace its own state locks every operator out of.
+	if len(os.Args) > 1 && os.Args[1] == "workspace" {
+		os.Exit(runWorkspaceCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// The bootstrap logger exists before the configuration does, because the first thing that
 	// can fail is reading the configuration - and that error is logged (T-18).
@@ -2374,6 +2378,9 @@ func run() error {
 			// Whether the caller operates this installation. The same register the
 			// control plane checks, so the menu cannot offer what the route refuses.
 			Operators: operators,
+			// What the caller holds on the workspace, from the authoriser every request is
+			// decided by, so the manifest cannot offer what a route refuses.
+			Workspace: authorizer,
 			// Whether the first start's setup is offered: the same function the setup's claim
 			// reads, so the card is drawn exactly where the route would accept it.
 			Setup:      setupCodes,

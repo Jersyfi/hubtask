@@ -90,8 +90,8 @@ export const ROUTES: readonly Route[] = [
   // carried the term would undo that in the address bar (security.md §9, ADR-0018).
   { name: 'search', pattern: '/search' },
   // Where things arrive before they are work. End-user, because deciding what an arrival becomes
-  // is the work rather than the administration of it — only rotating the intake address needs
-  // `AUTOMATION`, and the server refuses that on the screen.
+  // is the work rather than the administration of it. The workspace's own: drawn for somebody who
+  // reads the workspace itself, and inside it each control only for the permission it needs.
   { name: 'jumble', pattern: '/jumble' },
   { name: 'trash', pattern: '/trash' },
   { name: 'archive', pattern: '/archive' },
