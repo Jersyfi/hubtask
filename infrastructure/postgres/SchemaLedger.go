@@ -19,7 +19,7 @@ const undefinedFunction = "42883"
 
 // SchemaLedger reads which migrations the database has applied, for the readiness probe
 // (deployment.md §5). The ledger itself is closed to the application role, so it is read through
-// applied_schema_versions() (migration 0147), which answers the version numbers and nothing else.
+// applied_schema_versions() (migration 0150), which answers the version numbers and nothing else.
 type SchemaLedger struct {
 	UnitOfWork persistence.UnitOfWork
 }

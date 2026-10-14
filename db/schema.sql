@@ -2751,7 +2751,7 @@ REVOKE ALL ON FUNCTION instance_census() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION instance_census() TO hubtask_app;
 
 -- Which migrations the database has applied, for the readiness probe (deployment.md §5; migration
--- 0147): the ledger is closed to the application role, so it reads the numbers through this, and
+-- 0150): the ledger is closed to the application role, so it reads the numbers through this, and
 -- nothing else. plpgsql, because this file is loaded without goose, where the ledger is absent and
 -- the function answers NULL.
 CREATE OR REPLACE FUNCTION applied_schema_versions()
