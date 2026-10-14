@@ -746,3 +746,109 @@ func TestASweepWithoutTheNotificationPathStillMarks(t *testing.T) {
 		t.Error("a build with no notification path stopped marking")
 	}
 }
+
+// heldBatch is the sweep's batch of two, and the job's: what decides "come straight back" is a
+// full batch of entries the next pass would not find again.
+func (h *sweepHarness) heldBatch() (Sweeper, RunRetention) {
+	sweeper := h.sweeper()
+	sweeper.Batch = 2
+	purger := h.purger
+	purger.BatchSize = 2
+	return sweeper, RunRetention{Purger: purger}
+}
+
+func (h *sweepHarness) underATenantHold() {
+	h.holds.holds = domain.Holds{{
+		ID: holdID, Scope: domain.HoldTenant, Reason: "Pending litigation", PlacedAt: now,
+	}}
+}
+
+func markedFor(id shared.ID, rule domain.Rule) repository.Candidate {
+	return repository.Candidate{
+		ID: id, Type: work.ItemTask, Path: work.RootPath(id),
+		CollectionID: collectionID, HubID: hubID,
+		Pending: now.Add(-time.Hour), Rule: rule.ID, Action: domain.ActionArchive,
+	}
+}
+
+// A batch that is held entirely is read again on every pass - a block sets no due moment, a held
+// marking stays - so it is matched, held, and the end of the pass, in each phase.
+func TestABatchHeldEntirelyEndsThePassInEveryPhase(t *testing.T) {
+	old := now.AddDate(0, 0, -800)
+	for _, tc := range []struct {
+		name    string
+		arrange func(*testing.T, *sweepHarness)
+		reason  string
+	}{
+		{"phase one", func(t *testing.T, h *sweepHarness) {
+			h.ruleIn(t, func(*domain.NewRuleInput) {})
+			h.underATenantHold()
+			h.marking.due = []repository.Candidate{candidate(taskID, old), candidate(otherTaskID, old)}
+		}, domain.BlockedByLegalHold},
+		{"a chain's second stage", func(t *testing.T, h *sweepHarness) {
+			h.ruleIn(t, func(in *domain.NewRuleInput) {
+				in.ThenAfterDays, in.ThenAction = 730, domain.ActionHardDelete
+			})
+			h.underATenantHold()
+			h.marking.inChain = []repository.Candidate{candidate(taskID, old), candidate(otherTaskID, old)}
+		}, domain.BlockedByLegalHold},
+		{"phase two under a hold", func(t *testing.T, h *sweepHarness) {
+			rule := h.ruleIn(t, func(*domain.NewRuleInput) {})
+			h.underATenantHold()
+			h.marking.dueMarked = []repository.Candidate{markedFor(taskID, rule), markedFor(otherTaskID, rule)}
+		}, domain.BlockedByLegalHold},
+		{"phase two behind a retained descendant", func(t *testing.T, h *sweepHarness) {
+			rule := h.ruleIn(t, func(*domain.NewRuleInput) {})
+			h.marking.dueMarked = []repository.Candidate{markedFor(taskID, rule), markedFor(otherTaskID, rule)}
+			h.marking.descendant = map[shared.ID]int{taskID: 1, otherTaskID: 1}
+		}, domain.BlockedByDescendant},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newSweepHarness()
+			tc.arrange(t, h)
+			sweeper, run := h.heldBatch()
+
+			outcome, err := sweeper.Pass(context.Background(), actor())
+			if err != nil {
+				t.Fatalf("sweeping: %v", err)
+			}
+
+			if outcome.Matched != 2 || outcome.Held != 2 || outcome.Blocked[tc.reason] != 2 {
+				t.Fatalf("the pass reports %+v, want two matched, both held by %s", outcome, tc.reason)
+			}
+			if !run.Exhausted(outcome) {
+				t.Errorf("a batch held entirely reads as unfinished (%+v)", outcome)
+			}
+		})
+	}
+}
+
+// A pass that acted on a full batch has not reached the end, however much beside it was held:
+// what it marked changed state, and a pass that came back could find more behind it.
+func TestAFullBatchBesideAHeldOneIsUnfinished(t *testing.T) {
+	h := newSweepHarness()
+	rule := h.ruleIn(t, func(*domain.NewRuleInput) {})
+	old := now.AddDate(0, 0, -800)
+	h.marking.due = []repository.Candidate{candidate(taskID, old), candidate(otherTaskID, old)}
+	// Phase two's batch waits for the entries below each, so phase one's is the one that moves.
+	first := shared.MustParseID("0192f000-0000-7000-8000-000000000011")
+	second := shared.MustParseID("0192f000-0000-7000-8000-000000000012")
+	h.marking.dueMarked = []repository.Candidate{markedFor(first, rule), markedFor(second, rule)}
+	h.marking.descendant = map[shared.ID]int{first: 1, second: 1}
+	sweeper, run := h.heldBatch()
+
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if len(h.marking.marked) != 2 {
+		t.Fatalf("phase one marked %v, want its batch of two", h.marking.marked)
+	}
+	if outcome.Matched != 4 || outcome.Held != 2 {
+		t.Fatalf("the pass reports %+v, want four matched and two held", outcome)
+	}
+	if run.Exhausted(outcome) {
+		t.Errorf("a pass that marked a full batch reads as the end (%+v)", outcome)
+	}
+}
