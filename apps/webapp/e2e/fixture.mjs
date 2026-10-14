@@ -55,6 +55,17 @@ export const CHILDREN = {
 };
 export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
 
+const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
+export const ROLES = [
+  { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'DELETE_CONTAINER', 'READ_CONFIGURATION', 'AUDIT_READ'], item_access: ALL },
+  { role: 'ADMIN', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'READ_CONFIGURATION', 'AUDIT_READ'], item_access: ALL },
+  { role: 'MEMBER', permissions: ['READ', 'WRITE_ITEMS', 'AUTOMATION'], item_access: ALL },
+  { role: 'CONTRIBUTOR', permissions: ['READ', 'WRITE_ITEMS'], item_access: { read: 'ALL', create: 'ALL', change: 'ASSIGNED', comment: 'ASSIGNED' } },
+  { role: 'VIEWER', permissions: ['READ'], item_access: { read: 'ALL', create: 'NONE', change: 'NONE', comment: 'NONE' } },
+  { role: 'GUEST', permissions: ['READ'], item_access: { read: 'ALL', create: 'NONE', change: 'NONE', comment: 'ALL' } },
+  { role: 'AUDITOR', permissions: ['READ_CONFIGURATION', 'AUDIT_READ'], item_access: { read: 'NONE', create: 'NONE', change: 'NONE', comment: 'NONE' } },
+];
+
 export const MANIFEST = {
   product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single',
   // The three profiles as `domain-model.md` §2 defines them and a real server answers them,
@@ -72,8 +83,29 @@ export const MANIFEST = {
     { field: 'bucket_id', operators: ['EQ', 'IN'], sortable: false, groupable: true, nullable: true },
   ],
   view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'],
-  roles: [{ role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] }],
+  // The role matrix as the server publishes it (domain-model.md §3.2), strongest first - the order
+  // the effective role along a path is taken in, and the per-entry cells the screens offer from.
+  roles: ROLES,
   limits: { max_bulk_operations: 100 }, features: {},
+  // What the reader - the workspace's owner - holds on the workspace itself, as the server answers
+  // a signed-in caller. A walk as another role answers `PERMISSIONS[role]` instead.
+  workspace_permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'DELETE_CONTAINER', 'READ_CONFIGURATION', 'AUDIT_READ'],
+};
+
+/**
+ * What each role holds on the workspace when that is where it was granted - the role matrix of
+ * `domain-model.md` §3.2, as `workspace_permissions` answers it. `BELOW` is somebody whose roles sit
+ * only on a hub, a collection or an entry.
+ */
+export const PERMISSIONS = {
+  OWNER: MANIFEST.workspace_permissions,
+  ADMIN: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'AUTOMATION', 'READ_CONFIGURATION', 'AUDIT_READ'],
+  MEMBER: ['READ', 'WRITE_ITEMS', 'AUTOMATION'],
+  CONTRIBUTOR: ['READ', 'WRITE_ITEMS'],
+  VIEWER: ['READ'],
+  GUEST: ['READ'],
+  AUDITOR: ['READ_CONFIGURATION', 'AUDIT_READ'],
+  BELOW: [],
 };
 export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
 /**

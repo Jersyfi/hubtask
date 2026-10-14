@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { stub } from './fixture.mjs';
+import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -116,4 +116,62 @@ test('chromium: the overview says what the health report finds missing', async (
   });
   assert.match(text, /names no accessibility statement/);
   assert.match(text, /hubctl admin settings set legal\.accessibility_url/);
+});
+
+/** A level of four settings in three areas: two decided, one of them locked. */
+const LEVEL = {
+  sign_in: {
+    min_length: { set: true, value: 14, locked: true, kind: 'COUNT' },
+    breach_check: { set: false, locked: false, kind: 'FLAG' },
+  },
+  legal: { imprint_url: { set: false, locked: false, kind: 'LINK' } },
+  quotas: { items: { set: true, value: 100, locked: false, kind: 'COUNT' } },
+  source: 'database',
+  is_enforced_from_file: false,
+};
+
+async function overviewOf(browser, tenancy) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: tenancy } });
+    if (path === '/admin/overview') return route.fulfill({ json: census(0) });
+    if (path === '/admin/settings') return route.fulfill({ json: LEVEL });
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/instance`);
+  await page.getByText('Accounts in all').waitFor();
+  await page.waitForFunction(() => /settings decided/.test(document.querySelector('main')?.textContent ?? ''), null, { timeout: 10_000 });
+  const text = await page.locator('main').textContent() ?? '';
+  await context.close();
+  return text;
+}
+
+// UC-INS-12 check 1: the overview's line on the defaults counts what *Defaults* counts - every area,
+// not the sign-in switches alone.
+test('chromium: the overview counts every setting, as the defaults do', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const text = await overviewOf(browser, 'single');
+  assert.match(text, /2 of 4 settings decided, 1 of them locked/, text);
+});
+
+// deployments.md D1: a single installation cannot suspend or delete its one workspace, so it is
+// shown no counter for either; an installation of many is.
+test('chromium: only an installation of many counts suspended and deleted workspaces', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const single = await overviewOf(browser, 'single');
+  assert.doesNotMatch(single, /Suspended|Being deleted/, single);
+  const multi = await overviewOf(browser, 'multi');
+  assert.match(multi, /Suspended/);
+  assert.match(multi, /Being deleted/);
 });

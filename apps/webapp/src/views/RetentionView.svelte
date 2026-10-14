@@ -153,6 +153,11 @@
       ? t(`app.retention.action_${action.toLowerCase()}`)
       : action;
 
+  // A class the catalogue gained before this client learnt its words is shown by its constant
+  // rather than not at all; the locale test holds every class the server names to its words.
+  const kindWord = (kind: string | null | undefined) =>
+    kind && messages.has(`app.retention.kind.${kind}`) ? t(`app.retention.kind.${kind}`) : (kind ?? '');
+
   const containerName = (id: string | null | undefined) =>
     (id ? containers.hubs.find((container) => container.id === id)?.name : undefined) ?? id ?? '';
 
@@ -262,7 +267,7 @@
           <section class="panel">
             <Stack gap="100">
               <div class="row">
-                <span class="name">{policy.data_kind}</span>
+                <span class="name">{kindWord(policy.data_kind)}</span>
                 <Badge tone={policy.action === 'NOTIFY_ONLY' ? 'info' : 'warning'}>
                   {actionWord(policy.action)}
                 </Badge>
@@ -384,7 +389,7 @@
             placeholder={t('app.retention.choose_kind')}
             options={kinds.map((kind) => ({
               value: kind.data_kind ?? '',
-              label: kind.data_kind ?? '',
+              label: kindWord(kind.data_kind),
             }))}
           />
           {#if draftKind && actions.length === 0}
@@ -444,7 +449,7 @@
             <Badge tone={policy.in_force ? 'success' : 'neutral'}>
               {policy.in_force ? t('app.retention.in_force') : t('app.retention.overridden')}
             </Badge>
-            <span>{policy.data_kind}</span>
+            <span>{kindWord(policy.data_kind)}</span>
             <span class="quiet small">
               {actionWord(policy.action)}
               · {t('app.retention.after_days', { days: String(policy.retain_days) })}

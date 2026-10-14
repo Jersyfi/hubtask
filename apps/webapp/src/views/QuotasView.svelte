@@ -24,7 +24,9 @@
 
   import { Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { quotas } from '../lib/data/quotas.svelte.ts';
+  import { formatBytes } from '../lib/i18n/bytes.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -74,6 +76,10 @@
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
+  /** A number as the limit counts it: attachment storage in bytes is said as a size. */
+  const amount = (quota: string, value: number) =>
+    quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value);
+
   /** The same number `hubtask_tenant_quota_usage_ratio` reports, as a percentage a person reads. */
   const percentOf = (ratio: number) => Math.round(ratio * 100);
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
@@ -96,7 +102,9 @@
   />
 
     <Stack gap="300">
-    <p class="quiet">{t('app.quotas.intro')}</p>
+    <!-- A single installation says neither "installation" nor "operator" (deployments.md D1); its
+         sentence also serves an administrator who cannot open the section it names. -->
+    <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.intro_single' : 'app.quotas.intro')}</p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting">
@@ -124,7 +132,7 @@
                      opposite of what it means. -->
                 {t('app.quotas.unlimited')}
               {:else}
-                {standing.limit}
+                {amount(standing.quota, standing.limit)}
               {/if}
             </td>
             <td>
@@ -133,7 +141,7 @@
                      own headers, so this screen would be inventing a number. -->
                 <span class="quiet">{t('app.quotas.no_count')}</span>
               {:else}
-                {standing.used}
+                {amount(standing.quota, standing.used)}
               {/if}
             </td>
             <td class="approach">
@@ -155,7 +163,7 @@
         {/each}
       </Table>
 
-      <p class="quiet">{t('app.quotas.raising')}</p>
+      <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')}</p>
     {/if}
     </Stack>
 </Stack>

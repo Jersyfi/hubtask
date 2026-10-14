@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -258,7 +259,7 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 			entry := (*held)[name]
 			value := "-"
 			if entry.Set {
-				value = fmt.Sprintf("%v", entry.Value)
+				value = printedValue(entry.Value)
 			}
 			lock := "open"
 			if entry.Locked {
@@ -273,6 +274,15 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	add("quotas", settings.Quotas)
 	add("ai", settings.Ai)
 	return Table{Columns: []string{"key", "value", "workspace"}, Rows: rows}
+}
+
+// printedValue prints a value as somebody would type it back. A JSON number arrives as a float64,
+// which `%v` prints in exponent form from a million up; a whole one is printed in digits.
+func printedValue(value any) string {
+	if number, isNumber := value.(float64); isNumber && number == math.Trunc(number) {
+		return strconv.FormatFloat(number, 'f', -1, 64)
+	}
+	return fmt.Sprintf("%v", value)
 }
 
 func adminOperator(ctx context.Context, cli *CLI, args []string) error {

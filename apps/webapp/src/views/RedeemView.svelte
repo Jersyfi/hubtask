@@ -125,6 +125,9 @@
     // Out of the component's state whatever happened.
     password = '';
     if (signedIn) onnavigate?.('/');
+    // The workspace demands a second factor before the first session: the card at the sign-in
+    // address draws its setup, and the session opens there once the factor is armed.
+    else if (session.secondFactorOwed) onnavigate?.('/sign-in');
   }
 </script>
 

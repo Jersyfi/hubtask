@@ -25,6 +25,7 @@
   import DueMark from '../lib/entries/DueMark.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { isOverdue } from '../lib/data/due.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
@@ -52,7 +53,13 @@
   // and the listener writes the store, and writing it reads it - so an effect that both subscribes
   // and tracks that read re-runs on its own first delivery, for ever.
   $effect(() => untrack(() => overview.open()));
-  $effect(() => untrack(() => jumble.open()));
+  // The jumble's only for somebody who reads the workspace itself (UC-JUM-01 check 7): anybody else
+  // would be refused the read, and the refusal recorded on every visit here.
+  const hasJumble = $derived(holdsHere('READ') === true);
+  $effect(() => {
+    if (!hasJumble) return;
+    return untrack(() => jumble.open());
+  });
 
   const zone = $derived(actor.zone);
   const now = $derived.by(() => Date.now());
@@ -158,26 +165,28 @@
 
       <!-- What arrived and has not been put anywhere. The count is the point; three rows are the
            reminder that it is made of things. -->
-      <section class="panel" aria-labelledby="overview-jumble">
-        <Stack gap="150">
-          <h2 class="head" id="overview-jumble">{t('app.overview.jumble')}</h2>
-          {#if jumble.stateOf().status === 'loading' || jumble.stateOf().status === 'idle'}
-            <div aria-busy="true"><Skeleton lines={2} /></div>
-          {:else if waiting.length === 0}
-            <p class="none">{t('app.overview.jumble_none')}</p>
-          {:else}
-            <Stack gap="050">
-              {#each waiting.slice(0, 3) as entry (entry.id)}
-                <!-- The same word the jumble screen puts on a row, and for the same reason: an
-                     arriving message need not carry a subject, and "(no subject)" is what it is
-                     called rather than a blank. -->
-                <ListRow href="/jumble">{entry.raw_subject?.trim() || t('app.jumble.no_subject')}</ListRow>
-              {/each}
-            </Stack>
-            <p class="more"><a href="/jumble">{t('app.overview.jumble_more', { count: waiting.length })}</a></p>
-          {/if}
-        </Stack>
-      </section>
+      {#if hasJumble}
+        <section class="panel" aria-labelledby="overview-jumble">
+          <Stack gap="150">
+            <h2 class="head" id="overview-jumble">{t('app.overview.jumble')}</h2>
+            {#if jumble.stateOf().status === 'loading' || jumble.stateOf().status === 'idle'}
+              <div aria-busy="true"><Skeleton lines={2} /></div>
+            {:else if waiting.length === 0}
+              <p class="none">{t('app.overview.jumble_none')}</p>
+            {:else}
+              <Stack gap="050">
+                {#each waiting.slice(0, 3) as entry (entry.id)}
+                  <!-- The same word the jumble screen puts on a row, and for the same reason: an
+                       arriving message need not carry a subject, and "(no subject)" is what it is
+                       called rather than a blank. -->
+                  <ListRow href="/jumble">{entry.raw_subject?.trim() || t('app.jumble.no_subject')}</ListRow>
+                {/each}
+              </Stack>
+              <p class="more"><a href="/jumble">{t('app.overview.jumble_more', { count: waiting.length })}</a></p>
+            {/if}
+          </Stack>
+        </section>
+      {/if}
 
       <!-- What this device opened last. No read at all: it is kept here and sent nowhere. -->
       <section class="panel" aria-labelledby="overview-recent">

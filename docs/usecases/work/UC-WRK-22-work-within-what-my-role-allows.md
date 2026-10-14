@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-11, P-12]
 state: partial
 tasks: [B-02, F2-07]
-checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go]
+checked_by: [core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, test/integration/tenant_boundary_test.go, test/integration/assignment_test.go, apps/webapp/e2e/entrybyrole.test.mjs]
 ---
 
 # Work within what my role allows
@@ -59,7 +59,4 @@ not exist.
 
 ## Today
 
-* Check 1: not met in the web app — the entry page gates its controls on archiving and the type's capabilities, never on the role, so a viewer sees every control and meets the server's refusal after pressing it, tracked in #1080.
-* Check 2: not met in the web app — the entry page never asks the role, so a contributor sees the same controls on every entry, tracked in #1080.
-* Check 3: not met in the web app — the entry page never asks the role, so a guest sees the controls that change the entry, tracked in #1080.
-* Check 4: not met in part — *Create hub*, *Create collection*, the board's columns and the labels dialog are offered without asking the role (UC-WRK-01, UC-WRK-05, UC-WRK-09), tracked in #1080.
+* Check 4: not met in part — *Create hub* is offered without asking the role (UC-WRK-01 check 6), tracked in #1080.

@@ -3194,7 +3194,7 @@ paths:
       description: >
         The moment an invited account becomes a person: the redemption token from the invitation
         mail, a password under the policy (twelve characters at least), and the
-        account moves from `INVITED` to `ACTIVE` - signed in, with the same pair sign-in answers,
+        account moves from `INVITED` to `ACTIVE` - signed in, with the same answer sign-in gives,
         because making somebody who just proved control of the mailbox type the password again
         teaches nothing.
 
@@ -3209,6 +3209,12 @@ paths:
         purpose label; it dies on redemption, so a second redemption is refused however fresh the
         token looks. An expired or unknown token is one indistinguishable refusal - which
         addresses hold unredeemed invitations is not for a probe to enumerate.
+
+        A redemption is a sign-in for the workspace's second-factor rule: where
+        `mfa_required_for` covers the invited person, the answer is `202` with the `ENROLL` step
+        rather than `201` with the pair. The invitation is accepted either way - the password is
+        set and the token spent - and the session opens only once the factor is set up with the
+        pending credential.
       requestBody:
         required: true
         content:
@@ -3222,6 +3228,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: >
+            Redeemed, and the workspace demands a second factor of this person before the first
+            session: the step is `ENROLL`, and `email` names the invited address. The pending
+            credential can do nothing but complete this sign-in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -17009,6 +17024,26 @@ components:
             does not draw a control somebody may not use and then refuse it: what the installation
             permits is read, never compiled in, and a capability that is refused outright is absent
             rather than disabled.
+        workspace_permissions:
+          type: array
+          description: >
+            The columns of the role matrix the caller holds on the workspace itself, from every
+            membership they hold there - their own and their groups' - decided as every request is
+            decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`:
+            absent for an anonymous caller, empty for somebody whose roles sit only on hubs,
+            collections or entries.
+
+            It answers what a client offers at the level of the workspace before anybody presses
+            anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble
+            (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) -
+            rather than a client probing a route that refuses. It says nothing about a hub, a
+            collection or an entry, where roles granted there add to these, and nothing about the
+            presenting credential: a token's scopes bound it further.
+          items:
+            type: string
+            enum:
+              [READ, WRITE_ITEMS, STRUCTURE, MANAGE_MEMBERS, AUTOMATION, DELETE_CONTAINER,
+               READ_CONFIGURATION, AUDIT_READ]
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }

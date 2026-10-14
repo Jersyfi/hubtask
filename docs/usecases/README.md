@@ -158,7 +158,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 |---|---|---|---|
 | [UC-ID-01](./identity/UC-ID-01-sign-in-with-a-password.md) | Sign in with my address and password | identity | built |
 | [UC-ID-02](./identity/UC-ID-02-prove-it-is-me-with-a-second-factor.md) | Prove it is me with a second factor when I sign in | identity | built |
-| [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | partial |
+| [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | built |
 | [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | partial |
 | [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | partial |
 | [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | built |
@@ -199,9 +199,9 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-04](./work/UC-WRK-04-tick-work-off-and-take-it-back.md) | Tick work off, and take it back | work | built |
 | [UC-WRK-05](./work/UC-WRK-05-run-a-collection-as-a-board.md) | Run a collection as a board | work | partial |
 | [UC-WRK-06](./work/UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md) | Put work in order and move it where it belongs | work | built |
-| [UC-WRK-07](./work/UC-WRK-07-duplicate-a-task.md) | Duplicate a task | work | partial |
+| [UC-WRK-07](./work/UC-WRK-07-duplicate-a-task.md) | Duplicate a task | work | built |
 | [UC-WRK-08](./work/UC-WRK-08-change-many-entries-at-once.md) | Change many entries at once | work | built |
-| [UC-WRK-09](./work/UC-WRK-09-make-work-recognisable-at-a-glance.md) | Make work recognisable at a glance | work | partial |
+| [UC-WRK-09](./work/UC-WRK-09-make-work-recognisable-at-a-glance.md) | Make work recognisable at a glance | work | built |
 | [UC-WRK-10](./work/UC-WRK-10-hand-work-to-a-person.md) | Hand work to a person | work | built |
 | [UC-WRK-11](./work/UC-WRK-11-let-a-collection-hand-out-new-work.md) | Let a collection hand out new work automatically | work | built |
 | [UC-WRK-12](./work/UC-WRK-12-record-the-facts-a-team-tracks.md) | Record the facts a team tracks, with custom fields | work | built |
@@ -215,8 +215,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-20](./work/UC-WRK-20-see-what-is-on-me-when-i-arrive.md) | See what is on me when I arrive | work | partial |
 | [UC-WRK-21](./work/UC-WRK-21-share-a-hub-a-collection-or-one-entry.md) | Share a hub, a collection or one entry with somebody | work | partial |
 | [UC-WRK-22](./work/UC-WRK-22-work-within-what-my-role-allows.md) | Work within what my role allows | work | partial |
-| [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble | partial |
-| [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble | partial |
+| [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble | built |
+| [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble | built |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble | built |
 | [UC-JUM-04](./jumble/UC-JUM-04-let-another-system-post-into-the-jumble.md) | Let another system post into the jumble | jumble | built |
 | [UC-JUM-05](./jumble/UC-JUM-05-turn-a-jumble-entry-into-work.md) | Turn a jumble entry into work | jumble | built |
