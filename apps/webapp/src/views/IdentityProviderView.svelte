@@ -45,6 +45,7 @@
     isSharedIssuer,
     issuerAfterChoosing,
     offeredModes,
+    personalDirectoryListed,
   } from '../lib/signin/issuer.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -109,6 +110,16 @@
   const preset = $derived(identityProvider.presetOf(kind as IdentityProvider['kind']));
   /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
   const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
+  /**
+   * The server's sentence for a personal directory in the drawn list, where the mode creates
+   * accounts: shown on the field as it is typed, and the reason *Save* waits - the save would be
+   * refused in every such case (`identity_provider.directory_personal`).
+   */
+  const personalDirectory = $derived.by(() => {
+    if (!lists.directories) return undefined;
+    const listed = personalDirectoryListed(preset, provisioning, readDomains(directories));
+    return listed === undefined ? undefined : t('identity_provider.directory_personal', { directory: listed });
+  });
 
   const kindOptions = $derived(
     identityProvider.presets.map((one) => ({
@@ -505,6 +516,7 @@
                   : lists.required
                     ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
                     : t('app.identity_provider.directories_narrow_hint')}
+                error={personalDirectory}
                 bind:value={directories}
                 rows={3}
                 spellcheck={false}
@@ -542,6 +554,7 @@
                 type="submit"
                 tone="primary"
                 isBusy={isWorking}
+                disabledReason={personalDirectory}
                 busyLabel={t('app.identity_provider.saving')}
               >
                 {t('app.identity_provider.save')}

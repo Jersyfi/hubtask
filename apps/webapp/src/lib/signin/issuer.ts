@@ -52,6 +52,24 @@ export function offeredModes<Mode extends string>(
   return modes.filter((mode) => mode !== 'ANY' || !personal || current === 'ANY');
 }
 
+/**
+ * The first entry of a drawn directory list that names one of the preset's personal directories
+ * (`personal_directories`), where the mode creates accounts - anything but `INVITED_ONLY` - and the
+ * server refuses it (`identity_provider.directory_personal`). Compared trimmed and without regard
+ * to case, as the server compares it; answered as typed, trimmed, for the sentence. `undefined`
+ * where nothing is refused. Asked only of a list the form draws: one it does not draw is sent empty.
+ */
+export function personalDirectoryListed(
+  preset: IdentityProviderPreset | undefined,
+  provisioning: string,
+  directories: readonly string[],
+): string | undefined {
+  if (provisioning === 'INVITED_ONLY') return undefined;
+  const personal = (preset?.personal_directories ?? []).map((each) => each.trim().toLowerCase());
+  if (personal.length === 0) return undefined;
+  return directories.map((each) => each.trim()).find((each) => each !== '' && personal.includes(each.toLowerCase()));
+}
+
 function firstSegmentIn(segments: readonly string[], issuer: string): boolean {
   if (segments.length === 0) return false;
   let path: string;

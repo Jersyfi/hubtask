@@ -270,3 +270,49 @@ test('chromium: Anyone is not offered on an issuer that serves personal accounts
   assert.equal(await admission.inputValue(), 'ANY', 'the chosen mode was moved for the person');
   assert.match(await form.innerText(), /also serves personal accounts/);
 });
+
+// #1480: the personal accounts' directory in the list is refused by the save wherever the mode
+// creates accounts (identity_provider.directory_personal), so the form says it on the field as it is
+// typed and *Save* waits for it (P-05) - in any case and spacing, as the server compares it - while
+// under *Only people invited here* the list only narrows and may name it.
+test('chromium: the personal directory is refused in the list before the save, except where the list only narrows', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await open(browser, 'en');
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByRole('button', { name: 'Add a provider' }).click();
+  const form = page.locator('form.panel');
+  await form.getByLabel('Which provider').selectOption('MICROSOFT');
+  const admission = form.getByRole('combobox').nth(1);
+  const directories = form.getByLabel(/^Microsoft directories that may sign in/);
+  const save = form.getByRole('button', { name: 'Save the provider' });
+  const refusal = /is where this provider's personal accounts live/;
+
+  await admission.selectOption('DOMAINS');
+  await form.getByLabel(/^Issuer/).fill('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0');
+  await form.getByLabel(/^Client id/).fill('hubtask');
+  await form.getByLabel(/^Client secret/).fill('s3cr3t');
+  await directories.fill('72f988bf-86f1-41af-91ab-2d7cd011db47\n  9188040D-6C67-4C5B-B112-36A304B66DAD ');
+  await form.getByText(refusal).first().waitFor({ timeout: 5_000 });
+  assert.equal(await save.isDisabled(), true, 'Save is offered for a list the server refuses');
+  await directories.press('Enter');
+  assert.equal(sent.length, 0, 'the refused list was sent');
+
+  // Only invited people: the list narrows, and naming it is permitted.
+  await admission.selectOption('INVITED_ONLY');
+  assert.equal(await form.getByText(refusal).count(), 0, 'the sentence stands where the server accepts the list');
+  assert.equal(await save.isDisabled(), false);
+
+  // Back to by organisation: said again.
+  await admission.selectOption('DOMAINS');
+  await form.getByText(refusal).first().waitFor({ timeout: 5_000 });
+
+  // Taken out, the save goes.
+  await directories.fill('72f988bf-86f1-41af-91ab-2d7cd011db47');
+  assert.equal(await form.getByText(refusal).count(), 0);
+  await save.click();
+  await form.waitFor({ state: 'detached' });
+  assert.deepEqual(sent[0]?.allowed_directories, ['72f988bf-86f1-41af-91ab-2d7cd011db47']);
+});
