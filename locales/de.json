@@ -3107,6 +3107,8 @@
   "app.privacy.reading": "Die Fälle werden gelesen",
   "app.privacy.none": "Nichts ist offen.",
   "app.privacy.more": "Mehr zeigen",
+  "app.privacy.loading_more": "Lädt mehr …",
+  "app.privacy.arrived": "{count, plural, =0 {Es kam nichts mehr dazu.} one {# weiterer Fall ist da.} other {# weitere Fälle sind da.}}",
   "app.privacy.cases_title": "Fälle",
   "app.privacy.show_closed": "Die abgeschlossenen zeigen",
   "app.privacy.hide_closed": "Die abgeschlossenen verbergen",

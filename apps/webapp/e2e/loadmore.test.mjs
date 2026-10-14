@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { signedIn, stub } from './fixture.mjs';
+import { PRIVACY_REQUESTS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -156,5 +156,29 @@ test('chromium: a page of the jumble that did not arrive because the connection 
     failure: 'This needs a connection. It is not kept on this device, and the server cannot be reached right now.',
     arrived: '1 more arrival is listed.',
   });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a page of privacy cases that was refused is said beside the button, and the retry brings it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  const later = { ...PRIVACY_REQUESTS[0], id: '01a0e2e0-0000-7000-8000-0000000016a1', subject_email: 'later@example.invalid' };
+  await listFailingOnce(context, {
+    endsWith: '/privacy/requests',
+    failure: 'forbidden',
+    answer: (cursor) => (cursor === 'p2'
+      ? { data: [later], page: { next_cursor: null, has_more: false } }
+      : { data: PRIVACY_REQUESTS.slice(0, 2), page: { next_cursor: 'p2', has_more: true } }),
+  });
+  await page.goto(`${served.origin}/administration/privacy`);
+  await failsThenRetries(page, {
+    button: 'Show more',
+    rows: () => page.locator('section.panel'),
+    failure: 'You do not have permission for this action.',
+    arrived: '1 more case is listed.',
+  });
+  assert.equal(await page.getByText('later@example.invalid').count(), 1, 'the retried page is not the one drawn');
   assert.deepEqual(failures, []);
 });

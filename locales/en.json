@@ -4272,6 +4272,8 @@
   "app.privacy.reading": "Reading the cases",
   "app.privacy.none": "Nothing is open.",
   "app.privacy.more": "Show more",
+  "app.privacy.loading_more": "Loading more…",
+  "app.privacy.arrived": "{count, plural, =0 {Nothing more arrived.} one {# more case is listed.} other {# more cases are listed.}}",
   "app.privacy.cases_title": "Cases",
   "app.privacy.show_closed": "Show the ones that are finished",
   "app.privacy.hide_closed": "Hide the ones that are finished",
