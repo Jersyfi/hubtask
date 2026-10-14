@@ -6,8 +6,8 @@
   // `WorkspaceGate`'s counterpart for a screen with no form to dim: a list whose rows each carry a
   // switch or a remove. The rows' controls are absent where refused, and this says why once, at the
   // head of the screen, rather than the same sentence under every row - a refusal hidden with no
-  // word is the silence `apps/webapp/AGENTS.md` forbids. Nothing while the manifest is unread or
-  // the permission is held.
+  // word would be the silent ignoring `CapabilityGate` exists to prevent (P-05). Nothing while the
+  // manifest is unread or the permission is held.
 
   import { Banner } from '@hubtask/design-system/components';
 
