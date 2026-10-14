@@ -34,6 +34,8 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type Rule } from '../lib/data/rules.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -125,6 +127,9 @@
 
   const runnerName = (id: string) =>
     serviceAccounts.all.find((account) => account.id === id)?.display_name ?? accounts.nameOf(id) ?? t('app.people.unnamed');
+
+  /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
+  const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
 </script>
 
 <div class="screen">
@@ -133,9 +138,10 @@
       title={t('app.rules.title')}
       subtitle={t('app.rules.intro')}
       isTitleInBar={viewport.isCompact}
-      primary={{ label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') }}
+      primary={mayAutomate ? { label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') } : undefined}
     >
       {#snippet notices()}
+        <WorkspaceRefusal permission="AUTOMATION" />
         {#if failure}
           <Banner tone="danger" title={failure.message}>
             {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
@@ -179,6 +185,7 @@
               findingLabel={first ? t('app.flow.finding_at', { where: whereOf(first.path), finding: findingWords(words, first) }) : undefined}
               isBroken={health === 'broken'}
             />
+            {#if mayAutomate}
             <div class="row">
               {#if rule.enabled}
                 <Button size="sm" tone="secondary" isBusy={isWorking} busyLabel={t('app.rules.working')}
@@ -192,6 +199,7 @@
                 </Button>
               {/if}
             </div>
+            {/if}
           </Stack>
         {:else}
           <p class="quiet">{t('app.rules.none')}</p>

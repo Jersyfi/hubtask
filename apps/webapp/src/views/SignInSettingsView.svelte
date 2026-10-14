@@ -63,6 +63,8 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { workspaceRefusal } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -337,6 +339,12 @@
   }
 
   $effect(() => page.entitle(t('app.signin_settings.title')));
+
+  /**
+   * Why the provider switches are off for this reader, if they are: offering a provider here goes
+   * through `:offer`, which asks `MANAGE_MEMBERS` - a different column from the rule's `STRUCTURE`.
+   */
+  const offerRefusal = $derived(workspaceRefusal('MANAGE_MEMBERS'));
 </script>
 
 {#snippet origin(text: string)}
@@ -441,206 +449,210 @@
         <Banner tone="success">{t('app.signin_settings.saved')}</Banner>
       {/if}
 
-      <form onsubmit={save}>
-        <Stack gap="300">
-          <section class="panel">
-            <Stack gap="200">
-              <h2>{t('app.signin_settings.passwords')}</h2>
-
-              {@render countRow('min_length', policy.password.min_length, t('app.signin_settings.min_length'))}
-
-              <fieldset class="classes">
-                <legend>{t('app.signin_settings.classes')}</legend>
-                <p class="quiet small">{t('app.signin_settings.classes_hint')}</p>
-                <div class="grid">
-                  {#each [['min_lowercase', policy.password.min_lowercase], ['min_uppercase', policy.password.min_uppercase], ['min_digits', policy.password.min_digits], ['min_symbols', policy.password.min_symbols]] as const as [key, setting] (key)}
-                    {@render countRow(key, setting, t(`app.signin_settings.${key}`))}
-                  {/each}
-                </div>
-              </fieldset>
-
-              {@render countRow('min_classes', policy.password.min_classes, t('app.signin_settings.min_classes'))}
-              {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), mayBeOff(policy.password.max_repeat) ? t('app.signin_settings.max_repeat_hint') : undefined, capped(policy.password.max_repeat), true)}
-              {@render flagRow('common_passwords', policy.password.common_passwords, t('app.signin_settings.common_passwords'), t('app.signin_settings.adds_a_line'))}
-              {@render flagRow('context_words', policy.password.context_words, t('app.signin_settings.context_words'), t('app.signin_settings.adds_a_line'))}
-              {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
-              {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true)}
-              {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
-              <!-- The eighteenth rule (check 7). -->
-              {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
-            </Stack>
-          </section>
-
-          <section class="panel">
-            <Stack gap="200">
-              <h2>{t('app.signin_settings.second_factor')}</h2>
-              <div data-rule>
-                <Select
-                  label={t('app.signin_settings.mfa_required_for')}
-                  hint={t('app.signin_settings.mfa_hint')}
-                  value={String(draft['mfa_required_for'] ?? 'NONE')}
-                  onchange={(event) => (draft['mfa_required_for'] = (event.currentTarget as HTMLSelectElement).value)}
-                  options={mfaOptions}
-                  disabledReason={lockedBecause(policy.mfa_required_for.lock)}
-                  error={refusalOf('mfa_required_for')}
-                />
-                {@render origin(originOf(policy.mfa_required_for, mfaLabel))}
-              </div>
-            </Stack>
-          </section>
-
-          <section class="panel">
-            <Stack gap="200">
-              <h2 id="ways">{t('app.signin_settings.ways')}</h2>
-              <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
-              {#if opening}
-                <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
-                  <!-- Who asked and why come only to a reader of the configuration; without them the
-                       sentence says the rest rather than printing an empty attribution. -->
-                  {opening.requester && opening.reason
-                    ? t('app.signin_settings.opening_body', {
-                        until: formatDateTime(opening.until, messages.locale),
-                        requester: opening.requester,
-                        reason: opening.reason,
-                      })
-                    : t('app.signin_settings.opening_body_unattributed', {
-                        until: formatDateTime(opening.until, messages.locale),
-                      })}
-                </Banner>
-              {:else if fallback}
-                <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
-                  {t('app.signin_settings.fallback_no_way_in')}
-                </Banner>
-              {/if}
-              <ul class="ways" aria-labelledby="ways">
-                <li class="way" data-rule>
-                  <Switch
-                    label={t('app.signin_settings.way_password')}
-                    hint={t('app.signin_settings.way_password_hint')}
-                    checked={passwordOn}
-                    onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
-                    disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
-                  />
-                  {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
-                    <!-- Only where it can go off: as the last way in, or under the installation's
-                         lock, the switch is held and the count would describe a choice nobody has. -->
-                    <p class="quiet small" data-reach>
-                      {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
-                    </p>
-                  {/if}
-                  {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
-                  {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
-                </li>
-                {#each providers as one (one.id)}
-                  <li class="way" data-rule>
-                    <ProviderMark kind={one.kind} name={one.display_name} />
-                    {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
-                      <!-- Switched off where it is offered, or withdrawn from its date: not a choice
-                           this workspace has, so no switch - a sentence saying so. -->
-                      <span class="name">{one.display_name}</span>
-                      <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
-                    {:else}
-                      {@const mandated = one.installation_lock === 'TURNS_ON'}
-                      <Switch
-                        label={one.display_name}
-                        hint={mandated
-                          ? t('app.signin_settings.way_mandated')
-                          : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
-                        checked={one.offered_here === true}
-                        onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
-                        disabledReason={switching === one.id
-                          ? t('app.signin_settings.switching')
-                          : mandated ? t('app.signin_settings.locked_installation') : lastWay(one.offered_here === true)}
-                      />
-                      {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
-                        <!-- Said under the switch it is about, while there is still time to act. -->
-                        <p class="withdrawing">
-                          {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
-                            date: formatDateTime(one.withdraw_at ?? '', messages.locale),
-                          })}
-                        </p>
-                      {/if}
-                      <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
-                      {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-              <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
-            </Stack>
-          </section>
-
-          {#if policy.managed_accounts}
-            {@const managed = policy.managed_accounts}
+      <WorkspaceGate permission="STRUCTURE">
+        <form onsubmit={save}>
+          <Stack gap="300">
             <section class="panel">
               <Stack gap="200">
-                <h2>{t('app.signin_settings.managed_title')}</h2>
+                <h2>{t('app.signin_settings.passwords')}</h2>
+
+                {@render countRow('min_length', policy.password.min_length, t('app.signin_settings.min_length'))}
+
+                <fieldset class="classes">
+                  <legend>{t('app.signin_settings.classes')}</legend>
+                  <p class="quiet small">{t('app.signin_settings.classes_hint')}</p>
+                  <div class="grid">
+                    {#each [['min_lowercase', policy.password.min_lowercase], ['min_uppercase', policy.password.min_uppercase], ['min_digits', policy.password.min_digits], ['min_symbols', policy.password.min_symbols]] as const as [key, setting] (key)}
+                      {@render countRow(key, setting, t(`app.signin_settings.${key}`))}
+                    {/each}
+                  </div>
+                </fieldset>
+
+                {@render countRow('min_classes', policy.password.min_classes, t('app.signin_settings.min_classes'))}
+                {@render countRow('max_repeat', policy.password.max_repeat, t('app.signin_settings.max_repeat'), mayBeOff(policy.password.max_repeat) ? t('app.signin_settings.max_repeat_hint') : undefined, capped(policy.password.max_repeat), true)}
+                {@render flagRow('common_passwords', policy.password.common_passwords, t('app.signin_settings.common_passwords'), t('app.signin_settings.adds_a_line'))}
+                {@render flagRow('context_words', policy.password.context_words, t('app.signin_settings.context_words'), t('app.signin_settings.adds_a_line'))}
+                {@render flagRow('breach_check', policy.password.breach_check, t('app.signin_settings.breach_check'), t('app.signin_settings.breach_hint'))}
+                {@render countRow('max_age_days', policy.password.max_age_days, t('app.signin_settings.max_age_days'), mayBeOff(policy.password.max_age_days) ? t('app.signin_settings.max_age_hint') : undefined, capped(policy.password.max_age_days), true)}
+                {@render countRow('history_count', policy.password.history_count, t('app.signin_settings.history_count'), t('app.signin_settings.history_hint'))}
+                <!-- The eighteenth rule (check 7). -->
+                {@render countRow('min_age_hours', policy.password.min_age_hours, t('app.signin_settings.min_age_hours'), t('app.signin_settings.min_age_hint'))}
+              </Stack>
+            </section>
+
+            <section class="panel">
+              <Stack gap="200">
+                <h2>{t('app.signin_settings.second_factor')}</h2>
                 <div data-rule>
-                  <!-- Off is the stricter value here, the other way round from the password's
-                       switches: what the level above switched off cannot be switched on. -->
-                  <Switch
-                    label={t('app.signin_settings.managed_accounts')}
-                    hint={t('app.signin_settings.managed_accounts_hint')}
-                    checked={Boolean(draft.managed_accounts)}
-                    onchange={(event) => (draft.managed_accounts = (event.currentTarget as HTMLInputElement).checked)}
-                    disabledReason={lockedBecause(managed.lock) ??
-                      (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
+                  <Select
+                    label={t('app.signin_settings.mfa_required_for')}
+                    hint={t('app.signin_settings.mfa_hint')}
+                    value={String(draft['mfa_required_for'] ?? 'NONE')}
+                    onchange={(event) => (draft['mfa_required_for'] = (event.currentTarget as HTMLSelectElement).value)}
+                    options={mfaOptions}
+                    disabledReason={lockedBecause(policy.mfa_required_for.lock)}
+                    error={refusalOf('mfa_required_for')}
                   />
-                  {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
-                  {@render origin(originOf(managed, yesNo))}
+                  {@render origin(originOf(policy.mfa_required_for, mfaLabel))}
                 </div>
               </Stack>
             </section>
-          {/if}
 
-          <section class="panel">
-            <Stack gap="200">
-              <h2>{t('app.signin_settings.sessions')}</h2>
-              {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
-              {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), mayBeOff(policy.session.idle_minutes) ? t('app.signin_settings.session_idle_hint') : undefined, capped(policy.session.idle_minutes), true)}
-            </Stack>
-          </section>
+            <section class="panel">
+              <Stack gap="200">
+                <h2 id="ways">{t('app.signin_settings.ways')}</h2>
+                <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
+                {#if opening}
+                  <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
+                    <!-- Who asked and why come only to a reader of the configuration; without them the
+                         sentence says the rest rather than printing an empty attribution. -->
+                    {opening.requester && opening.reason
+                      ? t('app.signin_settings.opening_body', {
+                          until: formatDateTime(opening.until, messages.locale),
+                          requester: opening.requester,
+                          reason: opening.reason,
+                        })
+                      : t('app.signin_settings.opening_body_unattributed', {
+                          until: formatDateTime(opening.until, messages.locale),
+                        })}
+                  </Banner>
+                {:else if fallback}
+                  <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
+                    {t('app.signin_settings.fallback_no_way_in')}
+                  </Banner>
+                {/if}
+                <ul class="ways" aria-labelledby="ways">
+                  <li class="way" data-rule>
+                    <Switch
+                      label={t('app.signin_settings.way_password')}
+                      hint={t('app.signin_settings.way_password_hint')}
+                      checked={passwordOn}
+                      onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
+                      disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
+                    />
+                    {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
+                      <!-- Only where it can go off: as the last way in, or under the installation's
+                           lock, the switch is held and the count would describe a choice nobody has. -->
+                      <p class="quiet small" data-reach>
+                        {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
+                      </p>
+                    {/if}
+                    {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
+                    {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+                  </li>
+                  {#each providers as one (one.id)}
+                    <li class="way" data-rule>
+                      <ProviderMark kind={one.kind} name={one.display_name} />
+                      {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
+                        <!-- Switched off where it is offered, or withdrawn from its date: not a choice
+                             this workspace has, so no switch - a sentence saying so. -->
+                        <span class="name">{one.display_name}</span>
+                        <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+                      {:else}
+                        {@const mandated = one.installation_lock === 'TURNS_ON'}
+                        <Switch
+                          label={one.display_name}
+                          hint={mandated
+                            ? t('app.signin_settings.way_mandated')
+                            : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
+                          checked={one.offered_here === true}
+                          onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
+                          disabledReason={offerRefusal ??
+                            (switching === one.id
+                              ? t('app.signin_settings.switching')
+                              : mandated ? t('app.signin_settings.locked_installation') : lastWay(one.offered_here === true))}
+                        />
+                        {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
+                          <!-- Said under the switch it is about, while there is still time to act. -->
+                          <p class="withdrawing">
+                            {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
+                              date: formatDateTime(one.withdraw_at ?? '', messages.locale),
+                            })}
+                          </p>
+                        {/if}
+                        <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
+                        {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+                <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
+              </Stack>
+            </section>
 
-          <section class="panel">
-            <Stack gap="200">
-              <h2>{t('app.signin_settings.legal')}</h2>
-              <p class="quiet small">{t('app.signin_settings.legal_hint')}</p>
-              {@render linkRow('imprint_url', t('app.legal.imprint'))}
-              {@render linkRow('privacy_url', t('app.legal.privacy'))}
-              {@render linkRow('terms_url', t('app.legal.terms'))}
-              {#if policy.legal.terms_version}
-                <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every
-                     person to agree again at their next sign-in, which the hint says before it is
-                     saved. Under the link's lock, from the link's level. -->
-                <div data-rule>
-                  <Input
-                    label={t('app.signin_settings.terms_version')}
-                    hint={t('app.signin_settings.terms_version_hint')}
-                    value={policy.legal.terms_version.lock !== null
-                      ? policy.legal.terms_version.value
-                      : String(draft['terms_version'] ?? '')}
-                    oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
-                    disabledReason={lockedBecause(policy.legal.terms_version.lock)}
-                    error={refusalOf('terms_version')}
-                    maxlength={64}
-                  />
-                  {@render origin(linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
-                </div>
-              {/if}
-              <!-- The fourth link, which the sign-in footer shows: without this row a workspace
-                   could only have the installation's, whatever its own statement said. -->
-              {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
-            </Stack>
-          </section>
+            {#if policy.managed_accounts}
+              {@const managed = policy.managed_accounts}
+              <section class="panel">
+                <Stack gap="200">
+                  <h2>{t('app.signin_settings.managed_title')}</h2>
+                  <div data-rule>
+                    <!-- Off is the stricter value here, the other way round from the password's
+                         switches: what the level above switched off cannot be switched on. -->
+                    <Switch
+                      label={t('app.signin_settings.managed_accounts')}
+                      hint={t('app.signin_settings.managed_accounts_hint')}
+                      checked={Boolean(draft.managed_accounts)}
+                      onchange={(event) => (draft.managed_accounts = (event.currentTarget as HTMLInputElement).checked)}
+                      disabledReason={lockedBecause(managed.lock) ??
+                        (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
+                    />
+                    {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
+                    {@render origin(originOf(managed, yesNo))}
+                  </div>
+                </Stack>
+              </section>
+            {/if}
 
-          <div>
-            <Button type="submit" tone="primary" isBusy={signInPolicy.isWorking} busyLabel={t('app.workspace.saving')}>
-              {t('app.workspace.save')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+            <section class="panel">
+              <Stack gap="200">
+                <h2>{t('app.signin_settings.sessions')}</h2>
+                {@render countRow('session_max_days', policy.session.max_days, t('app.signin_settings.session_max_days'), undefined, { min: 1, max: policy.session.max_days.installation || undefined })}
+                {@render countRow('session_idle_minutes', policy.session.idle_minutes, t('app.signin_settings.session_idle'), mayBeOff(policy.session.idle_minutes) ? t('app.signin_settings.session_idle_hint') : undefined, capped(policy.session.idle_minutes), true)}
+              </Stack>
+            </section>
 
+            <section class="panel">
+              <Stack gap="200">
+                <h2>{t('app.signin_settings.legal')}</h2>
+                <p class="quiet small">{t('app.signin_settings.legal_hint')}</p>
+                {@render linkRow('imprint_url', t('app.legal.imprint'))}
+                {@render linkRow('privacy_url', t('app.legal.privacy'))}
+                {@render linkRow('terms_url', t('app.legal.terms'))}
+                {#if policy.legal.terms_version}
+                  <!-- The terms' version, beside its link (UC-ID-19): a change of either asks every
+                       person to agree again at their next sign-in, which the hint says before it is
+                       saved. Under the link's lock, from the link's level. -->
+                  <div data-rule>
+                    <Input
+                      label={t('app.signin_settings.terms_version')}
+                      hint={t('app.signin_settings.terms_version_hint')}
+                      value={policy.legal.terms_version.lock !== null
+                        ? policy.legal.terms_version.value
+                        : String(draft['terms_version'] ?? '')}
+                      oninput={(event) => (draft['terms_version'] = (event.currentTarget as HTMLInputElement).value)}
+                      disabledReason={lockedBecause(policy.legal.terms_version.lock)}
+                      error={refusalOf('terms_version')}
+                      maxlength={64}
+                    />
+                    {@render origin(linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
+                  </div>
+                {/if}
+                <!-- The fourth link, which the sign-in footer shows: without this row a workspace
+                     could only have the installation's, whatever its own statement said. -->
+                {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
+              </Stack>
+            </section>
+
+            <div>
+              <Button type="submit" tone="primary" isBusy={signInPolicy.isWorking} busyLabel={t('app.workspace.saving')}>
+                {t('app.workspace.save')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
+
+      <WorkspaceGate permission="STRUCTURE">
       <section class="panel">
         <Stack gap="150">
           <h2>{t('app.signin_settings.rotate_title')}</h2>
@@ -652,6 +664,7 @@
           </div>
         </Stack>
       </section>
+      </WorkspaceGate>
     </Stack>
   {/if}
 </Stack>

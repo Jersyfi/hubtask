@@ -45,6 +45,8 @@
   import { groups } from '../lib/data/groups.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -263,6 +265,9 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.identity_provider.title')));
+
+  /** Whether the reader may configure the workspace's providers (`MANAGE_MEMBERS`). */
+  const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
 </script>
 
 <Stack gap="300">
@@ -358,6 +363,7 @@
                 {#if !provider.enabled}
                   <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
                 {/if}
+                {#if mayManage}
                 <div class="row">
                   <Button tone="subtle" onclick={() => edit(provider)}>
                     {t('app.identity_provider.edit')}
@@ -366,6 +372,7 @@
                     {t('app.identity_provider.remove')}
                   </Button>
                 </div>
+                {/if}
               </li>
               {#if confirmingRemoval === provider.id}
                 <li class="confirm">
@@ -394,9 +401,13 @@
         {/if}
 
         {#if editing === undefined}
-          <div>
-            <Button tone="primary" onclick={add}>{t('app.identity_provider.add')}</Button>
-          </div>
+          <!-- The reason for every refused control on this screen: the rows' edit and remove are
+               absent where the reader may not configure providers. -->
+          <WorkspaceGate permission="MANAGE_MEMBERS">
+            <div>
+              <Button tone="primary" onclick={add}>{t('app.identity_provider.add')}</Button>
+            </div>
+          </WorkspaceGate>
         {/if}
       </Stack>
 

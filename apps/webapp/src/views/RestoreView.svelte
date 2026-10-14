@@ -58,6 +58,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -296,156 +298,158 @@
       </Banner>
     {/if}
 
-    <form class="panel" onsubmit={rehearse}>
-      <Stack gap="150">
-        <h2 class="section">{t('app.restore.what_title')}</h2>
+    <WorkspaceGate permission="STRUCTURE">
+      <form class="panel" onsubmit={rehearse}>
+        <Stack gap="150">
+          <h2 class="section">{t('app.restore.what_title')}</h2>
 
-        <Select
-          label={t('app.restore.target')}
-          bind:value={targetId}
-          placeholder={t('app.restore.choose_target')}
-          options={targets.map((target) => ({ value: target.id, label: target.name }))}
-        />
-
-        {#if targetId}
-          {#if archives.status === 'loading'}
-            <p class="waiting">
-              <Spinner label={t('app.restore.reading_archives')} />
-              <span>{t('app.restore.reading_archives')}</span>
-            </p>
-          {:else if archives.status === 'ready'}
-            <!-- Composed from the listing at the target rather than typed: an archive identifier
-                 nobody can check is an archive identifier somebody mistypes. -->
-            <Select
-              label={t('app.restore.archive')}
-              bind:value={archiveId}
-              placeholder={t('app.restore.choose_archive')}
-              options={archives.data.map((archive) => ({
-                value: archive.path,
-                label: `${when(archive.created_at) ?? archive.path} · ${archive.mode}`,
-              }))}
-            />
-            {#if chosenArchive}
-              <p class="quiet small">
-                {chosenArchive.path}
-                {#if chosenArchive.size_bytes}
-                  · {formatBytes(chosenArchive.size_bytes, messages.locale)}
-                {/if}
-                {#if chosenArchive.item_count !== undefined}
-                  · {t('app.restore.archive_items', { count: String(chosenArchive.item_count) })}
-                {/if}
-              </p>
-              {#if chosenArchive.complete === false}
-                <p class="warning">{t('app.restore.archive_incomplete')}</p>
-              {/if}
-            {/if}
-          {:else if archives.status === 'failed'}
-            <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
-          {/if}
-        {/if}
-
-        <Select
-          label={t('app.restore.mode')}
-          bind:value={mode}
-          options={modes.map((which) => ({ value: which, label: modeWord(which) }))}
-        />
-        <p class="quiet small">{t(`app.restore.mode_${mode.toLowerCase()}_note`)}</p>
-        {#if !mayRunForReal(chosenMode, holdInForce)}
-          <!-- Said before the rehearsal rather than after it: the replace will not run, and why. -->
-          <Banner tone="warning" title={t('app.restore.replace_held_title')}>
-            {t('app.restore.replace_held')}
-          </Banner>
-        {/if}
-
-        {#if mode === 'SELECTIVE'}
-          <fieldset class="selection">
-            <legend>{t('app.restore.selection')}</legend>
-            <!-- Composed from what is here rather than typed: an archive holds identifiers, and an
-                 identifier somebody types is an identifier somebody mistypes. -->
-            {#each containers.hubs as container (container.id)}
-              <Checkbox
-                label={container.name}
-                checked={chosen.includes(container.id)}
-                onchange={(event) => {
-                  const wanted = (event.currentTarget as HTMLInputElement).checked;
-                  chosen = wanted
-                    ? [...chosen, container.id]
-                    : chosen.filter((id) => id !== container.id);
-                }}
-              />
-            {/each}
-          </fieldset>
-          <p class="quiet small">{t('app.restore.selection_note')}</p>
-        {/if}
-
-        {#if mode === 'SELECTIVE' || mode === 'MERGE'}
           <Select
-            label={t('app.restore.conflict_rule')}
-            hint={t('app.restore.conflict_rule_hint')}
-            bind:value={conflictRule}
-            options={CONFLICT_RULES.map((rule) => ({
-              value: rule,
-              label: t(`app.restore.conflict_${rule.toLowerCase()}`),
-            }))}
-          />
-        {/if}
-
-        {#if destructive}
-          <!-- The first door, and the sentence that has to be read before the other two. The
-               catalogue carries it, because it is a fact about the operation rather than a
-               component's caption. -->
-          <Banner tone="danger" title={t('app.restore.replace_title')}>
-            <Stack gap="100">
-              <span>{t('app.restore.replace_note')}</span>
-              <span>{t('app.restore.credentials_note')}</span>
-            </Stack>
-          </Banner>
-
-          <Checkbox
-            label={t('app.restore.acknowledge_cost')}
-            bind:checked={costAcknowledged}
+            label={t('app.restore.target')}
+            bind:value={targetId}
+            placeholder={t('app.restore.choose_target')}
+            options={targets.map((target) => ({ value: target.id, label: target.name }))}
           />
 
-          <Input
-            label={t('app.restore.type_name', { name })}
-            hint={t('app.restore.type_name_hint')}
-            bind:value={typedName}
-          />
+          {#if targetId}
+            {#if archives.status === 'loading'}
+              <p class="waiting">
+                <Spinner label={t('app.restore.reading_archives')} />
+                <span>{t('app.restore.reading_archives')}</span>
+              </p>
+            {:else if archives.status === 'ready'}
+              <!-- Composed from the listing at the target rather than typed: an archive identifier
+                   nobody can check is an archive identifier somebody mistypes. -->
+              <Select
+                label={t('app.restore.archive')}
+                bind:value={archiveId}
+                placeholder={t('app.restore.choose_archive')}
+                options={archives.data.map((archive) => ({
+                  value: archive.path,
+                  label: `${when(archive.created_at) ?? archive.path} · ${archive.mode}`,
+                }))}
+              />
+              {#if chosenArchive}
+                <p class="quiet small">
+                  {chosenArchive.path}
+                  {#if chosenArchive.size_bytes}
+                    · {formatBytes(chosenArchive.size_bytes, messages.locale)}
+                  {/if}
+                  {#if chosenArchive.item_count !== undefined}
+                    · {t('app.restore.archive_items', { count: String(chosenArchive.item_count) })}
+                  {/if}
+                </p>
+                {#if chosenArchive.complete === false}
+                  <p class="warning">{t('app.restore.archive_incomplete')}</p>
+                {/if}
+              {/if}
+            {:else if archives.status === 'failed'}
+              <p class="failure" role="alert">{renderProblem(archives.error, messages).message}</p>
+            {/if}
+          {/if}
 
-          <Switch
-            label={t('app.restore.safety_backup')}
-            hint={t('app.restore.safety_backup_hint')}
-            bind:checked={safetyBackup}
+          <Select
+            label={t('app.restore.mode')}
+            bind:value={mode}
+            options={modes.map((which) => ({ value: which, label: modeWord(which) }))}
           />
-          {#if !safetyBackup}
-            <!-- Its own confirmation, naming what it gives up. Turning the copy off is a second
-                 decision, not a side effect of the first. -->
-            <Banner tone="danger" title={t('app.restore.no_safety_title')}>
-              <Stack gap="100">
-                <span>{t('app.restore.no_safety_note')}</span>
-                <Checkbox
-                  label={t('app.restore.acknowledge_no_safety')}
-                  bind:checked={safetyOffAcknowledged}
-                />
-              </Stack>
+          <p class="quiet small">{t(`app.restore.mode_${mode.toLowerCase()}_note`)}</p>
+          {#if !mayRunForReal(chosenMode, holdInForce)}
+            <!-- Said before the rehearsal rather than after it: the replace will not run, and why. -->
+            <Banner tone="warning" title={t('app.restore.replace_held_title')}>
+              {t('app.restore.replace_held')}
             </Banner>
           {/if}
-        {/if}
 
-        <div>
-          <Button
-            type="submit"
-            tone="primary"
-            isBusy={isWorking}
-            busyLabel={t('app.restore.rehearsing')}
-            disabledReason={doorsOpen ? undefined : t('app.restore.doors_closed')}
-          >
-            {t('app.restore.rehearse')}
-          </Button>
-        </div>
-        <p class="quiet small">{t('app.restore.rehearse_note')}</p>
-      </Stack>
-    </form>
+          {#if mode === 'SELECTIVE'}
+            <fieldset class="selection">
+              <legend>{t('app.restore.selection')}</legend>
+              <!-- Composed from what is here rather than typed: an archive holds identifiers, and an
+                   identifier somebody types is an identifier somebody mistypes. -->
+              {#each containers.hubs as container (container.id)}
+                <Checkbox
+                  label={container.name}
+                  checked={chosen.includes(container.id)}
+                  onchange={(event) => {
+                    const wanted = (event.currentTarget as HTMLInputElement).checked;
+                    chosen = wanted
+                      ? [...chosen, container.id]
+                      : chosen.filter((id) => id !== container.id);
+                  }}
+                />
+              {/each}
+            </fieldset>
+            <p class="quiet small">{t('app.restore.selection_note')}</p>
+          {/if}
+
+          {#if mode === 'SELECTIVE' || mode === 'MERGE'}
+            <Select
+              label={t('app.restore.conflict_rule')}
+              hint={t('app.restore.conflict_rule_hint')}
+              bind:value={conflictRule}
+              options={CONFLICT_RULES.map((rule) => ({
+                value: rule,
+                label: t(`app.restore.conflict_${rule.toLowerCase()}`),
+              }))}
+            />
+          {/if}
+
+          {#if destructive}
+            <!-- The first door, and the sentence that has to be read before the other two. The
+                 catalogue carries it, because it is a fact about the operation rather than a
+                 component's caption. -->
+            <Banner tone="danger" title={t('app.restore.replace_title')}>
+              <Stack gap="100">
+                <span>{t('app.restore.replace_note')}</span>
+                <span>{t('app.restore.credentials_note')}</span>
+              </Stack>
+            </Banner>
+
+            <Checkbox
+              label={t('app.restore.acknowledge_cost')}
+              bind:checked={costAcknowledged}
+            />
+
+            <Input
+              label={t('app.restore.type_name', { name })}
+              hint={t('app.restore.type_name_hint')}
+              bind:value={typedName}
+            />
+
+            <Switch
+              label={t('app.restore.safety_backup')}
+              hint={t('app.restore.safety_backup_hint')}
+              bind:checked={safetyBackup}
+            />
+            {#if !safetyBackup}
+              <!-- Its own confirmation, naming what it gives up. Turning the copy off is a second
+                   decision, not a side effect of the first. -->
+              <Banner tone="danger" title={t('app.restore.no_safety_title')}>
+                <Stack gap="100">
+                  <span>{t('app.restore.no_safety_note')}</span>
+                  <Checkbox
+                    label={t('app.restore.acknowledge_no_safety')}
+                    bind:checked={safetyOffAcknowledged}
+                  />
+                </Stack>
+              </Banner>
+            {/if}
+          {/if}
+
+          <div>
+            <Button
+              type="submit"
+              tone="primary"
+              isBusy={isWorking}
+              busyLabel={t('app.restore.rehearsing')}
+              disabledReason={doorsOpen ? undefined : t('app.restore.doors_closed')}
+            >
+              {t('app.restore.rehearse')}
+            </Button>
+          </div>
+          <p class="quiet small">{t('app.restore.rehearse_note')}</p>
+        </Stack>
+      </form>
+    </WorkspaceGate>
 
     {#if watch}
       <section class="panel">
@@ -513,7 +517,7 @@
 
           <p class="quiet small">{t('app.restore.rehearsal_wrote_nothing')}</p>
 
-          {#if !realId && rehearsal.status === 'SUCCEEDED' && mayRunForReal(rehearsal.mode as Mode, holdInForce)}
+          {#if !realId && rehearsal.status === 'SUCCEEDED' && mayRunForReal(rehearsal.mode as Mode, holdInForce) && (!isDestructive(rehearsal.mode as Mode) || mayHere('DELETE_CONTAINER').status === 'permitted')}
             <!-- The second request, composed from the first. Offered only once a report exists. -->
             <div>
               <Button

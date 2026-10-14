@@ -62,6 +62,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { deviceZone, todayIn } from '../lib/i18n/zone.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -541,59 +542,61 @@
       {/if}
     </Stack>
 
-    <form class="panel" onsubmit={record}>
-      <Stack gap="150">
-        <h2 class="section">{t('app.privacy.record_title')}</h2>
-        <p class="quiet small">{t('app.privacy.record_note')}</p>
-        <Select
-          label={t('app.privacy.kind')}
-          bind:value={draftKind}
-          options={KINDS.map((kind) => ({ value: kind, label: kindWord(kind) }))}
-        />
-        <p class="quiet small">{t(`app.privacy.kind_${draftKind.toLowerCase()}_note`)}</p>
-        <Input
-          label={t('app.privacy.subject_email')}
-          hint={t('app.privacy.subject_email_hint')}
-          type="email"
-          bind:value={draftEmail}
-        />
-        <Input
-          label={t('app.privacy.subject_account')}
-          hint={t('app.privacy.subject_account_hint')}
-          bind:value={draftAccount}
-        />
-        {#if producesArchive(draftKind as Kind)}
-          <!-- Required before such a case can start: a copy of somebody's data has to be put
-               somewhere, and this system writes archives to configured targets. -->
+    <WorkspaceGate permission="MANAGE_MEMBERS">
+      <form class="panel" onsubmit={record}>
+        <Stack gap="150">
+          <h2 class="section">{t('app.privacy.record_title')}</h2>
+          <p class="quiet small">{t('app.privacy.record_note')}</p>
           <Select
-            label={t('app.privacy.target')}
-            hint={t('app.privacy.target_hint')}
-            bind:value={draftTarget}
-            placeholder={t('app.privacy.choose_target')}
-            options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
+            label={t('app.privacy.kind')}
+            bind:value={draftKind}
+            options={KINDS.map((kind) => ({ value: kind, label: kindWord(kind) }))}
           />
-        {/if}
-        <!-- Its own deadline, where the controller owes a sooner answer than the month. -->
-        <Input
-          label={t('app.privacy.deadline')}
-          hint={t('app.privacy.deadline_hint')}
-          type="date"
-          min={todayIn(zone)}
-          bind:value={draftDueOn}
-        />
-        <Textarea label={t('app.privacy.notes')} bind:value={draftNotes} rows={2} />
-        <div>
-          <Button
-            type="submit"
-            tone="primary"
-            isBusy={isWorking}
-            busyLabel={t('app.privacy.recording')}
-          >
-            {t('app.privacy.record')}
-          </Button>
-        </div>
-      </Stack>
-    </form>
+          <p class="quiet small">{t(`app.privacy.kind_${draftKind.toLowerCase()}_note`)}</p>
+          <Input
+            label={t('app.privacy.subject_email')}
+            hint={t('app.privacy.subject_email_hint')}
+            type="email"
+            bind:value={draftEmail}
+          />
+          <Input
+            label={t('app.privacy.subject_account')}
+            hint={t('app.privacy.subject_account_hint')}
+            bind:value={draftAccount}
+          />
+          {#if producesArchive(draftKind as Kind)}
+            <!-- Required before such a case can start: a copy of somebody's data has to be put
+                 somewhere, and this system writes archives to configured targets. -->
+            <Select
+              label={t('app.privacy.target')}
+              hint={t('app.privacy.target_hint')}
+              bind:value={draftTarget}
+              placeholder={t('app.privacy.choose_target')}
+              options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
+            />
+          {/if}
+          <!-- Its own deadline, where the controller owes a sooner answer than the month. -->
+          <Input
+            label={t('app.privacy.deadline')}
+            hint={t('app.privacy.deadline_hint')}
+            type="date"
+            min={todayIn(zone)}
+            bind:value={draftDueOn}
+          />
+          <Textarea label={t('app.privacy.notes')} bind:value={draftNotes} rows={2} />
+          <div>
+            <Button
+              type="submit"
+              tone="primary"
+              isBusy={isWorking}
+              busyLabel={t('app.privacy.recording')}
+            >
+              {t('app.privacy.record')}
+            </Button>
+          </div>
+        </Stack>
+      </form>
+    </WorkspaceGate>
 
     <!-- Who keeps their own content out of AI: the register, here and nowhere else. -->
     <ConsentRegister />
@@ -602,74 +605,78 @@
       <h2 class="section">{t('app.privacy.articles_title')}</h2>
       <p class="quiet small">{t('app.privacy.articles_note')}</p>
 
-      <form
-        class="panel"
-        onsubmit={(event) => {
-          event.preventDefault();
-          if (!restrictAccount.trim()) return;
-          void attempt(async () => {
-            await privacy.restrict(restrictAccount.trim(), true, restrictReason.trim() || undefined);
-            restrictAccount = '';
-            restrictReason = '';
-          }, t('app.privacy.restricted_announced'));
-        }}
-      >
-        <Stack gap="150">
-          <h3 class="section">{t('app.privacy.restrict_title')}</h3>
-          <!-- What it means for the person's sessions and for the workspace's automations. -->
-          <p class="quiet small">{t('app.privacy.restrict_note')}</p>
-          <Input label={t('app.privacy.restrict_account')} bind:value={restrictAccount} />
-          <Input label={t('app.privacy.restrict_reason')} bind:value={restrictReason} />
-          <div>
-            <Button
-              type="submit"
-              tone="secondary"
-              isBusy={isWorking}
-              busyLabel={t('app.privacy.restricting')}
-            >
-              {t('app.privacy.restrict')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+      <WorkspaceGate permission="MANAGE_MEMBERS">
+        <form
+          class="panel"
+          onsubmit={(event) => {
+            event.preventDefault();
+            if (!restrictAccount.trim()) return;
+            void attempt(async () => {
+              await privacy.restrict(restrictAccount.trim(), true, restrictReason.trim() || undefined);
+              restrictAccount = '';
+              restrictReason = '';
+            }, t('app.privacy.restricted_announced'));
+          }}
+        >
+          <Stack gap="150">
+            <h3 class="section">{t('app.privacy.restrict_title')}</h3>
+            <!-- What it means for the person's sessions and for the workspace's automations. -->
+            <p class="quiet small">{t('app.privacy.restrict_note')}</p>
+            <Input label={t('app.privacy.restrict_account')} bind:value={restrictAccount} />
+            <Input label={t('app.privacy.restrict_reason')} bind:value={restrictReason} />
+            <div>
+              <Button
+                type="submit"
+                tone="secondary"
+                isBusy={isWorking}
+                busyLabel={t('app.privacy.restricting')}
+              >
+                {t('app.privacy.restrict')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
 
-      <form
-        class="panel"
-        onsubmit={(event) => {
-          event.preventDefault();
-          if (!withdrawPurpose.trim()) return;
-          void attempt(async () => {
-            await privacy.withdraw(withdrawPurpose.trim(), withdrawAccount.trim() || undefined);
-            withdrawPurpose = '';
-            withdrawAccount = '';
-          }, t('app.privacy.withdrawn_announced'));
-        }}
-      >
-        <Stack gap="150">
-          <h3 class="section">{t('app.privacy.withdraw_title')}</h3>
-          <p class="quiet small">{t('app.privacy.withdraw_note')}</p>
-          <Input
-            label={t('app.privacy.purpose')}
-            hint={t('app.privacy.purpose_hint')}
-            bind:value={withdrawPurpose}
-          />
-          <Input
-            label={t('app.privacy.withdraw_account')}
-            hint={t('app.privacy.withdraw_account_hint')}
-            bind:value={withdrawAccount}
-          />
-          <div>
-            <Button
-              type="submit"
-              tone="secondary"
-              isBusy={isWorking}
-              busyLabel={t('app.privacy.withdrawing')}
-            >
-              {t('app.privacy.withdraw')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+      <WorkspaceGate permission="MANAGE_MEMBERS">
+        <form
+          class="panel"
+          onsubmit={(event) => {
+            event.preventDefault();
+            if (!withdrawPurpose.trim()) return;
+            void attempt(async () => {
+              await privacy.withdraw(withdrawPurpose.trim(), withdrawAccount.trim() || undefined);
+              withdrawPurpose = '';
+              withdrawAccount = '';
+            }, t('app.privacy.withdrawn_announced'));
+          }}
+        >
+          <Stack gap="150">
+            <h3 class="section">{t('app.privacy.withdraw_title')}</h3>
+            <p class="quiet small">{t('app.privacy.withdraw_note')}</p>
+            <Input
+              label={t('app.privacy.purpose')}
+              hint={t('app.privacy.purpose_hint')}
+              bind:value={withdrawPurpose}
+            />
+            <Input
+              label={t('app.privacy.withdraw_account')}
+              hint={t('app.privacy.withdraw_account_hint')}
+              bind:value={withdrawAccount}
+            />
+            <div>
+              <Button
+                type="submit"
+                tone="secondary"
+                isBusy={isWorking}
+                busyLabel={t('app.privacy.withdrawing')}
+              >
+                {t('app.privacy.withdraw')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
     </Stack>
     </Stack>
 </Stack>
