@@ -1012,21 +1012,22 @@ type ItemMember struct {
 }
 
 type Job struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	Kind        string
-	Payload     []byte
-	DedupeKey   *string
-	RunAt       pgtype.Timestamptz
-	State       string
-	Attempts    int32
-	MaxAttempts int32
-	LockedUntil pgtype.Timestamptz
-	LastError   *string
-	Priority    int16
-	CreatedAt   pgtype.Timestamptz
-	FinishedAt  pgtype.Timestamptz
-	Progress    *float32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Kind            string
+	Payload         []byte
+	DedupeKey       *string
+	RunAt           pgtype.Timestamptz
+	State           string
+	Attempts        int32
+	MaxAttempts     int32
+	LockedUntil     pgtype.Timestamptz
+	LastError       *string
+	Priority        int16
+	CreatedAt       pgtype.Timestamptz
+	FinishedAt      pgtype.Timestamptz
+	Progress        *float32
+	LastErrorParams []byte
 }
 
 type JumbleEntry struct {

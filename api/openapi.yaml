@@ -16708,6 +16708,14 @@ components:
           type: [string, "null"]
           description: >
             The message code of the last failure, never a message and never free text. Set on a `FAILED` job, and on a job that is being retried.
+        error_params:
+          type: object
+          additionalProperties: { type: string }
+          description: >
+            The parameters the sentence of `error_code` reads, where the job ended with a refusal
+            that has some - an AI budget spent since the job was accepted carries `reason`
+            (`budget_spent`) and `renews_at`, exactly as the same refusal does on a request.
+            Absent otherwise.
         created_at: { type: string, format: date-time }
         finished_at:
           type: [string, "null"]

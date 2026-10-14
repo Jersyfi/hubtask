@@ -2522,6 +2522,7 @@ class Job(TypedDict, total=False):
     progress: Required[float | None]
     result_url: Required[str | None]
     error_code: Required[str | None]
+    error_params: dict[str, Any]
     created_at: Required[str]
     finished_at: Required[str | None]
 

@@ -447,6 +447,18 @@ type Result struct {
 	// of a provider's answer the narrowing dropped, say. The runner logs them with the job's kind
 	// and identifier and nothing else; a handler puts no content here (rule 10).
 	Counts map[string]int
+	// Refusal is a refusal the job met where it would have done its work - a provider that may no
+	// longer be asked - rather than a failure. The runner ends the job FAILED with the refusal's
+	// code and parameters, without a retry and without counting a dead letter: asking again
+	// would meet the same answer, and nobody has to repair anything.
+	Refusal *Refusal
+}
+
+// Refusal is the code and the parameters of a refusal, as a client renders any other: a message
+// code and its parameters, never a sentence (rule 8).
+type Refusal struct {
+	Code   string
+	Params map[string]string
 }
 
 // Handler runs one kind of job.
@@ -543,6 +555,14 @@ type Failure struct {
 	// RetryAt is when the next attempt is due. Zero sends the job to the dead letter instead:
 	// the attempts are used up, or the error is one that will not read differently next time.
 	RetryAt time.Time
+	// Refused ends the job as FAILED rather than in the dead letter, at once: the job met a
+	// refusal (Result.Refusal), which is an answer for whoever asked and nothing an operator has
+	// to act on. RetryAt is ignored.
+	Refused bool
+	// Params are the refusal's parameters, kept beside Code so that the sentence a person reads
+	// can say what the code alone cannot - when a spent budget renews. Codes and moments only,
+	// never anything the job was working on (rule 10). Written only with Refused.
+	Params map[string]string
 }
 
 // Depth is the backlog of one kind, for the gauge an alert watches when processing stops keeping

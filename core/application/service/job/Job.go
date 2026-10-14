@@ -302,6 +302,9 @@ func output(job domain.Job) usecase.Output {
 	if job.ErrorCode != "" {
 		out["error_code"] = job.ErrorCode
 	}
+	if len(job.ErrorParams) > 0 {
+		out["error_params"] = job.ErrorParams
+	}
 	if !job.FinishedAt.IsZero() {
 		out["finished_at"] = job.FinishedAt
 	}

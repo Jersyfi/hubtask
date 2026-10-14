@@ -101,9 +101,12 @@ type Job struct {
 	// ErrorCode is the message code of the last failure, never a message (ADR-0011). The queue
 	// stores exactly a code in `last_error`, for the reason rule 10 gives: a message can carry
 	// what the job was working on.
-	ErrorCode  string
-	CreatedAt  time.Time
-	FinishedAt time.Time
+	ErrorCode string
+	// ErrorParams are the parameters of a refusal the job ended with - a spent AI budget's
+	// `reason` and `renews_at` - for the sentence ErrorCode names. Empty for any other failure.
+	ErrorParams map[string]string
+	CreatedAt   time.Time
+	FinishedAt  time.Time
 }
 
 // IsTerminal reports whether the job is over.

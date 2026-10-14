@@ -141,6 +141,32 @@ func TestAFinishedJobCarriesItsCodeAndItsTimes(t *testing.T) {
 	}
 }
 
+// A job that ended with a refusal carries the refusal's parameters, so that the sentence its code
+// names can say when a spent budget renews.
+func TestARefusedJobCarriesItsRefusalsParameters(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"job_id":       jobUUID,
+		"status":       "FAILED",
+		"created_at":   time.Date(2026, 8, 26, 8, 0, 0, 0, time.UTC),
+		"error_code":   "ai.unavailable",
+		"error_params": map[string]string{"reason": "budget_spent", "renews_at": "2026-08-27T00:00:00Z"},
+	}}
+
+	recorder := callJob(t, registry, http.MethodGet, "/jobs/"+jobUUID)
+
+	var body struct {
+		ErrorCode   string            `json:"error_code"`
+		ErrorParams map[string]string `json:"error_params"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the answer is not JSON: %v", err)
+	}
+	if body.ErrorCode != "ai.unavailable" || body.ErrorParams["reason"] != "budget_spent" ||
+		body.ErrorParams["renews_at"] != "2026-08-27T00:00:00Z" {
+		t.Errorf("the answer is %+v", body)
+	}
+}
+
 func TestCancellingAJobAnswersTheJobItNowIs(t *testing.T) {
 	registry := &catalogue{out: usecase.Output{
 		"job_id":      jobUUID,
