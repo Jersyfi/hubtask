@@ -72,6 +72,10 @@ type Purger struct {
 type Outcome struct {
 	// Matched is how many rows were past their period, whether or not they were removed.
 	Matched int
+	// Held is how many of the matched rows the trash pass could not remove because a legal hold or
+	// the offline window keeps them. Coming back at once would find them again, so they do not
+	// count towards a full batch (RunRetention.Exhausted).
+	Held int
 	// Removed is how many actually went.
 	Removed int
 	// Blocked counts what was refused, by reason. The reasons are the closed set above, so this is
@@ -318,11 +322,13 @@ func (p Purger) expiredItems(
 				Contributors:    contributors[expired.ID],
 			}); held {
 				outcome.blocked(BlockedByLegalHold)
+				outcome.Held++
 				continue
 			}
 			if expired.DeletedAt.After(safe) {
 				windowReached = true
 				outcome.blocked(BlockedByTombstoneWindow)
+				outcome.Held++
 				continue
 			}
 			removable = append(removable, expired.ID)
@@ -354,11 +360,13 @@ func (p Purger) expiredContainers(
 				ContainerIDs: nonZero(expired.ParentID, expired.ID),
 			}); held {
 				outcome.blocked(BlockedByLegalHold)
+				outcome.Held++
 				continue
 			}
 			if expired.DeletedAt.After(safe) {
 				windowReached = true
 				outcome.blocked(BlockedByTombstoneWindow)
+				outcome.Held++
 				continue
 			}
 			removable = append(removable, expired.ID)

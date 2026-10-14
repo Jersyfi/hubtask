@@ -469,6 +469,7 @@ func TestRE6RowsInsideTheWindowDoNotStarveADueOne(t *testing.T) {
 // RE-2 with more held than a batch holds: rows a legal hold keeps must not fill the batch ahead of
 // a due one. The held rows are older, so they come first in the read; a batch-full of them would
 // otherwise be read, counted and skipped on every pass, and the due row behind them never reached.
+// A pass that removed what it could, with only held rows left, is the end of the trash.
 func TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne(t *testing.T) {
 	s := newSuite(t, 24*time.Hour)
 	s.run.Purger.BatchSize = 2
@@ -490,6 +491,29 @@ func TestRE2AFullBatchUnderALegalHoldDoesNotStarveADueOne(t *testing.T) {
 	}
 	if outcome.Removed != 1 || outcome.Blocked[lifecycle.BlockedByLegalHold] != 2 {
 		t.Errorf("the pass reports %+v, want one removed and two held", outcome)
+	}
+	if !s.run.Exhausted(outcome) {
+		t.Errorf("a pass that left only held rows reads as unfinished (%+v)", outcome)
+	}
+}
+
+// A batch the offline window holds entirely is the end of the pass: nothing in it can go before the
+// window has passed, and a job that came straight back would find the same rows again, every time.
+func TestABatchHeldByTheWindowEndsThePass(t *testing.T) {
+	s := newSuite(t, 90*24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	collectionID := s.collection(t)
+	// Sixty days: past the thirty-day period, inside the ninety-day window.
+	s.trashedItem(t, collectionID, 60)
+	s.trashedItem(t, collectionID, 60)
+
+	outcome := s.sweep(t)
+
+	if outcome.Removed != 0 || outcome.Blocked[lifecycle.BlockedByTombstoneWindow] != 2 {
+		t.Fatalf("the pass reports %+v, want both held by the window", outcome)
+	}
+	if !s.run.Exhausted(outcome) {
+		t.Errorf("a batch held entirely by the window reads as unfinished (%+v)", outcome)
 	}
 }
 

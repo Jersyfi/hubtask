@@ -1006,11 +1006,13 @@ func (h RunRetention) report(
 // Exhausted reports whether this pass found less than a full batch, which is how the job knows there
 // is nothing left to come back for straight away.
 //
-// Read off what was matched rather than off what was removed: a pass that matched a full batch and
-// removed none of it - every one of them under a legal hold - has still not reached the end of the
-// trash, and a job that stopped there would leave the rest until the next long interval.
+// Read off what was matched rather than off what was removed, less what is held: a row a legal
+// hold or the offline window keeps would be found again by a pass that came straight back, so a
+// batch of them is the end for now - the trash pass reads past held rows to the due ones behind
+// them, so a full batch is never made of held rows while due ones wait. A matched row that went
+// or could have gone still counts: a pass that filled its batch with them has not reached the end.
 func (h RunRetention) Exhausted(outcome Outcome) bool {
-	return outcome.Matched < h.Purger.BatchSize
+	return outcome.Matched-outcome.Held < h.Purger.BatchSize
 }
 
 // RetentionRunAction is the audit code of a run that removed something.

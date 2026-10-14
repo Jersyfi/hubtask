@@ -644,6 +644,7 @@ func ruleByID(rules []domain.Rule, id shared.ID) domain.Rule {
 // add folds one phase's outcome into the pass's.
 func (o *Outcome) add(other Outcome) {
 	o.Matched += other.Matched
+	o.Held += other.Held
 	o.Removed += other.Removed
 	if o.Blocked == nil {
 		o.Blocked = map[string]int{}
