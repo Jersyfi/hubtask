@@ -781,3 +781,71 @@ func TestAnUnreadableWorkspaceAnswerFailsTheManifest(t *testing.T) {
 		t.Errorf("error %v, want unavailable", err)
 	}
 }
+
+// ownHubsFake answers whether the caller may own a private hub, as the authoriser does: a person
+// holding a role, never a service account.
+type ownHubsFake struct{ holds bool }
+
+func (o ownHubsFake) MayOwnPrivateHub(_ context.Context, actor appshared.ActorContext) (bool, error) {
+	return o.holds && actor.Kind == appshared.ActorUser, nil
+}
+
+type privateHubsFake struct{ allowed bool }
+
+func (p privateHubsFake) PrivateHubsAllowed(context.Context, shared.ID) (bool, error) {
+	return p.allowed, nil
+}
+
+type peopleFake struct{ count int }
+
+func (p peopleFake) CountPeople(context.Context) (int, error) { return p.count, nil }
+
+// A hub of one's own is offered exactly where creating one without STRUCTURE would succeed and the
+// workspace has somebody to keep it from - one row per reason it is not (P-05).
+func TestTheManifestSaysWhetherAPrivateHubOfOnesOwnIsOffered(t *testing.T) {
+	serviceAccount := appshared.ActorContext{Kind: appshared.ActorServiceAccount, TenantID: tenant}
+	cases := []struct {
+		name    string
+		actor   appshared.ActorContext
+		holds   bool
+		allowed bool
+		people  int
+		wired   bool
+		want    *bool
+	}{
+		{name: "a person holding a role, allowed, several people", actor: member(), holds: true, allowed: true, people: 2, wired: true, want: ptr(true)},
+		{name: "a person holding nothing", actor: member(), holds: false, allowed: true, people: 2, wired: true, want: ptr(false)},
+		{name: "a service-account token", actor: serviceAccount, holds: true, allowed: true, people: 2, wired: true, want: ptr(false)},
+		{name: "private hubs switched off", actor: member(), holds: true, allowed: false, people: 2, wired: true, want: ptr(false)},
+		{name: "a workspace of one", actor: member(), holds: true, allowed: true, people: 1, wired: true, want: ptr(false)},
+		{name: "a build wired without the answer", actor: member(), holds: true, allowed: true, people: 2, wired: false, want: ptr(false)},
+		{name: "anonymous", actor: appshared.Anonymous("en", "UTC"), holds: true, allowed: true, people: 2, wired: true, want: nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+			if tc.wired {
+				h.OwnHubs = ownHubsFake{holds: tc.holds}
+				h.PrivateHubs = privateHubsFake{allowed: tc.allowed}
+				h.People = peopleFake{count: tc.people}
+			}
+			capabilities, err := h.Execute(t.Context(), tc.actor)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := capabilities.PrivateHubOffered
+			if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
+				t.Errorf("private_hub_offered = %v, want %v", deref(got), deref(tc.want))
+			}
+		})
+	}
+}
+
+func ptr(b bool) *bool { return &b }
+
+func deref(b *bool) any {
+	if b == nil {
+		return "absent"
+	}
+	return *b
+}

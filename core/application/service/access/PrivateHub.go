@@ -39,12 +39,7 @@ func (s Service) AuthorizeOwnPrivateHub(
 		return notPermitted(request)
 	}
 
-	var holds bool
-	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
-		holds, err = s.Memberships.HoldsAny(ctx, actor.AccountID)
-		return err
-	})
+	holds, err := s.holdsAny(ctx, actor)
 	if err != nil {
 		return err
 	}
@@ -53,6 +48,29 @@ func (s Service) AuthorizeOwnPrivateHub(
 		return notPermitted(request)
 	}
 	return nil
+}
+
+// MayOwnPrivateHub answers AuthorizeOwnPrivateHub's question without recording anything, for the
+// manifest: a person - never a service account - who holds a role anywhere in the workspace. The
+// token's scope is not asked, as `HeldOnWorkspace` does not ask it: the manifest says what the
+// person may do, and a token bounds it further.
+func (s Service) MayOwnPrivateHub(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if !actor.IsAuthenticated() || actor.Kind != appshared.ActorUser {
+		return false, nil
+	}
+	return s.holdsAny(ctx, actor)
+}
+
+// holdsAny is whether the actor's account holds a role anywhere in the workspace - the one reading
+// both the refusal and the manifest take, so the two cannot disagree.
+func (s Service) holdsAny(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	var holds bool
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		holds, err = s.Memberships.HoldsAny(ctx, actor.AccountID)
+		return err
+	})
+	return holds, err
 }
 
 // Hidden answers whether the path runs through a private hub the actor holds nothing in - a hub

@@ -550,3 +550,39 @@ func TestTheManifestPublishesWhatTheCallerHoldsOnTheWorkspace(t *testing.T) {
 		})
 	}
 }
+
+// Whether a hub of one's own is offered reaches the response as a boolean - false included, which
+// is an answer - and is absent for an anonymous caller.
+func TestTheManifestPublishesWhetherAPrivateHubOfOnesOwnIsOffered(t *testing.T) {
+	yes, no := true, false
+	for _, test := range []struct {
+		name  string
+		given *bool
+		want  string
+	}{
+		{"offered", &yes, "true"},
+		{"not offered", &no, "false"},
+		{"anonymous", nil, "absent"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			answer := manifest()
+			answer.PrivateHubOffered = test.given
+
+			response := serveCapabilities(t, &capabilities{result: answer})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+			}
+			var body map[string]json.RawMessage
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("the manifest is not JSON: %v", err)
+			}
+			got := "absent"
+			if raw, held := body["private_hub_offered"]; held {
+				got = string(raw)
+			}
+			if got != test.want {
+				t.Errorf("private_hub_offered %s, want %s", got, test.want)
+			}
+		})
+	}
+}

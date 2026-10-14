@@ -108,6 +108,14 @@ func TestHasAccessIsExactlyWhatAPrivateHubOfOnesOwnNeeds(t *testing.T) {
 			if refused == tc.access {
 				t.Errorf("a private hub of one's own refused: %v, while has_access is %v", refused, tc.access)
 			}
+			// And the manifest's `private_hub_offered` asks the same, without recording.
+			may, err := authoriser.MayOwnPrivateHub(ctx, actor)
+			if err != nil {
+				t.Fatalf("asking the manifest's question: %v", err)
+			}
+			if may != tc.access {
+				t.Errorf("MayOwnPrivateHub = %v, while has_access is %v", may, tc.access)
+			}
 		})
 	}
 }

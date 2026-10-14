@@ -329,6 +329,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Legal:                  legal,
 		Instance:               &instance,
 		WorkspacePermissions:   workspacePermissions,
+		PrivateHubOffered:      source.PrivateHubOffered,
 		Deprecations:           deprecationManifest(),
 	}
 }
