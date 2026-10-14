@@ -307,7 +307,9 @@ templated issuer without one is refused at configuration. The preset answers whi
 segments make an issuer shared (`shared_issuer_paths`: `common`, `organizations`), and a form asks
 for the list there in every mode, `ANY` included. It answers too which first path segments make an
 issuer one that serves personal accounts (`personal_issuer_paths`: `common`, `consumers` and the
-personal accounts' directory), where a form does not offer `ANY` (§10.4).
+personal accounts' directory), where a form does not offer `ANY` (§10.4), and which directories hold
+the personal accounts (`personal_directories`), which a form refuses in the directory list outside
+`INVITED_ONLY` before the save, as the server does.
 
 ### 10.4 Admission: one axis, who comes in
 

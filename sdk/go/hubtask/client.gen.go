@@ -6435,6 +6435,9 @@ type IdentityProviderPreset struct {
 	// Particular A message code for the one thing about this provider that is not like the others - Google's single issuer for every account there is, Microsoft's directory-specific issuer. Absent where there is none.
 	Particular *string `json:"particular,omitempty"`
 
+	// PersonalDirectories The directories this provider's personal accounts live in, in `directory_claim`'s identifiers, lower case. A provider whose mode creates accounts - anything but `INVITED_ONLY` - is refused one of them in `allowed_directories` (`identity_provider.directory_personal`), compared without regard to case or surrounding spaces; under `INVITED_ONLY` the list only narrows and may name one. Empty where the provider has no personal accounts.
+	PersonalDirectories []string `json:"personal_directories"`
+
 	// PersonalIssuerPaths The first path segments that make an issuer of this provider one that also serves personal accounts, such as `consumers` in `https://login.microsoftonline.com/consumers/v2.0`. An issuer whose first path segment is one of them is refused `ANY` (`identity_provider.provisioning_personal`), whatever `provisioning` lists. Empty where the provider has no such issuer.
 	PersonalIssuerPaths []string `json:"personal_issuer_paths"`
 

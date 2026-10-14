@@ -482,6 +482,14 @@ func identityProviderPresetResponse(out usecase.Output) openapi.IdentityProvider
 			}
 		}
 	}
+	answer.PersonalDirectories = []string{}
+	if directories, held := out["personal_directories"].([]any); held {
+		for _, directory := range directories {
+			if text, ok := directory.(string); ok {
+				answer.PersonalDirectories = append(answer.PersonalDirectories, text)
+			}
+		}
+	}
 	return answer
 }
 

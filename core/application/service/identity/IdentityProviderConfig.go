@@ -717,6 +717,9 @@ func presetOutput(preset domain.ProviderPreset, redirectURL string) usecase.Outp
 		"shared_issuer_paths": sharedPathsOutput(preset),
 		// Where `ANY` is refused, from the list the refusal reads.
 		"personal_issuer_paths": stringsOutput(preset.PersonalIssuerSegments()),
+		// Which directories `allowed_directories` may not name outside INVITED_ONLY, from the list
+		// the refusal reads - apart from the issuer paths, which a directory typed `common` is not.
+		"personal_directories": stringsOutput(preset.PersonalDirectories),
 	}
 	if preset.DirectoryClaim != "" {
 		out["directory_claim"] = preset.DirectoryClaim
