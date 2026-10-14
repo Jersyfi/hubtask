@@ -11234,7 +11234,7 @@ components:
         What follows from which provider a workspace picked: the scopes its registration has to
         permit, whether it may sign in people nobody invited, the one thing about it that is not
         like the others, and the instructions for registering with it.
-      required: [kind, scopes, addresses_verified, public, provisioning, installation_provisioning, redirect_uri, instructions, supports_templated_issuer, shared_issuer_paths]
+      required: [kind, scopes, addresses_verified, public, provisioning, installation_provisioning, redirect_uri, instructions, supports_templated_issuer, shared_issuer_paths, personal_issuer_paths]
       properties:
         kind: { $ref: "#/components/schemas/IdentityProviderKind" }
         issuer:
@@ -11264,7 +11264,8 @@ components:
             invitation. A preset that is public only at some of its issuers is not marked public:
             Microsoft's `consumers` and `common` issuers, and the personal-account directory's own,
             are refused `ANY` when configured (`identity_provider.provisioning_personal`), so
-            `provisioning` may list a mode such an issuer refuses.
+            `provisioning` may list a mode such an issuer refuses; `personal_issuer_paths` names
+            those issuers.
         provisioning:
           type: array
           items: { $ref: "#/components/schemas/IdentityProviderProvisioning" }
@@ -11314,6 +11315,15 @@ components:
             `organizations` in `https://login.microsoftonline.com/organizations/v2.0`. An issuer
             whose first path segment is one of them is saved only with `allowed_directories`
             named, in every provisioning mode. Empty where `supports_templated_issuer` is false.
+        personal_issuer_paths:
+          type: array
+          items: { type: string }
+          description: >
+            The first path segments that make an issuer of this provider one that also serves
+            personal accounts, such as `consumers` in `https://login.microsoftonline.com/consumers/v2.0`.
+            An issuer whose first path segment is one of them is refused `ANY`
+            (`identity_provider.provisioning_personal`), whatever `provisioning` lists. Empty where
+            the provider has no such issuer.
 
     InstanceReach:
       type: object

@@ -305,7 +305,9 @@ message codes carrying this installation's redirect URI.
 compared exactly, the signature still from the template's key set. The directory list decides, so a
 templated issuer without one is refused at configuration. The preset answers which first path
 segments make an issuer shared (`shared_issuer_paths`: `common`, `organizations`), and a form asks
-for the list there in every mode, `ANY` included.
+for the list there in every mode, `ANY` included. It answers too which first path segments make an
+issuer one that serves personal accounts (`personal_issuer_paths`: `common`, `consumers` and the
+personal accounts' directory), where a form does not offer `ANY` (§10.4).
 
 ### 10.4 Admission: one axis, who comes in
 

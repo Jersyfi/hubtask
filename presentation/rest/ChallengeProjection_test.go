@@ -97,6 +97,15 @@ func TestAPresetAnswersItsSharedIssuerPaths(t *testing.T) {
 	if len(microsoft.SharedIssuerPaths) != 2 || microsoft.SharedIssuerPaths[1] != "organizations" {
 		t.Errorf("shared_issuer_paths = %v", microsoft.SharedIssuerPaths)
 	}
+	personal := identityProviderPresetResponse(usecase.Output{
+		"kind": "MICROSOFT", "personal_issuer_paths": []any{"common", "consumers"},
+	})
+	if len(personal.PersonalIssuerPaths) != 2 || personal.PersonalIssuerPaths[1] != "consumers" {
+		t.Errorf("personal_issuer_paths = %v", personal.PersonalIssuerPaths)
+	}
+	if generic := identityProviderPresetResponse(usecase.Output{"kind": "GENERIC"}); generic.PersonalIssuerPaths == nil {
+		t.Error("a preset without personal issuers answered null")
+	}
 	if generic := identityProviderPresetResponse(usecase.Output{"kind": "GENERIC"}); generic.SharedIssuerPaths == nil {
 		t.Error("a preset without shared issuers answered null")
 	}
