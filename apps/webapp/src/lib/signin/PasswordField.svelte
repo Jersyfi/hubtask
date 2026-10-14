@@ -48,7 +48,9 @@
 
   let { value = $bindable(''), label, context = {}, proof, error, hint, onlines }: Props = $props();
 
-  const listId = `rules-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render.
+  const instanceId = $props.id();
+  const listId = `rules-${instanceId}`;
 
   const lines = $derived(
     evaluate(signInRules.password, value, context, {

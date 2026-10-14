@@ -39,7 +39,10 @@
 
   let { label, tabs, selected = $bindable(tabs[0]?.id ?? ''), onselect, children }: Props = $props();
 
-  const group = `tabs-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const group = `tabs-${instanceId}`;
 
   // A `title` is not an accessible description: it is a tooltip a pointer finds and a keyboard
   // reader does not. Where a view cannot be opened the reason is rendered and pointed at, exactly

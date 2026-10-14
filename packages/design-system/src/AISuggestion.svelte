@@ -69,7 +69,10 @@
     actions,
   }: Props = $props();
 
-  const headingId = `proposal-${Math.random().toString(36).slice(2, 9)}`;
+  // Svelte's own id, not a random one: unique per instance and the same on every render, so a
+  // prerendered page is identical between builds and a hydrated one matches its markup.
+  const instanceId = $props.id();
+  const headingId = `proposal-${instanceId}`;
 </script>
 
 <!-- A `section` with an accessible name is a region: a landmark a screen reader can jump to and
