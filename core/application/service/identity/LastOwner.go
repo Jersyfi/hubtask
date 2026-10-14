@@ -69,3 +69,10 @@ func keepsAnOwner(ctx context.Context, owners repository.Owners, lock bool, chan
 	}
 	return shared.ErrConflict.WithDetail("memberships.last_owner")
 }
+
+// countsAsOwner is whether the account would hold the workspace together: a person who can act. The
+// owners' query applies the same condition to the accounts it reads.
+func countsAsOwner(account domain.Account) bool {
+	return account.Kind == domain.AccountUser &&
+		(account.Status == domain.AccountActive || account.Status == domain.AccountRestricted)
+}

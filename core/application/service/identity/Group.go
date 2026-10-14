@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -227,6 +228,9 @@ type UpdateGroup struct {
 	Clock       clock.Clock
 	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Owners keeps the workspace's last owner when the group holds OWNER on it (domain-model.md
+	// §3.2). Nil refuses such a member change rather than letting it pass unguarded.
+	Owners repository.Owners
 }
 
 // Execute applies the change and returns the group.
@@ -250,9 +254,21 @@ func (h UpdateGroup) Execute(
 	// Asked before the write, so that a refusal's audit entry is not rolled back with it.
 	var asked roleSet
 	if cmd.ReplaceMembers {
-		var err error
-		if asked, err = h.ceilingOfAChange(ctx, actor, cmd); err != nil {
+		var (
+			held []domain.Grant
+			err  error
+		)
+		if asked, held, err = h.ceilingOfAChange(ctx, actor, cmd); err != nil {
 			return domain.Group{}, err
+		}
+		// Before any proof, so that it is not spent on a change the guard refuses.
+		if holdsWorkspaceOwner(held) {
+			err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				return keepsAnOwner(ctx, h.Owners, false, h.ownerChange(cmd.GroupID, cmd.Members))
+			})
+			if err != nil {
+				return domain.Group{}, err
+			}
 		}
 	}
 
@@ -291,8 +307,14 @@ func (h UpdateGroup) Execute(
 		}
 
 		if cmd.ReplaceMembers {
-			if err := h.stillWithinTheCeiling(ctx, group.ID, cmd.Members, asked); err != nil {
+			held, err := h.stillWithinTheCeiling(ctx, group.ID, cmd.Members, asked)
+			if err != nil {
 				return err
+			}
+			if holdsWorkspaceOwner(held) {
+				if err := keepsAnOwner(ctx, h.Owners, true, h.ownerChange(group.ID, cmd.Members)); err != nil {
+					return err
+				}
 			}
 			if err := h.replaceMembers(ctx, group, cmd.Members); err != nil {
 				return err
@@ -312,12 +334,12 @@ func (h UpdateGroup) Execute(
 // ceilingOfAChange asks the authoriser, once per role the group holds, whether the actor may place
 // and take it, when the member list changes who is in the group. An unchanged list - a client
 // resending the whole object - places nothing and is not judged. The roles asked about are
-// returned for the write to compare against under the group's lock.
+// returned for the write to compare against under the group's lock, with the grants they came from.
 func (h UpdateGroup) ceilingOfAChange(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateGroupCommand,
-) (roleSet, error) {
+) (roleSet, []domain.Grant, error) {
 	if h.Grants == nil {
-		return nil, shared.ErrInternal.WithDetail("groups.grants_missing")
+		return nil, nil, shared.ErrInternal.WithDetail("groups.grants_missing")
 	}
 	var (
 		held    []domain.Grant
@@ -335,30 +357,70 @@ func (h UpdateGroup) ceilingOfAChange(
 		return err
 	})
 	if err != nil || !changed {
-		return roleSet{}, err
+		return roleSet{}, nil, err
 	}
-	return withinCeiling(ctx, h.Authorizer, actor, cmd.GroupID, GroupUpdatedAction, held)
+	asked, err := withinCeiling(ctx, h.Authorizer, actor, cmd.GroupID, GroupUpdatedAction, held)
+	return asked, held, err
 }
 
 // stillWithinTheCeiling repeats the comparison under the group's row lock, which a grant to the
 // group takes as well: a role given to the group after the ceiling was asked, while somebody joined,
 // would otherwise reach them unjudged. A changed list whose group now holds a role the ceiling was
-// not asked about is a conflict to retry, not a permission.
+// not asked about is a conflict to retry, not a permission. It answers the group's grants as read
+// under the lock, none where the list changes nobody.
 func (h UpdateGroup) stillWithinTheCeiling(
 	ctx context.Context, groupID shared.ID, members []shared.ID, asked roleSet,
-) error {
+) ([]domain.Grant, error) {
 	if err := h.Groups.Lock(ctx, groupID); err != nil {
-		return err
+		return nil, err
 	}
 	current, err := h.Groups.Members(ctx, groupID)
 	if err != nil || sameMembers(current, members) {
-		return err
+		return nil, err
 	}
 	held, err := h.Grants.OfGroup(ctx, groupID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return asked.covers(held)
+	return held, asked.covers(held)
+}
+
+// ownerChange is what a new member list of a group holding OWNER on the workspace does to the
+// owners: it ends the paths of whoever it no longer names, and gives one to whoever it adds who
+// would count as an owner.
+func (h UpdateGroup) ownerChange(groupID shared.ID, members []shared.ID) ownerChange {
+	named := map[shared.ID]bool{}
+	for _, accountID := range members {
+		if !accountID.IsZero() {
+			named[accountID] = true
+		}
+	}
+	return ownerChange{
+		ends: func(path repository.OwnerPath) bool { return path.GroupID == groupID && !named[path.AccountID] },
+		joining: func(ctx context.Context) (int, error) {
+			current, err := h.Groups.Members(ctx, groupID)
+			if err != nil {
+				return 0, err
+			}
+			joining := 0
+			for accountID := range named {
+				if slices.Contains(current, accountID) {
+					continue
+				}
+				account, err := h.Accounts.Find(ctx, accountID)
+				if errors.Is(err, shared.ErrNotFound) {
+					continue
+				}
+				if err != nil {
+					return 0, err
+				}
+				if countsAsOwner(account) {
+					joining++
+				}
+			}
+			return joining, nil
+		},
+	}
 }
 
 // sameMembers is whether the list names exactly who is in the group, in any order.
@@ -563,6 +625,9 @@ type DeleteGroup struct {
 	Audit       audit.Sink
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
+	// Owners keeps the workspace's last owner when the group holds OWNER on it (domain-model.md
+	// §3.2). Nil refuses such a deletion rather than letting it pass unguarded.
+	Owners repository.Owners
 }
 
 // Execute deletes the group.
@@ -600,6 +665,16 @@ func (h DeleteGroup) Execute(
 	if err != nil {
 		return err
 	}
+	// Every path through the group ends with it. Asked before any proof, decided under the lock.
+	lastOwner := ownerChange{ends: func(path repository.OwnerPath) bool { return path.GroupID == cmd.GroupID }}
+	if holdsWorkspaceOwner(held) {
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			return keepsAnOwner(ctx, h.Owners, false, lastOwner)
+		})
+		if err != nil {
+			return err
+		}
+	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		group, err := h.Groups.Find(ctx, cmd.GroupID)
@@ -621,6 +696,11 @@ func (h DeleteGroup) Execute(
 		}
 		if err := asked.covers(now); err != nil {
 			return err
+		}
+		if holdsWorkspaceOwner(now) {
+			if err := keepsAnOwner(ctx, h.Owners, true, lastOwner); err != nil {
+				return err
+			}
 		}
 		// What the members lose is read before the group goes: its grants go with it.
 		members, err := h.Groups.Members(ctx, group.ID)

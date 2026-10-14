@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -163,5 +164,97 @@ func TestOnlyTheWorkspacesOwnerIsGuarded(t *testing.T) {
 	err = handler.Execute(t.Context(), admin(), RevokeMembershipCommand{MembershipID: ownerGrant, StepUpToken: "hbt_sup_x"})
 	if shared.AsError(err).DetailCode != "memberships.owners_missing" || len(grants.revoked) != 0 {
 		t.Errorf("unguarded workspace owner revocation answered %v, want memberships.owners_missing", err)
+	}
+}
+
+func activePerson(id shared.ID) domain.Account {
+	return domain.Account{ID: id, TenantID: tenant, Kind: domain.AccountUser, Status: domain.AccountActive}
+}
+
+// The owners' group: groupID holds OWNER on the workspace through membershipID, ownerA in it.
+func ownersGroupWorld(t *testing.T) (*groupStore, *grantStore, *ownersFake) {
+	t.Helper()
+	groups := newGroups(settledGroup(t))
+	groups.members[groupID] = []shared.ID{ownerA}
+	owners := &ownersFake{paths: []repository.OwnerPath{{MembershipID: membershipID, AccountID: ownerA, GroupID: groupID}}}
+	return groups, groupHolding(t, domain.RoleOwner), owners
+}
+
+// #1429 at the group doors: taking the last owners out of the group that holds OWNER on the
+// workspace, without putting a counting person in, is refused; a handover to a person who counts
+// passes; an invited account does not count.
+func TestTheLastOwnersAreNotTakenOutOfTheirGroup(t *testing.T) {
+	cases := []struct {
+		name    string
+		members []shared.ID
+		refused bool
+	}{
+		{"emptied", nil, true},
+		{"handed to an invitation", []shared.ID{invitedID}, true},
+		{"handed to a person", []shared.ID{ownerB}, false},
+		{"another person joins", []shared.ID{ownerA, ownerB}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			groups, grants, owners := ownersGroupWorld(t)
+			handler := updateHandler(groups, newAccounts(invitedAccount(t), activePerson(ownerA), activePerson(ownerB)), &authorizer{}, &auditSink{})
+			handler.Grants, handler.Owners = grants, owners
+
+			_, err := handler.Execute(t.Context(), admin(), UpdateGroupCommand{
+				GroupID: groupID, Members: tc.members, ReplaceMembers: true,
+			})
+
+			if tc.refused {
+				if shared.AsError(err).DetailCode != "memberships.last_owner" {
+					t.Fatalf("error %v, want memberships.last_owner", err)
+				}
+				if !slices.Equal(groups.members[groupID], []shared.ID{ownerA}) {
+					t.Errorf("members %v, want the group unchanged", groups.members[groupID])
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("changing the members: %v", err)
+			}
+			if len(owners.reads) != 2 || !owners.reads[1] {
+				t.Errorf("owners read %v, want the decision under the lock", owners.reads)
+			}
+		})
+	}
+}
+
+// Deleting the group the last owners hold OWNER through is refused; with another owner left it
+// goes.
+func TestTheLastOwnersGroupIsNotDeleted(t *testing.T) {
+	groups, grants, owners := ownersGroupWorld(t)
+	handler := deleteHandler(groups, &authorizer{}, &auditSink{})
+	handler.Grants, handler.Owners = grants, owners
+
+	err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID})
+	if shared.AsError(err).DetailCode != "memberships.last_owner" || len(groups.deleted) != 0 {
+		t.Fatalf("deleting answered %v and deleted %v, want memberships.last_owner and nothing", err, groups.deleted)
+	}
+
+	owners.paths = append(owners.paths, repository.OwnerPath{MembershipID: ownerGrant, AccountID: ownerB})
+	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID}); err != nil {
+		t.Fatalf("deleting with another owner left: %v", err)
+	}
+	if len(groups.deleted) != 1 {
+		t.Errorf("deleted %v, want the group", groups.deleted)
+	}
+}
+
+// A group holding OWNER on a hub only is not the workspace's owners: no count is read.
+func TestAGroupOwningAHubIsNotCountedAsTheWorkspacesOwners(t *testing.T) {
+	held, err := domain.NewGrant(membershipID, tenant, "", groupID, domain.HubScope(hubID), domain.RoleOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := newGroups(settledGroup(t))
+	groups.members[groupID] = []shared.ID{ownerA}
+	handler := deleteHandler(groups, &authorizer{}, &auditSink{})
+	handler.Grants = newGrants(held)
+	if err := handler.Execute(t.Context(), admin(), DeleteGroupCommand{GroupID: groupID}); err != nil {
+		t.Fatalf("deleting a hub's owners' group: %v", err)
 	}
 }

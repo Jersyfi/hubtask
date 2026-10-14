@@ -12,7 +12,11 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/repository/identity"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	portclock "github.com/Jersyfi/hubtask/core/port/clock"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -131,5 +135,51 @@ func TestTheOwnersAreThePeopleWhoCanAct(t *testing.T) {
 		if path.MembershipID == other.paulaGrant || path.MembershipID == other.groupGrant {
 			t.Errorf("another workspace's owner %+v was counted", path)
 		}
+	}
+}
+
+// #1429 against PostgreSQL through the use cases (domain-model.md §3.2): Paula owns the workspace,
+// Gerd and Adam through the owners' group. Deleting the group leaves Paula; revoking Paula's own
+// grant then would leave only an invitation, a service account and a deleted account holding
+// OWNER, none of whom counts - refused, and the grant stays.
+func TestTheWorkspaceKeepsAnOwner(t *testing.T) {
+	ctx := context.Background()
+	w := seedOwnersWorld(ctx, t)
+	authoriser := realAuthoriser(ctx, t)
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	grants := postgres.NewMembershipGrantRepository(pageCursors())
+	sink := postgres.NewAuditSink(clockadapter.NewUUIDv7(portclock.Fixed(created)))
+	paula := appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: w.tenant, AccountID: w.paula, AccountName: "Paula",
+		Scopes: []string{"members:write"},
+	}
+
+	err := identityservice.DeleteGroup{
+		Groups: postgres.NewGroupRepository(pageCursors()), Grants: grants, Authorizer: authoriser,
+		Revocations: revocationsFor(t, authoriser), Audit: sink, UnitOfWork: unitOfWork,
+		Clock: portclock.Fixed(created), Owners: grants,
+	}.Execute(ctx, paula, identityservice.DeleteGroupCommand{GroupID: w.group})
+	if err != nil {
+		t.Fatalf("deleting the owners' group while Paula owns the workspace: %v", err)
+	}
+
+	err = identityservice.RevokeMembership{
+		Grants: grants, Authorizer: authoriser, Revocations: revocationsFor(t, authoriser), Audit: sink,
+		UnitOfWork: unitOfWork, Clock: portclock.Fixed(created), Owners: grants, StepUp: provenStepUp{},
+	}.Execute(ctx, paula, identityservice.RevokeMembershipCommand{MembershipID: w.paulaGrant, StepUpToken: "hbt_sup_x"})
+	if shared.AsError(err).DetailCode != "memberships.last_owner" {
+		t.Fatalf("revoking the last owner answered %v, want memberships.last_owner", err)
+	}
+
+	var paths []identity.OwnerPath
+	if err := read(ctx, t, w.tenant, func(ctx context.Context) error {
+		var err error
+		paths, err = grants.OwnerPaths(ctx)
+		return err
+	}); err != nil {
+		t.Fatalf("reading back: %v", err)
+	}
+	if len(paths) != 1 || paths[0].AccountID != w.paula {
+		t.Errorf("owners after the refusal %+v, want Paula's grant", paths)
 	}
 }
