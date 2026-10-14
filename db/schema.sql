@@ -262,6 +262,10 @@ CREATE TABLE membership (
 );
 CREATE INDEX membership_lookup_idx ON membership (tenant_id, account_id, scope_type, scope_id);
 CREATE INDEX membership_scope_idx  ON membership (tenant_id, scope_type, scope_id);
+-- A subject holds a role at a scope once (0149). NULLS NOT DISTINCT: one of account_id and group_id
+-- is NULL in every row, and scope_id at the tenant.
+CREATE UNIQUE INDEX membership_grant_uq
+  ON membership (tenant_id, account_id, group_id, scope_type, scope_id, role) NULLS NOT DISTINCT;
 
 CREATE TABLE access_token (
   id            uuid PRIMARY KEY,
