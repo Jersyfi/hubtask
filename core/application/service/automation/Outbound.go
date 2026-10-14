@@ -121,9 +121,26 @@ func sealActions(
 			}
 			params["secret_header_sealed"] = stored.Document()
 			delete(params, "secret_header_value")
+		case request.Sealed != nil:
+			// Only the server seals (T-21). A sealed document is taken only where it is the one
+			// this rule already holds at this position - the stored actions carried forward by an
+			// edit that leaves them alone. Any other came from the caller, sealed elsewhere.
+			if stored, exists := kept[path]; !exists || *stored != *request.Sealed {
+				return sealedRefused(path)
+			}
 		}
 		return nil
 	})
+}
+
+// sealedRefused is a sealed header secret a caller sent: no caller sends one, because every read
+// answers the mask in its place.
+func sealedRefused(path string) error {
+	return shared.ErrValidation.
+		WithDetail("automation.http_sealed_refused").
+		WithFields(shared.FieldError{
+			Path: path + "/params/secret_header_sealed", Code: "automation.http_sealed_refused",
+		})
 }
 
 // walkOutbound visits every HTTP_REQUEST's parameters in an action tree, at its path.
@@ -292,6 +309,14 @@ func (h HttpRequest) Execute(
 			})
 	}
 
+	// A sealed secret arrives only with a rule's run, sealed for that rule when it was written; a
+	// direct call - or a run carrying another rule's ciphertext - brings one the server did not
+	// seal for it (T-21).
+	if request.Sealed != nil &&
+		(actor.RunsForRule.IsZero() || request.Sealed.Purpose != string(ruleSecretPurpose(actor.RunsForRule))) {
+		return HTTPRequested{}, sealedRefused("")
+	}
+
 	sealed := request.Sealed
 	if request.SecretValue != "" {
 		if h.Encryptor == nil {
@@ -420,7 +445,7 @@ func (h HttpRequest) Descriptor() usecase.Descriptor {
 			{
 				Name: "secret_header_sealed", Kind: usecase.KindObject,
 				Description: "The stored form the rule writer's sealing produces. Not something " +
-					"a caller sends.",
+					"a caller sends: it is refused unless a rule's own run carries it.",
 			},
 			{
 				Name: "signature_header", Kind: usecase.KindString,

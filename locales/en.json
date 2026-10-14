@@ -880,6 +880,7 @@
   "automation.http_secret_required": "A secret header or a signature needs a secret value.",
   "automation.http_secret_unknown": "There is no stored secret to keep at that position. Send the secret itself.",
   "automation.http_sealed_invalid": "The stored secret could not be read.",
+  "automation.http_sealed_refused": "A sealed secret is not something to send. Send the secret itself.",
   "automation.http_sealing_unavailable": "This installation cannot seal a secret, so the request was not stored.",
   "automation.http_job_malformed": "This installation could not perform that outbound call.",
   "automation.http_body_unrenderable": "The body template could not be rendered for this event.",

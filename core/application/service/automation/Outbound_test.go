@@ -261,3 +261,101 @@ func mustDecode(t *testing.T, encoded string) []byte {
 	}
 	return decoded
 }
+
+// planted is a sealed document as a caller could send one: a ciphertext from somewhere else, under
+// a purpose of its choosing.
+func planted(purpose string) map[string]any {
+	return domain.SealedSecret{
+		Ciphertext: base64.StdEncoding.EncodeToString([]byte("sealed:elsewhere")),
+		KeyID:      "k1", Purpose: purpose,
+	}.Document()
+}
+
+// T-21: only the server seals. A direct call that brings its own sealed header is refused rather
+// than queued with a ciphertext sealed elsewhere; a rule's run brings the rule's own, and only that.
+func TestASealedHeaderIsTakenOnlyFromTheRunningRule(t *testing.T) {
+	uc := HttpRequest{
+		Jobs: &queued{}, Authorizer: &authorizer{}, Encryptor: &sealer{},
+		Conditions: compiler{}, Audit: &auditSink{}, UnitOfWork: unitOfWork{},
+		Clock: clock.Fixed(now), IDs: ids{next: newRuleID},
+	}
+	direct := writerActor()
+	direct.Scopes = append(direct.Scopes, "automation:manage")
+	run := direct
+	run.RunsForRule = newRuleID
+
+	cases := []struct {
+		name    string
+		run     bool
+		purpose string
+		allowed bool
+	}{
+		{"a direct call", false, string(ruleSecretPurpose(newRuleID)), false},
+		{"a direct call naming a request", false, string(requestSecretPurpose(newRuleID)), false},
+		{"a rule's run with another rule's secret", true, string(ruleSecretPurpose(serviceID)), false},
+		{"a rule's run with its own secret", true, string(ruleSecretPurpose(newRuleID)), true},
+	}
+	for _, c := range cases {
+		actor := direct
+		if c.run {
+			actor = run
+		}
+		_, err := uc.Execute(context.Background(), actor, map[string]any{
+			"method": "POST", "url": "https://example.org/hook",
+			"secret_header_name": "Authorization", "secret_header_sealed": planted(c.purpose),
+		}, "")
+		switch {
+		case c.allowed && err != nil:
+			t.Errorf("%s: refused with %v", c.name, err)
+		case !c.allowed && !errors.Is(err, shared.ErrValidation):
+			t.Errorf("%s: answered %v, want a validation refusal", c.name, err)
+		case !c.allowed && shared.AsError(err).DetailCode != "automation.http_sealed_refused":
+			t.Errorf("%s: detail %s", c.name, shared.AsError(err).DetailCode)
+		}
+	}
+}
+
+// The rule door: a rule written with a sealed header the caller brought is refused, and an edit
+// keeps only the stored one - a sealed document the rule does not hold at that position is planted.
+func TestARuleKeepsNoSealedHeaderACallerBrought(t *testing.T) {
+	h := newHarness()
+	h.writer.Conditions = compiler{}
+	h.roleOf(writerID, identity.RoleOwner)
+	h.roleOf(serviceID, identity.RoleMember)
+	actor := writerActor()
+	actor.Scopes = append(actor.Scopes, "automation:manage")
+
+	withSealed := func(purpose string) domain.Action {
+		action := httpAction("")
+		action.Params["secret_header_sealed"] = planted(purpose)
+		return action
+	}
+	refused := func(err error) bool {
+		problem := shared.AsError(err)
+		return problem != nil && problem.DetailCode == "automation.http_sealed_refused"
+	}
+
+	cmd := validCommand()
+	cmd.Actions = []domain.Action{withSealed("automation.rule.http:anything")}
+	if _, err := (CreateRule{Writer: h.writer}).Execute(context.Background(), actor, cmd); !refused(err) {
+		t.Errorf("creating with a sealed header answered %v, want it refused", err)
+	}
+
+	rule, err := (CreateRule{Writer: h.writer}).Execute(
+		context.Background(), actor, httpRuleCommand("Bearer s3cret"))
+	if err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	edited := []domain.Action{withSealed(string(ruleSecretPurpose(rule.ID)))}
+	if _, err := (UpdateRule{Writer: h.writer}).Execute(context.Background(), actor,
+		UpdateRuleCommand{ID: rule.ID, Actions: &edited}); !refused(err) {
+		t.Errorf("editing in a planted sealed header answered %v, want it refused", err)
+	}
+
+	// An edit that leaves the actions alone carries the stored sealed header forward.
+	name := "Renamed"
+	if _, err := (UpdateRule{Writer: h.writer}).Execute(context.Background(), actor,
+		UpdateRuleCommand{ID: rule.ID, Name: &name}); err != nil {
+		t.Errorf("an edit leaving the actions alone was refused: %v", err)
+	}
+}
