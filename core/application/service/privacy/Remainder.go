@@ -125,7 +125,7 @@ func (h ResumeErasure) Resume(ctx context.Context, in PerformInput) error {
 
 	erased, err := h.Eraser.erase(ctx, actor, request, RemainderErasedAction)
 	if err != nil {
-		if problem := shared.AsError(err); problem != nil && problem.DetailCode == domain.CodeErasureBlockedByRule {
+		if problem := shared.AsError(err); problem != nil && (problem.DetailCode == domain.CodeErasureBlockedByRule || problem.DetailCode == lastOwnerCode) {
 			return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				return h.Kept.BlockKept(ctx, request.ID, problem.DetailCode, problem.Params)
 			})
