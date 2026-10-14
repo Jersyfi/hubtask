@@ -3029,6 +3029,7 @@
   "app.trash.window": "Days left before it goes for good: {days}.",
   "app.trash.window_last": "It goes for good today.",
   "app.trash.window_unknown": "Your workspace decides how long this is kept.",
+  "app.trash.window_held": "Kept by a legal hold.",
   "app.trash.batch": "Everything deleted with it comes back too.",
   "app.trash.restore": "Restore",
   "app.trash.purge": "Delete for good",

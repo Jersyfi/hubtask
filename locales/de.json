@@ -1866,6 +1866,7 @@
   "app.trash.window": "Tage, bis es endgültig weg ist: {days}.",
   "app.trash.window_last": "Heute ist es endgültig weg.",
   "app.trash.window_unknown": "Dein Arbeitsbereich entscheidet, wie lange das aufbewahrt wird.",
+  "app.trash.window_held": "Eine rechtliche Sperre hält es zurück.",
   "app.trash.batch": "Alles, was damit gelöscht wurde, kommt auch zurück.",
   "app.trash.restore": "Wiederherstellen",
   "app.trash.purge": "Endgültig löschen",

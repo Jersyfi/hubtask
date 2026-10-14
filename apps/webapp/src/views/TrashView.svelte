@@ -92,6 +92,9 @@
    * rather than watching it print braces at a reader.
    */
   function window(row: TrashEntry): string {
+    // A legal hold keeps it past any date: the pass does not take it while the hold stands, and
+    // when the hold is lifted is nobody's to promise here (data-retention.md §4).
+    if (row.held) return t('app.trash.window_held');
     const left = row.purge_after ? daysUntil(row.purge_after, now) : remainingDays(row.deleted_at, retention.trashDays, now);
     if (left === undefined) return t('app.trash.window_unknown');
     return left === 0 ? t('app.trash.window_last') : t('app.trash.window', { days: left });
