@@ -2358,6 +2358,7 @@ class TrashEntry(TypedDict, total=False):
     trash_batch_id: Required[str]
     deleted_at: Required[str]
     purge_after: Required[str]
+    held: Required[bool]
     deleted_by: Required["Actor" | Any]
     title: Required[str]
     subtype: Required[str]

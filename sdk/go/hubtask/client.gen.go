@@ -9497,6 +9497,9 @@ type TrashEntry struct {
 	// DeletedBy Who put it there. Null for anything deleted before the columns existed: those rows were never asked who, and answering from the audit trail would be taking a fact out of a source behind a permission most members do not hold - which is the whole reason this field is on the projection rather than left to a client to join.
 	DeletedBy *Actor `json:"deleted_by"`
 
+	// Held Whether a legal hold keeps this deletion: a hold names the workspace, its hub or collection, the entry or one above or below it in the same deletion, or a person whose own data is in it. While it stands the automatic removal does not take the deletion, so `purge_after` is not when it goes - it goes at the first run after the hold is lifted and the moment has passed. Which hold, and why, is the legal holds' to say.
+	Held bool `json:"held"`
+
 	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
 	HubId *openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID  `json:"id"`
