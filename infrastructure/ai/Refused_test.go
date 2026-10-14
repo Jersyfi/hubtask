@@ -27,6 +27,19 @@ func TestARefusedSourceSaysWhyAndIsStillUnavailable(t *testing.T) {
 	}
 }
 
+// A caller that short-cuts on Capabilities - Suggest, before it queues anything - asks the provider
+// for its refusal rather than naming one, so the source's own reason reaches the person.
+func TestARefusedSourceSaysWhyBeforeAnyCall(t *testing.T) {
+	err := port.RefusalOf(Refused{Detail: "ai.source_not_allowed"})
+	if !errors.Is(err, shared.ErrUnavailable) || shared.AsError(err).DetailCode != "ai.source_not_allowed" {
+		t.Errorf("the refusal before any call is %v", err)
+	}
+	if err := port.RefusalOf(Refused{}); !errors.Is(err, port.ErrUnavailable) ||
+		shared.AsError(err).DetailCode != "ai.unavailable" {
+		t.Errorf("a refusal without a reason is %v", err)
+	}
+}
+
 type embedder struct{ Noop }
 
 func (embedder) Capabilities() port.ProviderCapabilities {
