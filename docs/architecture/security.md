@@ -188,14 +188,15 @@ value, a rotation is a configuration change. The procedure is drilled
    zero; earlier, its rows answer `crypto.unknown_key`, the census shows it `in_ring: false` with
    the kinds it still seals, and the operator's health report warns `crypto.key_missing` per kind
    (counted in the background at start, hourly and on every census read, and saying when) until it
-   is put back and re-sealed. A direct HTTP call still retrying holds its header secret in its job,
-   which neither the census nor a round reaches (finding #1296): wait for the outbound ladder before
-   removing a key.
+   is put back and re-sealed.
 
-**What a round touches.** The six sealed places — the second factor, an identity provider's client
+**What a round touches.** The seven sealed places — the second factor, an identity provider's client
 secret, the AI provider's key, a webhook's current and previous signing secret, a backup target's
-credential, a rule's HTTP header secret at any depth — each re-sealed by its owning service under its
-purpose. The installation's own round - a job without a tenant, run in the scope whose writes the
+credential, a rule's HTTP header secret at any depth, and the header secret of an HTTP call still
+waiting to be made or retried (in its job, until the job ends) — each re-sealed by its owning service
+under its purpose. A call's secret is moved under the purpose it was sealed for, its request's or the
+rule's it was carried over from; one the envelope refuses under that purpose is skipped and counted,
+and it drains with its job. The installation's own round - a job without a tenant, run in the scope whose writes the
 installation policies admit - re-seals its sign-in providers' client secrets and its offered AI
 models' keys, each under the purpose it was sealed for. No version or `updated_at` moves. A value
 naming a key outside the ring is skipped and counted. Counts land in `hubtask_secret_reseals_total`

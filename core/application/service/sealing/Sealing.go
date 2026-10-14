@@ -11,9 +11,9 @@
 // ring.
 //
 // The values themselves stay where they are and with whom they are. Six application services
-// own a sealed value each - the second factor, the identity provider's client secret, a webhook's
-// signing secrets, a backup target's credential, an AI provider's key, a rule's HTTP header
-// secret - and each is bound
+// own the seven sealed values - the second factor, the identity provider's client secret, a
+// webhook's signing secrets, a backup target's credential, an AI provider's key, a rule's HTTP
+// header secret and a pending HTTP call's - and each is bound
 // to a purpose only its owner can name. So each owner re-seals its own rows behind Resealer, and
 // this package composes them without learning a single purpose.
 package sealing
