@@ -2950,6 +2950,8 @@
   "app.tokens.intro": "Ein Token lässt ein Skript oder ein Werkzeug als dich handeln, begrenzt durch das, was du darfst, und durch die Scopes, die du ihm gibst. Niemand sonst kann diese Liste sehen, auch kein Administrator.",
   "app.tokens.reading": "Deine Token werden gelesen",
   "app.tokens.none": "Du hast keine Token.",
+  "app.tokens.none_service": "Dieses Dienstkonto hat keine Token.",
+  "app.tokens.reading_service": "Seine Token werden gelesen",
   "app.tokens.name": "Wofür es ist",
   "app.tokens.name_hint": "Was du in einem Jahr liest, wenn du entscheidest, ob es noch gebraucht wird.",
   "app.tokens.scopes": "Scopes",

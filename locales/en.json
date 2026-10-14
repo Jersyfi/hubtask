@@ -4110,6 +4110,8 @@
   "app.tokens.intro": "A token lets a script or a tool act as you, bounded by what you may do and by the scopes you give it. Nobody else can see this list, not even an administrator.",
   "app.tokens.reading": "Reading your tokens",
   "app.tokens.none": "You have no tokens.",
+  "app.tokens.none_service": "This service account has no tokens.",
+  "app.tokens.reading_service": "Reading its tokens",
   "app.tokens.name": "What it is for",
   "app.tokens.name_hint": "What you will read in a year when deciding whether it is still needed.",
   "app.tokens.scopes": "Scopes",
