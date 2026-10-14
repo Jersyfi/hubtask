@@ -304,6 +304,88 @@ func TestAnEvaluationStopsAtTheDeadline(t *testing.T) {
 	}
 }
 
+// A runtime error is the expression failing on its values, not a timeout - and every kind of the
+// closed list is reached by a real expression here, because the kind is read from CEL's message
+// and a library update that rewords one must fail this test rather than turn it into `other`.
+func TestARuntimeErrorIsNotATimeout(t *testing.T) {
+	item := map[string]any{"title": "secret-title", "labels": []any{"a"}, "count": int64(9223372036854775807)}
+	for _, tc := range []struct {
+		name string
+		expr string
+		rows map[string]any
+		want port.Failure
+	}{
+		{"division by zero", `1 / (size(item.labels) - 1) == 1`, nil, port.FailureDivisionByZero},
+		{"modulus by zero", `1 % (size(item.labels) - 1) == 1`, nil, port.FailureModulusByZero},
+		{"integer overflow", `item.count + 1 > 0`, nil, port.FailureOverflow},
+		{"a key the value lacks", `item.secretkey == 1`, nil, port.FailureNoSuchKey},
+		{"a declared name with no value", `item.title == 'a'`, map[string]any{}, port.FailureNoSuchKey},
+		{"no such overload", `item.title + 1 == 2`, nil, port.FailureNoSuchOverload},
+		{"conversion", `int(item.title) == 1`, nil, port.FailureConversion},
+		{"index out of range", `item.labels[7] == 'a'`, nil, port.FailureIndexOutOfRange},
+		{"anything else", `item.title.matches(item.title + '[')`, nil, port.FailureOther},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows := tc.rows
+			if rows == nil {
+				rows = map[string]any{"item": item}
+			}
+			_, err := compile(t, tc.expr).Evaluate(context.Background(), newValues(rows))
+			if !errors.Is(err, shared.ErrValidation) {
+				t.Fatalf("error %v, want ErrValidation", err)
+			}
+			var coded *shared.Error
+			errors.As(err, &coded)
+			if coded.DetailCode != port.CodeEvaluationFailed {
+				t.Errorf("code %q, want %q", coded.DetailCode, port.CodeEvaluationFailed)
+			}
+			if got := coded.Params["kind"]; got != string(tc.want) {
+				t.Errorf("kind %q, want %q (CEL said: %v)", got, tc.want, errors.Unwrap(err))
+			}
+			// Neither the data nor the expression travels with the error (rule 10).
+			for _, quoted := range []string{"secret", "item", "7", "regexp"} {
+				if strings.Contains(err.Error(), quoted) {
+					t.Errorf("the error %q quotes %q", err.Error(), quoted)
+				}
+			}
+		})
+	}
+}
+
+// The deadline answers `timed_out` and nothing else.
+func TestAnExpressionPastItsDeadlineTimesOut(t *testing.T) {
+	program := compile(t, `item.labels.all(a, a != 'zz')`)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	_, err := program.Evaluate(ctx, newValues(manyLabels(500)))
+	if !errors.Is(err, shared.ErrUnavailable) || detailOf(t, err) != port.CodeTimedOut {
+		t.Fatalf("error %v, want ErrUnavailable with %s", err, port.CodeTimedOut)
+	}
+}
+
+// manyLabels is an item long enough that an evaluation reaches the evaluator's interrupt check,
+// which is where a deadline or a cancellation is noticed.
+func manyLabels(n int) map[string]any {
+	labels := make([]any, 0, n)
+	for i := range n {
+		labels = append(labels, itoa(i))
+	}
+	return map[string]any{"item": map[string]any{"labels": labels}}
+}
+
+// A caller that went away is not the expression's failure.
+func TestACancelledEvaluationIsTheCallersCancellation(t *testing.T) {
+	program := compile(t, `item.labels.all(a, a != 'zz')`)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := program.Evaluate(ctx, newValues(manyLabels(500)))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error %v, want context.Canceled", err)
+	}
+}
+
 // A regex is the classic way to write a bomb, and CEL's `matches` is the only door to one.
 func TestARegexBombDoesNotRunAway(t *testing.T) {
 	program := compile(t, `item.title.matches('^(a+)+$')`)
