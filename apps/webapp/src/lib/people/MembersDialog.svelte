@@ -257,7 +257,10 @@
     </Stack>
     {/if}
 
-    {#if grantable.length > 0}
+    <!-- Inviting asks MANAGE_MEMBERS on the workspace whatever the place (identity.md §12): a
+         reader who manages this place only gives roles here, and is not offered an invitation the
+         server refuses. -->
+    {#if grantable.length > 0 && managesWorkspace}
       <form class="invite" onsubmit={invite}>
         <Stack gap="100">
           <h3 class="section">{t('app.people.invite_here')}</h3>
