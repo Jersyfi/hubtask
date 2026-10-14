@@ -19,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
@@ -83,6 +83,34 @@
     const current = filter;
     return untrack(() => runs.open(current));
   });
+
+  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new filter. */
+  let arrived = $state<string | undefined>(undefined);
+  let isLoadingMore = $state(false);
+  /** Why the last press of *Show more* brought nothing; cleared by the next press and a new filter. */
+  let moreFailed = $state<string | undefined>(undefined);
+  $effect(() => {
+    void filter;
+    arrived = undefined;
+    moreFailed = undefined;
+  });
+
+  /** The next page, appended, and what arrived said once it has (P-13). */
+  async function more(): Promise<void> {
+    const current = filter;
+    const before = runs.of(current).length;
+    moreFailed = undefined;
+    isLoadingMore = true;
+    try {
+      await runs.more(current);
+      arrived = t('app.runs.arrived', { count: runs.of(current).length - before });
+    } catch (error) {
+      // Beside the button that asked, not in the page's banner: the runs already shown are still right.
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
+  }
 
   const reading = $derived(runs.stateOf(filter));
   const listed = $derived(runs.of(filter));
@@ -400,10 +428,18 @@
           <p class="quiet">{t('app.runs.none')}</p>
         {/each}
 
-        {#if runs.moreAfter(filter)}
-          <div>
-            <Button tone="secondary" onclick={() => void runs.more(filter)}>{t('app.runs.more')}</Button>
-          </div>
+        <!-- Drawn whole while something is to be said after the last page: the live regions go
+             with the component, and one removed with the button is one nobody hears. -->
+        {#if runs.moreAfter(filter) || arrived || moreFailed}
+          <LoadMore
+            label={t('app.runs.more')}
+            busyLabel={t('app.runs.loading_more')}
+            hasMore={Boolean(runs.moreAfter(filter))}
+            isBusy={isLoadingMore}
+            arrivedLabel={arrived}
+            failedLabel={moreFailed}
+            onLoadMore={() => void more()}
+          />
         {/if}
       {/if}
     </Stack>

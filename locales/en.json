@@ -3426,6 +3426,8 @@
   "app.runs.reading": "Reading the runs",
   "app.runs.none": "No runs yet.",
   "app.runs.more": "Show more",
+  "app.runs.loading_more": "Loading more…",
+  "app.runs.arrived": "{count, plural, =0 {Nothing more arrived.} one {# more run arrived.} other {# more runs arrived.}}",
   "app.runs.list_title": "Runs",
   "app.runs.filter_rule": "Rule",
   "app.runs.all_rules": "Every rule",

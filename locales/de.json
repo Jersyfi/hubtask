@@ -2261,6 +2261,8 @@
   "app.runs.reading": "Die Läufe werden gelesen",
   "app.runs.none": "Noch keine Läufe.",
   "app.runs.more": "Mehr zeigen",
+  "app.runs.loading_more": "Lädt mehr …",
+  "app.runs.arrived": "{count, plural, =0 {Es kam nichts mehr dazu.} one {# weiterer Lauf ist da.} other {# weitere Läufe sind da.}}",
   "app.runs.list_title": "Läufe",
   "app.runs.filter_rule": "Regel",
   "app.runs.all_rules": "Jede Regel",
