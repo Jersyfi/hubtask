@@ -72,9 +72,10 @@ type Purger struct {
 type Outcome struct {
 	// Matched is how many rows were past their period, whether or not they were removed.
 	Matched int
-	// Held is how many of the matched rows the trash pass could not remove because a legal hold or
-	// the offline window keeps them. Coming back at once would find them again, so they do not
-	// count towards a full batch (RunRetention.Exhausted).
+	// Held is how many of the matched rows a pass could not act on because something will still
+	// keep them on the next one: in the trash pass a legal hold or the offline window, in the rule
+	// sweep a legal hold or, in its second phase, a retained descendant. Coming back at once would
+	// find them again, so they do not count towards a full batch (RunRetention.Exhausted).
 	Held int
 	// Removed is how many actually went.
 	Removed int

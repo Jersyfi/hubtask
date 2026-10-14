@@ -187,6 +187,9 @@ func (s Sweeper) announce(
 		}
 		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 			outcome.blocked(reason)
+			// Held as well as matched: a block sets no due moment, so the next pass reads this
+			// entry again, and a batch of them is no reason to come straight back (Exhausted).
+			outcome.Held++
 			// The object is told what is stopping it. §6's whole argument is that retention
 			// nobody can see surprises somebody, and "this would have been deleted and a legal
 			// hold is holding it back" is the half of it a count in a run's report cannot say.
@@ -302,6 +305,7 @@ func (s Sweeper) announceChains(
 		for _, candidate := range candidates {
 			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 				outcome.blocked(reason)
+				outcome.Held++
 				continue
 			}
 			ids = append(ids, candidate.ID)
@@ -364,12 +368,17 @@ func (s Sweeper) act(
 			outcome.Matched--
 			continue
 		}
+		// Both keep their marking, so the next pass reads them again: held, not a reason to come
+		// straight back (Exhausted). The descendant counts here though the trash pass does not
+		// count it, because here the parent is read again on every pass until its child goes.
 		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
 			outcome.blocked(reason)
+			outcome.Held++
 			continue
 		}
 		if retained[candidate.ID] > 0 {
 			outcome.blocked(domain.BlockedByDescendant)
+			outcome.Held++
 			continue
 		}
 		byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
