@@ -3242,6 +3242,9 @@ func run() error {
 					automationservice.RuleResealer{
 						Rules: postgres.NewAutomationRuleRepository(cursors), Encryptor: encryptor,
 					},
+					automationservice.CallResealer{
+						Calls: postgres.NewCallSealingRepository(), Encryptor: encryptor,
+					},
 				},
 				Encryptor: encryptor, Audit: auditSink, Clock: clockadapter.System{}, Signals: metrics,
 			},

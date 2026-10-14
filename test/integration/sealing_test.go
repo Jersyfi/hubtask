@@ -36,6 +36,7 @@ var (
 	_ integrationrepo.WebhookSealings      = postgres.WebhookSubscriptionRepository{}
 	_ backuprepo.CredentialSealings        = postgres.BackupTargetRepository{}
 	_ automationrepo.RuleSealings          = postgres.AutomationRuleRepository{}
+	_ automationrepo.CallSealings          = postgres.CallSealingRepository{}
 )
 
 func enrolmentListed(listed []identityrepo.MfaEnrollment, accountID shared.ID, keyID string) bool {
@@ -449,17 +450,31 @@ func byKey(counted sealingrepo.Counts, err error) (map[string]int64, error) {
 // ends: the job table is shared by every test in the package.
 func seedCallJob(ctx context.Context, t *testing.T, tenant shared.ID, kind, state, keyID string) (job, request shared.ID) {
 	t.Helper()
-	job, request = freshID(t), freshID(t)
-	payload := map[string]any{
-		"request_id": request.String(), "method": "POST", "url": "https://hooks.example/call",
-	}
+	request = freshID(t)
+	var sealed map[string]any
 	if keyID != "" {
-		payload["secret_header_name"] = "X-Token"
-		payload["secret_header_sealed"] = automation.SealedSecret{
+		sealed = automation.SealedSecret{
 			Ciphertext: base64.StdEncoding.EncodeToString([]byte("sealed-not-a-secret")),
 			KeyID:      keyID,
 			Purpose:    "automation.http:" + request.String(),
 		}.Document()
+	}
+	return seedCallJobCarrying(ctx, t, tenant, kind, state, request, sealed), request
+}
+
+// seedCallJobCarrying is seedCallJob with the sealed document given, for a test that seals a real
+// value; nil carries none.
+func seedCallJobCarrying(
+	ctx context.Context, t *testing.T, tenant shared.ID, kind, state string, request shared.ID, sealed map[string]any,
+) shared.ID {
+	t.Helper()
+	job := freshID(t)
+	payload := map[string]any{
+		"request_id": request.String(), "method": "POST", "url": "https://hooks.example/call",
+	}
+	if sealed != nil {
+		payload["secret_header_name"] = "X-Token"
+		payload["secret_header_sealed"] = sealed
 	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
@@ -474,7 +489,7 @@ func seedCallJob(ctx context.Context, t *testing.T, tenant shared.ID, kind, stat
 	t.Cleanup(func() {
 		_, _ = admin.Exec(context.WithoutCancel(ctx), `DELETE FROM job WHERE id = $1`, job.String())
 	})
-	return job, request
+	return job
 }
 
 // UC-INS-16 check 1: an HTTP call still on its retry ladder holds its header secret in its job,
@@ -516,5 +531,90 @@ func TestTheCensusCountsAPendingCallsHeaderSecret(t *testing.T) {
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func callListed(listed []automationrepo.PendingCall, job shared.ID) (automationrepo.PendingCall, bool) {
+	for _, call := range listed {
+		if call.JobID == job {
+			return call, true
+		}
+	}
+	return automationrepo.PendingCall{}, false
+}
+
+// callSecretKey reads the key a job's header secret names, and the request identity beside it, as
+// stored - the field the worker opens it from.
+func callSecretKey(ctx context.Context, t *testing.T, job shared.ID) (keyID, requestID string) {
+	t.Helper()
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT payload #>> '{secret_header_sealed,key_id}', payload->>'request_id' FROM job WHERE id = $1`,
+		job.String()).Scan(&keyID, &requestID); err != nil {
+		t.Fatalf("reading the job back: %v", err)
+	}
+	return keyID, requestID
+}
+
+// Gate SG-3: CallSealings.SealedNotUnder, CallSealings.RewrapCall - the job table has no row level
+// security, so the statements' own tenant condition is the only boundary.
+func TestAPendingCallIsReSealedOnlyFromItsOwnTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	pending, request := seedCallJob(ctx, t, tenantA, "automation.http", "PENDING", "k1")
+	finished, _ := seedCallJob(ctx, t, tenantA, "automation.http", "SUCCEEDED", "k1")
+	calls := postgres.NewCallSealingRepository()
+	moved := automation.SealedSecret{
+		Ciphertext: base64.StdEncoding.EncodeToString([]byte("rewrapped-not-a-secret")),
+		KeyID:      "k2", Purpose: "automation.http:" + request.String(),
+	}
+
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		listed, err := calls.SealedNotUnder(ctx, "k2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, found := callListed(listed, pending); found {
+			t.Error("another tenant's pending call was listed for re-sealing")
+		}
+		if ok, err := calls.RewrapCall(ctx, pending, moved, "k1"); err != nil || ok {
+			t.Errorf("another tenant's pending call was rewrapped from here (%v, %v)", ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		listed, err := calls.SealedNotUnder(ctx, "k2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		call, found := callListed(listed, pending)
+		if !found || call.Sealed.KeyID != "k1" || call.RequestID != request.String() ||
+			call.Sealed.Purpose != "automation.http:"+request.String() {
+			t.Fatalf("the pending call to re-seal was not listed as stored: %+v (%v)", call, found)
+		}
+		if _, found := callListed(listed, finished); found {
+			t.Error("a finished call was listed for re-sealing")
+		}
+		if ok, err := calls.RewrapCall(ctx, finished, moved, "k1"); err != nil || ok {
+			t.Errorf("a finished call was rewrapped (%v, %v)", ok, err)
+		}
+		// Guarded by the key the job named: a stale expectation moves nothing.
+		if ok, err := calls.RewrapCall(ctx, pending, moved, "k0"); err != nil || ok {
+			t.Errorf("a stale rewrap changed the job (%v, %v)", ok, err)
+		}
+		if ok, err := calls.RewrapCall(ctx, pending, moved, "k1"); err != nil || !ok {
+			t.Fatalf("rewrapping (%v, %v)", ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if keyID, requestID := callSecretKey(ctx, t, pending); keyID != "k2" || requestID != request.String() {
+		t.Errorf("after the rewrap the job names %q for request %q", keyID, requestID)
+	}
+	if keyID, _ := callSecretKey(ctx, t, finished); keyID != "k1" {
+		t.Errorf("the finished job was touched: %q", keyID)
 	}
 }

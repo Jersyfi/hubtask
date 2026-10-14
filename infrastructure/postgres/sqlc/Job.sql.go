@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const callJobsSealedNotUnder = `-- name: CallJobsSealedNotUnder :many
+SELECT id, payload
+FROM job
+WHERE tenant_id = current_tenant_id()
+  AND kind = 'automation.http'
+  AND state IN ('PENDING', 'RUNNING')
+  AND payload #>> '{secret_header_sealed,key_id}' <> $1::text
+ORDER BY id
+`
+
+type CallJobsSealedNotUnderRow struct {
+	ID      pgtype.UUID
+	Payload []byte
+}
+
+// The HTTP calls a re-seal visits (ADR-0045): a job that may still run whose header secret names a
+// key other than the current one. Only the current workspace's - the table has no policy to say so.
+func (q *Queries) CallJobsSealedNotUnder(ctx context.Context, keyID string) ([]CallJobsSealedNotUnderRow, error) {
+	rows, err := q.db.Query(ctx, callJobsSealedNotUnder, keyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CallJobsSealedNotUnderRow{}
+	for rows.Next() {
+		var i CallJobsSealedNotUnderRow
+		if err := rows.Scan(&i.ID, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const cancelJob = `-- name: CancelJob :one
 UPDATE job SET
   state        = 'CANCELLED',
@@ -446,6 +483,33 @@ func (q *Queries) RetryJob(ctx context.Context, arg RetryJobParams) (int64, erro
 		arg.ID,
 		arg.Lease,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const rewrapCallJobSecret = `-- name: RewrapCallJobSecret :execrows
+UPDATE job
+SET payload = jsonb_set(payload, '{secret_header_sealed}', $1::jsonb)
+WHERE id = $2
+  AND tenant_id = current_tenant_id()
+  AND kind = 'automation.http'
+  AND state IN ('PENDING', 'RUNNING')
+  AND payload #>> '{secret_header_sealed,key_id}' = $3::text
+`
+
+type RewrapCallJobSecretParams struct {
+	Sealed        []byte
+	ID            pgtype.UUID
+	ExpectedKeyID string
+}
+
+// Only the sealed secret, guarded by the key it named when it was read: a job that finished, or
+// that another round moved, in between is left alone. The lease columns are not touched, so a
+// worker holding the job finishes it as it would have.
+func (q *Queries) RewrapCallJobSecret(ctx context.Context, arg RewrapCallJobSecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, rewrapCallJobSecret, arg.Sealed, arg.ID, arg.ExpectedKeyID)
 	if err != nil {
 		return 0, err
 	}
