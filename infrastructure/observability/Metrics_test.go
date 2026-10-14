@@ -66,6 +66,19 @@ func TestThePanicCounterCountsWhatItIsFor(t *testing.T) {
 	}
 }
 
+// A rehash is read from the scrape under the name the documents give it, with no label - the
+// counter says how far a raised cost has reached, never whose hash it was (rule 10).
+func TestARehashIsCountedWithoutALabel(t *testing.T) {
+	m := newTestMetrics(t, env.Config{})
+
+	m.PasswordRehashed(context.Background())
+
+	body := scrape(t, m)
+	if !strings.Contains(body, "\nhubtask_auth_password_rehashed_total 1\n") {
+		t.Errorf("the rehash was not counted as one unlabelled series:\n%s", body)
+	}
+}
+
 func TestBuildInfoCarriesTheVersion(t *testing.T) {
 	m := newTestMetrics(t, env.Config{})
 

@@ -98,3 +98,62 @@ func cheapHash(t *testing.T, password string) string {
 		base64.RawStdEncoding.EncodeToString(salt),
 		base64.RawStdEncoding.EncodeToString(key))
 }
+
+// phcOf writes a PHC string with the given cost and key length. The key is zeros: these hashes are
+// only judged for their cost, never verified.
+func phcOf(memoryKiB, passes, lanes, keyBytes int) string {
+	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		argon2.Version, memoryKiB, passes, lanes,
+		base64.RawStdEncoding.EncodeToString([]byte("sixteen-byte-slt")),
+		base64.RawStdEncoding.EncodeToString(make([]byte, keyBytes)))
+}
+
+// A hash this build wrote needs nothing; one written under a lower cost - any of memory, passes,
+// lanes or key length - is to be recomputed after the next successful verification (T-02).
+func TestAHashBelowTheBuildsCostNeedsARehash(t *testing.T) {
+	passwords := testPasswords(t)
+
+	current, err := passwords.Hash(secret.New("correct horse battery staple"))
+	if err != nil {
+		t.Fatalf("hashing: %v", err)
+	}
+	if passwords.NeedsRehash(current) {
+		t.Error("a hash at the build's own cost asked for a rehash")
+	}
+
+	for name, stored := range map[string]string{
+		"a cheap hash":  cheapHash(t, "some long password here"),
+		"less memory":   phcOf(passwordMemoryKiB/2, passwordPasses, passwordParallelism, passwordKeyBytes),
+		"fewer passes":  phcOf(passwordMemoryKiB, passwordPasses-1, passwordParallelism, passwordKeyBytes),
+		"fewer lanes":   phcOf(passwordMemoryKiB, passwordPasses, passwordParallelism-1, passwordKeyBytes),
+		"a shorter key": phcOf(passwordMemoryKiB, passwordPasses, passwordParallelism, passwordKeyBytes/2),
+	} {
+		if !passwords.NeedsRehash(stored) {
+			t.Errorf("%s did not ask for a rehash", name)
+		}
+	}
+}
+
+// A cost above the build's is left alone: during a rolling update an older build serves beside a
+// newer one, and lowering what the newer one raised would have the two rewrite each other's hashes
+// on every sign-in (rule 12).
+func TestAHashAboveTheBuildsCostIsLeftAlone(t *testing.T) {
+	passwords := testPasswords(t)
+	stored := phcOf(passwordMemoryKiB*2, passwordPasses+1, passwordParallelism+1, passwordKeyBytes+16)
+
+	if passwords.NeedsRehash(stored) {
+		t.Error("a hash above the build's cost asked to be lowered")
+	}
+}
+
+// An unreadable hash is Verify's error to report; a rehash would paper over the defect.
+func TestAnUnreadableHashAsksForNoRehash(t *testing.T) {
+	passwords := testPasswords(t)
+	for _, stored := range []string{
+		"", "$2b$12$abcdefghijklmnopqrstuv", "$argon2id$v=19$m=99999999,t=3,p=2$c2FsdA$aGFzaA",
+	} {
+		if passwords.NeedsRehash(stored) {
+			t.Errorf("%q asked for a rehash", stored)
+		}
+	}
+}

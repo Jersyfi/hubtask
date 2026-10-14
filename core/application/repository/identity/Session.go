@@ -193,6 +193,12 @@ type SignInAccounts interface {
 	// password afresh of somebody already signed in - disabling the second factor is the first
 	// (identity.md §16). Empty for an account that signs in some other way.
 	PasswordHashOf(ctx context.Context, accountID shared.ID) (secret.Secret, error)
+
+	// RehashPassword replaces the stored hash with the same password's hash under the current
+	// cost, only while the stored hash is still current - the one the sign-in verified. False
+	// means it is not any more: changed, or rehashed by another sign-in, and left alone. The
+	// password's age, its history and the row's version do not move; it is the same password.
+	RehashPassword(ctx context.Context, accountID shared.ID, current, replacement string, at time.Time) (bool, error)
 }
 
 // TermsAgreements is the account's latest agreement to the terms of use (UC-ID-19). Every

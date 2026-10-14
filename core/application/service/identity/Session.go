@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,9 @@ type AuthSignals interface {
 	// PasswordResetRequested counts a forgotten-password request, every one alike - whether an
 	// account stands behind the address is exactly what it must not say.
 	PasswordResetRequested(ctx context.Context)
+	// PasswordRehashed counts a stored hash brought up to the current cost after a sign-in proved
+	// its password - only when the row was written.
+	PasswordRehashed(ctx context.Context)
 }
 
 // stepOwed reports a pending step handed out. Only after the credential is written, so a step
@@ -345,6 +349,8 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err := found.TenantStatus.Verify(); err != nil {
 		return SignInResult{}, err
 	}
+	// Only now, with the caller let in: a further step owed below does not undo the proof.
+	w.upgradeHash(ctx, scope, found.Account.ID, found.PasswordHash, cmd.Password)
 
 	challenge, verdict, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
 	if err != nil {
@@ -727,6 +733,45 @@ func (w SessionWriter) recordFailure(
 		}
 		return nil
 	})
+}
+
+// rehashTimeout bounds the rehash's own transaction once it no longer follows the request.
+const rehashTimeout = 5 * time.Second
+
+// upgradeHash brings a verified password's stored hash up to the build's current cost (T-02,
+// identity.md §5.3). The hash is computed outside any transaction, for the first transaction's
+// reason; the write is a compare-and-set on the hash that was verified, so a password changed
+// meanwhile is never overwritten. Detached from the request's cancellation like recordFailure, so
+// a client that leaves once it is let in does not take the upgrade with it.
+//
+// Upkeep never refuses a proven password: the old hash still verifies, so a failure is logged -
+// the error alone, nothing of the account or the credential (rule 10) - and the sign-in goes on.
+func (w SessionWriter) upgradeHash(
+	ctx context.Context, scope persistence.Scope, accountID shared.ID, stored, presented secret.Secret,
+) {
+	if !w.Passwords.NeedsRehash(stored.Reveal()) {
+		return
+	}
+	replacement, err := w.Passwords.Hash(presented)
+	if err != nil {
+		slog.WarnContext(ctx, "computing a hash at the current cost failed", slog.String("error", err.Error()))
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rehashTimeout)
+	defer cancel()
+	written := false
+	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		var err error
+		written, err = w.Accounts.RehashPassword(ctx, accountID, stored.Reveal(), replacement, w.Clock.Now().UTC())
+		return err
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "storing a hash at the current cost failed", slog.String("error", err.Error()))
+		return
+	}
+	if written && w.Signals != nil {
+		w.Signals.PasswordRehashed(ctx)
+	}
 }
 
 // identifierOf takes the one identifier a sign-in carries: `identifier` from a client that knows
