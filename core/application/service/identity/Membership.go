@@ -62,9 +62,23 @@ type GrantMembership struct {
 	// StepUp judges the fresh proof an OWNER grant demands. Nil refuses rather than
 	// permits, the seam's own rule.
 	StepUp stepup.Verifier
+	// Notices tells the person given the role (UC-NOT-01 check 9) - the notification service's
+	// RecordRoleGranted - inside the grant's transaction. Nil tells nobody.
+	Notices RoleNotices
+}
+
+// RoleNotices writes the record that tells a person about a role they were given, in the caller's
+// transaction. A grant to a group is passed as well; the implementation decides whom it concerns.
+type RoleNotices interface {
+	RoleGranted(ctx context.Context, grant domain.Grant, actorID shared.ID) error
 }
 
 // Execute records the grant and returns it.
+//
+// Only this use case tells the person, and not record, which the managed account's creation
+// shares: the grants made as a side effect are the actor's own (the owner of a private hub they
+// create, a newcomer arriving through a provider) or a managed account's, which has no address and
+// whose start password its creator hands over in person.
 func (h GrantMembership) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd GrantMembershipCommand,
 ) (domain.Grant, error) {
@@ -73,12 +87,33 @@ func (h GrantMembership) Execute(
 		return domain.Grant{}, err
 	}
 	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return h.record(ctx, actor, grant)
+		news, err := h.isNews(ctx, grant)
+		if err != nil {
+			return err
+		}
+		if err := h.record(ctx, actor, grant); err != nil {
+			return err
+		}
+		if !news {
+			return nil
+		}
+		return h.Notices.RoleGranted(ctx, grant, actor.AccountID)
 	})
 	if err != nil {
 		return domain.Grant{}, err
 	}
 	return grant, nil
+}
+
+// isNews reports whether the grant is one to tell its person about. Asked before the grant is
+// written: nothing keeps a second, equal grant out of the table, so a role the person already
+// holds at this scope is told about once, when it was first given.
+func (h GrantMembership) isNews(ctx context.Context, grant domain.Grant) (bool, error) {
+	if h.Notices == nil || grant.AccountID.IsZero() {
+		return h.Notices != nil, nil
+	}
+	held, err := h.Grants.Holds(ctx, grant.AccountID, grant.Scope, grant.Role)
+	return !held, err
 }
 
 // prepare builds the grant and asks everything that is asked before a write: the permission at the

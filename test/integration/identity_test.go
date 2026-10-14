@@ -639,6 +639,54 @@ func TestAMembershipOfAnotherTenantIsUnreachable(t *testing.T) {
 	}
 }
 
+// Holds answers a role the account holds at exactly that scope through its own grant, and nothing
+// else: another role, another scope, or the same question asked from another tenant.
+func TestARoleHeldIsKnownOnlyAtItsScopeAndInItsTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := invitedIn(t, tenantA)
+
+	grant, err := identity.NewGrant(freshID(t), tenantA, account.ID, "",
+		identity.TenantScope(), identity.RoleViewer)
+	if err != nil {
+		t.Fatalf("building: %v", err)
+	}
+	ask := func(tenant shared.ID, scope identity.Scope, role identity.Role) bool {
+		t.Helper()
+		var held bool
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			held, err = postgres.NewMembershipGrantRepository(pageCursors()).Holds(ctx, account.ID, scope, role)
+			return err
+		}); err != nil {
+			t.Fatalf("asking: %v", err)
+		}
+		return held
+	}
+
+	if ask(tenantA, identity.TenantScope(), identity.RoleViewer) {
+		t.Fatal("a role was held before it was granted")
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return postgres.NewMembershipGrantRepository(pageCursors()).Grant(ctx, grant)
+	}); err != nil {
+		t.Fatalf("granting: %v", err)
+	}
+
+	if !ask(tenantA, identity.TenantScope(), identity.RoleViewer) {
+		t.Error("the granted role is not held")
+	}
+	if ask(tenantA, identity.TenantScope(), identity.RoleMember) {
+		t.Error("another role counts as held")
+	}
+	if ask(tenantA, identity.HubScope(freshID(t)), identity.RoleViewer) {
+		t.Error("the role counts at a scope it was not granted at")
+	}
+	if ask(tenantB, identity.TenantScope(), identity.RoleViewer) {
+		t.Error("tenant B sees tenant A's grant")
+	}
+}
+
 // Deleting a group takes the memberships it granted with it - one statement rather than three that
 // could half-run - and leaves what its members hold in their own right.
 func TestDeletingAGroupTakesItsMembershipsAndNothingElse(t *testing.T) {

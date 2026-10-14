@@ -7,7 +7,7 @@ deployments: [D4, D6]
 serves: [P-02, P-07, P-10, P-12]
 state: built
 tasks: [H-04, SI-10, SI-14, SC-02, SC-03]
-checked_by: [core/application/service/identity/OidcSignIn_test.go, core/domain/model/identity/ProviderAdmission_test.go, core/application/service/identity/ProviderSessionBounds_test.go, apps/webapp/e2e/signin.test.mjs, test/integration/provider_newcomers_arrival_test.go, core/application/service/identity/ProviderNewcomersArrival_test.go, test/integration/own_access_test.go, apps/webapp/e2e/noaccess.test.mjs, docs/evidence/SC-02-2026-10-12.md, core/domain/model/identity/Session_test.go, docs/evidence/SC-15-D4-2026-10-13.md]
+checked_by: [core/application/service/identity/OidcSignIn_test.go, core/domain/model/identity/ProviderAdmission_test.go, core/domain/model/identity/ProviderSharedEndpoint_test.go, core/application/service/identity/ProviderSessionBounds_test.go, apps/webapp/e2e/signin.test.mjs, test/integration/provider_newcomers_arrival_test.go, core/application/service/identity/ProviderNewcomersArrival_test.go, test/integration/own_access_test.go, apps/webapp/e2e/noaccess.test.mjs, docs/evidence/SC-02-2026-10-12.md, core/domain/model/identity/Session_test.go, docs/evidence/SC-15-D4-2026-10-13.md]
 ---
 
 # Sign in with my organisation's directory

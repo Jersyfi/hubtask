@@ -89,6 +89,38 @@ func (q *Queries) AccessTokensForAccount(ctx context.Context, accountID pgtype.U
 	return items, nil
 }
 
+const accountHoldsRole = `-- name: AccountHoldsRole :one
+SELECT EXISTS (
+  SELECT 1 FROM membership
+  WHERE account_id = $1::uuid
+    AND scope_type = $2
+    AND scope_id IS NOT DISTINCT FROM $3::uuid
+    AND role = $4
+)
+`
+
+type AccountHoldsRoleParams struct {
+	AccountID pgtype.UUID
+	ScopeType MembershipScope
+	ScopeID   pgtype.UUID
+	Role      MembershipRole
+}
+
+// Whether the account already holds exactly this role at exactly this scope through a grant of its
+// own - not through a group, not inherited from above. What a grant asks before it writes, so that
+// being given a role one already has is not news.
+func (q *Queries) AccountHoldsRole(ctx context.Context, arg AccountHoldsRoleParams) (bool, error) {
+	row := q.db.QueryRow(ctx, accountHoldsRole,
+		arg.AccountID,
+		arg.ScopeType,
+		arg.ScopeID,
+		arg.Role,
+	)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const accountsOfKind = `-- name: AccountsOfKind :many
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
   celebrations, onboarding_completed_at
@@ -584,8 +616,9 @@ type GrantMembershipParams struct {
 }
 
 // ============================ Memberships =============================
-// Idempotent by the same index that keeps a subject from holding one role twice at one scope: a
-// retried request is not a second grant.
+// Only the primary key can conflict, and every grant carries a fresh identifier: no index keeps a
+// subject from holding one role twice at one scope, so a repeated grant is a second, equal row.
+// AccountHoldsRole is how a caller asks before writing.
 func (q *Queries) GrantMembership(ctx context.Context, arg GrantMembershipParams) error {
 	_, err := q.db.Exec(ctx, grantMembership,
 		arg.ID,
@@ -680,12 +713,12 @@ func (q *Queries) HoldsAnyMembership(ctx context.Context, accountID pgtype.UUID)
 }
 
 const hubsOf = `-- name: HubsOf :many
-SELECT c.id AS named_id, h.id AS hub_id, h.private
+SELECT c.id AS named_id, h.id AS hub_id, h.private, NULL::uuid AS collection_id
 FROM container c
 JOIN container h ON h.id = CASE WHEN c.type = 'HUB' THEN c.id ELSE c.parent_id END
 WHERE c.id = ANY($1::uuid[])
 UNION ALL
-SELECT w.id AS named_id, h.id AS hub_id, h.private
+SELECT w.id AS named_id, h.id AS hub_id, h.private, w.collection_id AS collection_id
 FROM work_item w
 JOIN container col ON col.id = w.collection_id
 JOIN container h ON h.id = col.parent_id
@@ -693,9 +726,10 @@ WHERE w.id = ANY($1::uuid[])
 `
 
 type HubsOfRow struct {
-	NamedID pgtype.UUID
-	HubID   pgtype.UUID
-	Private bool
+	NamedID      pgtype.UUID
+	HubID        pgtype.UUID
+	Private      bool
+	CollectionID pgtype.UUID
 }
 
 // The hub each named container or entry sits under, for the authoriser (domain-model.md §3.2).
@@ -704,6 +738,9 @@ type HubsOfRow struct {
 // should not have to know which identifier is which. Trashed and archived rows answer as they are
 // stored: a role on the hub applies to what lies in its trash as much as to the rest, and a private
 // hub's trash is as private as the hub (ADR-0073 §1).
+//
+// An entry also answers its collection, so that a path naming only the entry is completed with
+// both levels above it; a container answers none.
 func (q *Queries) HubsOf(ctx context.Context, ids []pgtype.UUID) ([]HubsOfRow, error) {
 	rows, err := q.db.Query(ctx, hubsOf, ids)
 	if err != nil {
@@ -713,7 +750,12 @@ func (q *Queries) HubsOf(ctx context.Context, ids []pgtype.UUID) ([]HubsOfRow, e
 	items := []HubsOfRow{}
 	for rows.Next() {
 		var i HubsOfRow
-		if err := rows.Scan(&i.NamedID, &i.HubID, &i.Private); err != nil {
+		if err := rows.Scan(
+			&i.NamedID,
+			&i.HubID,
+			&i.Private,
+			&i.CollectionID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

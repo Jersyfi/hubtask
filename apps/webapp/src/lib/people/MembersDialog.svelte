@@ -26,22 +26,29 @@
   // says the reader may give. A list written here would be wrong on the installation that has one
   // more.
 
+  import { untrack } from 'svelte';
+
   import {
     Avatar,
     Badge,
+    Banner,
     Button,
     Dialog,
+    Input,
+    OneTimeSecret,
     Select,
     Stack,
   } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
   import { grantableOf, mayRevoke, ownershipOf, type Holder } from '../data/people.ts';
   import RevokeDialog from './RevokeDialog.svelte';
+  import { inviteWay } from './invitation.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -67,10 +74,60 @@
   let failure = $state<string | undefined>(undefined);
   let isWriting = $state(false);
 
-  /** Who could be granted something here: the people the path already knows about. */
+  /**
+   * Who could be granted something here: the people on the path, and everybody else this reader
+   * knows of in the workspace - somebody holding a role only on another hub, or invited elsewhere,
+   * is given one here without being given the workspace first (UC-WRK-21 check 4).
+   */
   const candidates = $derived(
-    people.candidates(path).map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') })),
+    [...new Set([...people.candidates(path), ...people.known()])]
+      .map((id) => ({ value: id, label: accounts.nameOf(id) ?? t('app.people.unnamed') }))
+      .sort((one, other) => one.label.localeCompare(other.label, messages.locale)),
   );
+
+  /**
+   * Somebody who manages the workspace's members reads every hub's, so that a person on another hub
+   * can be chosen here. Anybody else knows the path's people only: a hub they do not manage is not
+   * theirs to read, and the server would refuse it.
+   */
+  const managesWorkspace = $derived((people.grantableAt({ scopeType: 'TENANT' })?.length ?? 0) > 0);
+  $effect(() => {
+    if (!isOpen || !managesWorkspace) return;
+    for (const hub of containers.hubs) untrack(() => people.openScope({ scopeType: 'HUB', scopeId: hub.id }));
+  });
+
+  /** Inviting somebody straight to this place, with a role here and nowhere else (UC-WRK-21 check 5). */
+  let inviteEmail = $state('');
+  let inviteName = $state('');
+  let inviteRole = $state('');
+  let invited = $state<string | undefined>(undefined);
+  /** The invitation's link where no mail goes out, shown once and kept nowhere. */
+  let handedOver = $state<{ readonly who: string; readonly link: string } | undefined>(undefined);
+  const way = $derived(inviteWay(manifest.value?.features));
+
+  async function invite(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const address = inviteEmail.trim();
+    if (!address || !inviteRole) return;
+    invited = undefined;
+    handedOver = undefined;
+    let grantFailure: unknown;
+    await attempt(async () => {
+      const answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, scope);
+      grantFailure = answer.grantFailure;
+      if (answer.link !== undefined) {
+        handedOver = { who: address, link: answer.link };
+        announcer.say(t('app.people.invite_link_announced'));
+      } else {
+        invited = address;
+        announcer.say(t('app.people.invited_announced'));
+      }
+    });
+    if (grantFailure !== undefined) failure = renderProblem(grantFailure as never, messages).message;
+    inviteEmail = '';
+    inviteName = '';
+    inviteRole = '';
+  }
 
   /**
    * Of those, the ones the server says this reader may give here (domain-model.md §3.2). With none
@@ -200,6 +257,45 @@
     </Stack>
     {/if}
 
+    {#if grantable.length > 0}
+      <form class="invite" onsubmit={invite}>
+        <Stack gap="100">
+          <h3 class="section">{t('app.people.invite_here')}</h3>
+          <Input label={t('app.people.invite_email')} bind:value={inviteEmail} type="email" autocomplete="off" spellcheck={false} isRequired />
+          <Input label={t('app.people.invite_name')} hint={t('app.people.invite_name_hint')} bind:value={inviteName} autocomplete="off" />
+          <Select
+            label={t('app.people.role_column')}
+            bind:value={inviteRole}
+            placeholder={t('app.people.choose_role')}
+            options={roleOptions}
+          />
+          <div>
+            <Button type="submit" isBusy={isWriting} busyLabel={t('app.people.working')}>
+              {way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite')}
+            </Button>
+          </div>
+        </Stack>
+      </form>
+      {#if invited}
+        <Banner tone="success">{t('app.people.invited_here', { email: invited })}</Banner>
+      {/if}
+      {#if handedOver}
+        <OneTimeSecret
+          value={handedOver.link}
+          label={t('app.people.invite_link', { name: handedOver.who })}
+          hint={t('app.people.invite_link_hint')}
+          revealLabel={t('app.people.invite_link_reveal')}
+          hideLabel={t('app.people.invite_link_hide')}
+          copyLabel={t('app.people.managed_copy')}
+          copiedLabel={t('app.people.invite_link_copied')}
+          acknowledgementLabel={t('app.people.invite_link_kept')}
+          notAcknowledgedReason={t('app.people.invite_link_keep_first')}
+          dismissLabel={t('app.tokens.done')}
+          onDismiss={() => (handedOver = undefined)}
+        />
+      {/if}
+    {/if}
+
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
 </Dialog>
@@ -226,4 +322,6 @@
   .empty { margin: 0; color: var(--text-subtle); }
 
   .failure { margin: 0; color: var(--text-danger); }
+
+  .invite { margin: 0; }
 </style>

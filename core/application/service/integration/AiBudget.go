@@ -31,6 +31,9 @@ type AiBudget interface {
 	AiTokens(ctx context.Context, tenant string, own bool, now time.Time) (bool, error)
 	// MeterAi records what a call to the source cost, after the provider answered.
 	MeterAi(ctx context.Context, own bool, at time.Time, tokens int64) error
+	// AiRenewal is when the day that `now` falls on ends for the workspace: the next midnight in
+	// its time zone, when a spent budget has room again.
+	AiRenewal(ctx context.Context, now time.Time) (time.Time, error)
 }
 
 // Budgeted is the provider resolver with `ai-first.md` §2's per-tenant budget counter around it.
@@ -45,7 +48,9 @@ type AiBudget interface {
 // needed no new handling anywhere, because every caller already deals with a provider that cannot
 // do something - the embedding pass finds nothing to do, the search runs lexically, and a
 // suggestion is not made. A budget with a refusal shape of its own would have been a second way for
-// each of them to degrade (ADR-0049 decision: one refusal, `ai.unavailable`).
+// each of them to degrade (ADR-0049 decision: one refusal, `ai.unavailable`). It carries the reason
+// and the moment the budget renews as parameters, because the person reading it can do something an
+// absent provider does not let them: wait until then.
 type Budgeted struct {
 	Providers  SourcedResolver
 	Budget     AiBudget
@@ -67,16 +72,21 @@ func (b Budgeted) For(
 	own := source == aiprovider.SourceOwn
 
 	var room bool
+	var renews time.Time
 	if err := b.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
+			now := b.Clock.Now()
 			var err error
-			room, err = b.Budget.AiTokens(ctx, actor.TenantID.String(), own, b.Clock.Now())
+			if room, err = b.Budget.AiTokens(ctx, actor.TenantID.String(), own, now); err != nil || room {
+				return err
+			}
+			renews, err = b.Budget.AiRenewal(ctx, now)
 			return err
 		}); err != nil {
 		return nil, err
 	}
 	if !room {
-		return exhausted{}, nil
+		return exhausted{renews: renews}, nil
 	}
 	return metered{provider: provider, budget: b.Budget, uow: b.UnitOfWork,
 		scope: actor.PersistenceScope(), clock: b.Clock, own: own}, nil
@@ -84,24 +94,29 @@ func (b Budgeted) For(
 
 // exhausted is a workspace that has spent its day's budget.
 //
-// It answers exactly what an installation with no provider answers, which is the point: "over
-// budget" and "not configured" are the same fact to everything downstream - there is no model to
-// ask - and the difference between them belongs in the operator's quota view, not in nine callers'
-// error handling.
-type exhausted struct{}
+// It has what an installation with no provider has, which is the point: "over budget" and "not
+// configured" are the same fact to everything downstream - there is no model to ask - and nine
+// callers need no second handling. Only its refusal differs, and only in what a person reads: the
+// budget, and when it renews (aiprovider.BudgetSpent).
+type exhausted struct{ renews time.Time }
+
+var _ aiprovider.Refusing = exhausted{}
 
 func (exhausted) Capabilities() aiprovider.ProviderCapabilities {
 	return aiprovider.ProviderCapabilities{Kind: "noop"}
 }
 
-func (exhausted) Complete(
+// Refusal is what every call answers, asked before any is made.
+func (e exhausted) Refusal() error { return aiprovider.BudgetSpent(e.renews) }
+
+func (e exhausted) Complete(
 	context.Context, aiprovider.CompletionRequest,
 ) (aiprovider.CompletionResult, error) {
-	return aiprovider.CompletionResult{}, aiprovider.ErrUnavailable
+	return aiprovider.CompletionResult{}, e.Refusal()
 }
 
-func (exhausted) Embed(context.Context, []string) (aiprovider.EmbeddingResult, error) {
-	return aiprovider.EmbeddingResult{}, aiprovider.ErrUnavailable
+func (e exhausted) Embed(context.Context, []string) (aiprovider.EmbeddingResult, error) {
+	return aiprovider.EmbeddingResult{}, e.Refusal()
 }
 
 // metered is the workspace's real provider with the ledger written after each answer.

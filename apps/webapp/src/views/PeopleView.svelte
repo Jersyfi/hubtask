@@ -37,6 +37,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { endsTheLastOwner, grantableOf, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
@@ -57,6 +58,8 @@
 
   /** The workspace itself. One scope, named once, so the read and the writes cannot disagree. */
   const TENANT = { scopeType: 'TENANT' } as const;
+  /** The invitation's choice that means the whole workspace rather than a hub. */
+  const WORKSPACE_PLACE = '';
 
   let failure = $state<string | undefined>(undefined);
   let isWriting = $state(false);
@@ -65,6 +68,12 @@
   let inviteEmail = $state('');
   let inviteName = $state('');
   let inviteRole = $state('');
+  /**
+   * Where the invited person is given their role: the whole workspace, or one hub (UC-WRK-21 check
+   * 5, UC-ID-15) - a child or a guest limited to one hub from the start rather than given the
+   * workspace first. A collection or a single entry is chosen from that place's own *People*.
+   */
+  let inviteWhere = $state(WORKSPACE_PLACE);
   let invited = $state<string | undefined>(undefined);
   /** Why the address was refused, said at the address field (UC-ID-14 check 6, WCAG 3.3.1). */
   let inviteRefusal = $state<string | undefined>(undefined);
@@ -170,6 +179,32 @@
     grantable.map((role) => ({ value: role, label: t(`app.people.role.${role.toLowerCase()}`) })),
   );
 
+  /**
+   * The invitation's place, and the roles offered there: what the reader may give is decided along
+   * that place's path (domain-model.md §3.2), so a hub's answer is read when the hub is chosen and
+   * nothing is offered until it arrives.
+   */
+  const invitePlace = $derived(inviteWhere === WORKSPACE_PLACE ? TENANT : { scopeType: 'HUB' as const, scopeId: inviteWhere });
+  $effect(() => {
+    const place = invitePlace;
+    if (place.scopeType === 'HUB') untrack(() => people.openScope(place));
+  });
+  const inviteRoleOptions = $derived(
+    grantableOf(roles, people.grantableAt(invitePlace)).map((role) => ({
+      value: role,
+      label: t(`app.people.role.${role.toLowerCase()}`),
+    })),
+  );
+  // A role chosen for one place is not carried to a place that does not offer it.
+  $effect(() => {
+    if (inviteRole && !inviteRoleOptions.some((option) => option.value === inviteRole)) inviteRole = '';
+  });
+  $effect(() => untrack(() => containers.start()));
+  const inviteWhereOptions = $derived([
+    { value: WORKSPACE_PLACE, label: t('app.people.managed_where_workspace') },
+    ...containers.hubs.map((hub) => ({ value: hub.id, label: hub.name })),
+  ]);
+
   /** Who could be granted something: the people this workspace already knows about. */
   const candidates = $derived(
     people
@@ -256,7 +291,7 @@
     isWriting = true;
     let answer: Awaited<ReturnType<typeof people.invite>>;
     try {
-      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, TENANT);
+      answer = await people.invite(address, inviteName.trim() || undefined, inviteRole as MembershipRole, invitePlace);
     } catch (error) {
       // Nothing went out: the address stays to be corrected, the sentence is at its field, the
       // reader is taken there, and it is said once.
@@ -282,6 +317,7 @@
     inviteEmail = '';
     inviteName = '';
     inviteRole = '';
+    inviteWhere = WORKSPACE_PLACE;
   }
 
   /**
@@ -529,11 +565,17 @@
             autocomplete="off"
           />
           <Select
+            label={t('app.people.invite_where')}
+            hint={t('app.people.invite_where_hint')}
+            bind:value={inviteWhere}
+            options={inviteWhereOptions}
+          />
+          <Select
             label={t('app.people.role_column')}
             hint={t('app.people.invite_role_hint')}
             bind:value={inviteRole}
             placeholder={t('app.people.choose_role')}
-            options={roleOptions}
+            options={inviteRoleOptions}
           />
           {#if grantRefusal}
             <Banner tone="warning">{grantRefusal}</Banner>
