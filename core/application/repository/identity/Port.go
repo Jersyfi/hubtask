@@ -370,6 +370,11 @@ type MembershipGrants interface {
 	// is unreadable a year later (audit.md §2).
 	Find(ctx context.Context, membershipID shared.ID) (identity.Grant, error)
 
+	// Holds reports whether the account already holds exactly this role at exactly this scope
+	// through a grant of its own. Nothing keeps a second, equal grant from being written, so a
+	// caller that must tell a new role from a repeated one asks this before it writes.
+	Holds(ctx context.Context, accountID shared.ID, scope identity.Scope, role identity.Role) (bool, error)
+
 	// OfGroup returns every grant the group holds, for the revocation that has to know what a
 	// member taken out of the group - or every member of a group deleted - is about to lose.
 	// Unpaged: a group holds a handful of roles.

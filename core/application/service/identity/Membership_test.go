@@ -65,6 +65,15 @@ func (s *grantStore) Find(_ context.Context, id shared.ID) (domain.Grant, error)
 	return grant, nil
 }
 
+func (s *grantStore) Holds(_ context.Context, accountID shared.ID, scope domain.Scope, role domain.Role) (bool, error) {
+	for _, grant := range s.byID {
+		if grant.AccountID == accountID && grant.Scope == scope && grant.Role == role {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ListAt answers what is granted at exactly the scope asked, newest first by identifier, and
 // remembers what it was asked so that a test can see the scope and the page.
 func (s *grantStore) ListAt(_ context.Context, scope domain.Scope, page repository.Page) (repository.GrantPage, error) {
