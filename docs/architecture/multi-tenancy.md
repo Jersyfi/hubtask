@@ -61,7 +61,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | Table | Why it has no tenant policy | What bounds it instead |
 |---|---|---|
 | `job` | A worker must claim a job before it knows whose it is | The job names its tenant; the transaction that runs it is as bounded as a request |
-| `goose_db_version` | The migration ledger | No grant to the application role |
+| `goose_db_version` | The migration ledger | No grant to the application role; the readiness probe reads the applied version numbers through `applied_schema_versions()`, a `SECURITY DEFINER` function that answers nothing else |
 | `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written only by the tenant lifecycle use cases; no API reads it |
 | `item_capability_profile` | Has RLS but **no `FORCE`**: the system rows are the owner's to seed, and `FORCE` would bind the owner too ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)) | The policy binds every non-owner role in full, `hubtask_app` included |
 | `restore_drill_marker` | The restore drill's marker rows; no tenant column | No grant to the application role |

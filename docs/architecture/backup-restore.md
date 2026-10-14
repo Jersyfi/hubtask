@@ -474,12 +474,16 @@ array; `config.backup_*` is about **the installation**.
 | `config.backup_not_configured` | No target configured |
 | `config.backup_unencrypted` | A target without encryption |
 | `config.backup_single_target` | Only one target — a pointer to 3-2-1 |
+| `config.backup_coverage_unchecked` | The targets could not be counted (yet) — never read as "configured" |
 | A-12 | No successful backup in 24 hours, **per target**, so a healthy target cannot hide a broken one; the metric is absent, not zero, for a target that never had one ([RB-A12](../../deploy/observability/runbooks/RB-A12-backup-stale.md)) |
 | A-20 | The system restore drill (§8.5) is older than 90 days — a ticket, not a page. Read from `HUBTASK_RESTORE_DRILL_RECORD_FILE`; the tenant-level `NEW_TENANT` trial does not write it. No `absent()` rule, because a Compose installation records nothing; where the chart owns the database, `HubtaskRestoreDrillNeverRan` fires on the absence ([RB-A20](../../deploy/observability/runbooks/RB-A20-restore-drill-stale.md)) |
 
-The three `config.backup_*` codes are in the catalogue and **emitted by nothing yet**: `/meta/health`
-is process-wide and a target is a tenant row behind RLS, so they wait for a workspace-facing health
-check.
+The `config.backup_*` codes are emitted for a **single-tenant installation** only: there its
+workspaces' targets are its backups. A target is a workspace's row behind row level security, so the
+count is taken per workspace in the background — at start, and again when a report finds it older
+than 15 minutes — and counts enabled targets; whether a target has a schedule is not asked. In
+provider operation the installation is backed up by its operator at the database level (§1, §8.6),
+one workspace's target says nothing about another's, and A-12 watches each target.
 
 **The tenant-level drill is the client:**
 

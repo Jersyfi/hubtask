@@ -333,6 +333,14 @@ func run() error {
 	// with the observer on the way in, so no use case can run without its metric and its span
 	// (gate RT-12), and REST, MCP and automation then execute the same handlers (arc42 §4).
 	unitOfWork := postgres.NewUnitOfWork(pool)
+	// Readiness compares the database's migrations with the ones this build embeds (deployment.md
+	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
+	// restart a pod that is merely waiting for its migration.
+	registry.SetMigration(dbfiles.Versions(), postgres.SchemaLedger{UnitOfWork: unitOfWork}.Applied)
+	if state, known := registry.Migration(ctx); known && state.Status == healthadapter.MigrationBehind {
+		slog.Warn("the database lacks migrations this build needs; not ready until they have run",
+			slog.Int("applied", state.Applied), slog.Int("expected", state.Expected))
+	}
 	ids := clockadapter.NewUUIDv7(clockadapter.System{})
 	// The device identifier of this process. Two replicas are two devices, which is what breaks a
 	// tie between two changes stamped in the same millisecond (offline-sync.md §4.1).
@@ -1256,6 +1264,14 @@ func run() error {
 	}
 	keyHealth.Refresh(ctx)
 	registry.AddWarningSource(keyHealth.Warnings)
+	// Whether a single-tenant installation's workspaces back up anywhere (backup-restore.md §10),
+	// counted per workspace in the background like the keys above.
+	targetWarnings := &backupservice.TargetWarnings{
+		Tenancy: cfg.Tenancy, Workspaces: postgres.NewAdminTenantRepository(), Targets: backupTargets,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
+	targetWarnings.Refresh(ctx)
+	registry.AddWarningSource(targetWarnings.Warnings)
 
 	// The third door (ADR-0070 §5): a file, in one of two modes. The repository that *serves*
 	// requests carries the mode, so a read reports where the values came from and a write refuses

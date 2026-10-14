@@ -191,10 +191,14 @@ func healthOutput(report health.Report) usecase.Output {
 		dependencies = append(dependencies, entry)
 	}
 	out["dependencies"] = dependencies
-	out["migration"] = usecase.Output{
-		"applied":  report.Migration.Applied,
-		"expected": report.Migration.Expected,
-		"status":   report.Migration.Status,
+	// Only when it was compared: a zero would read as a statement about the schema, and an empty
+	// status is not one the contract knows.
+	if report.Migration.Status != "" {
+		out["migration"] = usecase.Output{
+			"applied":  report.Migration.Applied,
+			"expected": report.Migration.Expected,
+			"status":   report.Migration.Status,
+		}
 	}
 	out["backlogs"] = usecase.Output{
 		"outbox_pending":        report.Backlogs.OutboxPending,

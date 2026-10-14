@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const appliedSchemaVersions = `-- name: AppliedSchemaVersions :one
+SELECT applied_schema_versions()::bigint[] AS versions
+`
+
+// The migrations the database has applied, for the readiness probe (deployment.md §5). Through the
+// function because the ledger is closed to the application role; it answers numbers only.
+func (q *Queries) AppliedSchemaVersions(ctx context.Context) ([]int64, error) {
+	row := q.db.QueryRow(ctx, appliedSchemaVersions)
+	var versions []int64
+	err := row.Scan(&versions)
+	return versions, err
+}
+
 const claimSetupCode = `-- name: ClaimSetupCode :one
 SELECT claim_setup_code($1, $2)::text
 `
