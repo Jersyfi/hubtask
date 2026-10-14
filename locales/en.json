@@ -3545,6 +3545,8 @@
   "app.webhooks.replaying": "Sending",
   "app.webhooks.replay_note": "Sending it again carries the same event identifier, so a subscriber that recognises repeats sees this for what it is. The attempt count carries on rather than starting over.",
   "app.webhooks.more": "Show more",
+  "app.webhooks.loading_more": "Loading more…",
+  "app.webhooks.arrived": "{count, plural, =0 {Nothing more arrived.} one {# more delivery is listed.} other {# more deliveries are listed.}}",
   "app.webhooks.subscribed_announced": "Subscribed; the secret is shown once.",
   "app.webhooks.paused_announced": "Deliveries paused.",
   "app.webhooks.resumed_announced": "Deliveries resumed.",

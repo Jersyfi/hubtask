@@ -32,9 +32,10 @@ const FAILURES = {
 
 /**
  * Routes one list: the first page with a cursor, the second page failing once and then answering.
- * `answer(cursor)` builds the body for a page; everything else is the shared fixture.
+ * `answer(cursor)` builds the body for a page; `also` answers what the screen needs around the list
+ * (or nothing); everything else is the shared fixture.
  */
-async function listFailingOnce(context, { endsWith, failure, answer }) {
+async function listFailingOnce(context, { endsWith, failure, answer, also = () => undefined }) {
   let failed = 0;
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
@@ -47,7 +48,7 @@ async function listFailingOnce(context, { endsWith, failure, answer }) {
       }
       return route.fulfill({ json: answer(cursor) });
     }
-    return stub(route);
+    return (await also(route, url)) ?? stub(route);
   });
 }
 
@@ -180,5 +181,46 @@ test('chromium: a page of privacy cases that was refused is said beside the butt
     arrived: '1 more case is listed.',
   });
   assert.equal(await page.getByText('later@example.invalid').count(), 1, 'the retried page is not the one drawn');
+  assert.deepEqual(failures, []);
+});
+
+const SUBSCRIPTION = {
+  id: '01a0e2e0-0000-7000-8000-0000000017a1',
+  target_url: 'https://hooks.example.invalid/in',
+  event_types: ['item.created'],
+  state: 'ACTIVE',
+  failure_count: 0,
+};
+const DELIVERY = (n) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000017${String(n).padStart(2, '0')}`,
+  subscription_id: SUBSCRIPTION.id,
+  event_id: `01a0e2e0-0000-7000-8000-0000000017e${n}`,
+  attempt: 1,
+  status: 'SUCCEEDED',
+  response_status: 204,
+  created_at: `2026-10-0${n}T08:00:00Z`,
+});
+
+test('chromium: a page of a webhook\'s deliveries that did not arrive is said beside the button, and the retry brings it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await listFailingOnce(context, {
+    endsWith: `/integrations/webhooks/${SUBSCRIPTION.id}/deliveries`,
+    failure: 'serverFault',
+    answer: (cursor) => (cursor === 'p2'
+      ? { data: [DELIVERY(3)], page: { next_cursor: null, has_more: false } }
+      : { data: [DELIVERY(1), DELIVERY(2)], page: { next_cursor: 'p2', has_more: true } }),
+    also: (route, url) => (url.pathname.endsWith('/integrations/webhooks') ? route.fulfill({ json: [SUBSCRIPTION] }).then(() => true) : undefined),
+  });
+  await page.goto(`${served.origin}/administration/webhooks`);
+  await page.getByRole('button', { name: 'What was delivered' }).click();
+  await failsThenRetries(page, {
+    button: 'Show more',
+    rows: () => page.locator('ul.deliveries > li'),
+    failure: SERVER_FAULT,
+    arrived: '1 more delivery is listed.',
+  });
   assert.deepEqual(failures, []);
 });

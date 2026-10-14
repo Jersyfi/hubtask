@@ -2380,6 +2380,8 @@
   "app.webhooks.replaying": "Wird gesendet",
   "app.webhooks.replay_note": "Noch einmal senden trägt dieselbe Ereigniskennung, darum erkennt ein Abonnent, der Wiederholungen erkennt, was das ist. Die Versuchszählung läuft weiter, statt von vorn zu beginnen.",
   "app.webhooks.more": "Mehr zeigen",
+  "app.webhooks.loading_more": "Lädt mehr …",
+  "app.webhooks.arrived": "{count, plural, =0 {Es kam nichts mehr dazu.} one {# weitere Zustellung ist da.} other {# weitere Zustellungen sind da.}}",
   "app.webhooks.subscribed_announced": "Abonniert; das Geheimnis wird einmal gezeigt.",
   "app.webhooks.paused_announced": "Zustellungen pausiert.",
   "app.webhooks.resumed_announced": "Zustellungen fortgesetzt.",
