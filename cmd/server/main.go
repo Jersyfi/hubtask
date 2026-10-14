@@ -2830,6 +2830,8 @@ func run() error {
 			Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 			// The emergency access a member is told of: opener, times, reason and hub.
 			Accesses: postgres.NewEmergencyAccessRepository(),
+			// The role somebody was given, and the hub or collection it is on.
+			Grants: grants, Places: containers,
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
