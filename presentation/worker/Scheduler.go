@@ -116,6 +116,11 @@ type Scheduler struct {
 	// did not exist at start is put into the register once it does (UC-INS-02 check 4). Nil skips.
 	Operators EnvironmentOperators
 
+	// SchemaBehind is the runner's: while the database lacks a migration this build embeds, this
+	// process neither takes leadership nor keeps it, so the duties fall to an instance whose
+	// schema is complete. Nil acts as before.
+	SchemaBehind func(ctx context.Context) bool
+
 	// TickInterval is how often the leader looks at the clock. It is also how quickly a standby
 	// notices that the leader is gone, because a standby tries the lock on every tick of its own.
 	TickInterval time.Duration
@@ -151,6 +156,16 @@ func (s Scheduler) Run(ctx context.Context) {
 func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) bool {
 	leadingCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
+
+	if s.SchemaBehind != nil && s.SchemaBehind(leadingCtx) {
+		if wasLeading {
+			// Given up rather than kept: a leader that does nothing would keep a complete
+			// instance from taking over.
+			slog.WarnContext(ctx, "scheduler stands by: the database lacks migrations this build needs")
+			s.release(ctx)
+		}
+		return false
+	}
 
 	leading, err := s.Leadership.Confirm(leadingCtx)
 	if err != nil {

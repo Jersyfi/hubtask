@@ -91,6 +91,12 @@ type Runner struct {
 	// nil logs the code alone, which is what the rule-10-safe line always carried. What it buys
 	// is the difference between "postgres.query_failed" and knowing which statement.
 	Diagnose func(error) []slog.Attr
+	// SchemaBehind reports whether the database lacks a migration this build embeds. While it does,
+	// nothing is claimed: a job run against the older schema may need a column that is not there
+	// yet, and the readiness probe already keeps the API from serving (deployment.md §5). The jobs
+	// wait for a process whose schema is complete - this one, once its migration has run. Nil
+	// claims as before.
+	SchemaBehind func(ctx context.Context) bool
 }
 
 // bookkeepingTimeout bounds the statements that are not the job itself: claiming a batch, and
@@ -169,6 +175,11 @@ func (r Runner) idle(ctx context.Context) bool {
 func (r Runner) round(ctx context.Context) int {
 	claimCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
 	defer cancel()
+
+	if r.SchemaBehind != nil && r.SchemaBehind(claimCtx) {
+		slog.WarnContext(ctx, "not claiming jobs: the database lacks migrations this build needs")
+		return 0
+	}
 
 	var jobs []queue.Job
 	err := r.UnitOfWork.Within(claimCtx, persistence.SystemScope(), func(txCtx context.Context) error {

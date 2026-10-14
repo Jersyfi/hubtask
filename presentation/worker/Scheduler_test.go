@@ -481,3 +481,30 @@ func TestTheEnvironmentsOperatorsAreAppliedOncePerMinute(t *testing.T) {
 		t.Errorf("%d passes over two minutes of ticks, want 2", operators.passes)
 	}
 }
+
+// The scheduler's half of deployment.md §5: behind its schema it neither takes leadership nor keeps
+// it, so the duties fall to an instance whose schema is complete.
+func TestASchedulerWhoseSchemaIsBehindDoesNotLead(t *testing.T) {
+	contested := &lock{}
+	held := &leadership{lock: contested, name: "a"}
+	signals := newSchedulerSignals()
+	behind := true
+	s := scheduler(held, &depthQueue{depths: []queue.Depth{{Kind: queue.KindOutboxDispatch, Pending: 1}}}, signals)
+	s.SchemaBehind = func(context.Context) bool { return behind }
+
+	if leading := s.tick(t.Context(), false, now); leading || contested.held("a") || len(signals.depths) != 0 {
+		t.Fatalf("behind: leading %v, lock held %v, work done %v; want a standby",
+			leading, contested.held("a"), signals.depths)
+	}
+
+	behind = false
+	if leading := s.tick(t.Context(), false, now); !leading {
+		t.Fatal("caught up: the scheduler did not take the free lock")
+	}
+
+	behind = true
+	if leading := s.tick(t.Context(), true, now); leading || !held.released {
+		t.Errorf("fell behind while leading: leading %v, released %v; want leadership given up",
+			leading, held.released)
+	}
+}

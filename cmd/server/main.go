@@ -337,6 +337,11 @@ func run() error {
 	// §5): behind is not ready. The start only says so in the log - a failing startup probe would
 	// restart a pod that is merely waiting for its migration.
 	registry.SetMigration(dbfiles.Versions(), postgres.SchemaLedger{UnitOfWork: unitOfWork}.Applied)
+	// The worker and the scheduler ask the same comparison before they claim or lead.
+	schemaBehind := func(ctx context.Context) bool {
+		state, known := registry.Migration(ctx)
+		return known && state.Status == healthadapter.MigrationBehind
+	}
 	if state, known := registry.Migration(ctx); known && state.Status == healthadapter.MigrationBehind {
 		slog.Warn("the database lacks migrations this build needs; not ready until they have run",
 			slog.Int("applied", state.Applied), slog.Int("expected", state.Expected))
@@ -3367,6 +3372,8 @@ func run() error {
 			Woken: jobListener.Woken(),
 			// A failed statement's constraint and SQLSTATE beside the code, never its message.
 			Diagnose: postgres.Diagnostics,
+			// No job against a schema this build is ahead of; readiness gives the same answer.
+			SchemaBehind: schemaBehind,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
 	}
@@ -3390,6 +3397,7 @@ func run() error {
 			Signals:      metrics,
 			Kinds:        kinds,
 			TickInterval: cfg.Queue.SchedulerTick,
+			SchemaBehind: schemaBehind,
 			// The leader's one duty beyond measurement, and the reading behind alert A-12.
 			InstanceBackups: backupPass,
 			BackupFreshness: backupRunsInBackground{Runs: backupRuns, Work: backgroundWork},
