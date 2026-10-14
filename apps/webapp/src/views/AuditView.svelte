@@ -34,6 +34,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -420,6 +421,7 @@
         <p class="small"><strong>{t('app.audit.anchoring_off')}</strong></p>
       {/if}
       <p class="quiet small">{t('app.audit.anchoring_target_hint')}</p>
+      <WorkspaceGate permission="STRUCTURE">
       <div class="fields">
         <Select
           label={t('app.audit.anchoring_target')}
@@ -449,6 +451,7 @@
           </Button>
         {/if}
       </div>
+      </WorkspaceGate>
       <p class="quiet small">{t('app.audit.anchoring_is_audited')}</p>
     </Stack>
 

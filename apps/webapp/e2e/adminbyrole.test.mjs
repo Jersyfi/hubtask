@@ -69,6 +69,20 @@ const SCREENS = [
   { path: '/administration/rules/new', buttons: ['Save the rule'], gates: ['AUTOMATION'] },
   { path: '/administration/runs', buttons: [{ role: 'combobox', name: 'Which rule' }], gates: ['AUTOMATION'] },
   { path: '/administration/webhooks', buttons: ['Subscribe'], gates: ['AUTOMATION'] },
+  { path: '/administration/ai', buttons: ['Save'], gates: ['STRUCTURE'] },
+  { path: '/administration/backup', buttons: ['Add'], gates: ['STRUCTURE', 'DELETE_CONTAINER'] },
+  { path: '/administration/retention', buttons: ['Write it', 'Place it'], gates: ['DELETE_CONTAINER'] },
+  { path: '/administration/restore', buttons: ['See what it would do'], gates: ['STRUCTURE'] },
+  { path: '/administration/audit', buttons: ['Anchor here'], gates: ['STRUCTURE'] },
+];
+
+/**
+ * What an administrator - every column but the owner's `DELETE_CONTAINER` - is not offered: the
+ * backup targets and schedules, the retention rules and the holds are set behind it on the server.
+ */
+const OWNERS_ONLY = [
+  { path: '/administration/backup', buttons: ['Add'] },
+  { path: '/administration/retention', buttons: ['Write it', 'Place it'] },
 ];
 
 /** A control as the table names it: a button by its words, or another role by its name. */
@@ -129,5 +143,22 @@ for (const screen of SCREENS) {
       assert.equal(await reachable(auditor.page, control), 0, `the auditor is offered "${control.name}" on ${screen.path}`);
     }
     assert.deepEqual(auditor.failures, []);
+  });
+}
+
+for (const screen of OWNERS_ONLY) {
+  test(`chromium: ${screen.path} — an administrator is not offered what only the owner may set`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const admin = await as(browser, PERMISSIONS.ADMIN);
+    t.after(() => admin.context.close());
+    await admin.page.goto(`${served.origin}${screen.path}`);
+    await admin.page.getByText(refusedFor('DELETE_CONTAINER')).first().waitFor({ timeout: 15_000 })
+      .catch(() => assert.fail(`the administrator is not told why on ${screen.path}`));
+    assert.equal(await admin.page.getByText(refusedFor('STRUCTURE')).count(), 0, 'the administrator is told STRUCTURE is missing');
+    for (const control of screen.buttons.map(controlOf)) {
+      assert.equal(await reachable(admin.page, control), 0, `the administrator is offered "${control.name}" on ${screen.path}`);
+    }
+    assert.deepEqual(admin.failures, []);
   });
 }

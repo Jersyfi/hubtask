@@ -31,9 +31,7 @@
 
   import type { RetentionDataKind as DataKind, WorkItem } from '@hubtask/sync-engine';
 
-  import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { holds as roleHolds } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -45,6 +43,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -85,14 +85,10 @@
   $effect(() => untrack(() => containers.start()));
 
   // Placing and lifting a hold are the owner's (DELETE_CONTAINER, UC-LIF-06 check 1); everybody
-  // who reaches this screen reads the list. A prediction; the server decides (P-05).
+  // who reaches this screen reads the list. Asked of the manifest's `workspace_permissions`, which
+  // counts a group's membership as the server does. A prediction; the server decides (P-05).
   $effect(() => untrack(() => people.open({})));
-  const workspaceRole = $derived(
-    people.along({}).find((membership) => membership.account_id === actor.account?.id)?.role as
-      | string
-      | undefined,
-  );
-  const mayHold = $derived(roleHolds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
+  const mayHold = $derived(mayHere('DELETE_CONTAINER').status === 'permitted');
 
   // What a hold can name, picked rather than typed (P-12): the people of the workspace, its hubs
   // with their collections, and an entry found by its title.
@@ -372,7 +368,9 @@
                 >
                   {t('app.retention.preview')}
                 </Button>
-                {#if policy.enabled === false}
+                {#if !mayHold}
+                  <!-- Arm, disarm and withdraw are absent; the rule form's gate below says why. -->
+                {:else if policy.enabled === false}
                   <!-- Armed only after somebody has seen what it would do. -->
                   <Button
                     size="sm"
@@ -397,6 +395,7 @@
                     {t('app.retention.disarm')}
                   </Button>
                 {/if}
+                {#if mayHold}
                 <Button
                   size="sm"
                   tone="subtle"
@@ -406,6 +405,7 @@
                 >
                   {t('app.retention.withdraw')}
                 </Button>
+                {/if}
               </div>
               <p class="quiet small">{t('app.retention.withdraw_note')}</p>
             </Stack>
@@ -415,56 +415,58 @@
         {/each}
       {/if}
 
-      <form class="panel" onsubmit={write}>
-        <Stack gap="150">
-          <h3 class="section">{t('app.retention.write_title')}</h3>
-          <p class="quiet small">{t('app.retention.write_note')}</p>
-          <Select
-            label={t('app.retention.kind')}
-            bind:value={draftKind}
-            placeholder={t('app.retention.choose_kind')}
-            options={kinds.map((kind) => ({
-              value: kind.data_kind ?? '',
-              label: kindWord(kind.data_kind),
-            }))}
-          />
-          {#if draftKind && actions.length === 0}
-            <!-- Named by the catalogue and removed by nothing. Not the same as a kind that does
-                 not exist, and a rule for it would be refused. -->
-            <p class="warning">{t('app.retention.kind_not_swept')}</p>
-          {:else if draftKind}
+      <WorkspaceGate permission="DELETE_CONTAINER">
+        <form class="panel" onsubmit={write}>
+          <Stack gap="150">
+            <h3 class="section">{t('app.retention.write_title')}</h3>
+            <p class="quiet small">{t('app.retention.write_note')}</p>
             <Select
-              label={t('app.retention.action')}
-              bind:value={draftAction}
-              options={actions.map((action) => ({ value: action, label: actionWord(action) }))}
+              label={t('app.retention.kind')}
+              bind:value={draftKind}
+              placeholder={t('app.retention.choose_kind')}
+              options={kinds.map((kind) => ({
+                value: kind.data_kind ?? '',
+                label: kindWord(kind.data_kind),
+              }))}
             />
-          {/if}
-          <Input
-            label={t('app.retention.days')}
-            hint={chosenKind?.max_days
-              ? t('app.retention.days_hint_ceiling', { days: String(chosenKind.max_days) })
-              : t('app.retention.days_hint')}
-            type="number"
-            bind:value={draftDays}
-          />
-          <Textarea
-            label={t('app.retention.justification')}
-            hint={t('app.retention.justification_hint')}
-            bind:value={draftJustification}
-            rows={2}
-          />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.retention.writing')}
-            >
-              {t('app.retention.write')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
+            {#if draftKind && actions.length === 0}
+              <!-- Named by the catalogue and removed by nothing. Not the same as a kind that does
+                   not exist, and a rule for it would be refused. -->
+              <p class="warning">{t('app.retention.kind_not_swept')}</p>
+            {:else if draftKind}
+              <Select
+                label={t('app.retention.action')}
+                bind:value={draftAction}
+                options={actions.map((action) => ({ value: action, label: actionWord(action) }))}
+              />
+            {/if}
+            <Input
+              label={t('app.retention.days')}
+              hint={chosenKind?.max_days
+                ? t('app.retention.days_hint_ceiling', { days: String(chosenKind.max_days) })
+                : t('app.retention.days_hint')}
+              type="number"
+              bind:value={draftDays}
+            />
+            <Textarea
+              label={t('app.retention.justification')}
+              hint={t('app.retention.justification_hint')}
+              bind:value={draftJustification}
+              rows={2}
+            />
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.retention.writing')}
+              >
+                {t('app.retention.write')}
+              </Button>
+            </div>
+          </Stack>
+        </form>
+      </WorkspaceGate>
     </Stack>
 
     <Stack gap="150">
@@ -562,7 +564,7 @@
         </Button>
       </div>
 
-      {#if mayHold}
+      <WorkspaceGate permission="DELETE_CONTAINER">
       <form
         class="panel"
         onsubmit={(event) => {
@@ -667,7 +669,7 @@
           </div>
         </Stack>
       </form>
-      {/if}
+      </WorkspaceGate>
     </Stack>
     </Stack>
 </Stack>
