@@ -156,11 +156,17 @@ Evaluated in this order; the first that applies wins:
 * **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
   grace period. In between, anyone with permission can take the object out by editing, moving, or
   `:retain`.
+* **A pass reads past what it cannot act on.** An object a legal hold keeps, one a rule's condition
+  excludes, one a narrower rule keeps longer, an announcement, a parent waiting for a retained child:
+  each stays where the next read finds it, oldest first. Each phase therefore reads on, page by page
+  in its one transaction, until it holds a batch it can act on or the objects end; it acts on at
+  most one batch. The trash's own pass does the same for a hold and the offline window.
 * **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
   its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
   suggestions) and machine records (sessions, devices, sync log) — §3 says which.
-* **Preview without effect:** `POST /retention-policies/{id}:preview` returns the count and sample
-  objects.
+* **Preview without effect:** `POST /retention-policies/{id}:preview` returns the count of
+  everything due and sample objects. The samples are the oldest due objects, held ones among them -
+  not everything due, and not only what the next pass will act on.
 * **Completeness:** a hard delete covers every storage location in the data catalogue (row, media,
   search index, vectors, derived counters); a test checks for orphans after a run.
 * **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,

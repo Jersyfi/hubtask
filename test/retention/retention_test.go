@@ -557,6 +557,51 @@ func TestRE2TheRuleSweepReadsPastWhatItCannotAnnounce(t *testing.T) {
 	}
 }
 
+// RE-2 for phase two: marked entries a legal hold keeps fell due first, so they come first in the
+// read; the pass reads past them and acts on the one behind.
+func TestRE2PhaseTwoReadsPastWhatAHoldKeeps(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	s.run.Purger.BatchSize = 2
+	s.run.Sweeper.Batch = 2
+	collectionID := s.collection(t)
+	for range 60 {
+		s.completedItem(t, collectionID, 1)
+	}
+	rule, _ := s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+	})
+	marked := func(dueHoursAgo int) shared.ID {
+		id := s.completedItem(t, collectionID, 1)
+		if _, err := s.admin.Exec(s.ctx, `
+			UPDATE work_item SET retention_pending_until = $2, retention_rule_id = $3,
+			       retention_action = 'ARCHIVE'
+			WHERE id = $1`,
+			id.String(), now.Add(-time.Duration(dueHoursAgo)*time.Hour), rule.ID.String()); err != nil {
+			t.Fatalf("marking the entry: %v", err)
+		}
+		return id
+	}
+	s.itemHold(t, marked(48))
+	s.itemHold(t, marked(47))
+	due := marked(1)
+
+	outcome := s.sweep(t)
+
+	var archived bool
+	if err := s.admin.QueryRow(s.ctx,
+		`SELECT archived_at IS NOT NULL FROM work_item WHERE id = $1`, due.String()).Scan(&archived); err != nil {
+		t.Fatalf("reading the entry: %v", err)
+	}
+	if !archived {
+		t.Fatalf("the due entry behind the held ones was not acted on (%+v)", outcome)
+	}
+	if outcome.Blocked[lifecycle.BlockedByLegalHold] != 2 {
+		t.Errorf("the pass reports %+v, want two held", outcome)
+	}
+}
+
 // The rule sweep's batch, held entirely by a legal hold, is the end of the pass. A block sets no due
 // moment, so the next pass reads the same entries again, and a job that came straight back would
 // only find them once more.

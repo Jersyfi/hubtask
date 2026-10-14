@@ -356,56 +356,68 @@ func (s Sweeper) announceChains(
 func (s Sweeper) act(
 	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
 ) (Outcome, error) {
-	due, err := s.Marking.MarkedDue(ctx, now, 0, s.batch())
-	if err != nil {
-		return Outcome{}, err
-	}
-
-	outcome := Outcome{Matched: len(due), Blocked: map[string]int{}}
-	if len(due) == 0 {
-		return outcome, nil
-	}
-
-	// §4.6, worked from the bottom up: a parent whose children are staying is kept back and goes on
-	// the pass after the last of them. Answered for the batch, because the question is about the
-	// batch: "what is below this that is not going with it".
-	going := make([]shared.ID, 0, len(due))
-	parents := make([]shared.ID, 0, len(due))
-	for _, candidate := range due {
-		going = append(going, candidate.ID)
-		parents = append(parents, candidate.ID)
-	}
-	retained, err := s.Marking.RetainedDescendants(ctx, parents, going)
-	if err != nil {
-		return outcome, err
-	}
-	contributors, err := contributorsOf(ctx, s.Holds, holds, going)
-	if err != nil {
-		return outcome, err
-	}
-
+	outcome := Outcome{Blocked: map[string]int{}}
 	byAction := map[domain.Action][]repository.Candidate{}
-	for _, candidate := range due {
-		if candidate.Action == domain.ActionNotifyOnly {
-			// An announcement acts on nothing. The marking stands so the object keeps saying what
-			// the rule would do, and `:retain` is how somebody takes it off.
-			outcome.Matched--
-			continue
+	acting := 0
+
+	// Page by page, as phase one reads: an announcement, a held entry and a parent waiting for its
+	// child all keep their marking and stay first in the read, so a batch-full of them read alone
+	// would hide every due entry behind it. Nothing leaves the set before the acts below.
+	for skip := 0; ; {
+		due, err := s.Marking.MarkedDue(ctx, now, skip, s.batch())
+		if err != nil {
+			return outcome, err
 		}
-		// Both keep their marking, so the next pass reads them again: held, not a reason to come
-		// straight back (Exhausted). The descendant counts here though the trash pass does not
-		// count it, because here the parent is read again on every pass until its child goes.
-		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
-			outcome.blocked(reason)
-			outcome.Held++
-			continue
+
+		// §4.6, worked from the bottom up: a parent whose children are staying is kept back and
+		// goes on the pass after the last of them. Answered for the page, because the question is
+		// about it: "what is below this that is not going with it" - a child due on a later page
+		// counts as staying, which keeps its parent for one pass more and never takes it early.
+		going := make([]shared.ID, 0, len(due))
+		for _, candidate := range due {
+			going = append(going, candidate.ID)
 		}
-		if retained[candidate.ID] > 0 {
-			outcome.blocked(domain.BlockedByDescendant)
-			outcome.Held++
-			continue
+		retained, err := s.Marking.RetainedDescendants(ctx, going, going)
+		if err != nil {
+			return outcome, err
 		}
-		byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
+		contributors, err := contributorsOf(ctx, s.Holds, holds, going)
+		if err != nil {
+			return outcome, err
+		}
+
+		for _, candidate := range due {
+			if acting >= s.batch() {
+				break
+			}
+			outcome.Read++
+			if candidate.Action == domain.ActionNotifyOnly {
+				// An announcement acts on nothing. The marking stands so the object keeps saying
+				// what the rule would do, and `:retain` is how somebody takes it off.
+				continue
+			}
+			outcome.Matched++
+			// Both keep their marking, so the next pass reads them again: held, not a reason to
+			// come straight back (Exhausted). The descendant counts here though the trash pass does
+			// not count it, because here the parent is read again on every pass until its child
+			// goes.
+			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+				outcome.blocked(reason)
+				outcome.Held++
+				continue
+			}
+			if retained[candidate.ID] > 0 {
+				outcome.blocked(domain.BlockedByDescendant)
+				outcome.Held++
+				continue
+			}
+			byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
+			acting++
+		}
+		if acting >= s.batch() || lastPage(s.batch(), due) {
+			break
+		}
+		skip += len(due)
 	}
 
 	for _, action := range []domain.Action{
