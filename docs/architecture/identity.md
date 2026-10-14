@@ -387,7 +387,10 @@ safeguard belongs to connecting, not to the provider kind.
   the account.
 * **A redemption is a sign-in for the second-factor rule**: where `mfa_required_for` covers the
   person (§8), the redemption answers the `ENROLL` step (§4.2) instead of a session, and the session
-  opens only once the factor is armed — the same as a password sign-in would.
+  opens only once the factor is armed — the same as a password sign-in would. The redemption itself
+  commits first (the password set, the token spent, the account `ACTIVE`, the terms recorded), as a
+  reset does: a person who leaves the setup signs in with the password just chosen and meets
+  `ENROLL` there.
 * **A provider activates an invited account only with a second proof**: it is authoritative for the
   address (§10.3), or the person arrives through the invitation's own link — bound to the provider
   flow on the server, single use, expiring, not spent by a failed arrival; under `INVITED_ONLY` that
