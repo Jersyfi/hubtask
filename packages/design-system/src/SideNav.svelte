@@ -388,14 +388,22 @@
 
   /* The indent is the label's, and it is `padding-inline-start`, which mirrors itself: a
      `padding-left` would put the indent on the wrong side of an RTL tree, and that is what the
-     direction axis catches. */
+     direction axis catches.
+     Two lines before it gives up, not one: a row whose label says what the place is for — the
+     installation's "applies to every workspace you create" in a phone's drawer — said nothing
+     once cut after its first words. A third line is where a row stops being a row, so the clamp
+     is there and the whole text stays the row's accessible name. The prefixed form is what every
+     engine implements; the standard property stands beside it, as in `TaskRow`. */
   .label {
     flex: 1;
     min-width: 0;
     padding-inline-start: calc(var(--depth) * var(--sp-200));
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   /* The flyout: positioned by `anchorTo`, layered by `openOverlay`, drawn like every other
