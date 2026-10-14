@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -441,4 +442,79 @@ func TestAWorkspacesCensusLeavesTheInstallationsProviderOut(t *testing.T) {
 // byKey is a census's totals per key, for the tests that ask only about one key.
 func byKey(counted sealingrepo.Counts, err error) (map[string]int64, error) {
 	return counted.ByKey(), err
+}
+
+// seedCallJob writes an HTTP call's job the way HttpRequest enqueues one, in the given state, with
+// a header secret sealed under keyID - or none when keyID is empty - and removes it when the test
+// ends: the job table is shared by every test in the package.
+func seedCallJob(ctx context.Context, t *testing.T, tenant shared.ID, kind, state, keyID string) (job, request shared.ID) {
+	t.Helper()
+	job, request = freshID(t), freshID(t)
+	payload := map[string]any{
+		"request_id": request.String(), "method": "POST", "url": "https://hooks.example/call",
+	}
+	if keyID != "" {
+		payload["secret_header_name"] = "X-Token"
+		payload["secret_header_sealed"] = automation.SealedSecret{
+			Ciphertext: base64.StdEncoding.EncodeToString([]byte("sealed-not-a-secret")),
+			KeyID:      keyID,
+			Purpose:    "automation.http:" + request.String(),
+		}.Document()
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("encoding the payload: %v", err)
+	}
+	admin := adminPool(ctx, t)
+	if _, err := admin.Exec(ctx,
+		`INSERT INTO job (id, tenant_id, kind, payload, state) VALUES ($1, $2, $3, $4, $5)`,
+		job.String(), tenant.String(), kind, encoded, state); err != nil {
+		t.Fatalf("seeding the job: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.WithoutCancel(ctx), `DELETE FROM job WHERE id = $1`, job.String())
+	})
+	return job, request
+}
+
+// UC-INS-16 check 1: an HTTP call still on its retry ladder holds its header secret in its job,
+// and the census counts it - only while the job may still run, and only in its own workspace. A
+// key retired under such a call would make its next attempt fail.
+func TestTheCensusCountsAPendingCallsHeaderSecret(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	const keyID = "census-call-key"
+	for _, state := range []string{"PENDING", "RUNNING", "SUCCEEDED", "DEAD_LETTER", "CANCELLED"} {
+		seedCallJob(ctx, t, tenantA, "automation.http", state, keyID)
+	}
+	seedCallJob(ctx, t, tenantA, "automation.http", "PENDING", "")
+	seedCallJob(ctx, t, tenantA, "webhook.deliver", "PENDING", keyID)
+	census := postgres.NewSealingRepository()
+
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		counts, err := census.Count(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n := counts[keyID][sealingrepo.StoreAutomationHTTPJob]; n != 0 {
+			t.Errorf("another tenant's pending calls were counted: %d", n)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		counts, err := census.Count(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// The pending and the running call; not the finished ones, not the one without a secret,
+		// not a job of another kind.
+		if got := counts[keyID]; got[sealingrepo.StoreAutomationHTTPJob] != 2 || len(got) != 1 {
+			t.Errorf("the census under %s is %v, want 2 pending call secrets and nothing else", keyID, got)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 }

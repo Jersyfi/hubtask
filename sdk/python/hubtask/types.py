@@ -926,7 +926,7 @@ class EncryptionKeyUsage(TypedDict, total=False):
     stores: Required[list["EncryptionStoreCount"]]
 
 class EncryptionStoreCount(TypedDict, total=False):
-    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule"]]
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule", "automation_http_job"]]
     sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
