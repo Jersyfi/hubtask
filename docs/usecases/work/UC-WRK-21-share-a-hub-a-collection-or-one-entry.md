@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-07, P-08, P-10]
 state: partial
 tasks: [B-02, F3-01, F3-07, F4-09]
-checked_by: [test/integration/membership_test.go, test/integration/membership_list_test.go, core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go]
+checked_by: [test/integration/membership_test.go, test/integration/membership_list_test.go, core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, apps/webapp/e2e/invitescope.test.mjs]
 ---
 
 # Share a hub, a collection or one entry with somebody
@@ -58,6 +58,4 @@ hub or the workspace, which can only be revoked where they were granted. Revokin
 ## Today
 
 * Check 1: not met for groups — a group holding a role is listed as "a group", without its name.
-* Check 4: not met in the web app — the members dialog offers only people who already hold a membership along the path, tracked in #1079.
-* Check 5: not met in the web app — the invitation always grants its role on the whole workspace, tracked in #1079.
 * Check 7: not met — *Share* is on every entry's menu for every reader, and the members dialog draws its grant and revoke controls without asking the role; only the server refuses them.

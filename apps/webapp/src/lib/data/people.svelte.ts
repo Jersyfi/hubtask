@@ -66,6 +66,21 @@ class People {
     return scopesInForce(path, isPrivate).flatMap((scope) => this.#scopes[membershipsPath(scope)] ?? []);
   }
 
+  /**
+   * Every account the memberships read so far name, whichever scope they were read at - the people
+   * this reader knows of in the workspace. What a members dialog offers to grant a role to: a person
+   * not yet on the path, holding a role only on another hub, is still somebody to give one here
+   * (UC-WRK-21 check 4).
+   */
+  known(): readonly string[] {
+    const ids = new Set<string>();
+    for (const rows of Object.values(this.#scopes)) {
+      for (const membership of rows) if (membership.account_id) ids.add(membership.account_id);
+    }
+    accounts.resolve([...ids]);
+    return [...ids];
+  }
+
   /** Who may be named on an entry at this path: the accounts, with the groups expanded. */
   candidates(path: Path): readonly string[] {
     const memberships = this.along(path);
