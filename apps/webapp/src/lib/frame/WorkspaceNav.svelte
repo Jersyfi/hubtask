@@ -24,7 +24,7 @@
   import ReplicaMark from './ReplicaMark.svelte';
 
   import { actor } from '../data/account.svelte.ts';
-  import { holdsHere } from '../data/capability.svelte.ts';
+  import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -60,6 +60,12 @@
   // A workspace has to be startable from inside the application, and a hub is where starting one
   // begins: nothing else can be created until one exists.
   let isCreatingHub = $state(false);
+  // Which hub the reader may create, as the overview's head offers it: a shared one with STRUCTURE,
+  // a private one of one's own where the manifest offers it, none otherwise or while unknown.
+  const creation = $derived(hubCreationHere());
+  const createLabel = $derived(
+    creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined,
+  );
 
   let expanded = $state<string[]>([]);
 
@@ -231,22 +237,24 @@
          one action was `hubctl`. -->
     <EmptyState kind="unused" title={t('app.workspace.no_hubs')} icon="hub">
       {#snippet action()}
-        <Button icon="plus" onclick={() => (isCreatingHub = true)}>
-          {t('app.workspace.create_hub')}
-        </Button>
+        {#if createLabel}
+          <Button icon="plus" onclick={() => (isCreatingHub = true)}>
+            {createLabel}
+          </Button>
+        {/if}
       {/snippet}
     </EmptyState>
-  {:else}
+  {:else if createLabel}
     <!-- In a block of its own so that the control keeps its width at the start of the line
          rather than stretching across the column with its label in the middle. Folded, it stands
          in the rail's one column with the marks above it: everything drawn in a rail is in that
          column, or it is the one thing in the navigation that is not. -->
     <div class="create" data-rail={isRail ? '' : undefined}>
       {#if isRail}
-        <IconButton icon="plus" label={t('app.workspace.create_hub')} size="sm" onclick={() => (isCreatingHub = true)} />
+        <IconButton icon="plus" label={createLabel} size="sm" onclick={() => (isCreatingHub = true)} />
       {:else}
         <Button tone="subtle" size="sm" icon="plus" onclick={() => (isCreatingHub = true)}>
-          {t('app.workspace.create_hub')}
+          {createLabel}
         </Button>
       {/if}
     </div>
@@ -262,6 +270,7 @@
 <CreateContainerDialog
   bind:isOpen={isCreatingHub}
   type="HUB"
+  isPrivateOnly={creation === 'private'}
   oncreated={(id) => onnavigate(`/hubs/${id}`)}
 />
 

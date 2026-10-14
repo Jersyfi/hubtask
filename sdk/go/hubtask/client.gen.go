@@ -5521,7 +5521,11 @@ type Capabilities struct {
 
 	// NotificationChannels The channels this installation delivers on. `EMAIL` today; a client tolerates a value it does not know.
 	NotificationChannels *[]string `json:"notification_channels,omitempty"`
-	ProductVersion       *string   `json:"product_version,omitempty"`
+
+	// PrivateHubOffered Whether the caller may create a private hub of their own now, the way `POST /containers` with `private: true` decides it without `STRUCTURE`: a person - never a service account - who holds a role anywhere in the workspace, where the workspace allows private hubs and holds more than one person. Recording nothing, like `workspace_permissions`, and caller-scoped like it: absent for an anonymous caller.
+	// It lets a client offer a hub of one's own to somebody who may not shape the workspace, including somebody whose roles sit only on hubs, collections or entries and who cannot read `GET /tenant`. Whoever holds `STRUCTURE` on the workspace creates shared hubs whatever this says.
+	PrivateHubOffered *bool   `json:"private_hub_offered,omitempty"`
+	ProductVersion    *string `json:"product_version,omitempty"`
 
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`

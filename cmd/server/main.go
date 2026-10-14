@@ -2414,6 +2414,12 @@ func run() error {
 			// What the caller holds on the workspace, from the authoriser every request is
 			// decided by, so the manifest cannot offer what a route refuses.
 			Workspace: authorizer,
+			// Whether the caller may create a private hub of their own: the authoriser's own
+			// question, the switch creating one reads, and the people count `/tenant` reads, so
+			// the offer and the create cannot disagree.
+			OwnHubs:     authorizer,
+			PrivateHubs: signInPolicyResolver,
+			People:      postgres.NewPrivateHubRepository(),
 			// Whether the first start's setup is offered: the same function the setup's claim
 			// reads, so the card is drawn exactly where the route would accept it.
 			Setup:      setupCodes,

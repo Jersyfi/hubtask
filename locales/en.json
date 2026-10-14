@@ -2339,6 +2339,7 @@
   "app.overview.recent": "What you had open",
   "app.overview.recent_none": "What you open is listed here, on this device only.",
   "app.workspace.create_hub": "Create hub",
+  "app.workspace.create_private_hub": "Create private hub",
   "app.workspace.create_collection": "Create collection",
   "app.workspace.hub_name": "Hub name",
   "app.workspace.collection_name": "Collection name",

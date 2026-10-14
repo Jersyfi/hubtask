@@ -56,7 +56,7 @@ async function stub(route) {
   if (path === '/sync:pull') return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path === '/accounts/me') return route.fulfill({ json: ACCOUNT });
   if (path === '/meta/capabilities') {
-    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], query_fields: [{ field: 'assignee_id', operators: ['EQ'] }, { field: 'is_completed', operators: ['EQ'] }, { field: 'due_at', operators: ['IS_NULL'] }], workspace_permissions: PERMISSIONS.MEMBER } });
+    return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], query_fields: [{ field: 'assignee_id', operators: ['EQ'] }, { field: 'is_completed', operators: ['EQ'] }, { field: 'due_at', operators: ['IS_NULL'] }], workspace_permissions: PERMISSIONS.MEMBER, private_hub_offered: true } });
   }
   if (path === '/search') {
     searched = route.request().postDataJSON();
@@ -166,7 +166,10 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   t.after(fresh.close);
   await fresh.page.locator('main').getByText('No hubs yet. A hub holds the collections you work in.').waitFor({ timeout: 15_000 });
   assert.equal(await fresh.page.getByText('In the jumble').count(), 0, 'an empty workspace still draws the panels');
-  assert.equal(await fresh.page.locator('main').getByRole('button', { name: 'Create hub' }).count() > 0, true, 'no way to start a workspace');
+  // The reader is a member: the one action is a hub of their own, never a shared one the server
+  // would refuse them (UC-WRK-01 check 6, UC-ID-16 check 1).
+  assert.equal(await fresh.page.locator('main').getByRole('button', { name: 'Create private hub' }).count() > 0, true, 'no way to start a workspace');
+  assert.equal(await fresh.page.getByRole('button', { name: 'Create hub', exact: true }).count(), 0, 'a member is offered a shared hub');
   assert.deepEqual(fresh.failures, []);
 });
 

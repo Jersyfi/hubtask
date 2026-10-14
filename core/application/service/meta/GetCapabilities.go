@@ -142,6 +142,10 @@ type Capabilities struct {
 	// whether to draw the administration or the jumble at all, rather than probing a route whose
 	// refusal is recorded.
 	WorkspacePermissions []service.Permission
+	// PrivateHubOffered is whether the caller may create a private hub of their own now, nil for an
+	// anonymous caller. Caller-scoped like WorkspacePermissions and for its reason: a client offers a
+	// hub of one's own to somebody without STRUCTURE only where the server would create it.
+	PrivateHubOffered *bool
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -207,6 +211,25 @@ type WorkspacePermissions interface {
 	HeldOnWorkspace(ctx context.Context, actor appshared.ActorContext) ([]service.Permission, error)
 }
 
+// PrivateHubOwners answers, recording nothing, whether the caller is somebody who may own a
+// private hub of their own: the question creating one asks instead of STRUCTURE
+// (access.Service.MayOwnPrivateHub).
+type PrivateHubOwners interface {
+	MayOwnPrivateHub(ctx context.Context, actor appshared.ActorContext) (bool, error)
+}
+
+// PrivateHubsRule answers whether the workspace allows new private hubs now - the switch creating
+// one reads.
+type PrivateHubsRule interface {
+	PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error)
+}
+
+// PeopleCount answers how many people can act in the workspace: a workspace of one has nobody to
+// keep a hub from, so nothing offers one there.
+type PeopleCount interface {
+	CountPeople(ctx context.Context) (int, error)
+}
+
 // SetupState answers whether the installation is still empty - no workspace, nobody in the operator
 // register - which is the whole condition under which the first start's setup is offered (UC-INS-01).
 type SetupState interface {
@@ -259,6 +282,12 @@ type GetCapabilities struct {
 	// it answers nothing, which draws neither the administration nor the jumble - the safe
 	// direction, for Operators' reason.
 	Workspace WorkspacePermissions
+	// OwnHubs, PrivateHubs and People answer `private_hub_offered` together. Optional: a build wired
+	// without any of them answers false, which offers no hub of one's own - the safe direction, for
+	// Operators' reason.
+	OwnHubs     PrivateHubOwners
+	PrivateHubs PrivateHubsRule
+	People      PeopleCount
 	// Setup answers `features.setup_open`. Optional: a build wired without it answers false, which
 	// draws the sign-in card - the safe direction.
 	Setup      SetupState
@@ -384,6 +413,15 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			return Capabilities{}, err
 		}
 		workspacePermissions = held
+	}
+
+	var privateHubOffered *bool
+	if actor.IsAuthenticated() {
+		offered, err := g.privateHubOffered(ctx, actor)
+		if err != nil {
+			return Capabilities{}, err
+		}
+		privateHubOffered = &offered
 	}
 
 	var ai aiprovider.ProviderCapabilities
@@ -522,7 +560,32 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		Legal:                legal,
 		InstanceReachable:    instanceReachable,
 		WorkspacePermissions: workspacePermissions,
+		PrivateHubOffered:    privateHubOffered,
 	}, nil
+}
+
+// privateHubOffered is the condition creating a private hub without STRUCTURE applies - somebody
+// who may own one, where the workspace allows them - and the one `private_hubs_offered` adds: more
+// than one person. Cheapest first; the people are counted only for somebody it can still matter to.
+func (g GetCapabilities) privateHubOffered(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if g.OwnHubs == nil || g.PrivateHubs == nil || g.People == nil {
+		return false, nil
+	}
+	may, err := g.OwnHubs.MayOwnPrivateHub(ctx, actor)
+	if err != nil || !may {
+		return false, err
+	}
+	allowed, err := g.PrivateHubs.PrivateHubsAllowed(ctx, actor.TenantID)
+	if err != nil || !allowed {
+		return false, err
+	}
+	var people int
+	err = g.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		people, err = g.People.CountPeople(ctx)
+		return err
+	})
+	return people > 1, err
 }
 
 func notificationCategories() []string {

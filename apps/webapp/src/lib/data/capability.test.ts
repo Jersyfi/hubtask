@@ -23,6 +23,7 @@ import {
   itemAccess,
   itemPermitted,
   permissionVerdict,
+  hubCreation,
   reachesAdministration,
   rootTypes,
   typesWith,
@@ -345,4 +346,17 @@ test('the administration is reached with STRUCTURE or the auditor READ_CONFIGURA
   assert.equal(reachesAdministration(holding(['READ', 'WRITE_ITEMS', 'AUTOMATION'])), false);
   assert.equal(reachesAdministration(holding([])), false);
   assert.equal(reachesAdministration({} as Capabilities), undefined);
+});
+
+test('a shared hub is created with STRUCTURE, a private one of one\'s own where the manifest offers it, and nothing before it answers', () => {
+  const answering = (permissions: string[], offered?: boolean) =>
+    ({ workspace_permissions: permissions, ...(offered === undefined ? {} : { private_hub_offered: offered }) }) as unknown as Capabilities;
+  assert.equal(hubCreation(answering(['READ', 'STRUCTURE'], true)), 'shared');
+  assert.equal(hubCreation(answering(['READ', 'STRUCTURE'], false)), 'shared');
+  assert.equal(hubCreation(answering(['READ', 'WRITE_ITEMS'], true)), 'private');
+  assert.equal(hubCreation(answering([], true)), 'private');
+  assert.equal(hubCreation(answering(['READ', 'WRITE_ITEMS'], false)), 'none');
+  assert.equal(hubCreation(answering(['READ'])), 'none');
+  assert.equal(hubCreation({} as Capabilities), undefined);
+  assert.equal(hubCreation(undefined), undefined);
 });

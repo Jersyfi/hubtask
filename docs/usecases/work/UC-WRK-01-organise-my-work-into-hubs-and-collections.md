@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-10, P-12]
 state: partial
 tasks: [A-07, B-06, F2-04, F2-08, F10-01, F10-03]
-checked_by: [test/integration/create_container_test.go, test/integration/container_test.go, test/integration/container_lifecycle_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/archive.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs]
+checked_by: [test/integration/create_container_test.go, test/integration/container_test.go, test/integration/container_lifecycle_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/archive.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/createhub.test.mjs]
 ---
 
 # Organise my work into hubs and collections
@@ -60,5 +60,4 @@ member or a child works *inside* the collections they are given.
 
 ## Today
 
-* Check 6: not met in part — *Create hub* is drawn for every signed-in person (the overview's head, the navigation's group header and its empty state); only the server's refusal stops a member, tracked in #1080.
 * Check 7: not met — a person whose memberships reach no hub sees the "no hubs yet, create one" empty state, because the client cannot tell an empty workspace from one narrowed to nothing.
