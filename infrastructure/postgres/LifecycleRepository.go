@@ -194,9 +194,10 @@ func groupRemovals(
 	return byEntity, reasons, order, nil
 }
 
-// Items returns the entries whose time in the trash is up, deepest first.
+// Items returns the entries whose time in the trash is up, those removable by due first, deepest
+// first within each group.
 func (r LifecycleRepository) Items(
-	ctx context.Context, cutoff time.Time, batchSize int,
+	ctx context.Context, cutoff, due time.Time, batchSize int,
 ) ([]repository.ExpiredItem, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -204,7 +205,7 @@ func (r LifecycleRepository) Items(
 	}
 
 	rows, err := queries.ExpiredTrashItems(ctx, sqlc.ExpiredTrashItemsParams{
-		Cutoff: timestampOf(cutoff), BatchSize: batchLimit(batchSize),
+		Cutoff: timestampOf(cutoff), Due: timestampOf(due), BatchSize: batchLimit(batchSize),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.
@@ -232,9 +233,10 @@ func (r LifecycleRepository) Items(
 	return expired, nil
 }
 
-// Containers returns the hubs and collections whose time in the trash is up, collections first.
+// Containers returns the hubs and collections whose time in the trash is up, those removable by due
+// first, collections first within each group.
 func (r LifecycleRepository) Containers(
-	ctx context.Context, cutoff time.Time, batchSize int,
+	ctx context.Context, cutoff, due time.Time, batchSize int,
 ) ([]repository.ExpiredContainer, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -242,7 +244,7 @@ func (r LifecycleRepository) Containers(
 	}
 
 	rows, err := queries.ExpiredTrashContainers(ctx, sqlc.ExpiredTrashContainersParams{
-		Cutoff: timestampOf(cutoff), BatchSize: batchLimit(batchSize),
+		Cutoff: timestampOf(cutoff), Due: timestampOf(due), BatchSize: batchLimit(batchSize),
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.

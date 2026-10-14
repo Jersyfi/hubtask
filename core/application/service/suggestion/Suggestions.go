@@ -209,6 +209,27 @@ func (c Cases) decide(
 		return domain.Suggestion{}, err
 	}
 
+	// The entry is read once before the answer's transaction opens: the reader records its refusal
+	// where it is asked from, and inside the read-write transaction below, which that refusal rolls
+	// back, the DENIED entry went with it. The read inside stays, because freshness is judged again
+	// in the transaction that writes the answer - the entry may change in between.
+	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		proposal, err := c.Suggestions.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		digest, err := c.Targets.Digest(ctx, actor, proposal.TargetType, proposal.TargetID)
+		if err != nil {
+			return err
+		}
+		if !proposal.Fresh(digest) {
+			return domain.ErrStale
+		}
+		return nil
+	}); err != nil {
+		return domain.Suggestion{}, err
+	}
+
 	var answered domain.Suggestion
 	err := c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		proposal, err := c.Suggestions.Find(ctx, id)

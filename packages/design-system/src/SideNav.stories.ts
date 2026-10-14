@@ -27,7 +27,7 @@ export const flat: Story = {
 export const long: Story = {
   name: 'The same tree in German',
   about:
-    'Rule 4 against the component with the least room: the indent takes width from the label at every level, not from the mark in front of it. The labels truncate; the indent does not collapse, because the depth is the information.',
+    'Rule 4 against the component with the least room: the indent takes width from the label at every level, not from the mark in front of it. A label wraps to a second line and only a third is cut, so a row that explains its place — the last one here — keeps its sense in a phone’s drawer instead of ending after its first words; the indent does not collapse, because the depth is the information.',
   args: { mode: 'long' },
 };
 

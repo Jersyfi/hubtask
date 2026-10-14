@@ -108,16 +108,21 @@ func (a Ask) queue(
 		return aiUnavailable
 	}
 
-	return c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// The entry is read through its own use case, which is the permission check and the
-		// existence check at once - and it is read *before* the job, so that asking about
-		// something that is not there fails now rather than in a worker.
+	// The entry is read through its own use case, which is the permission check and the existence
+	// check at once - and it is read *before* the job, so that asking about something that is not
+	// there fails now rather than in a worker. In a read of its own rather than inside the write
+	// below: the target's reader records its refusal where it is asked from, and inside a
+	// read-write transaction that this refusal then rolls back, the DENIED entry went with it.
+	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if _, err := c.Targets.Digest(ctx, actor, targetType, targetID); err != nil {
 			return err
 		}
-		if err := c.workable(ctx, actor, targetType, targetID, promptID, text); err != nil {
-			return err
-		}
+		return c.workable(ctx, actor, targetType, targetID, promptID, text)
+	}); err != nil {
+		return err
+	}
+
+	return c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		payload := map[string]any{
 			"target_type": string(targetType),
 			"target_id":   targetID.String(),

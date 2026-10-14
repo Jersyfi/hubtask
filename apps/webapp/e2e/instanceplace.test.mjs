@@ -77,5 +77,19 @@ test('chromium: at 375 px the administration carries the installation too', asyn
 
   const { context, page } = await administration(browser, 'single', { width: 375, height: 812 });
   await page.getByText('Applies to every workspace you create').first().waitFor({ state: 'attached' });
+
+  // In the drawer the row says what it applies to whole: the label is the explanation, and one
+  // cut with an ellipsis says nothing (design-system.md §10). Two lines are room enough.
+  await page.getByRole('button', { name: 'Open the navigation' }).click();
+  const drawer = page.locator('dialog[open]');
+  await drawer.waitFor({ timeout: 5_000 });
+  const label = drawer.getByRole('treeitem').filter({ hasText: 'Applies to every workspace you create' }).locator('.label');
+  await label.waitFor();
+  const box = await label.evaluate((element) => ({
+    clipped: element.scrollWidth > element.clientWidth || element.scrollHeight > element.clientHeight,
+    lines: Math.round(element.clientHeight / parseFloat(getComputedStyle(element).lineHeight)),
+  }));
+  assert.equal(box.clipped, false, 'the installation\'s row is cut in the drawer');
+  assert.ok(box.lines <= 2, `the installation's row takes ${box.lines} lines`);
   await context.close();
 });

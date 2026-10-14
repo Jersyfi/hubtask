@@ -34,15 +34,18 @@ func TestAcceptingPerformsTheOrdinaryUseCaseAsTheAcceptingPerson(t *testing.T) {
 		t.Fatalf("accepting: %v", err)
 	}
 
-	// Two calls and no more: the read that fingerprints the target, and the write that owns the
+	// Three calls and no more: the read that fingerprints the target - once before the answer's
+	// transaction, where its refusal is kept, and once inside it - and the write that owns the
 	// change. Nothing this package does to a workspace happens any other way.
-	if len(world.performed) != 2 {
-		t.Fatalf("%d use cases performed, want the read and the write", len(world.performed))
+	if len(world.performed) != 3 {
+		t.Fatalf("%d use cases performed, want the two reads and the write", len(world.performed))
 	}
-	if world.performed[0].name != "GetWorkItem" {
-		t.Errorf("the target was read through %q", world.performed[0].name)
+	for _, read := range world.performed[:2] {
+		if read.name != "GetWorkItem" {
+			t.Errorf("the target was read through %q", read.name)
+		}
 	}
-	call := world.performed[1]
+	call := world.performed[2]
 	if call.name != "UpdateWorkItem" {
 		t.Errorf("the acceptance performed %q", call.name)
 	}

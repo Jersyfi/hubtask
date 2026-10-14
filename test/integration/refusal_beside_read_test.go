@@ -10,6 +10,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -18,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -118,5 +120,98 @@ func TestWithinWritableStandsBesideAReadAndJoinsAWrite(t *testing.T) {
 	}
 	if got := stored(joined); got != 0 {
 		t.Errorf("inside a read-write transaction that rolled back: %d entries stored, want none", got)
+	}
+}
+
+// suggestionCases is the suggestion use cases' parts the way main.go builds them, reading their
+// target through the readers' catalogue.
+func suggestionCases(ctx context.Context, t *testing.T) suggestion.Cases {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	fixed := portclock.Fixed(created)
+	sink := postgres.NewAuditSink(clockadapter.NewUUIDv7(fixed))
+	return suggestion.Cases{
+		Suggestions: postgres.NewSuggestionRepository(pageCursors()),
+		Targets:     suggestion.EntryTargets{Catalogue: readerRegistry(ctx, t)},
+		Authorizer: access.Service{
+			Memberships: postgres.NewMembershipRepository(), UnitOfWork: unitOfWork,
+			Audit: sink, Clock: fixed,
+		},
+		Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,
+	}
+}
+
+// aiOffered answers that the workspace may ask, so that a question reaches the read of its target.
+type aiOffered struct{}
+
+func (aiOffered) CanSuggest(context.Context, appshared.ActorContext) (bool, error) { return true, nil }
+
+// jobsNever fails a test that reaches the queue: a refused question queues nothing.
+type jobsNever struct{ t *testing.T }
+
+func (j jobsNever) Enqueue(context.Context, queue.Request) (shared.ID, error) {
+	j.t.Error("a refused question was queued")
+	return "", errors.New("queued")
+}
+
+// audit.md §7: asking about an entry the asker cannot read is refused as not found, and the
+// target's reader's DENIED entry stays in the trail - it used to join the asking's read-write
+// transaction and be rolled back with the refusal.
+func TestARefusedQuestionIsInTheTrail(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	owner := reader(w.tenant, w.administrator)
+	owner.Scopes = append(owner.Scopes, "items:write", "suggestions:write")
+
+	before := deniedEntries(ctx, t, w.tenant, w.administrator, w.item)
+	err := suggestion.SuggestDecomposition{
+		Cases: suggestionCases(ctx, t), AI: aiOffered{}, Queue: jobsNever{t},
+	}.Execute(ctx, owner, w.item)
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("the owner was answered %v, want not found", err)
+	}
+
+	if got := deniedEntries(ctx, t, w.tenant, w.administrator, w.item) - before; got != 1 {
+		t.Errorf("the trail gained %d DENIED entries about the entry, want one", got)
+	}
+}
+
+// The same for answering a proposal about an entry the person cannot read: dismissing it reads the
+// entry for its freshness, and the reader's refusal used to be rolled back with the answer.
+func TestARefusedAnswerIsInTheTrail(t *testing.T) {
+	ctx := context.Background()
+	w := seedPrivateWorld(ctx, t)
+	cases := suggestionCases(ctx, t)
+	owner := reader(w.tenant, w.administrator)
+	owner.Scopes = append(owner.Scopes, "items:write", "suggestions:write")
+
+	proposal, err := suggestiondomain.New(suggestiondomain.NewInput{
+		ID: freshID(t), TenantID: w.tenant,
+		TargetType: suggestiondomain.TargetWorkItem, TargetID: w.item,
+		Kind:    suggestiondomain.KindFields,
+		Payload: map[string]any{"title": "Buy oat milk"},
+		Provenance: suggestiondomain.Provenance{
+			Model: "a-model", PromptID: "suggest-fields", PromptVersion: "v1", ProducedAt: created,
+		},
+		InputDigest: suggestiondomain.Digest(w.title, ""),
+		Now:         created,
+	})
+	if err != nil {
+		t.Fatalf("building the proposal: %v", err)
+	}
+	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
+		return cases.Suggestions.Record(ctx, proposal)
+	}); err != nil {
+		t.Fatalf("recording the proposal: %v", err)
+	}
+
+	before := deniedEntries(ctx, t, w.tenant, w.administrator, w.item)
+	_, err = suggestion.DismissSuggestion{Cases: cases}.Execute(ctx, owner, proposal.ID)
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("the owner was answered %v, want not found", err)
+	}
+
+	if got := deniedEntries(ctx, t, w.tenant, w.administrator, w.item) - before; got != 1 {
+		t.Errorf("the trail gained %d DENIED entries about the entry, want one", got)
 	}
 }

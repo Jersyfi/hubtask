@@ -45,12 +45,14 @@ func (silentRuns) Finish(context.Context, shared.ID, repository.RunResult) error
 // about when to come back can be measured.
 type expiredRows struct{ items []repository.ExpiredItem }
 
-func (e expiredRows) Items(context.Context, time.Time, int) ([]repository.ExpiredItem, error) {
+func (e expiredRows) Items(
+	context.Context, time.Time, time.Time, int,
+) ([]repository.ExpiredItem, error) {
 	return e.items, nil
 }
 
 func (e expiredRows) Containers(
-	context.Context, time.Time, int,
+	context.Context, time.Time, time.Time, int,
 ) ([]repository.ExpiredContainer, error) {
 	return nil, nil
 }
