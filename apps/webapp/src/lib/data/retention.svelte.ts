@@ -9,10 +9,10 @@
  * message. A screen that reported "you may not see the retention policy" would be telling somebody
  * about a permission they were never going to use.
  *
- * What this exists for is the sentence on the trash screen. "It will be gone anyway in a week"
- * changes a decision, so the window is stated where a person decides — and where the client cannot
- * read it, nothing is stated rather than the documented default being asserted as this
- * installation's. 30 days is `data-retention.md`'s default with a seven-day floor; the tenant may
+ * What this exists for is the sentence on the trash screen of a server that does not give each
+ * entry its `purge_after`: a current one does, to every reader, and the screen counts down to that.
+ * Against an older one the window is counted from this policy — and where the client cannot read
+ * it, nothing is stated rather than the documented default being asserted as this installation's. 30 days is `data-retention.md`'s default with a seven-day floor; the tenant may
  * have set something else, and this client has no way to know which.
  */
 

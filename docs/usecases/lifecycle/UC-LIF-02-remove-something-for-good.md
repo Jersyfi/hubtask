@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
 state: partial
 tasks: [B-10, E-07, E-08, F2-14]
-checked_by: [core/application/service/lifecycle/PurgeWorkItem_test.go, core/application/service/lifecycle/Purge_test.go, core/application/service/lifecycle/RunRetention_test.go, test/integration/trash_test.go, test/integration/deletion_journal_test.go, test/retention/retention_test.go]
+checked_by: [core/application/service/lifecycle/PurgeWorkItem_test.go, core/application/service/lifecycle/Purge_test.go, core/application/service/lifecycle/RunRetention_test.go, test/integration/trash_test.go, test/integration/deletion_journal_test.go, test/retention/retention_test.go, core/application/service/work/ReadTrash_test.go, core/domain/model/lifecycle/Retention_test.go, apps/webapp/e2e/trash.test.mjs]
 ---
 
 # Remove something for good
@@ -56,6 +56,6 @@ restore of an older backup does not bring it back.
 
 ## Today
 
-* Check 6: not met — the trash counts down from the trash period, but the automatic pass also waits for the offline window (90 days by default), so the screen says an entry goes today that stays another sixty days, tracked in #1078.
+* Check 6: not met for an entry a legal hold keeps — the trash counts down to the day the pass would take it and does not say that a hold keeps it longer (data-retention.md §4 gives a held entry no date); not yet tracked in an issue of its own.
 * Check 8: not met for `hubctl` — it has no command to delete one entry for good or to empty the trash.
-* Check 9: not met — a retention rule for the trash kind is accepted, but the trash pass reads the per-kind period that only the defaults and an import write, so the trash keeps counting with the default.
+* Check 9: not met — a retention rule for the trash kind is accepted, but the trash pass, and with it the day the trash shows, reads the per-kind period that only the defaults and an import write, so both keep counting with the default.

@@ -15,8 +15,10 @@
   // dialog opens on Cancel's side and the confirm is named for what it does rather than "OK".
   //
   // **The window is stated where a person decides**, because "it will be gone anyway in a week"
-  // changes the decision. Where the client may not read the workspace's retention policy it says
-  // so rather than asserting the documented default as this installation's.
+  // changes the decision. It counts down to the date the server gives each entry - the retention
+  // pass's own, the trash period and the offline window together - to every reader of the trash
+  // (UC-LIF-02 check 6). Only an older server without that date leaves the client to count from the
+  // policy, and where it may not read the policy it says so rather than asserting a default.
 
   import { untrack } from 'svelte';
 
@@ -37,7 +39,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { isContainer, remainingDays } from '../lib/data/lifecycle.ts';
+  import { daysUntil, isContainer, remainingDays } from '../lib/data/lifecycle.ts';
   import { retention } from '../lib/data/retention.svelte.ts';
   import { trash } from '../lib/data/trash.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
@@ -83,7 +85,7 @@
    * rather than watching it print braces at a reader.
    */
   function window(row: TrashEntry): string {
-    const left = remainingDays(row.deleted_at, retention.trashDays, now);
+    const left = row.purge_after ? daysUntil(row.purge_after, now) : remainingDays(row.deleted_at, retention.trashDays, now);
     if (left === undefined) return t('app.trash.window_unknown');
     return left === 0 ? t('app.trash.window_last') : t('app.trash.window', { days: left });
   }
