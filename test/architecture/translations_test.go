@@ -56,7 +56,7 @@ type coverage struct {
 	translated int
 	unknown    []string
 	mismatched []argumentMismatch
-	// byFamily counts translated and total per first key segment, for the report.
+	// byFamily counts translated and total per family (i18n.Family), for the report.
 	byFamily map[string][2]int
 }
 
@@ -86,7 +86,7 @@ func (c coverage) families() string {
 func coverageOf(source, translation i18n.Catalogue) coverage {
 	report := coverage{byFamily: map[string][2]int{}}
 	for _, code := range source.Codes() {
-		family, _, _ := strings.Cut(code, ".")
+		family := i18n.Family(code)
 		counts := report.byFamily[family]
 		counts[1]++
 		if translation.Has(code) {
