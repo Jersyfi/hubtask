@@ -294,11 +294,19 @@ func (signerFake) Validate(string, time.Time) (cryptoport.SessionClaims, error) 
 	return cryptoport.SessionClaims{}, shared.ErrUnauthenticated.WithDetail("access.token_malformed")
 }
 
-type signalsFake struct{ reasons []string }
+type signalsFake struct {
+	reasons []string
+	steps   []string
+	resets  int
+}
 
 func (s *signalsFake) AuthFailure(_ context.Context, reason string) {
 	s.reasons = append(s.reasons, reason)
 }
+
+func (s *signalsFake) SignInStep(_ context.Context, step string) { s.steps = append(s.steps, step) }
+
+func (s *signalsFake) PasswordResetRequested(context.Context) { s.resets++ }
 
 type sessionFixture struct {
 	// proof is a live step-up token on the caller's own session, for the tests of the operations
