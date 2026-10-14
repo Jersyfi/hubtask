@@ -287,7 +287,8 @@ func TestCoverageCountsWhatTheHealthSurfaceAsks(t *testing.T) {
 		t.Fatalf("counting: %v", err)
 	}
 
-	insertTarget(ctx, t, tenantA, targetIn(t, tenantA, authorA, freshName(t)), sealedCredential("x"))
+	scheduled := targetIn(t, tenantA, authorA, freshName(t))
+	insertTarget(ctx, t, tenantA, scheduled, sealedCredential("x"))
 
 	unencrypted, err := domain.NewTarget(domain.NewTargetInput{
 		ID: freshID(t), TenantID: tenantA, Name: freshName(t), Kind: domain.KindLocal,
@@ -299,18 +300,44 @@ func TestCoverageCountsWhatTheHealthSurfaceAsks(t *testing.T) {
 	}
 	insertTarget(ctx, t, tenantA, unencrypted, sealedCredential(""))
 
-	var after repository.Coverage
-	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
-		var err error
-		after, err = targetRepo().Coverage(ctx)
-		return err
-	}); err != nil {
-		t.Fatalf("counting: %v", err)
+	count := func() repository.Coverage {
+		t.Helper()
+		var coverage repository.Coverage
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			var err error
+			coverage, err = targetRepo().Coverage(ctx)
+			return err
+		}); err != nil {
+			t.Fatalf("counting: %v", err)
+		}
+		return coverage
 	}
-	if after.Configured != before.Configured+2 {
-		t.Fatalf("configured went from %d to %d", before.Configured, after.Configured)
+
+	// backup-restore.md §10: a target nothing writes to backs nothing up, so it does not clear
+	// config.backup_not_configured. An unencrypted one is still reported: a run started by hand
+	// writes to it.
+	after := count()
+	if after.Configured != before.Configured {
+		t.Errorf("two targets without a schedule took configured from %d to %d", before.Configured, after.Configured)
 	}
 	if after.Unencrypted != before.Unencrypted+1 {
 		t.Fatalf("unencrypted went from %d to %d", before.Unencrypted, after.Unencrypted)
+	}
+
+	schedule := func(target shared.ID, enabled bool) {
+		t.Helper()
+		if _, err := adminPool(ctx, t).Exec(ctx, `
+			INSERT INTO backup_schedule (id, target_id, tenant_id, scope_kind, rrule, enabled)
+			VALUES ($1, $2, $3, 'TENANT', 'FREQ=DAILY', $4)`,
+			freshID(t).String(), target.String(), tenantA.String(), enabled); err != nil {
+			t.Fatalf("scheduling: %v", err)
+		}
+	}
+	schedule(scheduled.ID, true)
+	schedule(unencrypted.ID, false)
+
+	if scheduledCount := count(); scheduledCount.Configured != before.Configured+1 {
+		t.Errorf("one enabled and one disabled schedule took configured from %d to %d, want one more",
+			before.Configured, scheduledCount.Configured)
 	}
 }

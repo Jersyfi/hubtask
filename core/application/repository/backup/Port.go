@@ -41,8 +41,9 @@ type Targets interface {
 	// user and sometimes the password (rule 10).
 	RecordTest(ctx context.Context, id shared.ID, at time.Time, ok bool, code string) error
 
-	// Coverage is what the installation's health surface asks: how many targets there are, and
-	// how many of them store an archive unencrypted (backup-restore.md §10).
+	// Coverage is what the installation's health surface asks: how many enabled targets an enabled
+	// schedule writes to, and how many enabled targets store an archive unencrypted
+	// (backup-restore.md §10).
 	Coverage(ctx context.Context) (Coverage, error)
 
 	// Delete removes the target and its sealed credential from the workspace's configuration.
