@@ -149,7 +149,7 @@ func (s Sweeper) announce(
 		}
 	}
 
-	candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, s.batch())
+	candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, 0, s.batch())
 	if err != nil {
 		return Outcome{}, err
 	}
@@ -287,7 +287,7 @@ func (s Sweeper) announceChains(
 			continue
 		}
 
-		candidates, err := s.Marking.DueInChain(ctx, anchor, rule.ID, rule.ThenCutoff(now), s.batch())
+		candidates, err := s.Marking.DueInChain(ctx, anchor, rule.ID, rule.ThenCutoff(now), 0, s.batch())
 		if err != nil {
 			return outcome, err
 		}
@@ -328,7 +328,7 @@ func (s Sweeper) announceChains(
 func (s Sweeper) act(
 	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
 ) (Outcome, error) {
-	due, err := s.Marking.MarkedDue(ctx, now, s.batch())
+	due, err := s.Marking.MarkedDue(ctx, now, 0, s.batch())
 	if err != nil {
 		return Outcome{}, err
 	}

@@ -198,7 +198,7 @@ func TestTheCandidatesAreWhatIsPastTheCutoffAndNotMarkedYet(t *testing.T) {
 	var candidates []repository.Candidate
 	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
 		var err error
-		candidates, err = markingRepo().Due(ctx, domain.AnchorCompletedAt, cutoff, 100)
+		candidates, err = markingRepo().Due(ctx, domain.AnchorCompletedAt, cutoff, 0, 100)
 		return err
 	}); err != nil {
 		t.Fatalf("reading the candidates: %v", err)
@@ -244,13 +244,13 @@ func TestAMarkedEntryIsFoundByPhaseTwoWhenItsGraceHasRunOut(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		later, err := markingRepo().MarkedDue(ctx, now, 100)
+		later, err := markingRepo().MarkedDue(ctx, now, 0, 100)
 		if err != nil {
 			return err
 		}
 		dueLater = countOf(later, id)
 
-		soon, err := markingRepo().MarkedDue(ctx, now.Add(2*time.Hour), 100)
+		soon, err := markingRepo().MarkedDue(ctx, now.Add(2*time.Hour), 0, 100)
 		if err != nil {
 			return err
 		}
@@ -303,7 +303,7 @@ func TestClearingAMarkingEndsTheRulesClaim(t *testing.T) {
 		if _, err := markingRepo().Clear(ctx, []shared.ID{id}, false, now); err != nil {
 			return err
 		}
-		due, err := markingRepo().MarkedDue(ctx, now.Add(time.Hour), 100)
+		due, err := markingRepo().MarkedDue(ctx, now.Add(time.Hour), 0, 100)
 		if err != nil {
 			return err
 		}
@@ -425,7 +425,7 @@ func TestARetentionRuleAndItsMarkingsAreInvisibleFromAnotherTenant(t *testing.T)
 		if listed, err = ruleRepo().List(ctx); err != nil {
 			return err
 		}
-		if due, err = markingRepo().MarkedDue(ctx, now.Add(time.Hour), 100); err != nil {
+		if due, err = markingRepo().MarkedDue(ctx, now.Add(time.Hour), 0, 100); err != nil {
 			return err
 		}
 		if cleared, err = markingRepo().Clear(ctx, []shared.ID{theirs}, false, now); err != nil {

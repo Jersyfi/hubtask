@@ -65,6 +65,10 @@ ON CONFLICT DO NOTHING;
 -- Only what is not already marked and not already gone: a row the last pass marked is phase two's
 -- business, and a row in the trash is the trash's. The hub is joined in because the scope of a rule
 -- can be a hub and an entry three levels down does not know which hub it is under.
+--
+-- `skip` pages past rows the caller read and could not act on - a legal hold, a condition, a
+-- narrower rule's period - which stay in this set and would otherwise fill every batch ahead of a
+-- due row. The order ends in the identifier, so a page boundary is stable within the pass.
 
 -- name: RetentionCandidatesByCompletedAt :many
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
@@ -77,7 +81,7 @@ WHERE w.completed_at IS NOT NULL
   AND w.archived_at IS NULL
   AND w.retention_pending_until IS NULL
 ORDER BY w.completed_at, w.id
-LIMIT sqlc.arg('batch')::int;
+LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
 
 -- name: RetentionCandidatesByArchivedAt :many
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
@@ -93,7 +97,7 @@ WHERE w.archived_at IS NOT NULL
   -- anybody's chain, and a rule that swept it up would be a rule acting outside what it matched.
   AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
 ORDER BY w.archived_at, w.id
-LIMIT sqlc.arg('batch')::int;
+LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
 
 -- name: RetentionCandidatesByDeletedAt :many
 -- The trash: what the trash's own rule governs, and what a chain whose first stage put it there
@@ -107,7 +111,7 @@ WHERE w.deleted_at IS NOT NULL
   AND w.retention_pending_until IS NULL
   AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
 ORDER BY w.deleted_at, w.id
-LIMIT sqlc.arg('batch')::int;
+LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
 
 -- name: MarkItemsForRetention :execrows
 -- Phase one: what is coming, when, and under which rule (§5, §6).
@@ -139,6 +143,7 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[])
 
 -- name: RetentionMarkedItemsDue :many
 -- Phase two: what the grace period has run out on.
+-- `skip` pages past marked rows a hold or a retained descendant keeps, as the candidates above do.
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.retention_pending_until, w.retention_rule_id, w.retention_action, w.title
 FROM work_item w
@@ -146,7 +151,7 @@ JOIN container c ON c.id = w.collection_id
 WHERE w.retention_pending_until IS NOT NULL
   AND w.retention_pending_until <= sqlc.arg('now')::timestamptz
 ORDER BY w.retention_pending_until, w.id
-LIMIT sqlc.arg('batch')::int;
+LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
 
 -- name: FindItemRetention :one
 -- What one entry's marking says, which is what `:retain` reads and what the object carries.

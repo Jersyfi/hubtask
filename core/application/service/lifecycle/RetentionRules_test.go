@@ -111,18 +111,27 @@ type markingStore struct {
 }
 
 func (s *markingStore) Due(
-	_ context.Context, _ domain.Anchor, _ time.Time, batch int,
+	_ context.Context, _ domain.Anchor, _ time.Time, skip, batch int,
 ) ([]repository.Candidate, error) {
-	if batch < len(s.due) {
-		return s.due[:batch], nil
-	}
-	return s.due, nil
+	return candidatePage(s.due, skip, batch), nil
 }
 
 func (s *markingStore) DueInChain(
-	_ context.Context, _ domain.Anchor, _ shared.ID, _ time.Time, _ int,
+	_ context.Context, _ domain.Anchor, _ shared.ID, _ time.Time, skip, batch int,
 ) ([]repository.Candidate, error) {
-	return s.inChain, nil
+	return candidatePage(s.inChain, skip, batch), nil
+}
+
+// candidatePage is OFFSET skip LIMIT batch over a fixed order, as the statements read it.
+func candidatePage(rows []repository.Candidate, skip, batch int) []repository.Candidate {
+	if skip >= len(rows) {
+		return nil
+	}
+	rows = rows[skip:]
+	if batch > 0 && batch < len(rows) {
+		return rows[:batch]
+	}
+	return rows
 }
 
 func (s *markingStore) Mark(
@@ -139,8 +148,8 @@ func (s *markingStore) Block(
 	return len(ids), nil
 }
 
-func (s *markingStore) MarkedDue(_ context.Context, _ time.Time, _ int) ([]repository.Candidate, error) {
-	return s.dueMarked, nil
+func (s *markingStore) MarkedDue(_ context.Context, _ time.Time, skip, batch int) ([]repository.Candidate, error) {
+	return candidatePage(s.dueMarked, skip, batch), nil
 }
 
 func (s *markingStore) Marking(_ context.Context, id shared.ID) (repository.Candidate, error) {
