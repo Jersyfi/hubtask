@@ -22,7 +22,7 @@ test.after(() => served.close());
 /** The board, with every write recorded. */
 async function board(browser, { hasTouch = false } = {}) {
   const written = [];
-  const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 900, { hasTouch });
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900, { hasTouch });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -32,7 +32,26 @@ async function board(browser, { hasTouch = false } = {}) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('radio', { name: 'Board' }).click();
   await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
-  return { page, failures, written, close, unstubbed };
+  return { page, context, failures, written, close: () => context.close(), unstubbed };
+}
+
+/**
+ * A finger pressed, held, carried and lifted, through the browser's own touch input: Playwright's
+ * mouse is a `mouse` pointer whatever the context says, and its touch screen only taps. What the
+ * page receives is what a phone sends - touch events and `touch` pointer events.
+ */
+async function fingerCarry(page, context, from, to, { steps = 12, hold = 0 } = {}) {
+  const cdp = await context.newCDPSession(page);
+  const touch = (type, point) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: point ? [{ x: point.x, y: point.y }] : [] });
+  await touch('touchStart', from);
+  if (hold > 0) await page.waitForTimeout(hold);
+  for (let step = 1; step <= steps; step += 1) {
+    await touch('touchMove', { x: from.x + ((to.x - from.x) * step) / steps, y: from.y + ((to.y - from.y) * step) / steps });
+    await page.waitForTimeout(20);
+  }
+  await touch('touchEnd');
+  await cdp.detach();
 }
 
 /** A pointer press carried from one point to another, in steps, as a hand would. */
@@ -100,8 +119,9 @@ test('chromium: a press that does not travel is still the click it always was', 
 test('chromium: a finger that moves at once is scrolling, and one that waits is carrying', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close, unstubbed } = await board(browser, { hasTouch: true });
+  const { page, context, failures, written, close, unstubbed } = await board(browser, { hasTouch: true });
   t.after(close);
+  assert.equal(await page.evaluate(() => navigator.maxTouchPoints > 0), true, 'the page met no touch screen');
 
   const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
   const doing = page.locator(`[data-column-zone="${BUCKETS[1].id}"]`);
@@ -109,17 +129,19 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   const to = await doing.boundingBox();
   const middle = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
   const target = { x: to.x + to.width / 2, y: to.y + 80 };
+  const moves = () => written.filter((each) => each.method === 'PATCH' && 'bucket_id' in (each.body ?? {}));
 
-  // Playwright's mouse is a `mouse` pointer whatever the context says, so the hold is asserted
-  // through the touch screen, which is what a finger actually is.
-  await page.touchscreen.tap(middle.x, middle.y).catch(() => {});
-  await page.waitForTimeout(200);
-
-  // Carried with the hold: it lands.
-  await carry(page, middle, target, { hold: 400 });
+  // A finger that moves at once is scrolling the board: nothing is carried, nothing is written.
+  await fingerCarry(page, context, middle, target);
   await page.waitForTimeout(400);
-  const move = written.find((each) => each.method === 'PATCH' && 'bucket_id' in (each.body ?? {}));
-  assert.ok(move !== undefined, `a held carry did not land: ${JSON.stringify(written)}`);
+  assert.deepEqual(moves(), [], `a finger that moved at once carried the card: ${JSON.stringify(written)}`);
+  assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the scroll opened the entry');
+
+  // Held first, the same finger carries it: it lands in the next column.
+  await fingerCarry(page, context, middle, target, { hold: 400 });
+  await page.waitForTimeout(400);
+  assert.equal(moves()[0]?.body?.bucket_id, BUCKETS[1].id, `a held carry did not land: ${JSON.stringify(written)}`);
+  assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'letting go opened the entry');
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
