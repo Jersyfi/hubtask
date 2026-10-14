@@ -192,7 +192,12 @@
             <div class="add">
               <Select
                 label={t('app.groups.add_member')}
-                bind:value={adding[group.id]}
+                bind:value={
+                  // A group nobody has chosen for yet has no entry, and binding undefined to a
+                  // value with a fallback stops the whole screen; the choice starts empty instead.
+                  () => adding[group.id] ?? '',
+                  (chosen) => (adding = { ...adding, [group.id]: chosen })
+                }
                 placeholder={t('app.people.choose_person')}
                 options={choicesFor(group.id)}
               />
