@@ -163,11 +163,15 @@ export interface SftpDraft {
   readonly username: string;
   readonly hostKey: string;
   readonly password: string;
+  /** The key the server knows this installation by, instead of or beside the password. */
+  readonly privateKey?: string;
+  /** What unlocks that key, where it is locked. Sent only with a key. */
+  readonly keyPassphrase?: string;
 }
 
 /**
  * An SFTP target as the server reads it: who connects and which server it trusts are
- * configuration, and only the password is a credential.
+ * configuration, and the password, the private key and its passphrase are credentials.
  *
  * The host key is required - the server trusts no key on first use - and is accepted in either
  * spelling an operator has to hand: the whole public key as `ssh-keyscan` prints it, or its
@@ -181,5 +185,52 @@ export function sftpTarget(draft: SftpDraft): { config: Record<string, string>; 
     ...(draft.username.trim() ? { username: draft.username.trim() } : {}),
     ...(hostKey === '' ? {} : hostKey.startsWith('SHA256:') ? { host_key_fingerprint: hostKey } : { host_key: hostKey }),
   };
+  const key = draft.privateKey?.trim() ?? '';
+  const credentials: Record<string, string> = {
+    ...(draft.password ? { password: draft.password } : {}),
+    // A key keeps its line breaks: PEM and OpenSSH keys are read line by line. Only the edges go.
+    ...(key ? { private_key: `${key}\n` } : {}),
+    ...(key && draft.keyPassphrase ? { private_key_passphrase: draft.keyPassphrase } : {}),
+  };
+  return Object.keys(credentials).length > 0 ? { config, credentials } : { config };
+}
+
+export interface WebdavDraft {
+  readonly url: string;
+  readonly username: string;
+  readonly password: string;
+}
+
+/**
+ * A WebDAV target as the server reads it: the folder's address and the user are configuration, the
+ * password a credential. A user or password written into the address would travel with it into
+ * every log that names the target, so the server strips one - they belong in their own fields.
+ */
+export function webdavTarget(draft: WebdavDraft): { config: Record<string, string>; credentials?: Record<string, string> } {
+  const config: Record<string, string> = {
+    url: draft.url.trim(),
+    ...(draft.username.trim() ? { username: draft.username.trim() } : {}),
+  };
   return draft.password ? { config, credentials: { password: draft.password } } : { config };
+}
+
+/** Why a target would need its owner's explicit acceptance: the two reasons the server names. */
+export type InsecureReason = 'backup.target_unencrypted' | 'backup.target_plaintext_protocol';
+
+/**
+ * The reasons the server will ask for `insecure_acknowledged`, predicted so that the form asks the
+ * owner before the add rather than after a refusal (P-05): an archive not encrypted before it
+ * leaves, or a target reached in the clear - FTP, or an address-based kind whose address is not
+ * `https://` (an address with no scheme is not assumed safe). The server decides; a prediction that
+ * missed a reason meets its refusal, `backup.insecure_acknowledgement_required`.
+ */
+export function insecureReasons(kind: string, config: Readonly<Record<string, unknown>>, encryption: string): InsecureReason[] {
+  const reasons: InsecureReason[] = [];
+  if (encryption === 'NONE') reasons.push('backup.target_unencrypted');
+  const addressKey = kind === 'S3' ? 'endpoint' : kind === 'WEBDAV' || kind === 'HTTP_PUT' ? 'url' : undefined;
+  const address = addressKey ? String(config[addressKey] ?? '').trim() : '';
+  const scheme = address.includes('://') ? address.slice(0, address.indexOf('://')).toLowerCase() : '';
+  const inTheClear = kind === 'FTP' || (address !== '' && scheme !== 'https');
+  if (inTheClear) reasons.push('backup.target_plaintext_protocol');
+  return reasons;
 }

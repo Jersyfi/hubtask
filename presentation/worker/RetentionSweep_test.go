@@ -86,6 +86,10 @@ func (noTrash) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[shared.
 	return map[shared.ID]int{}, nil
 }
 
+func (noTrash) BatchMembers(context.Context, []shared.ID) ([]workrepo.TrashMember, error) {
+	return nil, nil
+}
+
 type noEvents struct{}
 
 func (noEvents) Append(context.Context, event.Envelope) error { return nil }

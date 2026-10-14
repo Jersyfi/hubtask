@@ -386,6 +386,68 @@ func (q *Queries) SetWorkItemTrashed(ctx context.Context, arg SetWorkItemTrashed
 	return result.RowsAffected(), nil
 }
 
+const trashBatchMembers = `-- name: TrashBatchMembers :many
+SELECT 'ITEM'::text      AS kind,
+       i.id              AS id,
+       i.trash_batch_id  AS trash_batch_id,
+       col.parent_id     AS hub_id,
+       i.collection_id   AS collection_id,
+       i.path            AS path
+FROM work_item i
+JOIN container col ON col.id = i.collection_id
+WHERE i.tenant_id = current_tenant_id()
+  AND i.deleted_at IS NOT NULL
+  AND i.trash_batch_id = ANY($1::uuid[])
+UNION ALL
+SELECT 'CONTAINER'::text, c.id, c.trash_batch_id, c.parent_id, NULL::uuid, ''::text
+FROM container c
+WHERE c.tenant_id = current_tenant_id()
+  AND c.deleted_at IS NOT NULL
+  AND c.trash_batch_id = ANY($1::uuid[])
+`
+
+type TrashBatchMembersRow struct {
+	Kind         string
+	ID           pgtype.UUID
+	TrashBatchID pgtype.UUID
+	HubID        pgtype.UUID
+	CollectionID pgtype.UUID
+	Path         string
+}
+
+// Every row still in the trash that one of these deletions took, the root included, with the
+// levels a legal hold could name it by: an entry's hub, collection and path, a container's hub.
+//
+// Read for the trash list, which says whether a hold keeps a deletion by judging each of its rows
+// as the retention pass does (`lifecycle.Holds.Blocking`). The tenant is the transaction's, as row
+// level security has it; naming it again keeps the partial trash indices in play.
+func (q *Queries) TrashBatchMembers(ctx context.Context, batchIds []pgtype.UUID) ([]TrashBatchMembersRow, error) {
+	rows, err := q.db.Query(ctx, trashBatchMembers, batchIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TrashBatchMembersRow{}
+	for rows.Next() {
+		var i TrashBatchMembersRow
+		if err := rows.Scan(
+			&i.Kind,
+			&i.ID,
+			&i.TrashBatchID,
+			&i.HubID,
+			&i.CollectionID,
+			&i.Path,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const trashCollectionsOfHub = `-- name: TrashCollectionsOfHub :many
 UPDATE container SET
   deleted_at      = $1,

@@ -52,13 +52,26 @@ type ListTrash struct {
 	// each entry carries is the pass's own.
 	Policies        lifecyclerepo.Policies
 	TombstoneWindow time.Duration
+	// Holds and Contributors are what says whether a legal hold keeps a deletion: its rows are
+	// judged as the retention pass judges them (lifecycle.Holds.Blocking), so `held` is the pass's
+	// own answer rather than a second rule.
+	Holds        lifecyclerepo.HoldList
+	Contributors lifecyclerepo.ContributorReader
 }
 
-// TrashListing is one page of the trash and when the automatic pass may take each entry.
+// TrashListing is one page of the trash, when the automatic pass may take each entry, and which a
+// legal hold keeps.
 type TrashListing struct {
 	repository.TrashPage
 	policy lifecycle.Policy
 	window time.Duration
+	held   map[shared.ID]bool
+}
+
+// Held reports whether a legal hold keeps the entry's deletion: a hold blocks one of its rows, and
+// the pass keeps a root while anything below it stays (data-retention.md §4 item 6).
+func (l TrashListing) Held(entry domain.TrashEntry) bool {
+	return l.held[entry.BatchID]
 }
 
 // PurgeAfter is the moment after which the automatic pass may remove the entry, unless a legal hold
@@ -102,7 +115,90 @@ func (h ListTrash) Execute(
 	if listing.Entries, err = h.visible(ctx, actor, listing.Entries); err != nil {
 		return TrashListing{}, err
 	}
+	// After the narrowing, so nothing of a deletion the actor may not read is read on their behalf.
+	if listing.held, err = h.heldBatches(ctx, actor, listing.Entries); err != nil {
+		return TrashListing{}, err
+	}
 	return listing, nil
+}
+
+// heldBatches answers which of these deletions a legal hold keeps.
+//
+// Every row of each deletion is judged, as the retention pass judges it: an entry by its hub, its
+// collection, its path and whose data it carries, a container by itself and its hub. One row held
+// keeps the whole deletion, because the pass removes a row only with everything below it and the
+// root is above every other row of its batch. No statement beyond the hold list while no hold is
+// in force, and none for the contributors while no hold names a person.
+func (h ListTrash) heldBatches(
+	ctx context.Context, actor appshared.ActorContext, entries []domain.TrashEntry,
+) (map[shared.ID]bool, error) {
+	held := map[shared.ID]bool{}
+	if len(entries) == 0 {
+		return held, nil
+	}
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		listed, err := h.Holds.List(ctx, false)
+		if err != nil {
+			return err
+		}
+		holds := lifecycle.Holds(listed)
+		if len(holds) == 0 {
+			return nil
+		}
+
+		batches := make([]shared.ID, 0, len(entries))
+		for _, entry := range entries {
+			batches = append(batches, entry.BatchID)
+		}
+		members, err := h.Trash.BatchMembers(ctx, batches)
+		if err != nil {
+			return err
+		}
+
+		contributors := map[shared.ID][]shared.ID{}
+		if holds.AnyOnAccounts() {
+			items := make([]shared.ID, 0, len(members))
+			for _, member := range members {
+				if member.Kind == domain.TrashItemKind {
+					items = append(items, member.ID)
+				}
+			}
+			if contributors, err = h.Contributors.Contributors(ctx, items); err != nil {
+				return err
+			}
+		}
+
+		for _, member := range members {
+			if held[member.BatchID] {
+				continue
+			}
+			target := lifecycle.Target{ContainerIDs: presentIDs(member.HubID, member.ID)}
+			if member.Kind == domain.TrashItemKind {
+				target = lifecycle.Target{
+					ItemID:          member.ID,
+					ContainerIDs:    presentIDs(member.HubID, member.CollectionID),
+					AncestorItemIDs: domain.PathIDs(member.Path),
+					Contributors:    contributors[member.ID],
+				}
+			}
+			if _, blocked := holds.Blocking(target); blocked {
+				held[member.BatchID] = true
+			}
+		}
+		return nil
+	})
+	return held, err
+}
+
+// presentIDs leaves out the empty ones: a hub has no hub above it.
+func presentIDs(ids ...shared.ID) []shared.ID {
+	out := make([]shared.ID, 0, len(ids))
+	for _, id := range ids {
+		if !id.IsZero() {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // trashPolicy is the period the retention pass reads. A tenant the pass has not reached yet has no
@@ -226,6 +322,7 @@ func (h ListTrash) invoke(
 	for _, entry := range page.Entries {
 		output := trashEntryOutput(entry)
 		output["purge_after"] = page.PurgeAfter(entry)
+		output["held"] = page.Held(entry)
 		entries = append(entries, output)
 	}
 	return pageOutput(entries, page.Info), nil

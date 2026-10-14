@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generations, readRule, sftpTarget } from './backup.ts';
+import { generations, insecureReasons, readRule, sftpTarget, webdavTarget } from './backup.ts';
 
 test('the rule the contract gives as its own example reads as what it means', () => {
   const reading = readRule('FREQ=DAILY;BYHOUR=3;BYMINUTE=0');
@@ -96,4 +96,39 @@ test('an SFTP target names its user and the host key in its configuration, and o
 test('an SFTP host key given as its fingerprint goes in the fingerprint key', () => {
   const { config } = sftpTarget({ host: 'nas.local', path: '/b', username: 'u', hostKey: 'SHA256:abc123', password: '' });
   assert.deepEqual(config, { host: 'nas.local', path: '/b', username: 'u', host_key_fingerprint: 'SHA256:abc123' });
+});
+
+test('an SFTP target may log in with a key, and its passphrase goes only with it', () => {
+  const key = 'key-line-one-test-only\nkey-line-two-test-only';
+  const base = { host: 'nas.local', path: '/b', username: 'u', hostKey: 'SHA256:abc123', password: '' };
+  assert.deepEqual(sftpTarget({ ...base, privateKey: `\n${key}\n\n`, keyPassphrase: 'pp' }).credentials, {
+    private_key: `${key}\n`,
+    private_key_passphrase: 'pp',
+  });
+  assert.equal(sftpTarget({ ...base, keyPassphrase: 'pp' }).credentials, undefined, 'a passphrase without a key was sent');
+  assert.deepEqual(sftpTarget({ ...base, password: 'pw', privateKey: key }).credentials, { password: 'pw', private_key: `${key}\n` });
+});
+
+test('a WebDAV target names its address and user in its configuration, and only the password is a credential', () => {
+  assert.deepEqual(webdavTarget({ url: ' https://dav.example.invalid/backups/ ', username: 'hubtask', password: 'pw' }), {
+    config: { url: 'https://dav.example.invalid/backups/', username: 'hubtask' },
+    credentials: { password: 'pw' },
+  });
+  assert.deepEqual(webdavTarget({ url: 'https://dav.example.invalid/', username: '', password: '' }), {
+    config: { url: 'https://dav.example.invalid/' },
+  });
+});
+
+test('a target is asked to be accepted for exactly the reasons the server names', () => {
+  assert.deepEqual(insecureReasons('LOCAL', { path: 'x' }, 'AES256_GCM'), []);
+  assert.deepEqual(insecureReasons('LOCAL', { path: 'x' }, 'NONE'), ['backup.target_unencrypted']);
+  assert.deepEqual(insecureReasons('WEBDAV', { url: 'https://dav.example.invalid/' }, 'AES256_GCM'), []);
+  assert.deepEqual(insecureReasons('WEBDAV', { url: 'HTTPS://dav.example.invalid/' }, 'AES256_GCM'), []);
+  assert.deepEqual(insecureReasons('WEBDAV', { url: 'http://dav.example.invalid/' }, 'AES256_GCM'), ['backup.target_plaintext_protocol']);
+  // No scheme is not assumed safe, as the server does not assume it.
+  assert.deepEqual(insecureReasons('WEBDAV', { url: 'dav.example.invalid/' }, 'NONE'), ['backup.target_unencrypted', 'backup.target_plaintext_protocol']);
+  assert.deepEqual(insecureReasons('S3', { endpoint: 'http://minio.local:9000', bucket: 'b' }, 'AES256_GCM'), ['backup.target_plaintext_protocol']);
+  // No endpoint is AWS itself, over https; nothing typed is not a reason.
+  assert.deepEqual(insecureReasons('S3', { endpoint: '', bucket: 'b' }, 'AES256_GCM'), []);
+  assert.deepEqual(insecureReasons('SFTP', { host: 'nas.local' }, 'AES256_GCM'), []);
 });

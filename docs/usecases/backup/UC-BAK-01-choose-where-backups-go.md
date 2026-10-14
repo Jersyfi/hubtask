@@ -5,9 +5,9 @@ context: backup
 actors: [PE-owner, PE-selfhoster, PE-admin, PE-operator, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-06, P-08, P-09, P-11, P-12]
-state: partial
+state: built
 tasks: [E-03, E-04, F4-16]
-checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs]
+checked_by: [core/application/service/backup/Target_test.go, core/application/service/backup/TargetLifecycle_test.go, test/integration/backup_target_test.go, test/backup/Conformance_test.go, apps/webapp/e2e/backup.test.mjs, apps/webapp/src/lib/data/backup.test.ts]
 ---
 
 # Choose where the workspace's backups go
@@ -63,7 +63,3 @@ workspace may add its own targets only if the operator has allowed it.
 * The installation's own system backup is not a target here; see *Recover the whole installation*.
 
 See [backup-restore.md](../../architecture/backup-restore.md) §2.
-
-## Today
-
-* Check 10: not met in the web app — the target form offers no WebDAV, no encryption choice and, for SFTP, no private key; not yet tracked in an issue of its own.

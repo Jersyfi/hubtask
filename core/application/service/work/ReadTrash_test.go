@@ -25,6 +25,9 @@ type trashStore struct {
 	subtree    []shared.ID
 	purgedItem []shared.ID
 	purgedCont []shared.ID
+	// members are the rows of the deletions asked for; askedBatches what was asked.
+	members      []repository.TrashMember
+	askedBatches []shared.ID
 }
 
 func (s *trashStore) List(_ context.Context, page repository.Page) (repository.TrashPage, error) {
@@ -52,7 +55,37 @@ func (s *trashStore) KeptBelow(context.Context, []shared.ID, []shared.ID) (map[s
 	return map[shared.ID]int{}, nil
 }
 
+func (s *trashStore) BatchMembers(_ context.Context, batches []shared.ID) ([]repository.TrashMember, error) {
+	s.askedBatches = append(s.askedBatches, batches...)
+	return s.members, nil
+}
+
 var deletedEarlier = now.Add(-time.Hour)
+
+// trashHolds answers the holds in force, and how often it was asked.
+type trashHolds struct {
+	holds []lifecycle.LegalHold
+	asked int
+}
+
+func (h *trashHolds) List(_ context.Context, includeReleased bool) ([]lifecycle.LegalHold, error) {
+	h.asked++
+	if includeReleased {
+		return nil, errors.New("the trash asked for released holds too")
+	}
+	return h.holds, nil
+}
+
+// trashContributors answers whose data each entry carries, and what it was asked.
+type trashContributors struct {
+	by    map[shared.ID][]shared.ID
+	asked []shared.ID
+}
+
+func (c *trashContributors) Contributors(_ context.Context, ids []shared.ID) (map[shared.ID][]shared.ID, error) {
+	c.asked = append(c.asked, ids...)
+	return c.by, nil
+}
 
 // trashPolicies answers the trash period the retention pass reads, or a failure.
 type trashPolicies struct {
@@ -86,6 +119,7 @@ func newTrashReader(entries ...domain.TrashEntry) (ListTrash, *trashStore, *read
 		Trash: store, Reader: permitted, UnitOfWork: &unitOfWork{},
 		Policies:        trashPolicies{policy: lifecycle.Policy{DataKind: lifecycle.KindTrash, RetainDays: 30}},
 		TombstoneWindow: 90 * trashDay,
+		Holds:           &trashHolds{}, Contributors: &trashContributors{},
 	}, store, permitted
 }
 
@@ -109,8 +143,10 @@ func TestListingTheTrashReadsWithoutWriting(t *testing.T) {
 	if store.asked.Size != 25 {
 		t.Errorf("the repository was asked for %d rows, want 25", store.asked.Size)
 	}
-	if uow.writes != 0 || uow.reads != 1 {
-		t.Errorf("%d writes and %d reads, want none and one", uow.writes, uow.reads)
+	// Two reads: the page, and - after the narrowing, so nothing of a hidden deletion is read -
+	// the legal holds that may keep what is left.
+	if uow.writes != 0 || uow.reads != 2 {
+		t.Errorf("%d writes and %d reads, want none and two", uow.writes, uow.reads)
 	}
 }
 
@@ -319,5 +355,109 @@ func TestEachTrashEntrySaysWhenTheAutomaticPassMayTakeIt(t *testing.T) {
 	handler.Policies = trashPolicies{err: errors.New("the database went away")}
 	if _, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{}); err == nil {
 		t.Error("a failed read of the trash period answered a list with guessed dates")
+	}
+}
+
+// A deletion a legal hold keeps says so (UC-LIF-02 check 6): its rows are judged as the retention
+// pass judges them, and one held row keeps the whole deletion, because the pass removes a row only
+// with everything below it. The cases are the scopes a hold can name, against a task deleted with
+// its work package and activity, and a collection deleted with an entry in it.
+func TestATrashEntrySaysWhenALegalHoldKeepsIt(t *testing.T) {
+	var (
+		taskBatch  = shared.MustParseID("0192f000-0000-7000-8000-0000000000b1")
+		collBatch  = shared.MustParseID("0192f000-0000-7000-8000-0000000000b2")
+		pkgID      = shared.MustParseID("0192f000-0000-7000-8000-0000000004a2")
+		activityID = shared.MustParseID("0192f000-0000-7000-8000-0000000004a3")
+		parentTask = shared.MustParseID("0192f000-0000-7000-8000-0000000004a0")
+		trashedCol = shared.MustParseID("0192f000-0000-7000-8000-0000000004c1")
+		inColl     = shared.MustParseID("0192f000-0000-7000-8000-0000000004c2")
+		author     = shared.MustParseID("0192f000-0000-7000-8000-0000000004d1")
+		stranger   = shared.MustParseID("0192f000-0000-7000-8000-0000000004d2")
+		elsewhere  = shared.MustParseID("0192f000-0000-7000-8000-0000000004e1")
+	)
+	taskPath := "/" + parentTask.String() + "/" + taskID.String() + "/"
+	members := []repository.TrashMember{
+		{BatchID: taskBatch, Kind: domain.TrashItemKind, ID: taskID, HubID: hubID, CollectionID: collectionID, Path: taskPath},
+		{BatchID: taskBatch, Kind: domain.TrashItemKind, ID: pkgID, HubID: hubID, CollectionID: collectionID, Path: taskPath + pkgID.String() + "/"},
+		{BatchID: taskBatch, Kind: domain.TrashItemKind, ID: activityID, HubID: hubID, CollectionID: collectionID, Path: taskPath + pkgID.String() + "/" + activityID.String() + "/"},
+		{BatchID: collBatch, Kind: domain.TrashContainerKind, ID: trashedCol, HubID: hubID},
+		{BatchID: collBatch, Kind: domain.TrashItemKind, ID: inColl, HubID: hubID, CollectionID: trashedCol, Path: "/" + inColl.String() + "/"},
+	}
+	hold := func(scope lifecycle.HoldScope, id shared.ID) lifecycle.LegalHold {
+		return lifecycle.LegalHold{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000004f1"), Scope: scope, ScopeID: id}
+	}
+
+	for _, c := range []struct {
+		name          string
+		holds         []lifecycle.LegalHold
+		task, coll    bool
+		asksWhoseData bool
+	}{
+		{name: "no hold"},
+		{name: "the workspace", holds: []lifecycle.LegalHold{hold(lifecycle.HoldTenant, shared.ID(""))}, task: true, coll: true},
+		{name: "the hub", holds: []lifecycle.LegalHold{hold(lifecycle.HoldContainer, hubID)}, task: true, coll: true},
+		{name: "the task's collection", holds: []lifecycle.LegalHold{hold(lifecycle.HoldContainer, collectionID)}, task: true},
+		{name: "the deleted collection itself", holds: []lifecycle.LegalHold{hold(lifecycle.HoldContainer, trashedCol)}, coll: true},
+		{name: "the deleted task", holds: []lifecycle.LegalHold{hold(lifecycle.HoldItem, taskID)}, task: true},
+		{name: "the task above the deleted one", holds: []lifecycle.LegalHold{hold(lifecycle.HoldItem, parentTask)}, task: true},
+		{name: "an activity deleted with it", holds: []lifecycle.LegalHold{hold(lifecycle.HoldItem, activityID)}, task: true},
+		{name: "somebody whose data is in it", holds: []lifecycle.LegalHold{hold(lifecycle.HoldAccount, author)}, coll: true, asksWhoseData: true},
+		{name: "somebody whose data is not in it", holds: []lifecycle.LegalHold{hold(lifecycle.HoldAccount, stranger)}, asksWhoseData: true},
+		{name: "something else entirely", holds: []lifecycle.LegalHold{hold(lifecycle.HoldItem, elsewhere), hold(lifecycle.HoldContainer, elsewhere)}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			task := trashEntry(domain.TrashItemKind, taskID, hubID, collectionID, "TASK")
+			task.BatchID = taskBatch
+			coll := trashEntry(domain.TrashContainerKind, trashedCol, hubID, shared.ID(""), "COLLECTION")
+			coll.BatchID = collBatch
+			handler, store, _ := newTrashReader(task, coll)
+			store.members = members
+			holds := &trashHolds{holds: c.holds}
+			whose := &trashContributors{by: map[shared.ID][]shared.ID{inColl: {author}}}
+			handler.Holds, handler.Contributors = holds, whose
+
+			out, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), nil)
+			if err != nil {
+				t.Fatalf("invoking through the catalogue: %v", err)
+			}
+			rows, _ := out["data"].([]usecase.Output)
+			if len(rows) != 2 {
+				t.Fatalf("the answer holds %d rows, want 2", len(rows))
+			}
+			for _, want := range []struct {
+				row  usecase.Output
+				held bool
+				what string
+			}{{rows[0], c.task, "the task"}, {rows[1], c.coll, "the collection"}} {
+				got, present := want.row["held"].(bool)
+				if !present {
+					t.Fatalf("%s carries no held field: %v", want.what, want.row)
+				}
+				if got != want.held {
+					t.Errorf("%s: held is %v, want %v", want.what, got, want.held)
+				}
+			}
+			if len(c.holds) == 0 && len(store.askedBatches) != 0 {
+				t.Error("the deletions' rows were read while no hold is in force")
+			}
+			if (len(whose.asked) > 0) != c.asksWhoseData {
+				t.Errorf("whose data the entries carry was asked: %v, want %v", len(whose.asked) > 0, c.asksWhoseData)
+			}
+		})
+	}
+}
+
+// Only what the reader may see is judged: a deletion narrowed away is not read on their behalf.
+func TestOnlyTheVisibleDeletionsAreJudged(t *testing.T) {
+	hidden := trashEntry(domain.TrashItemKind, taskID, hubID, collectionID, "TASK")
+	handler, store, permitted := newTrashReader(hidden)
+	permitted.permit = map[shared.ID]bool{}
+	handler.Holds = &trashHolds{holds: []lifecycle.LegalHold{{Scope: lifecycle.HoldTenant}}}
+
+	if _, err := handler.Execute(t.Context(), itemActor(), ListTrashQuery{}); err != nil {
+		t.Fatalf("reading the trash was refused: %v", err)
+	}
+	if len(store.askedBatches) != 0 {
+		t.Errorf("the rows of %d hidden deletions were read", len(store.askedBatches))
 	}
 }

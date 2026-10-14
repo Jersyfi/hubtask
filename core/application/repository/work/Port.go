@@ -992,6 +992,20 @@ type TrashPage struct {
 	Info    PageInfo
 }
 
+// TrashMember is one row of a deletion: an entry or a container that went into the trash with the
+// rest of its batch, with the levels a legal hold could name it by.
+type TrashMember struct {
+	BatchID shared.ID
+	Kind    work.TrashKind
+	ID      shared.ID
+	// HubID is the hub above an entry's collection, or a collection's own hub; empty for a hub.
+	HubID shared.ID
+	// CollectionID is an entry's collection; empty for a container.
+	CollectionID shared.ID
+	// Path is an entry's materialised path, its ancestors and itself; empty for a container.
+	Path string
+}
+
 // Trash reads what is in the trash and finally removes it.
 //
 // Its own interface rather than methods on Containers and Items, because what it answers spans
@@ -1029,6 +1043,11 @@ type Trash interface {
 	// held child with its parent or its collection, uncounted and unrecorded (data-retention.md §4
 	// item 6).
 	KeptBelow(ctx context.Context, ids, going []shared.ID) (map[shared.ID]int, error)
+
+	// BatchMembers returns every row still in the trash that belongs to one of these deletions,
+	// the roots included. What the trash read judges against the legal holds, row by row as the
+	// retention pass does, to say whether a hold keeps a deletion.
+	BatchMembers(ctx context.Context, batchIDs []shared.ID) ([]TrashMember, error)
 }
 
 // CustomFields stores the definitions a workspace or a collection adds to its entries.

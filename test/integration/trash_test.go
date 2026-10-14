@@ -507,6 +507,79 @@ func TestWhatStaysBelowATrashedRowIsCounted(t *testing.T) {
 
 // An empty list is not a statement. The commonest retention run is the one with nothing to do, and
 // it should cost no round trip at all.
+// The trash read judges a deletion against the legal holds row by row, as the retention pass does,
+// so it needs every row of the batch with the levels a hold could name: a hub's own row, its
+// collection under it, and each entry with its collection, its hub and its path. A second
+// deletion is not in the answer.
+func TestADeletionsRowsComeBackWithTheirLevels(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hubID, collectionID := hubWithCollection(ctx, t, tenantA, authorA)
+	task, pkg, activity := trashableSubtree(ctx, t, tenantA, authorA, collectionID)
+	batch := freshID(t)
+
+	hub := findContainer(ctx, t, tenantA, hubID)
+	stamped, _, err := hub.Trashed(deletedAt, batch, deletedByUser)
+	if err != nil {
+		t.Fatalf("the transition was refused: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := containerRepo().TrashSubtree(ctx, repository.ContainerTrash{
+			Container: stamped, BatchID: batch, ExpectedVersion: hub.Version,
+		})
+		return err
+	}); err != nil {
+		t.Fatalf("trashing the hub: %v", err)
+	}
+
+	otherCollection := collectionFor(ctx, t, tenantA, authorA)
+	other, _, _ := trashableSubtree(ctx, t, tenantA, authorA, otherCollection)
+	trashItem(ctx, t, tenantA, other, freshID(t), deletedAt)
+
+	var members []repository.TrashMember
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		members, err = trashRepo().BatchMembers(ctx, []shared.ID{batch})
+		return err
+	}); err != nil {
+		t.Fatalf("reading the deletion's rows: %v", err)
+	}
+
+	got := map[shared.ID]repository.TrashMember{}
+	for _, member := range members {
+		if member.BatchID != batch {
+			t.Errorf("%s carries batch %q, want %q", member.ID, member.BatchID, batch)
+		}
+		got[member.ID] = member
+	}
+	if len(got) != 5 {
+		t.Fatalf("the deletion came back with %d rows, want the hub, its collection and three entries", len(got))
+	}
+	if h := got[hubID]; h.Kind != work.TrashContainerKind || !h.HubID.IsZero() || h.Path != "" {
+		t.Errorf("the hub came back as %+v", h)
+	}
+	if c := got[collectionID]; c.Kind != work.TrashContainerKind || c.HubID != hubID {
+		t.Errorf("the collection came back as %+v, want its hub %q", c, hubID)
+	}
+	for _, item := range []work.WorkItem{task, pkg, activity} {
+		m := got[item.ID]
+		if m.Kind != work.TrashItemKind || m.HubID != hubID || m.CollectionID != collectionID || m.Path != item.Path {
+			t.Errorf("%s came back as %+v", item.Title, m)
+		}
+	}
+	if _, leaked := got[other.ID]; leaked {
+		t.Error("another deletion's row came back with this one")
+	}
+
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		members, err = trashRepo().BatchMembers(ctx, nil)
+		return err
+	}); err != nil || len(members) != 0 {
+		t.Errorf("asking for no deletion answered %d rows, %v", len(members), err)
+	}
+}
+
 func TestPurgingNothingIsNotAStatement(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -608,6 +681,20 @@ func TestNoTenantsTrashReachesAnother(t *testing.T) {
 		}
 		if len(ids) != 0 {
 			t.Errorf("another tenant's subtree came back with %d rows", len(ids))
+		}
+	})
+
+	t.Run("reading a deletion's rows", func(t *testing.T) {
+		var members []repository.TrashMember
+		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+			var err error
+			members, err = trashRepo().BatchMembers(ctx, []shared.ID{batch})
+			return err
+		}); err != nil {
+			t.Fatalf("reading a foreign deletion: %v", err)
+		}
+		if len(members) != 0 {
+			t.Errorf("another tenant's deletion came back with %d rows", len(members))
 		}
 	})
 

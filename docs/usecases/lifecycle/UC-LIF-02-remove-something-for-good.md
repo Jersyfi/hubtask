@@ -56,6 +56,5 @@ restore of an older backup does not bring it back.
 
 ## Today
 
-* Check 6: not met for an entry a legal hold keeps — the trash counts down to the day the pass would take it and does not say that a hold keeps it longer (data-retention.md §4 gives a held entry no date); not yet tracked in an issue of its own.
 * Check 8: not met for `hubctl` — it has no command to delete one entry for good or to empty the trash.
 * Check 9: not met — a retention rule for the trash kind is accepted, but the trash pass, and with it the day the trash shows, reads the per-kind period that only the defaults and an import write, so both keep counting with the default.

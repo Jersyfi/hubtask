@@ -23,10 +23,10 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch, Textarea } from '@hubtask/design-system/components';
 
   import { backup, type Archive, type Schedule, type Target } from '../lib/data/backup.svelte.ts';
-  import { generations, readRule, sftpTarget } from '../lib/data/backup.ts';
+  import { generations, insecureReasons, readRule, sftpTarget, webdavTarget } from '../lib/data/backup.ts';
   import { jobs, type Watch } from '../lib/data/jobs.svelte.ts';
   import { isTerminal, mayCancel } from '../lib/data/jobs.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
@@ -40,8 +40,11 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
-  /** The kinds a `config` shape is written for here. The rest are the operator's, through hubctl. */
-  const KINDS = ['LOCAL', 'S3', 'SFTP'] as const;
+  /**
+   * The kinds this build speaks (UC-BAK-01 check 10). The other names in the contract are refused
+   * by name until an adapter exists for them (check 2), so offering them would offer a refusal.
+   */
+  const KINDS = ['LOCAL', 'S3', 'SFTP', 'WEBDAV'] as const;
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -58,6 +61,13 @@
   let draftUser = $state('');
   let draftPassword = $state('');
   let draftHostKey = $state('');
+  let draftRegion = $state('');
+  let draftUrl = $state('');
+  let draftPrivateKey = $state('');
+  let draftKeyPassphrase = $state('');
+  /** Encrypted unless the owner says otherwise, which is the contract's default too. */
+  let draftEncryption = $state('AES256_GCM');
+  let draftAccepted = $state(false);
 
   // The schedule form.
   // Empty rather than undefined: `Select`'s `value` prop has a default, and Svelte refuses a
@@ -168,12 +178,25 @@
 
   /** What the chosen kind needs, as the contract's own `config`. Nothing here is a credential. */
   function configuration(): Record<string, unknown> {
-    if (draftKind === 'S3') return { endpoint: draftEndpoint.trim(), bucket: draftBucket.trim() };
+    if (draftKind === 'S3') {
+      return { endpoint: draftEndpoint.trim(), bucket: draftBucket.trim(), ...(draftRegion.trim() ? { region: draftRegion.trim() } : {}) };
+    }
     if (draftKind === 'SFTP') return sftpTarget(sftpDraft()).config;
+    if (draftKind === 'WEBDAV') return webdavTarget(webdavDraft()).config;
     return { path: draftPath.trim() };
   }
 
-  const sftpDraft = () => ({ host: draftHost, path: draftPath, username: draftUser, hostKey: draftHostKey, password: draftPassword });
+  const sftpDraft = () => ({
+    host: draftHost, path: draftPath, username: draftUser, hostKey: draftHostKey, password: draftPassword,
+    privateKey: draftPrivateKey, keyPassphrase: draftKeyPassphrase,
+  });
+  const webdavDraft = () => ({ url: draftUrl, username: draftUser, password: draftPassword });
+
+  /**
+   * Why the server will ask the owner to accept this target, as its own sentences - asked here,
+   * before the add, rather than met as a refusal after it (P-05).
+   */
+  const insecure = $derived(insecureReasons(draftKind, configuration(), draftEncryption));
 
   /** What goes in once and is never answered. */
   function credentials(): Record<string, unknown> | undefined {
@@ -181,6 +204,7 @@
       return { access_key: draftAccessKey, secret_key: draftSecretKey };
     }
     if (draftKind === 'SFTP') return sftpTarget(sftpDraft()).credentials;
+    if (draftKind === 'WEBDAV') return webdavTarget(webdavDraft()).credentials;
     return undefined;
   }
 
@@ -193,6 +217,9 @@
         kind: draftKind as Target['kind'],
         config: configuration(),
         ...(credentials() ? { credentials: credentials() } : {}),
+        encryption_mode: draftEncryption,
+        // Only when there is something to accept, and only once the owner has accepted it.
+        ...(insecure.length > 0 && draftAccepted ? { insecure_acknowledged: true } : {}),
       });
       draftName = '';
       draftPath = '';
@@ -204,6 +231,12 @@
       draftUser = '';
       draftPassword = '';
       draftHostKey = '';
+      draftRegion = '';
+      draftUrl = '';
+      draftPrivateKey = '';
+      draftKeyPassphrase = '';
+      draftEncryption = 'AES256_GCM';
+      draftAccepted = false;
     }, t('app.backup.target_added_announced'));
   }
 
@@ -559,12 +592,23 @@
             {:else if draftKind === 'S3'}
               <Input label={t('app.backup.target_endpoint')} bind:value={draftEndpoint} />
               <Input label={t('app.backup.target_bucket')} bind:value={draftBucket} />
+              <Input label={t('app.backup.target_region')} hint={t('app.backup.target_region_hint')} bind:value={draftRegion} />
               <Input label={t('app.backup.target_access_key')} bind:value={draftAccessKey} />
               <Input
                 label={t('app.backup.target_secret_key')}
                 type="password"
                 bind:value={draftSecretKey}
               />
+            {:else if draftKind === 'WEBDAV'}
+              <Input
+                label={t('app.backup.target_url')}
+                hint={t('app.backup.target_url_hint')}
+                type="url"
+                bind:value={draftUrl}
+                isRequired
+              />
+              <Input label={t('app.backup.target_user')} bind:value={draftUser} />
+              <Input label={t('app.backup.target_password')} type="password" bind:value={draftPassword} />
             {:else}
               <Input label={t('app.backup.target_host')} bind:value={draftHost} />
               <Input label={t('app.backup.target_path')} bind:value={draftPath} />
@@ -582,6 +626,37 @@
                 type="password"
                 bind:value={draftPassword}
               />
+              <!-- A key is a credential like the password: typed in, sent once, never shown back. -->
+              <Textarea
+                label={t('app.backup.target_private_key')}
+                hint={t('app.backup.target_private_key_hint')}
+                rows={4}
+                spellcheck={false}
+                autocomplete="off"
+                bind:value={draftPrivateKey}
+              />
+              {#if draftPrivateKey.trim()}
+                <Input label={t('app.backup.target_key_passphrase')} type="password" bind:value={draftKeyPassphrase} />
+              {/if}
+            {/if}
+            <Select
+              label={t('app.backup.encryption')}
+              hint={t('app.backup.encryption_hint')}
+              bind:value={draftEncryption}
+              options={[
+                { value: 'AES256_GCM', label: t('app.backup.encryption_aes') },
+                { value: 'NONE', label: t('app.backup.encryption_none') },
+              ]}
+            />
+            {#if insecure.length > 0}
+              <!-- The risk in the server's own words, and the owner's acceptance of it, before the
+                   add: the server refuses such a target without it (UC-BAK-01 check 6). -->
+              <Banner tone="warning" title={t('app.backup.insecure_title')}>
+                <ul class="reasons">
+                  {#each insecure as reason (reason)}<li>{t(reason)}</li>{/each}
+                </ul>
+              </Banner>
+              <Checkbox label={t('app.backup.insecure_accept')} bind:checked={draftAccepted} />
             {/if}
             <!-- Said where the credentials are typed: they go in and the contract answers `config`
                  without them, so there is nothing to come back and check later. -->
@@ -592,6 +667,7 @@
                 tone="primary"
                 isBusy={isWorking}
                 busyLabel={t('app.backup.adding')}
+                disabledReason={insecure.length > 0 && !draftAccepted ? t('app.backup.insecure_first') : undefined}
               >
                 {t('app.backup.add')}
               </Button>
@@ -771,4 +847,6 @@
   .plan { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
 
   .mono { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
+
+  .reasons { margin: 0; padding-inline-start: var(--sp-200); }
 </style>

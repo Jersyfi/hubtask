@@ -36,6 +36,19 @@ type LegalHolds interface {
 // KeptCommentTexts are the deleted comments whose text a legal hold kept (data-retention.md §4): a
 // comment has no trash, so a deletion under a hold keeps the text in the row, and the retention
 // pass clears it once no hold covers it.
+// HoldList answers the tenant's holds without taking the hold lock: for a read that only reports
+// what the holds keep - the trash list - and may be served by a replica in recovery, which refuses
+// an advisory lock. Nothing is deleted on its answer; a deletion reads through LegalHolds.Active.
+type HoldList interface {
+	List(ctx context.Context, includeReleased bool) ([]domain.LegalHold, error)
+}
+
+// ContributorReader answers, per entry, the accounts whose own data goes with it (see
+// LegalHolds.Contributors), for a read that judges entries against an account hold.
+type ContributorReader interface {
+	Contributors(ctx context.Context, itemIDs []shared.ID) (map[shared.ID][]shared.ID, error)
+}
+
 type KeptCommentTexts interface {
 	// Kept returns one page of them after the identifier given, in identifier order, with where
 	// their entry is.

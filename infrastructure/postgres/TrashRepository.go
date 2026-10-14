@@ -348,6 +348,54 @@ func (r TrashRepository) List(
 	return repository.TrashPage{Entries: kept, Info: info}, nil
 }
 
+// BatchMembers returns every row still in the trash that one of these deletions took.
+func (r TrashRepository) BatchMembers(
+	ctx context.Context, batchIDs []shared.ID,
+) ([]repository.TrashMember, error) {
+	if len(batchIDs) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(batchIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.TrashBatchMembers(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the rows of %d deletions: %w", len(batchIDs), err))
+	}
+	members := make([]repository.TrashMember, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		batch, err := idFrom(row.TrashBatchID)
+		if err != nil {
+			return nil, err
+		}
+		// A hub has no hub above it and a container no collection: empty, not an error.
+		hub, err := optionalID(row.HubID)
+		if err != nil {
+			return nil, err
+		}
+		collection, err := optionalID(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		members = append(members, repository.TrashMember{
+			BatchID: batch, Kind: work.TrashKind(row.Kind), ID: id,
+			HubID: hub, CollectionID: collection, Path: row.Path,
+		})
+	}
+	return members, nil
+}
+
 // SubtreeIDs returns every identifier in one item's subtree, the item included.
 func (r TrashRepository) SubtreeIDs(ctx context.Context, prefix string) ([]shared.ID, error) {
 	queries, err := queriesFrom(ctx)
