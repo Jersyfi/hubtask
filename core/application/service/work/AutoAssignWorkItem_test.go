@@ -40,6 +40,8 @@ func (g *groupStore) RemoveMember(context.Context, shared.ID, shared.ID) error {
 func (g *groupStore) List(context.Context, identityrepo.Page) (identityrepo.GroupPage, error) {
 	return identityrepo.GroupPage{}, nil
 }
+func (g *groupStore) Lock(context.Context, shared.ID) error { return nil }
+
 func (g *groupStore) Members(_ context.Context, groupID shared.ID) ([]shared.ID, error) {
 	return g.members[groupID], nil
 }

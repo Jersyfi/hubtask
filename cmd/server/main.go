@@ -1488,11 +1488,11 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		}.Descriptor(),
 		identity.UpdateGroup{
-			Groups: groups, Accounts: accounts, Authorizer: authorizer, Revocations: revocations,
+			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 		}.Descriptor(),
 		identity.DeleteGroup{
-			Groups: groups, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
+			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),

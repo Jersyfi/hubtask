@@ -209,9 +209,16 @@ type UpdateGroupCommand struct {
 }
 
 // UpdateGroup renames a group, changes its description, or replaces who is in it.
+//
+// Changing who is in a group places every role the group holds on whoever joins and takes it from
+// whoever leaves, so a changed member list is held to the ceiling of domain-model.md §3.2 for each
+// of those roles: an administrator does not join a group that holds OWNER.
 type UpdateGroup struct {
-	Groups     repository.Groups
-	Accounts   repository.Accounts
+	Groups   repository.Groups
+	Accounts repository.Accounts
+	// Grants answers the roles the group holds. Nil refuses a member change rather than judging it
+	// against no roles at all.
+	Grants     repository.MembershipGrants
 	Authorizer Authorizer
 	// Revocations tells the devices of a member taken out of the group what they lost.
 	Revocations Revoker
@@ -238,6 +245,15 @@ func (h UpdateGroup) Execute(
 		TargetID:   cmd.GroupID,
 	}); err != nil {
 		return domain.Group{}, err
+	}
+
+	// Asked before the write, so that a refusal's audit entry is not rolled back with it.
+	var asked roleSet
+	if cmd.ReplaceMembers {
+		var err error
+		if asked, err = h.ceilingOfAChange(ctx, actor, cmd); err != nil {
+			return domain.Group{}, err
+		}
 	}
 
 	var updated domain.Group
@@ -275,6 +291,9 @@ func (h UpdateGroup) Execute(
 		}
 
 		if cmd.ReplaceMembers {
+			if err := h.stillWithinTheCeiling(ctx, group.ID, cmd.Members, asked); err != nil {
+				return err
+			}
 			if err := h.replaceMembers(ctx, group, cmd.Members); err != nil {
 				return err
 			}
@@ -288,6 +307,121 @@ func (h UpdateGroup) Execute(
 		return domain.Group{}, err
 	}
 	return updated, nil
+}
+
+// ceilingOfAChange asks the authoriser, once per role the group holds, whether the actor may place
+// and take it, when the member list changes who is in the group. An unchanged list - a client
+// resending the whole object - places nothing and is not judged. The roles asked about are
+// returned for the write to compare against under the group's lock.
+func (h UpdateGroup) ceilingOfAChange(
+	ctx context.Context, actor appshared.ActorContext, cmd UpdateGroupCommand,
+) (roleSet, error) {
+	if h.Grants == nil {
+		return nil, shared.ErrInternal.WithDetail("groups.grants_missing")
+	}
+	var (
+		held    []domain.Grant
+		changed bool
+	)
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		current, err := h.Groups.Members(ctx, cmd.GroupID)
+		if err != nil {
+			return err
+		}
+		if changed = !sameMembers(current, cmd.Members); !changed {
+			return nil
+		}
+		held, err = h.Grants.OfGroup(ctx, cmd.GroupID)
+		return err
+	})
+	if err != nil || !changed {
+		return roleSet{}, err
+	}
+	return withinCeiling(ctx, h.Authorizer, actor, cmd.GroupID, GroupUpdatedAction, held)
+}
+
+// stillWithinTheCeiling repeats the comparison under the group's row lock, which a grant to the
+// group takes as well: a role given to the group after the ceiling was asked, while somebody joined,
+// would otherwise reach them unjudged. A changed list whose group now holds a role the ceiling was
+// not asked about is a conflict to retry, not a permission.
+func (h UpdateGroup) stillWithinTheCeiling(
+	ctx context.Context, groupID shared.ID, members []shared.ID, asked roleSet,
+) error {
+	if err := h.Groups.Lock(ctx, groupID); err != nil {
+		return err
+	}
+	current, err := h.Groups.Members(ctx, groupID)
+	if err != nil || sameMembers(current, members) {
+		return err
+	}
+	held, err := h.Grants.OfGroup(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	return asked.covers(held)
+}
+
+// sameMembers is whether the list names exactly who is in the group, in any order.
+func sameMembers(current, wanted []shared.ID) bool {
+	named := map[shared.ID]bool{}
+	for _, accountID := range wanted {
+		if !accountID.IsZero() {
+			named[accountID] = true
+		}
+	}
+	if len(named) != len(current) {
+		return false
+	}
+	for _, accountID := range current {
+		if !named[accountID] {
+			return false
+		}
+	}
+	return true
+}
+
+// roleSet is the roles, each at its scope, the ceiling was asked about.
+type roleSet map[domain.Scope]map[domain.Role]bool
+
+// covers refuses a role held now that the ceiling was not asked about.
+func (s roleSet) covers(held []domain.Grant) error {
+	for _, grant := range held {
+		if !s[grant.Scope][grant.Role] {
+			return shared.ErrConflict.WithDetail("groups.roles_changed")
+		}
+	}
+	return nil
+}
+
+// withinCeiling asks the authoriser whether the actor may place and take each role the group holds,
+// at its own scope, and answers the roles it asked about. The first refusal stops it, recorded
+// against the group's action.
+func withinCeiling(
+	ctx context.Context, authorizer Authorizer, actor appshared.ActorContext,
+	groupID shared.ID, action audit.Action, held []domain.Grant,
+) (roleSet, error) {
+	asked := roleSet{}
+	for _, grant := range held {
+		if asked[grant.Scope][grant.Role] {
+			continue
+		}
+		if err := authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionManageMembers,
+			Path:       pathTo(grant.Scope),
+			Action:     action,
+			TokenScope: membersWrite,
+			TargetType: groupTarget,
+			TargetID:   groupID,
+			Grants:     grant.Role,
+		}); err != nil {
+			return nil, err
+		}
+		if asked[grant.Scope] == nil {
+			asked[grant.Scope] = map[domain.Role]bool{}
+		}
+		asked[grant.Scope][grant.Role] = true
+	}
+	return asked, nil
 }
 
 // replaceMembers makes the group's membership exactly the list given. Additions are checked, and
@@ -416,8 +550,13 @@ type DeleteGroupCommand struct {
 // What the group granted, nobody holds afterwards: the memberships go with it, which is the
 // database's cascade rather than three statements that could half-run. What its members hold in
 // their own right is untouched.
+//
+// Deleting a group takes every role it holds from everybody in it, so each of those roles is held to
+// the ceiling of domain-model.md §3.2, as a revocation is.
 type DeleteGroup struct {
-	Groups     repository.Groups
+	Groups repository.Groups
+	// Grants answers the roles the group holds. Nil refuses rather than judging no roles.
+	Grants     repository.MembershipGrants
 	Authorizer Authorizer
 	// Revocations tells every member's devices what the group held for them.
 	Revocations Revoker
@@ -443,6 +582,24 @@ func (h DeleteGroup) Execute(
 	}); err != nil {
 		return err
 	}
+	if h.Grants == nil {
+		return shared.ErrInternal.WithDetail("groups.grants_missing")
+	}
+
+	// Asked before the write, so that a refusal's audit entry is not rolled back with it.
+	var held []domain.Grant
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		held, err = h.Grants.OfGroup(ctx, cmd.GroupID)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	asked, err := withinCeiling(ctx, h.Authorizer, actor, cmd.GroupID, GroupDeletedAction, held)
+	if err != nil {
+		return err
+	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		group, err := h.Groups.Find(ctx, cmd.GroupID)
@@ -452,6 +609,17 @@ func (h DeleteGroup) Execute(
 					WithDetail("groups.not_found").
 					WithParams(map[string]string{"group_id": cmd.GroupID.String()})
 			}
+			return err
+		}
+		// Under the lock a grant to the group takes too, the roles are the ones the ceiling saw.
+		if err := h.Groups.Lock(ctx, group.ID); err != nil {
+			return err
+		}
+		now, err := h.Grants.OfGroup(ctx, group.ID)
+		if err != nil {
+			return err
+		}
+		if err := asked.covers(now); err != nil {
 			return err
 		}
 		// What the members lose is read before the group goes: its grants go with it.

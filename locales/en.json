@@ -570,6 +570,8 @@
   "groups.identifier_required": "Say which group.",
   "groups.not_found": "That group does not exist.",
   "groups.version_conflict": "Someone else changed this group in the meantime.",
+  "groups.roles_changed": "The roles this group holds changed in the meantime. Try again.",
+  "groups.grants_missing": "This installation is misconfigured and could not change that group.",
   "memberships.subject_ambiguous": "A role is given to a person or to a group, not to both and not to neither.",
   "memberships.role_unknown": "{value} is not a role. Use OWNER, ADMIN, MEMBER, CONTRIBUTOR, VIEWER or GUEST.",
   "memberships.scope_invalid": "{value} is not a level a role can be given at.",

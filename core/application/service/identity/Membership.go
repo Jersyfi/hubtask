@@ -144,7 +144,9 @@ func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) 
 		}
 		return nil
 	}
-	if _, err := h.Groups.Find(ctx, grant.GroupID); err != nil {
+	// Locked rather than only read: a member change judged against the group's roles holds this
+	// lock, so a role given meanwhile is either seen by it or waits for it (domain-model.md §3.2).
+	if err := h.Groups.Lock(ctx, grant.GroupID); err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
 			return shared.ErrNotFound.
 				WithDetail("groups.not_found").

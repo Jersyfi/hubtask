@@ -266,6 +266,11 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 -- name: FindGroup :one
 SELECT id, name, description, version FROM account_group WHERE id = sqlc.arg('id');
 
+-- name: LockGroup :one
+-- The group's row, held for the transaction: a member change, a deletion and a grant to the group
+-- take it first, so the roles a member change was judged against are the roles it places.
+SELECT id FROM account_group WHERE id = sqlc.arg('id') FOR UPDATE;
+
 -- name: InsertGroup :exec
 INSERT INTO account_group (id, tenant_id, name, description, version)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('name'), sqlc.narg('description'), 1);
