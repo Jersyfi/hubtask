@@ -52,6 +52,9 @@
 
   const { accountId }: Props = $props();
 
+  /** The scope the operator register guards (identity.md §19), as the contract names it. */
+  const OPERATOR_SCOPE = 'admin:tenants';
+
   let name = $state('');
   let expiresAt = $state('');
   let chosen = $state<string[]>([]);
@@ -72,8 +75,17 @@
   const readingLabel = $derived(accountId ? t('app.tokens.reading_service') : t('app.tokens.reading'));
   const held = $derived(tokens.of(accountId));
 
-  /** Every scope this installation declares, from the manifest and never a list written here. */
-  const scopes = $derived(manifest.value?.token_scopes ?? []);
+  /**
+   * Every scope this installation declares, from the manifest and never a list written here - less
+   * the operator's scope for somebody the operator register does not name. Minting `admin:tenants`
+   * asks that register as well as a fresh proof (identity.md §19), and `instance.reachable` is the
+   * register's answer for this reader; offering it there would be a proof given into a certain
+   * refusal (P-05). The register decides whose mint it is - the person creating the token - so a
+   * service account's panel follows the same answer.
+   */
+  const scopes = $derived(
+    (manifest.value?.token_scopes ?? []).filter((scope) => scope !== OPERATOR_SCOPE || manifest.isInstanceReachable),
+  );
 
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
