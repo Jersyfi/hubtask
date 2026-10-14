@@ -289,7 +289,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-5 | The authorisation architecture test: no repository call without a prior policy check; no authorisation in adapters |
 | SG-6 | The SSRF test suite against `GuardedClient` (metadata IPs, rebinding, redirect chains) |
 | SG-7 | Secret scanning with no findings; the "log output contains no tokens or secrets" test |
-| SG-8 | Fuzz tests for the parsers that take untrusted input — the query DSL, CEL input, signature verification, the intake parser — each target in its own nightly job (`nightly.yml:fuzz`, the targets found by `make fuzz-targets`); a crash fails the nightly, keeps the crashing input as an artefact and files a `finding`. The query DSL compiler and the mail parser have targets; CEL input and signature verification do not yet |
+| SG-8 | Fuzz tests for the parsers that take untrusted input — the query DSL, CEL input, signature verification, the intake parser — each target in its own nightly job (`nightly.yml:fuzz`, the targets found by `make fuzz-targets`); a crash fails the nightly, keeps the crashing input as an artefact and files a `finding`. Each has a target: the query DSL compiler (`FuzzCompile`), a rule's CEL condition (`FuzzCompileCondition`), the outbound webhook signature (`FuzzVerifySignature`), and the intake's two doors - the mail parser (`FuzzParseMail`) and the inbound credential a webhook delivery presents (`FuzzParseInboundToken`) |
 | SG-9 | A container scan with no critical findings; the image verified as non-root and read-only |
 | SG-10 | An SBOM produced and the image signed (release pipeline only) |
 | SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope |
