@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 
 	port "github.com/Jersyfi/hubtask/core/port/httpclient"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -82,9 +83,10 @@ func (c *Client) problem(response port.Response) error {
 	// `not_found` - so it wins where the catalogue knows it. The contract code is the fallback,
 	// and a code the catalogue has never heard of is printed as itself: a client that showed
 	// nothing would leave the reader with a blank line and an exit code.
-	message, known := c.message(failure.DetailCode, params)
+	shown := readable(params)
+	message, known := c.message(failure.DetailCode, shown)
 	if !known {
-		message, known = c.message("errors."+failure.Code, params)
+		message, known = c.message("errors."+failure.Code, shown)
 	}
 	if !known {
 		message = firstNonEmpty(failure.DetailCode, failure.Code, statusText(document.Status))
@@ -98,7 +100,7 @@ func (c *Client) problem(response port.Response) error {
 			// one put the parameters on the problem, where the main message needs them. Filling
 			// them in from there is what keeps "{item_type} cannot sit in a {parent_type}" from
 			// reaching a terminal with its braces still on.
-			text, ok := c.message(code, overlay(params, stringParams(field.Params)))
+			text, ok := c.message(code, readable(overlay(params, stringParams(field.Params))))
 			if !ok {
 				text = code
 			}
@@ -131,6 +133,24 @@ func stringParams(params *map[string]any) map[string]string {
 		flattened[name] = fmt.Sprint(raw)
 	}
 	return flattened
+}
+
+// readable is the parameter set a sentence is rendered from: a moment - a parameter named `*_at`,
+// RFC 3339 on the wire - is written the way every table here writes one (shortTime), because a
+// sentence cannot format it. A copy, so that APIError.Params keeps the exact value for a caller that
+// acts on it.
+func readable(params map[string]string) map[string]string {
+	shown := make(map[string]string, len(params))
+	for name, raw := range params {
+		shown[name] = raw
+		if !strings.HasSuffix(name, "_at") {
+			continue
+		}
+		if instant, err := time.Parse(time.RFC3339, raw); err == nil {
+			shown[name] = shortTime(&instant)
+		}
+	}
+	return shown
 }
 
 // overlay puts one parameter set on top of another; the overlay wins where it has a value.
