@@ -232,7 +232,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AUT-07](./automation/UC-AUT-07-keep-rules-from-running-away.md) | Keep rules from running away | automation | built |
 | [UC-AUT-08](./automation/UC-AUT-08-find-rules-that-need-attention-before-they-fail.md) | Find rules that need attention before they fail | automation | built |
 | [UC-AUT-09](./automation/UC-AUT-09-have-a-rule-tell-people.md) | Have a rule tell people something | automation | specified |
-| [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | partial |
+| [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | built |
 | [UC-INT-02](./integration/UC-INT-02-recover-deliveries-my-server-missed.md) | Recover the deliveries my server missed | integration | built |
 | [UC-INT-03](./integration/UC-INT-03-replace-a-webhook-secret-without-dropping-deliveries.md) | Replace a webhook secret without dropping deliveries | integration | built |
 | [UC-INT-04](./integration/UC-INT-04-poll-for-events-instead-of-receiving-them.md) | Poll for events instead of receiving them | integration | built |
