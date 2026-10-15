@@ -230,6 +230,13 @@ var microsoftMultiDirectorySegments = []string{"/common", "/organizations"}
 // endpoint - one the configuration refuses without a directory list - spelled as
 // PersonalIssuerPaths are, without the slash. Empty for a preset without a templated issuer. A
 // form reads it to ask for the list where the server requires it, rather than keeping a copy.
+// MayBeAuthoritative reports whether this provider can ever say it hosts an address's mailbox - by
+// its claim, its own mail domains or a directory that names a mail domain. A preset with none of the
+// three, GENERIC above all, is never authoritative.
+func (p ProviderPreset) MayBeAuthoritative() bool {
+	return p.AuthorityClaim != "" || len(p.OwnMailDomains) > 0 || p.DirectoryIsMailDomain
+}
+
 func (p ProviderPreset) SharedIssuerPaths() []string {
 	if !p.SupportsTemplatedIssuer {
 		return []string{}
