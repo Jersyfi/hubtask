@@ -42,7 +42,12 @@ rules:
     resources: [replicasets]
     verbs: [get, list, watch]
   - apiGroups: [batch]
-    resources: [jobs]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch, create, update, patch, delete]
+  # The database the release owns (values.yaml, database.enabled): its Cluster and the base backup's
+  # schedule. RT-8's second database is a Database object (rt8-database.sh), made by a person.
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters, scheduledbackups]
     verbs: [get, list, watch, create, update, patch, delete]
   - apiGroups: [networking.k8s.io]
     resources: [ingresses, networkpolicies]

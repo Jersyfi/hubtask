@@ -54,12 +54,52 @@ config:
 # The names are in bootstrap.sh, and the values were generated on the host and never left it.
 existingSecret: hubtask-secrets
 
+# The database in production's shape (ADR-0082): a CloudNativePG Cluster of one instance, its WAL
+# archive and daily base backup in an object-store bucket, smaller in size and the same in shape.
+database:
+  enabled: true
+  name: hubtask-db
+  instances: 1
+  appRole:
+    enabled: true
+    name: hubtask_app
+    # Created by bootstrap.sh; the same password is the one in hubtask-secrets' db-dsn.
+    passwordSecret: hubtask-app-role
+  storage:
+    # The live database and the drill's temporary cluster both fit, on a node of 75 GB.
+    size: 4Gi
+    storageClass: local-path
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { memory: 1Gi }
+  metrics:
+    # No Prometheus Operator here: monitoring.yaml scrapes the instance's port by its pods.
+    serviceMonitor: false
+  backup:
+    enabled: true
+    # The bucket is the access holder's to create, with Object Lock where the store offers it
+    # (README, "Rebuilding the database"). Its name and endpoint are configuration; its keys are
+    # the Secret bootstrap.sh makes from the holder's environment.
+    destinationPath: s3://hubtask-integration-wal/
+    endpointURL: https://fsn1.your-objectstorage.com
+    existingSecret: hubtask-wal
+
 migration:
-  # The owner runs the migrations; the application never gets this DSN (multi-tenancy.md §2.1).
-  dsnSecretKey: db-dsn-owner
-  # And the migrator grants hubtask_app its login, so the credential is the operator's rather
-  # than the migration's (deployment.md §2.1).
-  appPasswordSecretKey: db-app-password
+  # The owner runs the migrations, out of the Secret the operator generates; the application
+  # never gets this DSN (multi-tenancy.md §2.1).
+  dsnSecretName: hubtask-db-app
+  dsnSecretKey: uri
+
+# RT-9 where the data is, as production runs it - but by its schedule alone. Integration releases on
+# every push to main, and a drill of up to three quarters of an hour after each would hold or time
+# out every deploy (CP-07's D1). Daily, before anybody works.
+restoreDrill:
+  enabled: true
+  afterRelease: false
+  schedule: "30 4 * * *"
+  # The Role is bootstrap.sh's (restore-drill-rbac.yaml): the deploy identity creates no RBAC.
+  rbac:
+    create: false
 
 ingress:
   enabled: true
