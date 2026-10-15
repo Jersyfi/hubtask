@@ -617,6 +617,33 @@ func (ExternalAccountRepository) LinkSubject(
 }
 
 // ProvidersOf answers the providers the account is connected to (ADR-0075 §2).
+// HoldersOf answers the accounts of this workspace connected to the provider.
+func (ExternalAccountRepository) HoldersOf(ctx context.Context, providerID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider, err := uuidOf(providerID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ProviderIdentityHolders(ctx, provider)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a provider's connected accounts: %w", err))
+	}
+	holders := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		holders = append(holders, id)
+	}
+	return holders, nil
+}
+
 func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
