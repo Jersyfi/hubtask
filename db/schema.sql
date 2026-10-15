@@ -415,12 +415,37 @@ CREATE TABLE account_password_history (
 CREATE INDEX account_password_history_account_idx
   ON account_password_history (tenant_id, account_id, set_at DESC);
 
+-- Passkeys and security keys: an account's WebAuthn credentials, up to ten (identity.md §23).
+-- The name is user content (rule 10); the public key is the COSE bytes the authenticator sent.
+CREATE TABLE webauthn_credential (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id      uuid NOT NULL,
+  credential_id   bytea NOT NULL CHECK (octet_length(credential_id) BETWEEN 1 AND 1023),
+  public_key      bytea NOT NULL CHECK (octet_length(public_key) BETWEEN 1 AND 2048),
+  algorithm       integer NOT NULL CHECK (algorithm IN (-7, -8, -257)),
+  sign_count      bigint NOT NULL DEFAULT 0 CHECK (sign_count BETWEEN 0 AND 4294967295),
+  user_handle     bytea NOT NULL CHECK (octet_length(user_handle) = 32),
+  backup_eligible boolean NOT NULL,
+  backed_up       boolean NOT NULL,
+  transports      text[] NOT NULL DEFAULT '{}' CHECK (cardinality(transports) <= 6),
+  name            text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 64),
+  created_at      timestamptz NOT NULL,
+  last_used_at    timestamptz,
+  CONSTRAINT webauthn_credential_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT webauthn_credential_backup_state CHECK (backup_eligible OR NOT backed_up)
+);
+CREATE UNIQUE INDEX webauthn_credential_credential_uq ON webauthn_credential (tenant_id, credential_id);
+CREATE INDEX webauthn_credential_account_idx ON webauthn_credential (tenant_id, account_id, created_at);
+
 -- The pending credential of a two-step sign-in: short-lived, single-use, hashed under
 -- its own purpose label - a row with the session machinery's discipline, not a session.
 CREATE TABLE auth_pending (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id  uuid NOT NULL,
+  -- NULL only on a TERMS row carrying a provider's arrival, which has no account yet (migration 0142).
+  account_id  uuid,
   -- NULL only on an ADDRESS row whose mail has not gone out yet: the token is minted at delivery
   -- (migration 0131), and a NULL never matches a presented token.
   token_hash  bytea,
@@ -430,7 +455,8 @@ CREATE TABLE auth_pending (
   -- for the account's own proof (migration 0110), CONNECT is the link a workspace without
   -- the password mails to connect its provider (migration 0117), ADDRESS is the link that
   -- confirms a managed account's new address (migration 0131), and TERMS is the step a
-  -- sign-in ends in while the account has not agreed to the terms of use in force (migration 0140).
+  -- sign-in ends in while the account has not agreed to the terms of use in force (migration 0140),
+  -- and PASSKEY_REGISTER is a passkey registration's challenge (migration 0161).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -454,15 +480,38 @@ CREATE TABLE auth_pending (
   -- provider that did (migration 0140).
   session_method text CONSTRAINT auth_pending_session_method_check CHECK (char_length(session_method) <= 32),
   session_via    uuid,
+  -- How the steps before a change step were proven, for the session it opens (migration 0139).
+  signed_in_with text,
+  -- A provider's newcomer waiting for the terms of use on a row without an account (migration 0142).
+  arrival_email        text CONSTRAINT auth_pending_arrival_email_length
+    CHECK (char_length(arrival_email) BETWEEN 3 AND 254),
+  arrival_display_name text CONSTRAINT auth_pending_arrival_display_name_length
+    CHECK (char_length(arrival_display_name) <= 200),
+  arrival_directory    text CONSTRAINT auth_pending_arrival_directory_length
+    CHECK (char_length(arrival_directory) <= 255),
+  -- A passkey registration's session, which alone may finish it, and the user handle the new
+  -- credential will carry (migration 0161).
+  session_id  uuid,
+  user_handle bytea,
+  CONSTRAINT auth_pending_session_fkey FOREIGN KEY (tenant_id, session_id)
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS',
+                       'PASSKEY_REGISTER')),
   CONSTRAINT auth_pending_address_purpose
     CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
            AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
-  CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
+  CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL),
+  CONSTRAINT auth_pending_arrival_whole CHECK ((account_id IS NULL) = (arrival_email IS NOT NULL)),
+  CONSTRAINT auth_pending_arrival_terms
+    CHECK (account_id IS NOT NULL OR (purpose = 'TERMS' AND link_provider_id IS NOT NULL)),
+  CONSTRAINT auth_pending_passkey_whole
+    CHECK (CASE WHEN purpose = 'PASSKEY_REGISTER'
+                THEN session_id IS NOT NULL AND user_handle IS NOT NULL AND octet_length(user_handle) = 32
+                ELSE session_id IS NULL AND user_handle IS NULL END)
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
 -- What a sign-in flow's key to its CONNECT link points at (migration 0117).
@@ -2426,7 +2475,8 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
-    'account_mfa','account_recovery_code','account_password_history','auth_pending',
+    'account_mfa','account_recovery_code','account_password_history','webauthn_credential',
+    'auth_pending',
     'oauth_client','oauth_grant','oauth_code',
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
