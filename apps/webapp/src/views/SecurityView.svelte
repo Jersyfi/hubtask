@@ -32,6 +32,9 @@
   // fresh sign-in at the provider, so the button leaves the page. An account without an address is
   // one no provider reaches (identity.md §4.1): the panel is absent for it, as it is where the
   // workspace offers no provider and none is connected.
+  //
+  // **Passkeys and security keys are the account's own devices** (identity.md §23, UC-ID-22), a panel
+  // of their own beside the password: `PasskeyPanel` lists them and adds one where adding would work.
 
   import { untrack } from 'svelte';
 
@@ -40,6 +43,7 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AuthenticatorReplacement from '../lib/frame/AuthenticatorReplacement.svelte';
+  import PasskeyPanel from '../lib/frame/PasskeyPanel.svelte';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
 
@@ -176,6 +180,8 @@
         {/if}
       </Stack>
     </div>
+
+    <PasskeyPanel />
 
     {#if showsProviders}
       <div class="panel" data-testid="sign-in-providers">
