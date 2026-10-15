@@ -2854,6 +2854,15 @@ func run() error {
 			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
 		},
 	}
+	// A person told that a way into their account changed (ADR-0078 §6).
+	wayInChangedMessage := worker.WayInChangedMessage{
+		Send: notification.SendWayInChanged{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Providers: postgres.NewIdentityProviderRepository(),
+			Mail:      mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+		},
+	}
 	passwordOpeningEnd := worker.PasswordOpeningEnd{
 		End: adminservice.EndPasswordOpening{Writer: passwordOpeningWriter},
 	}
@@ -3180,6 +3189,7 @@ func run() error {
 			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
 		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindWayInChangedEmail:        wayInChangedMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
