@@ -5,6 +5,7 @@ package backup
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -25,10 +26,50 @@ import (
 // archiveKeyBytes is the length of the key a stream cipher wants. AES-256, as §4 requires.
 const archiveKeyBytes = 32
 
-// archiveKeyPurpose binds a target's archive key to that target, so that two targets never share
-// one and a key lifted from one installation's configuration cannot open another's archives.
-func archiveKeyPurpose(targetID shared.ID) crypto.Purpose {
+// archiveSaltBytes is how much salt an archive's key is derived with. A salt is not secret; it only
+// has to differ between archives, and sixteen random bytes do.
+const archiveSaltBytes = 16
+
+// archivePurpose is what an archive's key is derived for. The archive's own salt is what makes the
+// key its own (backup-restore.md §4).
+const archivePurpose crypto.Purpose = "backup_target.archive"
+
+// legacyArchivePurpose is the derivation of an archive written before archives carried a salt: its
+// key is bound to the target that wrote it, so only that target's row opens it.
+func legacyArchivePurpose(targetID shared.ID) crypto.Purpose {
 	return crypto.Purpose("backup_target.archive:" + targetID.String())
+}
+
+// archiveKeysOf derives the key of every encrypted archive of a chain from its own manifest: the
+// master key it names and the salt it carries, or, for an archive without a salt, the target the
+// reader names. Nothing is read from the database, which is what lets an archive open after the
+// database is lost.
+func archiveKeysOf(
+	ctx context.Context, keys crypto.KeyMaterialiser, chain []archive.Description, targetID shared.ID,
+) (archive.Keys, error) {
+	out := archive.Keys{}
+	for _, description := range chain {
+		encryption := description.Manifest.Encryption
+		if !encryption.IsEncrypted() {
+			continue
+		}
+		purpose, salt := legacyArchivePurpose(targetID), []byte(nil)
+		if encryption.ArchiveSalt != "" {
+			decoded, err := base64.StdEncoding.DecodeString(encryption.ArchiveSalt)
+			if err != nil || len(decoded) == 0 {
+				return nil, shared.ErrValidation.WithDetail(archive.CodeManifestInvalid).
+					WithParams(map[string]string{"reason": "encryption.archive_salt"}).
+					WithCause(errors.New("an archive salt that is not base64"))
+			}
+			purpose, salt = archivePurpose, decoded
+		}
+		key, err := keys.ReproduceFromMaster(ctx, encryption.KeyID, purpose, salt, archiveKeyBytes)
+		if err != nil {
+			return nil, err
+		}
+		out[description.Manifest.ArchiveID] = key
+	}
+	return out, nil
 }
 
 // Performer runs one backup, end to end (backup-restore.md §5).
@@ -50,6 +91,8 @@ type Performer struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Entropy draws each archive's salt (rule 4: no crypto/rand in the application layer).
+	Entropy clock.Entropy
 	// SchemaVersion and ProductVersion go into the manifest. They are configuration rather than
 	// something read at run time, because what an archive has to record is the build that wrote
 	// it, and a build knows that about itself.
@@ -131,6 +174,7 @@ type prepared struct {
 	target     domain.Target
 	store      backupstorage.Store
 	key        crypto.MasterDerived
+	salt       []byte
 	prefix     string
 	since      time.Time
 	ancestors  []string
@@ -196,7 +240,11 @@ func (p Performer) claim(ctx context.Context, in PerformInput) (prepared, error)
 	}
 
 	if out.target.EncryptionMode == domain.EncryptionAES256GCM {
-		out.key, err = p.Keys.DeriveFromMaster(ctx, archiveKeyPurpose(in.TargetID), nil, archiveKeyBytes)
+		out.salt, err = p.Entropy.Bytes(archiveSaltBytes)
+		if err != nil {
+			return prepared{}, err
+		}
+		out.key, err = p.Keys.DeriveFromMaster(ctx, archivePurpose, out.salt, archiveKeyBytes)
 		if err != nil {
 			return prepared{}, err
 		}
@@ -312,7 +360,10 @@ func encryptionOf(ready prepared) archive.Encryption {
 	if ready.target.EncryptionMode != domain.EncryptionAES256GCM {
 		return archive.Encryption{Mode: archive.EncryptionNone}
 	}
-	return archive.Encryption{Mode: archive.EncryptionAES256GCM, KeyID: ready.key.KeyID}
+	return archive.Encryption{
+		Mode: archive.EncryptionAES256GCM, KeyID: ready.key.KeyID,
+		ArchiveSalt: base64.StdEncoding.EncodeToString(ready.salt),
+	}
 }
 
 // succeed records what the run left behind.

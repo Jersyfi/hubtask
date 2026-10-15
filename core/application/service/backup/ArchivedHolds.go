@@ -17,7 +17,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
-	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // The trail's entries about a hold, as the lifecycle service writes them.
@@ -66,25 +65,20 @@ func (a ArchivedHolds) Read(
 		return lifecycle.ArchivedHolds{}, scopeMismatch()
 	}
 
-	// One key for the chain, as a restore takes it (Apply.go, precheck).
-	var key secret.Bytes
-	if newest.Manifest.Encryption.IsEncrypted() {
-		key, err = a.Keys.ReproduceFromMaster(ctx,
-			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(source.TargetID), nil, archiveKeyBytes)
-		if err != nil {
-			return lifecycle.ArchivedHolds{}, err
-		}
+	keys, err := archiveKeysOf(ctx, a.Keys, chain, source.TargetID)
+	if err != nil {
+		return lifecycle.ArchivedHolds{}, err
 	}
 
 	rows, _ := archive.FindEntityByTable("legal_hold")
 	trail, _ := archive.FindEntityByTable("audit_log")
 	collected := newHoldCollector()
-	if err := reader.Records(ctx, newest, rows, key, collected.row); err != nil {
+	if err := reader.Records(ctx, newest, rows, keys.Of(newest), collected.row); err != nil {
 		return lifecycle.ArchivedHolds{}, err
 	}
 	// Oldest first, so that a release is read after the placing it ends.
 	for i := len(chain) - 1; i >= 0; i-- {
-		if err := reader.Records(ctx, chain[i], trail, key, collected.entry); err != nil {
+		if err := reader.Records(ctx, chain[i], trail, keys.Of(chain[i]), collected.entry); err != nil {
 			return lifecycle.ArchivedHolds{}, err
 		}
 	}

@@ -5,6 +5,7 @@ package crypto_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -353,6 +354,22 @@ func TestADerivedKeyIsBoundToItsSalt(t *testing.T) {
 		t.Fatal("two salts share a key")
 	case derive(one).Equal(derive(nil)):
 		t.Fatal("a salted key equals the unsalted one")
+	}
+}
+
+// Archives written before they carried a salt were keyed by HKDF without one, under a purpose
+// naming their target. The value is pinned so that no later change to the derivation quietly
+// strands them.
+func TestTheUnsaltedDerivationIsTheOneOldArchivesWereWrittenUnder(t *testing.T) {
+	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
+
+	derived, err := sealer.ReproduceFromMaster(t.Context(), "a", "backup_target.archive:one", nil, 32)
+	if err != nil {
+		t.Fatalf("reproducing: %v", err)
+	}
+	const want = "6cea01936ab4f68272bc1aace48e1136ae26796fe36f1cf2acd543cf48b7233c"
+	if got := hex.EncodeToString(derived.Reveal()); got != want {
+		t.Fatalf("the unsalted key is %s, old archives were written under %s", got, want)
 	}
 }
 

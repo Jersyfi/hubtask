@@ -320,7 +320,7 @@ func (h *runHarness) performer(t *testing.T, store portstorage.Store) service.Pe
 		Opener: openerFor{store: store}, Encryptor: envelope, Keys: envelope,
 		Cipher: realCipher(), Objects: h.objects,
 		Snapshot: directWork{at: h.at}, UnitOfWork: directWork{at: h.at},
-		Clock: clock.Fixed(h.at), IDs: fixedIDs{},
+		Clock: clock.Fixed(h.at), IDs: fixedIDs{}, Entropy: clock.FixedEntropy{Seed: 3},
 		SchemaVersion: "0032", ProductVersion: "0.4.5",
 	}
 }

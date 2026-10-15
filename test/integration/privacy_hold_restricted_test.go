@@ -358,7 +358,8 @@ func keptInTheExports(ctx context.Context, t *testing.T, s person) {
 			Runs: runRepo(), Targets: targetRepo(), Export: postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 			Opener: foreignTarget{store: store}, Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}),
 			Objects: exportObjects{key: "none"}, Snapshot: unitOfWork, UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, IDs: generator{t}, SchemaVersion: "test", ProductVersion: "test",
+			Clock: clockadapter.System{}, IDs: generator{t}, Entropy: clockadapter.CryptoRandom{},
+			SchemaVersion: "test", ProductVersion: "test",
 		}
 		if _, err := performer.Perform(ctx, backupservice.PerformInput{
 			RunID: freshID(t), TargetID: target.ID, TenantID: s.tenant,

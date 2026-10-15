@@ -127,6 +127,12 @@ type Encryption struct {
 	MemoryKiB   uint32 `json:"memory_kib,omitempty"`
 	Parallelism uint8  `json:"parallelism,omitempty"`
 	KeyLength   uint32 `json:"key_length,omitempty"`
+	// ArchiveSalt is the salt this archive's key was derived with from the master key, base64:
+	// drawn when the archive is written, so that every archive has a key of its own and the key
+	// can be derived again from the manifest alone, after the database is lost
+	// (backup-restore.md §4). Not secret. Empty on an archive written before archives carried
+	// one, whose key is bound to the target that wrote it instead.
+	ArchiveSalt string `json:"archive_salt,omitempty"`
 }
 
 // The encryption modes as the manifest spells them. They are the values of

@@ -329,13 +329,21 @@ func (r *Reader) Records(
 	return nil
 }
 
+// Keys holds the key of every archive of a chain, by archive identifier. Each archive is encrypted
+// under a key of its own (backup-restore.md §4), and a medium may live in any archive of the
+// chain, so reading a chain takes one key per archive rather than one for all of them.
+type Keys map[string]secret.Bytes
+
+// Of answers the key of the archive the description names, or an empty key where none is held.
+func (k Keys) Of(description Description) secret.Bytes { return k[description.Manifest.ArchiveID] }
+
 // Medium opens one medium, searching the chain from newest to oldest.
 //
 // That search is the other half of "an incremental does not re-transfer a file that did not
 // change": the file lives in whichever archive first referenced it, and a restore finds it by
 // looking rather than by every archive carrying a copy.
 func (r *Reader) Medium(
-	ctx context.Context, chain []Description, digest string, key secret.Bytes,
+	ctx context.Context, chain []Description, digest string, keys Keys,
 ) (io.ReadCloser, error) {
 	if !looksLikeDigest(digest) {
 		return nil, shared.ErrValidation.WithDetail(CodeRecordInvalid).
@@ -351,7 +359,7 @@ func (r *Reader) Medium(
 		if err != nil {
 			return nil, err
 		}
-		plaintext, err := r.decrypt(content, description.Manifest, MediaName(digest), key)
+		plaintext, err := r.decrypt(content, description.Manifest, MediaName(digest), keys.Of(description))
 		if err != nil {
 			_ = content.Close()
 			return nil, err
