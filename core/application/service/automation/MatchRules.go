@@ -5,7 +5,6 @@ package automation
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
@@ -147,7 +146,7 @@ func hiddenFrom(
 	if reach == nil || (at.HubID.IsZero() && at.CollectionID.IsZero()) {
 		return false, nil
 	}
-	return reach.Hidden(ctx, actingAs(tenantID, account), at.path())
+	return reach.Hidden(ctx, actingAs(tenantID, account), at.Path())
 }
 
 // actingAs is the account a rule runs as, as the authoriser is asked about it.
@@ -155,18 +154,6 @@ func actingAs(tenantID, account shared.ID) appshared.ActorContext {
 	return appshared.ActorContext{
 		Kind: appshared.ActorServiceAccount, TenantID: tenantID, AccountID: account,
 	}
-}
-
-// path is the place as the authoriser reads it; a collection without its hub is completed there.
-func (l location) path() []identity.Scope {
-	path := []identity.Scope{identity.TenantScope()}
-	if !l.HubID.IsZero() {
-		path = append(path, identity.HubScope(l.HubID))
-	}
-	if !l.CollectionID.IsZero() {
-		path = append(path, identity.CollectionScope(l.CollectionID))
-	}
-	return path
 }
 
 // deliverJumble queues one job per JUMBLE_ENTRY rule for one arrival.
@@ -274,22 +261,11 @@ func (m MatchRules) dedupeKey(
 	return ConsumerName + ":" + rule.ID.String() + ":key:" + value.Text, nil
 }
 
-// location is where an event happened, as far as anything can tell from the event itself.
-//
-// Both may be zero. An event about something that is not in a collection - a label, a template -
-// carries no location, and a rule scoped below the tenant does not match it. That is the honest
-// answer rather than a guess: a rule scoped to one hub must not fire on a workspace-wide act
-// because nothing said otherwise.
-type location struct {
-	CollectionID shared.ID
-	HubID        shared.ID
-}
+// location is where an event happened (condition.Location): shared with the webhook subscriptions,
+// which scope alike.
+type location = condition.Location
 
 // locate reads the event's collection and the hub above it.
-//
-// The collection comes from the payload, which every item event carries (`collection_id`) and every
-// container event carries as its own identity. The hub is one read, and only when the event is in a
-// collection at all.
 func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (location, error) {
 	return locateEvent(ctx, m.Containers, envelope)
 }
@@ -297,51 +273,10 @@ func (m MatchRules) locate(ctx context.Context, envelope event.Envelope) (locati
 // locateEvent is locate for anybody holding the container lookup: the engine asks it again when
 // a run starts.
 func locateEvent(ctx context.Context, containers Containers, envelope event.Envelope) (location, error) {
-	// A hub's own event names the hub directly, which no collection lookup could find: a hub sits
-	// under nothing, so asking for its parent would answer the tenant.
-	if hubID := condition.HubOf(envelope); !hubID.IsZero() {
-		return location{HubID: hubID}, nil
-	}
-
-	collectionID := condition.CollectionOf(envelope)
-	if collectionID.IsZero() {
-		return location{}, nil
-	}
-
-	if containers == nil {
-		// A rule scoped to a collection can still be matched; one scoped to a hub cannot, and says
-		// so by not matching rather than by matching everything.
-		return location{CollectionID: collectionID}, nil
-	}
-
-	container, err := containers.Find(ctx, collectionID)
-	switch {
-	case errors.Is(err, shared.ErrNotFound):
-		// Gone between the event and the delivery. Not an error, and it does not let a hub-scoped
-		// rule match: a rule scoped to one hub must not fire because nothing could say otherwise.
-		return location{CollectionID: collectionID}, nil
-	case err != nil:
-		return location{}, err
-	}
-	return location{CollectionID: collectionID, HubID: container.ParentID}, nil
+	return condition.Locate(ctx, containers, envelope)
 }
 
-// covers reports whether a rule's scope reaches this event.
-//
-// A tenant-scoped rule reaches everything, which is what the level means. A hub-scoped one reaches
-// its collections as well as itself, because a permission held at a hub applies downwards
-// (domain-model.md §3.2) and a rule scoped to a hub is scoped to what happens under it.
+// covers reports whether a rule's scope reaches this event (condition.Location.Within).
 func covers(scope domain.Scope, at location) bool {
-	switch scope.Type {
-	case domain.ScopeTenant:
-		return true
-	case domain.ScopeCollection:
-		return !at.CollectionID.IsZero() && scope.ID == at.CollectionID
-	case domain.ScopeHub:
-		return !at.HubID.IsZero() && scope.ID == at.HubID
-	default:
-		// A scope this build does not know is a rule it cannot place, and a rule it cannot place
-		// does not fire. Unreachable while the aggregate validates the three levels.
-		return false
-	}
+	return at.Within(condition.Level(scope.Type), scope.ID)
 }
