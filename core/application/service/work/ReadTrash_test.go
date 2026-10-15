@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -459,5 +460,49 @@ func TestOnlyTheVisibleDeletionsAreJudged(t *testing.T) {
 	}
 	if len(store.askedBatches) != 0 {
 		t.Errorf("the rows of %d hidden deletions were read", len(store.askedBatches))
+	}
+}
+
+// trashRestrictions is whose processing is restricted, as the privacy read answers it.
+type trashRestrictions struct{ people []privacy.RestrictedPerson }
+
+func (r trashRestrictions) RestrictedPeople(context.Context) ([]privacy.RestrictedPerson, error) {
+	return r.people, nil
+}
+
+// A deletion a restricted person contributed to is held, and says it is the restriction that holds
+// it (UC-PRV-04 check 8); a legal hold on the same deletion is named first, §4's order.
+func TestATrashEntrySaysWhenARestrictionKeepsIt(t *testing.T) {
+	author := shared.MustParseID("0192f000-0000-7000-8000-0000000004d1")
+	for _, c := range []struct {
+		name   string
+		holds  []lifecycle.LegalHold
+		heldBy string
+	}{
+		{name: "a restriction alone", heldBy: lifecycle.BlockedByRestriction},
+		{name: "a restriction and a hold", heldBy: lifecycle.BlockedByLegalHold, holds: []lifecycle.LegalHold{{
+			ID: shared.MustParseID("0192f000-0000-7000-8000-0000000004f1"), Scope: lifecycle.HoldTenant,
+		}}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			task := trashEntry(domain.TrashItemKind, taskID, hubID, collectionID, "TASK")
+			handler, store, _ := newTrashReader(task)
+			store.members = []repository.TrashMember{{
+				BatchID: task.BatchID, Kind: domain.TrashItemKind, ID: taskID, HubID: hubID,
+				CollectionID: collectionID, Path: "/" + taskID.String() + "/",
+			}}
+			handler.Holds = &trashHolds{holds: c.holds}
+			handler.Contributors = &trashContributors{by: map[shared.ID][]shared.ID{taskID: {author}}}
+			handler.Restrictions = trashRestrictions{people: []privacy.RestrictedPerson{{AccountID: author}}}
+
+			out, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), nil)
+			if err != nil {
+				t.Fatalf("invoking through the catalogue: %v", err)
+			}
+			rows, _ := out["data"].([]usecase.Output)
+			if len(rows) != 1 || rows[0]["held"] != true || rows[0]["held_by"] != c.heldBy {
+				t.Fatalf("the entry reads %v, want held by %s", rows, c.heldBy)
+			}
+		})
 	}
 }
