@@ -100,6 +100,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
+	"github.com/Jersyfi/hubtask/infrastructure/webauthn"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
@@ -1391,6 +1392,14 @@ func run() error {
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	instanceTargetWriter.StepUp = stepUpVerifier
+	// Passkeys (identity.md §23), built here for the verifiers' reason: the writer is a copy of the
+	// session writer, and adding one asks the step-up whose methods the rule decides.
+	passkeyWriter := identity.PasskeyWriter{
+		Session: sessionWriter, Passkeys: postgres.NewPasskeyRepository(), Verifier: webauthn.Verifier{},
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+		StepUp:       stepUpVerifier,
+	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
@@ -1406,6 +1415,7 @@ func run() error {
 		"the identity provider's step-up":   verifierWriter(identityProviderWriter.StepUp),
 		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
 		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
+		"the passkeys' session writer":      passkeyWriter.Session,
 	}); err != nil {
 		return err
 	}
@@ -1716,6 +1726,7 @@ func run() error {
 		}.Descriptor(),
 		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
 		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -3657,6 +3668,18 @@ func teachTheRule(
 // whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
 // password through at every door it guards and offers it as a step-up proof, silently - which is what
 // a test that wires no rule wants, and what a server must never do.
+// passkeyInstallationOf reads the installation's public address for the relying party a workspace's
+// passkeys belong to (identity.md §23.3). An address that does not parse, or none, binds nothing.
+func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallation {
+	parsed, err := url.Parse(baseURL)
+	if err != nil || parsed.Hostname() == "" {
+		return identity.PasskeyInstallation{Multi: multi}
+	}
+	return identity.PasskeyInstallation{
+		Host: parsed.Hostname(), Scheme: parsed.Scheme, Port: parsed.Port(), Multi: multi,
+	}
+}
+
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {

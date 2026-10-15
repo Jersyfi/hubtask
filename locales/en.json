@@ -220,6 +220,7 @@
   "auth.passkey_unavailable": "Passkeys cannot be added on this installation: it has no public address to bind them to. Your administrator sets one.",
   "auth.passkey_registration_invalid": "Your device's answer could not be accepted, so nothing was added. Try again, or try another device.",
   "auth.passkey_name_invalid": "Give it a name of 1 to {max} characters, without line breaks.",
+  "auth.passkey_person_only": "Passkeys belong to people: a service account, an automation or an agent signs in with a token.",
   "auth.password_rule.min_length": "{minimum, plural, one {At least # character} other {At least # characters}}",
   "auth.password_rule.min_lowercase": "{count, plural, one {At least one lowercase letter} other {At least # lowercase letters}}",
   "auth.password_rule.min_uppercase": "{count, plural, one {At least one uppercase letter} other {At least # uppercase letters}}",

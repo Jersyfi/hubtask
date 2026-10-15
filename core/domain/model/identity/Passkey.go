@@ -72,3 +72,25 @@ func errPasskeyName() error {
 	return shared.ErrValidation.WithDetail("auth.passkey_name_invalid").
 		WithParams(map[string]string{"max": "64"})
 }
+
+// PasskeyRelyingParty is the relying party a workspace's ceremonies name (identity.md §23.3): the RP
+// ID is the workspace's canonical host - never a parent of it, so one workspace's passkeys are never
+// offered in another (P-01) - and the origin is the installation's public scheme with that host and
+// the public port where it is not the scheme's default. The host comes in ASCII form, as a browser
+// compares it.
+//
+// False where there is no host, which is an installation without a public address: nothing can be
+// bound to it, so nothing is offered.
+func PasskeyRelyingParty(host, scheme, port string) (rpID, origin string, ok bool) {
+	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	scheme = strings.ToLower(scheme)
+	if host == "" || (scheme != "https" && scheme != "http") {
+		return "", "", false
+	}
+	origin = scheme + "://" + host
+	schemesOwn := (scheme == "https" && port == "443") || (scheme == "http" && port == "80")
+	if port != "" && !schemesOwn {
+		origin += ":" + port
+	}
+	return host, origin, true
+}
