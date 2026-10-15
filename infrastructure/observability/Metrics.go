@@ -50,6 +50,7 @@ type Metrics struct {
 	jobDuration       metric.Float64Histogram
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
+	jobsPurged        metric.Int64Counter
 	jobQueueDepth     metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
@@ -312,6 +313,13 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Jobs that used up their attempts. Every one of these needs a person."),
 	); err != nil {
 		return fmt.Errorf("dead letter counter: %w", err)
+	}
+	if m.jobsPurged, err = meter.Int64Counter(
+		namespace+"_job_purged_total",
+		metric.WithDescription("Finished jobs removed seven days after they ended, by terminal state. "+
+			"Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("purged job counter: %w", err)
 	}
 	if m.jobQueueDepth, err = meter.Int64Gauge(
 		namespace+"_job_queue_depth",
@@ -943,6 +951,12 @@ func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
 		attribute.String("job_type", kind),
 		attribute.String("attempt_class", attemptClass),
 	))
+}
+
+// JobsPurged counts the finished jobs the leader removed, by terminal state. Written at zero too,
+// for RetentionDeleted's reason.
+func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
+	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
 }
 
 // JobDeadLettered counts a job that used up its attempts (alert A-07).
