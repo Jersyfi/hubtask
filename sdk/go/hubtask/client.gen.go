@@ -11715,8 +11715,8 @@ type ClientInterface interface {
 	// The second call: the `state` and `authorization_code` the provider sent the browser back
 	// with. The provider's sign-in must be fresh - after the connection began - and its address
 	// verified; it need not be the account's. An identity connected to another account here is
-	// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-	// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 	// is told by mail.
 	//
 	// Takes any type of body and a specified content type.
@@ -11729,8 +11729,8 @@ type ClientInterface interface {
 	// The second call: the `state` and `authorization_code` the provider sent the browser back
 	// with. The provider's sign-in must be fresh - after the connection began - and its address
 	// verified; it need not be the account's. An identity connected to another account here is
-	// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-	// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 	// is told by mail.
 	//
 	// Takes a body of the `application/json` content type.
@@ -16057,8 +16057,8 @@ func (c *Client) ListOwnIdentities(ctx context.Context, reqEditors ...RequestEdi
 // The second call: the `state` and `authorization_code` the provider sent the browser back
 // with. The provider's sign-in must be fresh - after the connection began - and its address
 // verified; it need not be the account's. An identity connected to another account here is
-// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 // is told by mail.
 //
 // Takes any type of body and a specified content type.
@@ -16081,8 +16081,8 @@ func (c *Client) CompleteProviderConnectWithBody(ctx context.Context, contentTyp
 // The second call: the `state` and `authorization_code` the provider sent the browser back
 // with. The provider's sign-in must be fresh - after the connection began - and its address
 // verified; it need not be the account's. An identity connected to another account here is
-// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 // is told by mail.
 //
 // Takes a body of the `application/json` content type.
@@ -39637,8 +39637,8 @@ type ClientWithResponsesInterface interface {
 	// The second call: the `state` and `authorization_code` the provider sent the browser back
 	// with. The provider's sign-in must be fresh - after the connection began - and its address
 	// verified; it need not be the account's. An identity connected to another account here is
-	// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-	// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 	// is told by mail.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -39651,8 +39651,8 @@ type ClientWithResponsesInterface interface {
 	// The second call: the `state` and `authorization_code` the provider sent the browser back
 	// with. The provider's sign-in must be fresh - after the connection began - and its address
 	// verified; it need not be the account's. An identity connected to another account here is
-	// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-	// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 	// is told by mail.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -59631,8 +59631,8 @@ func (c *ClientWithResponses) ListOwnIdentitiesWithResponse(ctx context.Context,
 // The second call: the `state` and `authorization_code` the provider sent the browser back
 // with. The provider's sign-in must be fresh - after the connection began - and its address
 // verified; it need not be the account's. An identity connected to another account here is
-// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 // is told by mail.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -59651,8 +59651,8 @@ func (c *ClientWithResponses) CompleteProviderConnectWithBodyWithResponse(ctx co
 // The second call: the `state` and `authorization_code` the provider sent the browser back
 // with. The provider's sign-in must be fresh - after the connection began - and its address
 // verified; it need not be the account's. An identity connected to another account here is
-// refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-// `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
 // is told by mail.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).

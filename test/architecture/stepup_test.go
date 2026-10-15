@@ -27,6 +27,7 @@ var privilegedUseCases = map[string]string{
 	"OpenPrivateHub":                           "it opens a hub nobody else reaches, a fresh proof and a reason (ADR-0073 §4)",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
+	"StartProviderConnect":                     "a provider connected from a session is a new way into the account (identity.md §11)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",
 	"UpdateGroup":                              "changing who is in a group holding OWNER places or takes the OWNER role",
 	"DeleteGroup":                              "deleting a group holding OWNER takes the OWNER role",

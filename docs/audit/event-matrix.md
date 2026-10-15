@@ -270,7 +270,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `identity.provider_configured` | ConfigureFirstIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_configured` | ConfigureIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `identity.provider_connect_started` | StartProviderConnect | `identity_provider` | INFO | Every time |
 | `identity.provider_linked` | CompleteLink | `account` | NOTICE | Every time |
+| `identity.provider_linked` | CompleteProviderConnect | `account` | NOTICE | Every time |
 | `identity.provider_offered` | OfferIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_read` | CountAccountsWithoutProvider | `identity_provider` | INFO | When refused |
 | `identity.provider_read` | ListIdentityProviderPresets | `identity_provider` | INFO | When refused |

@@ -5264,8 +5264,8 @@ paths:
         The second call: the `state` and `authorization_code` the provider sent the browser back
         with. The provider's sign-in must be fresh - after the connection began - and its address
         verified; it need not be the account's. An identity connected to another account here is
-        refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
-        `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+        refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+        `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
         is told by mail.
       requestBody:
         required: true

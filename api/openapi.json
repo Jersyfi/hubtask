@@ -6570,7 +6570,7 @@
         ],
         "operationId": "completeProviderConnect",
         "summary": "Finish connecting a sign-in provider to the caller's account",
-        "description": "The second call: the `state` and `authorization_code` the provider sent the browser back\nwith. The provider's sign-in must be fresh - after the connection began - and its address\nverified; it need not be the account's. An identity connected to another account here is\nrefused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with\n`identity_provider.connect_not_fresh`. On success the connection is recorded and the person\nis told by mail.\n",
+        "description": "The second call: the `state` and `authorization_code` the provider sent the browser back\nwith. The provider's sign-in must be fresh - after the connection began - and its address\nverified; it need not be the account's. An identity connected to another account here is\nrefused with `identity_provider.connection_taken`, a sign-in that is not fresh with\n`identity_provider.connection_not_fresh`. On success the connection is recorded and the person\nis told by mail.\n",
         "requestBody": {
           "required": true,
           "content": {

@@ -1676,6 +1676,11 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
+		// Connecting a provider from a signed-in session (ADR-0078 §1).
+		identity.StartProviderConnect{
+			Writer: oidcWriter, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+		}.Descriptor(),
+		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
