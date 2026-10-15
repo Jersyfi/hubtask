@@ -337,7 +337,7 @@ func (h ListWebhookDeliveries) Descriptor() usecase.Descriptor {
 			{Name: "webhook_id", Kind: usecase.KindID, Required: true, Description: "Which subscription."},
 			{
 				Name: "status", Kind: usecase.KindString,
-				Enum:        []string{"PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER"},
+				Enum:        []string{"PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER", "FILTER_FAILED"},
 				Description: "Narrow to one outcome. DEAD_LETTER is the one an operator usually wants.",
 			},
 			{Name: "cursor", Kind: usecase.KindID, Description: "The next_cursor of the previous page."},
