@@ -6,8 +6,8 @@ actors: [PE-auditor, PE-operator, PE-owner, PE-selfhoster]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-03, P-09, P-11]
 state: partial
-tasks: [E-10, F4-20, CP-08]
-checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go, test/integration/retention_seed_test.go, test/retention/retention_test.go, .github/workflows/ci.yml, test/integration/queue_purge_test.go]
+tasks: [E-10, F4-20, CP-08, CP-09]
+checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go, test/integration/retention_seed_test.go, test/retention/retention_test.go, .github/workflows/ci.yml, test/integration/queue_purge_test.go, test/retention/webhook_delivery_test.go]
 ---
 
 # Know what the installation stores about people, and how each piece is deleted
@@ -49,4 +49,4 @@ the same page to know what an erasure request would have to reach.
 
 ## Today
 
-* Check 2: not met — webhook deliveries (30 days) and the trail (400 days) have a deletion path in the catalogue that nothing carries out, tracked in #1155.
+* Check 2: not met — the trail (400 days) has a deletion path in the catalogue that nothing carries out, tracked in #1155.

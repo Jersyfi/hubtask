@@ -47,6 +47,9 @@ type RunRetention struct {
 	// being swept is personal data kept past its period (risk R-09) in the one place nobody
 	// looks at afterwards.
 	Inbox JumbleInbox
+	// Deliveries is the webhook delivery log's remover. Optional for the outbox's reason: an
+	// installation wired without it sweeps exactly what it did before.
+	Deliveries ExpiringDeliveries
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -200,6 +203,17 @@ type JumbleInbox interface {
 	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
+// ExpiringDeliveries is the slice of the webhook delivery log this run removes through: the
+// jumble's two methods, and which attempts are due is the statement's business - a pending attempt
+// a living job still names is never due.
+type ExpiringDeliveries interface{ ExpiringRows }
+
+// ExpiringRows is a kind removed by count and batch, whose due rows its statement decides.
+type ExpiringRows interface {
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
+}
+
 // Execute runs one pass for the tenant the transaction is bound to, and reports what it did.
 //
 // The whole of it inside the caller's transaction, which is the queue's contract: what the pass
@@ -280,6 +294,11 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	deliveries, err := h.sweepWebhookDeliveries(ctx, started)
+	if err != nil {
+		return outcome, err
+	}
+
 	sessions, err := h.sweepSessions(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -348,6 +367,7 @@ func (h RunRetention) Execute(
 	// that a legal hold can stop, and a blocked count that did not reach the pass would be a run
 	// reporting nothing removed and no reason why.
 	outcome.add(inbox)
+	outcome.add(deliveries)
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed
@@ -865,18 +885,36 @@ func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcom
 		return Outcome{}, shared.ErrInternal.WithDetail("lifecycle.inbox_not_wired")
 	}
 
-	policy, err := h.Policies.Find(ctx, domain.KindJumbleEntry)
+	return h.sweepHeldByTenant(ctx, started, domain.KindJumbleEntry, h.Inbox)
+}
+
+// sweepWebhookDeliveries removes one batch of webhook delivery attempts past their period
+// (data-retention.md §3), under the jumble's rule for holds: a delivery sits in no container, so a
+// hold on the workspace is the one that keeps it.
+func (h RunRetention) sweepWebhookDeliveries(ctx context.Context, started time.Time) (Outcome, error) {
+	if h.Deliveries == nil {
+		return Outcome{}, nil
+	}
+	return h.sweepHeldByTenant(ctx, started, domain.KindWebhookDelivery, h.Deliveries)
+}
+
+// sweepHeldByTenant is one batch of a kind that sits in no container, so that only a hold on the
+// whole workspace keeps it: the jumble and the webhook delivery log.
+func (h RunRetention) sweepHeldByTenant(
+	ctx context.Context, started time.Time, kind domain.DataKind, rows ExpiringRows,
+) (Outcome, error) {
+	policy, err := h.Policies.Find(ctx, kind)
 	if err != nil {
 		return Outcome{}, err
 	}
 
 	runID := h.IDs.NewID()
-	if err := h.Runs.Start(ctx, runID, domain.KindJumbleEntry, started); err != nil {
+	if err := h.Runs.Start(ctx, runID, kind, started); err != nil {
 		return Outcome{}, err
 	}
 
 	cutoff := policy.Cutoff(started)
-	matched, err := h.Inbox.CountExpired(ctx, cutoff, h.Purger.BatchSize)
+	matched, err := rows.CountExpired(ctx, cutoff, h.Purger.BatchSize)
 	if err != nil {
 		return Outcome{}, err
 	}
@@ -906,11 +944,11 @@ func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcom
 		// lifts it, and a pass reporting a full batch would spin at the continuation interval for
 		// as long as the hold stands.
 		outcome := Outcome{Blocked: blocked}
-		h.report(ctx, domain.KindJumbleEntry, outcome, h.Clock.Now().Sub(started))
+		h.report(ctx, kind, outcome, h.Clock.Now().Sub(started))
 		return outcome, nil
 	}
 
-	removed, sweepErr := h.Inbox.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
+	removed, sweepErr := rows.DeleteExpired(ctx, cutoff, h.Purger.BatchSize)
 
 	finished := h.Clock.Now()
 	status := repository.RunSucceeded
@@ -928,7 +966,7 @@ func (h RunRetention) sweepInbox(ctx context.Context, started time.Time) (Outcom
 		return outcome, sweepErr
 	}
 
-	h.report(ctx, domain.KindJumbleEntry, outcome, finished.Sub(started))
+	h.report(ctx, kind, outcome, finished.Sub(started))
 	return outcome, nil
 }
 

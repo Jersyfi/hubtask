@@ -210,7 +210,16 @@ var catalogue = []Kind{
 	},
 	{Name: KindActivityEntry, Anchor: AnchorOccurredAt},
 	{Name: KindRuleRun, Anchor: AnchorStartedAt, DefaultDays: 30},
-	{Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30},
+	{
+		// A webhook's delivery log, one row per attempt. Thirty days, data-retention.md §3: proof
+		// of delivery for as long as a subscriber could ask about it - a replay needs the event,
+		// which the outbox keeps seven days. No marking phase, the jumble's reasoning: nobody can
+		// take an attempt out of a period.
+		Name: KindWebhookDelivery, Anchor: AnchorCreatedAt, DefaultDays: 30,
+		Actions: []Action{ActionHardDelete},
+		// A tenant-wide hold and nothing narrower - a delivery sits in no container.
+		Blockable: []string{BlockedByLegalHold},
+	},
 	{
 		// The outbox's own rows - ADR-0007's second countermeasure, without which the outbox is the
 		// one table in this schema that only ever grows: an event's job is done the moment every
