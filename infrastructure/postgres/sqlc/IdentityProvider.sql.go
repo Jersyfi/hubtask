@@ -699,6 +699,35 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 	return items, nil
 }
 
+const providerIdentityHolders = `-- name: ProviderIdentityHolders :many
+SELECT account_id FROM account_identity
+WHERE provider_id = $1 AND tenant_id = current_tenant_id()
+ORDER BY account_id
+`
+
+// The accounts of this workspace that hold an identity at one provider, read before the provider is
+// removed: each is told that the connection went (ADR-0078 §6). The workspace is named, not left to
+// the policy alone, so the read is this workspace's whatever scope runs it.
+func (q *Queries) ProviderIdentityHolders(ctx context.Context, providerID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, providerIdentityHolders, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rewrapIdentityProviderSecret = `-- name: RewrapIdentityProviderSecret :execrows
 UPDATE identity_provider
 SET client_secret_enc = $1, client_secret_key_id = $2

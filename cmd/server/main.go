@@ -1240,6 +1240,9 @@ func run() error {
 		// What a newcomer gets names a group of this workspace, checked at configuration.
 		Groups: groups,
 		Grants: grants,
+		// Removing a provider tells each person it disconnects (ADR-0078 §6).
+		External: postgres.NewExternalAccountRepository(),
+		WayIn:    wayInNotices,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1312,6 +1315,8 @@ func run() error {
 		Instance:  instanceWriter,
 		Providers: postgres.NewIdentityProviderRepository(),
 		Configure: identityProviderWriter,
+		// The workspaces whose people a removal tells, each in its own scope.
+		Tenants: postgres.NewAdminTenantRepository(),
 	}
 
 	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the

@@ -400,12 +400,20 @@ func TestOneWorkspacesSignInFlowsAndSubjectsStayHome(t *testing.T) {
 		if providers, err := external.ProvidersOf(ctx, idpAccount); err != nil || len(providers) != 0 {
 			t.Errorf("B read the providers of A's account: (%v, %v)", providers, err)
 		}
+		// Gate SG-3: HoldersOf - who a removal would tell is read only in the provider's workspace.
+		if holders, err := external.HoldersOf(ctx, idpRowA); err != nil || len(holders) != 0 {
+			t.Errorf("B read who is connected to A's provider: (%v, %v)", holders, err)
+		}
 		return nil
 	})
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
 		providers, err := external.ProvidersOf(ctx, idpAccount)
 		if err != nil || len(providers) != 1 || providers[0] != idpRowA {
 			t.Errorf("A's account is connected to %v (%v), want the one provider", providers, err)
+		}
+		holders, err := external.HoldersOf(ctx, idpRowA)
+		if err != nil || len(holders) != 1 || holders[0] != idpAccount {
+			t.Errorf("A's provider is held by %v (%v), want the one account", holders, err)
 		}
 		return nil
 	})

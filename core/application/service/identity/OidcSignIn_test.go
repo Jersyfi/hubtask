@@ -116,6 +116,17 @@ func (s *externalStore) ProvidersOf(_ context.Context, accountID shared.ID) ([]s
 	return found, nil
 }
 
+// HoldersOf answers the accounts connected to the provider.
+func (s *externalStore) HoldersOf(_ context.Context, providerID shared.ID) ([]shared.ID, error) {
+	found := []shared.ID{}
+	for key, account := range s.bySubject {
+		if strings.HasPrefix(key, providerID.String()+"\x00") {
+			found = append(found, account.ID)
+		}
+	}
+	return found, nil
+}
+
 // HasIdentity answers whether any provider already signs the account in.
 func (s *externalStore) HasIdentity(_ context.Context, accountID shared.ID) (bool, error) {
 	for _, account := range s.bySubject {

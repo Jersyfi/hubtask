@@ -203,6 +203,14 @@ WHERE link.provider_id = sqlc.arg('provider_id')
 -- at one of these, and only where it is switched on for the workspace - which the caller decides.
 SELECT provider_id FROM account_identity WHERE account_id = sqlc.arg('account_id');
 
+-- name: ProviderIdentityHolders :many
+-- The accounts of this workspace that hold an identity at one provider, read before the provider is
+-- removed: each is told that the connection went (ADR-0078 §6). The workspace is named, not left to
+-- the policy alone, so the read is this workspace's whatever scope runs it.
+SELECT account_id FROM account_identity
+WHERE provider_id = sqlc.arg('provider_id') AND tenant_id = current_tenant_id()
+ORDER BY account_id;
+
 -- name: AccountHasIdentity :one
 -- Whether the account already signs in through some provider (ADR-0071's addendum): such an
 -- identity is a credential of its own, and an account holding one is not connected to another
