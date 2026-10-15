@@ -2770,7 +2770,7 @@ func run() error {
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
-		Reach: authorizer,
+		Reach: authorizer, Containers: containers, Conditions: celexpression.New(),
 	}
 
 	dispatcher := eventbus.Dispatcher{

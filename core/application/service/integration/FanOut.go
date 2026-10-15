@@ -5,6 +5,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
@@ -47,6 +49,13 @@ type FanOut struct {
 	// the hub (D5, ADR-0073 §1): an administrator's subscription would otherwise read a family
 	// member's diary titles. Nil only in a build that has no private hubs to keep.
 	Reach PrivateReach
+	// Containers places an event in its hub for a subscription scoped to one (condition.Locate).
+	// Without it a hub's scope matches only the hub's own events, never its collections'.
+	Containers condition.Containers
+	// Conditions evaluates a subscription's condition. Without it an event for a subscription with
+	// one is held back, as one that cannot be evaluated is: delivering it would send what the
+	// subscriber narrowed away.
+	Conditions expression.Compiler
 	// CollapseGrace is how long a pushed event's delivery waits before its first attempt, so
 	// that the events of one push, dispatched across a few rounds, fold onto one delivery
 	// rather than racing the worker to the target (offline-sync.md §8). Zero means the default.
@@ -111,6 +120,7 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 	now := f.Clock.Now()
 	key := domain.CollapseKey{PushID: envelope.PushID, Subject: envelope.Subject, EventType: envelope.Type.String()}
 	place := condition.PlaceOf(envelope)
+	at := lazyLocation{containers: f.Containers, envelope: envelope}
 	for _, stored := range wanting {
 		subscription := stored.Subscription
 		// Asked again here, and not because the query might be wrong: the query answers what the
@@ -126,6 +136,30 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 		}
 		if hidden {
 			continue
+		}
+		if !subscription.Scope.IsWorkspace() {
+			location, err := at.get(ctx)
+			if err != nil {
+				return err
+			}
+			if !location.Within(condition.Level(subscription.Scope.Level), subscription.Scope.ID) {
+				continue
+			}
+		}
+		if subscription.Filter != "" {
+			met, code, err := f.meets(ctx, subscription.Filter, envelope, now)
+			if err != nil {
+				return err
+			}
+			if code != "" {
+				if err := f.holdBack(ctx, envelope, subscription.ID, code, now); err != nil {
+					return err
+				}
+				continue
+			}
+			if !met {
+				continue
+			}
 		}
 
 		if key.Collapses() {
@@ -156,6 +190,75 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 		}
 	}
 	return nil
+}
+
+// meets evaluates a subscription's condition against the event. A condition that cannot be
+// evaluated answers the expression's code rather than an error: it is this subscription's event that
+// cannot be judged, and failing the dispatcher's batch would stop every other subscriber's too. Only
+// the transaction's own end - the context gone - is an error.
+func (f FanOut) meets(
+	ctx context.Context, filter string, envelope event.Envelope, now time.Time,
+) (bool, string, error) {
+	if f.Conditions == nil {
+		return false, "webhooks.filter_unavailable", nil
+	}
+	program, err := f.Conditions.Compile(filter, condition.WebhookEnvironment(), expression.Boolean)
+	if err != nil {
+		// Compiled when it was saved; failing now means the engine changed under it.
+		return false, codeOf(err, expression.CodeSyntax), nil
+	}
+	value, err := program.Evaluate(ctx, condition.Values{Envelope: envelope, Now: now})
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, "", ctx.Err()
+		}
+		return false, codeOf(err, expression.CodeEvaluationFailed), nil
+	}
+	return value.Bool, "", nil
+}
+
+// codeOf is the message code an expression error carries, or the fallback for one that carries
+// none. Never the error's text, which an evaluator may build from the data (rule 10).
+func codeOf(err error, fallback string) string {
+	var coded *shared.Error
+	if errors.As(err, &coded) && coded.DetailCode != "" {
+		return coded.DetailCode
+	}
+	return fallback
+}
+
+// holdBack records an event a subscription's condition could not be evaluated for: a row of its
+// delivery log with the code and no attempt, so its owner sees that an event was not sent and why
+// (automation.md §3.1). No job: there is nothing to send.
+func (f FanOut) holdBack(
+	ctx context.Context, envelope event.Envelope, subscriptionID shared.ID, code string, now time.Time,
+) error {
+	held, err := domain.NewFilterFailedDelivery(f.IDs.NewID(), envelope.TenantID, subscriptionID, envelope.ID, code, now)
+	if err != nil {
+		return err
+	}
+	return f.Deliveries.Insert(ctx, held)
+}
+
+// lazyLocation reads where an event happened once, and only when a scoped subscription asks: most
+// subscriptions are the workspace's, and those cost no read.
+type lazyLocation struct {
+	containers condition.Containers
+	envelope   event.Envelope
+	located    bool
+	at         condition.Location
+}
+
+func (l *lazyLocation) get(ctx context.Context) (condition.Location, error) {
+	if l.located {
+		return l.at, nil
+	}
+	at, err := condition.Locate(ctx, l.containers, l.envelope)
+	if err != nil {
+		return condition.Location{}, err
+	}
+	l.at, l.located = at, true
+	return at, nil
 }
 
 // collapse folds the event onto the push's pending delivery under the subscription, and reports
