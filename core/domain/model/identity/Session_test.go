@@ -456,3 +456,26 @@ func TestTheInvitationLink(t *testing.T) {
 		}
 	}
 }
+
+// A workspace's own address (multi-tenancy.md §3): its slug as a label under the installation's
+// host in multi-tenant operation, the scheme, port and path kept; the installation's address in
+// single-tenant operation and wherever there is nothing to put in front of it.
+func TestTheWorkspacesOwnAddress(t *testing.T) {
+	cases := []struct {
+		base, slug string
+		multi      bool
+		want       string
+	}{
+		{"https://hub.example", "anna", true, "https://anna.hub.example"},
+		{"http://hubtask.localhost:18545/", "anna", true, "http://anna.hubtask.localhost:18545"},
+		{"https://hub.example/app", "anna", true, "https://anna.hub.example/app"},
+		{"https://hub.example", "anna", false, "https://hub.example"},
+		{"https://hub.example", "", true, "https://hub.example"},
+		{"", "anna", true, ""},
+	}
+	for _, c := range cases {
+		if got := WorkspaceBase(c.base, c.slug, c.multi); got != c.want {
+			t.Errorf("WorkspaceBase(%q, %q, %v) = %q, want %q", c.base, c.slug, c.multi, got, c.want)
+		}
+	}
+}

@@ -2938,6 +2938,9 @@ func run() error {
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
+			// An invitation's link leads to the workspace's own address in multi-tenant
+			// operation (multi-tenancy.md §3).
+			Multi:   cfg.Tenancy == envport.TenancyMulti,
 			Signals: metrics,
 			// The invitation mail's link is the redemption token, minted at delivery so
 			// the plaintext exists exactly once, in the message on its way out.
@@ -3754,6 +3757,7 @@ func invitationLinks(
 			Entropy: clockadapter.CryptoRandom{},
 		},
 		BaseURL: cfg.BaseURL,
+		Multi:   cfg.Tenancy == envport.TenancyMulti,
 	}
 }
 

@@ -122,6 +122,10 @@ type DeliverNotification struct {
 	// BaseURL is where this installation lives, so an email can carry a link somebody can click. A
 	// relative path in an email is a dead link.
 	BaseURL string
+	// Multi is whether the installation runs several workspaces, each on its own subdomain: an
+	// invitation's link then names the workspace's own address (multi-tenancy.md §3, UC-ID-07
+	// check 7), read from Workspaces.
+	Multi bool
 	// Redemptions mints the credential an invitation mail carries: minted here, at
 	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
 	// once, in the message on its way out. Nil composes the plain link, which is what an
@@ -179,6 +183,9 @@ type subject struct {
 	access work.EmergencyAccess
 	// grant is the role the record names, zero for every other message.
 	grant identity.Grant
+	// workspaceSlug is the workspace's public name, read for an invitation in multi-tenant
+	// operation, where the link leads to the workspace's own address.
+	workspaceSlug string
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -264,6 +271,13 @@ func (d DeliverNotification) load(
 			return err
 		}
 		loaded.recipient = identityAccount{locale: locale, address: recipient.Email, zone: recipient.TimeZone}
+		if record.Category == domain.CategoryInvitation && d.Multi && d.Workspaces != nil {
+			workspace, err := d.Workspaces.Find(ctx)
+			if err != nil {
+				return err
+			}
+			loaded.workspaceSlug = workspace.Slug
+		}
 
 		preference, err := d.Preferences.Find(ctx, record.RecipientID, record.Category, record.Channel)
 		switch {
@@ -386,7 +400,8 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 			return err
 		}
 		if !token.IsEmpty() {
-			message.Link = identity.InvitationLink(d.BaseURL, token.Reveal())
+			message.Link = identity.InvitationLink(
+				identity.WorkspaceBase(d.BaseURL, loaded.workspaceSlug, d.Multi), token.Reveal())
 		}
 	}
 

@@ -63,6 +63,23 @@ func NewRedemptionToken(tenantID shared.ID, secret []byte) (Token, error) {
 	return newPrefixed(RedemptionTokenPrefix, tenantID, secret)
 }
 
+// WorkspaceBase is a workspace's own address (multi-tenancy.md §3): in multi-tenant operation its
+// slug as one label under the installation's host, the scheme, port and path kept; in single-tenant
+// operation, and wherever the slug or the base is missing, the installation's address itself. One
+// composition, so every link that leads a person to their workspace leads to the same place.
+func WorkspaceBase(base, slug string, multi bool) string {
+	base = strings.TrimSuffix(base, "/")
+	if !multi || slug == "" || base == "" {
+		return base
+	}
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Host == "" {
+		return base
+	}
+	parsed.Host = slug + "." + parsed.Host
+	return strings.TrimSuffix(parsed.String(), "/")
+}
+
 // InvitationLink is the link that accepts an invitation, whichever way it travels - in the mail,
 // or answered once where no mail goes out. One composition, so the two are the same link.
 //
