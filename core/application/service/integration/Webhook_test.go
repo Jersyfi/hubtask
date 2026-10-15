@@ -191,12 +191,28 @@ func (d *deliveryStore) RecordOutcome(_ context.Context, outcome repository.Deli
 
 type authorizer struct {
 	refuse   error
+	deny     []shared.ID
 	requests []access.Request
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
 	return a.refuse
+}
+
+// Permits is the listing's question; it is recorded beside the others, and answers no where a
+// refusal is set or the scope is one the test denies.
+func (a *authorizer) Permits(_ context.Context, _ appshared.ActorContext, request access.Request) (bool, error) {
+	a.requests = append(a.requests, request)
+	if a.refuse != nil {
+		return false, nil
+	}
+	for _, denied := range a.deny {
+		if len(request.Path) > 1 && request.Path[len(request.Path)-1].ID == denied {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 type auditSink struct{ entries []audit.Entry }

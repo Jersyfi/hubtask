@@ -62,7 +62,7 @@ func (h ListWebhookDeliveries) Execute(
 	ctx context.Context, actor appshared.ActorContext, listing DeliveryListing,
 ) ([]domain.WebhookDelivery, bool, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookReadAction, listing.SubscriptionID); err != nil {
+	if err := w.authorizeSubscriptionRead(ctx, actor, WebhookReadAction, listing.SubscriptionID); err != nil {
 		return nil, false, err
 	}
 	status, err := deliveryStatus(listing.Status)
@@ -116,7 +116,7 @@ func (h ReplayWebhookDelivery) Execute(
 	ctx context.Context, actor appshared.ActorContext, subscriptionID, deliveryID shared.ID,
 ) (domain.WebhookDelivery, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookReplayedAction, subscriptionID); err != nil {
+	if err := w.authorizeSubscription(ctx, actor, WebhookReplayedAction, subscriptionID); err != nil {
 		return domain.WebhookDelivery{}, err
 	}
 
@@ -181,7 +181,7 @@ func (h RotateWebhookSecret) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, grace time.Duration,
 ) (MintedSubscription, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookRotatedAction, id); err != nil {
+	if err := w.authorizeSubscription(ctx, actor, WebhookRotatedAction, id); err != nil {
 		return MintedSubscription{}, err
 	}
 

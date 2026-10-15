@@ -314,7 +314,15 @@ func (providerAllow) Authorize(context.Context, appshared.ActorContext, access.R
 	return nil
 }
 
+func (providerAllow) Permits(context.Context, appshared.ActorContext, access.Request) (bool, error) {
+	return true, nil
+}
+
 type providerRefuse struct{}
+
+func (providerRefuse) Permits(context.Context, appshared.ActorContext, access.Request) (bool, error) {
+	return false, nil
+}
 
 func (providerRefuse) Authorize(context.Context, appshared.ActorContext, access.Request) error {
 	return shared.ErrForbidden
