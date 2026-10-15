@@ -911,7 +911,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Rule | Detail |
 |---|---|
 | RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). |
-| Origin | `https://` and that host (the configured public port where it is not 443); any other origin is refused. Neither the shells' webview origin nor a localhost origin outside development passes; the shells' path is F7's. |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
@@ -936,7 +936,9 @@ A credential that once answered with UV and later without is held to the ceremon
 
 ### 23.5 What travels
 
-* A backup keeps the credentials, a tenant export strips them as it strips every credential, and an
-  erased account loses them with the account (`CASCADE`).
+* A data backup keeps the credentials; a tenant export and a person's export leave the whole table
+  out, as they strip every credential ([tenant-export.md](./tenant-export.md) §9); an erased account
+  loses them in every mode — with the account (`CASCADE`) where it is deleted, with its tokens where
+  it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.
