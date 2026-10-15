@@ -698,6 +698,9 @@ CREATE TABLE oidc_flow (
   -- The CONNECT link a sign-in started from, in a workspace without the password (ADR-0078 §1,
   -- migration 0117). NULL is every other sign-in.
   pending_id    uuid,
+  -- A flow bound to a session that connects a provider to the account rather than stepping up
+  -- (ADR-0078 §1, migration 0152). Each callback consumes only its own kind.
+  connect       boolean NOT NULL DEFAULT false,
   -- The terms of use agreed to on the invitation card before the provider was chosen (UC-ID-19,
   -- migration 0140); the arrival that activates the invited account stores them.
   terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),

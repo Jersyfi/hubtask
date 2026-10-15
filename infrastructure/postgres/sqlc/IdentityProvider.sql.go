@@ -53,6 +53,46 @@ func (q *Queries) AccountIdentityProviders(ctx context.Context, accountID pgtype
 	return items, nil
 }
 
+const consumeConnectOidcFlow = `-- name: ConsumeConnectOidcFlow :one
+UPDATE oidc_flow SET consumed_at = $1
+WHERE state_hash = $2
+  AND session_id = $3
+  AND connect
+  AND consumed_at IS NULL
+  AND expires_at > $1
+RETURNING id, provider_id, code_verifier, nonce, session_id, created_at
+`
+
+type ConsumeConnectOidcFlowParams struct {
+	Now       pgtype.Timestamptz
+	StateHash []byte
+	SessionID pgtype.UUID
+}
+
+type ConsumeConnectOidcFlowRow struct {
+	ID           pgtype.UUID
+	ProviderID   pgtype.UUID
+	CodeVerifier string
+	Nonce        string
+	SessionID    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+// A connection's (ADR-0078 §1): only a connection's flow bound to this very session.
+func (q *Queries) ConsumeConnectOidcFlow(ctx context.Context, arg ConsumeConnectOidcFlowParams) (ConsumeConnectOidcFlowRow, error) {
+	row := q.db.QueryRow(ctx, consumeConnectOidcFlow, arg.Now, arg.StateHash, arg.SessionID)
+	var i ConsumeConnectOidcFlowRow
+	err := row.Scan(
+		&i.ID,
+		&i.ProviderID,
+		&i.CodeVerifier,
+		&i.Nonce,
+		&i.SessionID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const consumeOidcFlow = `-- name: ConsumeOidcFlow :one
 UPDATE oidc_flow SET consumed_at = $1
 WHERE state_hash = $2
@@ -104,6 +144,7 @@ const consumeStepUpOidcFlow = `-- name: ConsumeStepUpOidcFlow :one
 UPDATE oidc_flow SET consumed_at = $1
 WHERE state_hash = $2
   AND session_id = $3
+  AND NOT connect
   AND consumed_at IS NULL
   AND expires_at > $1
 RETURNING id, provider_id, code_verifier, nonce, session_id
@@ -123,7 +164,8 @@ type ConsumeStepUpOidcFlowRow struct {
 	SessionID    pgtype.UUID
 }
 
-// The step-up's: only a flow bound to this very session, judged and burned in the same statement.
+// The step-up's: only a flow bound to this very session, judged and burned in the same statement. A
+// connection's flow is bound to a session too, and is not a step-up.
 func (q *Queries) ConsumeStepUpOidcFlow(ctx context.Context, arg ConsumeStepUpOidcFlowParams) (ConsumeStepUpOidcFlowRow, error) {
 	row := q.db.QueryRow(ctx, consumeStepUpOidcFlow, arg.Now, arg.StateHash, arg.SessionID)
 	var i ConsumeStepUpOidcFlowRow
@@ -498,12 +540,12 @@ func (q *Queries) InsertIdentityProvider(ctx context.Context, arg InsertIdentity
 const insertOidcFlow = `-- name: InsertOidcFlow :exec
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id, pending_id, terms_url, terms_version)
+   invited_account_id, pending_id, terms_url, terms_version, connect)
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
   $8, $9, $10,
-  $11, $12
+  $11, $12, $13
 )
 `
 
@@ -520,6 +562,7 @@ type InsertOidcFlowParams struct {
 	PendingID        pgtype.UUID
 	TermsUrl         *string
 	TermsVersion     *string
+	Connect          bool
 }
 
 // A NULL session is a sign-in flow; a session is the step-up at the provider it belongs to
@@ -540,6 +583,7 @@ func (q *Queries) InsertOidcFlow(ctx context.Context, arg InsertOidcFlowParams) 
 		arg.PendingID,
 		arg.TermsUrl,
 		arg.TermsVersion,
+		arg.Connect,
 	)
 	return err
 }

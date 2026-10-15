@@ -1184,6 +1184,7 @@ type OidcFlow struct {
 	PendingID        pgtype.UUID
 	TermsUrl         *string
 	TermsVersion     *string
+	Connect          bool
 }
 
 type Operator struct {

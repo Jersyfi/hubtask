@@ -84,6 +84,10 @@ type OidcFlows interface {
 	// ConsumeForStepUp is Consume for a step-up at the provider (ADR-0075 §2): only a flow bound to
 	// this very session is found, so another session's state, and a sign-in's, finish nothing.
 	ConsumeForStepUp(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
+
+	// ConsumeForConnect is Consume for a connection from a signed-in session (ADR-0078 §1): only a
+	// connection's flow bound to this very session is found - neither a step-up's nor a sign-in's.
+	ConsumeForConnect(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
 // ExternalAccounts is the link between a provider's subject and an account here.

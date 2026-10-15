@@ -50,7 +50,20 @@ func (s *flowStore) ConsumeForStepUp(
 	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,
 ) (domain.OidcFlow, bool, error) {
 	flow, found := s.byState[presented.Secret()]
-	if !found || s.spent[presented.Secret()] || flow.SessionID.IsZero() || flow.SessionID != sessionID {
+	if !found || s.spent[presented.Secret()] || flow.SessionID.IsZero() || flow.SessionID != sessionID ||
+		flow.Connect {
+		return domain.OidcFlow{}, false, nil
+	}
+	s.spent[presented.Secret()] = true
+	return flow, true, nil
+}
+
+// ConsumeForConnect finds only a connection's flow bound to this very session, as the statement does.
+func (s *flowStore) ConsumeForConnect(
+	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,
+) (domain.OidcFlow, bool, error) {
+	flow, found := s.byState[presented.Secret()]
+	if !found || s.spent[presented.Secret()] || !flow.Connect || flow.SessionID != sessionID {
 		return domain.OidcFlow{}, false, nil
 	}
 	s.spent[presented.Secret()] = true

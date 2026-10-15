@@ -147,12 +147,12 @@ WHERE id = sqlc.arg('id')
 -- CONNECT link a sign-in started from (ADR-0078 §1), kept this workspace's the same way.
 INSERT INTO oidc_flow
   (id, tenant_id, provider_id, state_hash, code_verifier, nonce, created_at, expires_at, session_id,
-   invited_account_id, pending_id, terms_url, terms_version)
+   invited_account_id, pending_id, terms_url, terms_version, connect)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('provider_id'), sqlc.arg('state_hash'),
   sqlc.arg('code_verifier'), sqlc.arg('nonce'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
   sqlc.narg('session_id'), sqlc.narg('invited_account_id'), sqlc.narg('pending_id'),
-  sqlc.narg('terms_url'), sqlc.narg('terms_version')
+  sqlc.narg('terms_url'), sqlc.narg('terms_version'), sqlc.arg('connect')
 );
 
 -- name: ConsumeOidcFlow :one
@@ -168,13 +168,25 @@ RETURNING id, provider_id, code_verifier, nonce, invited_account_id, pending_id,
   terms_url, terms_version;
 
 -- name: ConsumeStepUpOidcFlow :one
--- The step-up's: only a flow bound to this very session, judged and burned in the same statement.
+-- The step-up's: only a flow bound to this very session, judged and burned in the same statement. A
+-- connection's flow is bound to a session too, and is not a step-up.
 UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
 WHERE state_hash = sqlc.arg('state_hash')
   AND session_id = sqlc.arg('session_id')
+  AND NOT connect
   AND consumed_at IS NULL
   AND expires_at > sqlc.arg('now')
 RETURNING id, provider_id, code_verifier, nonce, session_id;
+
+-- name: ConsumeConnectOidcFlow :one
+-- A connection's (ADR-0078 §1): only a connection's flow bound to this very session.
+UPDATE oidc_flow SET consumed_at = sqlc.arg('now')
+WHERE state_hash = sqlc.arg('state_hash')
+  AND session_id = sqlc.arg('session_id')
+  AND connect
+  AND consumed_at IS NULL
+  AND expires_at > sqlc.arg('now')
+RETURNING id, provider_id, code_verifier, nonce, session_id, created_at;
 
 -- name: DeleteExpiredOidcFlows :execrows
 -- Hygiene in the session sweep's pass, the expired authorization codes' reasoning: a flow lives

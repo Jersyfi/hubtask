@@ -436,6 +436,7 @@ func (r OidcFlowRepository) Insert(
 		// The agreement given on the invitation card (migration 0140).
 		TermsUrl:     nullableString(flow.Terms.URL),
 		TermsVersion: nullableString(flow.Terms.Version),
+		Connect:      flow.Connect,
 		ID:           id,
 		ProviderID:   provider,
 		StateHash:    r.stateHasher.Hash(presented.Secret()),
@@ -541,6 +542,48 @@ func (r OidcFlowRepository) ConsumeForStepUp(
 	return identity.OidcFlow{
 		ID: id, TenantID: presented.TenantID(), ProviderID: providerID, SessionID: sessionID,
 		Nonce: row.Nonce, Verifier: row.CodeVerifier,
+	}, true, nil
+}
+
+// ConsumeForConnect burns a connection's flow, and only one bound to this session (ADR-0078 §1).
+func (r OidcFlowRepository) ConsumeForConnect(
+	ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time,
+) (identity.OidcFlow, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	row, err := queries.ConsumeConnectOidcFlow(ctx, sqlc.ConsumeConnectOidcFlowParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+		SessionID: session,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			// Unknown, expired, spent, another session's, a step-up's or a sign-in's - one answer.
+			return identity.OidcFlow{}, false, nil
+		}
+		return identity.OidcFlow{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("consuming the connection flow: %w", err))
+	}
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	return identity.OidcFlow{
+		ID: id, TenantID: presented.TenantID(), ProviderID: providerID, SessionID: sessionID,
+		Nonce: row.Nonce, Verifier: row.CodeVerifier, Connect: true,
+		// When the flow left for the provider: the connection counts only a sign-in made after it.
+		CreatedAt: timeFrom(row.CreatedAt),
 	}, true, nil
 }
 
