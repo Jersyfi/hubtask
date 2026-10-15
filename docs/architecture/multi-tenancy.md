@@ -190,6 +190,7 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Bulk operations per request | 500 | 500 |
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
+| People per workspace (decided for PL, §4.2) | Unlimited | Unlimited |
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 
@@ -255,6 +256,103 @@ never rows — the boundary is a database policy, not a role.
 
 ---
 
+## 4.2 Plans
+
+**Decided for milestone PL, not built** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md);
+the owner, 2026-10-15). Until PL's tasks merge, §4 and §4.1 describe what runs: no plan level.
+
+Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
+(§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
+limits, and an installation that never defines a plan — every self-hosted one — meets none of this. Plans exist only in multi mode — single
+mode offers them nowhere.
+
+**What a plan is.** An installation-level row (`plan`: a short name, a display name, a version) with
+its values in the areas of §4.1 — the sign-in rule, the legal links, the quotas, `ai` — each with a
+lock, and its entitlements. It holds only what it decides; the rest falls through to the
+installation. `tenant.plan_id` references it; nothing is copied into a workspace, so a change is in
+force at the workspace's next request, with no job. Like `instance_setting` it carries no row-level
+policy, is read by every workspace and written only by the control plane, and the exception is in
+all three boundary lists.
+
+**How it resolves.** `product → installation → plan → workspace`, in every area:
+
+* an installation lock binds the plan as it binds the workspace, and a plan's value under one is
+  ignored on read, refused on write;
+* a plan tightens what the installation left open — a limit goes higher only where the
+  installation's key lets workspaces go higher — and may lock it; the lock's origin is `PLAN`, and a
+  screen says "Set by your plan";
+* the workspace tightens where neither locks; the operator's exception for one workspace stays the
+  last word on a limit;
+* a value a newly locked key overrides stays stored, and applies again when the lock goes.
+
+**What a plan leaves out.** A closed set of three entitlements, each *included* unless the plan says
+otherwise:
+
+| Entitlement | Not included | Included again |
+|---|---|---|
+| Automation rules | no rule runs, by event or schedule; rules stay readable and cannot be created or switched on | they run from then on; a schedule without the occurrences it missed |
+| Webhooks | nothing is delivered and no subscription is added; subscriptions and secrets stay | deliveries resume for events from then on |
+| The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1) | they sign people in again |
+
+A screen shows "Not included in your plan" where the person would otherwise have met the control
+(P-05). No entry of the set reaches export, deletion, access requests, language, time zone,
+accessibility, or a door — REST, MCP, `hubctl`, tokens, the calendar feed (P-08).
+
+**Downgrade.** A plan with a lower limit refuses the next creation past it and removes nothing
+(P-03). The people limit (§4) counts active and managed accounts and open invitations, never service
+accounts, and refuses the next invitation, managed account or account a provider would create.
+
+**Doors and record.** Plans are created, changed, removed and assigned on the `/instance` screens,
+with `hubctl admin plan`, through `/admin/plans` and in the instance file, with the same refusals; a
+save carries the version it read and is refused with `version_conflict` otherwise. Provisioning
+takes a plan. A plan with workspaces on it cannot be removed. Moving a workspace is written to
+`instance_event` and the workspace's trail; changing a plan to `instance_event`.
+
+**The account link.** An operator may set one address, at the installation and per plan, lockable
+and resolved like the legal links ([identity.md](./identity.md) §18). Owners and administrators see
+"Your provider's account page" beside "Not included in your plan", at a reached limit and on the
+suspended page. Hubtask writes the label; no price, no other plan, no offer to upgrade.
+
+---
+
+## 4.3 The purchase platform's connection
+
+**Decided for milestone PL, not built** (the owner, 2026-10-16;
+[ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Plans exist so that a provider's own
+purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
+([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
+`NG-billing`). Hubtask never asks the platform anything, and single mode offers none of this.
+
+* **Its credential.** A service account in the operator register, with a token carrying
+  `admin:provisioning` ([api-guidelines.md](./api-guidelines.md)) rather than all of
+  `admin:tenants`. It may request a deletion without a step-up, sending the typed name; the grace,
+  the cancellation, the export and the legal-hold refusal of §5 stay.
+* **Naming.** A plan's short name never changes and is never reused once created; it is what the
+  platform maps its products to. A workspace may carry the platform's own reference
+  (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,
+  removed at the purge).
+* **Changing state, in order.** A workspace has a version that grows with every change the control
+  plane makes. A move or a lifecycle call may name the version it last saw and is refused with
+  `version_conflict` when it is stale; repeated under its idempotency key it acts once. Its answer
+  names the limits the workspace is now over, the entitlements that rest and the exceptions that
+  stay.
+* **Finding.** One workspace is read by its id, short name or reference; the list filters by plan,
+  status and reference, with a cursor.
+* **Events.** Installation subscriptions sign, retry and dead-letter as a workspace's do (UC-INT-01),
+  but are never switched off for being unreachable: the operator is told and the dead letters stay
+  re-deliverable. Every event carries the workspace's id, reference, status, plan, version and
+  moment, never content; "a limit reached" is sent once per crossing. The same events are read
+  forward from a cursor (`GET /admin/events`) by a commit-ordered sequence, so a platform that was
+  down misses nothing.
+* **Use.** Recorded per workspace, metric and day; people, storage and entries as the day's highest
+  count, written where the count changes (no job visits workspaces), the rest as sums. Every metric
+  names its day (UTC, or the workspace's zone for the AI budget) and the read says up to which day it
+  is final. Offered for billing (`GET /admin/usage`) only while the operator switches metering on,
+  off by default. At the purge a workspace's counts move to an installation-level ledger keyed by
+  the bare id and are kept, like every count, for 13 months.
+
+---
+
 ## 5. The lifecycle of a tenant
 
 ```mermaid
@@ -279,7 +377,9 @@ stateDiagram-v2
 | Cancel | The operator calls a pending deletion off until the hard delete begins - also past the deadline while a legal hold keeps the workspace pending, whose holds stay. The workspace returns to the status the request found it in (kept in `status_before_deletion`; `SUSPENDED` where it was not kept), the deadline is cleared, and the automation rules the request switched off (`paused_for_deletion`) come back on, a schedule from now without the occurrences it missed. No step-up and no typed name: it removes nothing. The grace job marks the row (`purge_started_at`) before its first byte goes, and a cancel is refused `admin.tenant_deletion_underway` from then on; both write the same row, so one waits for the other |
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
-Deleting a tenant demands a step-up and the typed tenant name. In single mode the one workspace is
+Deleting a tenant demands a step-up and the typed tenant name — from a person; a purchase
+platform's service account that is a registered operator sends the typed name without one (decided
+for PL, not built, §4.3). In single mode the one workspace is
 the installation and holds every operator: suspending it and requesting its deletion are refused
 (`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
 and cancelling stay open in every mode. A workspace that got there anyway - before the refusal, or

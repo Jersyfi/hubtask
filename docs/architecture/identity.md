@@ -700,7 +700,9 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 * The installation sets a **default** and a **lock** per switch, as every instance setting
   ([multi-tenancy.md](./multi-tenancy.md) §4.1); a locked control shows **the value, the reason and
   who set it**. A lock's origin, `INSTANCE` or `PLAN` (no writer yet), tells "ask your
-  administrator" from "ask your provider".
+  administrator" from "ask your provider". The plan's level is decided for milestone PL and not
+  built: it tightens what the installation left open and never writes under its lock
+  ([multi-tenancy.md](./multi-tenancy.md) §4.2).
 * **A workspace only ever tightens**, enforced field by field; a screen offers nothing looser than
   the level above.
 * `Effective(product, instance, plan, workspace)` resolves the rule on read for the sign-in path,
@@ -726,6 +728,10 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   start page have no installation level; language and time zone may be defaulted there, never locked.
 * The legal links (imprint, privacy, terms, accessibility statement) resolve
   `workspace → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line shown.
+  *Decided for milestone PL, not built* (#1531): `workspace → plan → installation → nothing`, a plan
+  setting and locking them as the installation does; moving a workspace to a plan with other terms
+  asks everybody once more, as a changed link does ([multi-tenancy.md](./multi-tenancy.md) §4.2).
+  The provider's account link resolves the same way, from installation and plan only (§4.2 there).
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
@@ -777,7 +783,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 |---|---|
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
-| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans, then custom domains, follow. |
+| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans: decided ([multi-tenancy.md](./multi-tenancy.md) §4.2, [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)), not built — milestone PL. Custom domains follow. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
 | I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
 | I-14 | Whether a provider's admission settings (§10.4) also bound which identities members may connect, not only who comes in new — the owner's to decide (decision #1511). |

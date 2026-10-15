@@ -29,7 +29,8 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
    concurrent saves, the multi-mode host) and the decided sign-in tasks SC-36 and SC-37. SC-30
    waits for the first release after one that contains SC-26.
 2. **PK — Passkeys** ([`backlog/milestone-PK.md`](./backlog/milestone-PK.md), cut 2026-10-15),
-   then **PL — Plans** and **CD — Custom domains**: SI prepared all three without building any.
+   then **PL — Plans** ([`backlog/milestone-PL.md`](./backlog/milestone-PL.md), cut 2026-10-15)
+   and **CD — Custom domains**: SI prepared all three without building any.
 3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.
 
 ---
