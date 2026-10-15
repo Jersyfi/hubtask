@@ -123,7 +123,7 @@ func TestTheBoundAListAnswersIsAcceptedAndStoredAsTheEndOfThatDay(t *testing.T) 
 	if got := stored.DueAt.UTC().Format(time.RFC3339Nano); got != "2026-11-10T22:59:59Z" {
 		t.Errorf("the deadline is stored as %s, want the end of 10 November in Berlin", got)
 	}
-	if got := stored.OriginalDueAt.UTC().Format(time.RFC3339); got != "2026-09-09T07:00:00Z" {
+	if got := stored.OriginalDueAt.UTC().Format(time.RFC3339); got != "2026-09-10T21:59:59Z" {
 		t.Errorf("the original deadline is stored as %s", got)
 	}
 
@@ -270,7 +270,7 @@ func TestTheExtensionsEntryIsStoredWithoutTheNotesAndTheChainHolds(t *testing.T)
 	if err := json.Unmarshal(changes, &recorded); err != nil {
 		t.Fatalf("reading the changes: %v", err)
 	}
-	if recorded["due_at"]["from"] != "2026-09-09T07:00:00Z" || recorded["due_at"]["to"] != "2026-10-20T21:59:59Z" ||
+	if recorded["due_at"]["from"] != "2026-09-10T21:59:59Z" || recorded["due_at"]["to"] != "2026-10-20T21:59:59Z" ||
 		recorded["extension_reason"]["to"] != "NUMBER_OF_REQUESTS" || recorded["informed_on"]["to"] != "2026-08-10" {
 		t.Errorf("the entry records %s", changes)
 	}

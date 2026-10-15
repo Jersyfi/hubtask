@@ -112,6 +112,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'instance-settings', pattern: '/instance/settings', area: 'instance' },
   { name: 'instance-providers', pattern: '/instance/providers', area: 'instance' },
   { name: 'instance-ai', pattern: '/instance/ai', area: 'instance' },
+  { name: 'instance-targets', pattern: '/instance/backup-targets', area: 'instance' },
   { name: 'instance-encryption', pattern: '/instance/encryption', area: 'instance' },
   { name: 'instance-operators', pattern: '/instance/operators', area: 'instance' },
   { name: 'instance-journal', pattern: '/instance/journal', area: 'instance' },

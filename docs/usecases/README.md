@@ -165,7 +165,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-07](./identity/UC-ID-07-accept-an-invitation.md) | Accept an invitation and set up my account | identity | partial |
 | [UC-ID-08](./identity/UC-ID-08-sign-in-with-my-organisations-directory.md) | Sign in with my organisation's directory | identity | built |
 | [UC-ID-09](./identity/UC-ID-09-sign-in-with-google-or-microsoft.md) | Sign in with my Google or Microsoft account | identity | built |
-| [UC-ID-10](./identity/UC-ID-10-connect-a-provider-to-my-existing-account.md) | Connect a sign-in provider to the account I already have | identity | partial |
+| [UC-ID-10](./identity/UC-ID-10-connect-a-provider-to-my-existing-account.md) | Connect a sign-in provider to the account I already have | identity | built |
 | [UC-ID-11](./identity/UC-ID-11-set-up-a-sign-in-provider-for-the-workspace.md) | Set up a sign-in provider for our workspace | identity | verified |
 | [UC-ID-12](./identity/UC-ID-12-set-the-workspaces-sign-in-rules-in-one-place.md) | Set how people in our workspace sign in, in one place | identity | verified |
 | [UC-ID-13](./identity/UC-ID-13-require-a-new-password-from-everyone.md) | Require a new password from everyone after a breach | identity | built |
@@ -176,6 +176,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-18](./identity/UC-ID-18-show-the-legal-information-before-sign-in.md) | Show the legal information people are owed before they sign in | identity | built |
 | [UC-ID-19](./identity/UC-ID-19-agree-to-the-terms.md) | Agree to the terms, and again when they change | identity | built |
 | [UC-ID-20](./identity/UC-ID-20-give-someone-an-account-without-an-address.md) | Give a family member an account without their own mail address | identity | partial |
+| [UC-ID-21](./identity/UC-ID-21-sign-in-with-a-passkey.md) | Sign in with a passkey | identity | specified |
+| [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity | specified |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin | verified |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin | built |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |
@@ -232,7 +234,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AUT-07](./automation/UC-AUT-07-keep-rules-from-running-away.md) | Keep rules from running away | automation | built |
 | [UC-AUT-08](./automation/UC-AUT-08-find-rules-that-need-attention-before-they-fail.md) | Find rules that need attention before they fail | automation | built |
 | [UC-AUT-09](./automation/UC-AUT-09-have-a-rule-tell-people.md) | Have a rule tell people something | automation | specified |
-| [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | partial |
+| [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | built |
 | [UC-INT-02](./integration/UC-INT-02-recover-deliveries-my-server-missed.md) | Recover the deliveries my server missed | integration | built |
 | [UC-INT-03](./integration/UC-INT-03-replace-a-webhook-secret-without-dropping-deliveries.md) | Replace a webhook secret without dropping deliveries | integration | built |
 | [UC-INT-04](./integration/UC-INT-04-poll-for-events-instead-of-receiving-them.md) | Poll for events instead of receiving them | integration | built |
@@ -265,9 +267,9 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | built |
 | [UC-BAK-05](./backup/UC-BAK-05-reset-the-workspace-to-a-backup.md) | Reset the whole workspace to an earlier backup | backup | built |
 | [UC-BAK-06](./backup/UC-BAK-06-get-one-thing-back-from-a-backup.md) | Get one lost collection or task back from a backup | backup | partial |
-| [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | partial |
+| [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | built |
 | [UC-BAK-08](./backup/UC-BAK-08-recover-the-whole-installation.md) | Recover the whole installation after losing the server | backup | partial |
-| [UC-PRV-01](./privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md) | Record a data subject request and answer it in time | privacy | partial |
+| [UC-PRV-01](./privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md) | Record a data subject request and answer it in time | privacy | built |
 | [UC-PRV-02](./privacy/UC-PRV-02-give-a-person-a-copy-of-their-data.md) | Give a person a copy of their data | privacy | built |
 | [UC-PRV-03](./privacy/UC-PRV-03-erase-a-person-on-request.md) | Erase a person on request | privacy | verified |
 | [UC-PRV-04](./privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md) | Restrict the processing of a person's data | privacy | partial |

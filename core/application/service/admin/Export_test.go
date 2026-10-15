@@ -156,3 +156,47 @@ func TestTheExportPayloadRoundTrips(t *testing.T) {
 		t.Error("an unreadable payload was accepted")
 	}
 }
+
+// exportTargetsFake answers the target check directly; which scopes it reads is the backup
+// context's ExportStoreOpener, tested against PostgreSQL.
+type exportTargetsFake struct {
+	refused error
+	asked   int
+}
+
+func (f *exportTargetsFake) Usable(context.Context, shared.ID, shared.ID) error {
+	f.asked++
+	return f.refused
+}
+
+// The target is checked when the export is accepted: an unknown or disabled one is the operator's
+// refusal now, not a job that fails later - and an unknown workspace stays the workspace's answer.
+func TestTheExportChecksItsTargetWhenAccepted(t *testing.T) {
+	for name, c := range map[string]struct {
+		refused error
+		code    string
+	}{
+		"unknown":  {shared.ErrNotFound.WithDetail("backup.target_not_found"), "backup.target_not_found"},
+		"disabled": {shared.ErrConflict.WithDetail("backup.target_disabled"), "backup.target_disabled"},
+	} {
+		f := newExportFixture(domain.TenantActive)
+		targets := &exportTargetsFake{refused: c.refused}
+		f.handler.Targets = targets
+		_, err := f.handler.Execute(t.Context(), operator(), exportCommand())
+		if code := shared.AsError(err); code == nil || code.DetailCode != c.code {
+			t.Errorf("%s: %v, want %s", name, err, c.code)
+		}
+		if len(f.jobs.requests) != 0 || len(f.audit.entries) != 0 {
+			t.Errorf("%s: a refused export queued a job or wrote the trail", name)
+		}
+	}
+
+	f := newExportFixture(domain.TenantActive)
+	targets := &exportTargetsFake{refused: shared.ErrNotFound.WithDetail("backup.target_not_found")}
+	f.handler.Targets = targets
+	f.tenants.findErr = shared.ErrNotFound
+	_, err := f.handler.Execute(t.Context(), operator(), exportCommand())
+	if code := shared.AsError(err); code == nil || code.DetailCode != "admin.tenant_not_found" || targets.asked != 0 {
+		t.Errorf("an unknown workspace answered %v after %d target checks", err, targets.asked)
+	}
+}

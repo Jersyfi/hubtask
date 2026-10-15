@@ -23,7 +23,8 @@ Decision records: [ADR-0005](../adr/ADR-0005-authn-authz.md),
 [ADR-0074](../adr/ADR-0074-managed-accounts.md),
 [ADR-0075](../adr/ADR-0075-step-up-with-what-the-account-holds.md),
 [ADR-0076](../adr/ADR-0076-withdrawing-an-offered-provider.md),
-[ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md), [ADR-0078](../adr/ADR-0078-the-ways-back-in.md).
+[ADR-0077](../adr/ADR-0077-nobody-is-locked-out.md), [ADR-0078](../adr/ADR-0078-the-ways-back-in.md),
+[ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md).
 
 ---
 
@@ -389,7 +390,18 @@ safeguard belongs to connecting, not to the provider kind.
 | Holds only another provider's identity | Refused, naming the way in it has (`identity_provider.link_needs_mailbox` where no mailbox proof is possible yet). |
 
 * **At a first, unauthenticated arrival the verified address must equal the account's**; another
-  address connects only from a signed-in session (§21 I-2).
+  address connects only from a signed-in session.
+* **From a signed-in session** (*Password and sign-in*, `POST /accounts/me/identities:connect` and
+  `:complete`, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1): a step-up of the account (§16),
+  then a fresh sign-in at a provider that is a way in here (`prompt=login`, `max_age=0`, `auth_time`
+  after the flow left), on a flow bound to that session and marked a connection - neither a sign-in
+  nor a step-up finishes it. The provider's address must be verified and need not be the account's;
+  admission is the member's own proof (`MayAdmitWithProof`, §10.4). Refused for an account without
+  an address (`identity_provider.connect_needs_address`, §4.1), for a provider the account is already
+  connected to (`identity_provider.already_connected`), and for an identity connected to another
+  account (`identity_provider.connection_taken`). Recorded as `identity.provider_linked` with the
+  proof `SESSION`, and told to the person (§6). `GET /accounts/me/identities` lists the connections:
+  provider and since when, never the subject.
 * **Once connected, an identity is found by issuer and subject only**; one bound to another subject
   is refused, never re-pointed.
 * `email_verified` alone activates and connects nothing.
@@ -611,10 +623,11 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
 such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
-(§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
-[backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's erasures carried out
-again after a point-in-time recovery.
+member of `PATCH /tenant` that asks), §13's new start password, connecting a provider from a
+session (§11), a private hub's emergency access (§22), and every write of §6 (bearer door), §8–§9,
+§10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's
+erasures carried out again after a point-in-time recovery, and configuring or removing one of the
+installation's own backup targets (backup-restore.md §2).
 
 ---
 
@@ -763,11 +776,12 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 
 | # | Point |
 |---|---|
-| I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
-| I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
+| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans, then custom domains, follow. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
+| I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
+| I-14 | Whether a provider's admission settings (§10.4) also bound which identities members may connect, not only who comes in new — the owner's to decide (decision #1511). |
 
 ---
 
@@ -859,3 +873,70 @@ neither the hub nor the person. The retention pass does the same for a hub a pat
 workspace's owners cannot restore it - they reach nothing in it; taking it over is the emergency
 access, letting it go is the purge. A person's grant on a hub or below takes the hub's row too, so a
 role given while the last member leaves is seen.
+
+---
+
+## 23. Passkeys and security keys
+
+**Decided for milestone PK, not built** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md);
+the owner, 2026-10-15). Until PK's tasks merge, §2, §8 and §16.1 describe what runs: one second
+factor, the authenticator app.
+
+### 23.1 One credential, two strengths
+
+A **passkey** and a **security key** are the same thing to the server: a WebAuthn credential, a
+public key the account holds. What it proves is read from each ceremony, not from what the person
+calls it:
+
+| The ceremony carries | It proves | It serves as |
+|---|---|---|
+| User verification (the UV flag: fingerprint, face, device PIN) | something held and something known or been | a way in on its own (`signed_in_with = PASSKEY`) that satisfies `mfa_required_for`; the second factor; a step-up |
+| User presence only (the UP flag: a key without a PIN) | something held | the second factor after the password, beside the code; a step-up |
+
+A credential that once answered with UV and later without is held to the ceremony in front of it.
+
+### 23.2 What an account holds
+
+| Rule | Detail |
+|---|---|
+| How many | At most one authenticator app (§8) and up to ten WebAuthn credentials; an eleventh is refused before the ceremony, and the profile does not offer it (P-05). |
+| What is stored | The credential id, the public key as COSE bytes, the sign counter, the backup flags, the transports, the person's name for it, when it was added and last used — in a table of its own under the tenant's row security (rule 3). The name is user content (rule 10). |
+| Recovery codes | The first factor of any kind answers ten recovery codes when the account holds none (§9); they back every factor. |
+| Holding a second factor | An account holds one when it has the authenticator app armed **or** at least one WebAuthn credential. `FactorRule` reads it that way, the `ENROLL` step offers both, and the last factor is not removable where the rule requires one. |
+| Who may hold one | People only; a service account holds tokens (§15.2). A managed account (§13) may hold passkeys; an issued start password leaves them as they are. |
+| Adding, renaming, removing | Adding and removing take a step-up (§16.3), are audited as `auth.passkey_added` and `auth.passkey_removed` without the name, and tell the person as every change to a way in does. Renaming takes the session alone. |
+
+### 23.3 The relying party
+
+| Rule | Detail |
+|---|---|
+| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). |
+| Origin | `https://` and that host (the configured public port where it is not 443); any other origin is refused. Neither the shells' webview origin nor a localhost origin outside development passes; the shells' path is F7's. |
+| Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
+| Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
+| Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
+| Discoverable | Registration asks for a resident key (`preferred`) and user verification (`preferred`); the user handle is an opaque random value per account, never the address. |
+| The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero. |
+
+### 23.4 Ways in and the steps
+
+* `PASSKEY` joins the workspace rule's `methods` (§4.1) as signing in **with a passkey alone**.
+  Switched off, a UV ceremony opens nothing; security keys still serve as the second factor and the
+  step-up, because the switch is about ways in, not about factors.
+* `PASSKEY` never counts as the last way in: the methods keep `PASSWORD` or `OIDC`, since nobody
+  registers a first passkey before signing in.
+* The migration that adds it puts `PASSKEY` into every stored method list that holds `PASSWORD`, and
+  into the product's default; a workspace that switched the password off chose its ways in and
+  switches passkeys on itself. Under an installation lock the workspace follows the lock (§18).
+* A passkey sign-in fails with the one refusal of §4.3 and counts in the attempt ledger; a
+  cancelled prompt is the client's and sends nothing.
+* The second-factor step and the reset's kept factor (ADR-0078) accept a security key or passkey
+  beside the code and a recovery code.
+* The step-up gains `PASSKEY` after `TOTP` in §16.1's order.
+
+### 23.5 What travels
+
+* A backup keeps the credentials, a tenant export strips them as it strips every credential, and an
+  erased account loses them with the account (`CASCADE`).
+* The data catalogue names the table, its personal data (the name, the last use) and its legal basis
+  in the task that creates it.

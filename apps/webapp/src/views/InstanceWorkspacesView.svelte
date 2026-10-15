@@ -29,12 +29,13 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, OneTimeSecret, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { AdminTenant, ProvisionedTenant, TenantQuotas } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { OWN_TARGET, exportTargetChoices } from '../lib/backup/targets.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -71,6 +72,8 @@
   // What a deletion must be told, and what an export and the quotas need.
   let confirmation = $state('');
   let targetId = $state('');
+  /** An installation target's identifier, or OWN_TARGET for one of the workspace's own, typed. */
+  let targetChoice = $state(OWN_TARGET);
   let quotas = $state<TenantQuotas>({});
   // What an opening of the password is told: how long, who asked and why.
   let hours = $state(String(OPENING_DEFAULT_HOURS));
@@ -80,7 +83,7 @@
   $effect(() => {
     // The instance level too, so the limits dialog can say what an empty field actually means:
     // "the installation's default" is not a helpful sentence without the number.
-    const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings()]);
+    const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
     return () => stops.forEach((stop) => stop());
   });
 
@@ -132,6 +135,7 @@
     failure = undefined;
     confirmation = '';
     targetId = '';
+    targetChoice = instance.targets.find((each) => each.enabled !== false)?.id ?? OWN_TARGET;
     quotas = {};
     hours = String(OPENING_DEFAULT_HOURS);
     requester = '';
@@ -540,7 +544,7 @@
       busyLabel={t('app.instance.working')}
       onclick={() =>
         void run('export', () =>
-          instance.exportWorkspace(acting?.tenant?.id ?? '', targetId.trim()),
+          instance.exportWorkspace(acting?.tenant?.id ?? '', targetChoice === OWN_TARGET ? targetId.trim() : targetChoice),
         )}
     >
       {t('app.instance.export_start')}
@@ -548,14 +552,28 @@
   {/snippet}
   <Stack gap="150">
     <p class="prose">{t('app.instance.export_intro')}</p>
-    <Input
+    <!-- The installation's targets by name only - where one points is the operator's targets
+         screen's, not this choice's - and a workspace's own target by its identifier. -->
+    <Select
       label={t('app.instance.export_target_label')}
       hint={t('app.instance.export_target_hint')}
-      bind:value={targetId}
-      autocomplete="off"
-      spellcheck={false}
-      isRequired
+      bind:value={targetChoice}
+      options={[
+        ...exportTargetChoices(instance.targets),
+        { value: OWN_TARGET, label: t('app.instance.export_target_own') },
+      ]}
     />
+    {#if targetChoice === OWN_TARGET}
+      <Input
+        label={t('app.instance.export_target_id_label')}
+        hint={t('app.instance.export_target_id_hint')}
+        bind:value={targetId}
+        error={failure?.fields.get('/target_id')}
+        autocomplete="off"
+        spellcheck={false}
+        isRequired
+      />
+    {/if}
   </Stack>
 </Dialog>
 

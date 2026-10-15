@@ -45,6 +45,8 @@
     keptPhrase,
     deadlineOfDay,
     deadlinePhrase,
+    earliestDeadline,
+    receiptOf,
     EXTENSION_REASONS,
     extensionPayload,
     extensionPhrase,
@@ -78,6 +80,7 @@
   let draftTarget = $state('');
   let draftNotes = $state('');
   let draftDueOn = $state('');
+  let draftReceivedOn = $state('');
 
   let rejecting = $state('');
   let rejectReason = $state('');
@@ -248,12 +251,14 @@
         ...(draftEmail.trim() ? { subject_email: draftEmail.trim() } : {}),
         ...(draftTarget ? { target_id: draftTarget } : {}),
         ...(draftNotes.trim() ? { notes: draftNotes.trim() } : {}),
+        ...receiptOf(draftReceivedOn, today()),
         ...(deadlineOfDay(draftDueOn, zone) ? { due_at: deadlineOfDay(draftDueOn, zone) } : {}),
       });
       draftEmail = '';
       draftAccount = '';
       draftNotes = '';
       draftDueOn = '';
+      draftReceivedOn = '';
     }, t('app.privacy.recorded_announced'));
   }
 
@@ -357,7 +362,9 @@
               {/if}
 
               <p class="quiet small">
-                {t('app.privacy.received', { at: when(request.received_at) ?? '' })}
+                {t('app.privacy.received', {
+                  at: request.received_on ? day(request.received_on) : (when(request.received_at) ?? ''),
+                })}
                 {#if request.handled_by}
                   · {t('app.privacy.handled_by', {
                     name: accounts.nameOf(request.handled_by) ?? t('app.people.unnamed'),
@@ -609,12 +616,21 @@
               options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
             />
           {/if}
+          <!-- The day the request arrived: the month counts from it, in the workspace's zone, and
+               it cannot be later than today there. -->
+          <Input
+            label={t('app.privacy.received_on')}
+            hint={t('app.privacy.received_on_hint')}
+            type="date"
+            max={today()}
+            bind:value={draftReceivedOn}
+          />
           <!-- Its own deadline, where the controller owes a sooner answer than the month. -->
           <Input
             label={t('app.privacy.deadline')}
             hint={t('app.privacy.deadline_hint')}
             type="date"
-            min={todayIn(zone)}
+            min={earliestDeadline(draftReceivedOn, today())}
             bind:value={draftDueOn}
           />
           <Textarea label={t('app.privacy.notes')} bind:value={draftNotes} rows={2} />

@@ -69,11 +69,14 @@ type WebhookSubscription struct {
 	// EventTypes are the types this subscription wants. Never empty: a subscription to nothing is
 	// a row that costs a delivery check per event and can never produce one.
 	EventTypes []event.Type
-	// Filter is a CEL expression narrowing the subscription further, and is always empty: a filter
-	// is refused (automation.md §3.1) rather than stored and ignored - a filter that is accepted
-	// and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter is a condition in the automation's expression language that an event must meet to be
+	// delivered, and empty for none (automation.md §3.1). Whether it compiles is checked where it
+	// is written - the domain holds no compiler - and the dispatcher evaluates it.
 	Filter string
-	State  SubscriptionState
+	// Scope is where the subscription listens: the whole workspace, one hub or one collection.
+	// Whether an event happened there is the dispatcher's question; this holds what was asked for.
+	Scope WebhookScope
+	State SubscriptionState
 	// FailureCount is the run of consecutive failed deliveries. The first success resets it, which
 	// is what makes it a measure of "is this target reachable now" rather than of history.
 	FailureCount int
@@ -100,6 +103,7 @@ type NewWebhookSubscriptionInput struct {
 	TargetURL  string
 	EventTypes []string
 	Filter     string
+	Scope      WebhookScope
 	CreatedBy  shared.ID
 	Now        time.Time
 }
@@ -118,13 +122,14 @@ func NewWebhookSubscription(in NewWebhookSubscriptionInput) (WebhookSubscription
 	if err != nil {
 		return WebhookSubscription{}, err
 	}
-	if err := RefuseFilter(in.Filter); err != nil {
+	scope, err := ValidWebhookScope(in.Scope)
+	if err != nil {
 		return WebhookSubscription{}, err
 	}
 
 	return WebhookSubscription{
 		ID: in.ID, TenantID: in.TenantID,
-		TargetURL: target, EventTypes: types,
+		TargetURL: target, EventTypes: types, Scope: scope, Filter: strings.TrimSpace(in.Filter),
 		State:     SubscriptionActive,
 		CreatedBy: in.CreatedBy, CreatedAt: in.Now.UTC(), Version: 1,
 	}, nil
@@ -204,19 +209,6 @@ func SubscribedTypes(requested []string) ([]event.Type, error) {
 	// listing reads the same way twice.
 	slices.Sort(types)
 	return types, nil
-}
-
-// RefuseFilter is the whole of the CEL field: a filter is refused (automation.md §3.1).
-//
-// Refused rather than stored and ignored: a field accepted and silently not honoured is worse than
-// one that is not offered, because the caller has been told their instruction was understood.
-func RefuseFilter(filter string) error {
-	if strings.TrimSpace(filter) == "" {
-		return nil
-	}
-	return shared.ErrValidation.
-		WithDetail("webhooks.filter_not_supported").
-		WithFields(shared.FieldError{Path: "/filter", Code: "webhooks.filter_not_supported"})
 }
 
 // Wants reports whether this subscription is to be told about an event of this type.

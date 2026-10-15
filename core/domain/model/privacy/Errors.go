@@ -15,10 +15,13 @@ import (
 // is rendered from `locales/en.json`, and a refusal an operator has to act on - "this case cannot
 // start without a mode" - has to say which field it is about.
 const (
-	CodeKindInvalid             = "privacy.kind_invalid"
-	CodeScopeInvalid            = "privacy.scope_invalid"
-	CodeSubjectRequired         = "privacy.subject_required"
-	CodeDeadlineInPast          = "privacy.deadline_in_past"
+	CodeKindInvalid     = "privacy.kind_invalid"
+	CodeScopeInvalid    = "privacy.scope_invalid"
+	CodeSubjectRequired = "privacy.subject_required"
+	// CodeReceivedInFuture is a day of receipt after today in the workspace's zone.
+	CodeReceivedInFuture = "privacy.received_in_future"
+	// CodeDeadlineBeforeReceipt is a stated deadline earlier than the day the request arrived.
+	CodeDeadlineBeforeReceipt   = "privacy.deadline_before_receipt"
 	CodeNotesTooLong            = "privacy.notes_too_long"
 	CodeReasonTooLong           = "privacy.reason_too_long"
 	CodeRejectionReasonRequired = "privacy.rejection_reason_required"

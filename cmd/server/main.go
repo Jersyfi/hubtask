@@ -410,6 +410,12 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Config: cfg, Text: forms,
 	}
+	// The workspace export's own opener (multi-tenancy.md §5): the workspace's target, or else one
+	// of the installation's. Only the export holds it - every other writer to a target keeps the
+	// tenant-only StoreOpener, so nothing a workspace starts reaches an installation target.
+	exportTargets := backupservice.ExportStoreOpener{StoreOpener: backupservice.StoreOpener{
+		Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor, UnitOfWork: unitOfWork,
+	}}
 	backupRunner := backupservice.Runner{
 		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -548,6 +554,9 @@ func run() error {
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
+		// The same engine and bounds the rules compile with: a subscription's condition is the
+		// automation's language (automation.md §3.1).
+		Compiler: celexpression.New(),
 	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
@@ -621,6 +630,8 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	containers := postgres.NewContainerRepository(cursors)
+	// A scope's hub or collection is checked against the workspace's containers when it is written.
+	webhookWriter.Containers = containers
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
 	// The item history. One repository for both halves of the port - the append every writer makes
@@ -1327,6 +1338,13 @@ func run() error {
 		Encryptor: encryptor, ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
+	// The installation's own backup targets (multi-tenancy.md §5): the backup context's validation,
+	// sealing and probe under the installation's scope and the operator's authorisation. The
+	// step-up is handed in once the sign-in rule is taught (stepUpVerifier, below).
+	instanceTargetWriter := adminservice.InstanceBackupTargetWriter{
+		Instance: instanceWriter, Targets: backupTargets, Backup: backupWriter,
+	}
+
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
 	// nil on a plain installation: the operator's file comes with the instance layer, and nothing
@@ -1372,20 +1390,22 @@ func run() error {
 	identityProviderWriter.StepUp = stepUpVerifier
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
+	instanceTargetWriter.StepUp = stepUpVerifier
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
 	if err := requirePasswordDoors(map[string]identity.SessionWriter{
-		"the sign-in path":                 sessionWriter,
-		"the reset's session writer":       passwordWriter.Session,
-		"the provider's session writer":    oidcWriter.Session,
-		"the step-up verifier":             stepUpVerifier.Writer,
-		"the password's step-up":           verifierWriter(passwordWriter.StepUp),
-		"the restore's step-up":            verifierWriter(backupRestorer.StepUp),
-		"the access token's step-up":       verifierWriter(accessTokenWriter.StepUp),
-		"the workspace's step-up":          verifierWriter(workspaceWriter.StepUp),
-		"the identity provider's step-up":  verifierWriter(identityProviderWriter.StepUp),
-		"the installation provider's step": verifierWriter(instanceProviderWriter.Configure.StepUp),
+		"the sign-in path":                  sessionWriter,
+		"the reset's session writer":        passwordWriter.Session,
+		"the provider's session writer":     oidcWriter.Session,
+		"the step-up verifier":              stepUpVerifier.Writer,
+		"the password's step-up":            verifierWriter(passwordWriter.StepUp),
+		"the restore's step-up":             verifierWriter(backupRestorer.StepUp),
+		"the access token's step-up":        verifierWriter(accessTokenWriter.StepUp),
+		"the workspace's step-up":           verifierWriter(workspaceWriter.StepUp),
+		"the identity provider's step-up":   verifierWriter(identityProviderWriter.StepUp),
+		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
+		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
 	}); err != nil {
 		return err
 	}
@@ -1627,6 +1647,10 @@ func run() error {
 		adminservice.ListInstanceAiProviders{Writer: instanceAiWriter}.Descriptor(),
 		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.ListInstanceBackupTargets{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.CreateInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.TestInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.DeleteInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
@@ -1686,6 +1710,12 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
+		// Connecting a provider from a signed-in session (ADR-0078 §1).
+		identity.StartProviderConnect{
+			Writer: oidcWriter, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+		}.Descriptor(),
+		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -2235,7 +2265,7 @@ func run() error {
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.ExportTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Quota: quotaGuard,
+			Tenants: postgres.NewAdminTenantRepository(), Targets: exportTargets, Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
@@ -2781,7 +2811,7 @@ func run() error {
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
-		Reach: authorizer,
+		Reach: authorizer, Containers: containers, Conditions: celexpression.New(),
 	}
 
 	dispatcher := eventbus.Dispatcher{
@@ -3285,10 +3315,7 @@ func run() error {
 		// export's reason: an archive streams to a target between reads.
 		queueport.KindTenantExport: worker.TenantExport{
 			Archivist: adminservice.TenantExportArchivist{
-				Targets: backupservice.StoreOpener{
-					Targets: backupTargets, Opener: backupAdapters,
-					Encryptor: encryptor, UnitOfWork: unitOfWork,
-				},
+				Targets: exportTargets,
 				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
 				Snapshot:      unitOfWork,

@@ -1333,3 +1333,37 @@ func (pending) OpenPrivateHub(
 func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// ListOwnIdentities is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListOwnIdentities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// StartProviderConnect is overridden by RestController, for the reason given at CreateContainer.
+func (pending) StartProviderConnect(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartProviderConnectParams,
+) {
+	notAvailable(w, r)
+}
+
+// CompleteProviderConnect is overridden by RestController, for the reason given at CreateContainer.
+func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The installation's own backup targets (backup-restore.md §2).
+func (pending) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateInstanceBackupTarget(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreateInstanceBackupTargetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteInstanceBackupTarget(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DeleteInstanceBackupTargetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

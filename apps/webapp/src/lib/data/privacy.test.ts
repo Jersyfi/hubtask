@@ -14,6 +14,8 @@ import {
   confirmsStart,
   deadlineOfDay,
   deadlinePhrase,
+  earliestDeadline,
+  receiptOf,
   extensionPayload,
   extensionPhrase,
   keptPartPhrase,
@@ -227,4 +229,18 @@ test('a deadline named as a day ends at the last second of that day in the works
   assert.equal(deadlineOfDay('2026-12-01', 'UTC'), '2026-12-01T23:59:59.000Z');
   assert.equal(deadlineOfDay('', 'UTC'), undefined);
   assert.equal(deadlineOfDay('1.12.2026', 'UTC'), undefined);
+});
+
+test('the day of receipt is sent only when named, and never after today', () => {
+  // UC-PRV-01 check 2: empty means today in the workspace's zone, which the server decides.
+  assert.deepEqual(receiptOf('', '2026-10-15'), {});
+  assert.deepEqual(receiptOf('2026-08-20', '2026-10-15'), { received_on: '2026-08-20' });
+  assert.deepEqual(receiptOf('2026-10-15', '2026-10-15'), { received_on: '2026-10-15' });
+  assert.deepEqual(receiptOf('2026-10-16', '2026-10-15'), {});
+  assert.deepEqual(receiptOf('20.08.2026', '2026-10-15'), {});
+});
+
+test('the earliest deadline offered is the day of receipt, today without one', () => {
+  assert.equal(earliestDeadline('2026-08-20', '2026-10-15'), '2026-08-20');
+  assert.equal(earliestDeadline('', '2026-10-15'), '2026-10-15');
 });

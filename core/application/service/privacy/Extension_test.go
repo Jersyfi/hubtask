@@ -77,7 +77,7 @@ func TestACaseIsExtendedOnceThroughTheRegistry(t *testing.T) {
 	if got := out["due_at"].(time.Time).Format(time.RFC3339); got != "2026-11-26T22:59:59Z" {
 		t.Errorf("the deadline is %s, want the end of 26 November in Berlin", got)
 	}
-	if got := out["original_due_at"].(time.Time).Format(time.RFC3339); got != "2026-09-25T10:00:00Z" {
+	if got := out["original_due_at"].(time.Time).Format(time.RFC3339); got != "2026-09-26T21:59:59Z" {
 		t.Errorf("the original deadline is %s", got)
 	}
 	if out.String("extension_reason") != "COMPLEXITY" || out.String("informed_on") != "2026-08-26" {
@@ -97,7 +97,7 @@ func TestACaseIsExtendedOnceThroughTheRegistry(t *testing.T) {
 		value, _ := entry.Changes[name].(map[string]any)
 		return value
 	}
-	if field("due_at")["from"] != "2026-09-25T10:00:00Z" || field("due_at")["to"] != "2026-11-26T22:59:59Z" ||
+	if field("due_at")["from"] != "2026-09-26T21:59:59Z" || field("due_at")["to"] != "2026-11-26T22:59:59Z" ||
 		field("extension_reason")["to"] != "COMPLEXITY" || field("informed_on")["to"] != "2026-08-26" {
 		t.Errorf("the entry records %v", entry.Changes)
 	}

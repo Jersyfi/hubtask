@@ -61,7 +61,7 @@ func (h SendWebhook) Execute(
 	ctx context.Context, actor appshared.ActorContext, subscriptionID, eventID shared.ID,
 ) (domain.WebhookDelivery, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookSentAction, subscriptionID); err != nil {
+	if err := w.authorizeSubscription(ctx, actor, WebhookSentAction, subscriptionID); err != nil {
 		return domain.WebhookDelivery{}, err
 	}
 

@@ -32,12 +32,12 @@ func day(t *testing.T, raw string) privacy.Day {
 	return parsed
 }
 
-// openCase is a case received at an instant, with the thirty days the default gives it.
+// openCase is a case received at an instant, with a deadline thirty days on.
 func openCase(received time.Time) privacy.Request {
 	return privacy.Request{
 		ID: requestID, Kind: privacy.KindAccess, Status: privacy.StatusReceived,
 		Scope: privacy.ScopeTenant, SubjectAccountID: subjectID,
-		ReceivedAt: received, DueAt: received.Add(privacy.DefaultDeadline),
+		ReceivedAt: received, DueAt: received.Add(30 * 24 * time.Hour),
 	}
 }
 
@@ -298,5 +298,26 @@ func TestADayIsReadOnlyInItsOneSpelling(t *testing.T) {
 	}
 	if parsed, err := privacy.ParseDay("2028-02-29"); err != nil || parsed.String() != "2028-02-29" {
 		t.Errorf("a leap day came back as %s (%v)", parsed, err)
+	}
+}
+
+// A stated day of receipt moves the extension's bound with it: three months from when the request
+// arrived, not from when it was recorded.
+func TestTheBoundCountsFromAStatedDayOfReceipt(t *testing.T) {
+	zone, err := time.LoadLocation("Europe/Berlin")
+	if err != nil {
+		t.Fatalf("loading the zone: %v", err)
+	}
+	request, err := privacy.NewRequest(privacy.NewRequestInput{
+		ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000e1"), Kind: privacy.KindAccess,
+		SubjectEmail: "anna@example.org", Zone: zone,
+		ReceivedOn: privacy.Day{Year: 2026, Month: time.July, Day: 31},
+		Now:        time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	if bound := request.LatestExtension(zone); bound.String() != "2026-10-31" {
+		t.Errorf("the bound is %s, want 2026-10-31", bound)
 	}
 }

@@ -87,8 +87,27 @@ func backupTarget(ctx context.Context, cli *CLI, args []string) error {
 }
 
 func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "backup target", "add",
-		"--name <name> --kind LOCAL|S3|SFTP|… --config <k=v,…> [--unencrypted] [--insecure-acknowledged]")
+	create, err := targetCreateFrom(cli, "backup target", args)
+	if err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var target openapi.BackupTarget
+	if err := client.Post(ctx, backupTargetsPath, create, &target); err != nil {
+		return err
+	}
+	return cli.Emit(target, targetTable([]openapi.BackupTarget{target}))
+}
+
+// targetAddUsage is the flags a target's creation takes, for a workspace's and the installation's.
+const targetAddUsage = "--name <name> --kind LOCAL|S3|SFTP|… --config <k=v,…> [--unencrypted] [--insecure-acknowledged]"
+
+// targetCreateFrom reads a target's creation from the flags - one reading for both nouns.
+func targetCreateFrom(cli *CLI, noun string, args []string) (openapi.BackupTargetCreate, error) {
+	flags := commandFlags(cli, noun, "add", targetAddUsage)
 	name := flags.String("name", "", "what to call it")
 	kind := flags.String("kind", "", "LOCAL, S3, SFTP, FTPS, FTP, WEBDAV, SMB, AZURE_BLOB, GCS, RCLONE or HTTP_PUT")
 	config := flags.String("config", "", "where it points, as k=v pairs: path=daily or bucket=hubtask,region=eu-central-1")
@@ -97,19 +116,19 @@ func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
 	unencrypted := flags.Bool("unencrypted", false, "write the archives in clear (refused without --insecure-acknowledged)")
 	acknowledged := flags.Bool("insecure-acknowledged", false, "yes, this target is unencrypted or a plaintext protocol")
 	if err := parseCommand(flags, args); err != nil {
-		return err
+		return openapi.BackupTargetCreate{}, err
 	}
 	if *name == "" || *kind == "" {
-		return usagef("backup target add needs --name and --kind")
+		return openapi.BackupTargetCreate{}, usagef("%s add needs --name and --kind", noun)
 	}
 
 	settings, err := pairs("--config", *config)
 	if err != nil {
-		return err
+		return openapi.BackupTargetCreate{}, err
 	}
 	secrets, err := pairs("--credentials", *credentials)
 	if err != nil {
-		return err
+		return openapi.BackupTargetCreate{}, err
 	}
 
 	create := openapi.BackupTargetCreate{
@@ -133,16 +152,7 @@ func backupTargetAdd(ctx context.Context, cli *CLI, args []string) error {
 		mode = openapi.BackupTargetCreateEncryptionModeNONE
 	}
 	create.EncryptionMode = &mode
-
-	client, err := cli.client()
-	if err != nil {
-		return err
-	}
-	var target openapi.BackupTarget
-	if err := client.Post(ctx, backupTargetsPath, create, &target); err != nil {
-		return err
-	}
-	return cli.Emit(target, targetTable([]openapi.BackupTarget{target}))
+	return create, nil
 }
 
 func backupTargetList(ctx context.Context, cli *CLI, args []string) error {
@@ -185,7 +195,11 @@ func backupTargetTest(ctx context.Context, cli *CLI, args []string) error {
 	if err := client.Post(ctx, backupTargetsPath+"/"+targetID.String()+":test", nil, &probe); err != nil {
 		return err
 	}
+	return emitProbe(cli, targetID.String(), probe)
+}
 
+// emitProbe prints a probe, and fails the command when the target did not answer it.
+func emitProbe(cli *CLI, targetID string, probe openapi.BackupTargetProbe) error {
 	if err := cli.Emit(probe, Table{
 		Columns: []string{"ok", "writable", "latency", "free", "error"},
 		Rows: [][]string{{

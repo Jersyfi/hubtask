@@ -364,6 +364,7 @@ export const INSTANCE: readonly SectionGroup[] = [
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
+      { id: 'targets', icon: 'cloud-upload', code: 'app.instance.targets', path: '/instance/backup-targets', routes: ['instance-targets'] },
       { id: 'encryption', icon: 'lock', code: 'app.instance.encryption', path: '/instance/encryption', routes: ['instance-encryption'] },
     ],
   },

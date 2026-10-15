@@ -874,6 +874,26 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The installation's own backup targets */
+  listInstanceBackupTargets(options: CallOptions = {}): Promise<operations["listInstanceBackupTargets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/backup-targets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Configure a backup target of the installation */
+  createInstanceBackupTarget(body: NonNullable<operations["createInstanceBackupTarget"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["createInstanceBackupTarget"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/backup-targets", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a backup target of the installation */
+  deleteInstanceBackupTarget(targetId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/admin/backup-targets/{targetId}", { "targetId": targetId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Test the connection to a target of the installation */
+  testInstanceBackupTarget(targetId: string, options: CallOptions = {}): Promise<operations["testInstanceBackupTarget"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/backup-targets/{targetId}:test", { "targetId": targetId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What this installation has decided for every workspace on it */
   readInstanceSettings(options: CallOptions = {}): Promise<operations["readInstanceSettings"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1002,6 +1022,21 @@ export class HubtaskClient {
   /** Open a private hub through the emergency access */
   openPrivateHub(hubId: string, body: NonNullable<operations["openPrivateHub"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["openPrivateHub"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/private-hubs/{hubId}/accesses", { "hubId": hubId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The sign-in providers the caller's account is connected to */
+  listOwnIdentities(options: CallOptions = {}): Promise<operations["listOwnIdentities"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/identities", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin connecting a sign-in provider to the caller's account */
+  startProviderConnect(body: NonNullable<operations["startProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startProviderConnect"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/identities:connect", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a sign-in provider to the caller's account */
+  completeProviderConnect(body: NonNullable<operations["completeProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeProviderConnect"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/identities:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** The emergency accesses the caller was told of in the last 30 days */

@@ -4061,10 +4061,11 @@ func (e ViewExportFormat) Valid() bool {
 
 // Defines values for WebhookDeliveryStatus.
 const (
-	WebhookDeliveryStatusDEADLETTER WebhookDeliveryStatus = "DEAD_LETTER"
-	WebhookDeliveryStatusFAILED     WebhookDeliveryStatus = "FAILED"
-	WebhookDeliveryStatusPENDING    WebhookDeliveryStatus = "PENDING"
-	WebhookDeliveryStatusSUCCEEDED  WebhookDeliveryStatus = "SUCCEEDED"
+	WebhookDeliveryStatusDEADLETTER   WebhookDeliveryStatus = "DEAD_LETTER"
+	WebhookDeliveryStatusFAILED       WebhookDeliveryStatus = "FAILED"
+	WebhookDeliveryStatusFILTERFAILED WebhookDeliveryStatus = "FILTER_FAILED"
+	WebhookDeliveryStatusPENDING      WebhookDeliveryStatus = "PENDING"
+	WebhookDeliveryStatusSUCCEEDED    WebhookDeliveryStatus = "SUCCEEDED"
 )
 
 // Valid indicates whether the value is a known member of the WebhookDeliveryStatus enum.
@@ -4074,9 +4075,32 @@ func (e WebhookDeliveryStatus) Valid() bool {
 		return true
 	case WebhookDeliveryStatusFAILED:
 		return true
+	case WebhookDeliveryStatusFILTERFAILED:
+		return true
 	case WebhookDeliveryStatusPENDING:
 		return true
 	case WebhookDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookScopeType.
+const (
+	WebhookScopeTypeCOLLECTION WebhookScopeType = "COLLECTION"
+	WebhookScopeTypeHUB        WebhookScopeType = "HUB"
+	WebhookScopeTypeTENANT     WebhookScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the WebhookScopeType enum.
+func (e WebhookScopeType) Valid() bool {
+	switch e {
+	case WebhookScopeTypeCOLLECTION:
+		return true
+	case WebhookScopeTypeHUB:
+		return true
+	case WebhookScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -4301,10 +4325,11 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
-	ListWebhookDeliveriesParamsStatusDEADLETTER ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
-	ListWebhookDeliveriesParamsStatusFAILED     ListWebhookDeliveriesParamsStatus = "FAILED"
-	ListWebhookDeliveriesParamsStatusPENDING    ListWebhookDeliveriesParamsStatus = "PENDING"
-	ListWebhookDeliveriesParamsStatusSUCCEEDED  ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
+	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
+	ListWebhookDeliveriesParamsStatusFAILED       ListWebhookDeliveriesParamsStatus = "FAILED"
+	ListWebhookDeliveriesParamsStatusFILTERFAILED ListWebhookDeliveriesParamsStatus = "FILTER_FAILED"
+	ListWebhookDeliveriesParamsStatusPENDING      ListWebhookDeliveriesParamsStatus = "PENDING"
+	ListWebhookDeliveriesParamsStatusSUCCEEDED    ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
 )
 
 // Valid indicates whether the value is a known member of the ListWebhookDeliveriesParamsStatus enum.
@@ -4313,6 +4338,8 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	case ListWebhookDeliveriesParamsStatusDEADLETTER:
 		return true
 	case ListWebhookDeliveriesParamsStatusFAILED:
+		return true
+	case ListWebhookDeliveriesParamsStatusFILTERFAILED:
 		return true
 	case ListWebhookDeliveriesParamsStatusPENDING:
 		return true
@@ -5656,6 +5683,16 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConnectedIdentity One provider identity connected to the caller's account.
+type ConnectedIdentity struct {
+	// LinkedAt When the identity was connected.
+	LinkedAt   time.Time          `json:"linked_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
+}
+
 // ConsentGrant defines model for ConsentGrant.
 type ConsentGrant struct {
 	// AccountId Whose consent - only ever the caller's own.
@@ -5856,7 +5893,7 @@ type CustomFieldValue struct {
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
-	// DueAt The deadline in force. Thirty days from receipt unless the caller named another, and the extended deadline once the case was extended.
+	// DueAt The deadline in force. One calendar month from the day of receipt, to the end of that day in the workspace's time zone, unless the caller named another; the extended deadline once the case was extended.
 	DueAt time.Time `json:"due_at"`
 
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
@@ -5894,9 +5931,14 @@ type DataSubjectRequest struct {
 	Notes *string                `json:"notes,omitempty"`
 
 	// OriginalDueAt The deadline before the extension, present once the case was extended.
-	OriginalDueAt   *time.Time `json:"original_due_at,omitempty"`
-	ReceivedAt      time.Time  `json:"received_at"`
-	RejectionReason *string    `json:"rejection_reason,omitempty"`
+	OriginalDueAt *time.Time `json:"original_due_at,omitempty"`
+
+	// ReceivedAt When the request was received: the moment it was recorded for one received that day, the start of the day of receipt for one received earlier.
+	ReceivedAt time.Time `json:"received_at"`
+
+	// ReceivedOn The day the request was received, in the workspace's time zone.
+	ReceivedOn      *openapi_types.Date `json:"received_on,omitempty"`
+	RejectionReason *string             `json:"rejection_reason,omitempty"`
 
 	// ResultArchive Where the export was written at the backup target, once an access or portability case has produced one.
 	ResultArchive  *string             `json:"result_archive,omitempty"`
@@ -5924,7 +5966,7 @@ type DataSubjectRequestKeptLegalBasis string
 
 // DataSubjectRequestCreate defines model for DataSubjectRequestCreate.
 type DataSubjectRequestCreate struct {
-	// DueAt The deadline, when it is not thirty days from receipt.
+	// DueAt The deadline, when it is not one calendar month from the day of receipt. One that has already passed is recorded, and the case is overdue; one before the day of receipt is refused.
 	DueAt *time.Time `json:"due_at,omitempty"`
 
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
@@ -5932,6 +5974,9 @@ type DataSubjectRequestCreate struct {
 	// responsibility either way.
 	Kind  DataSubjectRequestKind `json:"kind"`
 	Notes *string                `json:"notes,omitempty"`
+
+	// ReceivedOn The day the request reached the controller, in the workspace's time zone. Today when absent; a later day is refused.
+	ReceivedOn *openapi_types.Date `json:"received_on,omitempty"`
 
 	// Scope How far the case reaches. `TENANT` is this workspace, which is what a controller answering
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in
@@ -8011,6 +8056,32 @@ type ProcessingState struct {
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
 
+// ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.
+type ProviderConnectAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt    time.Time          `json:"expires_at"`
+	ProviderId   openapi_types.UUID `json:"provider_id"`
+	ProviderName string             `json:"provider_name"`
+}
+
+// ProviderConnectReturn defines model for ProviderConnectReturn.
+type ProviderConnectReturn struct {
+	// AuthorizationCode The code the provider issued.
+	AuthorizationCode string `json:"authorization_code"`
+
+	// State The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+	State string `json:"state"`
+}
+
+// ProviderConnectStart defines model for ProviderConnectStart.
+type ProviderConnectStart struct {
+	// ProviderId Which provider to connect, from `GET /auth/sign-in-rules`.
+	ProviderId openapi_types.UUID `json:"provider_id"`
+}
+
 // ProviderOffer defines model for ProviderOffer.
 type ProviderOffer struct {
 	// Offered Whether this provider is a way into this workspace.
@@ -9494,7 +9565,7 @@ type TenantDeletionScheduled struct {
 
 // TenantExportRequest defines model for TenantExportRequest.
 type TenantExportRequest struct {
-	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one.
+	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one (`/admin/backup-targets`). It is checked when the export is accepted: an unknown target answers `backup.target_not_found`, a disabled one `backup.target_disabled`.
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
@@ -9687,12 +9758,14 @@ type WebhookDelivery struct {
 	NextAttemptAt *time.Time `json:"next_attempt_at,omitempty"`
 
 	// ResponseStatus What the target answered, where it answered at all.
-	ResponseStatus *int                  `json:"response_status,omitempty"`
+	ResponseStatus *int `json:"response_status,omitempty"`
+
+	// Status `FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it was not sent, `error_code` says why, and it cannot be replayed.
 	Status         WebhookDeliveryStatus `json:"status"`
 	SubscriptionId openapi_types.UUID    `json:"subscription_id"`
 }
 
-// WebhookDeliveryStatus defines model for WebhookDelivery.Status.
+// WebhookDeliveryStatus `FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it was not sent, `error_code` says why, and it cannot be replayed.
 type WebhookDeliveryStatus string
 
 // WebhookDeliveryPage defines model for WebhookDeliveryPage.
@@ -9700,6 +9773,16 @@ type WebhookDeliveryPage struct {
 	Data []WebhookDelivery `json:"data"`
 	Page PageInfo          `json:"page"`
 }
+
+// WebhookScope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+type WebhookScope struct {
+	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Type WebhookScopeType    `json:"type"`
+}
+
+// WebhookScopeType defines model for WebhookScope.Type.
+type WebhookScopeType string
 
 // WebhookSecretRotation defines model for WebhookSecretRotation.
 type WebhookSecretRotation struct {
@@ -9723,12 +9806,15 @@ type WebhookSubscription struct {
 	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
 	FailureCount int `json:"failure_count"`
 
-	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
 	Filter *string            `json:"filter,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
 	State WebhookSubscriptionState `json:"state"`
@@ -9745,9 +9831,12 @@ type WebhookSubscriptionState string
 type WebhookSubscriptionCreate struct {
 	EventTypes []string `json:"event_types"`
 
-	// Filter Refused until the expression engine lands.
-	Filter    *string `json:"filter,omitempty"`
-	TargetUrl string  `json:"target_url"`
+	// Filter The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none.
+	Filter *string `json:"filter,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope     *WebhookScope `json:"scope,omitempty"`
+	TargetUrl string        `json:"target_url"`
 }
 
 // WebhookSubscriptionSecret defines model for WebhookSubscriptionSecret.
@@ -9760,12 +9849,15 @@ type WebhookSubscriptionSecret struct {
 	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
 	FailureCount int `json:"failure_count"`
 
-	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
 	Filter *string            `json:"filter,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again.
 	Secret string `json:"secret"`
@@ -9784,7 +9876,12 @@ type WebhookSubscriptionSecretState string
 // WebhookSubscriptionUpdate Every field optional; an omitted one is left alone.
 type WebhookSubscriptionUpdate struct {
 	EventTypes *[]string `json:"event_types,omitempty"`
-	Filter     *string   `json:"filter,omitempty"`
+
+	// Filter The new condition. An empty string removes it; omitted leaves it alone.
+	Filter *string `json:"filter,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// State `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
 	State     *WebhookSubscriptionUpdateState `json:"state,omitempty"`
@@ -10144,6 +10241,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// StartProviderConnectParams defines parameters for StartProviderConnect.
+type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -10166,6 +10269,18 @@ type CreateManagedAccountParams struct {
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
+type CreateInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// DeleteInstanceBackupTargetParams defines parameters for DeleteInstanceBackupTarget.
+type DeleteInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
@@ -11228,6 +11343,12 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
+type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
+
+// StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
+type StartProviderConnectJSONRequestBody = ProviderConnectStart
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11251,6 +11372,9 @@ type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
 // ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
 type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
+
+// CreateInstanceBackupTargetJSONRequestBody defines body for CreateInstanceBackupTarget for application/json ContentType.
+type CreateInstanceBackupTargetJSONRequestBody = BackupTargetCreate
 
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
@@ -11656,6 +11780,15 @@ type ServerInterface interface {
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
+	// ListOwnIdentities The sign-in providers the caller's account is connected to
+	// (GET /accounts/me/identities)
+	ListOwnIdentities(w http.ResponseWriter, r *http.Request)
+	// CompleteProviderConnect Finish connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:complete)
+	CompleteProviderConnect(w http.ResponseWriter, r *http.Request)
+	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:connect)
+	StartProviderConnect(w http.ResponseWriter, r *http.Request, params StartProviderConnectParams)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11698,6 +11831,18 @@ type ServerInterface interface {
 	// ConfigureInstanceAiProvider Change an offered AI model
 	// (PUT /admin/ai-providers/{providerId})
 	ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ListInstanceBackupTargets The installation's own backup targets
+	// (GET /admin/backup-targets)
+	ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request)
+	// CreateInstanceBackupTarget Configure a backup target of the installation
+	// (POST /admin/backup-targets)
+	CreateInstanceBackupTarget(w http.ResponseWriter, r *http.Request, params CreateInstanceBackupTargetParams)
+	// DeleteInstanceBackupTarget Remove a backup target of the installation
+	// (DELETE /admin/backup-targets/{targetId})
+	DeleteInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID, params DeleteInstanceBackupTargetParams)
+	// TestInstanceBackupTarget Test the connection to a target of the installation
+	// (POST /admin/backup-targets/{targetId}:test)
+	TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID)
 	// ReadEncryptionStatus The keyring, and what still names each key
 	// (GET /admin/encryption)
 	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
@@ -12610,6 +12755,75 @@ func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListOwnIdentities operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnIdentities(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnIdentities(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteProviderConnect(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) StartProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartProviderConnectParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartProviderConnect(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAccount operation middleware
 func (siw *ServerInterfaceWrapper) GetAccount(w http.ResponseWriter, r *http.Request) {
 
@@ -13037,6 +13251,137 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceAiProvider(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureInstanceAiProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceBackupTargets operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceBackupTargets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateInstanceBackupTargetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceBackupTarget(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteInstanceBackupTargetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteInstanceBackupTarget(w, r, targetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestInstanceBackupTarget(w, r, targetId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23665,6 +24010,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:replace-legal-holds", wrapper.ReplaceLegalHolds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:reapply-erasures", wrapper.ReapplyErasures)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/backup-targets", wrapper.ListInstanceBackupTargets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets", wrapper.CreateInstanceBackupTarget)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/backup-targets/{targetId}", wrapper.DeleteInstanceBackupTarget)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets/{targetId}:test", wrapper.TestInstanceBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
@@ -23691,6 +24040,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/identities", wrapper.ListOwnIdentities)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:connect", wrapper.StartProviderConnect)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:complete", wrapper.CompleteProviderConnect)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)

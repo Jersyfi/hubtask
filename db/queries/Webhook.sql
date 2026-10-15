@@ -10,12 +10,13 @@
 
 -- name: InsertWebhookSubscription :exec
 INSERT INTO webhook_subscription (
-  id, tenant_id, target_url, event_types, filter_expr,
+  id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
   secret_enc, secret_key_id, state, created_by, created_at, version
 )
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('target_url'), sqlc.arg('event_types'),
-  sqlc.narg('filter_expr'), sqlc.arg('secret_enc'), sqlc.narg('secret_key_id'),
+  sqlc.narg('filter_expr'), sqlc.narg('scope_type'), sqlc.narg('scope_id'),
+  sqlc.arg('secret_enc'), sqlc.narg('secret_key_id'),
   sqlc.arg('state'), sqlc.arg('created_by'), sqlc.arg('created_at'), 1
 );
 
@@ -23,7 +24,8 @@ VALUES (
 -- The tenant travels with the aggregate rather than being left to row level security to imply: an
 -- audit entry is written under the subscription's tenant, and a subscription read back without one
 -- is a subscription no auditable operation can be performed on.
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -33,7 +35,8 @@ WHERE id = sqlc.arg('id');
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the creation order.
 -- Not paged - a workspace has a handful of integrations, and a cursor over a handful is machinery
 -- nobody reads.
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -45,7 +48,8 @@ ORDER BY id DESC;
 -- Filtered in the database rather than in the process, because the alternative is reading every
 -- subscription of the tenant on every event. The array containment is what the whole shape of
 -- `event_types` is for.
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -59,6 +63,8 @@ UPDATE webhook_subscription SET
   target_url  = sqlc.arg('target_url'),
   event_types = sqlc.arg('event_types'),
   filter_expr = sqlc.narg('filter_expr'),
+  scope_type  = sqlc.narg('scope_type'),
+  scope_id    = sqlc.narg('scope_id'),
   state       = sqlc.arg('state'),
   failure_count = sqlc.arg('failure_count'),
   last_error  = sqlc.narg('last_error'),
@@ -83,7 +89,8 @@ WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 -- The rows a re-seal visits (ADR-0045): a subscription whose current or previous secret names a
 -- key other than the current one. Both, because a grace that outlives a rotation is still a
 -- secret the verifier has to open.
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -111,13 +118,13 @@ DELETE FROM webhook_subscription WHERE id = sqlc.arg('id');
 
 -- name: InsertWebhookDelivery :exec
 INSERT INTO webhook_delivery (
-  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at,
-  push_id, subject, event_type
+  id, tenant_id, subscription_id, event_id, attempt, status, error_code, next_attempt_at,
+  created_at, push_id, subject, event_type
 )
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('subscription_id'), sqlc.arg('event_id'),
-  sqlc.arg('attempt'), sqlc.arg('status'), sqlc.narg('next_attempt_at'), sqlc.arg('created_at'),
-  sqlc.narg('push_id'), sqlc.narg('subject'), sqlc.narg('event_type')
+  sqlc.arg('attempt'), sqlc.arg('status'), sqlc.narg('error_code'), sqlc.narg('next_attempt_at'),
+  sqlc.arg('created_at'), sqlc.narg('push_id'), sqlc.narg('subject'), sqlc.narg('event_type')
 );
 
 -- name: FindPendingDeliveryOfPush :one

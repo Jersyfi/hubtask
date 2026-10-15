@@ -1810,7 +1810,8 @@
                 "PENDING",
                 "SUCCEEDED",
                 "FAILED",
-                "DEAD_LETTER"
+                "DEAD_LETTER",
+                "FILTER_FAILED"
               ]
             }
           }
@@ -5730,6 +5731,142 @@
         }
       }
     },
+    "/admin/backup-targets": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listInstanceBackupTargets",
+        "summary": "The installation's own backup targets",
+        "description": "Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.\n",
+        "responses": {
+          "200": {
+            "description": "The installation's targets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackupTarget"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "createInstanceBackupTarget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "summary": "Configure a backup target of the installation",
+        "description": "The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupTargetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupTarget"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/backup-targets/{targetId}": {
+      "parameters": [
+        {
+          "name": "targetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "deleteInstanceBackupTarget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "summary": "Remove a backup target of the installation",
+        "description": "Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.\n",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/backup-targets/{targetId}:test": {
+      "parameters": [
+        {
+          "name": "targetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "testInstanceBackupTarget",
+        "summary": "Test the connection to a target of the installation",
+        "description": "A write/read/delete probe, through the GuardedClient as every target's.",
+        "responses": {
+          "200": {
+            "description": "The result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupTargetProbe"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/settings": {
       "get": {
         "tags": [
@@ -6528,6 +6665,109 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PrivateHubAccess"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/identities": {
+      "get": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "listOwnIdentities",
+        "summary": "The sign-in providers the caller's account is connected to",
+        "description": "Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.\n",
+        "responses": {
+          "200": {
+            "description": "The connections, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectedIdentity"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/identities:connect": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "startProviderConnect",
+        "summary": "Begin connecting a sign-in provider to the caller's account",
+        "description": "The first of two calls that connect a provider identity to the account the caller is signed\nin as - also one whose address differs from the account's. Asks a fresh proof of the account\nfirst (`auth.step_up_required` otherwise), then answers an authorization request at the\nchosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's\nsession: its `state` finishes this connection at `POST /accounts/me/identities:complete` and\nnothing else - neither a sign-in nor a step-up takes it.\n\nThe provider must be a way in for this workspace. Refused with\n`identity_provider.already_connected` where the account already holds an identity at it,\nwith `identity_provider.connect_needs_address` for an account without an address, and with\n`auth.step_up_session_required` for a caller without a session.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderConnectStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Where to send the browser",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderConnectAuthorization"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/identities:complete": {
+      "post": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "completeProviderConnect",
+        "summary": "Finish connecting a sign-in provider to the caller's account",
+        "description": "The second call: the `state` and `authorization_code` the provider sent the browser back\nwith. The provider's sign-in must be fresh - after the connection began - and its address\nverified; it need not be the account's. An identity connected to another account here is\nrefused with `identity_provider.connection_taken`, a sign-in that is not fresh with\n`identity_provider.connection_not_fresh`. On success the connection is recorded and the person\nis told by mail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderConnectReturn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The connection now standing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedIdentity"
                 }
               }
             }
@@ -16705,7 +16945,7 @@
           "target_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The configured backup target the archive is written to - the one discipline for \"bytes leave the installation\". The target must belong to the workspace being exported, or be an installation-wide one.\n"
+            "description": "The configured backup target the archive is written to - the one discipline for \"bytes leave the installation\". The target must belong to the workspace being exported, or be an installation-wide one (`/admin/backup-targets`). It is checked when the export is accepted: an unknown target answers `backup.target_not_found`, a disabled one `backup.target_disabled`.\n"
           }
         }
       },
@@ -17136,6 +17376,91 @@
             ],
             "maxLength": 4096,
             "description": "The code the provider issued. Presented together with `state`."
+          }
+        }
+      },
+      "ConnectedIdentity": {
+        "type": "object",
+        "description": "One provider identity connected to the caller's account.",
+        "required": [
+          "provider_id",
+          "provider_name",
+          "linked_at"
+        ],
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_name": {
+            "type": "string",
+            "description": "The provider's name, as the sign-in button shows it."
+          },
+          "linked_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the identity was connected."
+          }
+        }
+      },
+      "ProviderConnectStart": {
+        "type": "object",
+        "required": [
+          "provider_id"
+        ],
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Which provider to connect, from `GET /auth/sign-in-rules`."
+          }
+        }
+      },
+      "ProviderConnectAuthorization": {
+        "type": "object",
+        "description": "Where to send the browser to connect a provider, and which provider that is.",
+        "required": [
+          "authorization_url",
+          "expires_at",
+          "provider_id",
+          "provider_name"
+        ],
+        "properties": {
+          "authorization_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.\n"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the flow stops being answerable."
+          },
+          "provider_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "provider_name": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderConnectReturn": {
+        "type": "object",
+        "required": [
+          "state",
+          "authorization_code"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "maxLength": 512,
+            "description": "The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it."
+          },
+          "authorization_code": {
+            "type": "string",
+            "maxLength": 4096,
+            "description": "The code the provider issued."
           }
         }
       },
@@ -18153,7 +18478,10 @@
               "string",
               "null"
             ],
-            "description": "A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.\n"
+            "description": "A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.\n"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/WebhookScope"
           },
           "state": {
             "type": "string",
@@ -18208,7 +18536,10 @@
               "string",
               "null"
             ],
-            "description": "Refused until the expression engine lands."
+            "description": "The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/WebhookScope"
           }
         }
       },
@@ -18238,7 +18569,11 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "The new condition. An empty string removes it; omitted leaves it alone."
+          },
+          "scope": {
+            "$ref": "#/components/schemas/WebhookScope"
           },
           "state": {
             "type": [
@@ -18251,6 +18586,28 @@
               null
             ],
             "description": "`DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.\n"
+          }
+        }
+      },
+      "WebhookScope": {
+        "type": "object",
+        "description": "Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.\n",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "HUB",
+              "COLLECTION"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub or the collection. Absent for `TENANT`, and required for the others."
           }
         }
       },
@@ -18388,8 +18745,10 @@
               "PENDING",
               "SUCCEEDED",
               "FAILED",
-              "DEAD_LETTER"
-            ]
+              "DEAD_LETTER",
+              "FILTER_FAILED"
+            ],
+            "description": "`FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it was not sent, `error_code` says why, and it cannot be replayed.\n"
           },
           "response_status": {
             "type": [
@@ -21680,12 +22039,18 @@
           },
           "received_at": {
             "type": "string",
-            "format": "date-time"
+            "format": "date-time",
+            "description": "When the request was received: the moment it was recorded for one received that day, the start of the day of receipt for one received earlier.\n"
+          },
+          "received_on": {
+            "type": "string",
+            "format": "date",
+            "description": "The day the request was received, in the workspace's time zone."
           },
           "due_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The deadline in force. Thirty days from receipt unless the caller named another, and the extended deadline once the case was extended.\n"
+            "description": "The deadline in force. One calendar month from the day of receipt, to the end of that day in the workspace's time zone, unless the caller named another; the extended deadline once the case was extended.\n"
           },
           "original_due_at": {
             "type": [
@@ -21896,10 +22261,15 @@
             "type": "string",
             "format": "email"
           },
+          "received_on": {
+            "type": "string",
+            "format": "date",
+            "description": "The day the request reached the controller, in the workspace's time zone. Today when absent; a later day is refused.\n"
+          },
           "due_at": {
             "type": "string",
             "format": "date-time",
-            "description": "The deadline, when it is not thirty days from receipt."
+            "description": "The deadline, when it is not one calendar month from the day of receipt. One that has already passed is recorded, and the case is overdue; one before the day of receipt is refused.\n"
           },
           "notes": {
             "type": "string"

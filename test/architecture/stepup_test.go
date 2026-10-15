@@ -27,6 +27,7 @@ var privilegedUseCases = map[string]string{
 	"OpenPrivateHub":                           "it opens a hub nobody else reaches, a fresh proof and a reason (ADR-0073 §4)",
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
+	"StartProviderConnect":                     "a provider connected from a session is a new way into the account (identity.md §11)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",
 	"UpdateGroup":                              "changing who is in a group holding OWNER places or takes the OWNER role",
 	"DeleteGroup":                              "deleting a group holding OWNER takes the OWNER role",
@@ -38,6 +39,8 @@ var privilegedUseCases = map[string]string{
 	"StartAuthenticatorReplacement":            "replacing the second factor is the same power as removing it (identity.md §8)",
 	"WithdrawInstanceIdentityProvider":         "ends a way in every workspace is offered; Withdraw now is the answer to a compromised provider (ADR-0076 §3)",
 	"CancelInstanceIdentityProviderWithdrawal": "offers a way in to every workspace again (ADR-0076 §2)",
+	"CreateInstanceBackupTarget":               "a storage credential every workspace's export may be written with (backup-restore.md §2)",
+	"DeleteInstanceBackupTarget":               "removes where the operator's exports go (backup-restore.md §2)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

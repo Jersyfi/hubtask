@@ -695,6 +695,22 @@ class Client:
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_instance_backup_targets(self) -> dict[str, Any]:
+        """The installation's own backup targets"""
+        return self._call("GET", "/admin/backup-targets", {}, None, {}, None, "none", None, "json")
+
+    def create_instance_backup_target(self, body: "BackupTargetCreate", *, step_up: str | None = None) -> "BackupTarget":
+        """Configure a backup target of the installation"""
+        return self._call("POST", "/admin/backup-targets", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def delete_instance_backup_target(self, target_id: str, *, step_up: str | None = None) -> None:
+        """Remove a backup target of the installation"""
+        return self._call("DELETE", "/admin/backup-targets/{targetId}", {"targetId": target_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
+    def test_instance_backup_target(self, target_id: str) -> "BackupTargetProbe":
+        """Test the connection to a target of the installation"""
+        return self._call("POST", "/admin/backup-targets/{targetId}:test", {"targetId": target_id}, None, {}, None, "none", None, "json")
+
     def read_instance_settings(self) -> "InstanceSettings":
         """What this installation has decided for every workspace on it"""
         return self._call("GET", "/admin/settings", {}, None, {}, None, "none", None, "json")
@@ -798,6 +814,18 @@ class Client:
     def open_private_hub(self, hub_id: str, body: "PrivateHubAccessRequest", *, step_up: str | None = None) -> "PrivateHubAccess":
         """Open a private hub through the emergency access"""
         return self._call("POST", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def list_own_identities(self) -> dict[str, Any]:
+        """The sign-in providers the caller's account is connected to"""
+        return self._call("GET", "/accounts/me/identities", {}, None, {}, None, "none", None, "json")
+
+    def start_provider_connect(self, body: "ProviderConnectStart", *, step_up: str | None = None) -> "ProviderConnectAuthorization":
+        """Begin connecting a sign-in provider to the caller's account"""
+        return self._call("POST", "/accounts/me/identities:connect", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def complete_provider_connect(self, body: "ProviderConnectReturn") -> "ConnectedIdentity":
+        """Finish connecting a sign-in provider to the caller's account"""
+        return self._call("POST", "/accounts/me/identities:complete", {}, None, {}, body, "json", "application/json", "json")
 
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""

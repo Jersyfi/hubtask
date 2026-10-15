@@ -9,7 +9,6 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -47,32 +46,10 @@ func (c *RestController) CreateBackupTarget(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// The one field of the contract this installation does not serve yet, and it is refused
-	// rather than ignored. A passphrase that had no effect would leave somebody believing their
-	// archives are protected by it; the key it derives is the archive writer's business, and the
-	// archive writer arrives with the backup run.
-	if body.EncryptionPassphrase != nil && *body.EncryptionPassphrase != "" {
-		WriteProblem(w, shared.ErrValidation.
-			WithDetail("backup.encryption_passphrase_not_available").
-			WithFields(shared.FieldError{
-				Path: "/encryption_passphrase", Code: "backup.encryption_passphrase_not_available",
-			}), requestID)
+	in, err := backupTargetInput(body)
+	if err != nil {
+		WriteProblem(w, err, requestID)
 		return
-	}
-
-	in := usecase.Input{
-		"name":   body.Name,
-		"kind":   string(body.Kind),
-		"config": body.Config,
-	}
-	if body.Credentials != nil {
-		in["credentials"] = *body.Credentials
-	}
-	if body.EncryptionMode != nil {
-		in["encryption_mode"] = string(*body.EncryptionMode)
-	}
-	if body.InsecureAcknowledged != nil {
-		in["insecure_acknowledged"] = *body.InsecureAcknowledged
 	}
 
 	out, ok := c.read(w, r, createBackupTargetUseCase, in)
@@ -95,7 +72,38 @@ func (c *RestController) TestBackupTarget(
 	if !ok {
 		return
 	}
+	writeJSON(w, r, http.StatusOK, backupProbeResponse(out))
+}
 
+// backupTargetInput is a target's body as the catalogue reads it - for a workspace's target and
+// the installation's alike.
+func backupTargetInput(body openapi.BackupTargetCreate) (usecase.Input, error) {
+	// The one field of the contract this installation does not serve yet, and it is refused
+	// rather than ignored. A passphrase that had no effect would leave somebody believing their
+	// archives are protected by it; the key it derives is the archive writer's business, and the
+	// archive writer arrives with the backup run.
+	if body.EncryptionPassphrase != nil && *body.EncryptionPassphrase != "" {
+		return nil, errPassphraseNotAvailable
+	}
+	in := usecase.Input{
+		"name":   body.Name,
+		"kind":   string(body.Kind),
+		"config": body.Config,
+	}
+	if body.Credentials != nil {
+		in["credentials"] = *body.Credentials
+	}
+	if body.EncryptionMode != nil {
+		in["encryption_mode"] = string(*body.EncryptionMode)
+	}
+	if body.InsecureAcknowledged != nil {
+		in["insecure_acknowledged"] = *body.InsecureAcknowledged
+	}
+	return in, nil
+}
+
+// backupProbeResponse maps a probe.
+func backupProbeResponse(out usecase.Output) openapi.BackupTargetProbe {
 	writable, _ := out["writable"].(bool)
 	succeeded, _ := out["ok"].(bool)
 	probe := openapi.BackupTargetProbe{
@@ -110,7 +118,7 @@ func (c *RestController) TestBackupTarget(
 	if code := out.String("error_code"); code != "" {
 		probe.ErrorCode = &code
 	}
-	writeJSON(w, r, http.StatusOK, probe)
+	return probe
 }
 
 // backupTargetResponse maps one target. There is no credential in the catalogue's answer and

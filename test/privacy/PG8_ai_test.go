@@ -298,6 +298,10 @@ func (aiAllow) Authorize(context.Context, appshared.ActorContext, access.Request
 	return nil
 }
 
+func (aiAllow) Permits(context.Context, appshared.ActorContext, access.Request) (bool, error) {
+	return true, nil
+}
+
 type aiDirect struct{}
 
 func (aiDirect) Within(ctx context.Context, _ persistence.Scope, run func(context.Context) error) error {

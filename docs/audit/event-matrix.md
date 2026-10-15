@@ -269,9 +269,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `identity.own_identities_read` | ListOwnIdentities | `account` | INFO | When refused |
 | `identity.provider_configured` | ConfigureFirstIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_configured` | ConfigureIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `identity.provider_connect_started` | StartProviderConnect | `identity_provider` | INFO | Every time |
 | `identity.provider_linked` | CompleteLink | `account` | NOTICE | Every time |
+| `identity.provider_linked` | CompleteProviderConnect | `account` | NOTICE | Every time |
 | `identity.provider_offered` | OfferIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_read` | CountAccountsWithoutProvider | `identity_provider` | INFO | When refused |
 | `identity.provider_read` | ListIdentityProviderPresets | `identity_provider` | INFO | When refused |
@@ -294,6 +297,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.ai_provider_configured` | ConfigureInstanceAiProvider | `ai_provider` | NOTICE | Every time |
 | `instance.ai_provider_read` | ListInstanceAiProviders | `ai_provider` | INFO | When refused |
 | `instance.ai_provider_removed` | RemoveInstanceAiProvider | `ai_provider` | NOTICE | Every time |
+| `instance.backup_target_configured` | CreateInstanceBackupTarget | `backup_target` | WARNING | Every time |
+| `instance.backup_target_read` | ListInstanceBackupTargets | `backup_target` | INFO | When refused |
+| `instance.backup_target_removed` | DeleteInstanceBackupTarget | `backup_target` | WARNING | Every time |
+| `instance.backup_target_tested` | TestInstanceBackupTarget | `backup_target` | INFO | Every time |
 | `instance.journal_read` | ListInstanceJournal | `instance` | INFO | When refused |
 | `instance.operator_added` | AddOperator | `instance` | NOTICE | Every time |
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |

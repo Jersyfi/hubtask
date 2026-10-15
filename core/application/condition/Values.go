@@ -79,6 +79,11 @@ func (v Values) Resolve(ctx context.Context, name string) (any, bool, error) {
 		return eventDocument(v.Envelope), true, nil
 	case VarActor:
 		return actorDocument(v.Envelope), true, nil
+	case VarData:
+		if v.Envelope.Payload == nil {
+			return map[string]any{}, true, nil
+		}
+		return v.Envelope.Payload, true, nil
 	case VarPayload:
 		// The body an inbound webhook delivered - or, on a jumble run, the entry's fields as data.
 		// Empty for a run that has neither, which is what an absent document means rather
