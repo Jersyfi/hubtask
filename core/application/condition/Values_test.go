@@ -371,3 +371,28 @@ func TestTheItemCarriesItsLabelsAndMembersBesideIt(t *testing.T) {
 		t.Error("a document built without the sets claims to know the labels")
 	}
 }
+
+// A webhook's condition reads `data` as the subscriber receives it - the event's payload - and an
+// event without one as an empty document, so `has(data.x)` answers rather than failing.
+func TestDataIsTheEventsPayload(t *testing.T) {
+	envelope := itemEnvelope()
+	envelope.Payload = map[string]any{"title_changed": true}
+	data, _ := resolved(t, condition.Values{Envelope: envelope, Now: readAt}, condition.VarData).(map[string]any)
+	if data["title_changed"] != true {
+		t.Errorf("data = %v", data)
+	}
+	envelope.Payload = nil
+	empty, ok := resolved(t, condition.Values{Envelope: envelope, Now: readAt}, condition.VarData).(map[string]any)
+	if !ok || len(empty) != 0 {
+		t.Errorf("data without a payload = %v", empty)
+	}
+	names := map[string]bool{}
+	for _, variable := range condition.WebhookEnvironment().Variables {
+		names[variable.Name] = true
+	}
+	for _, unreadable := range []string{condition.VarItem, condition.VarCollection, condition.VarHub, condition.VarPayload} {
+		if names[unreadable] {
+			t.Errorf("the webhook environment declares %s, which the dispatcher cannot read", unreadable)
+		}
+	}
+}

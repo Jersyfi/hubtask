@@ -33,6 +33,9 @@ const (
 	VarNow        = "now"
 	VarPayload    = "payload"
 	VarTenant     = "tenant"
+	// VarData is the CloudEvent's `data` - the event's payload - as a webhook subscriber receives
+	// it. Only a webhook subscription's condition names it.
+	VarData = "data"
 )
 
 // RuleEnvironment is what an automation rule's condition may name (automation.md §1.2).
@@ -65,6 +68,21 @@ func RetentionEnvironment() port.Environment {
 		{Name: VarItem, Kind: port.KindMap, Description: "The entry the pass is judging."},
 		{Name: VarNow, Kind: port.KindTimestamp, Description: "The instant the pass began."},
 		{Name: VarTenant, Kind: port.KindMap, Description: "The workspace: `tenant.settings` is its configuration."},
+	}}
+}
+
+// WebhookEnvironment is what a webhook subscription's condition may name (automation.md §3.1).
+//
+// Only what the dispatcher holds: the event, its `data` exactly as the subscriber will receive it,
+// the actor and the moment. Not the entry, its collection or hub - the dispatcher runs in the
+// integration context and does not read work management, and a condition that could name them
+// would be answered by an absent document that nobody noticed was absent.
+func WebhookEnvironment() port.Environment {
+	return port.Environment{Variables: []port.Variable{
+		{Name: VarEvent, Kind: port.KindMap, Description: "The event: its type, subject and causal chain."},
+		{Name: VarData, Kind: port.KindMap, Description: "The CloudEvent's data, as the subscriber receives it."},
+		{Name: VarActor, Kind: port.KindMap, Description: "Who caused the event: kind, id, and whom they acted on behalf of."},
+		{Name: VarNow, Kind: port.KindTimestamp, Description: "The instant the event was dispatched."},
 	}}
 }
 
