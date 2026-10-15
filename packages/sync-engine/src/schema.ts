@@ -166,6 +166,10 @@ export type AccountSummary = components['schemas']['AccountSummary'];
 /** A private hub as an administrator sees it: whose and how big, never its name (ADR-0073 §3). */
 export type PrivateHubSummary = components['schemas']['PrivateHubSummary'];
 export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
+/** A provider identity connected to the reader's own account: which provider, since when. */
+export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
+/** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */
+export type ProviderConnectAuthorization = components['schemas']['ProviderConnectAuthorization'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**

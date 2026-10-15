@@ -25,6 +25,15 @@
   // not enough: a stolen session removing the factor is exactly the attack the factor exists
   // against (`security.md` §5). And it says what it costs before it is opened, because "turn it
   // off" on its own names neither the thing nor the consequence.
+  //
+  // **The sign-in providers are the account's other ways in** (ADR-0078 §1, UC-ID-10 check 8): the
+  // ones connected, and *Connect* for each provider this workspace offers that is not - also for an
+  // identity whose address is not the account's. Connecting asks for the proof first and then a
+  // fresh sign-in at the provider, so the button leaves the page. An account without an address is
+  // one no provider reaches (identity.md §4.1): the panel is absent for it, as it is where the
+  // workspace offers no provider and none is connected.
+
+  import { untrack } from 'svelte';
 
   import { canCopy } from '@hubtask/design-system/components';
   import { Banner, Button, EmptyState, OneTimeSecret, Stack } from '@hubtask/design-system/components';
@@ -40,7 +49,9 @@
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
-  import { t } from '../lib/i18n/i18n.svelte.ts';
+  import { identities } from '../lib/data/identities.svelte.ts';
+  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
 
   const account = $derived(actor.account);
 
@@ -66,6 +77,18 @@
 
   // The rules this account's workspace applies, so the list under the field is this workspace's.
   $effect(() => signInRules.read());
+  $effect(() => untrack(() => identities.open()));
+
+  // The providers offered here that this account is not connected to - what *Connect* is drawn for.
+  const connectable = $derived(
+    identities.isRead
+      ? signInRules.providers.filter((offered) => !identities.connected.some((held) => held.provider_id === offered.id))
+      : [],
+  );
+  // Whether the panel is drawn at all: an account with an address, and something to show.
+  const showsProviders = $derived(
+    Boolean(account?.email) && (identities.connected.length > 0 || connectable.length > 0),
+  );
 
   async function changePassword(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -153,6 +176,44 @@
         {/if}
       </Stack>
     </div>
+
+    {#if showsProviders}
+      <div class="panel" data-testid="sign-in-providers">
+        <Stack gap="150">
+          <h2>{t('app.identities.title')}</h2>
+          <p class="quiet">{t('app.identities.body')}</p>
+          {#if identities.failure}
+            <Banner tone="danger" title={identities.failure.message}>
+              {#if identities.failure.reference}{identities.failure.reference}{/if}
+            </Banner>
+          {/if}
+          {#if identities.connected.length > 0}
+            <ul class="identities">
+              {#each identities.connected as held (held.provider_id)}
+                <li>
+                  {t('app.identities.connected', {
+                    provider: held.provider_name,
+                    since: formatDateTime(held.linked_at, messages.locale),
+                  })}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+          {#each connectable as offered (offered.id)}
+            <div>
+              <Button
+                tone="secondary"
+                isBusy={identities.isWorking}
+                busyLabel={t('app.identities.connecting')}
+                onclick={() => identities.connect(offered.id)}
+              >
+                {t('app.identities.connect', { provider: offered.display_name })}
+              </Button>
+            </div>
+          {/each}
+        </Stack>
+      </div>
+    {/if}
 
     <!-- The factor and the codes under one heading, because the codes are the factor's: they are
          made with it, they stop working when it goes, and a panel of its own suggested otherwise. -->
@@ -290,5 +351,9 @@
     font-size: var(--fs-200);
     font-weight: var(--fw-semibold);
     line-height: var(--lh-tight);
+  }
+  .identities {
+    margin: 0;
+    padding-inline-start: var(--sp-300);
   }
 </style>

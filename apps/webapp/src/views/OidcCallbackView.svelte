@@ -26,6 +26,10 @@
   // returns here too. The tab remembered that before it left; such a return finishes the step-up
   // rather than a sign-in, and sends the person back to where they were, where the frame says the
   // confirmation holds.
+  //
+  // **And where a connection comes back** (ADR-0078 §1): a signed-in person who chose *Connect* for
+  // a provider in their security settings. The tab noted that too; such a return finishes the
+  // connection and goes back to those settings.
 
   import { Banner, Button, Spinner } from '@hubtask/design-system/components';
 
@@ -34,6 +38,7 @@
   import { readArrival } from '../lib/data/oidc.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
+  import { identities, SECURITY_PATH } from '../lib/data/identities.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
 
@@ -57,7 +62,15 @@
    * a tab with a session: one that has none is signing in, whatever an old note says, and the note
    * goes.
    */
-  const isStepUp = takeStepUp();
+  const isConnect = takeConnect();
+  const isStepUp = !isConnect && takeStepUp();
+
+  /** Whether this return finishes a connection: only for a tab with a session, as a step-up. */
+  function takeConnect(): boolean {
+    const returning = identities.isReturning();
+    if (returning && !session.isSignedIn) identities.forget();
+    return returning && session.isSignedIn;
+  }
 
   function takeStepUp(): boolean {
     const returning = stepUp.isReturning();
@@ -66,7 +79,7 @@
   }
   /** Where the person was before they left for the provider, once known. */
   let returnTo = $state('/');
-  const failure = $derived(isStepUp ? stepUp.failure : oidc.failure);
+  const failure = $derived(isConnect ? identities.failure : isStepUp ? stepUp.failure : oidc.failure);
 
   function takeArrival() {
     const read = readArrival(location.search);
@@ -78,6 +91,14 @@
   $effect(() => signInRules.read());
 
   $effect(() => {
+    if (isConnect) {
+      if (arrival.kind === 'handoff') {
+        void identities.complete(arrival.handoff).then((ok) => ok && onnavigate?.(SECURITY_PATH));
+      } else {
+        identities.abandon();
+      }
+      return;
+    }
     if (isStepUp) {
       if (arrival.kind === 'handoff') {
         void stepUp.completeAtProvider(arrival.handoff).then((done) => {
@@ -114,7 +135,19 @@
 
 <!-- The heading says the state and the banner the reason: "Signing you in" above a refusal would be
      two sentences that contradict each other. -->
-{#if isStepUp}
+{#if isConnect}
+  <SignInCard title={t(failure ? 'app.callback.connect_failed_title' : 'app.callback.connect_title')} {notice}>
+    {#if failure}
+      <div>
+        <Button tone="secondary" onclick={() => onnavigate?.(SECURITY_PATH)}>{t('app.callback.connect_back')}</Button>
+      </div>
+    {:else}
+      <p class="quiet">
+        <Spinner /> {t('app.callback.connect_working')}
+      </p>
+    {/if}
+  </SignInCard>
+{:else if isStepUp}
   <SignInCard title={t(failure ? 'app.callback.step_up_failed_title' : 'app.callback.step_up_title')} {notice}>
     {#if failure}
       <div>
