@@ -452,6 +452,23 @@ func (r OidcFlowRepository) Insert(
 	return nil
 }
 
+// Live reads whether the state names a flow still live, any kind, and spends nothing.
+func (r OidcFlowRepository) Live(ctx context.Context, presented identity.Token, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	live, err := queries.OidcFlowLive(ctx, sqlc.OidcFlowLiveParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether a sign-in flow is live: %w", err))
+	}
+	return live, nil
+}
+
 func (r OidcFlowRepository) Consume(
 	ctx context.Context, presented identity.Token, now time.Time,
 ) (identity.OidcFlow, bool, error) {

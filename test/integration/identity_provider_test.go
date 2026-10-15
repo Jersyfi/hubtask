@@ -350,6 +350,24 @@ func TestOneWorkspacesSignInFlowsAndSubjectsStayHome(t *testing.T) {
 		return flows.Insert(ctx, flow, state)
 	})
 
+	// Gate SG-3: where a return belongs is read only in the state's own workspace. B, presenting A's
+	// state exactly, reads no live flow; A reads it live until it expires, and reading spends nothing.
+	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
+		if live, err := flows.Live(ctx, state, now); err != nil || live {
+			t.Errorf("B read A's flow as live: (%v, %v)", live, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		if live, err := flows.Live(ctx, state, now); err != nil || !live {
+			t.Errorf("A's own flow read as not live: (%v, %v)", live, err)
+		}
+		if live, _ := flows.Live(ctx, state, now.Add(domain.OidcFlowLifetime+time.Second)); live {
+			t.Error("an expired flow read as live")
+		}
+		return nil
+	})
+
 	// Gate SG-3: B cannot spend A's state, however exactly it presents it.
 	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
 		_, found, err := flows.Consume(ctx, state, now)
@@ -380,6 +398,9 @@ func TestOneWorkspacesSignInFlowsAndSubjectsStayHome(t *testing.T) {
 	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
 		if _, found, _ := flows.Consume(ctx, state, now); found {
 			t.Error("a spent state was consumed a second time")
+		}
+		if live, _ := flows.Live(ctx, state, now); live {
+			t.Error("a spent flow read as live")
 		}
 		return nil
 	})

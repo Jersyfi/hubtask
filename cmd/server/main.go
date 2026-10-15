@@ -1709,6 +1709,13 @@ func run() error {
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
+		// Where a provider's return belongs: the workspace's own address in multi-tenant
+		// operation, where the flow began (multi-tenancy.md §3).
+		identity.LocateOidcFlow{
+			Flows:      postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
 		identity.StartProviderConnect{
