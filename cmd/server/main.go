@@ -410,6 +410,12 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Config: cfg, Text: forms,
 	}
+	// The workspace export's own opener (multi-tenancy.md §5): the workspace's target, or else one
+	// of the installation's. Only the export holds it - every other writer to a target keeps the
+	// tenant-only StoreOpener, so nothing a workspace starts reaches an installation target.
+	exportTargets := backupservice.ExportStoreOpener{StoreOpener: backupservice.StoreOpener{
+		Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor, UnitOfWork: unitOfWork,
+	}}
 	backupRunner := backupservice.Runner{
 		Runs: backupRuns, Targets: backupTargets, Jobs: jobs,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2232,7 +2238,7 @@ func run() error {
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.ExportTenant{
-			Tenants: postgres.NewAdminTenantRepository(), Quota: quotaGuard,
+			Tenants: postgres.NewAdminTenantRepository(), Targets: exportTargets, Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}.Descriptor(),
@@ -3289,10 +3295,7 @@ func run() error {
 		// export's reason: an archive streams to a target between reads.
 		queueport.KindTenantExport: worker.TenantExport{
 			Archivist: adminservice.TenantExportArchivist{
-				Targets: backupservice.StoreOpener{
-					Targets: backupTargets, Opener: backupAdapters,
-					Encryptor: encryptor, UnitOfWork: unitOfWork,
-				},
+				Targets: exportTargets,
 				Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 				Objects: mediaStore, Cipher: crypto.NewStream(clockadapter.CryptoRandom{}),
 				Snapshot:      unitOfWork,
