@@ -30,7 +30,7 @@ func webhookGroup() group {
 		commands: []command{
 			{
 				name:    "add",
-				usage:   "--url <target> --event <type> [--event <type>…]",
+				usage:   "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>]",
 				summary: "subscribe an external system - the secret is shown once",
 				run:     webhookAdd,
 			},
@@ -67,15 +67,34 @@ func webhookGroup() group {
 }
 
 func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
-	flags := commandFlags(cli, "webhook", "add", "--url <target> --event <type> [--event <type>…]")
+	flags := commandFlags(cli, "webhook", "add", "--url <target> --event <type> [--event <type>…] [--filter <condition>] [--scope HUB|COLLECTION --scope-id <id>]")
 	target := flags.String("url", "", "where the deliveries go")
 	var events stringList
 	flags.Var(&events, "event", "an event type to subscribe to; repeat for several")
+	filter := flags.String("filter", "", "a condition an event must meet to be sent, over event, data, actor and now")
+	scope := flags.String("scope", "", "HUB or COLLECTION to listen there only; omitted is the whole workspace")
+	scopeID := flags.String("scope-id", "", "the hub or the collection --scope names")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
 	if *target == "" || len(events) == 0 {
 		return usagef("webhook add needs --url and at least one --event")
+	}
+	create := openapi.WebhookSubscriptionCreate{TargetUrl: *target, EventTypes: events}
+	if *filter != "" {
+		create.Filter = filter
+	}
+	if *scope != "" || *scopeID != "" {
+		// Both or neither: a scope without its container, or an identifier without saying what it
+		// names, is a mistake this client can name before the server does.
+		if *scope == "" || *scopeID == "" {
+			return usagef("webhook add needs --scope and --scope-id together")
+		}
+		parsed, err := cli.parseID("--scope-id", *scopeID)
+		if err != nil {
+			return err
+		}
+		create.Scope = &openapi.WebhookScope{Type: openapi.WebhookScopeType(strings.ToUpper(*scope)), Id: &parsed}
 	}
 
 	client, err := cli.client()
@@ -83,9 +102,7 @@ func webhookAdd(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	var created openapi.WebhookSubscriptionSecret
-	if err := client.Post(ctx, webhooksPath, openapi.WebhookSubscriptionCreate{
-		TargetUrl: *target, EventTypes: events,
-	}, &created); err != nil {
+	if err := client.Post(ctx, webhooksPath, create, &created); err != nil {
 		return err
 	}
 	if !cli.JSON {
@@ -188,7 +205,7 @@ func webhookDeliveries(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	flags := commandFlags(cli, "webhook", "deliveries", "<id> [--status <s>]")
-	status := flags.String("status", "", "PENDING, SUCCEEDED, FAILED or DEAD_LETTER")
+	status := flags.String("status", "", "PENDING, SUCCEEDED, FAILED, DEAD_LETTER or FILTER_FAILED")
 	cursor := flags.String("cursor", "", "continue the previous page")
 	size := flags.Int("size", 0, "how many at most")
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
@@ -316,14 +333,24 @@ func webhookTable(subscriptions []openapi.WebhookSubscription) Table {
 			subscription.Id.String(),
 			subscription.TargetUrl,
 			strings.Join(subscription.EventTypes, ","),
+			webhookScope(subscription.Scope),
+			strconv.FormatBool(subscription.Filter != nil),
 			string(subscription.State),
 			strconv.Itoa(subscription.FailureCount),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "target", "events", "state", "failures"},
+		Columns: []string{"id", "target", "events", "scope", "condition", "state", "failures"},
 		Rows:    rows,
 	}
+}
+
+// webhookScope is where a subscription listens, as one cell: TENANT, or the level and the container.
+func webhookScope(scope *openapi.WebhookScope) string {
+	if scope == nil || scope.Id == nil {
+		return string(openapi.WebhookScopeTypeTENANT)
+	}
+	return string(scope.Type) + ":" + scope.Id.String()
 }
 
 func deliveryTable(deliveries []openapi.WebhookDelivery) Table {
