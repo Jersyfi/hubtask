@@ -174,3 +174,34 @@ type Trail interface {
 	// For an anchor outside a walked period to be compared against.
 	HashAt(ctx context.Context, seq int64) ([]byte, error)
 }
+
+// The outcomes a pass over the trail's months answers (audit.md §3).
+const (
+	// TrailDropped is a month that went; one per workspace that had entries in it, and one with
+	// no workspace for a month that was empty.
+	TrailDropped = "dropped"
+	// TrailHeld is a month past its period a tenant-wide legal hold keeps whole.
+	TrailHeld = "held"
+	// TrailDefaultAged is the default partition, which cannot be dropped, with its rows past the
+	// period counted.
+	TrailDefaultAged = "default_aged"
+	// TrailUnreadable is a pass whose owner could not read across workspaces; it dropped nothing.
+	TrailUnreadable = "unreadable"
+)
+
+// TrailDrop is one line of what a pass over the trail's months did: counts and months, never an
+// entry.
+type TrailDrop struct {
+	Partition string
+	Month     time.Time
+	Workspace shared.ID
+	Entries   int64
+	Outcome   string
+}
+
+// TrailRetention lets the months of the trail past their period go, a partition at a time.
+//
+// The installation's act, not a workspace's: a month's partition holds every workspace's entries.
+type TrailRetention interface {
+	DropAged(ctx context.Context, defaultDays int) ([]TrailDrop, error)
+}
