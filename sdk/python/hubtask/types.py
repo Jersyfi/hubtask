@@ -912,6 +912,29 @@ class LegalHoldReplaceResult(TypedDict, total=False):
     holds: Required[list[dict[str, Any]]]
     archive: dict[str, Any]
 
+class ErasureReapplyRequest(TypedDict, total=False):
+    """The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them."""
+    recovery_point: Required[str]
+    erasures: Required[list["ErasureCaseRecord"]]
+
+class ErasureCaseRecord(TypedDict, total=False):
+    """One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed."""
+    id: Required[str]
+    erasure_mode: Required["ErasureMode"]
+    subject_account_id: str | None
+    subject_email: str | None
+    received_at: Required[str]
+    due_at: Required[str]
+    completed_at: Required[str]
+    handled_by: str | None
+    notes: str | None
+    original_due_at: str | None
+    extension_reason: "DataSubjectRequestExtensionReason"
+    informed_on: str | None
+
+class ErasureReapplyResult(TypedDict, total=False):
+    erasures: Required[list[dict[str, Any]]]
+
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int
     requester: Required[str]
@@ -1050,6 +1073,26 @@ class StepUpRequest(TypedDict, total=False):
     recovery_code: str | None
     state: str | None
     authorization_code: str | None
+
+class ConnectedIdentity(TypedDict, total=False):
+    """One provider identity connected to the caller's account."""
+    provider_id: Required[str]
+    provider_name: Required[str]
+    linked_at: Required[str]
+
+class ProviderConnectStart(TypedDict, total=False):
+    provider_id: Required[str]
+
+class ProviderConnectAuthorization(TypedDict, total=False):
+    """Where to send the browser to connect a provider, and which provider that is."""
+    authorization_url: Required[str]
+    expires_at: Required[str]
+    provider_id: Required[str]
+    provider_name: Required[str]
+
+class ProviderConnectReturn(TypedDict, total=False):
+    state: Required[str]
+    authorization_code: Required[str]
 
 class ProviderStepUpAuthorization(TypedDict, total=False):
     """Where to send the browser for a `PROVIDER` step-up, and which provider that is."""

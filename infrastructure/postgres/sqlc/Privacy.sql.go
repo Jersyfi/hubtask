@@ -164,6 +164,39 @@ func (q *Queries) ClearAssignmentsOn(ctx context.Context, arg ClearAssignmentsOn
 	return result.RowsAffected(), nil
 }
 
+const completeReappliedErasure = `-- name: CompleteReappliedErasure :execrows
+UPDATE data_subject_request SET
+  status             = 'COMPLETED',
+  erasure_mode       = $1,
+  completed_at       = $2,
+  subject_account_id = $3
+WHERE id = $4 AND tenant_id = current_tenant_id()
+  AND status IN ('RECEIVED', 'IN_PROGRESS')
+`
+
+type CompleteReappliedErasureParams struct {
+	ErasureMode      *string
+	CompletedAt      pgtype.Timestamptz
+	SubjectAccountID pgtype.UUID
+	ID               pgtype.UUID
+}
+
+// Completes a case whose erasure ran again, at the moment it was first completed - but only while it
+// is open: the rewound job of the same case may run beside the operator's re-run, and the one that
+// completes second must find it completed rather than complete it twice.
+func (q *Queries) CompleteReappliedErasure(ctx context.Context, arg CompleteReappliedErasureParams) (int64, error) {
+	result, err := q.db.Exec(ctx, completeReappliedErasure,
+		arg.ErasureMode,
+		arg.CompletedAt,
+		arg.SubjectAccountID,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countIntakeOf = `-- name: CountIntakeOf :one
 SELECT count(*) FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
@@ -665,6 +698,57 @@ func (q *Queries) InsertDataSubjectRequest(ctx context.Context, arg InsertDataSu
 	return err
 }
 
+const insertRecoveredErasureCase = `-- name: InsertRecoveredErasureCase :execrows
+INSERT INTO data_subject_request (
+  id, tenant_id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
+  received_at, due_at, handled_by, notes, original_due_at, extension_reason, informed_on
+) VALUES (
+  $1, current_tenant_id(), $2, $3,
+  'ERASURE', 'IN_PROGRESS', 'TENANT', $4,
+  $5, $6, $7, $8,
+  $9, $10, $11
+)
+ON CONFLICT (id) DO NOTHING
+`
+
+type InsertRecoveredErasureCaseParams struct {
+	ID               pgtype.UUID
+	SubjectAccountID pgtype.UUID
+	SubjectEmail     *string
+	ErasureMode      *string
+	ReceivedAt       pgtype.Timestamptz
+	DueAt            pgtype.Timestamptz
+	HandledBy        pgtype.UUID
+	Notes            *string
+	OriginalDueAt    pgtype.Timestamptz
+	ExtensionReason  *string
+	InformedOn       pgtype.Date
+}
+
+// An erasure case a point-in-time recovery rewound away, written again as it stood at the end of the
+// archive (backup-restore.md §8.5 step 5): its own identifier, moments, deadline and extension, open
+// until the erasure has run again. Nothing when the workspace holds the case already - the caller
+// then compares what it holds.
+func (q *Queries) InsertRecoveredErasureCase(ctx context.Context, arg InsertRecoveredErasureCaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertRecoveredErasureCase,
+		arg.ID,
+		arg.SubjectAccountID,
+		arg.SubjectEmail,
+		arg.ErasureMode,
+		arg.ReceivedAt,
+		arg.DueAt,
+		arg.HandledBy,
+		arg.Notes,
+		arg.OriginalDueAt,
+		arg.ExtensionReason,
+		arg.InformedOn,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const latestConsent = `-- name: LatestConsent :one
 SELECT id, account_id, purpose, granted, granted_at, revoked_at, source
 FROM consent_record
@@ -953,6 +1037,83 @@ func (q *Queries) RecordAiNotice(ctx context.Context, arg RecordAiNoticeParams) 
 	return err
 }
 
+const recoveredErasureCases = `-- name: RecoveredErasureCases :many
+SELECT r.id, r.subject_account_id, r.subject_email, r.erasure_mode, r.received_at, r.due_at,
+       r.completed_at, r.handled_by, r.notes, r.original_due_at, r.extension_reason, r.informed_on,
+       coalesce((
+         SELECT array_agg(DISTINCT j.entity_id ORDER BY j.entity_id)
+         FROM audit_log a
+         JOIN deletion_journal j
+           ON j.tenant_id = a.tenant_id AND j.deleted_at = a.occurred_at
+          AND j.entity = 'account' AND j.reason = 'DSR_ERASURE'
+         WHERE a.tenant_id = r.tenant_id AND a.action = 'dsr.erased'
+           AND a.target_type = 'data_subject_request' AND a.target_id = r.id
+       ), '{}')::uuid[] AS erased_accounts
+FROM data_subject_request r
+WHERE r.tenant_id = current_tenant_id() AND r.kind = 'ERASURE' AND r.status = 'COMPLETED'
+  AND r.completed_at > $1
+ORDER BY r.completed_at, r.id
+`
+
+type RecoveredErasureCasesRow struct {
+	ID               pgtype.UUID
+	SubjectAccountID pgtype.UUID
+	SubjectEmail     *string
+	ErasureMode      *string
+	ReceivedAt       pgtype.Timestamptz
+	DueAt            pgtype.Timestamptz
+	CompletedAt      pgtype.Timestamptz
+	HandledBy        pgtype.UUID
+	Notes            *string
+	OriginalDueAt    pgtype.Timestamptz
+	ExtensionReason  *string
+	InformedOn       pgtype.Date
+	ErasedAccounts   []pgtype.UUID
+}
+
+// The erasure cases of the transaction's workspace completed after the recovery point, as the
+// temporary cluster recovered to the end of the WAL archive holds them (backup-restore.md §8.5
+// step 5). The workspace is named in the statement as well as by row level security, because the
+// operator may connect with a role that bypasses the policy (RecoveredLegalHolds' reason).
+//
+// A full deletion's case no longer names its subject once the account went. `erased_accounts` are
+// the accounts the erasure removed: the journal's account row written with the same clock reading as
+// the case's `dsr.erased` entry. The caller takes exactly one, and reports none or several rather
+// than guess.
+func (q *Queries) RecoveredErasureCases(ctx context.Context, recoveryPoint pgtype.Timestamptz) ([]RecoveredErasureCasesRow, error) {
+	rows, err := q.db.Query(ctx, recoveredErasureCases, recoveryPoint)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RecoveredErasureCasesRow{}
+	for rows.Next() {
+		var i RecoveredErasureCasesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SubjectAccountID,
+			&i.SubjectEmail,
+			&i.ErasureMode,
+			&i.ReceivedAt,
+			&i.DueAt,
+			&i.CompletedAt,
+			&i.HandledBy,
+			&i.Notes,
+			&i.OriginalDueAt,
+			&i.ExtensionReason,
+			&i.InformedOn,
+			&i.ErasedAccounts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const releaseIntakeOf = `-- name: ReleaseIntakeOf :execrows
 UPDATE jumble_entry SET sender = NULL
 WHERE tenant_id = current_tenant_id()
@@ -1123,6 +1284,21 @@ func (q *Queries) StandingWithdrawals(ctx context.Context, purpose string) ([]St
 		return nil, err
 	}
 	return items, nil
+}
+
+const subjectAccountExists = `-- name: SubjectAccountExists :one
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE tenant_id = current_tenant_id() AND id = $1
+) AS present
+`
+
+// Whether the recovered workspace has the account an erasure is about. One created after the
+// recovery point went with the rewind, and there is nothing of it to erase.
+func (q *Queries) SubjectAccountExists(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, subjectAccountExists, accountID)
+	var present bool
+	err := row.Scan(&present)
+	return present, err
 }
 
 const subjectTenants = `-- name: SubjectTenants :many

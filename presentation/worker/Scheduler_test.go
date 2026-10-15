@@ -70,6 +70,9 @@ type schedulerSignals struct {
 	freshness map[string]time.Time
 	backlogs  []int64
 	purged    map[string]int64
+
+	auditHeld        []int64
+	auditDefaultAged []int64
 }
 
 func newSchedulerSignals() *schedulerSignals {
@@ -90,6 +93,14 @@ func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) 
 
 func (s *schedulerSignals) WebhookRetryBacklog(_ context.Context, waiting int64) {
 	s.backlogs = append(s.backlogs, waiting)
+}
+
+func (s *schedulerSignals) AuditPartitionsHeld(_ context.Context, months int64) {
+	s.auditHeld = append(s.auditHeld, months)
+}
+
+func (s *schedulerSignals) AuditDefaultAgedRows(_ context.Context, rows int64) {
+	s.auditDefaultAged = append(s.auditDefaultAged, rows)
 }
 
 func (s *schedulerSignals) JobsPurged(_ context.Context, state string, count int64) {

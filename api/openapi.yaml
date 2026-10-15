@@ -4480,6 +4480,42 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:reapply-erasures:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+      - $ref: "#/components/parameters/StepUpToken"
+    post:
+      tags: [admin]
+      operationId: reapplyErasures
+      summary: Carry out again the erasures of a rewound period
+      description: >
+        After a point-in-time recovery of the installation, once the legal holds of the rewound
+        period are placed again and before traffic is admitted, the operator carries out again the
+        erasures this workspace completed after the recovery point. Each case arrives as it stood at
+        the end of the archive; one the recovered workspace lacks is written again with its own
+        identifier, and every erasure runs as an erasure does today - under the holds in force, so
+        a hold keeps what it covers. The case is completed at its own moment, and each run writes
+        `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it
+        - the same kind, mode and subject - and one it lacks must have been received after the
+        recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already
+        completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a
+        fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ErasureReapplyRequest"
+      responses:
+        "200":
+          description: What happened to each case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErasureReapplyResult"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:export:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -5195,6 +5231,91 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PrivateHubAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/identities:
+    get:
+      tags: [identity]
+      operationId: listOwnIdentities
+      summary: The sign-in providers the caller's account is connected to
+      description: >
+        Each provider identity connected to the caller's account in this workspace: which provider,
+        its name as the sign-in button shows it, and when it was connected. Never the provider's
+        subject or the address it holds. A provider that is no longer a way in here still appears
+        while the connection stands.
+      responses:
+        "200":
+          description: The connections, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectedIdentity"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/identities:connect:
+    post:
+      tags: [identity]
+      operationId: startProviderConnect
+      summary: Begin connecting a sign-in provider to the caller's account
+      description: |
+        The first of two calls that connect a provider identity to the account the caller is signed
+        in as - also one whose address differs from the account's. Asks a fresh proof of the account
+        first (`auth.step_up_required` otherwise), then answers an authorization request at the
+        chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+        session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+        nothing else - neither a sign-in nor a step-up takes it.
+
+        The provider must be a way in for this workspace. Refused with
+        `identity_provider.already_connected` where the account already holds an identity at it,
+        with `identity_provider.connect_needs_address` for an account without an address, and with
+        `auth.step_up_session_required` for a caller without a session.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderConnectStart"
+      responses:
+        "201":
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnectAuthorization"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/identities:complete:
+    post:
+      tags: [identity]
+      operationId: completeProviderConnect
+      summary: Finish connecting a sign-in provider to the caller's account
+      description: |
+        The second call: the `state` and `authorization_code` the provider sent the browser back
+        with. The provider's sign-in must be fresh - after the connection began - and its address
+        verified; it need not be the account's. An identity connected to another account here is
+        refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+        `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+        is told by mail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderConnectReturn"
+      responses:
+        "200":
+          description: The connection now standing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectedIdentity"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -12247,6 +12368,72 @@ components:
               minimum: 0
               description: Records of a hold, in the archive's copy or its trail, that name too little to place it again; left out.
 
+    ErasureReapplyRequest:
+      type: object
+      description: >
+        The erasure cases this workspace completed after the recovery point, as the cluster
+        recovered to the end of the WAL archive holds them.
+      required: [recovery_point, erasures]
+      properties:
+        recovery_point:
+          type: string
+          format: date-time
+          description: The moment the installation was recovered to; recorded with each erasure.
+        erasures:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/ErasureCaseRecord"
+
+    ErasureCaseRecord:
+      type: object
+      description: >
+        One erasure case as it stood at the end of the archive. `subject_account_id` is the account
+        the erasure was about - for a full deletion, the account it removed.
+      required: [id, erasure_mode, received_at, due_at, completed_at]
+      properties:
+        id: { type: string, format: uuid }
+        erasure_mode: { $ref: "#/components/schemas/ErasureMode" }
+        subject_account_id: { type: [string, "null"], format: uuid }
+        subject_email: { type: [string, "null"] }
+        received_at: { type: string, format: date-time }
+        due_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        handled_by: { type: [string, "null"], format: uuid }
+        notes: { type: [string, "null"] }
+        original_due_at: { type: [string, "null"], format: date-time }
+        extension_reason: { $ref: "#/components/schemas/DataSubjectRequestExtensionReason" }
+        informed_on: { type: [string, "null"], format: date }
+
+    ErasureReapplyResult:
+      type: object
+      required: [erasures]
+      properties:
+        erasures:
+          type: array
+          items:
+            type: object
+            required: [id, outcome, kept]
+            properties:
+              id: { type: string, format: uuid }
+              outcome:
+                type: string
+                enum: [REAPPLIED, ALREADY_COMPLETED, SUBJECT_ABSENT, ERASURE_BLOCKED, CASE_REJECTED, CASE_MISMATCH]
+                description: >
+                  REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED
+                  when the case was already completed; SUBJECT_ABSENT when the recovered workspace
+                  has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when
+                  the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace
+                  holds the case as rejected; CASE_MISMATCH when the case does not match what the
+                  recovered workspace holds or could have lost.
+              code:
+                type: [string, "null"]
+                description: The message code behind ERASURE_BLOCKED or CASE_MISMATCH.
+              kept:
+                type: boolean
+                description: Whether a legal hold kept part of what the erasure would have removed.
+
     PasswordOpeningRequest:
       type: object
       required: [requester, reason]
@@ -12616,6 +12803,60 @@ components:
           type: [string, "null"]
           maxLength: 4096
           description: The code the provider issued. Presented together with `state`.
+
+    ConnectedIdentity:
+      type: object
+      description: One provider identity connected to the caller's account.
+      required: [provider_id, provider_name, linked_at]
+      properties:
+        provider_id: { type: string, format: uuid }
+        provider_name:
+          type: string
+          description: The provider's name, as the sign-in button shows it.
+        linked_at:
+          type: string
+          format: date-time
+          description: When the identity was connected.
+
+    ProviderConnectStart:
+      type: object
+      required: [provider_id]
+      properties:
+        provider_id:
+          type: string
+          format: uuid
+          description: Which provider to connect, from `GET /auth/sign-in-rules`.
+
+    ProviderConnectAuthorization:
+      type: object
+      description: Where to send the browser to connect a provider, and which provider that is.
+      required: [authorization_url, expires_at, provider_id, provider_name]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: >
+            The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's
+            parameters. The verifier and the nonce stay on the server.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the flow stops being answerable.
+        provider_id: { type: string, format: uuid }
+        provider_name: { type: string }
+
+    ProviderConnectReturn:
+      type: object
+      required: [state, authorization_code]
+      properties:
+        state:
+          type: string
+          maxLength: 512
+          description: The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+        authorization_code:
+          type: string
+          maxLength: 4096
+          description: The code the provider issued.
 
     ProviderStepUpAuthorization:
       type: object

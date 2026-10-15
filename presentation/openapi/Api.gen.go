@@ -1704,6 +1704,36 @@ func (e ErasureMode) Valid() bool {
 	}
 }
 
+// Defines values for ErasureReapplyResultErasuresOutcome.
+const (
+	ALREADYCOMPLETED ErasureReapplyResultErasuresOutcome = "ALREADY_COMPLETED"
+	CASEMISMATCH     ErasureReapplyResultErasuresOutcome = "CASE_MISMATCH"
+	CASEREJECTED     ErasureReapplyResultErasuresOutcome = "CASE_REJECTED"
+	ERASUREBLOCKED   ErasureReapplyResultErasuresOutcome = "ERASURE_BLOCKED"
+	REAPPLIED        ErasureReapplyResultErasuresOutcome = "REAPPLIED"
+	SUBJECTABSENT    ErasureReapplyResultErasuresOutcome = "SUBJECT_ABSENT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureReapplyResultErasuresOutcome enum.
+func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
+	switch e {
+	case ALREADYCOMPLETED:
+		return true
+	case CASEMISMATCH:
+		return true
+	case CASEREJECTED:
+		return true
+	case ERASUREBLOCKED:
+		return true
+	case REAPPLIED:
+		return true
+	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -5653,6 +5683,16 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConnectedIdentity One provider identity connected to the caller's account.
+type ConnectedIdentity struct {
+	// LinkedAt When the identity was connected.
+	LinkedAt   time.Time          `json:"linked_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
+}
+
 // ConsentGrant defines model for ConsentGrant.
 type ConsentGrant struct {
 	// AccountId Whose consent - only ever the caller's own.
@@ -6122,6 +6162,34 @@ type EncryptionStoreCount struct {
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
+// ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
+type ErasureCaseRecord struct {
+	CompletedAt time.Time `json:"completed_at"`
+	DueAt       time.Time `json:"due_at"`
+
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	ErasureMode ErasureMode `json:"erasure_mode"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason  *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy        *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id               openapi_types.UUID                 `json:"id"`
+	InformedOn       *openapi_types.Date                `json:"informed_on,omitempty"`
+	Notes            *string                            `json:"notes,omitempty"`
+	OriginalDueAt    *time.Time                         `json:"original_due_at,omitempty"`
+	ReceivedAt       time.Time                          `json:"received_at"`
+	SubjectAccountId *openapi_types.UUID                `json:"subject_account_id,omitempty"`
+	SubjectEmail     *string                            `json:"subject_email,omitempty"`
+}
+
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
 	// Account The person's account itself is kept, restricted rather than erased.
@@ -6184,6 +6252,32 @@ type ErasurePreview struct {
 	// on the case, and does so knowingly.
 	Mode ErasureMode `json:"mode"`
 }
+
+// ErasureReapplyRequest The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them.
+type ErasureReapplyRequest struct {
+	Erasures []ErasureCaseRecord `json:"erasures"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each erasure.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// ErasureReapplyResult defines model for ErasureReapplyResult.
+type ErasureReapplyResult struct {
+	Erasures []struct {
+		// Code The message code behind ERASURE_BLOCKED or CASE_MISMATCH.
+		Code *string            `json:"code,omitempty"`
+		Id   openapi_types.UUID `json:"id"`
+
+		// Kept Whether a legal hold kept part of what the erasure would have removed.
+		Kept bool `json:"kept"`
+
+		// Outcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+		Outcome ErasureReapplyResultErasuresOutcome `json:"outcome"`
+	} `json:"erasures"`
+}
+
+// ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+type ErasureReapplyResultErasuresOutcome string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -7953,6 +8047,32 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.
+type ProviderConnectAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt    time.Time          `json:"expires_at"`
+	ProviderId   openapi_types.UUID `json:"provider_id"`
+	ProviderName string             `json:"provider_name"`
+}
+
+// ProviderConnectReturn defines model for ProviderConnectReturn.
+type ProviderConnectReturn struct {
+	// AuthorizationCode The code the provider issued.
+	AuthorizationCode string `json:"authorization_code"`
+
+	// State The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+	State string `json:"state"`
+}
+
+// ProviderConnectStart defines model for ProviderConnectStart.
+type ProviderConnectStart struct {
+	// ProviderId Which provider to connect, from `GET /auth/sign-in-rules`.
+	ProviderId openapi_types.UUID `json:"provider_id"`
+}
 
 // ProviderOffer defines model for ProviderOffer.
 type ProviderOffer struct {
@@ -10107,6 +10227,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// StartProviderConnectParams defines parameters for StartProviderConnect.
+type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -10181,6 +10307,12 @@ type RequestTenantDeletionParams struct {
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
 type OpenTenantPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReapplyErasuresParams defines parameters for ReapplyErasures.
+type ReapplyErasuresParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -11185,6 +11317,12 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
+type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
+
+// StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
+type StartProviderConnectJSONRequestBody = ProviderConnectStart
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11238,6 +11376,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
+
+// ReapplyErasuresJSONRequestBody defines body for ReapplyErasures for application/json ContentType.
+type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
@@ -11610,6 +11751,15 @@ type ServerInterface interface {
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
+	// ListOwnIdentities The sign-in providers the caller's account is connected to
+	// (GET /accounts/me/identities)
+	ListOwnIdentities(w http.ResponseWriter, r *http.Request)
+	// CompleteProviderConnect Finish connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:complete)
+	CompleteProviderConnect(w http.ResponseWriter, r *http.Request)
+	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:connect)
+	StartProviderConnect(w http.ResponseWriter, r *http.Request, params StartProviderConnectParams)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11721,6 +11871,9 @@ type ServerInterface interface {
 	// OpenTenantPassword Open the password for one workspace
 	// (POST /admin/tenants/{tenantId}:open-password)
 	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
+	// ReapplyErasures Carry out again the erasures of a rewound period
+	// (POST /admin/tenants/{tenantId}:reapply-erasures)
+	ReapplyErasures(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params ReapplyErasuresParams)
 	// ReplaceLegalHolds Place the legal holds of a rewound period again
 	// (POST /admin/tenants/{tenantId}:replace-legal-holds)
 	ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -12552,6 +12705,75 @@ func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListEmergencyNotices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOwnIdentities operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnIdentities(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnIdentities(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteProviderConnect(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) StartProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartProviderConnectParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartProviderConnect(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13672,6 +13894,56 @@ func (siw *ServerInterfaceWrapper) OpenTenantPassword(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenTenantPassword(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReapplyErasures operation middleware
+func (siw *ServerInterfaceWrapper) ReapplyErasures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReapplyErasuresParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReapplyErasures(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23564,6 +23836,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:replace-legal-holds", wrapper.ReplaceLegalHolds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:reapply-erasures", wrapper.ReapplyErasures)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
@@ -23591,6 +23864,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/identities", wrapper.ListOwnIdentities)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:connect", wrapper.StartProviderConnect)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:complete", wrapper.CompleteProviderConnect)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)

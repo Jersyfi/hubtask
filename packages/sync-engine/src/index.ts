@@ -69,6 +69,8 @@ export type {
   AccountSummary,
   PrivateHubSummary,
   PrivateHubAccess,
+  ConnectedIdentity,
+  ProviderConnectAuthorization,
   ActivityEntry,
   ActivityPage,
   Assignment,

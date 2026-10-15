@@ -259,6 +259,10 @@ const (
 	// LinkProofMailbox is the link mailed to the account's address together with a fresh sign-in at
 	// the provider, where the workspace switched the password off (ADR-0078 §1).
 	LinkProofMailbox LinkProof = "MAILBOX"
+	// LinkProofSession is a connection made from a signed-in session: a step-up of the account and
+	// a fresh sign-in at the provider (ADR-0078 §1). Written to the trail only - no pending
+	// credential carries it.
+	LinkProofSession LinkProof = "SESSION"
 )
 
 // Verify decides whether the credential may still complete its sign-in. One indistinguishable

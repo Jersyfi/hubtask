@@ -419,3 +419,64 @@ SELECT EXISTS (
   WHERE k.tenant_id = current_tenant_id() AND k.account AND k.erased_at IS NULL
     AND r.subject_account_id = sqlc.arg('account_id')
 ) AS kept;
+
+-- name: InsertRecoveredErasureCase :execrows
+-- An erasure case a point-in-time recovery rewound away, written again as it stood at the end of the
+-- archive (backup-restore.md §8.5 step 5): its own identifier, moments, deadline and extension, open
+-- until the erasure has run again. Nothing when the workspace holds the case already - the caller
+-- then compares what it holds.
+INSERT INTO data_subject_request (
+  id, tenant_id, subject_account_id, subject_email, kind, status, scope, erasure_mode,
+  received_at, due_at, handled_by, notes, original_due_at, extension_reason, informed_on
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.narg('subject_account_id'), sqlc.narg('subject_email'),
+  'ERASURE', 'IN_PROGRESS', 'TENANT', sqlc.arg('erasure_mode'),
+  sqlc.arg('received_at'), sqlc.arg('due_at'), sqlc.narg('handled_by'), sqlc.narg('notes'),
+  sqlc.narg('original_due_at'), sqlc.narg('extension_reason'), sqlc.narg('informed_on')
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- name: CompleteReappliedErasure :execrows
+-- Completes a case whose erasure ran again, at the moment it was first completed - but only while it
+-- is open: the rewound job of the same case may run beside the operator's re-run, and the one that
+-- completes second must find it completed rather than complete it twice.
+UPDATE data_subject_request SET
+  status             = 'COMPLETED',
+  erasure_mode       = sqlc.arg('erasure_mode'),
+  completed_at       = sqlc.arg('completed_at'),
+  subject_account_id = sqlc.narg('subject_account_id')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id()
+  AND status IN ('RECEIVED', 'IN_PROGRESS');
+
+-- name: SubjectAccountExists :one
+-- Whether the recovered workspace has the account an erasure is about. One created after the
+-- recovery point went with the rewind, and there is nothing of it to erase.
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('account_id')
+) AS present;
+
+-- name: RecoveredErasureCases :many
+-- The erasure cases of the transaction's workspace completed after the recovery point, as the
+-- temporary cluster recovered to the end of the WAL archive holds them (backup-restore.md §8.5
+-- step 5). The workspace is named in the statement as well as by row level security, because the
+-- operator may connect with a role that bypasses the policy (RecoveredLegalHolds' reason).
+--
+-- A full deletion's case no longer names its subject once the account went. `erased_accounts` are
+-- the accounts the erasure removed: the journal's account row written with the same clock reading as
+-- the case's `dsr.erased` entry. The caller takes exactly one, and reports none or several rather
+-- than guess.
+SELECT r.id, r.subject_account_id, r.subject_email, r.erasure_mode, r.received_at, r.due_at,
+       r.completed_at, r.handled_by, r.notes, r.original_due_at, r.extension_reason, r.informed_on,
+       coalesce((
+         SELECT array_agg(DISTINCT j.entity_id ORDER BY j.entity_id)
+         FROM audit_log a
+         JOIN deletion_journal j
+           ON j.tenant_id = a.tenant_id AND j.deleted_at = a.occurred_at
+          AND j.entity = 'account' AND j.reason = 'DSR_ERASURE'
+         WHERE a.tenant_id = r.tenant_id AND a.action = 'dsr.erased'
+           AND a.target_type = 'data_subject_request' AND a.target_id = r.id
+       ), '{}')::uuid[] AS erased_accounts
+FROM data_subject_request r
+WHERE r.tenant_id = current_tenant_id() AND r.kind = 'ERASURE' AND r.status = 'COMPLETED'
+  AND r.completed_at > sqlc.arg('recovery_point')
+ORDER BY r.completed_at, r.id;

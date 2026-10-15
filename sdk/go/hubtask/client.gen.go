@@ -1710,6 +1710,36 @@ func (e ErasureMode) Valid() bool {
 	}
 }
 
+// Defines values for ErasureReapplyResultErasuresOutcome.
+const (
+	ALREADYCOMPLETED ErasureReapplyResultErasuresOutcome = "ALREADY_COMPLETED"
+	CASEMISMATCH     ErasureReapplyResultErasuresOutcome = "CASE_MISMATCH"
+	CASEREJECTED     ErasureReapplyResultErasuresOutcome = "CASE_REJECTED"
+	ERASUREBLOCKED   ErasureReapplyResultErasuresOutcome = "ERASURE_BLOCKED"
+	REAPPLIED        ErasureReapplyResultErasuresOutcome = "REAPPLIED"
+	SUBJECTABSENT    ErasureReapplyResultErasuresOutcome = "SUBJECT_ABSENT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureReapplyResultErasuresOutcome enum.
+func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
+	switch e {
+	case ALREADYCOMPLETED:
+		return true
+	case CASEMISMATCH:
+		return true
+	case CASEREJECTED:
+		return true
+	case ERASUREBLOCKED:
+		return true
+	case REAPPLIED:
+		return true
+	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -5659,6 +5689,16 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConnectedIdentity One provider identity connected to the caller's account.
+type ConnectedIdentity struct {
+	// LinkedAt When the identity was connected.
+	LinkedAt   time.Time          `json:"linked_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
+}
+
 // ConsentGrant defines model for ConsentGrant.
 type ConsentGrant struct {
 	// AccountId Whose consent - only ever the caller's own.
@@ -6128,6 +6168,34 @@ type EncryptionStoreCount struct {
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
+// ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
+type ErasureCaseRecord struct {
+	CompletedAt time.Time `json:"completed_at"`
+	DueAt       time.Time `json:"due_at"`
+
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	ErasureMode ErasureMode `json:"erasure_mode"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason  *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy        *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id               openapi_types.UUID                 `json:"id"`
+	InformedOn       *openapi_types.Date                `json:"informed_on,omitempty"`
+	Notes            *string                            `json:"notes,omitempty"`
+	OriginalDueAt    *time.Time                         `json:"original_due_at,omitempty"`
+	ReceivedAt       time.Time                          `json:"received_at"`
+	SubjectAccountId *openapi_types.UUID                `json:"subject_account_id,omitempty"`
+	SubjectEmail     *string                            `json:"subject_email,omitempty"`
+}
+
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
 	// Account The person's account itself is kept, restricted rather than erased.
@@ -6190,6 +6258,32 @@ type ErasurePreview struct {
 	// on the case, and does so knowingly.
 	Mode ErasureMode `json:"mode"`
 }
+
+// ErasureReapplyRequest The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them.
+type ErasureReapplyRequest struct {
+	Erasures []ErasureCaseRecord `json:"erasures"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each erasure.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// ErasureReapplyResult defines model for ErasureReapplyResult.
+type ErasureReapplyResult struct {
+	Erasures []struct {
+		// Code The message code behind ERASURE_BLOCKED or CASE_MISMATCH.
+		Code *string            `json:"code,omitempty"`
+		Id   openapi_types.UUID `json:"id"`
+
+		// Kept Whether a legal hold kept part of what the erasure would have removed.
+		Kept bool `json:"kept"`
+
+		// Outcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+		Outcome ErasureReapplyResultErasuresOutcome `json:"outcome"`
+	} `json:"erasures"`
+}
+
+// ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+type ErasureReapplyResultErasuresOutcome string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -7959,6 +8053,32 @@ type ProcessingState struct {
 
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
+
+// ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.
+type ProviderConnectAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt    time.Time          `json:"expires_at"`
+	ProviderId   openapi_types.UUID `json:"provider_id"`
+	ProviderName string             `json:"provider_name"`
+}
+
+// ProviderConnectReturn defines model for ProviderConnectReturn.
+type ProviderConnectReturn struct {
+	// AuthorizationCode The code the provider issued.
+	AuthorizationCode string `json:"authorization_code"`
+
+	// State The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+	State string `json:"state"`
+}
+
+// ProviderConnectStart defines model for ProviderConnectStart.
+type ProviderConnectStart struct {
+	// ProviderId Which provider to connect, from `GET /auth/sign-in-rules`.
+	ProviderId openapi_types.UUID `json:"provider_id"`
+}
 
 // ProviderOffer defines model for ProviderOffer.
 type ProviderOffer struct {
@@ -10113,6 +10233,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// StartProviderConnectParams defines parameters for StartProviderConnect.
+type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -10187,6 +10313,12 @@ type RequestTenantDeletionParams struct {
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
 type OpenTenantPasswordParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReapplyErasuresParams defines parameters for ReapplyErasures.
+type ReapplyErasuresParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -11191,6 +11323,12 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
+type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
+
+// StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
+type StartProviderConnectJSONRequestBody = ProviderConnectStart
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11244,6 +11382,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
+
+// ReapplyErasuresJSONRequestBody defines body for ReapplyErasures for application/json ContentType.
+type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
@@ -11707,6 +11848,79 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
 	ListEmergencyNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListOwnIdentities The sign-in providers the caller's account is connected to
+	//
+	// Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.
+	//
+	// Corresponds with GET /accounts/me/identities (the `ListOwnIdentities` operationId).
+	ListOwnIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteProviderConnectWithBody Finish connecting a sign-in provider to the caller's account
+	//
+	// The second call: the `state` and `authorization_code` the provider sent the browser back
+	// with. The provider's sign-in must be fresh - after the connection began - and its address
+	// verified; it need not be the account's. An identity connected to another account here is
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+	// is told by mail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+	CompleteProviderConnectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteProviderConnect Finish connecting a sign-in provider to the caller's account
+	//
+	// The second call: the `state` and `authorization_code` the provider sent the browser back
+	// with. The provider's sign-in must be fresh - after the connection began - and its address
+	// verified; it need not be the account's. An identity connected to another account here is
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+	// is told by mail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+	CompleteProviderConnect(ctx context.Context, body CompleteProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartProviderConnectWithBody Begin connecting a sign-in provider to the caller's account
+	//
+	// The first of two calls that connect a provider identity to the account the caller is signed
+	// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+	// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+	// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+	// nothing else - neither a sign-in nor a step-up takes it.
+	//
+	// The provider must be a way in for this workspace. Refused with
+	// `identity_provider.already_connected` where the account already holds an identity at it,
+	// with `identity_provider.connect_needs_address` for an account without an address, and with
+	// `auth.step_up_session_required` for a caller without a session.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+	StartProviderConnectWithBody(ctx context.Context, params *StartProviderConnectParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
+	//
+	// The first of two calls that connect a provider identity to the account the caller is signed
+	// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+	// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+	// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+	// nothing else - neither a sign-in nor a step-up takes it.
+	//
+	// The provider must be a way in for this workspace. Refused with
+	// `identity_provider.already_connected` where the account already holds an identity at it,
+	// with `identity_provider.connect_needs_address` for an account without an address, and with
+	// `auth.step_up_session_required` for a caller without a session.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+	StartProviderConnect(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAccount The name behind an account identifier
 	//
@@ -12356,6 +12570,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReapplyErasuresWithBody Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithBody(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReapplyErasures Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasures(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReplaceLegalHoldsWithBody Place the legal holds of a rewound period again
 	//
@@ -15967,6 +16199,129 @@ func (c *Client) ListEmergencyNotices(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
+// ListOwnIdentities The sign-in providers the caller's account is connected to
+//
+// Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.
+//
+// Corresponds with GET /accounts/me/identities (the `ListOwnIdentities` operationId).
+func (c *Client) ListOwnIdentities(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOwnIdentitiesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteProviderConnectWithBody Finish connecting a sign-in provider to the caller's account
+//
+// The second call: the `state` and `authorization_code` the provider sent the browser back
+// with. The provider's sign-in must be fresh - after the connection began - and its address
+// verified; it need not be the account's. An identity connected to another account here is
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+// is told by mail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+func (c *Client) CompleteProviderConnectWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteProviderConnectRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteProviderConnect Finish connecting a sign-in provider to the caller's account
+//
+// The second call: the `state` and `authorization_code` the provider sent the browser back
+// with. The provider's sign-in must be fresh - after the connection began - and its address
+// verified; it need not be the account's. An identity connected to another account here is
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+// is told by mail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+func (c *Client) CompleteProviderConnect(ctx context.Context, body CompleteProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteProviderConnectRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartProviderConnectWithBody Begin connecting a sign-in provider to the caller's account
+//
+// The first of two calls that connect a provider identity to the account the caller is signed
+// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+// nothing else - neither a sign-in nor a step-up takes it.
+//
+// The provider must be a way in for this workspace. Refused with
+// `identity_provider.already_connected` where the account already holds an identity at it,
+// with `identity_provider.connect_needs_address` for an account without an address, and with
+// `auth.step_up_session_required` for a caller without a session.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+func (c *Client) StartProviderConnectWithBody(ctx context.Context, params *StartProviderConnectParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartProviderConnectRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartProviderConnect Begin connecting a sign-in provider to the caller's account
+//
+// The first of two calls that connect a provider identity to the account the caller is signed
+// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+// nothing else - neither a sign-in nor a step-up takes it.
+//
+// The provider must be a way in for this workspace. Refused with
+// `identity_provider.already_connected` where the account already holds an identity at it,
+// with `identity_provider.connect_needs_address` for an account without an address, and with
+// `auth.step_up_session_required` for a caller without a session.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+func (c *Client) StartProviderConnect(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartProviderConnectRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // GetAccount The name behind an account identifier
 //
 // Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -17156,6 +17511,44 @@ func (c *Client) OpenTenantPasswordWithBody(ctx context.Context, tenantId AdminT
 // Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 func (c *Client) OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenTenantPasswordRequest(c.Server, tenantId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReapplyErasuresWithBody Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *Client) ReapplyErasuresWithBody(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReapplyErasuresRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReapplyErasures Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *Client) ReapplyErasures(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReapplyErasuresRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -24663,6 +25056,128 @@ func NewListEmergencyNoticesRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListOwnIdentitiesRequest constructs an http.Request for the ListOwnIdentities method
+func NewListOwnIdentitiesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/identities")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCompleteProviderConnectRequest calls the generic CompleteProviderConnect builder with application/json body
+func NewCompleteProviderConnectRequest(server string, body CompleteProviderConnectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompleteProviderConnectRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompleteProviderConnectRequestWithBody constructs an http.Request for the CompleteProviderConnect method, with any body, and a specified content type
+func NewCompleteProviderConnectRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/identities:complete")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartProviderConnectRequest calls the generic StartProviderConnect builder with application/json body
+func NewStartProviderConnectRequest(server string, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartProviderConnectRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewStartProviderConnectRequestWithBody constructs an http.Request for the StartProviderConnect method, with any body, and a specified content type
+func NewStartProviderConnectRequestWithBody(server string, params *StartProviderConnectParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/identities:connect")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewGetAccountRequest constructs an http.Request for the GetAccount method
 func NewGetAccountRequest(server string, accountId AccountId) (*http.Request, error) {
 	var err error
@@ -26242,6 +26757,68 @@ func NewOpenTenantPasswordRequestWithBody(server string, tenantId AdminTenantId,
 	}
 
 	operationPath := fmt.Sprintf("/admin/tenants/%s:open-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReapplyErasuresRequest calls the generic ReapplyErasures builder with application/json body
+func NewReapplyErasuresRequest(server string, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReapplyErasuresRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewReapplyErasuresRequestWithBody constructs an http.Request for the ReapplyErasures method, with any body, and a specified content type
+func NewReapplyErasuresRequestWithBody(server string, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:reapply-erasures", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -39310,6 +39887,81 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /accounts/me/emergency-notices (the `ListEmergencyNotices` operationId).
 	ListEmergencyNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEmergencyNoticesResult, error)
 
+	// ListOwnIdentitiesWithResponse The sign-in providers the caller's account is connected to
+	//
+	// Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/identities (the `ListOwnIdentities` operationId).
+	ListOwnIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnIdentitiesResult, error)
+
+	// CompleteProviderConnectWithBodyWithResponse Finish connecting a sign-in provider to the caller's account
+	//
+	// The second call: the `state` and `authorization_code` the provider sent the browser back
+	// with. The provider's sign-in must be fresh - after the connection began - and its address
+	// verified; it need not be the account's. An identity connected to another account here is
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+	// is told by mail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+	CompleteProviderConnectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteProviderConnectResult, error)
+
+	// CompleteProviderConnectWithResponse Finish connecting a sign-in provider to the caller's account
+	//
+	// The second call: the `state` and `authorization_code` the provider sent the browser back
+	// with. The provider's sign-in must be fresh - after the connection began - and its address
+	// verified; it need not be the account's. An identity connected to another account here is
+	// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+	// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+	// is told by mail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+	CompleteProviderConnectWithResponse(ctx context.Context, body CompleteProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteProviderConnectResult, error)
+
+	// StartProviderConnectWithBodyWithResponse Begin connecting a sign-in provider to the caller's account
+	//
+	// The first of two calls that connect a provider identity to the account the caller is signed
+	// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+	// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+	// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+	// nothing else - neither a sign-in nor a step-up takes it.
+	//
+	// The provider must be a way in for this workspace. Refused with
+	// `identity_provider.already_connected` where the account already holds an identity at it,
+	// with `identity_provider.connect_needs_address` for an account without an address, and with
+	// `auth.step_up_session_required` for a caller without a session.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+	StartProviderConnectWithBodyWithResponse(ctx context.Context, params *StartProviderConnectParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartProviderConnectResult, error)
+
+	// StartProviderConnectWithResponse Begin connecting a sign-in provider to the caller's account
+	//
+	// The first of two calls that connect a provider identity to the account the caller is signed
+	// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+	// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+	// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+	// nothing else - neither a sign-in nor a step-up takes it.
+	//
+	// The provider must be a way in for this workspace. Refused with
+	// `identity_provider.already_connected` where the account already holds an identity at it,
+	// with `identity_provider.connect_needs_address` for an account without an address, and with
+	// `auth.step_up_session_required` for a caller without a session.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+	StartProviderConnectWithResponse(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*StartProviderConnectResult, error)
+
 	// GetAccountWithResponse The name behind an account identifier
 	//
 	// Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -39996,6 +40648,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error)
+
+	// ReapplyErasuresWithBodyWithResponse Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error)
+
+	// ReapplyErasuresWithResponse Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error)
 
 	// ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
 	//
@@ -44023,6 +44693,150 @@ func (r ListEmergencyNoticesResult) ContentType() string {
 	return ""
 }
 
+type ListOwnIdentitiesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]ConnectedIdentity
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOwnIdentitiesResult) GetJSON200() *[]ConnectedIdentity {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOwnIdentitiesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOwnIdentitiesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOwnIdentitiesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOwnIdentitiesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOwnIdentitiesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompleteProviderConnectResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConnectedIdentity
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CompleteProviderConnectResult) GetJSON200() *ConnectedIdentity {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompleteProviderConnectResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteProviderConnectResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompleteProviderConnectResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompleteProviderConnectResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteProviderConnectResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartProviderConnectResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *ProviderConnectAuthorization
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r StartProviderConnectResult) GetJSON201() *ProviderConnectAuthorization {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartProviderConnectResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartProviderConnectResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartProviderConnectResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartProviderConnectResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartProviderConnectResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type GetAccountResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -45758,6 +46572,54 @@ func (r OpenTenantPasswordResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r OpenTenantPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReapplyErasuresResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ErasureReapplyResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReapplyErasuresResult) GetJSON200() *ErasureReapplyResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReapplyErasuresResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReapplyErasuresResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReapplyErasuresResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReapplyErasuresResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReapplyErasuresResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -59079,6 +59941,111 @@ func (c *ClientWithResponses) ListEmergencyNoticesWithResponse(ctx context.Conte
 	return ParseListEmergencyNoticesResult(rsp)
 }
 
+// ListOwnIdentitiesWithResponse The sign-in providers the caller's account is connected to
+//
+// Each provider identity connected to the caller's account in this workspace: which provider, its name as the sign-in button shows it, and when it was connected. Never the provider's subject or the address it holds. A provider that is no longer a way in here still appears while the connection stands.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/identities (the `ListOwnIdentities` operationId).
+func (c *ClientWithResponses) ListOwnIdentitiesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnIdentitiesResult, error) {
+	rsp, err := c.ListOwnIdentities(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOwnIdentitiesResult(rsp)
+}
+
+// CompleteProviderConnectWithBodyWithResponse Finish connecting a sign-in provider to the caller's account
+//
+// The second call: the `state` and `authorization_code` the provider sent the browser back
+// with. The provider's sign-in must be fresh - after the connection began - and its address
+// verified; it need not be the account's. An identity connected to another account here is
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+// is told by mail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+func (c *ClientWithResponses) CompleteProviderConnectWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteProviderConnectResult, error) {
+	rsp, err := c.CompleteProviderConnectWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteProviderConnectResult(rsp)
+}
+
+// CompleteProviderConnectWithResponse Finish connecting a sign-in provider to the caller's account
+//
+// The second call: the `state` and `authorization_code` the provider sent the browser back
+// with. The provider's sign-in must be fresh - after the connection began - and its address
+// verified; it need not be the account's. An identity connected to another account here is
+// refused with `identity_provider.connection_taken`, a sign-in that is not fresh with
+// `identity_provider.connection_not_fresh`. On success the connection is recorded and the person
+// is told by mail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/identities:complete (the `CompleteProviderConnect` operationId).
+func (c *ClientWithResponses) CompleteProviderConnectWithResponse(ctx context.Context, body CompleteProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteProviderConnectResult, error) {
+	rsp, err := c.CompleteProviderConnect(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteProviderConnectResult(rsp)
+}
+
+// StartProviderConnectWithBodyWithResponse Begin connecting a sign-in provider to the caller's account
+//
+// The first of two calls that connect a provider identity to the account the caller is signed
+// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+// nothing else - neither a sign-in nor a step-up takes it.
+//
+// The provider must be a way in for this workspace. Refused with
+// `identity_provider.already_connected` where the account already holds an identity at it,
+// with `identity_provider.connect_needs_address` for an account without an address, and with
+// `auth.step_up_session_required` for a caller without a session.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+func (c *ClientWithResponses) StartProviderConnectWithBodyWithResponse(ctx context.Context, params *StartProviderConnectParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartProviderConnectResult, error) {
+	rsp, err := c.StartProviderConnectWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartProviderConnectResult(rsp)
+}
+
+// StartProviderConnectWithResponse Begin connecting a sign-in provider to the caller's account
+//
+// The first of two calls that connect a provider identity to the account the caller is signed
+// in as - also one whose address differs from the account's. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers an authorization request at the
+// chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+// session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+// nothing else - neither a sign-in nor a step-up takes it.
+//
+// The provider must be a way in for this workspace. Refused with
+// `identity_provider.already_connected` where the account already holds an identity at it,
+// with `identity_provider.connect_needs_address` for an account without an address, and with
+// `auth.step_up_session_required` for a caller without a session.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
+func (c *ClientWithResponses) StartProviderConnectWithResponse(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*StartProviderConnectResult, error) {
+	rsp, err := c.StartProviderConnect(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartProviderConnectResult(rsp)
+}
+
 // GetAccountWithResponse The name behind an account identifier
 //
 // Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -60094,6 +61061,36 @@ func (c *ClientWithResponses) OpenTenantPasswordWithResponse(ctx context.Context
 		return nil, err
 	}
 	return ParseOpenTenantPasswordResult(rsp)
+}
+
+// ReapplyErasuresWithBodyWithResponse Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *ClientWithResponses) ReapplyErasuresWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error) {
+	rsp, err := c.ReapplyErasuresWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReapplyErasuresResult(rsp)
+}
+
+// ReapplyErasuresWithResponse Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *ClientWithResponses) ReapplyErasuresWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error) {
+	rsp, err := c.ReapplyErasures(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReapplyErasuresResult(rsp)
 }
 
 // ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
@@ -66419,6 +67416,105 @@ func ParseListEmergencyNoticesResult(rsp *http.Response) (*ListEmergencyNoticesR
 	return response, nil
 }
 
+// ParseListOwnIdentitiesResult parses an HTTP response from a ListOwnIdentitiesWithResponse call
+func ParseListOwnIdentitiesResult(rsp *http.Response) (*ListOwnIdentitiesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOwnIdentitiesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []ConnectedIdentity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompleteProviderConnectResult parses an HTTP response from a CompleteProviderConnectWithResponse call
+func ParseCompleteProviderConnectResult(rsp *http.Response) (*CompleteProviderConnectResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompleteProviderConnectResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConnectedIdentity
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartProviderConnectResult parses an HTTP response from a StartProviderConnectWithResponse call
+func ParseStartProviderConnectResult(rsp *http.Response) (*StartProviderConnectResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartProviderConnectResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest ProviderConnectAuthorization
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseGetAccountResult parses an HTTP response from a GetAccountWithResponse call
 func ParseGetAccountResult(rsp *http.Response) (*GetAccountResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -67603,6 +68699,39 @@ func ParseOpenTenantPasswordResult(rsp *http.Response) (*OpenTenantPasswordResul
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReapplyErasuresResult parses an HTTP response from a ReapplyErasuresWithResponse call
+func ParseReapplyErasuresResult(rsp *http.Response) (*ReapplyErasuresResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReapplyErasuresResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ErasureReapplyResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
