@@ -5,9 +5,9 @@ context: backup
 actors: [PE-owner, PE-selfhoster, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11]
-state: partial
-tasks: [E-02, E-05, H-10]
-checked_by: [test/backup/Archive_test.go, core/application/service/backup/Perform_test.go]
+state: built
+tasks: [E-02, E-05, H-10, CP-01]
+checked_by: [test/backup/Archive_test.go, core/application/service/backup/Perform_test.go, core/application/service/backup/ArchiveKeys_test.go, core/application/service/backup/Apply_test.go, test/backup/Restore_test.go, test/integration/restore_lost_database_test.go, test/integration/sealing_archives_test.go, infrastructure/crypto/Envelope_test.go]
 ---
 
 # Keep backups unreadable to the target, and readable to us after a loss
@@ -49,9 +49,3 @@ point it at the same bucket, list the archives and restore the newest one.
 
 See [backup-restore.md](../../architecture/backup-restore.md) §4 and
 [ADR-0019](../../adr/ADR-0019-backup-targets.md).
-
-## Today
-
-* Check 4: not met — an archive's key is derived from the master key and the target's identifier, so a target re-created on a new installation cannot decrypt the old archives; the documented passphrase is refused with `backup.encryption_passphrase_not_available`, tracked in #1075.
-* Check 5: not met — `backup.archive_key_required` tells the reader to supply a key, and no door accepts one.
-* Check 6: not met — the re-seal and the key census do not cover backup archives, so a key retired at a count of zero silently strands the archives written under it, tracked in #1075.
