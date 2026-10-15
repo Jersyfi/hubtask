@@ -5399,6 +5399,95 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me/passkeys:
+    get:
+      tags: [identity]
+      operationId: listOwnPasskeys
+      summary: The passkeys and security keys the caller's account holds
+      description: |
+        Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+        it, when it was added and when it was last used. Never the credential's identifier, its
+        public key or the account's user handle.
+
+        Beside the list, whether another one can be added now (`can_add`) and, where not, why
+        (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+        installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+        account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+        `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+        cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+      responses:
+        "200":
+          description: The credentials, oldest first, and whether another can be added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys:start:
+    post:
+      tags: [identity]
+      operationId: startPasskeyRegistration
+      summary: Begin adding a passkey or a security key to the caller's account
+      description: |
+        The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+        first (`auth.step_up_required` otherwise), then answers the options to pass to
+        `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+        single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+        account already holds to exclude, and attestation `none`. The challenge is bound to the
+        caller's session and lives five minutes; a newer start replaces it.
+
+        Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+        the most it may, and with `auth.passkey_unavailable` where the installation has no public
+        address; with `auth.step_up_session_required` for a caller without a session, and with
+        `auth.passkey_person_only` for anyone but a person.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistrationOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys:complete:
+    post:
+      tags: [identity]
+      operationId: completePasskeyRegistration
+      summary: Finish adding a passkey or a security key to the caller's account
+      description: |
+        The second call: what the browser's ceremony answered, and the name the person chose. The
+        challenge inside the client data must be the one the same session started within five
+        minutes, and it is spent by this call whatever its outcome; otherwise
+        `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+        (origin and relying party), the authenticator's key must use one of the accepted
+        algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+        A credential already held here is refused with `auth.passkey_already_registered`, an
+        account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+        64 characters or holds control characters with `auth.passkey_name_invalid`.
+
+        Where the account held no unused recovery code, the answer carries ten new ones, shown
+        once and stored only as hashes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyRegistration"
+      responses:
+        "201":
+          description: The credential now held, and the recovery codes where they were minted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistered"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/me/emergency-notices:
     get:
       tags: [identity]
@@ -12899,6 +12988,162 @@ components:
           type: string
           format: date-time
           description: When the identity was connected.
+
+    Passkey:
+      type: object
+      description: One passkey or security key of the caller's account.
+      required: [id, name, created_at, last_used_at]
+      properties:
+        id: { type: string, format: uuid }
+        name:
+          type: string
+          maxLength: 64
+          description: The name the person gave it.
+        created_at:
+          type: string
+          format: date-time
+          description: When it was added.
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: When it last signed in or gave a fresh proof; null until it has.
+
+    PasskeyList:
+      type: object
+      required: [passkeys, limit, can_add, rp_id]
+      properties:
+        passkeys:
+          type: array
+          items:
+            $ref: "#/components/schemas/Passkey"
+        limit:
+          type: integer
+          description: The most an account may hold.
+          example: 10
+        can_add:
+          type: boolean
+          description: Whether starting to add another would be accepted now.
+        cannot_add_reason:
+          type: string
+          description: Present where `can_add` is false - the message code saying why.
+          enum: [auth.passkey_limit_reached, auth.passkey_unavailable, auth.step_up_no_method]
+        rp_id:
+          type: [string, "null"]
+          description: >
+            The host this workspace's passkeys belong to; null where the installation has no
+            public address. A page served at another host cannot add or use one.
+
+    PasskeyRegistrationOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form:
+        every binary value is base64url without padding.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          $ref: "#/components/schemas/PasskeyCreationOptions"
+        expires_at:
+          type: string
+          format: date-time
+          description: When the challenge stops being accepted.
+
+    PasskeyCreationOptions:
+      type: object
+      required: [rp, user, challenge, pubKeyCredParams, timeout, excludeCredentials, authenticatorSelection, attestation]
+      properties:
+        rp:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string, description: The workspace's host. }
+            name: { type: string, description: The workspace's name. }
+        user:
+          type: object
+          required: [id, name, displayName]
+          properties:
+            id: { type: string, description: The account's opaque user handle, base64url. }
+            name: { type: string, description: The account's address, or its sign-in name where it has none. }
+            displayName: { type: string }
+        challenge: { type: string, description: Thirty-two random bytes, base64url. }
+        pubKeyCredParams:
+          type: array
+          items:
+            type: object
+            required: [type, alg]
+            properties:
+              type: { type: string, enum: [public-key] }
+              alg: { type: integer, enum: [-7, -8, -257] }
+        timeout: { type: integer, description: Milliseconds. }
+        excludeCredentials:
+          type: array
+          items:
+            $ref: "#/components/schemas/PasskeyDescriptor"
+        authenticatorSelection:
+          type: object
+          required: [residentKey, requireResidentKey, userVerification]
+          properties:
+            residentKey: { type: string, enum: [preferred] }
+            requireResidentKey: { type: boolean }
+            userVerification: { type: string, enum: [preferred] }
+        attestation: { type: string, enum: [none] }
+
+    PasskeyDescriptor:
+      type: object
+      required: [type, id]
+      properties:
+        type: { type: string, enum: [public-key] }
+        id: { type: string, description: A credential identifier, base64url. }
+        transports:
+          type: array
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+
+    PasskeyTransport:
+      type: string
+      enum: [usb, nfc, ble, hybrid, internal, smart-card]
+
+    PasskeyRegistration:
+      type: object
+      description: What `navigator.credentials.create()` answered, base64url without padding, and the name.
+      required: [name, raw_id, client_data_json, attestation_object]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: What the person calls it.
+        raw_id:
+          type: string
+          maxLength: 1400
+          description: The credential's `rawId`.
+        client_data_json:
+          type: string
+          maxLength: 5600
+          description: The response's `clientDataJSON`.
+        attestation_object:
+          type: string
+          maxLength: 87400
+          description: The response's `attestationObject`.
+        transports:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+          description: The response's `getTransports()`, where the browser offers it.
+
+    PasskeyRegistered:
+      type: object
+      required: [passkey]
+      properties:
+        passkey:
+          $ref: "#/components/schemas/Passkey"
+        recovery_codes:
+          type: array
+          items: { type: string }
+          minItems: 10
+          maxItems: 10
+          description: >
+            Present only where the account held no unused recovery code: ten single-use codes,
+            shown this once and stored only as hashes.
 
     ProviderConnectStart:
       type: object

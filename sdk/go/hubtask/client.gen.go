@@ -2222,19 +2222,19 @@ func (e ItemAccess) Valid() bool {
 
 // Defines values for ItemQueryCount.
 const (
-	Estimated ItemQueryCount = "estimated"
-	Exact     ItemQueryCount = "exact"
-	None      ItemQueryCount = "none"
+	ItemQueryCountEstimated ItemQueryCount = "estimated"
+	ItemQueryCountExact     ItemQueryCount = "exact"
+	ItemQueryCountNone      ItemQueryCount = "none"
 )
 
 // Valid indicates whether the value is a known member of the ItemQueryCount enum.
 func (e ItemQueryCount) Valid() bool {
 	switch e {
-	case Estimated:
+	case ItemQueryCountEstimated:
 		return true
-	case Exact:
+	case ItemQueryCountExact:
 		return true
-	case None:
+	case ItemQueryCountNone:
 		return true
 	default:
 		return false
@@ -2688,6 +2688,153 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAttestation.
+const (
+	PasskeyCreationOptionsAttestationNone PasskeyCreationOptionsAttestation = "none"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAttestation enum.
+func (e PasskeyCreationOptionsAttestation) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAttestationNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionResidentKey.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred PasskeyCreationOptionsAuthenticatorSelectionResidentKey = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionResidentKey enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionResidentKey) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionUserVerification.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred PasskeyCreationOptionsAuthenticatorSelectionUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionUserVerification enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionUserVerification) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsAlg.
+const (
+	Minus257 PasskeyCreationOptionsPubKeyCredParamsAlg = -257
+	Minus7   PasskeyCreationOptionsPubKeyCredParamsAlg = -7
+	Minus8   PasskeyCreationOptionsPubKeyCredParamsAlg = -8
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsAlg enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsAlg) Valid() bool {
+	switch e {
+	case Minus257:
+		return true
+	case Minus7:
+		return true
+	case Minus8:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsType.
+const (
+	PasskeyCreationOptionsPubKeyCredParamsTypePublicKey PasskeyCreationOptionsPubKeyCredParamsType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsType enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsType) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsPubKeyCredParamsTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyDescriptorType.
+const (
+	PasskeyDescriptorTypePublicKey PasskeyDescriptorType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyDescriptorType enum.
+func (e PasskeyDescriptorType) Valid() bool {
+	switch e {
+	case PasskeyDescriptorTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotAddReason.
+const (
+	AuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
+	AuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
+	AuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotAddReason enum.
+func (e PasskeyListCannotAddReason) Valid() bool {
+	switch e {
+	case AuthPasskeyLimitReached:
+		return true
+	case AuthPasskeyUnavailable:
+		return true
+	case AuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyTransport.
+const (
+	Ble       PasskeyTransport = "ble"
+	Hybrid    PasskeyTransport = "hybrid"
+	Internal  PasskeyTransport = "internal"
+	Nfc       PasskeyTransport = "nfc"
+	SmartCard PasskeyTransport = "smart-card"
+	Usb       PasskeyTransport = "usb"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyTransport enum.
+func (e PasskeyTransport) Valid() bool {
+	switch e {
+	case Ble:
+		return true
+	case Hybrid:
+		return true
+	case Internal:
+		return true
+	case Nfc:
+		return true
+	case SmartCard:
+		return true
+	case Usb:
 		return true
 	default:
 		return false
@@ -7823,6 +7970,138 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// Passkey One passkey or security key of the caller's account.
+type Passkey struct {
+	// CreatedAt When it was added.
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When it last signed in or gave a fresh proof; null until it has.
+	LastUsedAt *time.Time `json:"last_used_at"`
+
+	// Name The name the person gave it.
+	Name string `json:"name"`
+}
+
+// PasskeyCreationOptions defines model for PasskeyCreationOptions.
+type PasskeyCreationOptions struct {
+	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
+	AuthenticatorSelection struct {
+		RequireResidentKey bool                                                         `json:"requireResidentKey"`
+		ResidentKey        PasskeyCreationOptionsAuthenticatorSelectionResidentKey      `json:"residentKey"`
+		UserVerification   PasskeyCreationOptionsAuthenticatorSelectionUserVerification `json:"userVerification"`
+	} `json:"authenticatorSelection"`
+
+	// Challenge Thirty-two random bytes
+	Challenge          string              `json:"challenge"`
+	ExcludeCredentials []PasskeyDescriptor `json:"excludeCredentials"`
+	PubKeyCredParams   []struct {
+		Alg  PasskeyCreationOptionsPubKeyCredParamsAlg  `json:"alg"`
+		Type PasskeyCreationOptionsPubKeyCredParamsType `json:"type"`
+	} `json:"pubKeyCredParams"`
+	Rp struct {
+		// Id The workspace's host.
+		Id string `json:"id"`
+
+		// Name The workspace's name.
+		Name string `json:"name"`
+	} `json:"rp"`
+
+	// Timeout Milliseconds.
+	Timeout int `json:"timeout"`
+	User    struct {
+		DisplayName string `json:"displayName"`
+
+		// Id The account's opaque user handle
+		Id string `json:"id"`
+
+		// Name The account's address
+		Name string `json:"name"`
+	} `json:"user"`
+}
+
+// PasskeyCreationOptionsAttestation defines model for PasskeyCreationOptions.Attestation.
+type PasskeyCreationOptionsAttestation string
+
+// PasskeyCreationOptionsAuthenticatorSelectionResidentKey defines model for PasskeyCreationOptions.AuthenticatorSelection.ResidentKey.
+type PasskeyCreationOptionsAuthenticatorSelectionResidentKey string
+
+// PasskeyCreationOptionsAuthenticatorSelectionUserVerification defines model for PasskeyCreationOptions.AuthenticatorSelection.UserVerification.
+type PasskeyCreationOptionsAuthenticatorSelectionUserVerification string
+
+// PasskeyCreationOptionsPubKeyCredParamsAlg defines model for PasskeyCreationOptions.PubKeyCredParams.Alg.
+type PasskeyCreationOptionsPubKeyCredParamsAlg int
+
+// PasskeyCreationOptionsPubKeyCredParamsType defines model for PasskeyCreationOptions.PubKeyCredParams.Type.
+type PasskeyCreationOptionsPubKeyCredParamsType string
+
+// PasskeyDescriptor defines model for PasskeyDescriptor.
+type PasskeyDescriptor struct {
+	// Id A credential identifier
+	Id         string                `json:"id"`
+	Transports *[]PasskeyTransport   `json:"transports,omitempty"`
+	Type       PasskeyDescriptorType `json:"type"`
+}
+
+// PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
+type PasskeyDescriptorType string
+
+// PasskeyList defines model for PasskeyList.
+type PasskeyList struct {
+	// CanAdd Whether starting to add another would be accepted now.
+	CanAdd bool `json:"can_add"`
+
+	// CannotAddReason Present where `can_add` is false - the message code saying why.
+	CannotAddReason *PasskeyListCannotAddReason `json:"cannot_add_reason,omitempty"`
+
+	// Limit The most an account may hold.
+	Limit    int       `json:"limit"`
+	Passkeys []Passkey `json:"passkeys"`
+
+	// RpId The host this workspace's passkeys belong to; null where the installation has no public address. A page served at another host cannot add or use one.
+	RpId *string `json:"rp_id"`
+}
+
+// PasskeyListCannotAddReason Present where `can_add` is false - the message code saying why.
+type PasskeyListCannotAddReason string
+
+// PasskeyRegistered defines model for PasskeyRegistered.
+type PasskeyRegistered struct {
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+}
+
+// PasskeyRegistration What `navigator.credentials.create()` answered, base64url without padding, and the name.
+type PasskeyRegistration struct {
+	// AttestationObject The response's `attestationObject`.
+	AttestationObject string `json:"attestation_object"`
+
+	// ClientDataJson The response's `clientDataJSON`.
+	ClientDataJson string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name string `json:"name"`
+
+	// RawId The credential's `rawId`.
+	RawId string `json:"raw_id"`
+
+	// Transports The response's `getTransports()`, where the browser offers it.
+	Transports *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyRegistrationOptions The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding.
+type PasskeyRegistrationOptions struct {
+	// ExpiresAt When the challenge stops being accepted.
+	ExpiresAt time.Time              `json:"expires_at"`
+	PublicKey PasskeyCreationOptions `json:"public_key"`
+}
+
+// PasskeyTransport defines model for PasskeyTransport.
+type PasskeyTransport string
+
 // PasswordChange defines model for PasswordChange.
 type PasswordChange struct {
 	// Password The new password, judged against this workspace's rule.
@@ -10247,6 +10526,12 @@ type StartProviderConnectParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// StartPasskeyRegistrationParams defines parameters for StartPasskeyRegistration.
+type StartPasskeyRegistrationParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -11349,6 +11634,9 @@ type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 // StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
 type StartProviderConnectJSONRequestBody = ProviderConnectStart
 
+// CompletePasskeyRegistrationJSONRequestBody defines body for CompletePasskeyRegistration for application/json ContentType.
+type CompletePasskeyRegistrationJSONRequestBody = PasskeyRegistration
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11944,6 +12232,79 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
 	StartProviderConnect(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListOwnPasskeys The passkeys and security keys the caller's account holds
+	//
+	// Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+	// it, when it was added and when it was last used. Never the credential's identifier, its
+	// public key or the account's user handle.
+	//
+	// Beside the list, whether another one can be added now (`can_add`) and, where not, why
+	// (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+	// installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+	// account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+	// `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+	// cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+	//
+	// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
+	ListOwnPasskeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeyRegistrationWithBody Finish adding a passkey or a security key to the caller's account
+	//
+	// The second call: what the browser's ceremony answered, and the name the person chose. The
+	// challenge inside the client data must be the one the same session started within five
+	// minutes, and it is spent by this call whatever its outcome; otherwise
+	// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+	// (origin and relying party), the authenticator's key must use one of the accepted
+	// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+	// A credential already held here is refused with `auth.passkey_already_registered`, an
+	// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+	// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+	//
+	// Where the account held no unused recovery code, the answer carries ten new ones, shown
+	// once and stored only as hashes.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+	CompletePasskeyRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeyRegistration Finish adding a passkey or a security key to the caller's account
+	//
+	// The second call: what the browser's ceremony answered, and the name the person chose. The
+	// challenge inside the client data must be the one the same session started within five
+	// minutes, and it is spent by this call whatever its outcome; otherwise
+	// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+	// (origin and relying party), the authenticator's key must use one of the accepted
+	// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+	// A credential already held here is refused with `auth.passkey_already_registered`, an
+	// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+	// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+	//
+	// Where the account held no unused recovery code, the answer carries ten new ones, shown
+	// once and stored only as hashes.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+	CompletePasskeyRegistration(ctx context.Context, body CompletePasskeyRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyRegistration Begin adding a passkey or a security key to the caller's account
+	//
+	// The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers the options to pass to
+	// `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+	// single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+	// account already holds to exclude, and attestation `none`. The challenge is bound to the
+	// caller's session and lives five minutes; a newer start replaces it.
+	//
+	// Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+	// the most it may, and with `auth.passkey_unavailable` where the installation has no public
+	// address; with `auth.step_up_session_required` for a caller without a session, and with
+	// `auth.passkey_person_only` for anyone but a person.
+	//
+	// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
+	StartPasskeyRegistration(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetAccount The name behind an account identifier
 	//
@@ -16374,6 +16735,119 @@ func (c *Client) StartProviderConnectWithBody(ctx context.Context, params *Start
 // Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
 func (c *Client) StartProviderConnect(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartProviderConnectRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListOwnPasskeys The passkeys and security keys the caller's account holds
+//
+// Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+// it, when it was added and when it was last used. Never the credential's identifier, its
+// public key or the account's user handle.
+//
+// Beside the list, whether another one can be added now (`can_add`) and, where not, why
+// (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+// installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+// account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+// `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+// cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+//
+// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
+func (c *Client) ListOwnPasskeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOwnPasskeysRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeyRegistrationWithBody Finish adding a passkey or a security key to the caller's account
+//
+// The second call: what the browser's ceremony answered, and the name the person chose. The
+// challenge inside the client data must be the one the same session started within five
+// minutes, and it is spent by this call whatever its outcome; otherwise
+// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+// (origin and relying party), the authenticator's key must use one of the accepted
+// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+// A credential already held here is refused with `auth.passkey_already_registered`, an
+// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+//
+// Where the account held no unused recovery code, the answer carries ten new ones, shown
+// once and stored only as hashes.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+func (c *Client) CompletePasskeyRegistrationWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyRegistrationRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeyRegistration Finish adding a passkey or a security key to the caller's account
+//
+// The second call: what the browser's ceremony answered, and the name the person chose. The
+// challenge inside the client data must be the one the same session started within five
+// minutes, and it is spent by this call whatever its outcome; otherwise
+// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+// (origin and relying party), the authenticator's key must use one of the accepted
+// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+// A credential already held here is refused with `auth.passkey_already_registered`, an
+// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+//
+// Where the account held no unused recovery code, the answer carries ten new ones, shown
+// once and stored only as hashes.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+func (c *Client) CompletePasskeyRegistration(ctx context.Context, body CompletePasskeyRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyRegistrationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyRegistration Begin adding a passkey or a security key to the caller's account
+//
+// The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers the options to pass to
+// `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+// single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+// account already holds to exclude, and attestation `none`. The challenge is bound to the
+// caller's session and lives five minutes; a newer start replaces it.
+//
+// Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+// the most it may, and with `auth.passkey_unavailable` where the installation has no public
+// address; with `auth.step_up_session_required` for a caller without a session, and with
+// `auth.passkey_person_only` for anyone but a person.
+//
+// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
+func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyRegistrationRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -25310,6 +25784,115 @@ func NewStartProviderConnectRequestWithBody(server string, params *StartProvider
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListOwnPasskeysRequest constructs an http.Request for the ListOwnPasskeys method
+func NewListOwnPasskeysRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/passkeys")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCompletePasskeyRegistrationRequest calls the generic CompletePasskeyRegistration builder with application/json body
+func NewCompletePasskeyRegistrationRequest(server string, body CompletePasskeyRegistrationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompletePasskeyRegistrationRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompletePasskeyRegistrationRequestWithBody constructs an http.Request for the CompletePasskeyRegistration method, with any body, and a specified content type
+func NewCompletePasskeyRegistrationRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/passkeys:complete")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeyRegistrationRequest constructs an http.Request for the StartPasskeyRegistration method
+func NewStartPasskeyRegistrationRequest(server string, params *StartPasskeyRegistrationParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/passkeys:start")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if params != nil {
 
@@ -40278,6 +40861,83 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /accounts/me/identities:connect (the `StartProviderConnect` operationId).
 	StartProviderConnectWithResponse(ctx context.Context, params *StartProviderConnectParams, body StartProviderConnectJSONRequestBody, reqEditors ...RequestEditorFn) (*StartProviderConnectResult, error)
 
+	// ListOwnPasskeysWithResponse The passkeys and security keys the caller's account holds
+	//
+	// Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+	// it, when it was added and when it was last used. Never the credential's identifier, its
+	// public key or the account's user handle.
+	//
+	// Beside the list, whether another one can be added now (`can_add`) and, where not, why
+	// (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+	// installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+	// account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+	// `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+	// cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
+	ListOwnPasskeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnPasskeysResult, error)
+
+	// CompletePasskeyRegistrationWithBodyWithResponse Finish adding a passkey or a security key to the caller's account
+	//
+	// The second call: what the browser's ceremony answered, and the name the person chose. The
+	// challenge inside the client data must be the one the same session started within five
+	// minutes, and it is spent by this call whatever its outcome; otherwise
+	// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+	// (origin and relying party), the authenticator's key must use one of the accepted
+	// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+	// A credential already held here is refused with `auth.passkey_already_registered`, an
+	// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+	// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+	//
+	// Where the account held no unused recovery code, the answer carries ten new ones, shown
+	// once and stored only as hashes.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+	CompletePasskeyRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyRegistrationResult, error)
+
+	// CompletePasskeyRegistrationWithResponse Finish adding a passkey or a security key to the caller's account
+	//
+	// The second call: what the browser's ceremony answered, and the name the person chose. The
+	// challenge inside the client data must be the one the same session started within five
+	// minutes, and it is spent by this call whatever its outcome; otherwise
+	// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+	// (origin and relying party), the authenticator's key must use one of the accepted
+	// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+	// A credential already held here is refused with `auth.passkey_already_registered`, an
+	// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+	// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+	//
+	// Where the account held no unused recovery code, the answer carries ten new ones, shown
+	// once and stored only as hashes.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+	CompletePasskeyRegistrationWithResponse(ctx context.Context, body CompletePasskeyRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyRegistrationResult, error)
+
+	// StartPasskeyRegistrationWithResponse Begin adding a passkey or a security key to the caller's account
+	//
+	// The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+	// first (`auth.step_up_required` otherwise), then answers the options to pass to
+	// `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+	// single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+	// account already holds to exclude, and attestation `none`. The challenge is bound to the
+	// caller's session and lives five minutes; a newer start replaces it.
+	//
+	// Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+	// the most it may, and with `auth.passkey_unavailable` where the installation has no public
+	// address; with `auth.step_up_session_required` for a caller without a session, and with
+	// `auth.passkey_person_only` for anyone but a person.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
+	StartPasskeyRegistrationWithResponse(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*StartPasskeyRegistrationResult, error)
+
 	// GetAccountWithResponse The name behind an account identifier
 	//
 	// Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -45192,6 +45852,150 @@ func (r StartProviderConnectResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StartProviderConnectResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListOwnPasskeysResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOwnPasskeysResult) GetJSON200() *PasskeyList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOwnPasskeysResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOwnPasskeysResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOwnPasskeysResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOwnPasskeysResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOwnPasskeysResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompletePasskeyRegistrationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PasskeyRegistered
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompletePasskeyRegistrationResult) GetJSON201() *PasskeyRegistered {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompletePasskeyRegistrationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompletePasskeyRegistrationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompletePasskeyRegistrationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompletePasskeyRegistrationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompletePasskeyRegistrationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeyRegistrationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyRegistrationOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeyRegistrationResult) GetJSON200() *PasskeyRegistrationOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeyRegistrationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeyRegistrationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeyRegistrationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeyRegistrationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeyRegistrationResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -60592,6 +61396,107 @@ func (c *ClientWithResponses) StartProviderConnectWithResponse(ctx context.Conte
 	return ParseStartProviderConnectResult(rsp)
 }
 
+// ListOwnPasskeysWithResponse The passkeys and security keys the caller's account holds
+//
+// Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+// it, when it was added and when it was last used. Never the credential's identifier, its
+// public key or the account's user handle.
+//
+// Beside the list, whether another one can be added now (`can_add`) and, where not, why
+// (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+// installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+// account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+// `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+// cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
+func (c *ClientWithResponses) ListOwnPasskeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnPasskeysResult, error) {
+	rsp, err := c.ListOwnPasskeys(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOwnPasskeysResult(rsp)
+}
+
+// CompletePasskeyRegistrationWithBodyWithResponse Finish adding a passkey or a security key to the caller's account
+//
+// The second call: what the browser's ceremony answered, and the name the person chose. The
+// challenge inside the client data must be the one the same session started within five
+// minutes, and it is spent by this call whatever its outcome; otherwise
+// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+// (origin and relying party), the authenticator's key must use one of the accepted
+// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+// A credential already held here is refused with `auth.passkey_already_registered`, an
+// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+//
+// Where the account held no unused recovery code, the answer carries ten new ones, shown
+// once and stored only as hashes.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+func (c *ClientWithResponses) CompletePasskeyRegistrationWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyRegistrationResult, error) {
+	rsp, err := c.CompletePasskeyRegistrationWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyRegistrationResult(rsp)
+}
+
+// CompletePasskeyRegistrationWithResponse Finish adding a passkey or a security key to the caller's account
+//
+// The second call: what the browser's ceremony answered, and the name the person chose. The
+// challenge inside the client data must be the one the same session started within five
+// minutes, and it is spent by this call whatever its outcome; otherwise
+// `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+// (origin and relying party), the authenticator's key must use one of the accepted
+// algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+// A credential already held here is refused with `auth.passkey_already_registered`, an
+// account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+// 64 characters or holds control characters with `auth.passkey_name_invalid`.
+//
+// Where the account held no unused recovery code, the answer carries ten new ones, shown
+// once and stored only as hashes.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/passkeys:complete (the `CompletePasskeyRegistration` operationId).
+func (c *ClientWithResponses) CompletePasskeyRegistrationWithResponse(ctx context.Context, body CompletePasskeyRegistrationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyRegistrationResult, error) {
+	rsp, err := c.CompletePasskeyRegistration(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyRegistrationResult(rsp)
+}
+
+// StartPasskeyRegistrationWithResponse Begin adding a passkey or a security key to the caller's account
+//
+// The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+// first (`auth.step_up_required` otherwise), then answers the options to pass to
+// `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+// single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+// account already holds to exclude, and attestation `none`. The challenge is bound to the
+// caller's session and lives five minutes; a newer start replaces it.
+//
+// Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+// the most it may, and with `auth.passkey_unavailable` where the installation has no public
+// address; with `auth.step_up_session_required` for a caller without a session, and with
+// `auth.passkey_person_only` for anyone but a person.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/passkeys:start (the `StartPasskeyRegistration` operationId).
+func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.Context, params *StartPasskeyRegistrationParams, reqEditors ...RequestEditorFn) (*StartPasskeyRegistrationResult, error) {
+	rsp, err := c.StartPasskeyRegistration(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyRegistrationResult(rsp)
+}
+
 // GetAccountWithResponse The name behind an account identifier
 //
 // Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries
@@ -68123,6 +69028,105 @@ func ParseStartProviderConnectResult(rsp *http.Response) (*StartProviderConnectR
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListOwnPasskeysResult parses an HTTP response from a ListOwnPasskeysWithResponse call
+func ParseListOwnPasskeysResult(rsp *http.Response) (*ListOwnPasskeysResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOwnPasskeysResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompletePasskeyRegistrationResult parses an HTTP response from a CompletePasskeyRegistrationWithResponse call
+func ParseCompletePasskeyRegistrationResult(rsp *http.Response) (*CompletePasskeyRegistrationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompletePasskeyRegistrationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PasskeyRegistered
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeyRegistrationResult parses an HTTP response from a StartPasskeyRegistrationWithResponse call
+func ParseStartPasskeyRegistrationResult(rsp *http.Response) (*StartPasskeyRegistrationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeyRegistrationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyRegistrationOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

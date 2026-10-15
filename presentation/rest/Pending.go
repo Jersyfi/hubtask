@@ -1347,6 +1347,19 @@ func (pending) StartProviderConnect(
 // CompleteProviderConnect is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// The passkeys of the caller's own account (identity.md §23).
+func (pending) ListOwnPasskeys(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) StartPasskeyRegistration(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartPasskeyRegistrationParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // The installation's own backup targets (backup-restore.md §2).
 func (pending) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)

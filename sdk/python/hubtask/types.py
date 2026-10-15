@@ -1080,6 +1080,54 @@ class ConnectedIdentity(TypedDict, total=False):
     provider_name: Required[str]
     linked_at: Required[str]
 
+class Passkey(TypedDict, total=False):
+    """One passkey or security key of the caller's account."""
+    id: Required[str]
+    name: Required[str]
+    created_at: Required[str]
+    last_used_at: Required[str | None]
+
+class PasskeyList(TypedDict, total=False):
+    passkeys: Required[list["Passkey"]]
+    limit: Required[int]
+    can_add: Required[bool]
+    cannot_add_reason: Literal["auth.passkey_limit_reached", "auth.passkey_unavailable", "auth.step_up_no_method"]
+    rp_id: Required[str | None]
+
+class PasskeyRegistrationOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
+    public_key: Required["PasskeyCreationOptions"]
+    expires_at: Required[str]
+
+class PasskeyCreationOptions(TypedDict, total=False):
+    rp: Required[dict[str, Any]]
+    user: Required[dict[str, Any]]
+    challenge: Required[str]
+    pubKeyCredParams: Required[list[dict[str, Any]]]
+    timeout: Required[int]
+    excludeCredentials: Required[list["PasskeyDescriptor"]]
+    authenticatorSelection: Required[dict[str, Any]]
+    attestation: Required[Literal["none"]]
+
+class PasskeyDescriptor(TypedDict, total=False):
+    type: Required[Literal["public-key"]]
+    id: Required[str]
+    transports: list["PasskeyTransport"]
+
+PasskeyTransport = Literal["usb", "nfc", "ble", "hybrid", "internal", "smart-card"]
+
+class PasskeyRegistration(TypedDict, total=False):
+    """What `navigator.credentials.create()` answered, base64url without padding, and the name."""
+    name: Required[str]
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    attestation_object: Required[str]
+    transports: list["PasskeyTransport"]
+
+class PasskeyRegistered(TypedDict, total=False):
+    passkey: Required["Passkey"]
+    recovery_codes: list[str]
+
 class ProviderConnectStart(TypedDict, total=False):
     provider_id: Required[str]
 

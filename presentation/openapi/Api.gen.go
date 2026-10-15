@@ -2216,19 +2216,19 @@ func (e ItemAccess) Valid() bool {
 
 // Defines values for ItemQueryCount.
 const (
-	Estimated ItemQueryCount = "estimated"
-	Exact     ItemQueryCount = "exact"
-	None      ItemQueryCount = "none"
+	ItemQueryCountEstimated ItemQueryCount = "estimated"
+	ItemQueryCountExact     ItemQueryCount = "exact"
+	ItemQueryCountNone      ItemQueryCount = "none"
 )
 
 // Valid indicates whether the value is a known member of the ItemQueryCount enum.
 func (e ItemQueryCount) Valid() bool {
 	switch e {
-	case Estimated:
+	case ItemQueryCountEstimated:
 		return true
-	case Exact:
+	case ItemQueryCountExact:
 		return true
-	case None:
+	case ItemQueryCountNone:
 		return true
 	default:
 		return false
@@ -2682,6 +2682,153 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAttestation.
+const (
+	PasskeyCreationOptionsAttestationNone PasskeyCreationOptionsAttestation = "none"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAttestation enum.
+func (e PasskeyCreationOptionsAttestation) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAttestationNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionResidentKey.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred PasskeyCreationOptionsAuthenticatorSelectionResidentKey = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionResidentKey enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionResidentKey) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionUserVerification.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred PasskeyCreationOptionsAuthenticatorSelectionUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionUserVerification enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionUserVerification) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsAlg.
+const (
+	Minus257 PasskeyCreationOptionsPubKeyCredParamsAlg = -257
+	Minus7   PasskeyCreationOptionsPubKeyCredParamsAlg = -7
+	Minus8   PasskeyCreationOptionsPubKeyCredParamsAlg = -8
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsAlg enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsAlg) Valid() bool {
+	switch e {
+	case Minus257:
+		return true
+	case Minus7:
+		return true
+	case Minus8:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsType.
+const (
+	PasskeyCreationOptionsPubKeyCredParamsTypePublicKey PasskeyCreationOptionsPubKeyCredParamsType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsType enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsType) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsPubKeyCredParamsTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyDescriptorType.
+const (
+	PasskeyDescriptorTypePublicKey PasskeyDescriptorType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyDescriptorType enum.
+func (e PasskeyDescriptorType) Valid() bool {
+	switch e {
+	case PasskeyDescriptorTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotAddReason.
+const (
+	AuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
+	AuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
+	AuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotAddReason enum.
+func (e PasskeyListCannotAddReason) Valid() bool {
+	switch e {
+	case AuthPasskeyLimitReached:
+		return true
+	case AuthPasskeyUnavailable:
+		return true
+	case AuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyTransport.
+const (
+	Ble       PasskeyTransport = "ble"
+	Hybrid    PasskeyTransport = "hybrid"
+	Internal  PasskeyTransport = "internal"
+	Nfc       PasskeyTransport = "nfc"
+	SmartCard PasskeyTransport = "smart-card"
+	Usb       PasskeyTransport = "usb"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyTransport enum.
+func (e PasskeyTransport) Valid() bool {
+	switch e {
+	case Ble:
+		return true
+	case Hybrid:
+		return true
+	case Internal:
+		return true
+	case Nfc:
+		return true
+	case SmartCard:
+		return true
+	case Usb:
 		return true
 	default:
 		return false
@@ -7817,6 +7964,138 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// Passkey One passkey or security key of the caller's account.
+type Passkey struct {
+	// CreatedAt When it was added.
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When it last signed in or gave a fresh proof; null until it has.
+	LastUsedAt *time.Time `json:"last_used_at"`
+
+	// Name The name the person gave it.
+	Name string `json:"name"`
+}
+
+// PasskeyCreationOptions defines model for PasskeyCreationOptions.
+type PasskeyCreationOptions struct {
+	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
+	AuthenticatorSelection struct {
+		RequireResidentKey bool                                                         `json:"requireResidentKey"`
+		ResidentKey        PasskeyCreationOptionsAuthenticatorSelectionResidentKey      `json:"residentKey"`
+		UserVerification   PasskeyCreationOptionsAuthenticatorSelectionUserVerification `json:"userVerification"`
+	} `json:"authenticatorSelection"`
+
+	// Challenge Thirty-two random bytes
+	Challenge          string              `json:"challenge"`
+	ExcludeCredentials []PasskeyDescriptor `json:"excludeCredentials"`
+	PubKeyCredParams   []struct {
+		Alg  PasskeyCreationOptionsPubKeyCredParamsAlg  `json:"alg"`
+		Type PasskeyCreationOptionsPubKeyCredParamsType `json:"type"`
+	} `json:"pubKeyCredParams"`
+	Rp struct {
+		// Id The workspace's host.
+		Id string `json:"id"`
+
+		// Name The workspace's name.
+		Name string `json:"name"`
+	} `json:"rp"`
+
+	// Timeout Milliseconds.
+	Timeout int `json:"timeout"`
+	User    struct {
+		DisplayName string `json:"displayName"`
+
+		// Id The account's opaque user handle
+		Id string `json:"id"`
+
+		// Name The account's address
+		Name string `json:"name"`
+	} `json:"user"`
+}
+
+// PasskeyCreationOptionsAttestation defines model for PasskeyCreationOptions.Attestation.
+type PasskeyCreationOptionsAttestation string
+
+// PasskeyCreationOptionsAuthenticatorSelectionResidentKey defines model for PasskeyCreationOptions.AuthenticatorSelection.ResidentKey.
+type PasskeyCreationOptionsAuthenticatorSelectionResidentKey string
+
+// PasskeyCreationOptionsAuthenticatorSelectionUserVerification defines model for PasskeyCreationOptions.AuthenticatorSelection.UserVerification.
+type PasskeyCreationOptionsAuthenticatorSelectionUserVerification string
+
+// PasskeyCreationOptionsPubKeyCredParamsAlg defines model for PasskeyCreationOptions.PubKeyCredParams.Alg.
+type PasskeyCreationOptionsPubKeyCredParamsAlg int
+
+// PasskeyCreationOptionsPubKeyCredParamsType defines model for PasskeyCreationOptions.PubKeyCredParams.Type.
+type PasskeyCreationOptionsPubKeyCredParamsType string
+
+// PasskeyDescriptor defines model for PasskeyDescriptor.
+type PasskeyDescriptor struct {
+	// Id A credential identifier
+	Id         string                `json:"id"`
+	Transports *[]PasskeyTransport   `json:"transports,omitempty"`
+	Type       PasskeyDescriptorType `json:"type"`
+}
+
+// PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
+type PasskeyDescriptorType string
+
+// PasskeyList defines model for PasskeyList.
+type PasskeyList struct {
+	// CanAdd Whether starting to add another would be accepted now.
+	CanAdd bool `json:"can_add"`
+
+	// CannotAddReason Present where `can_add` is false - the message code saying why.
+	CannotAddReason *PasskeyListCannotAddReason `json:"cannot_add_reason,omitempty"`
+
+	// Limit The most an account may hold.
+	Limit    int       `json:"limit"`
+	Passkeys []Passkey `json:"passkeys"`
+
+	// RpId The host this workspace's passkeys belong to; null where the installation has no public address. A page served at another host cannot add or use one.
+	RpId *string `json:"rp_id"`
+}
+
+// PasskeyListCannotAddReason Present where `can_add` is false - the message code saying why.
+type PasskeyListCannotAddReason string
+
+// PasskeyRegistered defines model for PasskeyRegistered.
+type PasskeyRegistered struct {
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+}
+
+// PasskeyRegistration What `navigator.credentials.create()` answered, base64url without padding, and the name.
+type PasskeyRegistration struct {
+	// AttestationObject The response's `attestationObject`.
+	AttestationObject string `json:"attestation_object"`
+
+	// ClientDataJson The response's `clientDataJSON`.
+	ClientDataJson string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name string `json:"name"`
+
+	// RawId The credential's `rawId`.
+	RawId string `json:"raw_id"`
+
+	// Transports The response's `getTransports()`, where the browser offers it.
+	Transports *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyRegistrationOptions The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding.
+type PasskeyRegistrationOptions struct {
+	// ExpiresAt When the challenge stops being accepted.
+	ExpiresAt time.Time              `json:"expires_at"`
+	PublicKey PasskeyCreationOptions `json:"public_key"`
+}
+
+// PasskeyTransport defines model for PasskeyTransport.
+type PasskeyTransport string
+
 // PasswordChange defines model for PasswordChange.
 type PasswordChange struct {
 	// Password The new password, judged against this workspace's rule.
@@ -10241,6 +10520,12 @@ type StartProviderConnectParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// StartPasskeyRegistrationParams defines parameters for StartPasskeyRegistration.
+type StartPasskeyRegistrationParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -11343,6 +11628,9 @@ type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 // StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
 type StartProviderConnectJSONRequestBody = ProviderConnectStart
 
+// CompletePasskeyRegistrationJSONRequestBody defines body for CompletePasskeyRegistration for application/json ContentType.
+type CompletePasskeyRegistrationJSONRequestBody = PasskeyRegistration
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11783,6 +12071,15 @@ type ServerInterface interface {
 	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
 	// (POST /accounts/me/identities:connect)
 	StartProviderConnect(w http.ResponseWriter, r *http.Request, params StartProviderConnectParams)
+	// ListOwnPasskeys The passkeys and security keys the caller's account holds
+	// (GET /accounts/me/passkeys)
+	ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
+	// CompletePasskeyRegistration Finish adding a passkey or a security key to the caller's account
+	// (POST /accounts/me/passkeys:complete)
+	CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request)
+	// StartPasskeyRegistration Begin adding a passkey or a security key to the caller's account
+	// (POST /accounts/me/passkeys:start)
+	StartPasskeyRegistration(w http.ResponseWriter, r *http.Request, params StartPasskeyRegistrationParams)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -12809,6 +13106,75 @@ func (siw *ServerInterfaceWrapper) StartProviderConnect(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartProviderConnect(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOwnPasskeys operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnPasskeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnPasskeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompletePasskeyRegistration operation middleware
+func (siw *ServerInterfaceWrapper) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompletePasskeyRegistration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPasskeyRegistration operation middleware
+func (siw *ServerInterfaceWrapper) StartPasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartPasskeyRegistrationParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPasskeyRegistration(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24037,6 +24403,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/identities", wrapper.ListOwnIdentities)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:connect", wrapper.StartProviderConnect)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:complete", wrapper.CompleteProviderConnect)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/passkeys", wrapper.ListOwnPasskeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:start", wrapper.StartPasskeyRegistration)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:complete", wrapper.CompletePasskeyRegistration)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
