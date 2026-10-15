@@ -1710,6 +1710,36 @@ func (e ErasureMode) Valid() bool {
 	}
 }
 
+// Defines values for ErasureReapplyResultErasuresOutcome.
+const (
+	ALREADYCOMPLETED ErasureReapplyResultErasuresOutcome = "ALREADY_COMPLETED"
+	CASEMISMATCH     ErasureReapplyResultErasuresOutcome = "CASE_MISMATCH"
+	CASEREJECTED     ErasureReapplyResultErasuresOutcome = "CASE_REJECTED"
+	ERASUREBLOCKED   ErasureReapplyResultErasuresOutcome = "ERASURE_BLOCKED"
+	REAPPLIED        ErasureReapplyResultErasuresOutcome = "REAPPLIED"
+	SUBJECTABSENT    ErasureReapplyResultErasuresOutcome = "SUBJECT_ABSENT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureReapplyResultErasuresOutcome enum.
+func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
+	switch e {
+	case ALREADYCOMPLETED:
+		return true
+	case CASEMISMATCH:
+		return true
+	case CASEREJECTED:
+		return true
+	case ERASUREBLOCKED:
+		return true
+	case REAPPLIED:
+		return true
+	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -6101,6 +6131,34 @@ type EncryptionStoreCount struct {
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
+// ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
+type ErasureCaseRecord struct {
+	CompletedAt time.Time `json:"completed_at"`
+	DueAt       time.Time `json:"due_at"`
+
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	ErasureMode ErasureMode `json:"erasure_mode"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason  *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy        *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id               openapi_types.UUID                 `json:"id"`
+	InformedOn       *openapi_types.Date                `json:"informed_on,omitempty"`
+	Notes            *string                            `json:"notes,omitempty"`
+	OriginalDueAt    *time.Time                         `json:"original_due_at,omitempty"`
+	ReceivedAt       time.Time                          `json:"received_at"`
+	SubjectAccountId *openapi_types.UUID                `json:"subject_account_id,omitempty"`
+	SubjectEmail     *string                            `json:"subject_email,omitempty"`
+}
+
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
 	// Account The person's account itself is kept, restricted rather than erased.
@@ -6163,6 +6221,32 @@ type ErasurePreview struct {
 	// on the case, and does so knowingly.
 	Mode ErasureMode `json:"mode"`
 }
+
+// ErasureReapplyRequest The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them.
+type ErasureReapplyRequest struct {
+	Erasures []ErasureCaseRecord `json:"erasures"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each erasure.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// ErasureReapplyResult defines model for ErasureReapplyResult.
+type ErasureReapplyResult struct {
+	Erasures []struct {
+		// Code The message code behind ERASURE_BLOCKED or CASE_MISMATCH.
+		Code *string            `json:"code,omitempty"`
+		Id   openapi_types.UUID `json:"id"`
+
+		// Kept Whether a legal hold kept part of what the erasure would have removed.
+		Kept bool `json:"kept"`
+
+		// Outcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+		Outcome ErasureReapplyResultErasuresOutcome `json:"outcome"`
+	} `json:"erasures"`
+}
+
+// ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+type ErasureReapplyResultErasuresOutcome string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -10138,6 +10222,12 @@ type OpenTenantPasswordParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReapplyErasuresParams defines parameters for ReapplyErasures.
+type ReapplyErasuresParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
 type ListAuditEntriesParams struct {
 	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
@@ -11191,6 +11281,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
+
+// ReapplyErasuresJSONRequestBody defines body for ReapplyErasures for application/json ContentType.
+type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
@@ -12303,6 +12396,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReapplyErasuresWithBody Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithBody(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReapplyErasures Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasures(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReplaceLegalHoldsWithBody Place the legal holds of a rewound period again
 	//
@@ -17103,6 +17214,44 @@ func (c *Client) OpenTenantPasswordWithBody(ctx context.Context, tenantId AdminT
 // Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 func (c *Client) OpenTenantPassword(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewOpenTenantPasswordRequest(c.Server, tenantId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReapplyErasuresWithBody Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *Client) ReapplyErasuresWithBody(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReapplyErasuresRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReapplyErasures Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *Client) ReapplyErasures(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReapplyErasuresRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -26189,6 +26338,68 @@ func NewOpenTenantPasswordRequestWithBody(server string, tenantId AdminTenantId,
 	}
 
 	operationPath := fmt.Sprintf("/admin/tenants/%s:open-password", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewReapplyErasuresRequest calls the generic ReapplyErasures builder with application/json body
+func NewReapplyErasuresRequest(server string, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewReapplyErasuresRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewReapplyErasuresRequestWithBody constructs an http.Request for the ReapplyErasures method, with any body, and a specified content type
+func NewReapplyErasuresRequestWithBody(server string, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:reapply-erasures", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -39944,6 +40155,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants/{tenantId}:open-password (the `OpenTenantPassword` operationId).
 	OpenTenantPasswordWithResponse(ctx context.Context, tenantId AdminTenantId, params *OpenTenantPasswordParams, body OpenTenantPasswordJSONRequestBody, reqEditors ...RequestEditorFn) (*OpenTenantPasswordResult, error)
 
+	// ReapplyErasuresWithBodyWithResponse Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error)
+
+	// ReapplyErasuresWithResponse Carry out again the erasures of a rewound period
+	//
+	// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+	ReapplyErasuresWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error)
+
 	// ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
 	//
 	// After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
@@ -45705,6 +45934,54 @@ func (r OpenTenantPasswordResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r OpenTenantPasswordResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReapplyErasuresResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ErasureReapplyResult
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReapplyErasuresResult) GetJSON200() *ErasureReapplyResult {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReapplyErasuresResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReapplyErasuresResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReapplyErasuresResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReapplyErasuresResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReapplyErasuresResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -60043,6 +60320,36 @@ func (c *ClientWithResponses) OpenTenantPasswordWithResponse(ctx context.Context
 	return ParseOpenTenantPasswordResult(rsp)
 }
 
+// ReapplyErasuresWithBodyWithResponse Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *ClientWithResponses) ReapplyErasuresWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error) {
+	rsp, err := c.ReapplyErasuresWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReapplyErasuresResult(rsp)
+}
+
+// ReapplyErasuresWithResponse Carry out again the erasures of a rewound period
+//
+// After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:reapply-erasures (the `ReapplyErasures` operationId).
+func (c *ClientWithResponses) ReapplyErasuresWithResponse(ctx context.Context, tenantId AdminTenantId, params *ReapplyErasuresParams, body ReapplyErasuresJSONRequestBody, reqEditors ...RequestEditorFn) (*ReapplyErasuresResult, error) {
+	rsp, err := c.ReapplyErasures(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReapplyErasuresResult(rsp)
+}
+
 // ReplaceLegalHoldsWithBodyWithResponse Place the legal holds of a rewound period again
 //
 // After a point-in-time recovery of the installation, before traffic is admitted, the operator places again the legal holds the rewind removed from this workspace. Each hold keeps its identifier, scope, reason, placer and moment; one released in the rewound period is placed in force all the same, and its owner releases it again. A hold the workspace already has is left as it is, so a second run changes nothing. A hold whose target the recovery removed is placed and reported. Demands `admin:tenants`. Each hold placed writes `lifecycle.hold_replaced` into the workspace's trail.
@@ -67550,6 +67857,39 @@ func ParseOpenTenantPasswordResult(rsp *http.Response) (*OpenTenantPasswordResul
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReapplyErasuresResult parses an HTTP response from a ReapplyErasuresWithResponse call
+func ParseReapplyErasuresResult(rsp *http.Response) (*ReapplyErasuresResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReapplyErasuresResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ErasureReapplyResult
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

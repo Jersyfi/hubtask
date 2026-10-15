@@ -345,9 +345,12 @@ can carry out the procedure.**
    for RT-9 — and place again every `legal_hold` row the recovered database lacks, with its original
    id, scope, reason and placer, each recorded as `lifecycle.hold_replaced`. Where the end of the
    archive is unusable, the source is the newest workspace archive that includes the audit trail,
-   read for `lifecycle.hold_placed`, and the gap is reported per workspace. Then the erasures
-   completed after the recovery point are re-run, both before traffic is admitted (§7). The holds go
-   first, so no re-run erasure removes what one of them keeps. A hold released after the recovery
+   read for `lifecycle.hold_placed`, and the gap is reported per workspace. Then the data subject
+   erasures completed after the recovery point are carried out again from the same temporary
+   cluster, both before traffic is admitted (§7). The holds go first, so no re-run erasure removes
+   what one of them keeps. The other removals of the rewound period (a trash emptied, a retention
+   pass, an operator's deletion) are not re-run: the recovery point is chosen before the damage, and
+   retention deletes again on its next pass. A hold released after the recovery
    point stays in force — the safe side — and its owner is told to release it again
    ([data-protection.md](./data-protection.md) §5).
 6. **Point the application at the recovered cluster** and scale back up; forward-only migrations
@@ -393,6 +396,51 @@ with `hubctl` and a credential that holds `admin:tenants`.
 
 The workspaces are those the recovered installation lists (`hubctl admin tenant ls`); a workspace
 created after the recovery point is not among them, and its holds went with it.
+
+#### Step 5's erasures, by hand
+
+After the holds, per workspace, from the same temporary cluster and with a credential that holds
+`admin:tenants` and can prove itself afresh (the operation deletes for good, so it takes a step-up,
+[identity.md](./identity.md) §16.3):
+
+```bash
+export PGPASSWORD=…    # the temporary cluster's app role
+hubctl admin tenant reapply-erasures <workspace> --recovery-point <step 1's moment> \
+  --from-cluster "postgres://hubtask_app@<temporary>-rw.<namespace>.svc:5432/<database>"
+```
+
+`hubctl` reads the workspace's erasure cases completed after the recovery point, under the
+workspace's own scope and with the workspace named in its statement. A full deletion's case no
+longer names the person once the account went. The reader takes the one account the erasure
+removed at the moment of the case's `dsr.erased` entry. Where none or several match, it sends
+nothing and reports the case (`SUBJECT_UNRESOLVED`, `SUBJECT_AMBIGUOUS`). The operator then names
+the subject from the incident record and sends the case with `--from <file>`.
+
+The server believes the cases only as far as the recovered workspace cannot contradict them:
+
+- A case it holds must be the same erasure (kind, mode, subject), still open.
+- A case it lacks must have been received after the recovery point.
+- Every case must have been completed between the recovery point and now.
+
+Anything else is answered `CASE_MISMATCH` and left alone.
+
+Each erasure runs as an erasure does, under the holds in force. A case the workspace lacks is
+written again with its own identifier. Each case is completed at its own moment, and
+`dsr.erasure_reapplied` goes into the trail. The answer lists each case:
+
+| Outcome | Meaning |
+|---|---|
+| `REAPPLIED` | The erasure was carried out again. |
+| `ALREADY_COMPLETED` | The case was already completed. A second run changes nothing, and the rewound job of a case that was open finishing first is the same answer. |
+| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address. |
+| `ERASURE_BLOCKED` | The erasure itself refused, with its code. For example, an automation still runs as the person because its re-pointing was rewound too. The case stays open for its owner. |
+| `CASE_REJECTED` | The recovered workspace holds the case as rejected. A person decides. |
+
+**Where the end of the archive is unusable**, the erasures cannot be carried out again from an
+archive. An archive carries neither the cases, nor the pseudonyms, nor the deletion journal, and its
+trail's `dsr.erased` names the case but never the person. The workspace's administrator lists those
+entries after the recovery point, and records and carries out the cases again. The operator notes
+the workspace in the incident record.
 
 #### What proves it in advance
 

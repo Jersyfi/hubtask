@@ -1704,6 +1704,36 @@ func (e ErasureMode) Valid() bool {
 	}
 }
 
+// Defines values for ErasureReapplyResultErasuresOutcome.
+const (
+	ALREADYCOMPLETED ErasureReapplyResultErasuresOutcome = "ALREADY_COMPLETED"
+	CASEMISMATCH     ErasureReapplyResultErasuresOutcome = "CASE_MISMATCH"
+	CASEREJECTED     ErasureReapplyResultErasuresOutcome = "CASE_REJECTED"
+	ERASUREBLOCKED   ErasureReapplyResultErasuresOutcome = "ERASURE_BLOCKED"
+	REAPPLIED        ErasureReapplyResultErasuresOutcome = "REAPPLIED"
+	SUBJECTABSENT    ErasureReapplyResultErasuresOutcome = "SUBJECT_ABSENT"
+)
+
+// Valid indicates whether the value is a known member of the ErasureReapplyResultErasuresOutcome enum.
+func (e ErasureReapplyResultErasuresOutcome) Valid() bool {
+	switch e {
+	case ALREADYCOMPLETED:
+		return true
+	case CASEMISMATCH:
+		return true
+	case CASEREJECTED:
+		return true
+	case ERASUREBLOCKED:
+		return true
+	case REAPPLIED:
+		return true
+	case SUBJECTABSENT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FilterNodeOp.
 const (
 	AND         FilterNodeOp = "AND"
@@ -6095,6 +6125,34 @@ type EncryptionStoreCount struct {
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
+// ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
+type ErasureCaseRecord struct {
+	CompletedAt time.Time `json:"completed_at"`
+	DueAt       time.Time `json:"due_at"`
+
+	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
+	// `FULL_DELETE` takes the person's own contributions too. The choice rests with the
+	// controller, because tenant data touches third parties' rights.
+	//
+	// A case that names neither is started as `ANONYMIZE` — the workspace default. It is the
+	// answer that preserves the rights of
+	// the people who are not asking: a task somebody else depends on, a comment in a thread that
+	// stops making sense without it. A controller who owes maximal erasure names `FULL_DELETE`
+	// on the case, and does so knowingly.
+	ErasureMode ErasureMode `json:"erasure_mode"`
+
+	// ExtensionReason Why the deadline is extended: the request's complexity, or the number of requests the controller is handling.
+	ExtensionReason  *DataSubjectRequestExtensionReason `json:"extension_reason,omitempty"`
+	HandledBy        *openapi_types.UUID                `json:"handled_by,omitempty"`
+	Id               openapi_types.UUID                 `json:"id"`
+	InformedOn       *openapi_types.Date                `json:"informed_on,omitempty"`
+	Notes            *string                            `json:"notes,omitempty"`
+	OriginalDueAt    *time.Time                         `json:"original_due_at,omitempty"`
+	ReceivedAt       time.Time                          `json:"received_at"`
+	SubjectAccountId *openapi_types.UUID                `json:"subject_account_id,omitempty"`
+	SubjectEmail     *string                            `json:"subject_email,omitempty"`
+}
+
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
 type ErasureKept struct {
 	// Account The person's account itself is kept, restricted rather than erased.
@@ -6157,6 +6215,32 @@ type ErasurePreview struct {
 	// on the case, and does so knowingly.
 	Mode ErasureMode `json:"mode"`
 }
+
+// ErasureReapplyRequest The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them.
+type ErasureReapplyRequest struct {
+	Erasures []ErasureCaseRecord `json:"erasures"`
+
+	// RecoveryPoint The moment the installation was recovered to; recorded with each erasure.
+	RecoveryPoint time.Time `json:"recovery_point"`
+}
+
+// ErasureReapplyResult defines model for ErasureReapplyResult.
+type ErasureReapplyResult struct {
+	Erasures []struct {
+		// Code The message code behind ERASURE_BLOCKED or CASE_MISMATCH.
+		Code *string            `json:"code,omitempty"`
+		Id   openapi_types.UUID `json:"id"`
+
+		// Kept Whether a legal hold kept part of what the erasure would have removed.
+		Kept bool `json:"kept"`
+
+		// Outcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+		Outcome ErasureReapplyResultErasuresOutcome `json:"outcome"`
+	} `json:"erasures"`
+}
+
+// ErasureReapplyResultErasuresOutcome REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.
+type ErasureReapplyResultErasuresOutcome string
 
 // FilterNode Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
 // `nodes`). A node is one or the other: a combination carrying a `field`, or a leaf carrying
@@ -10132,6 +10216,12 @@ type OpenTenantPasswordParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ReapplyErasuresParams defines parameters for ReapplyErasures.
+type ReapplyErasuresParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
 type ListAuditEntriesParams struct {
 	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
@@ -11186,6 +11276,9 @@ type ExportTenantJSONRequestBody = TenantExportRequest
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 
+// ReapplyErasuresJSONRequestBody defines body for ReapplyErasures for application/json ContentType.
+type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
+
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
@@ -11668,6 +11761,9 @@ type ServerInterface interface {
 	// OpenTenantPassword Open the password for one workspace
 	// (POST /admin/tenants/{tenantId}:open-password)
 	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
+	// ReapplyErasures Carry out again the erasures of a rewound period
+	// (POST /admin/tenants/{tenantId}:reapply-erasures)
+	ReapplyErasures(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params ReapplyErasuresParams)
 	// ReplaceLegalHolds Place the legal holds of a rewound period again
 	// (POST /admin/tenants/{tenantId}:replace-legal-holds)
 	ReplaceLegalHolds(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -13619,6 +13715,56 @@ func (siw *ServerInterfaceWrapper) OpenTenantPassword(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.OpenTenantPassword(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReapplyErasures operation middleware
+func (siw *ServerInterfaceWrapper) ReapplyErasures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReapplyErasuresParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReapplyErasures(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23511,6 +23657,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:open-password", wrapper.OpenTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:replace-legal-holds", wrapper.ReplaceLegalHolds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:reapply-erasures", wrapper.ReapplyErasures)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)

@@ -5647,6 +5647,49 @@
         }
       }
     },
+    "/admin/tenants/{tenantId}:reapply-erasures": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AdminTenantId"
+        },
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "reapplyErasures",
+        "summary": "Carry out again the erasures of a rewound period",
+        "description": "After a point-in-time recovery of the installation, once the legal holds of the rewound period are placed again and before traffic is admitted, the operator carries out again the erasures this workspace completed after the recovery point. Each case arrives as it stood at the end of the archive; one the recovered workspace lacks is written again with its own identifier, and every erasure runs as an erasure does today - under the holds in force, so a hold keeps what it covers. The case is completed at its own moment, and each run writes `dsr.erasure_reapplied` into the workspace's trail. A case the workspace holds must match it - the same kind, mode and subject - and one it lacks must have been received after the recovery point; anything else is answered `CASE_MISMATCH` and left alone. A case already completed is left alone, so a second run changes nothing. Demands `admin:tenants` and a fresh step-up in the `X-Hubtask-Step-Up` header: it deletes data for good.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErasureReapplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What happened to each case",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErasureReapplyResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/tenants/{tenantId}:export": {
       "parameters": [
         {
@@ -16283,6 +16326,152 @@
                 "type": "integer",
                 "minimum": 0,
                 "description": "Records of a hold, in the archive's copy or its trail, that name too little to place it again; left out."
+              }
+            }
+          }
+        }
+      },
+      "ErasureReapplyRequest": {
+        "type": "object",
+        "description": "The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them.\n",
+        "required": [
+          "recovery_point",
+          "erasures"
+        ],
+        "properties": {
+          "recovery_point": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The moment the installation was recovered to; recorded with each erasure."
+          },
+          "erasures": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1000,
+            "items": {
+              "$ref": "#/components/schemas/ErasureCaseRecord"
+            }
+          }
+        }
+      },
+      "ErasureCaseRecord": {
+        "type": "object",
+        "description": "One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.\n",
+        "required": [
+          "id",
+          "erasure_mode",
+          "received_at",
+          "due_at",
+          "completed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "erasure_mode": {
+            "$ref": "#/components/schemas/ErasureMode"
+          },
+          "subject_account_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "subject_email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "handled_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "original_due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "extension_reason": {
+            "$ref": "#/components/schemas/DataSubjectRequestExtensionReason"
+          },
+          "informed_on": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        }
+      },
+      "ErasureReapplyResult": {
+        "type": "object",
+        "required": [
+          "erasures"
+        ],
+        "properties": {
+          "erasures": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "outcome",
+                "kept"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "REAPPLIED",
+                    "ALREADY_COMPLETED",
+                    "SUBJECT_ABSENT",
+                    "ERASURE_BLOCKED",
+                    "CASE_REJECTED",
+                    "CASE_MISMATCH"
+                  ],
+                  "description": "REAPPLIED when this run carried the erasure out and completed the case; ALREADY_COMPLETED when the case was already completed; SUBJECT_ABSENT when the recovered workspace has no such account - the case is completed with nothing to erase; ERASURE_BLOCKED when the erasure was refused, `code` saying why; CASE_REJECTED when the recovered workspace holds the case as rejected; CASE_MISMATCH when the case does not match what the recovered workspace holds or could have lost.\n"
+                },
+                "code": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "The message code behind ERASURE_BLOCKED or CASE_MISMATCH."
+                },
+                "kept": {
+                  "type": "boolean",
+                  "description": "Whether a legal hold kept part of what the erasure would have removed."
+                }
               }
             }
           }

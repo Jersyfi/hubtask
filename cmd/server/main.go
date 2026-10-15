@@ -1442,6 +1442,16 @@ func run() error {
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
 
+	// Data subject requests: the erasure that serves every storage location - the job's, and the
+	// operator's re-run after a point-in-time recovery.
+	privacyEraser := privacyservice.Eraser{
+		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
+		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
+	}
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1992,6 +2002,12 @@ func run() error {
 		lifecycle.ReplaceLegalHolds{
 			Holds: legalHolds, Workspaces: postgres.NewAdminTenantRepository(),
 			Archive: backupservice.ArchivedHolds{Restorer: backupRestorer, Keys: encryptor},
+		}.Descriptor(),
+		// The erasure half of the same step, after the holds and before traffic is admitted.
+		privacyservice.ReapplyErasures{
+			Requests: privacyStore, Recovered: privacyStore, Eraser: privacyEraser,
+			Workspaces: postgres.NewAdminTenantRepository(), StepUp: stepUpVerifier,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
@@ -2961,16 +2977,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
-	// Data subject requests: the erasure that serves every storage location, and the export
-	// that is a Hubtask archive rather than a second format.
-	privacyEraser := privacyservice.Eraser{
-		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
-		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
-		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		Embeddings:      postgres.NewEmbeddingRepository(),
-		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
-	}
+	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
 		Targets: backupservice.StoreOpener{
