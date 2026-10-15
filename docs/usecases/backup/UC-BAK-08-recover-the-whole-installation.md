@@ -6,8 +6,8 @@ actors: [PE-selfhoster, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-10, P-11]
 state: partial
-tasks: [H-10, H-13]
-checked_by: [core/application/service/backup/Apply_test.go, test/integration/legal_hold_replace_test.go, core/application/service/backup/ArchivedHolds_test.go]
+tasks: [H-10, H-13, CP-06]
+checked_by: [core/application/service/backup/Apply_test.go, test/integration/legal_hold_replace_test.go, core/application/service/backup/ArchivedHolds_test.go, test/integration/erasure_reapply_test.go, test/integration/recovered_erasures_test.go, core/application/service/privacy/ReapplyErasures_test.go]
 ---
 
 # Recover the whole installation after losing the server
@@ -54,6 +54,5 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.5–8.6 and
 
 ## Today
 
-* Check 3: not met — the erasures completed after the recovery point are not re-applied, tracked in #1271.
 * Check 5: not met on Compose — the 35 days are enforced by the platform's database cluster policy and object lock only; on Compose they are the operator's own rotation of the dump.
 * Check 6: not met — `docs/evidence/` holds no restore-drill record; the first real drill is blocked on the production namespace.

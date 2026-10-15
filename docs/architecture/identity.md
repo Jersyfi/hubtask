@@ -609,7 +609,8 @@ request, granting or revoking `OWNER` — changing who is in a group that holds 
 such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
 member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
 (§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
-[backup-restore.md](./backup-restore.md) §8's destructive modes.
+[backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's erasures carried out
+again after a point-in-time recovery.
 
 ---
 
