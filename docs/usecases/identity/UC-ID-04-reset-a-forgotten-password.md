@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-11, P-12, P-13, P-16]
-state: partial
-tasks: [SC-25, SC-24, SI-04, SI-15, SC-03, SC-31, SC-33]
-checked_by: [core/application/service/identity/Reset_test.go, core/application/service/identity/ResetRequest_test.go, core/application/service/identity/FallbackReset_test.go, apps/webapp/e2e/signin.test.mjs, core/application/service/identity/PasswordSwitch_test.go, core/application/service/identity/ConnectMail_test.go, core/application/service/identity/OidcConnect_test.go, core/application/service/notification/SendPasswordReset_test.go, test/integration/connect_by_mail_test.go, core/application/service/identity/Password_test.go, presentation/rest/ForgetPasswordController_test.go, test/integration/reset_tokens_test.go, test/integration/identity_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md, docs/evidence/SC-15-D4-2026-10-13.md, locales/SignInMail_test.go]
+state: built
+tasks: [SC-25, SC-24, SI-04, SI-15, SC-03, SC-31, SC-33, SC-36]
+checked_by: [core/application/service/identity/Reset_test.go, core/application/service/identity/ResetRequest_test.go, core/application/service/identity/FallbackReset_test.go, apps/webapp/e2e/signin.test.mjs, core/application/service/identity/PasswordSwitch_test.go, core/application/service/identity/ConnectMail_test.go, core/application/service/identity/OidcConnect_test.go, core/application/service/notification/SendPasswordReset_test.go, test/integration/connect_by_mail_test.go, core/application/service/identity/Password_test.go, presentation/rest/ForgetPasswordController_test.go, test/integration/reset_tokens_test.go, test/integration/identity_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md, docs/evidence/SC-15-D4-2026-10-13.md, locales/SignInMail_test.go, core/application/service/identity/WayIn_test.go, core/application/service/identity/WayInProvider_test.go, core/application/service/admin/InstanceProviderWayIn_test.go, core/application/service/notification/WayInChanged_test.go, cmd/server/WiringWayIn_test.go, test/integration/identity_provider_test.go]
 ---
 
 # Reset a forgotten password
@@ -62,7 +62,3 @@ person falls back to recovery codes or a local recovery (see *Where it ends*).
 * No security questions, no hints, no SMS.
 * A household without a mail server is not served by this use case; that is a separate use case
   for local recovery.
-
-## Today
-
-* Check 9: not met — no mail tells the person a way in changed, tracked in #1145.
