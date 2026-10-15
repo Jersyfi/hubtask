@@ -1328,3 +1328,24 @@ func (pending) OpenPrivateHub(
 func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// The installation's own backup targets (backup-restore.md §2).
+func (pending) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateInstanceBackupTarget(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreateInstanceBackupTargetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteInstanceBackupTarget(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.DeleteInstanceBackupTargetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}

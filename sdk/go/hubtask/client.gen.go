@@ -9410,7 +9410,7 @@ type TenantDeletionScheduled struct {
 
 // TenantExportRequest defines model for TenantExportRequest.
 type TenantExportRequest struct {
-	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one.
+	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one (`/admin/backup-targets`). It is checked when the export is accepted: an unknown target answers `backup.target_not_found`, a disabled one `backup.target_disabled`.
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
@@ -10082,6 +10082,18 @@ type CreateManagedAccountParams struct {
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
+type CreateInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// DeleteInstanceBackupTargetParams defines parameters for DeleteInstanceBackupTarget.
+type DeleteInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
@@ -11162,6 +11174,9 @@ type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 // ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
 type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
+// CreateInstanceBackupTargetJSONRequestBody defines body for CreateInstanceBackupTarget for application/json ContentType.
+type CreateInstanceBackupTargetJSONRequestBody = BackupTargetCreate
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -12009,6 +12024,45 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
 	ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstanceBackupTargets The installation's own backup targets
+	//
+	// Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.
+	//
+	// Corresponds with GET /admin/backup-targets (the `ListInstanceBackupTargets` operationId).
+	ListInstanceBackupTargets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceBackupTargetWithBody Configure a backup target of the installation
+	//
+	// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+	CreateInstanceBackupTargetWithBody(ctx context.Context, params *CreateInstanceBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstanceBackupTarget Configure a backup target of the installation
+	//
+	// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+	CreateInstanceBackupTarget(ctx context.Context, params *CreateInstanceBackupTargetParams, body CreateInstanceBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteInstanceBackupTarget Remove a backup target of the installation
+	//
+	// Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.
+	//
+	// Corresponds with DELETE /admin/backup-targets/{targetId} (the `DeleteInstanceBackupTarget` operationId).
+	DeleteInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, params *DeleteInstanceBackupTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TestInstanceBackupTarget Test the connection to a target of the installation
+	//
+	// A write/read/delete probe, through the GuardedClient as every target's.
+	//
+	// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
+	TestInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadEncryptionStatus The keyring, and what still names each key
 	//
@@ -16479,6 +16533,95 @@ func (c *Client) ConfigureInstanceAiProviderWithBody(ctx context.Context, provid
 // Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
 func (c *Client) ConfigureInstanceAiProvider(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfigureInstanceAiProviderRequest(c.Server, providerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstanceBackupTargets The installation's own backup targets
+//
+// Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.
+//
+// Corresponds with GET /admin/backup-targets (the `ListInstanceBackupTargets` operationId).
+func (c *Client) ListInstanceBackupTargets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstanceBackupTargetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceBackupTargetWithBody Configure a backup target of the installation
+//
+// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+func (c *Client) CreateInstanceBackupTargetWithBody(ctx context.Context, params *CreateInstanceBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceBackupTargetRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstanceBackupTarget Configure a backup target of the installation
+//
+// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+func (c *Client) CreateInstanceBackupTarget(ctx context.Context, params *CreateInstanceBackupTargetParams, body CreateInstanceBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstanceBackupTargetRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteInstanceBackupTarget Remove a backup target of the installation
+//
+// Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.
+//
+// Corresponds with DELETE /admin/backup-targets/{targetId} (the `DeleteInstanceBackupTarget` operationId).
+func (c *Client) DeleteInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, params *DeleteInstanceBackupTargetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteInstanceBackupTargetRequest(c.Server, targetId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TestInstanceBackupTarget Test the connection to a target of the installation
+//
+// A write/read/delete probe, through the GuardedClient as every target's.
+//
+// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
+func (c *Client) TestInstanceBackupTarget(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTestInstanceBackupTargetRequest(c.Server, targetId)
 	if err != nil {
 		return nil, err
 	}
@@ -25232,6 +25375,171 @@ func NewConfigureInstanceAiProviderRequestWithBody(server string, providerId Pro
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListInstanceBackupTargetsRequest constructs an http.Request for the ListInstanceBackupTargets method
+func NewListInstanceBackupTargetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/backup-targets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstanceBackupTargetRequest calls the generic CreateInstanceBackupTarget builder with application/json body
+func NewCreateInstanceBackupTargetRequest(server string, params *CreateInstanceBackupTargetParams, body CreateInstanceBackupTargetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstanceBackupTargetRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreateInstanceBackupTargetRequestWithBody constructs an http.Request for the CreateInstanceBackupTarget method, with any body, and a specified content type
+func NewCreateInstanceBackupTargetRequestWithBody(server string, params *CreateInstanceBackupTargetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/backup-targets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeleteInstanceBackupTargetRequest constructs an http.Request for the DeleteInstanceBackupTarget method
+func NewDeleteInstanceBackupTargetRequest(server string, targetId openapi_types.UUID, params *DeleteInstanceBackupTargetParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "targetId", targetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/backup-targets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewTestInstanceBackupTargetRequest constructs an http.Request for the TestInstanceBackupTarget method
+func NewTestInstanceBackupTargetRequest(server string, targetId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "targetId", targetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/backup-targets/%s:test", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -39624,6 +39932,51 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /admin/ai-providers/{providerId} (the `ConfigureInstanceAiProvider` operationId).
 	ConfigureInstanceAiProviderWithResponse(ctx context.Context, providerId ProviderId, body ConfigureInstanceAiProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfigureInstanceAiProviderResult, error)
 
+	// ListInstanceBackupTargetsWithResponse The installation's own backup targets
+	//
+	// Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/backup-targets (the `ListInstanceBackupTargets` operationId).
+	ListInstanceBackupTargetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceBackupTargetsResult, error)
+
+	// CreateInstanceBackupTargetWithBodyWithResponse Configure a backup target of the installation
+	//
+	// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+	CreateInstanceBackupTargetWithBodyWithResponse(ctx context.Context, params *CreateInstanceBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceBackupTargetResult, error)
+
+	// CreateInstanceBackupTargetWithResponse Configure a backup target of the installation
+	//
+	// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+	CreateInstanceBackupTargetWithResponse(ctx context.Context, params *CreateInstanceBackupTargetParams, body CreateInstanceBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceBackupTargetResult, error)
+
+	// DeleteInstanceBackupTargetWithResponse Remove a backup target of the installation
+	//
+	// Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/backup-targets/{targetId} (the `DeleteInstanceBackupTarget` operationId).
+	DeleteInstanceBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, params *DeleteInstanceBackupTargetParams, reqEditors ...RequestEditorFn) (*DeleteInstanceBackupTargetResult, error)
+
+	// TestInstanceBackupTargetWithResponse Test the connection to a target of the installation
+	//
+	// A write/read/delete probe, through the GuardedClient as every target's.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
+	TestInstanceBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*TestInstanceBackupTargetResult, error)
+
 	// ReadEncryptionStatusWithResponse The keyring, and what still names each key
 	//
 	// What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -44629,6 +44982,191 @@ func (r ConfigureInstanceAiProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfigureInstanceAiProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstanceBackupTargetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]BackupTarget
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstanceBackupTargetsResult) GetJSON200() *[]BackupTarget {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListInstanceBackupTargetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstanceBackupTargetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstanceBackupTargetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstanceBackupTargetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstanceBackupTargetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateInstanceBackupTargetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *BackupTarget
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstanceBackupTargetResult) GetJSON201() *BackupTarget {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateInstanceBackupTargetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstanceBackupTargetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstanceBackupTargetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstanceBackupTargetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstanceBackupTargetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteInstanceBackupTargetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteInstanceBackupTargetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteInstanceBackupTargetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteInstanceBackupTargetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteInstanceBackupTargetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteInstanceBackupTargetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TestInstanceBackupTargetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BackupTargetProbe
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TestInstanceBackupTargetResult) GetJSON200() *BackupTargetProbe {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TestInstanceBackupTargetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TestInstanceBackupTargetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TestInstanceBackupTargetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TestInstanceBackupTargetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TestInstanceBackupTargetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -59525,6 +60063,81 @@ func (c *ClientWithResponses) ConfigureInstanceAiProviderWithResponse(ctx contex
 	return ParseConfigureInstanceAiProviderResult(rsp)
 }
 
+// ListInstanceBackupTargetsWithResponse The installation's own backup targets
+//
+// Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/backup-targets (the `ListInstanceBackupTargets` operationId).
+func (c *ClientWithResponses) ListInstanceBackupTargetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstanceBackupTargetsResult, error) {
+	rsp, err := c.ListInstanceBackupTargets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstanceBackupTargetsResult(rsp)
+}
+
+// CreateInstanceBackupTargetWithBodyWithResponse Configure a backup target of the installation
+//
+// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+func (c *ClientWithResponses) CreateInstanceBackupTargetWithBodyWithResponse(ctx context.Context, params *CreateInstanceBackupTargetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstanceBackupTargetResult, error) {
+	rsp, err := c.CreateInstanceBackupTargetWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceBackupTargetResult(rsp)
+}
+
+// CreateInstanceBackupTargetWithResponse Configure a backup target of the installation
+//
+// The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/backup-targets (the `CreateInstanceBackupTarget` operationId).
+func (c *ClientWithResponses) CreateInstanceBackupTargetWithResponse(ctx context.Context, params *CreateInstanceBackupTargetParams, body CreateInstanceBackupTargetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstanceBackupTargetResult, error) {
+	rsp, err := c.CreateInstanceBackupTarget(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstanceBackupTargetResult(rsp)
+}
+
+// DeleteInstanceBackupTargetWithResponse Remove a backup target of the installation
+//
+// Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/backup-targets/{targetId} (the `DeleteInstanceBackupTarget` operationId).
+func (c *ClientWithResponses) DeleteInstanceBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, params *DeleteInstanceBackupTargetParams, reqEditors ...RequestEditorFn) (*DeleteInstanceBackupTargetResult, error) {
+	rsp, err := c.DeleteInstanceBackupTarget(ctx, targetId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteInstanceBackupTargetResult(rsp)
+}
+
+// TestInstanceBackupTargetWithResponse Test the connection to a target of the installation
+//
+// A write/read/delete probe, through the GuardedClient as every target's.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/backup-targets/{targetId}:test (the `TestInstanceBackupTarget` operationId).
+func (c *ClientWithResponses) TestInstanceBackupTargetWithResponse(ctx context.Context, targetId openapi_types.UUID, reqEditors ...RequestEditorFn) (*TestInstanceBackupTargetResult, error) {
+	rsp, err := c.TestInstanceBackupTarget(ctx, targetId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTestInstanceBackupTargetResult(rsp)
+}
+
 // ReadEncryptionStatusWithResponse The keyring, and what still names each key
 //
 // What a rotation needs before it can end: the master key new values are sealed under, and for every key the ring holds - and every key a stored value still names - how many values name it. Removing a key while a row still names it turns that row into a refusal, so the count is the gate rather than the calendar.
@@ -66807,6 +67420,134 @@ func ParseConfigureInstanceAiProviderResult(rsp *http.Response) (*ConfigureInsta
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest OfferedAiModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListInstanceBackupTargetsResult parses an HTTP response from a ListInstanceBackupTargetsWithResponse call
+func ParseListInstanceBackupTargetsResult(rsp *http.Response) (*ListInstanceBackupTargetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstanceBackupTargetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []BackupTarget
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstanceBackupTargetResult parses an HTTP response from a CreateInstanceBackupTargetWithResponse call
+func ParseCreateInstanceBackupTargetResult(rsp *http.Response) (*CreateInstanceBackupTargetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstanceBackupTargetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest BackupTarget
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteInstanceBackupTargetResult parses an HTTP response from a DeleteInstanceBackupTargetWithResponse call
+func ParseDeleteInstanceBackupTargetResult(rsp *http.Response) (*DeleteInstanceBackupTargetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteInstanceBackupTargetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTestInstanceBackupTargetResult parses an HTTP response from a TestInstanceBackupTargetWithResponse call
+func ParseTestInstanceBackupTargetResult(rsp *http.Response) (*TestInstanceBackupTargetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TestInstanceBackupTargetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BackupTargetProbe
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

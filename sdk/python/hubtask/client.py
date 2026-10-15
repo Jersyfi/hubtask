@@ -691,6 +691,22 @@ class Client:
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_instance_backup_targets(self) -> dict[str, Any]:
+        """The installation's own backup targets"""
+        return self._call("GET", "/admin/backup-targets", {}, None, {}, None, "none", None, "json")
+
+    def create_instance_backup_target(self, body: "BackupTargetCreate", *, step_up: str | None = None) -> "BackupTarget":
+        """Configure a backup target of the installation"""
+        return self._call("POST", "/admin/backup-targets", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def delete_instance_backup_target(self, target_id: str, *, step_up: str | None = None) -> None:
+        """Remove a backup target of the installation"""
+        return self._call("DELETE", "/admin/backup-targets/{targetId}", {"targetId": target_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
+    def test_instance_backup_target(self, target_id: str) -> "BackupTargetProbe":
+        """Test the connection to a target of the installation"""
+        return self._call("POST", "/admin/backup-targets/{targetId}:test", {"targetId": target_id}, None, {}, None, "none", None, "json")
+
     def read_instance_settings(self) -> "InstanceSettings":
         """What this installation has decided for every workspace on it"""
         return self._call("GET", "/admin/settings", {}, None, {}, None, "none", None, "json")

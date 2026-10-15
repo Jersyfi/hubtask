@@ -5687,6 +5687,142 @@
         }
       }
     },
+    "/admin/backup-targets": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listInstanceBackupTargets",
+        "summary": "The installation's own backup targets",
+        "description": "Targets that belong to no workspace: where the operator writes a workspace's export when the workspace has no target of its own, as in provider operation with tenant targets off. No workspace lists, names or uses one. Behind `admin:tenants` **and** the operator register, both. The credential is not among the fields.\n",
+        "responses": {
+          "200": {
+            "description": "The installation's targets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackupTarget"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "createInstanceBackupTarget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "summary": "Configure a backup target of the installation",
+        "description": "The same kinds, validation and sealing as a workspace's target; the credential is stored encrypted and never returned. Demands a fresh step-up: a storage credential every workspace's export may be written with is a privileged write. Journalled in the installation's own evidence.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackupTargetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupTarget"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/backup-targets/{targetId}": {
+      "parameters": [
+        {
+          "name": "targetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "deleteInstanceBackupTarget",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "summary": "Remove a backup target of the installation",
+        "description": "Removes the target and its sealed credential; nothing at the target is touched. Demands a fresh step-up. Removing one that is not there is not an error. Journalled.\n",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/backup-targets/{targetId}:test": {
+      "parameters": [
+        {
+          "name": "targetId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "testInstanceBackupTarget",
+        "summary": "Test the connection to a target of the installation",
+        "description": "A write/read/delete probe, through the GuardedClient as every target's.",
+        "responses": {
+          "200": {
+            "description": "The result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupTargetProbe"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/settings": {
       "get": {
         "tags": [
@@ -16516,7 +16652,7 @@
           "target_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The configured backup target the archive is written to - the one discipline for \"bytes leave the installation\". The target must belong to the workspace being exported, or be an installation-wide one.\n"
+            "description": "The configured backup target the archive is written to - the one discipline for \"bytes leave the installation\". The target must belong to the workspace being exported, or be an installation-wide one (`/admin/backup-targets`). It is checked when the export is accepted: an unknown target answers `backup.target_not_found`, a disabled one `backup.target_disabled`.\n"
           }
         }
       },

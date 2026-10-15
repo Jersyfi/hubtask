@@ -9404,7 +9404,7 @@ type TenantDeletionScheduled struct {
 
 // TenantExportRequest defines model for TenantExportRequest.
 type TenantExportRequest struct {
-	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one.
+	// TargetId The configured backup target the archive is written to - the one discipline for "bytes leave the installation". The target must belong to the workspace being exported, or be an installation-wide one (`/admin/backup-targets`). It is checked when the export is accepted: an unknown target answers `backup.target_not_found`, a disabled one `backup.target_disabled`.
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
@@ -10076,6 +10076,18 @@ type CreateManagedAccountParams struct {
 type InviteAccountParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CreateInstanceBackupTargetParams defines parameters for CreateInstanceBackupTarget.
+type CreateInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// DeleteInstanceBackupTargetParams defines parameters for DeleteInstanceBackupTarget.
+type DeleteInstanceBackupTargetParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
@@ -11156,6 +11168,9 @@ type CreateInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 // ConfigureInstanceAiProviderJSONRequestBody defines body for ConfigureInstanceAiProvider for application/json ContentType.
 type ConfigureInstanceAiProviderJSONRequestBody = OfferedAiModelConfiguration
 
+// CreateInstanceBackupTargetJSONRequestBody defines body for CreateInstanceBackupTarget for application/json ContentType.
+type CreateInstanceBackupTargetJSONRequestBody = BackupTargetCreate
+
 // CreateInstanceIdentityProviderJSONRequestBody defines body for CreateInstanceIdentityProvider for application/json ContentType.
 type CreateInstanceIdentityProviderJSONRequestBody = IdentityProviderConfiguration
 
@@ -11599,6 +11614,18 @@ type ServerInterface interface {
 	// ConfigureInstanceAiProvider Change an offered AI model
 	// (PUT /admin/ai-providers/{providerId})
 	ConfigureInstanceAiProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId)
+	// ListInstanceBackupTargets The installation's own backup targets
+	// (GET /admin/backup-targets)
+	ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request)
+	// CreateInstanceBackupTarget Configure a backup target of the installation
+	// (POST /admin/backup-targets)
+	CreateInstanceBackupTarget(w http.ResponseWriter, r *http.Request, params CreateInstanceBackupTargetParams)
+	// DeleteInstanceBackupTarget Remove a backup target of the installation
+	// (DELETE /admin/backup-targets/{targetId})
+	DeleteInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID, params DeleteInstanceBackupTargetParams)
+	// TestInstanceBackupTarget Test the connection to a target of the installation
+	// (POST /admin/backup-targets/{targetId}:test)
+	TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, targetId openapi_types.UUID)
 	// ReadEncryptionStatus The keyring, and what still names each key
 	// (GET /admin/encryption)
 	ReadEncryptionStatus(w http.ResponseWriter, r *http.Request)
@@ -12935,6 +12962,137 @@ func (siw *ServerInterfaceWrapper) ConfigureInstanceAiProvider(w http.ResponseWr
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfigureInstanceAiProvider(w, r, providerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstanceBackupTargets operation middleware
+func (siw *ServerInterfaceWrapper) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstanceBackupTargets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateInstanceBackupTargetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstanceBackupTarget(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteInstanceBackupTargetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteInstanceBackupTarget(w, r, targetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestInstanceBackupTarget operation middleware
+func (siw *ServerInterfaceWrapper) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "targetId" -------------
+	var targetId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "targetId", r.PathValue("targetId"), &targetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestInstanceBackupTarget(w, r, targetId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23512,6 +23670,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:close-password", wrapper.CloseTenantPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:replace-legal-holds", wrapper.ReplaceLegalHolds)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:export", wrapper.ExportTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/backup-targets", wrapper.ListInstanceBackupTargets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets", wrapper.CreateInstanceBackupTarget)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/backup-targets/{targetId}", wrapper.DeleteInstanceBackupTarget)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets/{targetId}:test", wrapper.TestInstanceBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
