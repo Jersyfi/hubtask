@@ -59,6 +59,12 @@ func trashEntryResponse(out usecase.Output) openapi.TrashEntry {
 		Title:        out.String("title"),
 		Subtype:      out.String("subtype"),
 		Version:      out.Int("version"),
+		PurgeAfter:   timeValue(out["purge_after"]),
+	}
+	entry.Held, _ = out["held"].(bool)
+	if by := out.String("held_by"); by != "" {
+		heldBy := openapi.TrashEntryHeldBy(by)
+		entry.HeldBy = &heldBy
 	}
 	entry.DeletedBy = trashActorResponse(out["deleted_by"])
 	entry.HubId = optionalUUIDResponse(out.String("hub_id"))

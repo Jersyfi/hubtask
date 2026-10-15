@@ -275,3 +275,33 @@ func TestTheTrashSaysWhoDeletedIt(t *testing.T) {
 		t.Errorf("an unrecorded actor read as %+v, want null", body.Data[1].DeletedBy)
 	}
 }
+
+// What keeps a deletion and when the automatic pass may take it reach the client: `held`,
+// `held_by` and `purge_after` are the use case's answer, not the zero values of the generated type.
+func TestTheTrashSaysWhatKeepsADeletionAndWhenItGoes(t *testing.T) {
+	out := trashPageOutput()
+	rows, _ := out["data"].([]usecase.Output)
+	after := time.Date(2026, 9, 17, 9, 0, 0, 0, time.UTC)
+	rows[0]["purge_after"], rows[0]["held"] = after, false
+	rows[1]["purge_after"], rows[1]["held"], rows[1]["held_by"] = after, true, "restriction"
+
+	recorder := getTrash(t, &catalogue{out: out}, "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	var body struct {
+		Data []map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("the answer is not JSON: %v", err)
+	}
+	if body.Data[0]["held"] != false || body.Data[0]["held_by"] != nil {
+		t.Errorf("an unheld deletion reads held %v, held_by %v", body.Data[0]["held"], body.Data[0]["held_by"])
+	}
+	if body.Data[1]["held"] != true || body.Data[1]["held_by"] != "restriction" {
+		t.Errorf("a restricted deletion reads held %v, held_by %v", body.Data[1]["held"], body.Data[1]["held_by"])
+	}
+	if body.Data[1]["purge_after"] != "2026-09-17T09:00:00Z" {
+		t.Errorf("purge_after is %v", body.Data[1]["purge_after"])
+	}
+}
