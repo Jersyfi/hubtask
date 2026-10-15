@@ -1352,6 +1352,7 @@ func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) {
 // ListOwnPasskeys is overridden by RestController, for the reason given at CreateContainer.
 func (pending) ListOwnPasskeys(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// StartPasskeyRegistration is overridden by RestController, for the reason given at CreateContainer.
 func (pending) StartPasskeyRegistration(
 	w http.ResponseWriter, r *http.Request, _ openapi.StartPasskeyRegistrationParams,
 ) {

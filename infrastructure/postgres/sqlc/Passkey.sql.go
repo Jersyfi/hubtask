@@ -11,6 +11,50 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const consumePasskeyChallenge = `-- name: ConsumePasskeyChallenge :one
+UPDATE auth_pending SET consumed_at = $1
+WHERE token_hash = $2 AND purpose = 'PASSKEY_REGISTER'
+  AND session_id = $3 AND account_id = $4
+  AND consumed_at IS NULL AND expires_at > $1
+RETURNING id, account_id, session_id, user_handle, created_at, expires_at
+`
+
+type ConsumePasskeyChallengeParams struct {
+	Now       pgtype.Timestamptz
+	TokenHash []byte
+	SessionID pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+type ConsumePasskeyChallengeRow struct {
+	ID         pgtype.UUID
+	AccountID  pgtype.UUID
+	SessionID  pgtype.UUID
+	UserHandle []byte
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+}
+
+// One statement, so two completions of one challenge let exactly one through.
+func (q *Queries) ConsumePasskeyChallenge(ctx context.Context, arg ConsumePasskeyChallengeParams) (ConsumePasskeyChallengeRow, error) {
+	row := q.db.QueryRow(ctx, consumePasskeyChallenge,
+		arg.Now,
+		arg.TokenHash,
+		arg.SessionID,
+		arg.AccountID,
+	)
+	var i ConsumePasskeyChallengeRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.SessionID,
+		&i.UserHandle,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const countPasskeys = `-- name: CountPasskeys :one
 SELECT count(*) FROM webauthn_credential WHERE account_id = $1
 `
@@ -72,6 +116,39 @@ func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) (i
 	return result.RowsAffected(), nil
 }
 
+const insertPasskeyChallenge = `-- name: InsertPasskeyChallenge :exec
+INSERT INTO auth_pending (id, tenant_id, account_id, token_hash, purpose, created_at, expires_at,
+                          session_id, user_handle)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  'PASSKEY_REGISTER', $4, $5,
+  $6, $7
+)
+`
+
+type InsertPasskeyChallengeParams struct {
+	ID         pgtype.UUID
+	AccountID  pgtype.UUID
+	TokenHash  []byte
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	SessionID  pgtype.UUID
+	UserHandle []byte
+}
+
+func (q *Queries) InsertPasskeyChallenge(ctx context.Context, arg InsertPasskeyChallengeParams) error {
+	_, err := q.db.Exec(ctx, insertPasskeyChallenge,
+		arg.ID,
+		arg.AccountID,
+		arg.TokenHash,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+		arg.SessionID,
+		arg.UserHandle,
+	)
+	return err
+}
+
 const listPasskeys = `-- name: ListPasskeys :many
 
 SELECT id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
@@ -128,4 +205,20 @@ func (q *Queries) LockAccountForPasskeys(ctx context.Context, accountID pgtype.U
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const supersedePasskeyChallenges = `-- name: SupersedePasskeyChallenges :exec
+UPDATE auth_pending SET consumed_at = $1
+WHERE account_id = $2 AND purpose = 'PASSKEY_REGISTER' AND consumed_at IS NULL
+`
+
+type SupersedePasskeyChallengesParams struct {
+	Now       pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// The newest start wins: an older challenge of the account is spent, so it finishes nothing.
+func (q *Queries) SupersedePasskeyChallenges(ctx context.Context, arg SupersedePasskeyChallengesParams) error {
+	_, err := q.db.Exec(ctx, supersedePasskeyChallenges, arg.Now, arg.AccountID)
+	return err
 }

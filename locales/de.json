@@ -327,6 +327,7 @@
   "idempotency.in_progress": "Eine identische Anfrage läuft noch. Versuche es gleich noch einmal.",
   "idempotency.body_unreadable": "Der Anfragetext konnte nicht bis zum Ende gelesen werden.",
   "rest.use_case_not_wired": "Diese Installation ist falsch konfiguriert und kann diese Anfrage nicht beantworten.",
+  "rest.answer_unshapeable": "Diese Installation konnte ihre Antwort nicht in die Form bringen, die die API zusagt.",
   "usecase.input_invalid": "Die Anfrage enthält ungültige Werte.",
   "usecase.field_required": "Dieses Feld ist erforderlich.",
   "usecase.field_unknown": "Dieses Feld gibt es bei dieser Operation nicht.",

@@ -27,3 +27,25 @@ INSERT INTO webauthn_credential (
   sqlc.arg('name'), sqlc.arg('created_at')
 )
 ON CONFLICT (tenant_id, credential_id) DO NOTHING;
+
+-- name: SupersedePasskeyChallenges :exec
+-- The newest start wins: an older challenge of the account is spent, so it finishes nothing.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE account_id = sqlc.arg('account_id') AND purpose = 'PASSKEY_REGISTER' AND consumed_at IS NULL;
+
+-- name: InsertPasskeyChallenge :exec
+INSERT INTO auth_pending (id, tenant_id, account_id, token_hash, purpose, created_at, expires_at,
+                          session_id, user_handle)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
+  'PASSKEY_REGISTER', sqlc.arg('created_at'), sqlc.arg('expires_at'),
+  sqlc.arg('session_id'), sqlc.arg('user_handle')
+);
+
+-- name: ConsumePasskeyChallenge :one
+-- One statement, so two completions of one challenge let exactly one through.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE token_hash = sqlc.arg('token_hash') AND purpose = 'PASSKEY_REGISTER'
+  AND session_id = sqlc.arg('session_id') AND account_id = sqlc.arg('account_id')
+  AND consumed_at IS NULL AND expires_at > sqlc.arg('now')
+RETURNING id, account_id, session_id, user_handle, created_at, expires_at;

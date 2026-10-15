@@ -72,3 +72,27 @@ func TestAWorkspacesRelyingPartyIsItsHost(t *testing.T) {
 		t.Error("the RP ID is the registrable parent")
 	}
 }
+
+// A registration's challenge is never a pending sign-in's token: no other door parses its prefix.
+func TestAPasskeyChallengeIsATokenNoOtherDoorReads(t *testing.T) {
+	challenge := make([]byte, TokenSecretBytes)
+	challenge[0] = 0x2a
+	token, err := NewPasskeyChallengeToken(shared.ID("01936f2a-7c1e-7000-8000-000000000001"), challenge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(token.Secret(), PasskeyChallengeTokenPrefix) ||
+		!strings.HasSuffix(token.Secret(), "_KgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA") {
+		t.Errorf("the token %q does not end in the challenge as a client data carries it", token.Secret())
+	}
+	for name, parse := range map[string]func(string) (Token, error){
+		"a pending sign-in": ParsePendingToken, "a personal token": ParseToken,
+	} {
+		if _, err := parse(token.Secret()); err == nil {
+			t.Errorf("%s's parser read a passkey challenge", name)
+		}
+	}
+	if _, err := NewPasskeyChallengeToken(shared.ID("01936f2a-7c1e-7000-8000-000000000001"), challenge[:16]); err == nil {
+		t.Error("a short challenge made a token")
+	}
+}

@@ -6,6 +6,8 @@ package identity
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,6 +59,41 @@ func (s *passkeyStore) Insert(_ context.Context, credential domain.PasskeyCreden
 	return true, nil
 }
 
+// challengeStore keeps registrations' challenges, spending them as the statement does.
+type challengeStore struct {
+	issued []issuedChallenge
+}
+
+type issuedChallenge struct {
+	challenge domain.PasskeyChallenge
+	token     string
+	spent     bool
+}
+
+func (s *challengeStore) Issue(_ context.Context, challenge domain.PasskeyChallenge, presented domain.Token) error {
+	for i := range s.issued {
+		if s.issued[i].challenge.AccountID == challenge.AccountID {
+			s.issued[i].spent = true
+		}
+	}
+	s.issued = append(s.issued, issuedChallenge{challenge: challenge, token: presented.Secret()})
+	return nil
+}
+
+func (s *challengeStore) Consume(
+	_ context.Context, presented domain.Token, sessionID, accountID shared.ID, at time.Time,
+) (domain.PasskeyChallenge, bool, error) {
+	for i := range s.issued {
+		held := &s.issued[i]
+		if held.token == presented.Secret() && !held.spent && held.challenge.SessionID == sessionID &&
+			held.challenge.AccountID == accountID && at.Before(held.challenge.ExpiresAt) {
+			held.spent = true
+			return held.challenge, true, nil
+		}
+	}
+	return domain.PasskeyChallenge{}, false, nil
+}
+
 // tenantHostsFake answers the workspace's hosts.
 type tenantHostsFake struct{ hosts []domain.TenantHost }
 
@@ -72,11 +109,12 @@ func (noMethodStepUp) Methods(context.Context, shared.ID, shared.ID) ([]stepuppo
 }
 
 type passkeyFixture struct {
-	session  *sessionFixture
-	store    *passkeyStore
-	stepUp   *stepUpFake
-	writer   PasskeyWriter
-	registry *usecase.Registry
+	session    *sessionFixture
+	store      *passkeyStore
+	challenges *challengeStore
+	stepUp     *stepUpFake
+	writer     PasskeyWriter
+	registry   *usecase.Registry
 }
 
 // newPasskeyFixture is Bert, a person in the workspace Acme of a multi-mode installation at
@@ -88,9 +126,11 @@ func newPasskeyFixture(t *testing.T) *passkeyFixture {
 	session.sessions.sessions[sessionRowID] = repository.SessionCredential{
 		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
 	}
-	f := &passkeyFixture{session: session, store: &passkeyStore{}, stepUp: &stepUpFake{satisfied: true}}
+	f := &passkeyFixture{
+		session: session, store: &passkeyStore{}, challenges: &challengeStore{}, stepUp: &stepUpFake{satisfied: true},
+	}
 	f.writer = PasskeyWriter{
-		Session: session.writer, Passkeys: f.store,
+		Session: session.writer, Passkeys: f.store, Challenges: f.challenges,
 		Workspaces: &workspaceStore{row: domain.Workspace{
 			Tenant: domain.Tenant{ID: tenant, Slug: "acme", DisplayName: "Acme"}, Version: 1,
 		}},
@@ -103,7 +143,10 @@ func newPasskeyFixture(t *testing.T) *passkeyFixture {
 
 func (f *passkeyFixture) register(t *testing.T) {
 	t.Helper()
-	registry, err := usecase.NewRegistry(nil, ListOwnPasskeys{Writer: f.writer}.Descriptor())
+	registry, err := usecase.NewRegistry(nil,
+		ListOwnPasskeys{Writer: f.writer}.Descriptor(),
+		StartPasskeyRegistration{Writer: f.writer}.Descriptor(),
+	)
 	if err != nil {
 		t.Fatalf("registering: %v", err)
 	}
@@ -253,4 +296,151 @@ func TestOnlyAPersonHoldsPasskeys(t *testing.T) {
 
 	_, err = f.list(t, appshared.ActorContext{})
 	refusedWith(t, err, "access.credential_required")
+}
+
+func (f *passkeyFixture) start(t *testing.T, actor appshared.ActorContext, proof string) (usecase.Output, error) {
+	t.Helper()
+	return f.registry.Invoke(t.Context(), StartPasskeyRegistrationName, actor, usecase.Input{"step_up_token": proof})
+}
+
+// UC-ID-22 check 2, the first half: a fresh proof, then the options the device is asked with.
+func TestStartingAsksAFreshProofThenAnswersTheOptions(t *testing.T) {
+	f := newPasskeyFixture(t)
+	f.holding(t, 1)
+	f.store.held[0].UserHandle = bytes.Repeat([]byte{0x33}, domain.PasskeyUserHandleBytes)
+	f.store.held[0].Transports = []string{"usb"}
+
+	out, err := f.start(t, signedInActor(), "hbt_sup_fresh")
+	if err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	if len(f.stepUp.presented) != 1 || f.stepUp.presented[0] != "hbt_sup_fresh" {
+		t.Errorf("the step-up saw %v", f.stepUp.presented)
+	}
+	options, _ := out["public_key"].(usecase.Output)
+	rp, _ := options["rp"].(usecase.Output)
+	user, _ := options["user"].(usecase.Output)
+	if rp.String("id") != "acme.hubtask.example" || rp.String("name") != "Acme" {
+		t.Errorf("relying party %v", rp)
+	}
+	// The account's handle, not a new one, and never the address.
+	if user.String("id") != base64.RawURLEncoding.EncodeToString(f.store.held[0].UserHandle) ||
+		user.String("name") != "bert@example.org" || user.String("displayName") != "Bert" {
+		t.Errorf("user %v", user)
+	}
+	challenge, err := base64.RawURLEncoding.DecodeString(options.String("challenge"))
+	if err != nil || len(challenge) != domain.TokenSecretBytes {
+		t.Errorf("challenge %q", options.String("challenge"))
+	}
+	params, _ := options["pubKeyCredParams"].([]any)
+	if len(params) != 3 || params[0].(usecase.Output)["alg"] != -7 || params[1].(usecase.Output)["alg"] != -8 ||
+		params[2].(usecase.Output)["alg"] != -257 {
+		t.Errorf("algorithms %v", params)
+	}
+	exclude, _ := options["excludeCredentials"].([]any)
+	if len(exclude) != 1 || exclude[0].(usecase.Output).String("id") != base64.RawURLEncoding.EncodeToString([]byte{1}) {
+		t.Errorf("exclude %v", exclude)
+	}
+	selection, _ := options["authenticatorSelection"].(usecase.Output)
+	if selection.String("residentKey") != "preferred" || selection.String("userVerification") != "preferred" ||
+		options.String("attestation") != "none" || options["timeout"] != 300000 {
+		t.Errorf("selection %v, attestation %v, timeout %v", selection, options["attestation"], options["timeout"])
+	}
+
+	// The challenge waits bound to this session and this account, five minutes, under its own prefix,
+	// and the account was locked for the count.
+	if len(f.challenges.issued) != 1 {
+		t.Fatalf("%d challenges issued", len(f.challenges.issued))
+	}
+	issued := f.challenges.issued[0]
+	if issued.challenge.SessionID != sessionRowID || issued.challenge.AccountID != account ||
+		!issued.challenge.ExpiresAt.Equal(now.Add(5*time.Minute)) ||
+		!strings.HasPrefix(issued.token, domain.PasskeyChallengeTokenPrefix) ||
+		!strings.HasSuffix(issued.token, options.String("challenge")) {
+		t.Errorf("issued %+v as %q", issued.challenge, issued.token)
+	}
+	if len(f.store.locked) != 1 {
+		t.Errorf("the account was locked %d times", len(f.store.locked))
+	}
+	if entries := f.session.audit.entries; len(entries) != 1 || entries[0].Action != PasskeyRegistrationStartedAction {
+		t.Errorf("audited %+v", entries)
+	}
+}
+
+func TestAFirstPasskeyGetsANewHandleAndAManagedAccountItsSignInName(t *testing.T) {
+	f := newPasskeyFixture(t)
+	f.session.writer.People = newAccounts(domain.Account{
+		ID: account, TenantID: tenant, Kind: domain.AccountUser, SignInName: "lena",
+		DisplayName: "Lena", Status: domain.AccountActive,
+	})
+	f.writer.Session = f.session.writer
+	f.register(t)
+	out, err := f.start(t, signedInActor(), "hbt_sup_fresh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, _ := out["public_key"].(usecase.Output)["user"].(usecase.Output)
+	handle, err := base64.RawURLEncoding.DecodeString(user.String("id"))
+	if err != nil || len(handle) != domain.PasskeyUserHandleBytes || user.String("name") != "lena" {
+		t.Errorf("user %v", user)
+	}
+	if !bytes.Equal(f.challenges.issued[0].challenge.UserHandle, handle) {
+		t.Error("the challenge carries another handle than the options")
+	}
+}
+
+func TestStartingIsRefusedWhereItCannotEndInAPasskey(t *testing.T) {
+	cases := map[string]struct {
+		arrange   func(f *passkeyFixture)
+		actor     func() appshared.ActorContext
+		code      string
+		proofUsed bool
+	}{
+		"no proof": {func(f *passkeyFixture) { f.stepUp.satisfied = false }, signedInActor, stepupport.CodeRequired, true},
+		"ten held, before the proof": {func(f *passkeyFixture) { f.holding(t, domain.MaxPasskeys) }, signedInActor,
+			codeLimitReached, false},
+		"no public address, before the proof": {func(f *passkeyFixture) { f.writer.Installation = PasskeyInstallation{} },
+			signedInActor, codeNoRelyingParty, false},
+		"a personal token, not a session": {func(*passkeyFixture) {}, func() appshared.ActorContext {
+			actor := signedInActor()
+			actor.TokenID = "01936f2a-7c1e-7000-8000-00000000dead"
+			return actor
+		}, "auth.step_up_session_required", false},
+		"an automation": {func(*passkeyFixture) {}, func() appshared.ActorContext {
+			actor := signedInActor()
+			actor.Kind = appshared.ActorAutomation
+			return actor
+		}, codePersonOnly, false},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newPasskeyFixture(t)
+			c.arrange(f)
+			f.register(t)
+			_, err := f.start(t, c.actor(), "hbt_sup_fresh")
+			refusedWith(t, err, c.code)
+			if used := len(f.stepUp.presented) > 0; used != c.proofUsed {
+				t.Errorf("the proof was presented: %v", used)
+			}
+			if len(f.challenges.issued) != 0 {
+				t.Error("a challenge was issued")
+			}
+		})
+	}
+}
+
+// The newest start wins: an older challenge of the account cannot finish.
+func TestASecondStartSpendsTheFirst(t *testing.T) {
+	f := newPasskeyFixture(t)
+	for range 2 {
+		if _, err := f.start(t, signedInActor(), "hbt_sup_fresh"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(f.challenges.issued) != 2 || !f.challenges.issued[0].spent || f.challenges.issued[1].spent {
+		t.Errorf("issued %+v", f.challenges.issued)
+	}
+	if len(f.stepUp.presented) != 2 {
+		t.Errorf("a second start asked no new proof: %v", f.stepUp.presented)
+	}
 }

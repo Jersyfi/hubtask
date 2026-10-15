@@ -1396,6 +1396,7 @@ func run() error {
 	// session writer, and adding one asks the step-up whose methods the rule decides.
 	passkeyWriter := identity.PasskeyWriter{
 		Session: sessionWriter, Passkeys: postgres.NewPasskeyRepository(), Verifier: webauthn.Verifier{},
+		Challenges: postgres.NewPasskeyChallengeRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
 		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
 		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
 		StepUp:       stepUpVerifier,
@@ -1727,6 +1728,7 @@ func run() error {
 		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
 		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
 		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),

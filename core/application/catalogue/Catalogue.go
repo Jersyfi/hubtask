@@ -287,6 +287,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.CompleteProviderConnect{}.Descriptor(),
 		identity.ListOwnIdentities{}.Descriptor(),
 		identity.ListOwnPasskeys{}.Descriptor(),
+		identity.StartPasskeyRegistration{}.Descriptor(),
 		identity.AgreeToTerms{}.Descriptor(),
 		identity.InspectInvitation{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),

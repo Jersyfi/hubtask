@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"encoding/base64"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -22,7 +23,14 @@ import (
 // browser's ceremony. The verifier is an adapter behind core/port/passkey; nothing here reads a byte
 // of a ceremony.
 
-const ListOwnPasskeysName = "ListOwnPasskeys"
+const (
+	ListOwnPasskeysName          = "ListOwnPasskeys"
+	StartPasskeyRegistrationName = "StartPasskeyRegistration"
+)
+
+// PasskeyRegistrationStartedAction is the first half, recorded as the authenticator app's
+// enrolment start is - without the name the person will give it, which is not chosen yet anyway.
+const PasskeyRegistrationStartedAction audit.Action = "auth.passkey_registration_started" //nolint:gosec // G101: an audit code
 
 // The reasons a passkey cannot be added now, as message codes: the list answers them for the profile
 // to say, and starting answers the same code as its refusal (P-05).
@@ -49,6 +57,7 @@ type PasskeyWriter struct {
 	// codes and the pending rows.
 	Session    SessionWriter
 	Passkeys   repository.PasskeyCredentials
+	Challenges repository.PasskeyChallenges
 	Verifier   passkey.Verifier
 	Workspaces repository.Workspaces
 	// Hosts is the workspace's hosts, the canonical one first. Optional: a workspace without a row
@@ -119,9 +128,10 @@ func passkeyPerson(actor appshared.ActorContext) error {
 // addability is whether another passkey can be added now, and where not, why: the one condition the
 // list answers and starting enforces (P-05).
 type addability struct {
-	party  relyingParty
-	held   []domain.PasskeyCredential
-	reason string
+	account domain.Account
+	party   relyingParty
+	held    []domain.PasskeyCredential
+	reason  string
 }
 
 func (a addability) possible() bool { return a.reason == "" }
@@ -144,7 +154,7 @@ func (w PasskeyWriter) addable(ctx context.Context, actor appshared.ActorContext
 	if err != nil {
 		return addability{}, err
 	}
-	result := addability{party: party, held: held}
+	result := addability{account: account, party: party, held: held}
 	switch {
 	case !ok:
 		result.reason = codeNoRelyingParty
@@ -174,6 +184,21 @@ func (w PasskeyWriter) withMethods(
 	}
 	return decided, nil
 }
+
+// refusal is the reason as starting answers it.
+func (a addability) refusal() error {
+	switch a.reason {
+	case codeLimitReached:
+		return shared.ErrConflict.WithDetail(codeLimitReached).WithParams(limitParams())
+	case codeNoRelyingParty:
+		return shared.ErrConflict.WithDetail(codeNoRelyingParty)
+	default:
+		return nil
+	}
+}
+
+// limitParams is what the limit's refusal and the profile's sentence count with.
+func limitParams() map[string]string { return map[string]string{"limit": "10"} }
 
 // OwnPasskeys is the list as the profile shows it.
 type OwnPasskeys struct {
@@ -280,3 +305,195 @@ func ownPasskeyOutput(each OwnPasskey) usecase.Output {
 	}
 	return out
 }
+
+// PasskeyRegistrationOptions is what the browser's ceremony is asked with.
+type PasskeyRegistrationOptions struct {
+	RelyingParty passkey.RelyingParty
+	PartyName    string
+	UserHandle   []byte
+	// UserName is what the browser shows to tell accounts apart: the address, or the sign-in name of
+	// an account without one.
+	UserName    string
+	DisplayName string
+	Challenge   []byte
+	// Exclude is the account's credentials, so an authenticator that holds one says so rather than
+	// making a second.
+	Exclude   []domain.PasskeyCredential
+	ExpiresAt time.Time
+}
+
+// StartPasskeyRegistration is the first half of adding a passkey: the fresh proof, and the options.
+type StartPasskeyRegistration struct{ Writer PasskeyWriter }
+
+// Execute checks the account, demands the step-up, and issues a challenge bound to the session.
+//
+// The step-up is asked here rather than when the ceremony's answer comes back: the person proves it
+// is them, then confirms on the device (UC-ID-22 check 2), and the challenge carries the proof - bound
+// to this session, five minutes, single use. What would refuse anyway is asked before the proof, so
+// a refusal does not spend it.
+func (h StartPasskeyRegistration) Execute(
+	ctx context.Context, actor appshared.ActorContext, stepUpToken string,
+) (PasskeyRegistrationOptions, error) {
+	if err := passkeyPerson(actor); err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+	w := h.Writer
+	s := w.Session
+	session, err := s.stepUpSession(ctx, actor)
+	if err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+	scope := actor.PersistenceScope()
+	var decided addability
+	if err := s.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		decided, err = w.addable(ctx, actor)
+		return err
+	}); err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+	if refused := decided.refusal(); refused != nil {
+		return PasskeyRegistrationOptions{}, refused
+	}
+	if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, stepUpToken); err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+
+	challenge, err := s.Entropy.Bytes(domain.TokenSecretBytes)
+	if err != nil {
+		return PasskeyRegistrationOptions{}, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+	}
+	minted, err := s.Entropy.Bytes(domain.PasskeyUserHandleBytes)
+	if err != nil {
+		return PasskeyRegistrationOptions{}, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+	}
+	token, err := domain.NewPasskeyChallengeToken(actor.TenantID, challenge)
+	if err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+
+	options := PasskeyRegistrationOptions{
+		RelyingParty: decided.party.RelyingParty, PartyName: decided.party.Name,
+		UserName: decided.account.Email, DisplayName: decided.account.DisplayName, Challenge: challenge,
+	}
+	if options.UserName == "" {
+		options.UserName = decided.account.SignInName
+	}
+	err = s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		// Under the account's lock: the count is read again where the proof may have taken a while,
+		// and the handle is the account's own wherever it holds one.
+		if err := w.Passkeys.LockAccount(ctx, actor.AccountID); err != nil {
+			return err
+		}
+		held, err := w.Passkeys.ListOf(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		if len(held) >= domain.MaxPasskeys {
+			return shared.ErrConflict.WithDetail(codeLimitReached).WithParams(limitParams())
+		}
+		// One handle per account: the one its credentials carry, or a new one. Two starts on an
+		// account without a credential cannot both finish - Issue spends the older challenge - so a
+		// second handle never lands.
+		options.UserHandle = minted
+		if len(held) > 0 {
+			options.UserHandle = held[0].UserHandle
+		}
+		options.Exclude = held
+		now := s.Clock.Now()
+		options.ExpiresAt = now.Add(domain.PasskeyRegistrationLifetime)
+		if err := w.Challenges.Issue(ctx, domain.PasskeyChallenge{
+			ID: s.IDs.NewID(), AccountID: actor.AccountID, SessionID: session.ID,
+			UserHandle: options.UserHandle, CreatedAt: now, ExpiresAt: options.ExpiresAt,
+		}, token); err != nil {
+			return err
+		}
+		return s.recordMfaAudit(ctx, PasskeyRegistrationStartedAction, audit.SeverityInfo, domain.Account{
+			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
+		}, now)
+	})
+	if err != nil {
+		return PasskeyRegistrationOptions{}, err
+	}
+	return options, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h StartPasskeyRegistration) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: StartPasskeyRegistrationName,
+		Summary: "Begins adding a passkey or a security key to the caller's own account: a fresh " +
+			"proof, then the options for the browser's ceremony - the workspace as relying party, the " +
+			"account's opaque user handle, a single-use challenge bound to the session for five " +
+			"minutes, the accepted algorithms and the credentials to exclude. Refused before the " +
+			"proof at ten credentials and where the installation has no public address.",
+		SideEffects: "Consumes the step-up; spends the account's older challenge and writes a new one; " +
+			"writes an audit entry.",
+		Input: []usecase.Field{
+			{
+				// Declared but not required: a caller without a proof needs the 403 that names the
+				// methods rather than a 422 about a missing field.
+				Name: "step_up_token", Kind: usecase.KindString,
+				Description: "The fresh proof this demands. It is consumed by this call.",
+			},
+		},
+		StepUp: "adding a passkey or a security key",
+		Audit: usecase.AuditDeclaration{
+			Action: PasskeyRegistrationStartedAction, TargetType: accountTarget,
+			Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "A way in is not an entry, and the item history is keyed on an entry.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h StartPasskeyRegistration) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	options, err := h.Execute(ctx, actor, in.String("step_up_token"))
+	if err != nil {
+		return nil, err
+	}
+	exclude := make([]any, 0, len(options.Exclude))
+	for _, held := range options.Exclude {
+		transports := make([]any, 0, len(held.Transports))
+		for _, transport := range held.Transports {
+			transports = append(transports, transport)
+		}
+		exclude = append(exclude, usecase.Output{
+			"type": "public-key", "id": base64.RawURLEncoding.EncodeToString(held.CredentialID),
+			"transports": transports,
+		})
+	}
+	return usecase.Output{
+		"public_key": usecase.Output{
+			"rp": usecase.Output{"id": options.RelyingParty.ID, "name": options.PartyName},
+			"user": usecase.Output{
+				"id":   base64.RawURLEncoding.EncodeToString(options.UserHandle),
+				"name": options.UserName, "displayName": options.DisplayName,
+			},
+			"challenge": base64.RawURLEncoding.EncodeToString(options.Challenge),
+			"pubKeyCredParams": []any{
+				usecase.Output{"type": "public-key", "alg": int(passkeyES256)},
+				usecase.Output{"type": "public-key", "alg": int(passkeyEdDSA)},
+				usecase.Output{"type": "public-key", "alg": int(passkeyRS256)},
+			},
+			"timeout":            int(domain.PasskeyRegistrationLifetime / time.Millisecond),
+			"excludeCredentials": exclude,
+			"authenticatorSelection": usecase.Output{
+				"residentKey": "preferred", "requireResidentKey": false, "userVerification": "preferred",
+			},
+			"attestation": "none",
+		},
+		"expires_at": options.ExpiresAt.UTC(),
+	}, nil
+}
+
+// The algorithms the options offer, in order of preference (identity.md §23.3): COSE's numbers for
+// ES256, EdDSA and RS256.
+const (
+	passkeyES256 int64 = -7
+	passkeyEdDSA int64 = -8
+	passkeyRS256 int64 = -257
+)

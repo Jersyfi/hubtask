@@ -1062,6 +1062,7 @@
   "ordering.key_malformed": "This installation could not work out where to put that entry.",
   "ordering.space_exhausted": "There is no room left above the first entry in this list. Sort it once, then try again.",
   "rest.use_case_not_wired": "This installation is misconfigured and cannot answer that request.",
+  "rest.answer_unshapeable": "This installation could not put its answer into the shape the API promises.",
   "route.unknown": "There is nothing at this address.",
   "route.operation_not_available": "This installation does not offer that operation yet.",
   "dependency.unavailable": "A service this feature needs cannot be reached at the moment. Everything else keeps working.",

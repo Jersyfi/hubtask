@@ -94,3 +94,30 @@ func PasskeyRelyingParty(host, scheme, port string) (rpID, origin string, ok boo
 	}
 	return host, origin, true
 }
+
+// PasskeyChallengeTokenPrefix marks a registration's challenge as a token of its own kind. The
+// challenge is public - it travels to the page, the browser and the authenticator - so it is held to
+// a prefix no other door parses: hashed under it, it can never equal a pending sign-in's token.
+const PasskeyChallengeTokenPrefix = "hbt_pkr_" //nolint:gosec // G101: a public format marker, not a credential
+
+// PendingPasskeyRegister is a registration's challenge waiting for the ceremony (identity.md §23.3):
+// bound to the session that started it after a step-up, five minutes, single use.
+const PendingPasskeyRegister PendingPurpose = "PASSKEY_REGISTER"
+
+// NewPasskeyChallengeToken is the challenge as the token its row is found by. The secret half is the
+// challenge itself, in the unpadded base64url a client data carries it in.
+func NewPasskeyChallengeToken(tenantID shared.ID, challenge []byte) (Token, error) {
+	return newPrefixed(PasskeyChallengeTokenPrefix, tenantID, challenge)
+}
+
+// PasskeyChallenge is a registration waiting for its ceremony.
+type PasskeyChallenge struct {
+	ID        shared.ID
+	AccountID shared.ID
+	// SessionID is the session that started it, the only one that may finish it.
+	SessionID shared.ID
+	// UserHandle is the handle the new credential will carry.
+	UserHandle []byte
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+}

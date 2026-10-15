@@ -14,7 +14,9 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // The WebAuthn credentials as the database keeps them (identity.md §23, migration 0161): under the
@@ -337,5 +339,94 @@ func TestARestoredPasskeyIsTheSameCredentialAndAnExportedOneIsNone(t *testing.T)
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A registration's challenge is spent once, only by its session and account, only under its
+// purpose, only in time; a newer one spends the older; and another workspace never reaches it.
+func TestAPasskeyChallengeIsSpentOnceByItsOwnSession(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	admin := adminPool(ctx, t)
+	sessionA, sessionB := freshID(t), freshID(t)
+	for _, session := range []shared.ID{sessionA, sessionB} {
+		if _, err := admin.Exec(ctx, `INSERT INTO session (id, tenant_id, account_id, created_at, last_seen_at, expires_at)
+		    VALUES ($1, $2, $3, now(), now(), now() + interval '1 hour')`,
+			session.String(), people.tenant.String(), people.ada.String()); err != nil {
+			t.Fatalf("seeding a session: %v", err)
+		}
+	}
+	hasher := security.NewPendingTokenHasher(secret.New(installationSecret))
+	repo := postgres.NewPasskeyChallengeRepository(hasher)
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Now().UTC().Truncate(time.Second)
+	handle := bytes.Repeat([]byte{0x44}, identity.PasskeyUserHandleBytes)
+
+	issue := func(fill byte) identity.Token {
+		token, err := identity.NewPasskeyChallengeToken(people.tenant, bytes.Repeat([]byte{fill}, 32))
+		if err != nil {
+			t.Fatal(err)
+		}
+		inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+			return repo.Issue(ctx, identity.PasskeyChallenge{
+				ID: freshID(t), AccountID: people.ada, SessionID: sessionA, UserHandle: handle,
+				CreatedAt: at, ExpiresAt: at.Add(identity.PasskeyRegistrationLifetime),
+			}, token)
+		})
+		return token
+	}
+	consume := func(tenant shared.ID, token identity.Token, session, account shared.ID, when time.Time) bool {
+		var spent bool
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			found, ok, err := repo.Consume(ctx, token, session, account, when)
+			if ok && (!bytes.Equal(found.UserHandle, handle) || found.SessionID != session) {
+				t.Errorf("spent %+v", found)
+			}
+			spent = ok
+			return err
+		})
+		return spent
+	}
+
+	older := issue(0x01)
+	newer := issue(0x02)
+	if consume(people.tenant, older, sessionA, people.ada, at.Add(time.Second)) {
+		t.Error("a superseded challenge was spent")
+	}
+	for name, attempt := range map[string]func() bool{
+		"another session":   func() bool { return consume(people.tenant, newer, sessionB, people.ada, at.Add(time.Second)) },
+		"another account":   func() bool { return consume(people.tenant, newer, sessionA, people.bea, at.Add(time.Second)) },
+		"another workspace": func() bool { return consume(people.other, newer, sessionA, people.ada, at.Add(time.Second)) },
+		"too late":          func() bool { return consume(people.tenant, newer, sessionA, people.ada, at.Add(5*time.Minute)) },
+	} {
+		if attempt() {
+			t.Errorf("%s spent the challenge", name)
+		}
+	}
+	if !consume(people.tenant, newer, sessionA, people.ada, at.Add(time.Second)) {
+		t.Fatal("its own session could not spend it")
+	}
+	if consume(people.tenant, newer, sessionA, people.ada, at.Add(2*time.Second)) {
+		t.Error("a challenge was spent twice")
+	}
+
+	// A pending sign-in's token with the same secret is no challenge: the prefix is in the hash, and
+	// the purpose in the statement.
+	same := bytes.Repeat([]byte{0x03}, 32)
+	signIn, err := identity.NewPendingToken(people.tenant, same)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := admin.Exec(ctx, `INSERT INTO auth_pending (id, tenant_id, account_id, token_hash, purpose, created_at, expires_at)
+	    VALUES ($1, $2, $3, $4, 'TOTP', now(), now() + interval '5 minutes')`,
+		freshID(t).String(), people.tenant.String(), people.ada.String(), hasher.Hash(signIn.Secret())); err != nil {
+		t.Fatal(err)
+	}
+	asChallenge, _ := identity.NewPasskeyChallengeToken(people.tenant, same)
+	if consume(people.tenant, asChallenge, sessionA, people.ada, at.Add(time.Second)) {
+		t.Error("a pending sign-in was spent as a challenge")
+	}
+	if consume(people.tenant, signIn, sessionA, people.ada, at.Add(time.Second)) {
+		t.Error("a pending sign-in's own token was spent as a challenge")
 	}
 }
