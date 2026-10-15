@@ -549,6 +549,12 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 					"offline. Instance-only: the file is on the operator's disk, so there is " +
 					"nothing for a workspace to point at.",
 			},
+			{
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
+				Description: "The version of the level the save was made on. A level somebody " +
+					"saved since refuses it with `version_conflict`. Omitted, the save is compared " +
+					"with the level as it is read.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: instanceSettingsChangedAction, TargetType: instanceTarget,
@@ -568,7 +574,7 @@ func (h WriteInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	written, err := h.Execute(ctx, actor, level, 0)
+	written, err := h.Execute(ctx, actor, level, in.Int("expected_version"))
 	if err != nil {
 		return nil, err
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -48,6 +49,32 @@ func TestASaveMadeOnAStaleVersionIsRefusedAndWritesNothing(t *testing.T) {
 	}
 	if len(journal.entries) != 1 {
 		t.Errorf("the journal holds %d entries, want the first save's one", len(journal.entries))
+	}
+}
+
+// Through the registry, as REST and MCP reach it: `expected_version` is a declared input, the
+// answer carries the new version, and a stale one is refused with the same code.
+func TestTheRegistryCarriesTheExpectedVersion(t *testing.T) {
+	writer, _, _ := newInstanceWriter(newRegister(operatorID))
+	registry, err := usecase.NewRegistry(nil, WriteInstanceSettings{Writer: writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("building the registry: %v", err)
+	}
+	in := usecase.Input{
+		"sign_in":          map[string]any{"min_length": map[string]any{"value": 15, "locked": false}},
+		"expected_version": 1,
+	}
+	out, err := registry.Invoke(t.Context(), WriteInstanceSettingsName, operator(), in)
+	if err != nil {
+		t.Fatalf("a save on the current version was refused: %v", err)
+	}
+	if out.Int("version") != 2 {
+		t.Errorf("the answer's version is %v, want 2", out["version"])
+	}
+
+	_, err = registry.Invoke(t.Context(), WriteInstanceSettingsName, operator(), in)
+	if !errors.Is(err, shared.ErrVersionConflict) {
+		t.Fatalf("a second save on version 1 answered %v", err)
 	}
 }
 
