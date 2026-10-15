@@ -2507,12 +2507,16 @@ CREATE POLICY tenant_isolation ON change_log
   WITH CHECK (tenant_id = current_tenant_id());
 
 -- backup_target can be instance-wide (tenant_id IS NULL) and is then visible only to
--- the instance administration - not to tenant users.
+-- the instance administration - not to tenant users: a session with no tenant set reaches those
+-- rows and only those (migration 0155).
 ALTER TABLE backup_target ENABLE ROW LEVEL SECURITY;
 ALTER TABLE backup_target FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON backup_target
   USING (tenant_id = current_tenant_id())
   WITH CHECK (tenant_id = current_tenant_id());
+CREATE POLICY installation_targets ON backup_target FOR ALL
+  USING (tenant_id IS NULL AND current_tenant_id() IS NULL)
+  WITH CHECK (tenant_id IS NULL AND current_tenant_id() IS NULL);
 
 -- item_capability_profile: the system defaults (tenant_id IS NULL) are readable by everyone,
 -- overrides only for the tenant concerned. Never write to the system defaults.

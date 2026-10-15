@@ -42,7 +42,9 @@ func (r BackupTargetRepository) Insert(
 	if err != nil {
 		return err
 	}
-	tenantID, err := uuidOf(target.TenantID)
+	// NULL for the installation's own target, which only a session without a tenant may write
+	// (migration 0155).
+	tenantID, err := optionalUUID(target.TenantID)
 	if err != nil {
 		return err
 	}
@@ -247,11 +249,11 @@ func targetOf(row sqlc.FindBackupTargetRow) (domain.Target, error) {
 	if err != nil {
 		return domain.Target{}, err
 	}
-	tenantID, err := idFrom(row.TenantID)
+	tenantID, err := optionalID(row.TenantID)
 	if err != nil {
 		return domain.Target{}, err
 	}
-	createdBy, err := idFrom(row.CreatedBy)
+	createdBy, err := optionalID(row.CreatedBy) // nullable: a row an operator planted by hand names nobody
 	if err != nil {
 		return domain.Target{}, err
 	}
