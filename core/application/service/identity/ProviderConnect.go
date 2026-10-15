@@ -29,6 +29,7 @@ import (
 const (
 	StartProviderConnectName    = "StartProviderConnect"
 	CompleteProviderConnectName = "CompleteProviderConnect"
+	ListOwnIdentitiesName       = "ListOwnIdentities"
 )
 
 // ProviderConnectStartedAction is the first half, recorded as a sign-in's start is.
@@ -253,6 +254,73 @@ func (h CompleteProviderConnect) Execute(
 	return ConnectedIdentity{
 		ProviderID: configured.ID, ProviderName: configured.DisplayName, LinkedAt: linkedAt,
 	}, nil
+}
+
+// ListOwnIdentities answers the provider identities connected to the caller's own account.
+type ListOwnIdentities struct{ Writer OidcWriter }
+
+// Execute reads them. A provider that is no longer a way in here is still named while the connection
+// stands; one whose row is gone is not listed, since its connections went with it.
+func (h ListOwnIdentities) Execute(
+	ctx context.Context, actor appshared.ActorContext,
+) ([]ConnectedIdentity, error) {
+	if !actor.IsAuthenticated() || actor.AccountID.IsZero() {
+		return nil, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	w := h.Writer
+	var listed []ConnectedIdentity
+	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		connections, err := w.External.IdentitiesOf(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		for _, connection := range connections {
+			configured, err := w.Providers.Find(ctx, connection.ProviderID)
+			if errors.Is(err, shared.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			listed = append(listed, ConnectedIdentity{
+				ProviderID: configured.ID, ProviderName: configured.DisplayName, LinkedAt: connection.LinkedAt,
+			})
+		}
+		return nil
+	})
+	return listed, err
+}
+
+// OwnIdentitiesReadAction names the read for the trail's refusals.
+const OwnIdentitiesReadAction audit.Action = "identity.own_identities_read"
+
+// Descriptor is the catalogue entry.
+func (h ListOwnIdentities) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ListOwnIdentitiesName,
+		Summary: "Lists the sign-in providers the caller's own account is connected to: which " +
+			"provider, its name and since when - never the provider's subject or address.",
+		SideEffects: "None. Reads only.",
+		ReadOnly:    true,
+		Audit: usecase.AuditDeclaration{
+			// The caller's own records: nothing to refuse beyond the credential, nothing to record.
+			Action: OwnIdentitiesReadAction, TargetType: accountTarget,
+			Severity: audit.SeverityInfo, Required: false,
+		},
+		Handler: usecase.HandlerFunc(func(
+			ctx context.Context, actor appshared.ActorContext, _ usecase.Input,
+		) (usecase.Output, error) {
+			listed, err := h.Execute(ctx, actor)
+			if err != nil {
+				return nil, err
+			}
+			data := make([]usecase.Output, 0, len(listed))
+			for _, each := range listed {
+				data = append(data, connectedOutput(each))
+			}
+			return usecase.Output{"data": data}, nil
+		}),
+	}
 }
 
 // Descriptor is the catalogue entry.

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -124,6 +125,19 @@ func (s *externalStore) ProvidersOf(_ context.Context, accountID shared.ID) ([]s
 	for key, account := range s.bySubject {
 		if account.ID == accountID {
 			found = append(found, shared.ID(strings.SplitN(key, "\x00", 2)[0]))
+		}
+	}
+	return found, nil
+}
+
+// IdentitiesOf answers the account's connections, with the fixture's clock as their moment.
+func (s *externalStore) IdentitiesOf(_ context.Context, accountID shared.ID) ([]repository.Connection, error) {
+	found := []repository.Connection{}
+	for key, account := range s.bySubject {
+		if account.ID == accountID {
+			found = append(found, repository.Connection{
+				ProviderID: shared.ID(strings.SplitN(key, "\x00", 2)[0]), LinkedAt: now,
+			})
 		}
 	}
 	return found, nil

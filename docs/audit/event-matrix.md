@@ -268,6 +268,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `identity.own_identities_read` | ListOwnIdentities | `account` | INFO | When refused |
 | `identity.provider_configured` | ConfigureFirstIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_configured` | ConfigureIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_connect_started` | StartProviderConnect | `identity_provider` | INFO | Every time |

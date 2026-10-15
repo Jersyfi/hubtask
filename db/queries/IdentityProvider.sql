@@ -223,6 +223,14 @@ SELECT account_id FROM account_identity
 WHERE provider_id = sqlc.arg('provider_id') AND tenant_id = current_tenant_id()
 ORDER BY account_id;
 
+-- name: AccountIdentities :many
+-- The provider identities an account is connected to, as the person reads them in their own
+-- settings: which provider and since when - never the subject. The workspace is named, not left to
+-- the policy alone.
+SELECT provider_id, linked_at FROM account_identity
+WHERE account_id = sqlc.arg('account_id') AND tenant_id = current_tenant_id()
+ORDER BY linked_at, provider_id;
+
 -- name: AccountHasIdentity :one
 -- Whether the account already signs in through some provider (ADR-0071's addendum): such an
 -- identity is a credential of its own, and an account holding one is not connected to another

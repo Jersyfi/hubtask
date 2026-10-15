@@ -27,6 +27,40 @@ func (q *Queries) AccountHasIdentity(ctx context.Context, accountID pgtype.UUID)
 	return held, err
 }
 
+const accountIdentities = `-- name: AccountIdentities :many
+SELECT provider_id, linked_at FROM account_identity
+WHERE account_id = $1 AND tenant_id = current_tenant_id()
+ORDER BY linked_at, provider_id
+`
+
+type AccountIdentitiesRow struct {
+	ProviderID pgtype.UUID
+	LinkedAt   pgtype.Timestamptz
+}
+
+// The provider identities an account is connected to, as the person reads them in their own
+// settings: which provider and since when - never the subject. The workspace is named, not left to
+// the policy alone.
+func (q *Queries) AccountIdentities(ctx context.Context, accountID pgtype.UUID) ([]AccountIdentitiesRow, error) {
+	rows, err := q.db.Query(ctx, accountIdentities, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccountIdentitiesRow{}
+	for rows.Next() {
+		var i AccountIdentitiesRow
+		if err := rows.Scan(&i.ProviderID, &i.LinkedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const accountIdentityProviders = `-- name: AccountIdentityProviders :many
 SELECT provider_id FROM account_identity WHERE account_id = $1
 `

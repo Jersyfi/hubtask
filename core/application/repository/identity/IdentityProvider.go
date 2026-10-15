@@ -90,6 +90,12 @@ type OidcFlows interface {
 	ConsumeForConnect(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
 }
 
+// Connection is one provider identity connected to an account, as the person may read it.
+type Connection struct {
+	ProviderID shared.ID
+	LinkedAt   time.Time
+}
+
 // ExternalAccounts is the link between a provider's subject and an account here.
 //
 // `account_identity` rather than `account.external_subject`: one column cannot say *which* provider
@@ -120,6 +126,10 @@ type ExternalAccounts interface {
 	// it was still invited, without a second proof, is no credential, and the person makes it again
 	// by signing in.
 	UnlinkAll(ctx context.Context, accountID shared.ID) (int, error)
+
+	// IdentitiesOf answers the account's connections in the transaction's workspace, oldest first:
+	// the provider and when, never the subject (ADR-0078 §1, the person's own settings).
+	IdentitiesOf(ctx context.Context, accountID shared.ID) ([]Connection, error)
 
 	// HoldersOf answers the accounts of the transaction's workspace that hold an identity at the
 	// provider, read before the provider is removed so that each is told (ADR-0078 §6).

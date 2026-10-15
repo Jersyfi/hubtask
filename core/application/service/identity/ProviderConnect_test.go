@@ -114,6 +114,36 @@ func TestASignedInPersonConnectsAProviderWithAnotherAddress(t *testing.T) {
 	}
 }
 
+// The connection appears among the person's ways to sign in: the provider and since when, and
+// nothing that identifies the person at the provider.
+func TestAConnectedProviderIsListedAmongTheWaysToSignIn(t *testing.T) {
+	c := newConnectFromSession(t, bertWithAddress())
+	if err := c.start(t, signedInActor()); err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	if _, err := c.complete(t, signedInActor()); err != nil {
+		t.Fatalf("completing: %v", err)
+	}
+	registry, err := usecase.NewRegistry(nil, ListOwnIdentities{Writer: c.f.writer}.Descriptor())
+	if err != nil {
+		t.Fatalf("registering: %v", err)
+	}
+	out, err := registry.Invoke(t.Context(), ListOwnIdentitiesName, signedInActor(), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	rows, _ := out["data"].([]usecase.Output)
+	if len(rows) != 1 || rows[0].String("provider_id") != c.f.provider.ID.String() ||
+		rows[0].String("provider_name") != c.f.provider.DisplayName {
+		t.Fatalf("listed %v", rows)
+	}
+	for field := range rows[0] {
+		if field != "provider_id" && field != "provider_name" && field != "linked_at" {
+			t.Errorf("the list carries %q", field)
+		}
+	}
+}
+
 func TestAConnectionWithoutAStepUpIsRefused(t *testing.T) {
 	c := newConnectFromSession(t, bertWithAddress())
 	c.stepUp.satisfied = false

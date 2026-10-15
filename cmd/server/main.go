@@ -1681,6 +1681,7 @@ func run() error {
 			Writer: oidcWriter, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 		}.Descriptor(),
 		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),

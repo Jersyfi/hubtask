@@ -20,7 +20,28 @@ import (
 const (
 	startProviderConnectUseCase    = "StartProviderConnect"
 	completeProviderConnectUseCase = "CompleteProviderConnect"
+	listOwnIdentitiesUseCase       = "ListOwnIdentities"
 )
+
+// ListOwnIdentities answers GET /accounts/me/identities. Written out, GetOwnAccount's reasoning.
+func (c *RestController) ListOwnIdentities(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), listOwnIdentitiesUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	rows, _ := out["data"].([]usecase.Output)
+	answer := make([]openapi.ConnectedIdentity, 0, len(rows))
+	for _, row := range rows {
+		answer = append(answer, connectedIdentityResponse(row))
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
 
 // StartProviderConnect answers POST /accounts/me/identities:connect.
 func (c *RestController) StartProviderConnect(
