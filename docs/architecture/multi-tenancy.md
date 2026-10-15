@@ -292,9 +292,11 @@ from the primary system at once and from the operator's system backups **35 days
 **Export:** `POST /admin/tenants/{id}:export` writes one complete, unencrypted archive of the
 workspace ([tenant-export.md](./tenant-export.md)) to a backup target, as a job, in every lifecycle
 state. It reads through the same RLS path as the API (T-20), is audited with its target, never its
-content, and counts against the §4 export quota. The target must be one the workspace itself can
-see — so in multi mode with `HUBTASK_BACKUP_TENANT_TARGETS=false` (the default) a workspace cannot
-be exported: an open gap; the contract's "or an installation-wide one" does not hold today.
+content, and counts against the §4 export quota. The target is the workspace's own or one of the
+installation's own targets ([backup-restore.md](./backup-restore.md) §2) - so in multi mode with
+`HUBTASK_BACKUP_TENANT_TARGETS=false` (the default) the operator exports to a target of the
+installation. It is checked when the export is accepted: an unknown target answers
+`backup.target_not_found`, a disabled one `backup.target_disabled`.
 
 ---
 

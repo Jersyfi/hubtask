@@ -140,35 +140,11 @@ func (h CreateBackupTarget) Execute(
 		return domain.Target{}, err
 	}
 
-	id := h.Writer.IDs.NewID()
-	now := h.Writer.Clock.Now()
-
-	target, err := domain.NewTarget(domain.NewTargetInput{
-		ID: id, TenantID: actor.TenantID, Name: cmd.Name, Kind: cmd.Kind, Config: cmd.Config,
-		EncryptionMode: cmd.EncryptionMode, RegionNote: cmd.RegionNote,
-		InsecureAcknowledged: cmd.InsecureAcknowledged, CreatedBy: actor.AccountID, Now: now,
-		Text: h.Writer.Text,
-	})
+	target, sealed, err := h.Writer.Prepare(ctx, actor.TenantID, actor.AccountID, cmd)
 	if err != nil {
 		return domain.Target{}, err
 	}
-	if err := h.Writer.supported(target.Kind); err != nil {
-		return domain.Target{}, err
-	}
-
-	// Opened before it is stored, so a target that cannot be turned into a connection is a field
-	// error now rather than a failed backup at three in the morning. Nothing is written to the
-	// target here - opening is configuration, and the probe is a separate act somebody asks for.
-	if _, err := h.Writer.Opener.Open(ctx, backupstorage.Spec{
-		Kind: target.Kind, Config: target.Config, Credentials: cmd.Credentials,
-	}); err != nil {
-		return domain.Target{}, err
-	}
-
-	sealed, err := h.Writer.seal(ctx, id, cmd.Credentials)
-	if err != nil {
-		return domain.Target{}, err
-	}
+	now := target.CreatedAt
 
 	err = h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Writer.Targets.Insert(ctx, target, sealed); err != nil {
@@ -180,6 +156,39 @@ func (h CreateBackupTarget) Execute(
 		return domain.Target{}, err
 	}
 	return target, nil
+}
+
+// Prepare builds a target, checks that this build can open it, and seals its credential - every
+// step before it is stored, shared by a workspace's targets and the installation's (owner zero).
+// Opened before it is stored, so a target that cannot be turned into a connection is a field error
+// now rather than a failed backup at three in the morning. Nothing is written to the target here -
+// opening is configuration, and the probe is a separate act somebody asks for.
+func (w Writer) Prepare(
+	ctx context.Context, owner, createdBy shared.ID, cmd CreateBackupTargetCommand,
+) (domain.Target, crypto.Sealed, error) {
+	id := w.IDs.NewID()
+	target, err := domain.NewTarget(domain.NewTargetInput{
+		ID: id, TenantID: owner, Name: cmd.Name, Kind: cmd.Kind, Config: cmd.Config,
+		EncryptionMode: cmd.EncryptionMode, RegionNote: cmd.RegionNote,
+		InsecureAcknowledged: cmd.InsecureAcknowledged, CreatedBy: createdBy, Now: w.Clock.Now(),
+		Text: w.Text,
+	})
+	if err != nil {
+		return domain.Target{}, crypto.Sealed{}, err
+	}
+	if err := w.supported(target.Kind); err != nil {
+		return domain.Target{}, crypto.Sealed{}, err
+	}
+	if _, err := w.Opener.Open(ctx, backupstorage.Spec{
+		Kind: target.Kind, Config: target.Config, Credentials: cmd.Credentials,
+	}); err != nil {
+		return domain.Target{}, crypto.Sealed{}, err
+	}
+	sealed, err := w.seal(ctx, id, cmd.Credentials)
+	if err != nil {
+		return domain.Target{}, crypto.Sealed{}, err
+	}
+	return target, sealed, nil
 }
 
 // Execute lists the targets.
@@ -270,14 +279,10 @@ func (h TestBackupTarget) Execute(
 		return Probe{}, err
 	}
 
-	credentials, err := h.Writer.unseal(ctx, id, sealed)
+	probe, err := h.Writer.Check(ctx, target, sealed)
 	if err != nil {
 		return Probe{}, err
 	}
-
-	started := h.Writer.Clock.Now()
-	probe := h.Writer.probe(ctx, target, credentials)
-	probe.Latency = h.Writer.Clock.Now().Sub(started)
 
 	err = h.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.Writer.Targets.RecordTest(
@@ -289,6 +294,19 @@ func (h TestBackupTarget) Execute(
 	if err != nil {
 		return Probe{}, err
 	}
+	return probe, nil
+}
+
+// Check opens the sealed credential and runs the probe, timed - for a workspace's target and the
+// installation's alike. Outside any transaction, for the reason Execute gives.
+func (w Writer) Check(ctx context.Context, target domain.Target, sealed crypto.Sealed) (Probe, error) {
+	credentials, err := w.unseal(ctx, target.ID, sealed)
+	if err != nil {
+		return Probe{}, err
+	}
+	started := w.Clock.Now()
+	probe := w.probe(ctx, target, credentials)
+	probe.Latency = w.Clock.Now().Sub(started)
 	return probe, nil
 }
 
@@ -609,7 +627,16 @@ func (h TestBackupTarget) Descriptor() usecase.Descriptor {
 func (h CreateBackupTarget) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	target, err := h.Execute(ctx, actor, CreateBackupTargetCommand{
+	target, err := h.Execute(ctx, actor, CreateCommandOf(in))
+	if err != nil {
+		return nil, err
+	}
+	return targetOutput(target), nil
+}
+
+// CreateCommandOf reads a target's creation as every channel sends it.
+func CreateCommandOf(in usecase.Input) CreateBackupTargetCommand {
+	return CreateBackupTargetCommand{
 		Name:                 in.String("name"),
 		Kind:                 domain.TargetKind(in.String("kind")),
 		Config:               settingsOf(in, "config"),
@@ -617,12 +644,19 @@ func (h CreateBackupTarget) invoke(
 		EncryptionMode:       domain.EncryptionMode(in.String("encryption_mode")),
 		RegionNote:           in.String("region_note"),
 		InsecureAcknowledged: in.Bool("insecure_acknowledged"),
-	})
-	if err != nil {
-		return nil, err
 	}
-	return targetOutput(target), nil
 }
+
+// CreateFields are a target's creation fields, for a descriptor that takes the same body.
+func CreateFields() []usecase.Field {
+	return CreateBackupTarget{}.Descriptor().Input
+}
+
+// TargetOutput is a target as the channels answer it, never with a credential.
+func TargetOutput(target domain.Target) usecase.Output { return targetOutput(target) }
+
+// ProbeOutput is a probe as the channels answer it.
+func ProbeOutput(probe Probe) usecase.Output { return probeOutput(probe) }
 
 func (h ListBackupTargets) invoke(
 	ctx context.Context, actor appshared.ActorContext, _ usecase.Input,
@@ -650,7 +684,10 @@ func (h TestBackupTarget) invoke(
 	if err != nil {
 		return nil, err
 	}
+	return probeOutput(probe), nil
+}
 
+func probeOutput(probe Probe) usecase.Output {
 	out := usecase.Output{
 		"ok":         probe.OK,
 		"latency_ms": probe.Latency.Milliseconds(),
@@ -662,7 +699,7 @@ func (h TestBackupTarget) invoke(
 	if probe.ErrorCode != "" {
 		out["error_code"] = probe.ErrorCode
 	}
-	return out, nil
+	return out
 }
 
 // targetOutput is a target as the three channels answer it. There is no credential in here and
@@ -783,12 +820,18 @@ type StoreOpener struct {
 func (o StoreOpener) OpenTarget(
 	ctx context.Context, tenantID, targetID shared.ID,
 ) (backupstorage.Store, error) {
+	return o.openIn(ctx, persistence.Scope{TenantID: tenantID}, targetID)
+}
+
+func (o StoreOpener) openIn(
+	ctx context.Context, scope persistence.Scope, targetID shared.ID,
+) (backupstorage.Store, error) {
 	var (
 		target      domain.Target
 		credentials map[string]secret.Secret
 	)
 
-	err := o.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+	err := o.UnitOfWork.WithinReadOnly(ctx, scope,
 		func(ctx context.Context) error {
 			found, err := o.Targets.Find(ctx, targetID)
 			if err != nil {
@@ -814,4 +857,50 @@ func (o StoreOpener) OpenTarget(
 	return o.Opener.Open(ctx, backupstorage.Spec{
 		Kind: target.Kind, Config: target.Config, Credentials: credentials,
 	})
+}
+
+// ExportStoreOpener is the workspace export's opener (multi-tenancy.md §5): the workspace's own
+// target, or else one of the installation's. A type of its own rather than a widening of
+// StoreOpener, because the data subject export, the audit archive and anchoring open targets too,
+// and none of them may reach the installation's: a workspace writing its people's data to a
+// target its operator configured for exports is a channel nobody chose.
+type ExportStoreOpener struct{ StoreOpener }
+
+// OpenTarget tries the workspace's scope, and the installation's only for a target the workspace
+// does not have.
+func (o ExportStoreOpener) OpenTarget(
+	ctx context.Context, tenantID, targetID shared.ID,
+) (backupstorage.Store, error) {
+	store, err := o.StoreOpener.OpenTarget(ctx, tenantID, targetID)
+	if !errors.Is(err, shared.ErrNotFound) {
+		return store, err
+	}
+	return o.openIn(ctx, persistence.InstallationScope(), targetID)
+}
+
+// Usable answers whether an export could write to the target now: it exists for the workspace or
+// the installation, and is enabled. Asked when an export is accepted, so a wrong identifier is a
+// refusal the operator sees rather than a job that fails.
+func (o ExportStoreOpener) Usable(ctx context.Context, tenantID, targetID shared.ID) error {
+	find := func(scope persistence.Scope) (domain.Target, error) {
+		var found domain.Target
+		err := o.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+			read, err := o.Targets.Find(ctx, targetID)
+			found = read
+			return err
+		})
+		return found, err
+	}
+	target, err := find(persistence.Scope{TenantID: tenantID})
+	if errors.Is(err, shared.ErrNotFound) {
+		target, err = find(persistence.InstallationScope())
+	}
+	if err != nil {
+		return err
+	}
+	if !target.Enabled {
+		return shared.ErrConflict.WithDetail(domain.CodeTargetDisabled).
+			WithParams(map[string]string{"target_id": targetID.String()})
+	}
+	return nil
 }

@@ -874,6 +874,26 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The installation's own backup targets */
+  listInstanceBackupTargets(options: CallOptions = {}): Promise<operations["listInstanceBackupTargets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/backup-targets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Configure a backup target of the installation */
+  createInstanceBackupTarget(body: NonNullable<operations["createInstanceBackupTarget"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["createInstanceBackupTarget"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/backup-targets", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a backup target of the installation */
+  deleteInstanceBackupTarget(targetId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/admin/backup-targets/{targetId}", { "targetId": targetId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Test the connection to a target of the installation */
+  testInstanceBackupTarget(targetId: string, options: CallOptions = {}): Promise<operations["testInstanceBackupTarget"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/backup-targets/{targetId}:test", { "targetId": targetId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What this installation has decided for every workspace on it */
   readInstanceSettings(options: CallOptions = {}): Promise<operations["readInstanceSettings"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
