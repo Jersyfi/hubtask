@@ -92,7 +92,8 @@ func TestAnInstallationDefaultWithoutThePasswordOpensItAsTheFallback(t *testing.
 	}
 	writeLevel := func(level repository.InstanceLevel) error {
 		return uow.Within(context.Background(), persistence.SystemScope(), func(ctx context.Context) error {
-			return instance.Write(ctx, level, "", time.Now().UTC())
+			_, err := instance.Write(ctx, level, 0, "", time.Now().UTC())
+			return err
 		})
 	}
 	t.Cleanup(func() {

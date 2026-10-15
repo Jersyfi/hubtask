@@ -51,6 +51,10 @@ type InstanceLevel struct {
 	// IsEnforcedFromFile is the `enforce` mode: the writing routes refuse, because the file is
 	// the source and a write through the API would be overwritten at the next start.
 	IsEnforcedFromFile bool
+	// Version moves by one with every save; a save presents the one it was made on, and one made
+	// on a level somebody saved since is refused (UC-INS-09 check 8). Answered by Read, ignored by
+	// Write, which takes the expected version on its own.
+	Version int
 }
 
 // InstanceSettings reads and writes the installation's own level.
@@ -67,7 +71,12 @@ type InstanceSettings interface {
 	// Write replaces the level whole: every switch the caller decided is stored, every switch it
 	// did not is removed. A PUT, because a merge over eighteen switches that can each be absent
 	// has no way to say "unset this one".
-	Write(ctx context.Context, level InstanceLevel, by shared.ID, at time.Time) error
+	//
+	// It writes only while the level is still at `expected`, and moves the version by one; false,
+	// with nothing written, when it is not. The comparison is in the statement that moves the
+	// version, so two writers on one version cannot both pass. Zero compares with nothing - the
+	// instance file, which is the source and wins.
+	Write(ctx context.Context, level InstanceLevel, expected int, by shared.ID, at time.Time) (bool, error)
 }
 
 // Operator is one row of the register (ADR-0070 §1): an account of some workspace that operates

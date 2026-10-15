@@ -114,7 +114,8 @@ func newResolverWorld(t *testing.T) *resolverWorld {
 func (w *resolverWorld) level(ctx context.Context, t *testing.T, level identityrepo.InstanceLevel) {
 	t.Helper()
 	inSystem(ctx, t, w.uow, func(ctx context.Context) error {
-		return w.instance.Write(ctx, level, "", time.Now().UTC())
+		_, err := w.instance.Write(ctx, level, 0, "", time.Now().UTC())
+		return err
 	})
 }
 

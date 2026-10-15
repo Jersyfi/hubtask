@@ -27,7 +27,7 @@ func newInstanceStore() *instanceStore {
 	return &instanceStore{level: identityrepo.InstanceLevel{
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
-		Source: "database",
+		Source: "database", Version: 1,
 	}}
 }
 
@@ -36,14 +36,19 @@ func (s *instanceStore) Read(context.Context) (identityrepo.InstanceLevel, error
 }
 
 func (s *instanceStore) Write(
-	_ context.Context, level identityrepo.InstanceLevel, by shared.ID, _ time.Time,
-) error {
+	_ context.Context, level identityrepo.InstanceLevel, expected int, by shared.ID, _ time.Time,
+) (bool, error) {
+	// The statement's guard, in memory: zero compares with nothing.
+	if expected != 0 && expected != s.level.Version {
+		return false, nil
+	}
 	s.writes = append(s.writes, level)
 	s.writtenBy = append(s.writtenBy, by)
 	kept := level
 	kept.Source = s.level.Source
+	kept.Version = s.level.Version + 1
 	s.level = kept
-	return nil
+	return true, nil
 }
 
 // registerStore is the operator register, in memory. An empty one answers true, which is the
@@ -198,7 +203,7 @@ func TestWritingTheLevelReplacesItAndNamesWhatMoved(t *testing.T) {
 				Locks: map[identity.LegalLink]bool{identity.LinkImprint: true},
 			},
 			BlocklistFile: "/etc/hubtask/passwords.txt",
-		})
+		}, 0)
 	if err != nil {
 		t.Fatalf("the write was refused: %v", err)
 	}

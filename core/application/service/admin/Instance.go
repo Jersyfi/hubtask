@@ -140,24 +140,31 @@ type WriteInstanceSettings struct{ Writer InstanceWriter }
 // session yet, and the journal records the source rather than a name. Everything else about it is
 // the same write, including the entry in the journal, which is what makes a change that arrived
 // from a repository as visible as one somebody clicked.
+//
+// It compares no version: the file is the source and wins. In `enforce` every replica writes it at
+// start, and a refusal here would stop a start over a race between two copies of the same file.
 func (h WriteInstanceSettings) ExecuteAsFile(
 	ctx context.Context, level identityrepo.InstanceLevel, source string,
 ) (identityrepo.InstanceLevel, error) {
-	return h.write(ctx, appshared.ActorContext{AccountName: source}, level)
+	return h.write(ctx, appshared.ActorContext{AccountName: source}, level, 0, false)
 }
 
+// Execute writes the level on a person's behalf, made on the version `expected` (UC-INS-09 check
+// 8). Zero means the caller named none, and the level is compared with the version read in the
+// same transaction - so two saves at once still refuse the second, as the workspace's own does.
 func (h WriteInstanceSettings) Execute(
-	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
+	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel, expected int,
 ) (identityrepo.InstanceLevel, error) {
 	w := h.Writer
 	if err := w.authorize(ctx, actor); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}
-	return h.write(ctx, actor, level)
+	return h.write(ctx, actor, level, expected, true)
 }
 
 func (h WriteInstanceSettings) write(
 	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
+	expected int, compared bool,
 ) (identityrepo.InstanceLevel, error) {
 	w := h.Writer
 
@@ -179,8 +186,19 @@ func (h WriteInstanceSettings) write(
 				WithDetail("admin.instance_enforced_from_file").
 				WithParams(map[string]string{"source": before.Source})
 		}
-		if err := w.Settings.Write(ctx, level, actor.AccountID, w.Clock.Now()); err != nil {
+		// Compared after the file's refusal: reading the level again does not help while a file
+		// enforces it, and changing the file does.
+		if compared && expected == 0 {
+			expected = before.Version
+		}
+		stored, err := w.Settings.Write(ctx, level, expected, actor.AccountID, w.Clock.Now())
+		if err != nil {
 			return err
+		}
+		if !stored {
+			// Either the caller's screen was stale, or somebody committed between the read and the
+			// write. Both are the same fact to the caller: somebody else saved first (ADR-0025).
+			return shared.ErrVersionConflict.WithDetail("admin.instance_settings_version_conflict")
 		}
 		read, err := w.Settings.Read(ctx)
 		if err != nil {
@@ -550,7 +568,7 @@ func (h WriteInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	written, err := h.Execute(ctx, actor, level)
+	written, err := h.Execute(ctx, actor, level, 0)
 	if err != nil {
 		return nil, err
 	}

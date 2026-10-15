@@ -195,7 +195,7 @@ func isEmptyLevel(level identityrepo.InstanceLevel) bool {
 // A refused value never reaches the store, whichever door it came through.
 func TestARefusedValueIsNotWritten(t *testing.T) {
 	writer, store, _ := newInstanceWriter(newRegister(operatorID))
-	_, err := WriteInstanceSettings{Writer: writer}.Execute(t.Context(), operator(), identityrepo.InstanceLevel{})
+	_, err := WriteInstanceSettings{Writer: writer}.Execute(t.Context(), operator(), identityrepo.InstanceLevel{}, 0)
 	if err != nil {
 		t.Fatalf("writing an empty level: %v", err)
 	}
