@@ -4,7 +4,10 @@
 package privacy
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -12,6 +15,8 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	backuprepo "github.com/Jersyfi/hubtask/core/application/repository/backup"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -182,16 +187,66 @@ func TestAnInstallationWideExportNeedsAnAddress(t *testing.T) {
 	}
 }
 
-// And it needs the credential that says so, whoever asked for it.
-func TestAnInstallationWideExportNeedsTheInstanceScope(t *testing.T) {
-	exporter := Exporter{UnitOfWork: &unitOfWork{}}
+// The job carries the case out as the installation, which holds no token scope: the scope was
+// asked of the person who recorded and started the case, and asking the job again refused every
+// installation-wide case its own job.
+func TestTheJobCarriesOutAnInstallationWideCaseWithoutAScope(t *testing.T) {
+	exporter := Exporter{UnitOfWork: &unitOfWork{}, Subjects: &tenantsOf{tenants: []shared.ID{tenantID}}}
 	request := domain.Request{
 		ID: subjectID, Kind: domain.KindAccess, Scope: domain.ScopeInstallation,
 		SubjectEmail: "anna@example.org", TargetID: targetID,
 	}
+	installation := appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenantID}
 
-	if _, err := exporter.workspaces(context.Background(), actor(), request); err == nil {
-		t.Fatal("an installation-wide case ran without the instance scope")
+	scopes, err := exporter.workspaces(context.Background(), installation, request)
+	if err != nil {
+		t.Fatalf("the job was refused: %v", err)
+	}
+	if len(scopes) != 1 {
+		t.Errorf("the case reaches %+v", scopes)
+	}
+}
+
+// accountsByAddress is the person's account in whichever workspace the read runs in.
+type accountsByAddress struct {
+	id  shared.ID
+	err error
+}
+
+func (a accountsByAddress) FindByEmail(context.Context, string) (identity.Account, error) {
+	if a.err != nil {
+		return identity.Account{}, a.err
+	}
+	return identity.Account{ID: a.id}, nil
+}
+
+// In every workspace the person is known by their account there, so their comments - which name
+// an account, not an address - are in the archive; where the account has gone, by the address.
+func TestEachWorkspaceKnowsThePersonByTheirAccount(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		accounts accountsByAddress
+		want     shared.ID
+	}{
+		{"found", accountsByAddress{id: subjectID}, subjectID},
+		{"gone meanwhile", accountsByAddress{err: shared.ErrNotFound}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			exporter := Exporter{
+				UnitOfWork: &unitOfWork{}, Subjects: &tenantsOf{tenants: []shared.ID{tenantID}},
+				Accounts: tc.accounts,
+			}
+			scopes, err := exporter.workspaces(context.Background(), actor(), domain.Request{
+				ID: subjectID, Kind: domain.KindAccess, Scope: domain.ScopeInstallation,
+				SubjectEmail: "anna@example.org", TargetID: targetID,
+			})
+			if err != nil {
+				t.Fatalf("resolving the workspaces: %v", err)
+			}
+			if scopes[0].subjectID != tc.want || scopes[0].email != "anna@example.org" {
+				t.Errorf("the person is known as %+v", scopes[0])
+			}
+		})
 	}
 }
 
@@ -346,24 +401,52 @@ func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
 	}
 }
 
-// An installation-wide case is a loop rather than a wider query: one archive per workspace, each
-// under that workspace's own tenant context, with an entry in each.
+// An installation-wide case is a loop rather than a wider query, each workspace read under its own
+// tenant context, with an entry in each - and what it writes is one archive (UC-PRV-06 check 3): one
+// object whose members are the workspaces' archives, named by the case and not the person.
 func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000f2")
 	target := &memoryTarget{written: map[string][]byte{}}
 	sink, snapshot := &auditSink{}, &snapshotter{}
 	subjects := &tenantsOf{tenants: []shared.ID{tenantID, elsewhere}}
+	exporter := newExporter(target, subjects, sink, snapshot)
+	exporter.Accounts = accountsByAddress{id: subjectID}
 
-	written, err := newExporter(target, subjects, sink, snapshot).
-		Export(context.Background(), operator(), domain.Request{
-			ID: subjectID, Kind: domain.KindPortability, Scope: domain.ScopeInstallation,
-			SubjectEmail: "anna@example.org", TargetID: targetID,
-		})
+	written, err := exporter.Export(context.Background(), actor(), domain.Request{
+		ID: subjectID, Kind: domain.KindPortability, Scope: domain.ScopeInstallation,
+		SubjectEmail: "anna@example.org", TargetID: targetID,
+	})
 	if err != nil {
 		t.Fatalf("exporting: %v", err)
 	}
 	if written.Tenants != 2 {
 		t.Fatalf("the export reached %d workspaces", written.Tenants)
+	}
+	// The person's comment in each workspace, found by their account there.
+	if written.Records != 2 {
+		t.Errorf("%d records went in, want the comment from each workspace", written.Records)
+	}
+
+	if len(target.written) != 1 {
+		t.Fatalf("the target holds %d objects, want one archive", len(target.written))
+	}
+	body, found := target.written[written.Archive]
+	if !found || !strings.HasSuffix(written.Archive, ".zip") ||
+		!strings.Contains(written.Archive, subjectID.String()) || strings.Contains(written.Archive, "anna") {
+		t.Fatalf("the case names %q, the target holds %v", written.Archive, keysOf(target.written))
+	}
+	bundled, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
+	if err != nil {
+		t.Fatalf("reading the archive: %v", err)
+	}
+	manifests := map[string]bool{}
+	for _, member := range bundled.File {
+		if strings.HasSuffix(member.Name, "/"+archive.ManifestName) {
+			manifests[strings.TrimSuffix(member.Name, "/"+archive.ManifestName)] = true
+		}
+	}
+	if !manifests[tenantID.String()] || !manifests[elsewhere.String()] || len(manifests) != 2 {
+		t.Errorf("the archive holds the workspaces %v", manifests)
 	}
 
 	// Each archive is written under its own workspace's context - never one query across tenants.
@@ -384,6 +467,52 @@ func TestAnInstallationWideExportCollectsWorkspaceByWorkspace(t *testing.T) {
 	if byTenant[elsewhere] != CollectedAction {
 		t.Errorf("the other workspace recorded %s", byTenant[elsewhere])
 	}
+	for _, entry := range sink.entries {
+		if !strings.Contains(fmt.Sprint(entry.Changes), written.Archive) {
+			t.Errorf("the entry in %s does not name the archive: %v", entry.TenantID, entry.Changes)
+		}
+	}
+}
+
+// One workspace's failure fails the whole archive: the target keeps no half of it.
+func TestAnArchiveThatFailsHalfwayLeavesNothing(t *testing.T) {
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000f2")
+	target := &memoryTarget{written: map[string][]byte{}}
+	exporter := newExporter(target, &tenantsOf{tenants: []shared.ID{tenantID, elsewhere}},
+		&auditSink{}, &snapshotter{})
+	exporter.Snapshot = &failingSnapshot{after: 1}
+
+	_, err := exporter.Export(context.Background(), actor(), domain.Request{
+		ID: subjectID, Kind: domain.KindAccess, Scope: domain.ScopeInstallation,
+		SubjectEmail: "anna@example.org", TargetID: targetID,
+	})
+	if err == nil {
+		t.Fatal("an export whose second workspace failed succeeded")
+	}
+	if len(target.written) != 0 {
+		t.Errorf("the target kept %v", keysOf(target.written))
+	}
+}
+
+// failingSnapshot lets the first snapshots through and fails the next one.
+type failingSnapshot struct{ after, taken int }
+
+func (f *failingSnapshot) WithinSnapshot(
+	ctx context.Context, _ persistence.Scope, fn func(context.Context, time.Time) error,
+) error {
+	f.taken++
+	if f.taken > f.after {
+		return shared.ErrUnavailable.WithDetail("postgres.query_failed")
+	}
+	return fn(ctx, now)
+}
+
+func keysOf(written map[string][]byte) []string {
+	keys := make([]string, 0, len(written))
+	for key := range written {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // A case with no target is refused before anything is opened: an export has to be put somewhere.

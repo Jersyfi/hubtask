@@ -383,7 +383,11 @@ func TestAnIncrementalChainOfTenRunsReproducesTheSource(t *testing.T) {
 			continue
 		}
 		for _, blob := range blobs {
-			stream, err := reader.Medium(ctx, walked, blob.Digest, key)
+			keys := archive.Keys{}
+			for _, description := range walked {
+				keys[description.Manifest.ArchiveID] = key
+			}
+			stream, err := reader.Medium(ctx, walked, blob.Digest, keys)
 			if err != nil {
 				t.Fatalf("the attachment of %s is nowhere in the chain: %v", id, err)
 			}

@@ -57,6 +57,10 @@ type InstanceProviderWriter struct {
 	Providers identityrepo.IdentityProviders
 	// Configure is the writer the workspace's own half uses. Shared on purpose.
 	Configure identityservice.IdentityProviderWriter
+	// Tenants lists the workspaces a removal tells its people in (ADR-0078 §6). It reads through
+	// the installation's enumerator, so where that answers none - an owner without the right to
+	// read across workspaces (multi-tenancy.md §2.1.1) - no workspace is told. Nil tells nobody.
+	Tenants adminrepo.Tenants
 }
 
 // ListInstanceIdentityProviders answers what the installation offers.
@@ -160,11 +164,57 @@ func (h RemoveInstanceIdentityProvider) Execute(
 	if err := w.offerEnded(ctx, id); err != nil {
 		return err
 	}
+	if err := w.tellEveryWorkspace(ctx, id); err != nil {
+		return err
+	}
 	if err := w.Configure.RemoveAt(
 		ctx, persistence.SystemScope(), actor, id, shared.ID(""), stepUpToken); err != nil {
 		return err
 	}
 	return w.journal(ctx, actor, journalProviderRemoved, id, "")
+}
+
+// tellEveryWorkspace queues, workspace by workspace and each in its own transaction, a notice for
+// every person connected to the provider: removing it takes the connections with it (ADR-0078 §6).
+// Read in each workspace's own scope rather than through a list of people across workspaces, which
+// the boundary does not hand out. Queued before the removal, so a removal that then fails leaves
+// notices whose sender finds the provider still there and sends nothing.
+func (w InstanceProviderWriter) tellEveryWorkspace(ctx context.Context, id shared.ID) error {
+	if w.Tenants == nil || w.Configure.WayIn == nil {
+		return nil
+	}
+	var (
+		configured domainidentity.IdentityProvider
+		tenants    []adminrepo.TenantRecord
+	)
+	err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		found, err := w.Providers.Find(ctx, id)
+		configured = found
+		return err
+	})
+	if errors.Is(err, shared.ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
+		func(ctx context.Context) error {
+			listed, err := w.Tenants.List(ctx)
+			tenants = listed
+			return err
+		}); err != nil {
+		return err
+	}
+	for _, tenant := range tenants {
+		if err := w.Instance.UnitOfWork.Within(ctx, persistence.Scope{TenantID: tenant.ID},
+			func(ctx context.Context) error {
+				return w.Configure.TellDisconnected(ctx, tenant.ID, configured)
+			}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // offerEnded refuses a removal while the installation's offer stands and a workspace uses it. An

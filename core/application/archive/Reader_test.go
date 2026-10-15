@@ -314,7 +314,7 @@ func TestAMediumIsFoundInWhicheverArchiveHoldsIt(t *testing.T) {
 		t.Fatalf("chain: %v", err)
 	}
 
-	stream, err := reader.Medium(t.Context(), chain, attachment.Digest, key())
+	stream, err := reader.Medium(t.Context(), chain, attachment.Digest, sameKey(chain, key()))
 	if err != nil {
 		t.Fatalf("medium: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestAMediumNoArchiveInTheChainHoldsIsNotFound(t *testing.T) {
 	}
 
 	_, err = NewReader(store, &reversible{}).Medium(t.Context(), []Description{description},
-		blobOf("never stored anywhere").Digest, key())
+		blobOf("never stored anywhere").Digest, sameKey([]Description{description}, key()))
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("a medium nobody holds: %v", err)
 	}
@@ -393,4 +393,14 @@ func TestAMissingAuditMemberIsNotAFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("a member the manifest does not name was read anyway")
 	}
+}
+
+// sameKey is the keys of a chain whose archives were all written under one key, as these tests
+// write them.
+func sameKey(chain []Description, key secret.Bytes) Keys {
+	keys := Keys{}
+	for _, description := range chain {
+		keys[description.Manifest.ArchiveID] = key
+	}
+	return keys
 }

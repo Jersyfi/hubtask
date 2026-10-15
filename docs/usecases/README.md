@@ -159,8 +159,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-01](./identity/UC-ID-01-sign-in-with-a-password.md) | Sign in with my address and password | identity | built |
 | [UC-ID-02](./identity/UC-ID-02-prove-it-is-me-with-a-second-factor.md) | Prove it is me with a second factor when I sign in | identity | built |
 | [UC-ID-03](./identity/UC-ID-03-set-up-and-keep-my-second-factor.md) | Set up my second factor and keep my recovery codes | identity | built |
-| [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | partial |
-| [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | partial |
+| [UC-ID-04](./identity/UC-ID-04-reset-a-forgotten-password.md) | Reset a forgotten password | identity | built |
+| [UC-ID-05](./identity/UC-ID-05-change-my-password.md) | Change my password | identity | built |
 | [UC-ID-06](./identity/UC-ID-06-see-and-end-my-sessions.md) | See where I am signed in and end a session | identity | built |
 | [UC-ID-07](./identity/UC-ID-07-accept-an-invitation.md) | Accept an invitation and set up my account | identity | built |
 | [UC-ID-08](./identity/UC-ID-08-sign-in-with-my-organisations-directory.md) | Sign in with my organisation's directory | identity | built |
@@ -262,7 +262,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-BAK-01](./backup/UC-BAK-01-choose-where-backups-go.md) | Choose where the workspace's backups go | backup | built |
 | [UC-BAK-02](./backup/UC-BAK-02-back-up-on-a-schedule.md) | Back up on a schedule and keep the right generations | backup | partial |
 | [UC-BAK-03](./backup/UC-BAK-03-back-up-now-and-check-it-opens.md) | Back up now and check that the backup opens | backup | built |
-| [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | partial |
+| [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | built |
 | [UC-BAK-05](./backup/UC-BAK-05-reset-the-workspace-to-a-backup.md) | Reset the whole workspace to an earlier backup | backup | built |
 | [UC-BAK-06](./backup/UC-BAK-06-get-one-thing-back-from-a-backup.md) | Get one lost collection or task back from a backup | backup | partial |
 | [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | partial |
@@ -272,9 +272,9 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-PRV-03](./privacy/UC-PRV-03-erase-a-person-on-request.md) | Erase a person on request | privacy | verified |
 | [UC-PRV-04](./privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md) | Restrict the processing of a person's data | privacy | partial |
 | [UC-PRV-05](./privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md) | Object to an optional use of my data | privacy | verified |
-| [UC-PRV-06](./privacy/UC-PRV-06-answer-a-request-across-the-whole-installation.md) | Answer a request across every workspace of the installation | privacy | partial |
+| [UC-PRV-06](./privacy/UC-PRV-06-answer-a-request-across-the-whole-installation.md) | Answer a request across every workspace of the installation | privacy | built |
 | [UC-PRV-07](./privacy/UC-PRV-07-correct-what-we-hold-about-a-person.md) | Correct what the workspace holds about a person | privacy | built |
-| [UC-PRV-08](./privacy/UC-PRV-08-know-what-the-installation-stores-about-people.md) | Know what the installation stores about people, and how each piece is deleted | privacy | partial |
+| [UC-PRV-08](./privacy/UC-PRV-08-know-what-the-installation-stores-about-people.md) | Know what the installation stores about people, and how each piece is deleted | privacy | built |
 | [UC-AUD-01](./audit/UC-AUD-01-look-up-what-happened-in-the-workspace.md) | Look up what happened in the workspace | audit | verified |
 | [UC-AUD-02](./audit/UC-AUD-02-prove-the-trail-is-intact.md) | Prove the trail has not been changed | audit | verified |
 | [UC-AUD-03](./audit/UC-AUD-03-anchor-the-trail-outside-the-database.md) | Anchor the trail outside the database | audit | partial |

@@ -5,7 +5,9 @@
 // values still name each master key, and in which kind of value.
 //
 // Seven stores hold a sealed value, and each of their repositories knows how to re-seal its own
-// rows; what none of them can answer alone is whether a key may leave the ring. That is one
+// rows; an eighth, the backup archives, names a key it can never be moved off - an archive is not
+// rewritten - and drains only as its archives expire. What none of them can answer alone is
+// whether a key may leave the ring. That is one
 // question over all of them, so it is one port, answered per tenant like everything else, once
 // more for the installation's own rows, and summed by the control plane over the levels it may
 // see.
@@ -28,13 +30,17 @@ const (
 	// run. It drains by itself as the calls finish; the census counts it so that a key is not
 	// retired under a call still on its retry ladder.
 	StoreAutomationHTTPJob = "automation_http_job"
+	// StoreBackupArchive is an archive this installation wrote and still keeps, under the master
+	// key its manifest names (backup-restore.md §4). Re-sealing cannot move it; it drains as the
+	// archives expire, and until then retiring the key would leave them unreadable.
+	StoreBackupArchive = "backup_archive"
 )
 
 // Stores is the closed set as one list, which a test holds to the contract's enum and to the
 // messages that name each store.
 var Stores = []string{
 	StoreAccountMfa, StoreIdentityProvider, StoreWebhookSubscription, StoreBackupTarget,
-	StoreAiProvider, StoreAutomationRule, StoreAutomationHTTPJob,
+	StoreAiProvider, StoreAutomationRule, StoreAutomationHTTPJob, StoreBackupArchive,
 }
 
 // Counts is a census: for every key a stored value names, how many values of each store name it.

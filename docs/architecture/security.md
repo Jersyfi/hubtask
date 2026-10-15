@@ -188,7 +188,11 @@ value, a rotation is a configuration change. The procedure is drilled
    zero; earlier, its rows answer `crypto.unknown_key`, the census shows it `in_ring: false` with
    the kinds it still seals, and the operator's health report warns `crypto.key_missing` per kind
    (counted in the background at start, hourly and on every census read, and saying when) until it
-   is put back and re-sealed.
+   is put back and re-sealed. The census also counts the **backup archives** still kept under each
+   key (`backup_archive`): an archive is never rewritten, so no re-seal moves it, and the count
+   falls only as archives expire. A key therefore stays in the ring for as long as the archives
+   written under it are kept, yearly generations included ([backup-restore.md](./backup-restore.md)
+   §4).
 
 **What a round touches.** The seven sealed places — the second factor, an identity provider's client
 secret, the AI provider's key, a webhook's current and previous signing secret, a backup target's

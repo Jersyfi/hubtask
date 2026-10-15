@@ -75,6 +75,13 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindWayInChangedEmail tells a person that a way into their account changed - a password
+	// changed or set through a reset, a provider connected or disconnected (ADR-0078 §6,
+	// identity.md §6). Queued in the change's own transaction, one job per person, and only where
+	// the installation has a mail server; not a notification record, for KindPasswordResetEmail's
+	// reason.
+	KindWayInChangedEmail Kind = "notification.way_in_changed"
+
 	// KindAddressConfirmationEmail carries the link that confirms a managed account's new address
 	// (ADR-0074 §6). Queued in the request's transaction, so the waiting address and its mail exist
 	// together; not a notification record, for KindPasswordResetEmail's reason - a credential on its
@@ -223,6 +230,12 @@ const (
 	// and rescheduling itself to the next day, for the backup schedule's reason: nothing in this
 	// system may enumerate tenants.
 	KindAuditAnchor Kind = "audit.anchor"
+
+	// KindAuditTrailRemoved records, in one workspace's own trail, that a month of it went for good
+	// (audit.md §3). Queued by the leader in the transaction that dropped the month, one per
+	// workspace that had entries in it: the partition holds every workspace, the entry belongs in
+	// each one's own chain.
+	KindAuditTrailRemoved Kind = "audit.trail_removed"
 
 	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
 	// (audit.md §5).

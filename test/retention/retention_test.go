@@ -126,6 +126,8 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		// The jumble, as the server wires it: the engine refuses to run with a kind
 		// unwired, and RE-8's cross-tenant question is asked of this kind too.
 		Inbox: postgres.NewJumbleRepository(security.NewCursorCodec(installationSecret)),
+		// The webhook delivery log, as the server wires it.
+		Deliveries: postgres.NewWebhookDeliveryRepository(),
 		// Requests' stored answers, as the server wires them.
 		IdempotencyKeys: postgres.NewIdempotencyStore(),
 		// The templates a legal hold kept after their deletion, as the server wires it.

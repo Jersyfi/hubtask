@@ -170,3 +170,38 @@ UPDATE webhook_delivery SET
   error_code      = sqlc.narg('error_code'),
   next_attempt_at = sqlc.narg('next_attempt_at')
 WHERE id = sqlc.arg('id');
+
+-- name: DeleteExpiredWebhookDeliveries :execrows
+-- The retention run's batch (data-retention.md §3: anchor `created_at`, 30 days). Every attempt past
+-- the period goes, except a PENDING one a living job still names - that job will read the row by
+-- its id. A pending row whose job is gone (dead-lettered and purged, or never run) is read by
+-- nobody and goes like the rest. Batched through a subquery, oldest first, the jumble's reason.
+DELETE FROM webhook_delivery
+WHERE id IN (
+  SELECT due.id FROM webhook_delivery AS due
+  WHERE due.created_at < sqlc.arg('cutoff')
+    AND (due.status <> 'PENDING' OR NOT EXISTS (
+      SELECT 1 FROM job AS living
+      WHERE living.kind = 'webhook.deliver'
+        AND living.state IN ('PENDING', 'RUNNING')
+        AND living.tenant_id = due.tenant_id
+        AND living.payload->>'delivery_id' = due.id::text
+    ))
+  ORDER BY due.created_at, due.id
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredWebhookDeliveries :one
+-- What is due, bounded by the batch plus one, the jumble's reason.
+SELECT count(*) FROM (
+  SELECT 1 FROM webhook_delivery AS expired
+  WHERE expired.created_at < sqlc.arg('cutoff')
+    AND (expired.status <> 'PENDING' OR NOT EXISTS (
+      SELECT 1 FROM job AS living
+      WHERE living.kind = 'webhook.deliver'
+        AND living.state IN ('PENDING', 'RUNNING')
+        AND living.tenant_id = expired.tenant_id
+        AND living.payload->>'delivery_id' = expired.id::text
+    ))
+  LIMIT sqlc.arg('ceiling')
+) AS due;

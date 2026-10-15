@@ -178,7 +178,8 @@ installation target.
 
 The erasure half of §8.5 step 5, in the shape of the holds half: `hubctl` reads the erasures
 completed after the recovery point from the temporary cluster recovered to the end of the WAL
-archive (or the archive fallback), and the server carries them out again per workspace after the
+archive (an archive cannot serve: it carries neither the cases nor the person, so the procedure
+names what the administrator does then), and the server carries them out again per workspace after the
 holds are placed and before traffic is admitted. Idempotent; each re-run is audited.
 
 **Acceptance:** an integration test that an erasure completed after the recovery point is undone by

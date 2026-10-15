@@ -130,6 +130,38 @@ func TestTheWorkIsDoneByTheInstallation(t *testing.T) {
 	}
 }
 
+// A job that finds its case not started - replayed, or queued by something other than the start -
+// exports nothing: the start is where the person's right to the case was checked, and since the job
+// itself asks for no scope, a case that never passed it must not be carried out.
+func TestACaseThatWasNeverStartedIsNotExported(t *testing.T) {
+	requests := newRequestStore()
+	request := startedCase(domain.KindAccess, "")
+	request.Status = domain.StatusReceived
+	request.Scope = domain.ScopeInstallation
+	request.SubjectAccountID, request.SubjectEmail = "", "anna@example.org"
+	if err := requests.Insert(context.Background(), request); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	target, sink := &memoryTarget{written: map[string][]byte{}}, &auditSink{}
+	performer := Performer{
+		Requests:   requests,
+		Exporter:   newExporter(target, &tenantsOf{tenants: []shared.ID{tenantID}}, sink, &snapshotter{}),
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
+	}
+
+	done, err := performer.Perform(context.Background(), PerformInput{RequestID: request.ID, TenantID: tenantID})
+	if err != nil {
+		t.Fatalf("performing: %v", err)
+	}
+	if done.Status != domain.StatusReceived {
+		t.Errorf("the case came back as %s", done.Status)
+	}
+	if len(target.opened) != 0 || len(target.written) != 0 || len(sink.entries) != 0 {
+		t.Errorf("a case never started was exported: opened %v, wrote %d, recorded %d",
+			target.opened, len(target.written), len(sink.entries))
+	}
+}
+
 func TestAPayloadThatCannotBeReadFailsTheJob(t *testing.T) {
 	for _, payload := range []map[string]any{{}, {"request_id": "not-an-id"}} {
 		if _, err := RequestOf(payload, tenantID); err == nil {

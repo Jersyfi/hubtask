@@ -117,6 +117,10 @@ type ExternalAccounts interface {
 	// by signing in.
 	UnlinkAll(ctx context.Context, accountID shared.ID) (int, error)
 
+	// HoldersOf answers the accounts of the transaction's workspace that hold an identity at the
+	// provider, read before the provider is removed so that each is told (ADR-0078 §6).
+	HoldersOf(ctx context.Context, providerID shared.ID) ([]shared.ID, error)
+
 	// CountWithoutIdentityAt answers how many active people of the workspace - service accounts and
 	// invitations aside - hold no identity at any of these providers (ADR-0078 §1): the number the
 	// password switch says before the password is switched off. A number, never a list.

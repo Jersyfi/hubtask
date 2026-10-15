@@ -93,7 +93,11 @@ practice. Rules:
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs
-  `admin:tenants`; every workspace it touches gets its own audit entry. No repository method takes a
+  `admin:tenants` of whoever records and starts it; the job that carries it out acts for the started
+  case and asks for no scope. In each workspace the person is found by their account there, read in
+  that workspace's own transaction. It writes one archive, named by the case: a zip whose members
+  are the per-workspace archives (backup-restore.md §9). Every workspace it touches gets its own
+  audit entry. No repository method takes a
   tenant as an argument; a gate keeps that true.
 
 ### 4.1 Three decisions of 2026-09-30
@@ -232,8 +236,9 @@ the backup bucket's Object Lock retention are both 35 days. Three rules follow:
 * The system backup plan keeps **no** monthly or yearly generation.
 * A point-in-time restore places the legal holds of the rewound period again — read from the end
   of the WAL archive, or, where that is unusable, from the newest workspace archive that includes
-  the audit trail — then re-applies its erasures, before traffic is admitted; a hold released in
-  that period stays in force until its owner releases it again
+  the audit trail — then carries out its data subject erasures again, from the end of the WAL
+  archive, before traffic is admitted; a hold released in that period stays in force until its
+  owner releases it again
   ([backup-restore.md](./backup-restore.md) §7, §8.5).
 * Where the system backup is a `pg_dump` ([backup-restore.md §8.6](./backup-restore.md#86-the-minimal-path-a-dump-and-what-it-does-not-give)),
   the operator's own rotation must keep 35 days.

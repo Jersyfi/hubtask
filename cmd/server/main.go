@@ -1041,6 +1041,9 @@ func run() error {
 		installationHost = parsed.Hostname()
 	}
 
+	// A person is told when a way into their account changes (ADR-0078 §6): the password writer
+	// and the provider writer queue it, where there is a mail server.
+	wayInNotices := wayInNoticesFor(cfg, jobs)
 	oidcWriter := identity.OidcWriter{
 		Domains:   domains,
 		Text:      forms,
@@ -1058,6 +1061,7 @@ func run() error {
 		// What a provider names for newcomers is given in the arrival's own transaction.
 		Grants: grants,
 		Groups: groups,
+		WayIn:  wayInNotices,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1236,6 +1240,9 @@ func run() error {
 		// What a newcomer gets names a group of this workspace, checked at configuration.
 		Groups: groups,
 		Grants: grants,
+		// Removing a provider tells each person it disconnects (ADR-0078 §6).
+		External: postgres.NewExternalAccountRepository(),
+		WayIn:    wayInNotices,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1308,6 +1315,8 @@ func run() error {
 		Instance:  instanceWriter,
 		Providers: postgres.NewIdentityProviderRepository(),
 		Configure: identityProviderWriter,
+		// The workspaces whose people a removal tells, each in its own scope.
+		Tenants: postgres.NewAdminTenantRepository(),
 	}
 
 	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the
@@ -1341,6 +1350,7 @@ func run() error {
 		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		WayIn: wayInNotices,
 	}
 	// And the sign-in path learns the rule - with the two copies of it that open sessions of their
 	// own, which is what `teachTheRule` is for.
@@ -1432,6 +1442,16 @@ func run() error {
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
 
+	// Data subject requests: the erasure that serves every storage location - the job's, and the
+	// operator's re-run after a point-in-time recovery.
+	privacyEraser := privacyservice.Eraser{
+		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
+		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
+	}
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1982,6 +2002,12 @@ func run() error {
 		lifecycle.ReplaceLegalHolds{
 			Holds: legalHolds, Workspaces: postgres.NewAdminTenantRepository(),
 			Archive: backupservice.ArchivedHolds{Restorer: backupRestorer, Keys: encryptor},
+		}.Descriptor(),
+		// The erasure half of the same step, after the holds and before traffic is admitted.
+		privacyservice.ReapplyErasures{
+			Requests: privacyStore, Recovered: privacyStore, Eraser: privacyEraser,
+			Workspaces: postgres.NewAdminTenantRepository(), StepUp: stepUpVerifier,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
@@ -2854,6 +2880,15 @@ func run() error {
 			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
 		},
 	}
+	// A person told that a way into their account changed (ADR-0078 §6).
+	wayInChangedMessage := worker.WayInChangedMessage{
+		Send: notification.SendWayInChanged{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Providers: postgres.NewIdentityProviderRepository(),
+			Mail:      mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+		},
+	}
 	passwordOpeningEnd := worker.PasswordOpeningEnd{
 		End: adminservice.EndPasswordOpening{Writer: passwordOpeningWriter},
 	}
@@ -2939,21 +2974,12 @@ func run() error {
 		Opener: backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Snapshot: unitOfWork, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
-	// Data subject requests: the erasure that serves every storage location, and the export
-	// that is a Hubtask archive rather than a second format.
-	privacyEraser := privacyservice.Eraser{
-		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
-		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
-		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		Embeddings:      postgres.NewEmbeddingRepository(),
-		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
-	}
+	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
-		Requests: privacyStore, Subjects: privacyStore,
+		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,
@@ -3019,6 +3045,8 @@ func run() error {
 			// is the one place raw inbound text would otherwise sit
 			// for ever.
 			Inbox: postgres.NewJumbleRepository(cursors),
+			// The webhook delivery log, thirty days (data-retention.md §3).
+			Deliveries: postgres.NewWebhookDeliveryRepository(),
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
@@ -3180,6 +3208,7 @@ func run() error {
 			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
 		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindWayInChangedEmail:        wayInChangedMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
@@ -3241,6 +3270,13 @@ func run() error {
 			Progress: jobs,
 		},
 		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
+		// A month of the trail that went, recorded in each workspace's own trail (audit.md §3).
+		queueport.KindAuditTrailRemoved: worker.AuditTrailRemoved{
+			Record: auditservice.RecordTrailRemoval{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Audit: auditSink,
+				Clock: clockadapter.System{},
+			},
+		},
 		// The grace job the deletion request seeded. Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds. Detached for the audit
@@ -3395,9 +3431,14 @@ func run() error {
 				onBackground.UnitOfWork = backgroundWork
 				return onBackground
 			}(),
-			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:        jobs,
-			Backlog:      jobs,
+			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			Queue:      jobs,
+			Backlog:    jobs,
+			// The data catalogue's seven days for a finished job, installation-wide: the table has
+			// no tenant.
+			FinishedJobs: jobs,
+			// The trail's months past their period, a partition at a time (audit.md §3).
+			AuditTrail:   postgres.NewAuditPartitionRepository(),
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
@@ -4207,4 +4248,14 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	slog.Info("the instance level was written from the file",
 		"source", applying.path, "mode", string(applying.mode))
 	return nil
+}
+
+// wayInNoticesFor is how a person is told that a way into their account changed (ADR-0078 §6):
+// only where there is a mail server to tell them with. Without one the change is only audited, and
+// no job is queued that could only dead-letter.
+func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayInNotices {
+	if !cfg.Mail.Configured() {
+		return nil
+	}
+	return notification.RecordWayInChanged{Jobs: jobs}
 }
