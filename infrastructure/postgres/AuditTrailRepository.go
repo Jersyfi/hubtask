@@ -424,6 +424,40 @@ func (r AuditPartitionRepository) Ensure(ctx context.Context, month time.Time) (
 	return name, nil
 }
 
+var _ repository.TrailRetention = AuditPartitionRepository{}
+
+// DropAged lets the trail's months past their period go, whole (0152_audit_partition_drop.sql):
+// the function decides, holds and the default partition included, and answers what it did.
+func (r AuditPartitionRepository) DropAged(ctx context.Context, defaultDays int) ([]repository.TrailDrop, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.DropAgedAuditPartitions(ctx,
+		//nolint:gosec // G115: a day count from the closed catalogue, tiny
+		int32(defaultDays))
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("dropping aged audit partitions: %w", err))
+	}
+	drops := make([]repository.TrailDrop, 0, len(rows))
+	for _, row := range rows {
+		workspace, err := optionalID(row.Workspace)
+		if err != nil {
+			return nil, err
+		}
+		drop := repository.TrailDrop{
+			Partition: row.Part, Workspace: workspace, Entries: row.Entries, Outcome: row.Outcome,
+		}
+		if row.PartMonth.Valid {
+			drop.Month = row.PartMonth.Time
+		}
+		drops = append(drops, drop)
+	}
+	return drops, nil
+}
+
 // nonNilTexts is a list the statement can compare with `= ANY(...)`: an empty array rather than
 // NULL, so that "no other names" is false rather than unknown.
 func nonNilTexts(values []string) []string {

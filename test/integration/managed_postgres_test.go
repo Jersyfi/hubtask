@@ -284,4 +284,25 @@ func TestTheBoundaryHoldsOnADatabaseWithoutASuperuser(t *testing.T) {
 			t.Fatalf("rows: %v", err)
 		}
 	})
+
+	// An owner that cannot read across workspaces cannot see a legal hold either, and a hold it
+	// cannot see must not read as no hold: the trail's partition drop refuses rather than guesses.
+	t.Run("the trail drops nothing it cannot read", func(t *testing.T) {
+		var outcomes []string
+		rows, err := app.Query(ctx, `SELECT outcome FROM drop_audit_partition(400)`)
+		if err != nil {
+			t.Fatalf("dropping: %v", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var outcome string
+			if err := rows.Scan(&outcome); err != nil {
+				t.Fatalf("scan: %v", err)
+			}
+			outcomes = append(outcomes, outcome)
+		}
+		if len(outcomes) != 1 || outcomes[0] != "unreadable" {
+			t.Errorf("the drop answered %v, want only unreadable", outcomes)
+		}
+	})
 }

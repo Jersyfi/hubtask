@@ -88,7 +88,7 @@ into both, needs no engine change, and needs something that removes it.
 | `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
 | `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The leader (change log months) and the sweep (operation log, tombstones) | One clock, `HUBTASK_TOMBSTONE_WINDOW`, which is also the **lower bound** ([offline-sync.md](./offline-sync.md) §7). No marking phase |
 | `IDEMPOTENCY_KEY` | `created_at` | 1 day | The sweep | A request's stored answer for its replay ([api-guidelines.md](./api-guidelines.md) §5); the day is also the **lower bound**. No marking phase, no hold |
-| `AUDIT` | `occurred_at` | 400 days | **Nothing yet** — no `audit_log` partition is dropped today | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
+| `AUDIT` | `occurred_at` | 400 days | The leader, as month partitions ([audit.md](./audit.md) §3) | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6). A month goes whole once it ended more than the longest audit period any workspace has ago, and each workspace that had entries in it gets an entry with the month and its count. **A hold on one workspace keeps the whole month for every workspace in it until the hold ends**: a month is one partition for every workspace, and a hold prevails over a period (§4); `hubtask_audit_partitions_held` counts such months. Entries in the default partition are not dropped; `hubtask_audit_default_partition_aged_rows` counts those past the period |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Nothing — the media reconciliation's own graces ([data-protection.md](./data-protection.md) §5) | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Nothing yet | Residual data after account deletion |
 
@@ -177,7 +177,8 @@ Evaluated in this order; the first that applies wins:
   at most 10,000 per run, oldest first; `hubtask_job_purged_total{state}` counts them.
 * **Partitioned kinds:** a month of `activity_entry`, `outbox_event`, `rule_run` or `change_log`
   aged out for every tenant is dropped as one partition by the leader, with evidence in the instance
-  journal; tenant sweeps delete rows inside newer months.
+  journal; tenant sweeps delete rows inside newer months. A month of `audit_log` is dropped the same
+  way, hourly, and never row by row: no sweep touches the trail (`AUDIT` in §3).
 * **Metrics:** listed in [observability-reliability.md](./observability-reliability.md).
 
 ---

@@ -3270,6 +3270,13 @@ func run() error {
 			Progress: jobs,
 		},
 		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
+		// A month of the trail that went, recorded in each workspace's own trail (audit.md §3).
+		queueport.KindAuditTrailRemoved: worker.AuditTrailRemoved{
+			Record: auditservice.RecordTrailRemoval{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Audit: auditSink,
+				Clock: clockadapter.System{},
+			},
+		},
 		// The grace job the deletion request seeded. Detached for the media
 		// reconciliation's reason: bytes leave a bucket between two transactions.
 		// The workspace export the control plane seeds. Detached for the audit
@@ -3430,6 +3437,8 @@ func run() error {
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
+			// The trail's months past their period, a partition at a time (audit.md §3).
+			AuditTrail:   postgres.NewAuditPartitionRepository(),
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
