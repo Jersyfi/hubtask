@@ -56,4 +56,4 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.5–8.6 and
 
 * Check 3: not met — the erasures completed after the recovery point are not re-applied, tracked in #1271.
 * Check 5: not met on Compose — the 35 days are enforced by the platform's database cluster policy and object lock only; on Compose they are the operator's own rotation of the dump.
-* Check 6: not met — `docs/evidence/` holds no restore-drill record; the first real drill is blocked on the production namespace.
+* Check 6: not met — `docs/evidence/` holds no restore-drill record. Integration runs the drill in production's shape once `deploy/integration/` is applied to its server (README, "Rebuilding the database"), and that first record meets it; production's own first drill is blocked on its namespace.
