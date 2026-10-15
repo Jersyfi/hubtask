@@ -1041,6 +1041,9 @@ func run() error {
 		installationHost = parsed.Hostname()
 	}
 
+	// A person is told when a way into their account changes (ADR-0078 §6): the password writer
+	// and the provider writer queue it, where there is a mail server.
+	wayInNotices := wayInNoticesFor(cfg, jobs)
 	oidcWriter := identity.OidcWriter{
 		Domains:   domains,
 		Text:      forms,
@@ -1058,6 +1061,7 @@ func run() error {
 		// What a provider names for newcomers is given in the arrival's own transaction.
 		Grants: grants,
 		Groups: groups,
+		WayIn:  wayInNotices,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1325,7 +1329,6 @@ func run() error {
 	//
 	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
 	passwordStore := postgres.NewPasswordRepository()
-	wayInNotices := wayInNoticesFor(cfg, jobs)
 	passwordWriter := identity.PasswordWriter{
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
