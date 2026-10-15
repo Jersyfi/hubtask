@@ -42,6 +42,25 @@ func TestRaisingACaseSendsTheKindAndWhoItIsAbout(t *testing.T) {
 	}
 }
 
+// A request that arrived on an earlier day is recorded with that day, which is where its month
+// counts from.
+func TestACaseCarriesTheDayItArrived(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneCase)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"dsr", "create", "--kind", "ACCESS", "--email", "anna@example.org", "--received", "2026-08-20")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if sent["received_on"] != "2026-08-20" {
+		t.Errorf("the day of receipt was sent as %v", sent["received_on"])
+	}
+}
+
 // A case is about somebody. Without an account or an address there is nothing to answer, and
 // saying so here costs a round trip less than letting the server say it.
 func TestACaseAboutNobodyIsRefused(t *testing.T) {

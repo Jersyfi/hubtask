@@ -56,12 +56,27 @@ func privacyRequest(t *testing.T, registry UseCaseRegistry, method, path, body s
 	return recorder
 }
 
+// A day of receipt that is not a date is refused at the door, before any use case runs.
+func TestADayOfReceiptThatIsNotADateIsRefused(t *testing.T) {
+	registry := &catalogue{out: caseOutput()}
+
+	recorder := privacyRequest(t, registry, http.MethodPost, "/privacy/requests",
+		`{"kind":"ACCESS","subject_email":"anna@example.org","received_on":"20.08.2026"}`)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("answered %d, want 400: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "" {
+		t.Errorf("the use case %q ran", registry.name)
+	}
+}
+
 func TestACaseIsRecordedAndComesBackInTheContractsShape(t *testing.T) {
 	registry := &catalogue{out: caseOutput()}
 
 	recorder := privacyRequest(t, registry, http.MethodPost, "/privacy/requests",
 		`{"kind":"ERASURE","scope":"TENANT","subject_email":"anna@example.org",`+
 			`"subject_account_id":"0192f000-0000-7000-8000-00000000000d",`+
+			`"received_on":"2026-08-20",`+
 			`"due_at":"2026-09-25T09:00:00Z","target_id":"0192f000-0000-7000-8000-0000000000f1",`+
 			`"notes":"By email"}`)
 	if recorder.Code != http.StatusCreated {
@@ -96,6 +111,7 @@ func TestACaseIsRecordedAndComesBackInTheContractsShape(t *testing.T) {
 		"subject_account_id": "0192f000-0000-7000-8000-00000000000d",
 		"target_id":          "0192f000-0000-7000-8000-0000000000f1",
 		"notes":              "By email",
+		"received_on":        "2026-08-20",
 	} {
 		if registry.in[field] != want {
 			t.Errorf("%s reached the catalogue as %v, want %v", field, registry.in[field], want)

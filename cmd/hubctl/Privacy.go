@@ -69,13 +69,14 @@ func dsrGroup() group {
 
 func dsrCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "dsr", "create",
-		"--kind <kind> [--subject <id>] [--email <address>] [--scope TENANT|INSTALLATION] [--target <id>]")
+		"--kind <kind> [--subject <id>] [--email <address>] [--scope TENANT|INSTALLATION] [--target <id>] [--received YYYY-MM-DD]")
 	kind := flags.String("kind", "", "ACCESS, ERASURE, PORTABILITY, RESTRICTION, OBJECTION or RECTIFICATION")
 	subject := flags.String("subject", "", "the account the case is about")
 	email := flags.String("email", "", "who asked, for a request with no account behind it")
 	scope := flags.String("scope", "", "TENANT, or INSTALLATION for every workspace the person is in")
 	target := flags.String("target", "", "the backup target an access or portability export is written to")
-	due := flags.String("due", "", "the deadline, when it is not thirty days from receipt")
+	received := flags.String("received", "", "the day the request arrived, when it was not today")
+	due := flags.String("due", "", "the deadline, when it is not one calendar month from the day of receipt")
 	notes := flags.String("notes", "", "what was asked, in your own words")
 	if err := parseCommand(flags, args); err != nil {
 		return err
@@ -109,6 +110,13 @@ func dsrCreate(ctx context.Context, cli *CLI, args []string) error {
 			return err
 		}
 		create.TargetId = &targetID
+	}
+	if *received != "" {
+		day, err := parseDay("--received", *received)
+		if err != nil {
+			return err
+		}
+		create.ReceivedOn = &day
 	}
 	if *due != "" {
 		deadline, err := cli.parseInstant("--due", *due)

@@ -112,12 +112,13 @@ func TestAQuietWorkspaceStopsTheWatch(t *testing.T) {
 	}
 }
 
-// The window is what the document names: seven days of a thirty-day period.
+// The window is what the document names: seven days of a period of one calendar month, which is
+// never shorter than February's twenty-eight days.
 func TestTheWarningWindowIsAWeek(t *testing.T) {
 	if WarningWindow != 7*24*time.Hour {
 		t.Errorf("the warning window is %s", WarningWindow)
 	}
-	if domain.DefaultDeadline <= WarningWindow {
+	if 28*24*time.Hour <= WarningWindow {
 		t.Error("the warning window is not shorter than the period it warns about")
 	}
 }

@@ -22,7 +22,14 @@ import (
 // which the caller supplied - a case about somebody that could not say who would be a case nobody
 // could act on. What is *not* here is anything of the person's beyond that: a case is a record of
 // an obligation rather than a copy of what is held about them.
-func RequestOutput(request domain.Request, extendableUntil domain.Day, kept []domain.Kept) usecase.Output {
+// Days is what a case answers in the workspace's own days, read in its zone by the use case: a
+// client that derived them in its own zone would show a different day near midnight.
+type Days struct {
+	ReceivedOn      domain.Day
+	ExtendableUntil domain.Day
+}
+
+func RequestOutput(request domain.Request, days Days, kept []domain.Kept) usecase.Output {
 	out := usecase.Output{
 		"id":          request.ID.String(),
 		"kind":        string(request.Kind),
@@ -59,8 +66,11 @@ func RequestOutput(request domain.Request, extendableUntil domain.Day, kept []do
 		out["extension_reason"] = string(request.ExtensionReason)
 		out["informed_on"] = request.InformedOn.String()
 	}
-	if !extendableUntil.IsZero() {
-		out["extendable_until"] = extendableUntil.String()
+	if !days.ReceivedOn.IsZero() {
+		out["received_on"] = days.ReceivedOn.String()
+	}
+	if !days.ExtendableUntil.IsZero() {
+		out["extendable_until"] = days.ExtendableUntil.String()
 	}
 	// What legal holds kept of an erasure, and only where they kept something: a case that kept
 	// nothing answers no empty list that a client could read as "partly completed".

@@ -267,7 +267,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-BAK-06](./backup/UC-BAK-06-get-one-thing-back-from-a-backup.md) | Get one lost collection or task back from a backup | backup | partial |
 | [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | partial |
 | [UC-BAK-08](./backup/UC-BAK-08-recover-the-whole-installation.md) | Recover the whole installation after losing the server | backup | partial |
-| [UC-PRV-01](./privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md) | Record a data subject request and answer it in time | privacy | partial |
+| [UC-PRV-01](./privacy/UC-PRV-01-answer-a-data-subject-request-in-time.md) | Record a data subject request and answer it in time | privacy | built |
 | [UC-PRV-02](./privacy/UC-PRV-02-give-a-person-a-copy-of-their-data.md) | Give a person a copy of their data | privacy | built |
 | [UC-PRV-03](./privacy/UC-PRV-03-erase-a-person-on-request.md) | Erase a person on request | privacy | verified |
 | [UC-PRV-04](./privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md) | Restrict the processing of a person's data | privacy | partial |
