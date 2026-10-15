@@ -3395,9 +3395,12 @@ func run() error {
 				onBackground.UnitOfWork = backgroundWork
 				return onBackground
 			}(),
-			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:        jobs,
-			Backlog:      jobs,
+			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			Queue:      jobs,
+			Backlog:    jobs,
+			// The data catalogue's seven days for a finished job, installation-wide: the table has
+			// no tenant.
+			FinishedJobs: jobs,
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,

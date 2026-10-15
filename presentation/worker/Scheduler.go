@@ -32,7 +32,27 @@ type SchedulerSignals interface {
 	// WebhookRetryBacklog is the deliveries waiting out their backoff
 	// (observability-reliability.md §4).
 	WebhookRetryBacklog(ctx context.Context, waiting int64)
+	// JobsPurged counts the finished jobs the leader removed, by terminal state - never a kind's
+	// payload or a tenant (rule 10).
+	JobsPurged(ctx context.Context, state string, count int64)
 }
+
+// FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
+// and written in the installation's scope: it has no tenant to scope by (multi-tenancy.md §2.1).
+type FinishedJobs interface {
+	PurgeFinished(ctx context.Context, before time.Time, batch int) (map[string]int, error)
+}
+
+// FinishedJobPeriod is how long a finished job is kept: the data catalogue's seven days after
+// completion. A payload names people by identifier, which is why the period exists at all.
+const FinishedJobPeriod = 7 * 24 * time.Hour
+
+// finishedJobBatch bounds one run of the purge. A backlog clears over hours rather than in one
+// statement that holds the leader's tick.
+const finishedJobBatch = 10_000
+
+// finishedJobStates are the states the purge reports, so that each has a series from its first run.
+var finishedJobStates = []string{"SUCCEEDED", "FAILED", "DEAD_LETTER", "CANCELLED"}
 
 // RetryBacklog answers how many jobs of one kind wait for a future moment. One series reads it
 // today: a webhook retry is exactly one scheduled job - one attempt, one row - so the queue is
@@ -111,6 +131,10 @@ type Scheduler struct {
 	// holds every tenant's rows, so the evidence is the instance journal's (audit.md §6). Nil
 	// records nothing.
 	StreamEvidence StreamEvidence
+
+	// FinishedJobs removes finished jobs past FinishedJobPeriod, on the first tick of every hour.
+	// Nil skips.
+	FinishedJobs FinishedJobs
 
 	// Operators applies HUBTASK_OPERATORS, on the first tick of every minute: an entry whose account
 	// did not exist at start is put into the register once it does (UC-INS-02 check 4). Nil skips.
@@ -212,7 +236,42 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.ensureStreamPartitions(ctx)
 	s.dropAgedStreamPartitions(ctx)
 	s.applyOperators(ctx, due)
+	s.purgeFinishedJobs(ctx, due)
 	return true
+}
+
+// purgeFinishedJobs keeps the catalogue's promise for the queue's own rows: a finished job goes
+// seven days after it ended, whatever its state. Hourly and stateless - the first tick of each
+// hour - so a new leader keeps the pace and an idle installation pays one bounded statement an
+// hour. A dead letter goes too: A-07 fired when it arrived, a week before (RB-A07).
+func (s Scheduler) purgeFinishedJobs(ctx context.Context, due time.Time) {
+	if s.FinishedJobs == nil {
+		return
+	}
+	if due.Truncate(time.Hour).Equal(due.Add(-s.TickInterval).Truncate(time.Hour)) {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var purged map[string]int
+	err := s.UnitOfWork.Within(dutyCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		purged, err = s.FinishedJobs.PurgeFinished(txCtx, s.Clock.Now().Add(-FinishedJobPeriod), finishedJobBatch)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "finished jobs could not be purged", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	if s.Signals == nil {
+		return
+	}
+	for _, state := range finishedJobStates {
+		s.Signals.JobsPurged(ctx, state, int64(purged[state]))
+	}
 }
 
 // applyOperators is HUBTASK_OPERATORS again, on the first tick of each minute - stateless, so a new
