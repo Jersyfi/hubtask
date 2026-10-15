@@ -198,10 +198,20 @@ an everyday method; SMS codes. An administrator resets a password only for a man
 
 ## 6. Setting and changing a password
 
-**One use case sets every password** — `SetPassword`, with four doors: an invitation token (§12), a
-reset token (§7), the `PASSWORD_CHANGE` pending credential (§4.2), or a bearer with a step-up
+**One writer sets every password an account already has a way in for** — three doors: a reset
+token (§7), the `PASSWORD_CHANGE` pending credential (§4.2), or a bearer with a step-up
 (`POST /auth/password`). One policy check, one audit action (`account.password_changed`, no hint of
-the password's shape), one place the history is written.
+the password's shape), one place the history is written. An invitation's first password (§12) is
+written by the redemption itself and recorded as `auth.invitation_redeemed`.
+
+**The person is told** ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6): a password changed or set
+through a reset, a provider connected to an account that already existed, and a provider removed
+with the connections it held are each mailed to the account's own address — what changed, when, and
+the way back — from a job queued in the change's own transaction, which no preference silences. A
+first way in made by the person on an account that had none (an invitation redeemed, an invited
+account activated, a newcomer provisioned) is not told. Without a mail server, or for an account
+without an address (§13), the change is only audited. An operator's opening (§17.2) tells the
+administrators, not every member. A second factor and its recovery codes are not among the notices.
 
 | Rule | Detail |
 |---|---|
@@ -748,7 +758,6 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 
 | # | Point |
 |---|---|
-| I-1 | Telling a person by mail when a way into their account changes ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6); only the operator's opening is told today. |
 | I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |

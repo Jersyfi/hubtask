@@ -75,6 +75,13 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindWayInChangedEmail tells a person that a way into their account changed - a password
+	// changed or set through a reset, a provider connected or disconnected (ADR-0078 §6,
+	// identity.md §6). Queued in the change's own transaction, one job per person, and only where
+	// the installation has a mail server; not a notification record, for KindPasswordResetEmail's
+	// reason.
+	KindWayInChangedEmail Kind = "notification.way_in_changed"
+
 	// KindAddressConfirmationEmail carries the link that confirms a managed account's new address
 	// (ADR-0074 §6). Queued in the request's transaction, so the waiting address and its mail exist
 	// together; not a notification record, for KindPasswordResetEmail's reason - a credential on its

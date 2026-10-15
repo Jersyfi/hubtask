@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -366,6 +367,28 @@ func (q Queue) ScheduledBacklog(ctx context.Context, kind queue.Kind) (int, erro
 			WithCause(fmt.Errorf("counting the scheduled backlog: %w", err))
 	}
 	return int(count), nil
+}
+
+// PurgeFinished deletes up to batch finished jobs that ended before the moment, oldest first, and
+// answers how many went in each state.
+func (q Queue) PurgeFinished(ctx context.Context, before time.Time, batch int) (map[string]int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	states, err := queries.PurgeFinishedJobs(ctx, sqlc.PurgeFinishedJobsParams{
+		Before: timestampOf(before), Batch: int32(min(max(batch, 0), math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("purging finished jobs: %w", err))
+	}
+	purged := map[string]int{}
+	for _, state := range states {
+		purged[state]++
+	}
+	return purged, nil
 }
 
 // jobFrom rebuilds a claimed job. A row that cannot be read is a defect rather than a bad job:

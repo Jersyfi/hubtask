@@ -98,6 +98,9 @@ type PasswordWriter struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// WayIn tells the person that their password changed (ADR-0078 §6). Nil where the installation
+	// has no mail server: the change is then only audited.
+	WayIn WayInNotices
 }
 
 // PasswordCandidate is one password on its way in, with who is setting it and under what rule.
@@ -109,6 +112,10 @@ type PasswordCandidate struct {
 	// that changes the rule: the minimum age is ignored, because somebody who has lost their
 	// password cannot be told to wait a day for it (ADR-0068 §6).
 	IsReset bool
+	// ThroughResetLink says the password was set with a reset link from the mailbox, which is what
+	// the person is told (PASSWORD_RESET) as against a change made signed in or at the
+	// PASSWORD_CHANGE step (PASSWORD_CHANGED). IsReset cannot say it: the step sets it too.
+	ThroughResetLink bool
 	// Rules is the rule in force, resolved once by the caller so that a door which already has it
 	// does not read it twice.
 	Rules ResolvedPolicy
@@ -261,6 +268,20 @@ func (w PasswordWriter) MinimumAge(candidate PasswordCandidate) error {
 		})
 }
 
+// tell queues the notice that the password changed (ADR-0078 §6), in the change's own transaction.
+// An account without an address has nobody to tell; without a mail server WayIn is not wired.
+func (w PasswordWriter) tell(ctx context.Context, candidate PasswordCandidate, now time.Time) error {
+	if w.WayIn == nil || candidate.Account.Account.Email == "" {
+		return nil
+	}
+	event := domain.WayInPasswordChanged
+	if candidate.ThroughResetLink {
+		event = domain.WayInPasswordReset
+	}
+	return w.WayIn.WayInChanged(ctx, candidate.TenantID, candidate.Account.Account.ID,
+		domain.WayInChange{Event: event, At: now})
+}
+
 // Write is the one place a password is stored (ADR-0068 §5).
 //
 // In one transaction: the hash and its moment, the previous hash into the history, the history
@@ -320,6 +341,10 @@ func (w PasswordWriter) Write(
 			if err := w.endOthers(ctx, account.ID, keepSessionID, now); err != nil {
 				return err
 			}
+		}
+
+		if err := w.tell(ctx, candidate, now); err != nil {
+			return err
 		}
 
 		return w.Session.Audit.Append(ctx, audit.Entry{

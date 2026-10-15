@@ -1041,6 +1041,9 @@ func run() error {
 		installationHost = parsed.Hostname()
 	}
 
+	// A person is told when a way into their account changes (ADR-0078 §6): the password writer
+	// and the provider writer queue it, where there is a mail server.
+	wayInNotices := wayInNoticesFor(cfg, jobs)
 	oidcWriter := identity.OidcWriter{
 		Domains:   domains,
 		Text:      forms,
@@ -1058,6 +1061,7 @@ func run() error {
 		// What a provider names for newcomers is given in the arrival's own transaction.
 		Grants: grants,
 		Groups: groups,
+		WayIn:  wayInNotices,
 	}
 
 	// The AI provider's configuration. The third-country confirmation is the
@@ -1236,6 +1240,9 @@ func run() error {
 		// What a newcomer gets names a group of this workspace, checked at configuration.
 		Groups: groups,
 		Grants: grants,
+		// Removing a provider tells each person it disconnects (ADR-0078 §6).
+		External: postgres.NewExternalAccountRepository(),
+		WayIn:    wayInNotices,
 		// A change to a way in asks for a fresh proof, at both levels (ADR-0071's addendum, E2) -
 		// handed in once the rule is taught (stepUpVerifier, below).
 	}
@@ -1308,6 +1315,8 @@ func run() error {
 		Instance:  instanceWriter,
 		Providers: postgres.NewIdentityProviderRepository(),
 		Configure: identityProviderWriter,
+		// The workspaces whose people a removal tells, each in its own scope.
+		Tenants: postgres.NewAdminTenantRepository(),
 	}
 
 	// The AI models the installation offers (ADR-0072 §1): the same scope and register, the
@@ -1341,6 +1350,7 @@ func run() error {
 		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		WayIn: wayInNotices,
 	}
 	// And the sign-in path learns the rule - with the two copies of it that open sessions of their
 	// own, which is what `teachTheRule` is for.
@@ -2854,6 +2864,15 @@ func run() error {
 			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
 		},
 	}
+	// A person told that a way into their account changed (ADR-0078 §6).
+	wayInChangedMessage := worker.WayInChangedMessage{
+		Send: notification.SendWayInChanged{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Providers: postgres.NewIdentityProviderRepository(),
+			Mail:      mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+		},
+	}
 	passwordOpeningEnd := worker.PasswordOpeningEnd{
 		End: adminservice.EndPasswordOpening{Writer: passwordOpeningWriter},
 	}
@@ -3182,6 +3201,7 @@ func run() error {
 			Record: identity.RecordResetRequest{Writer: passwordWriter, Notifier: jobs},
 		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
+		queueport.KindWayInChangedEmail:        wayInChangedMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
@@ -3397,9 +3417,12 @@ func run() error {
 				onBackground.UnitOfWork = backgroundWork
 				return onBackground
 			}(),
-			Leadership:   postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:        jobs,
-			Backlog:      jobs,
+			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
+			Queue:      jobs,
+			Backlog:    jobs,
+			// The data catalogue's seven days for a finished job, installation-wide: the table has
+			// no tenant.
+			FinishedJobs: jobs,
 			UnitOfWork:   backgroundWork,
 			Clock:        clockadapter.System{},
 			Signals:      metrics,
@@ -4209,4 +4232,14 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	slog.Info("the instance level was written from the file",
 		"source", applying.path, "mode", string(applying.mode))
 	return nil
+}
+
+// wayInNoticesFor is how a person is told that a way into their account changed (ADR-0078 §6):
+// only where there is a mail server to tell them with. Without one the change is only audited, and
+// no job is queued that could only dead-letter.
+func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayInNotices {
+	if !cfg.Mail.Configured() {
+		return nil
+	}
+	return notification.RecordWayInChanged{Jobs: jobs}
 }

@@ -171,6 +171,10 @@ Evaluated in this order; the first that applies wins:
   search index, vectors, derived counters); a test checks for orphans after a run.
 * **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,
   never every object.
+* **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
+  (the data catalogue's period; a payload names people by identifier). The `job` table has no
+  tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,
+  at most 10,000 per run, oldest first; `hubtask_job_purged_total{state}` counts them.
 * **Partitioned kinds:** a month of `activity_entry`, `outbox_event`, `rule_run` or `change_log`
   aged out for every tenant is dropped as one partition by the leader, with evidence in the instance
   journal; tenant sweeps delete rows inside newer months.
