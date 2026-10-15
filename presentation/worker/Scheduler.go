@@ -8,7 +8,10 @@ import (
 	"log/slog"
 	"time"
 
+	auditrepo "github.com/Jersyfi/hubtask/core/application/repository/audit"
 	streams "github.com/Jersyfi/hubtask/core/application/repository/streams"
+	auditservice "github.com/Jersyfi/hubtask/core/application/service/audit"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -35,6 +38,12 @@ type SchedulerSignals interface {
 	// JobsPurged counts the finished jobs the leader removed, by terminal state - never a kind's
 	// payload or a tenant (rule 10).
 	JobsPurged(ctx context.Context, state string, count int64)
+	// AuditPartitionsHeld is how many of the trail's months past their period a legal hold keeps
+	// whole - for every workspace in them (data-retention.md §3).
+	AuditPartitionsHeld(ctx context.Context, months int64)
+	// AuditDefaultAgedRows is how many entries in the trail's default partition are past their
+	// period: rows no partition drop can reach, which an operator moves out (data-retention.md §3).
+	AuditDefaultAgedRows(ctx context.Context, rows int64)
 }
 
 // FinishedJobs removes the jobs whose catalogue period has run out. The queue's own table, read
@@ -135,6 +144,9 @@ type Scheduler struct {
 	// FinishedJobs removes finished jobs past FinishedJobPeriod, on the first tick of every hour.
 	// Nil skips.
 	FinishedJobs FinishedJobs
+	// AuditTrail lets the trail's months past their period go, on the first tick of every hour,
+	// and queues the entry each workspace's own trail gets. Nil skips.
+	AuditTrail auditrepo.TrailRetention
 
 	// Operators applies HUBTASK_OPERATORS, on the first tick of every minute: an entry whose account
 	// did not exist at start is put into the register once it does (UC-INS-02 check 4). Nil skips.
@@ -237,7 +249,94 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.dropAgedStreamPartitions(ctx)
 	s.applyOperators(ctx, due)
 	s.purgeFinishedJobs(ctx, due)
+	s.dropAgedAuditPartitions(ctx, due)
 	return true
+}
+
+// auditPeriodDays is the catalogue's audit period, the floor of the trail's horizon: the longest
+// period a workspace configured raises it, nothing lowers it.
+func auditPeriodDays() int {
+	if kind, known := lifecycle.FindKind(lifecycle.KindAudit); known {
+		return kind.DefaultDays
+	}
+	return 0
+}
+
+// dropAgedAuditPartitions keeps the trail for its period and no longer (audit.md §3): whole months
+// go, a hold keeps a month for every workspace in it, and each workspace that had entries in a
+// month that went gets an entry in its own trail - queued in the transaction that dropped it, so a
+// month never goes unrecorded. The instance journal gets the drop's total afterwards, as a stream
+// drop's does.
+func (s Scheduler) dropAgedAuditPartitions(ctx context.Context, due time.Time) {
+	if s.AuditTrail == nil {
+		return
+	}
+	if due.Truncate(time.Hour).Equal(due.Add(-s.TickInterval).Truncate(time.Hour)) {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var drops []auditrepo.TrailDrop
+	err := s.UnitOfWork.Within(dutyCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		if drops, err = s.AuditTrail.DropAged(txCtx, auditPeriodDays()); err != nil {
+			return err
+		}
+		for _, drop := range drops {
+			if drop.Outcome != auditrepo.TrailDropped || drop.Workspace.IsZero() {
+				continue
+			}
+			removal := auditservice.TrailRemoval{
+				TenantID: drop.Workspace, Partition: drop.Partition,
+				Month: drop.Month.Format("2006-01"), Entries: drop.Entries,
+			}
+			if _, err := s.Queue.Enqueue(txCtx, queue.Request{
+				Kind: queue.KindAuditTrailRemoved, TenantID: drop.Workspace,
+				DedupeKey: "trail-removed:" + drop.Partition + ":" + drop.Workspace.String(),
+				Payload:   removal.Payload(),
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "aged audit partitions could not be dropped", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+
+	var held, defaultAged int64
+	totals := map[string]int64{}
+	for _, drop := range drops {
+		switch drop.Outcome {
+		case auditrepo.TrailDropped:
+			totals[drop.Partition] += drop.Entries
+		case auditrepo.TrailHeld:
+			held++
+		case auditrepo.TrailDefaultAged:
+			defaultAged = drop.Entries
+		case auditrepo.TrailUnreadable:
+			slog.WarnContext(ctx, "the trail's months were not dropped: the database owner cannot read across workspaces")
+		}
+	}
+	for partition, entries := range totals {
+		slog.InfoContext(ctx, "an aged audit partition was dropped",
+			slog.String("partition", partition), slog.Int64("rows", entries))
+		if s.StreamEvidence == nil {
+			continue
+		}
+		if err := s.StreamEvidence.PartitionDropped(dutyCtx, "audit_log", partition, entries); err != nil {
+			slog.WarnContext(ctx, "a partition drop could not be evidenced",
+				slog.String("partition", partition), slog.String("error", shared.AsError(err).Code))
+		}
+	}
+	if s.Signals != nil {
+		s.Signals.AuditPartitionsHeld(ctx, held)
+		s.Signals.AuditDefaultAgedRows(ctx, defaultAged)
+	}
 }
 
 // purgeFinishedJobs keeps the catalogue's promise for the queue's own rows: a finished job goes

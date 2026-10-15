@@ -51,6 +51,8 @@ type Metrics struct {
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
 	jobsPurged        metric.Int64Counter
+	auditHeld         metric.Int64Gauge
+	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
@@ -320,6 +322,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only."),
 	); err != nil {
 		return fmt.Errorf("purged job counter: %w", err)
+	}
+	if m.auditHeld, err = meter.Int64Gauge(
+		namespace+"_audit_partitions_held",
+		metric.WithDescription("Months of the audit trail past their period a legal hold keeps whole, "+
+			"for every workspace in them. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("held audit partitions gauge: %w", err)
+	}
+	if m.auditDefaultAged, err = meter.Int64Gauge(
+		namespace+"_audit_default_partition_aged_rows",
+		metric.WithDescription("Audit entries in the default partition past their period, which no "+
+			"partition drop reaches. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("default partition gauge: %w", err)
 	}
 	if m.jobQueueDepth, err = meter.Int64Gauge(
 		namespace+"_job_queue_depth",
@@ -957,6 +973,16 @@ func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
 // for RetentionDeleted's reason.
 func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
 	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
+}
+
+// AuditPartitionsHeld is how many of the trail's aged months a hold keeps.
+func (m *Metrics) AuditPartitionsHeld(ctx context.Context, months int64) {
+	m.auditHeld.Record(ctx, months)
+}
+
+// AuditDefaultAgedRows is how many entries in the trail's default partition are past their period.
+func (m *Metrics) AuditDefaultAgedRows(ctx context.Context, rows int64) {
+	m.auditDefaultAged.Record(ctx, rows)
 }
 
 // JobDeadLettered counts a job that used up its attempts (alert A-07).

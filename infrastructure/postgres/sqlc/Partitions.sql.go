@@ -11,6 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const dropAgedAuditPartitions = `-- name: DropAgedAuditPartitions :many
+SELECT coalesce(d.part, '')::text AS part, d.part_month::date AS part_month, d.workspace::uuid AS workspace,
+       coalesce(d.entries, 0)::bigint AS entries, d.outcome::text AS outcome
+FROM drop_audit_partition($1::int) AS d
+`
+
+type DropAgedAuditPartitionsRow struct {
+	Part      string
+	PartMonth pgtype.Date
+	Workspace pgtype.UUID
+	Entries   int64
+	Outcome   string
+}
+
+// The trail's retention (migration 0152): whole months of audit_log past the longest audit period,
+// each workspace's count before a month goes, the months a hold keeps, and the default partition's
+// aged rows. The casts are for the generator, as above.
+func (q *Queries) DropAgedAuditPartitions(ctx context.Context, defaultDays int32) ([]DropAgedAuditPartitionsRow, error) {
+	rows, err := q.db.Query(ctx, dropAgedAuditPartitions, defaultDays)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DropAgedAuditPartitionsRow{}
+	for rows.Next() {
+		var i DropAgedAuditPartitionsRow
+		if err := rows.Scan(
+			&i.Part,
+			&i.PartMonth,
+			&i.Workspace,
+			&i.Entries,
+			&i.Outcome,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dropAgedStreamPartitions = `-- name: DropAgedStreamPartitions :many
 SELECT d.dropped::text AS dropped, d.rows_removed::bigint AS rows_removed FROM drop_stream_partition($1::text, $2::int) AS d
 `

@@ -86,9 +86,16 @@ full database access who recomputes it. For that, the chain end is anchored outs
   the audit period** — an anchor that expires before the entries it seals cannot be checked.
 
 Entries are deleted only by retention, a month partition at a time, never individually, and the
-deletion writes an entry with the count and the period. **Not built yet:** nothing drops an
-`audit_log` partition today, so the trail is kept beyond its period
-([data-retention.md](./data-retention.md) §3, kind `AUDIT`).
+deletion writes an entry with the count and the period. The scheduler's leader, once an hour, drops
+every month that ended more than the longest audit period any workspace has ago
+(`drop_audit_partition`, the owner's function; the application role still cannot delete a row).
+Before a month goes, it is counted per workspace, and each workspace that had entries in it gets
+`audit.trail_removed` in its own trail with the month and the count, queued in the same
+transaction; the instance journal records the partition and its total. A month in which a workspace
+under a tenant-wide legal hold has entries stays whole, for every workspace in it, until the hold
+ends ([data-retention.md](./data-retention.md) §3, kind `AUDIT`). Entries in the default partition
+are counted, not dropped. A chain whose oldest months went still verifies: the walk starts at the
+oldest entry that remains.
 
 ---
 
@@ -204,7 +211,7 @@ happens at the two points where it can:
   — and a target that is that account — as a pseudonym derived per tenant from the identifier
   (`audit_pseudonym`). The row is untouched, the chain still verifies, and one actor's entries stay
   one actor's. `on_behalf_of` is stored as an identifier alone and needs no substitution.
-* **At the end of life.** The partition is dropped whole when the period is up (§3; not built yet).
+* **At the end of life.** The partition is dropped whole when the period is up (§3).
 
 The erasure itself is audited with `legal_basis = dsr.erasure`: the entry about the erasure is the
 one that has to survive it.
