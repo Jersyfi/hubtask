@@ -999,6 +999,21 @@ export class HubtaskClient {
     return this.call("POST", "/private-hubs/{hubId}/accesses", { "hubId": hubId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The sign-in providers the caller's account is connected to */
+  listOwnIdentities(options: CallOptions = {}): Promise<operations["listOwnIdentities"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/identities", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin connecting a sign-in provider to the caller's account */
+  startProviderConnect(body: NonNullable<operations["startProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startProviderConnect"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/identities:connect", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a sign-in provider to the caller's account */
+  completeProviderConnect(body: NonNullable<operations["completeProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeProviderConnect"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/identities:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The emergency accesses the caller was told of in the last 30 days */
   listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

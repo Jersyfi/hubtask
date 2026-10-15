@@ -5626,6 +5626,16 @@ type Completion struct {
 // CompletionPolicy Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 type CompletionPolicy string
 
+// ConnectedIdentity One provider identity connected to the caller's account.
+type ConnectedIdentity struct {
+	// LinkedAt When the identity was connected.
+	LinkedAt   time.Time          `json:"linked_at"`
+	ProviderId openapi_types.UUID `json:"provider_id"`
+
+	// ProviderName The provider's name, as the sign-in button shows it.
+	ProviderName string `json:"provider_name"`
+}
+
 // ConsentGrant defines model for ConsentGrant.
 type ConsentGrant struct {
 	// AccountId Whose consent - only ever the caller's own.
@@ -7927,6 +7937,32 @@ type ProcessingState struct {
 // ProcessingStateStatus defines model for ProcessingState.Status.
 type ProcessingStateStatus string
 
+// ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.
+type ProviderConnectAuthorization struct {
+	// AuthorizationUrl The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's parameters. The verifier and the nonce stay on the server.
+	AuthorizationUrl string `json:"authorization_url"`
+
+	// ExpiresAt When the flow stops being answerable.
+	ExpiresAt    time.Time          `json:"expires_at"`
+	ProviderId   openapi_types.UUID `json:"provider_id"`
+	ProviderName string             `json:"provider_name"`
+}
+
+// ProviderConnectReturn defines model for ProviderConnectReturn.
+type ProviderConnectReturn struct {
+	// AuthorizationCode The code the provider issued.
+	AuthorizationCode string `json:"authorization_code"`
+
+	// State The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+	State string `json:"state"`
+}
+
+// ProviderConnectStart defines model for ProviderConnectStart.
+type ProviderConnectStart struct {
+	// ProviderId Which provider to connect, from `GET /auth/sign-in-rules`.
+	ProviderId openapi_types.UUID `json:"provider_id"`
+}
+
 // ProviderOffer defines model for ProviderOffer.
 type ProviderOffer struct {
 	// Offered Whether this provider is a way into this workspace.
@@ -10054,6 +10090,12 @@ type ViewId = openapi_types.UUID
 // WebhookId defines model for WebhookId.
 type WebhookId = openapi_types.UUID
 
+// StartProviderConnectParams defines parameters for StartProviderConnect.
+type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // IssueStartPasswordParams defines parameters for IssueStartPassword.
 type IssueStartPasswordParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -11132,6 +11174,12 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
+type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
+
+// StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
+type StartProviderConnectJSONRequestBody = ProviderConnectStart
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11557,6 +11605,15 @@ type ServerInterface interface {
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
+	// ListOwnIdentities The sign-in providers the caller's account is connected to
+	// (GET /accounts/me/identities)
+	ListOwnIdentities(w http.ResponseWriter, r *http.Request)
+	// CompleteProviderConnect Finish connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:complete)
+	CompleteProviderConnect(w http.ResponseWriter, r *http.Request)
+	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
+	// (POST /accounts/me/identities:connect)
+	StartProviderConnect(w http.ResponseWriter, r *http.Request, params StartProviderConnectParams)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -12499,6 +12556,75 @@ func (siw *ServerInterfaceWrapper) ListEmergencyNotices(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListEmergencyNotices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOwnIdentities operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnIdentities(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnIdentities(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteProviderConnect(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartProviderConnect operation middleware
+func (siw *ServerInterfaceWrapper) StartProviderConnect(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartProviderConnectParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartProviderConnect(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23538,6 +23664,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/identities", wrapper.ListOwnIdentities)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:connect", wrapper.StartProviderConnect)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:complete", wrapper.CompleteProviderConnect)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)

@@ -5198,6 +5198,91 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me/identities:
+    get:
+      tags: [identity]
+      operationId: listOwnIdentities
+      summary: The sign-in providers the caller's account is connected to
+      description: >
+        Each provider identity connected to the caller's account in this workspace: which provider,
+        its name as the sign-in button shows it, and when it was connected. Never the provider's
+        subject or the address it holds. A provider that is no longer a way in here still appears
+        while the connection stands.
+      responses:
+        "200":
+          description: The connections, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConnectedIdentity"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/identities:connect:
+    post:
+      tags: [identity]
+      operationId: startProviderConnect
+      summary: Begin connecting a sign-in provider to the caller's account
+      description: |
+        The first of two calls that connect a provider identity to the account the caller is signed
+        in as - also one whose address differs from the account's. Asks a fresh proof of the account
+        first (`auth.step_up_required` otherwise), then answers an authorization request at the
+        chosen provider with `prompt=login` and `max_age=0`. The flow is bound to the caller's
+        session: its `state` finishes this connection at `POST /accounts/me/identities:complete` and
+        nothing else - neither a sign-in nor a step-up takes it.
+
+        The provider must be a way in for this workspace. Refused with
+        `identity_provider.already_connected` where the account already holds an identity at it,
+        with `identity_provider.connect_needs_address` for an account without an address, and with
+        `auth.step_up_session_required` for a caller without a session.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderConnectStart"
+      responses:
+        "201":
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderConnectAuthorization"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/identities:complete:
+    post:
+      tags: [identity]
+      operationId: completeProviderConnect
+      summary: Finish connecting a sign-in provider to the caller's account
+      description: |
+        The second call: the `state` and `authorization_code` the provider sent the browser back
+        with. The provider's sign-in must be fresh - after the connection began - and its address
+        verified; it need not be the account's. An identity connected to another account here is
+        refused with `identity_provider.connect_identity_taken`, a sign-in that is not fresh with
+        `identity_provider.connect_not_fresh`. On success the connection is recorded and the person
+        is told by mail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderConnectReturn"
+      responses:
+        "200":
+          description: The connection now standing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectedIdentity"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/me/emergency-notices:
     get:
       tags: [identity]
@@ -12616,6 +12701,60 @@ components:
           type: [string, "null"]
           maxLength: 4096
           description: The code the provider issued. Presented together with `state`.
+
+    ConnectedIdentity:
+      type: object
+      description: One provider identity connected to the caller's account.
+      required: [provider_id, provider_name, linked_at]
+      properties:
+        provider_id: { type: string, format: uuid }
+        provider_name:
+          type: string
+          description: The provider's name, as the sign-in button shows it.
+        linked_at:
+          type: string
+          format: date-time
+          description: When the identity was connected.
+
+    ProviderConnectStart:
+      type: object
+      required: [provider_id]
+      properties:
+        provider_id:
+          type: string
+          format: uuid
+          description: Which provider to connect, from `GET /auth/sign-in-rules`.
+
+    ProviderConnectAuthorization:
+      type: object
+      description: Where to send the browser to connect a provider, and which provider that is.
+      required: [authorization_url, expires_at, provider_id, provider_name]
+      properties:
+        authorization_url:
+          type: string
+          format: uri
+          description: >
+            The provider's authorization endpoint with `prompt=login`, `max_age=0` and this flow's
+            parameters. The verifier and the nonce stay on the server.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the flow stops being answerable.
+        provider_id: { type: string, format: uuid }
+        provider_name: { type: string }
+
+    ProviderConnectReturn:
+      type: object
+      required: [state, authorization_code]
+      properties:
+        state:
+          type: string
+          maxLength: 512
+          description: The handle `POST /accounts/me/identities:connect` minted, as the provider echoed it.
+        authorization_code:
+          type: string
+          maxLength: 4096
+          description: The code the provider issued.
 
     ProviderStepUpAuthorization:
       type: object

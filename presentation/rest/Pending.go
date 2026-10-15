@@ -1328,3 +1328,16 @@ func (pending) OpenPrivateHub(
 func (pending) ListEmergencyNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// ListOwnIdentities is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListOwnIdentities(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// StartProviderConnect is overridden by RestController, for the reason given at CreateContainer.
+func (pending) StartProviderConnect(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartProviderConnectParams,
+) {
+	notAvailable(w, r)
+}
+
+// CompleteProviderConnect is overridden by RestController, for the reason given at CreateContainer.
+func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

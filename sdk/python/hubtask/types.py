@@ -1051,6 +1051,26 @@ class StepUpRequest(TypedDict, total=False):
     state: str | None
     authorization_code: str | None
 
+class ConnectedIdentity(TypedDict, total=False):
+    """One provider identity connected to the caller's account."""
+    provider_id: Required[str]
+    provider_name: Required[str]
+    linked_at: Required[str]
+
+class ProviderConnectStart(TypedDict, total=False):
+    provider_id: Required[str]
+
+class ProviderConnectAuthorization(TypedDict, total=False):
+    """Where to send the browser to connect a provider, and which provider that is."""
+    authorization_url: Required[str]
+    expires_at: Required[str]
+    provider_id: Required[str]
+    provider_name: Required[str]
+
+class ProviderConnectReturn(TypedDict, total=False):
+    state: Required[str]
+    authorization_code: Required[str]
+
 class ProviderStepUpAuthorization(TypedDict, total=False):
     """Where to send the browser for a `PROVIDER` step-up, and which provider that is."""
     authorization_url: Required[str]

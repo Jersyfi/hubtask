@@ -795,6 +795,18 @@ class Client:
         """Open a private hub through the emergency access"""
         return self._call("POST", "/private-hubs/{hubId}/accesses", {"hubId": hub_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
+    def list_own_identities(self) -> dict[str, Any]:
+        """The sign-in providers the caller's account is connected to"""
+        return self._call("GET", "/accounts/me/identities", {}, None, {}, None, "none", None, "json")
+
+    def start_provider_connect(self, body: "ProviderConnectStart", *, step_up: str | None = None) -> "ProviderConnectAuthorization":
+        """Begin connecting a sign-in provider to the caller's account"""
+        return self._call("POST", "/accounts/me/identities:connect", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def complete_provider_connect(self, body: "ProviderConnectReturn") -> "ConnectedIdentity":
+        """Finish connecting a sign-in provider to the caller's account"""
+        return self._call("POST", "/accounts/me/identities:complete", {}, None, {}, body, "json", "application/json", "json")
+
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
