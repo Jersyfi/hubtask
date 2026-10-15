@@ -28,8 +28,8 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
    their own (retention, backup, privacy requests, `hubctl` and people, webhook filters,
    concurrent saves, the multi-mode host) and the decided sign-in tasks SC-36 and SC-37. SC-30
    waits for the first release after one that contains SC-26.
-2. **PK — Passkeys**, **PL — Plans**, **CD — Custom domains**: SI prepared all three without
-   building any.
+2. **PK — Passkeys** ([`backlog/milestone-PK.md`](./backlog/milestone-PK.md), cut 2026-10-15),
+   then **PL — Plans** and **CD — Custom domains**: SI prepared all three without building any.
 3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.
 
 ---
@@ -89,6 +89,9 @@ no developer account and no paid certificate.
   (ADR-0031), and the browser's cache did not need them.
 * **SY-B**, the default synchronisation scope on a mobile shell, is set here, with a phone's
   storage to measure against ([`offline-sync.md`](./architecture/offline-sync.md) §12).
+* **Passkeys in a shell**: a webview's origin is not the workspace's host, so the shells need their
+  own way to a passkey (the system browser, or the platform's association with the host)
+  ([`identity.md`](./architecture/identity.md) §23.3).
 
 ### What binds every client
 
