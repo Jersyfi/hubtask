@@ -16388,9 +16388,10 @@
               "backup_target",
               "ai_provider",
               "automation_rule",
-              "automation_http_job"
+              "automation_http_job",
+              "backup_archive"
             ],
-            "description": "The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried. Further kinds may be added; a client names an unknown one generically.\n"
+            "description": "The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.\n"
           },
           "sealed_values": {
             "type": "integer",

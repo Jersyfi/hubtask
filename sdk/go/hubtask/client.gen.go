@@ -1638,6 +1638,7 @@ const (
 	EncryptionStoreCountStoreAiProvider          EncryptionStoreCountStore = "ai_provider"
 	EncryptionStoreCountStoreAutomationHttpJob   EncryptionStoreCountStore = "automation_http_job"
 	EncryptionStoreCountStoreAutomationRule      EncryptionStoreCountStore = "automation_rule"
+	EncryptionStoreCountStoreBackupArchive       EncryptionStoreCountStore = "backup_archive"
 	EncryptionStoreCountStoreBackupTarget        EncryptionStoreCountStore = "backup_target"
 	EncryptionStoreCountStoreIdentityProvider    EncryptionStoreCountStore = "identity_provider"
 	EncryptionStoreCountStoreWebhookSubscription EncryptionStoreCountStore = "webhook_subscription"
@@ -1653,6 +1654,8 @@ func (e EncryptionStoreCountStore) Valid() bool {
 	case EncryptionStoreCountStoreAutomationHttpJob:
 		return true
 	case EncryptionStoreCountStoreAutomationRule:
+		return true
+	case EncryptionStoreCountStoreBackupArchive:
 		return true
 	case EncryptionStoreCountStoreBackupTarget:
 		return true
@@ -6091,11 +6094,11 @@ type EncryptionStatus struct {
 type EncryptionStoreCount struct {
 	SealedValues int64 `json:"sealed_values"`
 
-	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried. Further kinds may be added; a client names an unknown one generically.
+	// Store The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 	Store EncryptionStoreCountStore `json:"store"`
 }
 
-// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried. Further kinds may be added; a client names an unknown one generically.
+// EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
 
 // ErasureKept What one legal hold keeps, or kept, of one erasure. Counts, never content.
