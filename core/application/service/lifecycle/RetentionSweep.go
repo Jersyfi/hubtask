@@ -149,60 +149,76 @@ func (s Sweeper) announce(
 		}
 	}
 
-	candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, s.batch())
-	if err != nil {
-		return Outcome{}, err
-	}
-
-	contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
-	if err != nil {
-		return Outcome{}, err
-	}
-
-	outcome := Outcome{Matched: len(candidates), Blocked: map[string]int{}}
+	outcome := Outcome{Blocked: map[string]int{}}
 	// One compilation per rule per pass rather than one per candidate. A pass judges a thousand
 	// entries against a handful of rules, and compiling is the expensive half.
 	programs := map[shared.ID]expression.Program{}
 	byRule := map[shared.ID][]repository.Candidate{}
 	var order []shared.ID
+	markable := 0
 
-	for _, candidate := range candidates {
-		rule, found := domain.Effective(applicable, kind.Name, candidate.HubID, candidate.CollectionID)
-		if !found || !candidate.AnchoredAt.Before(rule.Cutoff(now)) {
-			// Caught by the loosest cutoff and not by its own rule's. Not a block - nothing is
-			// keeping it, its period simply has not run out.
-			outcome.Matched--
-			continue
-		}
-		matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
+	// Page by page until the batch holds what can be marked, or the rows end. An entry a hold, a
+	// condition or a narrower rule's period keeps stays in the set the read answers, oldest first,
+	// so a batch-full of them read alone would hide every due entry behind it on every pass. Nothing
+	// read here leaves the set before the marking below, so the pages stay where they were.
+	for skip := 0; ; {
+		candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, skip, s.batch())
 		if err != nil {
 			return Outcome{}, err
 		}
-		if !matches {
-			// Not a block and not a hold: the rule simply does not apply to this entry. Counted the
-			// way the cutoff case above is counted, because it is the same kind of answer - nothing
-			// is keeping the entry, its rule was never about it.
-			outcome.Matched--
-			continue
+		contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+		if err != nil {
+			return Outcome{}, err
 		}
-		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
-			outcome.blocked(reason)
-			// Held as well as matched: a block sets no due moment, so the next pass reads this
-			// entry again, and a batch of them is no reason to come straight back (Exhausted).
-			outcome.Held++
-			// The object is told what is stopping it. §6's whole argument is that retention
-			// nobody can see surprises somebody, and "this would have been deleted and a legal
-			// hold is holding it back" is the half of it a count in a run's report cannot say.
-			if _, err := s.Marking.Block(ctx, []shared.ID{candidate.ID},
-				rule.ID, rule.Action, reason); err != nil {
-				return outcome, err
+		blocks := pageBlocks{}
+
+		for _, candidate := range candidates {
+			if markable >= s.batch() {
+				break
 			}
-			continue
+			outcome.Read++
+			rule, found := domain.Effective(applicable, kind.Name, candidate.HubID, candidate.CollectionID)
+			if !found || !candidate.AnchoredAt.Before(rule.Cutoff(now)) {
+				// Caught by the loosest cutoff and not by its own rule's. Not a block - nothing is
+				// keeping it, its period simply has not run out - and not matched either.
+				continue
+			}
+			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
+			if err != nil {
+				return Outcome{}, err
+			}
+			if !matches {
+				// Not a block and not a hold: the rule simply does not apply to this entry, and it
+				// is not matched, for the same reason as the cutoff case above.
+				continue
+			}
+			outcome.Matched++
+			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+				outcome.blocked(reason)
+				// Held as well as matched: a block sets no due moment, so the next pass reads this
+				// entry again, and a batch of them is no reason to come straight back (Exhausted).
+				outcome.Held++
+				// The object is told what is stopping it. §6's whole argument is that retention
+				// nobody can see surprises somebody, and "this would have been deleted and a legal
+				// hold is holding it back" is the half of it a count in a run's report cannot say.
+				blocks.add(rule, reason, candidate.ID)
+				continue
+			}
+			if _, seen := byRule[rule.ID]; !seen {
+				order = append(order, rule.ID)
+			}
+			byRule[rule.ID] = append(byRule[rule.ID], candidate)
+			markable++
 		}
-		if _, seen := byRule[rule.ID]; !seen {
-			order = append(order, rule.ID)
+		// One statement per rule and reason on the page rather than one per entry: a read-past
+		// over a held collection would otherwise cost an update per row it reads.
+		if err := blocks.flush(ctx, s.Marking); err != nil {
+			return outcome, err
 		}
-		byRule[rule.ID] = append(byRule[rule.ID], candidate)
+		if markable >= s.batch() || lastPage(s.batch(), candidates) {
+			break
+		}
+		skip += len(candidates)
 	}
 
 	for _, ruleID := range order {
@@ -237,6 +253,39 @@ func (s Sweeper) announce(
 		}
 	}
 	return outcome, nil
+}
+
+// pageBlocks gathers the blocks of one page by rule and reason, in the order they were met, so
+// they are written in one statement each.
+type pageBlocks struct {
+	keys []blockKey
+	ids  map[blockKey][]shared.ID
+}
+
+type blockKey struct {
+	rule   shared.ID
+	action domain.Action
+	reason string
+}
+
+func (b *pageBlocks) add(rule domain.Rule, reason string, id shared.ID) {
+	key := blockKey{rule: rule.ID, action: rule.Action, reason: reason}
+	if b.ids == nil {
+		b.ids = map[blockKey][]shared.ID{}
+	}
+	if _, seen := b.ids[key]; !seen {
+		b.keys = append(b.keys, key)
+	}
+	b.ids[key] = append(b.ids[key], id)
+}
+
+func (b *pageBlocks) flush(ctx context.Context, marking repository.Marking) error {
+	for _, key := range b.keys {
+		if _, err := marking.Block(ctx, b.ids[key], key.rule, key.action, key.reason); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // warn tells the rule's audience about one marked entry, and does nothing for a rule that names
@@ -290,26 +339,37 @@ func (s Sweeper) announceChains(
 			continue
 		}
 
-		candidates, err := s.Marking.DueInChain(ctx, anchor, rule.ID, rule.ThenCutoff(now), s.batch())
-		if err != nil {
-			return outcome, err
-		}
-		outcome.Matched += len(candidates)
-		contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
-		if err != nil {
-			return outcome, err
-		}
-
-		ids := make([]shared.ID, 0, len(candidates))
-		kept := make([]repository.Candidate, 0, len(candidates))
-		for _, candidate := range candidates {
-			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
-				outcome.blocked(reason)
-				outcome.Held++
-				continue
+		// Read past held entries as announce does, and for its reason: they stay in the set.
+		var ids []shared.ID
+		var kept []repository.Candidate
+		for skip := 0; ; {
+			candidates, err := s.Marking.DueInChain(
+				ctx, anchor, rule.ID, rule.ThenCutoff(now), skip, s.batch())
+			if err != nil {
+				return outcome, err
 			}
-			ids = append(ids, candidate.ID)
-			kept = append(kept, candidate)
+			contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+			if err != nil {
+				return outcome, err
+			}
+			for _, candidate := range candidates {
+				if len(ids) >= s.batch() {
+					break
+				}
+				outcome.Read++
+				outcome.Matched++
+				if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+					outcome.blocked(reason)
+					outcome.Held++
+					continue
+				}
+				ids = append(ids, candidate.ID)
+				kept = append(kept, candidate)
+			}
+			if len(ids) >= s.batch() || lastPage(s.batch(), candidates) {
+				break
+			}
+			skip += len(candidates)
 		}
 		if len(ids) == 0 {
 			continue
@@ -332,56 +392,68 @@ func (s Sweeper) announceChains(
 func (s Sweeper) act(
 	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
 ) (Outcome, error) {
-	due, err := s.Marking.MarkedDue(ctx, now, s.batch())
-	if err != nil {
-		return Outcome{}, err
-	}
-
-	outcome := Outcome{Matched: len(due), Blocked: map[string]int{}}
-	if len(due) == 0 {
-		return outcome, nil
-	}
-
-	// §4.6, worked from the bottom up: a parent whose children are staying is kept back and goes on
-	// the pass after the last of them. Answered for the batch, because the question is about the
-	// batch: "what is below this that is not going with it".
-	going := make([]shared.ID, 0, len(due))
-	parents := make([]shared.ID, 0, len(due))
-	for _, candidate := range due {
-		going = append(going, candidate.ID)
-		parents = append(parents, candidate.ID)
-	}
-	retained, err := s.Marking.RetainedDescendants(ctx, parents, going)
-	if err != nil {
-		return outcome, err
-	}
-	contributors, err := contributorsOf(ctx, s.Holds, holds, going)
-	if err != nil {
-		return outcome, err
-	}
-
+	outcome := Outcome{Blocked: map[string]int{}}
 	byAction := map[domain.Action][]repository.Candidate{}
-	for _, candidate := range due {
-		if candidate.Action == domain.ActionNotifyOnly {
-			// An announcement acts on nothing. The marking stands so the object keeps saying what
-			// the rule would do, and `:retain` is how somebody takes it off.
-			outcome.Matched--
-			continue
+	acting := 0
+
+	// Page by page, as phase one reads: an announcement, a held entry and a parent waiting for its
+	// child all keep their marking and stay first in the read, so a batch-full of them read alone
+	// would hide every due entry behind it. Nothing leaves the set before the acts below.
+	for skip := 0; ; {
+		due, err := s.Marking.MarkedDue(ctx, now, skip, s.batch())
+		if err != nil {
+			return outcome, err
 		}
-		// Both keep their marking, so the next pass reads them again: held, not a reason to come
-		// straight back (Exhausted). The descendant counts here though the trash pass does not
-		// count it, because here the parent is read again on every pass until its child goes.
-		if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
-			outcome.blocked(reason)
-			outcome.Held++
-			continue
+
+		// §4.6, worked from the bottom up: a parent whose children are staying is kept back and
+		// goes on the pass after the last of them. Answered for the page, because the question is
+		// about it: "what is below this that is not going with it" - a child due on a later page
+		// counts as staying, which keeps its parent for one pass more and never takes it early.
+		going := make([]shared.ID, 0, len(due))
+		for _, candidate := range due {
+			going = append(going, candidate.ID)
 		}
-		if retained[candidate.ID] > 0 {
-			outcome.blocked(domain.BlockedByDescendant)
-			outcome.Held++
-			continue
+		retained, err := s.Marking.RetainedDescendants(ctx, going, going)
+		if err != nil {
+			return outcome, err
 		}
-		byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
+		contributors, err := contributorsOf(ctx, s.Holds, holds, going)
+		if err != nil {
+			return outcome, err
+		}
+
+		for _, candidate := range due {
+			if acting >= s.batch() {
+				break
+			}
+			outcome.Read++
+			if candidate.Action == domain.ActionNotifyOnly {
+				// An announcement acts on nothing. The marking stands so the object keeps saying
+				// what the rule would do, and `:retain` is how somebody takes it off.
+				continue
+			}
+			outcome.Matched++
+			// Both keep their marking, so the next pass reads them again: held, not a reason to
+			// come straight back (Exhausted). The descendant counts here though the trash pass does
+			// not count it, because here the parent is read again on every pass until its child
+			// goes.
+			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+				outcome.blocked(reason)
+				outcome.Held++
+				continue
+			}
+			if retained[candidate.ID] > 0 {
+				outcome.blocked(domain.BlockedByDescendant)
+				outcome.Held++
+				continue
+			}
+			byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
+			acting++
+		}
+		if acting >= s.batch() || lastPage(s.batch(), due) {
+			break
+		}
+		skip += len(due)
 	}
 
 	for _, action := range []domain.Action{
@@ -654,6 +726,7 @@ func ruleByID(rules []domain.Rule, id shared.ID) domain.Rule {
 func (o *Outcome) add(other Outcome) {
 	o.Matched += other.Matched
 	o.Held += other.Held
+	o.Read += other.Read
 	o.Removed += other.Removed
 	if o.Blocked == nil {
 		o.Blocked = map[string]int{}

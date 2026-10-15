@@ -108,6 +108,9 @@ type RetentionSignals interface {
 	RetentionDeleted(ctx context.Context, dataKind string, count int64)
 	RetentionBlocked(ctx context.Context, reason string, count int64)
 	RetentionRun(ctx context.Context, dataKind string, seconds float64)
+	// RetentionRead counts the rows the rule sweep judged, which is what reading past what it
+	// cannot act on costs (data-retention.md §5).
+	RetentionRead(ctx context.Context, dataKind string, count int64)
 }
 
 // NotificationHistory is the slice of the notification repository this run removes through.
@@ -971,6 +974,9 @@ func (h RunRetention) sweepRules(
 	}
 
 	h.report(ctx, domain.KindCompletedItem, outcome, finished.Sub(started))
+	if h.Signals != nil {
+		h.Signals.RetentionRead(ctx, string(domain.KindCompletedItem), int64(outcome.Read))
+	}
 	return outcome, nil
 }
 

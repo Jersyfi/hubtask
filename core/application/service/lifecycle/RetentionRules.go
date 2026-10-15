@@ -386,7 +386,7 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	// The samples, and the block reasons with them. Drawn from a page rather than from the whole
 	// set: deciding a legal hold against a million rows to draw a preview would cost more than the
 	// run it is previewing, and what a person reads a preview for is "does this look right".
-	candidates, err := r.Marking.Due(ctx, anchor, cutoff, SampleSize)
+	candidates, err := r.Marking.Due(ctx, anchor, cutoff, 0, SampleSize)
 	if err != nil {
 		return Preview{}, err
 	}
