@@ -315,7 +315,7 @@ func TestADirectoryListNarrowsInvitedOnly(t *testing.T) {
 	}
 }
 
-// Whether a provider could connect an existing account at all (decision #1511): the modes that admit
+// Whether a provider could connect an existing account at all (identity.md §10.4): the modes that admit
 // on a list do, INVITED_ONLY only through a preset that can be authoritative, and a mode this build
 // does not know never does.
 func TestWhichProvidersCouldConnectAnExistingAccount(t *testing.T) {

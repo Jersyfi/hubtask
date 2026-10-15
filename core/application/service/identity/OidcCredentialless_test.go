@@ -62,7 +62,7 @@ func TestACredentiallessAccountIsConnectedOnlyByAnAuthoritativeProvider(t *testi
 				}
 
 				// Under INVITED_ONLY a provider not authoritative for the address admits nobody, and
-				// the mailbox cannot widen that (decision #1511); under the other modes the member
+				// the mailbox cannot widen that (identity.md §10.4); under the other modes the member
 				// is admitted and owes its proof, which is the way back by mail.
 				want := "identity_provider.link_needs_mailbox"
 				if mode == domain.ProvisionInvitedOnly {

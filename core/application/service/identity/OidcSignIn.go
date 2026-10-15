@@ -903,7 +903,7 @@ func (w OidcWriter) connectByMail(
 		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
 		}
-		// Admission bounds a connection as it bounds a newcomer (identity.md §10.4, decision #1511):
+		// Admission bounds a connection as it bounds a newcomer (identity.md §10.4):
 		// the mailbox proves the person, and the mode and lists decide what may be connected.
 		if !configured.MayAdmit(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
@@ -988,7 +988,7 @@ func (e turnedAwayError) Unwrap() error { return e.cause }
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 
-// notAdmitted answers an arrival admission turned away (identity.md §10.4, decision #1511).
+// notAdmitted answers an arrival admission turned away (identity.md §10.4).
 //
 // The mode and the lists bound who comes in new *and* which identities may be connected to an
 // existing account, so an existing member is not brought to the LINK step here: the member's own

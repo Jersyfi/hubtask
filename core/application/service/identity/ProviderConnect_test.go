@@ -229,8 +229,8 @@ func TestAnUnverifiedAddressConnectsNothing(t *testing.T) {
 	refusedWith(t, err, "identity_provider.not_admitted")
 }
 
-// The mode and lists bound a connection from a session as they bound a newcomer (identity.md §10.4,
-// decision #1511): an address outside the provider's domain list is refused, the step-up
+// The mode and lists bound a connection from a session as they bound a newcomer (identity.md
+// §10.4): an address outside the provider's domain list is refused, the step-up
 // notwithstanding, and nothing is connected.
 func TestAnAddressOutsideTheProvidersListIsNotConnected(t *testing.T) {
 	c := newConnectFromSession(t, bertWithAddress())

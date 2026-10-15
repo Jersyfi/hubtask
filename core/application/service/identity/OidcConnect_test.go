@@ -461,7 +461,7 @@ func TestAConnectLinkIsSpentOnce(t *testing.T) {
 }
 
 // Under *Anyone from these organisations* the list bounds the link by mail as it bounds a newcomer
-// (identity.md §10.4, decision #1511): inside the list the member's own address connects; outside it
+// (identity.md §10.4): inside the list the member's own address connects; outside it
 // the mailbox proves the person and connects nothing.
 func TestUnderDomainsTheListBoundsTheConnectLink(t *testing.T) {
 	t.Run("inside the list", func(t *testing.T) {

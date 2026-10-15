@@ -210,7 +210,7 @@ func TestAConnectLinkNeedsAProviderThatAdmitsTheAccountsOwnProof(t *testing.T) {
 }
 
 // A connect link is mailed only through a provider that could connect an existing account at all
-// (P-05, decision #1511): under INVITED_ONLY a provider that is never authoritative - a self-hosted
+// (P-05, identity.md §10.4): under INVITED_ONLY a provider that is never authoritative - a self-hosted
 // or generic issuer - refuses every member, so its link would be a control for a refused action.
 func TestNoConnectLinkIsMailedThroughAProviderThatConnectsNobody(t *testing.T) {
 	never := ownProvider

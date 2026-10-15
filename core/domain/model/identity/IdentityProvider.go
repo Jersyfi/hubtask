@@ -693,7 +693,7 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 // verified but would not admit on its own word - not authoritative for it, or outside the directory
 // or domain list. An invitation is not new (identity.md §10.4). Connecting a provider to an existing
 // account is not this question: the LINK step, the link by mail and a connection from a session
-// admit only what `MayAdmit` admits, the member's own proof notwithstanding (decision #1511). A mode
+// admit only what `MayAdmit` admits, the member's own proof notwithstanding (identity.md §10.4). A mode
 // this build does not know admits nobody.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
@@ -717,7 +717,7 @@ func (p IdentityProvider) AdmitsOwnProof() bool {
 // question the mailed connect link is offered on (P-05): a link the provider refuses whatever the
 // person does is a control for a refused action. `DOMAINS` and `ANY` admit on their lists;
 // `INVITED_ONLY` admits only an address the provider is authoritative for, so a preset that is never
-// authoritative - a self-hosted or generic issuer - connects nobody that way (decision #1511). A mode
+// authoritative - a self-hosted or generic issuer - connects nobody that way (identity.md §10.4). A mode
 // this build does not know connects nobody.
 func (p IdentityProvider) MayConnectExisting() bool {
 	switch p.Provisioning {

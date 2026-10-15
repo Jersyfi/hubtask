@@ -780,7 +780,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 | I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans, then custom domains, follow. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
 | I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
-| I-14 | Whether a provider's admission settings (§10.4) also bound which identities members may connect, not only who comes in new — the owner's to decide (decision #1511). |
+| I-14 | Decided ([decision #1511](https://github.com/Jersyfi/hubtask/issues/1511), option b) and built: a provider's admission settings bound which identities members may connect as well as who comes in new (§10.4). |
 
 ---
 

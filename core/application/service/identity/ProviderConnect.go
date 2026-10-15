@@ -214,9 +214,9 @@ func (h CompleteProviderConnect) Execute(
 		if !domain.ProviderProofFreshSince(arrived.AuthTime, flow.CreatedAt, now, s.stepUpWindow()) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connection_not_fresh"))
 		}
-		// The mode and lists bound a connection as they bound a newcomer (identity.md §10.4,
-		// decision #1511): the step-up proves the person, not what may be connected. The address
-		// need not be the account's - that is the point - but the provider must admit it.
+		// The mode and lists bound a connection as they bound a newcomer (identity.md §10.4): the
+		// step-up proves the person, not what may be connected. The address need not be the
+		// account's - that is the point - but the provider must admit it.
 		if !configured.MayAdmit(admissionOf(arrived)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 		}

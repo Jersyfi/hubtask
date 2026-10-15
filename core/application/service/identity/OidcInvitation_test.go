@@ -322,7 +322,7 @@ func TestAnInvitationsFlowDoesNotSignInSomebodyElse(t *testing.T) {
 // outside the list - the invitation is the administrator's explicit choice of this person, and it is
 // not new (identity.md §10.4) - and widens nothing beyond it: the plain arrival stays refused, the
 // link admits nobody but the invited address, and an existing member outside the list is refused
-// rather than brought to the LINK step (decision #1511).
+// rather than brought to the LINK step (identity.md §10.4).
 func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) {
 	outsideTheList := func(t *testing.T) (*oidcFixture, secret.Secret) {
 		t.Helper()
@@ -363,7 +363,7 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 		}
 		assertStillInvited(t, f, invitation)
 	})
-	// The list bounds a connection too (decision #1511): an existing member outside it is refused,
+	// The list bounds a connection too (identity.md §10.4): an existing member outside it is refused,
 	// and the member's password is not asked for.
 	t.Run("an existing member outside the list", func(t *testing.T) {
 		f := newOidcFixture(t, now, ownerAccount)

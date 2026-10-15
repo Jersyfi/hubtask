@@ -271,7 +271,7 @@ func invitedOnlyLinkFixture(t *testing.T, armed bool) *oidcFixture {
 	return f
 }
 
-// The mode bounds a connection as it bounds a newcomer (identity.md §10.4, decision #1511): under
+// The mode bounds a connection as it bounds a newcomer (identity.md §10.4): under
 // INVITED_ONLY a provider that is not authoritative for the address connects no existing member,
 // whatever the member could prove - no LINK step, nothing linked, nothing created, and the refusal
 // in the trail. An authoritative one still brings the member to the LINK step.
@@ -348,7 +348,7 @@ func TestTheLinkStepTakesThePasswordWhereThePasswordIsOff(t *testing.T) {
 }
 
 // Under *Anyone from these organisations* the list bounds a connection as it bounds a newcomer
-// (decision #1511): inside the list the member reaches the LINK step and is connected with its
+// (identity.md §10.4): inside the list the member reaches the LINK step and is connected with its
 // password - and only with it; outside it nothing is asked and nothing is connected.
 func TestUnderDomainsTheListBoundsWhichMemberConnects(t *testing.T) {
 	t.Run("inside the list", func(t *testing.T) {
@@ -483,7 +483,7 @@ func TestAnInstallationsProviderMeetsTheLinkStepToo(t *testing.T) {
 }
 
 // An identity connected before keeps signing in after a list narrows past it: daily sign-in reads no
-// list, so tightening one locks nobody out (identity.md §10.4, decision #1511).
+// list, so tightening one locks nobody out (identity.md §10.4).
 func TestAConnectedIdentityOutsideANarrowedListStillSignsIn(t *testing.T) {
 	f := linkFixture(t, false)
 	if _, err := f.external.LinkSubject(t.Context(), f.store.rows[0].ID, account, "attacker-made-subject", now); err != nil {
