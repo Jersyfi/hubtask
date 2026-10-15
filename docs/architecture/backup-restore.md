@@ -80,15 +80,25 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
 ## 4. Encryption
 
 * **Client-side encryption is the standard**: AES-256-GCM under a key **derived from the
-  installation's master key with HKDF-SHA256, bound to the target through a random salt** the
-  target is given when it is created and every archive's manifest carries. Two targets never share
-  a key, nobody remembers a second secret, and a target re-created after the database is lost still
-  opens the archives at its location: the salt is read from the manifest, not from the database's
-  row of the target. The key is not in the archive. Server-side encryption at the
-  target may be added; it replaces nothing.
+  installation's master key with HKDF-SHA256, bound by a random salt** each archive is given when
+  it is written and its manifest carries (`encryption.archive_salt`). No two archives share a key,
+  so no two targets do; nobody remembers a second secret; and a target re-created after the
+  database is lost still opens the archives at its location: the salt and the master key's ID are
+  read from the manifest, not from the database. The key is not in the archive. Server-side
+  encryption at the target may be added; it replaces nothing. An archive written before archives
+  carried a salt keeps its key bound to the target that wrote it, and opens only through that
+  target's row.
+* **What to keep for a loss of the database**: the master key ring (`HUBTASK_ENCRYPTION_KEYS`, every
+  key with its ID as it was when the archives were written) and the target's credentials. Given
+  both, a new installation lists the archives at the target and restores one as a new workspace
+  (§8.2). Without the key an archive names, a restore is refused before anything is read
+  (`backup.archive_key_unknown`, naming the key).
 * **A passphrase is not available**: `encryption_passphrase` on a target and `decryption_passphrase`
   on a restore are refused (`backup.encryption_passphrase_not_available`) rather than ignored.
-* The master key can be rotated; old archives stay readable (the key ID is in the manifest).
+* The master key can be rotated; old archives stay readable (the key ID is in the manifest). An
+  archive is never rewritten, so a re-seal cannot move it: the key census counts the archives still
+  kept under each key ([security.md](./security.md) §8.1), and a key stays in the ring until the
+  last of them has expired.
 * An unencrypted target (`encryption_mode: NONE`) requires `insecure_acknowledged` and carries the
   warning `backup.target_unencrypted` for as long as it exists.
 

@@ -7,6 +7,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"strings"
@@ -91,14 +92,23 @@ var _ persistence.Snapshot = (*snapshotDouble)(nil)
 
 // keys is the key materialiser: a fixed key per purpose, so that a test can assert that a member
 // was encrypted without owning a cipher.
-type keys struct{ purposes []crypto.Purpose }
+type keys struct {
+	purposes []crypto.Purpose
+	salts    [][]byte
+	// lost is a master key the installation no longer holds: reproducing under it is refused.
+	lost string
+}
 
-func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, length int) (crypto.MasterDerived, error) {
+func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, salt []byte, length int) (crypto.MasterDerived, error) {
 	k.purposes = append(k.purposes, purpose)
+	k.salts = append(k.salts, salt)
 	return crypto.MasterDerived{KeyID: "k1", Key: secret.NewBytes(bytes.Repeat([]byte{0x11}, length))}, nil
 }
 
-func (k *keys) ReproduceFromMaster(_ context.Context, _ string, _ crypto.Purpose, length int) (secret.Bytes, error) {
+func (k *keys) ReproduceFromMaster(_ context.Context, keyID string, _ crypto.Purpose, _ []byte, length int) (secret.Bytes, error) {
+	if keyID == k.lost {
+		return secret.Bytes{}, shared.ErrUnavailable.WithDetail(crypto.CodeUnknownKey)
+	}
 	return secret.NewBytes(bytes.Repeat([]byte{0x11}, length)), nil
 }
 
@@ -197,8 +207,18 @@ func (p *performHarness) performer() Performer {
 		Runs: p.runs, Targets: p.targets, Export: p.export, Opener: p.opener,
 		Encryptor: p.encryptor, Keys: p.keys, Cipher: p.cipher, Objects: p.objects,
 		Snapshot: p.snapshot, UnitOfWork: p.uow, Clock: clock.Fixed(now), IDs: ids{next: runID},
+		Entropy:       &draws{},
 		SchemaVersion: "0032", ProductVersion: "0.4.5",
 	}
+}
+
+// draws answers different bytes on every call, as a real source would: two archives must not
+// share a salt.
+type draws struct{ count byte }
+
+func (d *draws) Bytes(n int) ([]byte, error) {
+	d.count++
+	return bytes.Repeat([]byte{d.count}, n), nil
 }
 
 func performInput() PerformInput {
@@ -244,18 +264,30 @@ func TestARunWritesAnArchiveAndRecordsWhatItLeftBehind(t *testing.T) {
 	}
 }
 
-// The archive key is bound to the target, so two targets never share one.
-func TestTheArchiveKeyIsBoundToItsTarget(t *testing.T) {
+// An archive's key is derived with a salt of its own, drawn for it, and its manifest carries the
+// salt, so the key can be derived again from the manifest alone (backup-restore.md §4).
+func TestAnArchiveHasAKeyOfItsOwnAndItsManifestCarriesTheSalt(t *testing.T) {
 	h := newPerformHarness(t)
 
-	if _, err := h.performer().Perform(context.Background(), performInput()); err != nil {
+	run, err := h.performer().Perform(context.Background(), performInput())
+	if err != nil {
 		t.Fatalf("performing: %v", err)
 	}
-	if len(h.keys.purposes) != 1 {
+	switch {
+	case len(h.keys.purposes) != 1:
 		t.Fatalf("%d keys derived", len(h.keys.purposes))
+	case h.keys.purposes[0] != archivePurpose:
+		t.Fatalf("the key is derived for %q", h.keys.purposes[0])
+	case len(h.keys.salts[0]) != archiveSaltBytes:
+		t.Fatalf("a salt of %d bytes", len(h.keys.salts[0]))
 	}
-	if h.keys.purposes[0] != archiveKeyPurpose(targetID) {
-		t.Fatalf("the key is bound to %q", h.keys.purposes[0])
+
+	manifest, err := archive.ReadManifest(bytes.NewReader(h.opener.store.objects[run.ArchivePath+"/"+archive.ManifestName]))
+	if err != nil {
+		t.Fatalf("reading the manifest: %v", err)
+	}
+	if got := manifest.Encryption; got.ArchiveSalt != base64.StdEncoding.EncodeToString(h.keys.salts[0]) || got.KeyID != "k1" {
+		t.Fatalf("the manifest carries %+v", got)
 	}
 }
 

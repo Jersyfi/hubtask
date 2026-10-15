@@ -23,7 +23,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/storage"
-	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // SafetyBackup takes the copy §8.3 step 4 asks for before a destructive mode.
@@ -190,13 +189,13 @@ func (a Applier) claim(ctx context.Context, in ApplyInput) (claimed, error) {
 func (a Applier) run(ctx context.Context, in ApplyInput, ready claimed) (domain.Report, error) {
 	reader := archive.NewReader(ready.store, a.Cipher)
 
-	chain, key, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
+	chain, keys, err := a.precheck(ctx, reader, ready.restore, in.TenantID)
 	if err != nil {
 		return domain.Report{}, err
 	}
 
 	plan := plan{
-		restore: ready.restore, chain: chain, key: key,
+		restore: ready.restore, chain: chain, keys: keys,
 		reader: reader, scope: ready.into, asker: in.TenantID, report: in.Report,
 		progress: func(ctx context.Context, report domain.Report, decided map[string]int) error {
 			return a.Restores.RecordProgress(ctx, ready.restore.ID, report, decided)
@@ -287,10 +286,10 @@ func (a Applier) AdvanceEpoch(ctx context.Context) error {
 // manifests, not data.
 func (a Applier) precheck(
 	ctx context.Context, reader *archive.Reader, restore domain.Restore, asking shared.ID,
-) ([]archive.Description, secret.Bytes, error) {
+) ([]archive.Description, archive.Keys, error) {
 	chain, err := reader.Chain(ctx, restore.SourceArchive)
 	if err != nil {
-		return nil, secret.Bytes{}, err
+		return nil, nil, err
 	}
 	newest := chain[0]
 
@@ -302,7 +301,7 @@ func (a Applier) precheck(
 	// "that archive belongs to another workspace" would say the wrong thing about an archive that
 	// belongs to nobody, and send the reader looking for a permission problem.
 	if restore.Mode == domain.RestoreInstance {
-		return nil, secret.Bytes{}, shared.ErrValidation.
+		return nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreInstanceIsTheOperators).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
@@ -321,17 +320,19 @@ func (a Applier) precheck(
 	// provider-migration path (§8.2) - and no mode takes one of another workspace held here.
 	origin, err := originOf(ctx, a.UnitOfWork, a.Import, newest.Manifest.Scope, asking)
 	if err != nil {
-		return nil, secret.Bytes{}, err
+		return nil, nil, err
 	}
 	if !restore.Mode.Accepts(origin) {
-		return nil, secret.Bytes{}, shared.ErrValidation.
+		return nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
-	// Its key is derived from another installation's master key, which this one does not hold:
-	// refused by name rather than left to fail as a decryption error (§4).
-	if origin == domain.ArchiveOfUnknownWorkspace && newest.Manifest.Encryption.IsEncrypted() {
-		return nil, secret.Bytes{}, shared.ErrValidation.
+	// An archive keyed to the target that wrote it opens only through that target's row, which
+	// an installation that does not hold the workspace never had: refused by name rather than
+	// left to fail as a decryption error. One that carries its salt opens wherever the master key
+	// it names is held - the case of an installation rebuilt after its database was lost (§4).
+	if origin == domain.ArchiveOfUnknownWorkspace && boundToATarget(chain) {
+		return nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreForeignArchiveEncrypted).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
@@ -340,7 +341,7 @@ func (a Applier) precheck(
 	// and migrates upwards; downwards it cannot go, and guessing which columns a future migration
 	// added is how a restore writes a row that is silently wrong (§3).
 	if newest.Manifest.SchemaVersion > a.SchemaVersion {
-		return nil, secret.Bytes{}, shared.ErrConflict.WithDetail(domain.CodeRestoreSchemaAhead).
+		return nil, nil, shared.ErrConflict.WithDetail(domain.CodeRestoreSchemaAhead).
 			WithParams(map[string]string{
 				"archive": newest.Manifest.SchemaVersion, "installed": a.SchemaVersion,
 			})
@@ -348,15 +349,11 @@ func (a Applier) precheck(
 
 	// Decryptability, before anything is read. An archive that cannot be opened is worth finding
 	// out about now rather than after the first batch has landed.
-	var key secret.Bytes
-	if newest.Manifest.Encryption.IsEncrypted() {
-		key, err = a.Keys.ReproduceFromMaster(ctx,
-			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(restore.TargetID), archiveKeyBytes)
-		if err != nil {
-			return nil, secret.Bytes{}, err
-		}
+	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID)
+	if err != nil {
+		return nil, nil, err
 	}
-	return chain, key, nil
+	return chain, keys, nil
 }
 
 // assertFresh refuses a NEW_TENANT restore whose destination already exists.
@@ -545,7 +542,7 @@ type plan struct {
 	restore domain.Restore
 	// chain is the archives to read, newest first, back to the full archive at the root.
 	chain  []archive.Description
-	key    secret.Bytes
+	keys   archive.Keys
 	reader *archive.Reader
 	scope  persistence.Scope
 	// asker is the tenant that asked, which is where the run row lives. It differs from scope only
@@ -854,7 +851,7 @@ func (a Applier) eachRecord(
 	}
 
 	for _, description := range sources {
-		err := p.reader.Records(ctx, description, entity, p.key, func(record archive.Record) error {
+		err := p.reader.Records(ctx, description, entity, p.keys.Of(description), func(record archive.Record) error {
 			if seen != nil {
 				if seen[record.ID] {
 					return nil
@@ -1513,7 +1510,7 @@ func (s *state) transferMedia(ctx context.Context) error {
 }
 
 func (s *state) transferOne(ctx context.Context, waiting transfer) error {
-	content, err := s.plan.reader.Medium(ctx, s.plan.chain, waiting.blob.Digest, s.plan.key)
+	content, err := s.plan.reader.Medium(ctx, s.plan.chain, waiting.blob.Digest, s.plan.keys)
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
 			// The row says the bytes were there and the archive does not have them. The row is

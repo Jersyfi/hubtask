@@ -329,13 +329,50 @@ func (r *Reader) Records(
 	return nil
 }
 
+// Probe opens the first member of an encrypted archive far enough to authenticate it, so that a
+// key that does not open the archive is found before anything is applied. It reads one chunk, not
+// the member.
+func (r *Reader) Probe(ctx context.Context, description Description, key secret.Bytes) error {
+	if !description.Manifest.Encryption.IsEncrypted() || len(description.Manifest.Files) == 0 {
+		return nil
+	}
+	path := description.Manifest.Files[0].Path
+	stored, err := r.store.Get(ctx, description.Prefix+"/"+path)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stored.Close() }()
+	plaintext, err := r.decrypt(stored, description.Manifest, path, key)
+	if err == nil {
+		_, err = plaintext.Read(make([]byte, 1))
+	}
+	if err != nil && !errors.Is(err, io.EOF) {
+		if shared.AsError(err).DetailCode == crypto.CodeNotAuthentic {
+			return shared.ErrValidation.WithDetail(CodeArchiveKeyUnknown).
+				WithParams(map[string]string{
+					"key_id": description.Manifest.Encryption.KeyID, "reason": "does_not_open",
+				}).WithCause(err)
+		}
+		return err
+	}
+	return nil
+}
+
+// Keys holds the key of every archive of a chain, by archive identifier. Each archive is encrypted
+// under a key of its own (backup-restore.md §4), and a medium may live in any archive of the
+// chain, so reading a chain takes one key per archive rather than one for all of them.
+type Keys map[string]secret.Bytes
+
+// Of answers the key of the archive the description names, or an empty key where none is held.
+func (k Keys) Of(description Description) secret.Bytes { return k[description.Manifest.ArchiveID] }
+
 // Medium opens one medium, searching the chain from newest to oldest.
 //
 // That search is the other half of "an incremental does not re-transfer a file that did not
 // change": the file lives in whichever archive first referenced it, and a restore finds it by
 // looking rather than by every archive carrying a copy.
 func (r *Reader) Medium(
-	ctx context.Context, chain []Description, digest string, key secret.Bytes,
+	ctx context.Context, chain []Description, digest string, keys Keys,
 ) (io.ReadCloser, error) {
 	if !looksLikeDigest(digest) {
 		return nil, shared.ErrValidation.WithDetail(CodeRecordInvalid).
@@ -351,7 +388,7 @@ func (r *Reader) Medium(
 		if err != nil {
 			return nil, err
 		}
-		plaintext, err := r.decrypt(content, description.Manifest, MediaName(digest), key)
+		plaintext, err := r.decrypt(content, description.Manifest, MediaName(digest), keys.Of(description))
 		if err != nil {
 			_ = content.Close()
 			return nil, err
@@ -375,7 +412,10 @@ func (r *Reader) decrypt(
 		return stored, nil
 	}
 	if key.Len() == 0 {
-		return nil, shared.ErrValidation.WithDetail(CodeArchiveKeyRequired).
+		// The keys are derived from the master key before anything is read, and a key the
+		// installation does not hold is refused there by name (CodeArchiveKeyUnknown). Arriving
+		// here without one is a caller that skipped that step, not something a person can supply.
+		return nil, shared.ErrInternal.WithDetail(CodeArchiveKeyRequired).
 			WithParams(map[string]string{"key_id": manifest.Encryption.KeyID})
 	}
 	return r.cipher.Open(stored, key, MemberPurpose(manifest.ArchiveID, path))
@@ -428,8 +468,14 @@ const (
 	// a full archive. Restoring the part that happens to be present would restore a tenant to a
 	// state it was never in.
 	CodeChainBroken = "backup.archive_chain_broken"
-	// CodeArchiveKeyRequired is an encrypted archive read without its key.
+	// CodeArchiveKeyRequired is an encrypted archive read without its key: a defect in the
+	// caller, which derives every key before it reads.
 	CodeArchiveKeyRequired = "backup.archive_key_required"
+	// CodeArchiveKeyUnknown is an encrypted archive this installation cannot open: the master key
+	// its manifest names is not in the ring, or a key of that name is and does not open it (another
+	// installation's key under the same name, or a damaged archive). It names the key id, which is
+	// what the operator has to bring back (backup-restore.md §4).
+	CodeArchiveKeyUnknown = "backup.archive_key_unknown"
 	// CodeArchiveKeyUnexpected is a key offered for an archive that has none - a caller confusing
 	// two archives, which is worth stopping because the next thing they do is trust the result.
 	CodeArchiveKeyUnexpected = "backup.archive_key_unexpected"

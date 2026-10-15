@@ -262,7 +262,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-BAK-01](./backup/UC-BAK-01-choose-where-backups-go.md) | Choose where the workspace's backups go | backup | built |
 | [UC-BAK-02](./backup/UC-BAK-02-back-up-on-a-schedule.md) | Back up on a schedule and keep the right generations | backup | partial |
 | [UC-BAK-03](./backup/UC-BAK-03-back-up-now-and-check-it-opens.md) | Back up now and check that the backup opens | backup | built |
-| [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | partial |
+| [UC-BAK-04](./backup/UC-BAK-04-keep-backups-readable-only-by-us.md) | Keep backups unreadable to the target, and readable to us after a loss | backup | built |
 | [UC-BAK-05](./backup/UC-BAK-05-reset-the-workspace-to-a-backup.md) | Reset the whole workspace to an earlier backup | backup | built |
 | [UC-BAK-06](./backup/UC-BAK-06-get-one-thing-back-from-a-backup.md) | Get one lost collection or task back from a backup | backup | partial |
 | [UC-BAK-07](./backup/UC-BAK-07-take-the-workspace-to-another-installation.md) | Take the whole workspace to another installation | backup | partial |

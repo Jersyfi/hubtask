@@ -2939,7 +2939,7 @@ func run() error {
 		Opener: backupAdapters, Encryptor: encryptor, Keys: encryptor,
 		Cipher: crypto.NewStream(clockadapter.CryptoRandom{}), Objects: mediaStore,
 		Snapshot: unitOfWork, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids,
+		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
 	// Data subject requests: the erasure that serves every storage location, and the export
