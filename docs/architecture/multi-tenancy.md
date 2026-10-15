@@ -121,7 +121,10 @@ CREATE DATABASE hubtask OWNER hubtask_migrator;
 ```
 
 `HUBTASK_DB_DSN` connects as `hubtask_app`, the migration's DSN as `hubtask_migrator`; nothing needs
-`SUPERUSER` or `BYPASSRLS`. The integration suite migrates under exactly this arrangement.
+`SUPERUSER` or `BYPASSRLS`. The managed-database tests (`test/integration/managed_postgres_test.go`,
+`managed_doors_test.go`, and the migration tests built on them) migrate under exactly this
+arrangement; the rest of the integration suite, like Compose and CI, migrates as the superuser,
+which `FORCE` does not bind.
 
 ### 2.1.2 References carry the tenant
 
