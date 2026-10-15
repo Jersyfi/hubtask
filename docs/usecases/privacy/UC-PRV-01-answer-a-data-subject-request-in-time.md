@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-admin, PE-owner, PE-scripter, PE-operator]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-08, P-11, P-12]
-state: partial
-tasks: [E-10, E-12, H-13, F4-20, PH-02]
-checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs, docs/evidence/PH-08-D4-2026-10-13.md]
+state: built
+tasks: [E-10, E-12, H-13, F4-20, PH-02, CP-03]
+checked_by: [core/application/service/privacy/Requests_test.go, core/application/service/privacy/Deadlines_test.go, core/domain/model/privacy/Request_test.go, cmd/hubctl/Privacy_test.go, deploy/observability/alerts/tests/selfhosting.test.yaml, core/domain/model/privacy/Extension_test.go, core/application/service/privacy/Extension_test.go, core/application/service/privacy/ExtensionEntry_test.go, test/contract/privacy_extension_test.go, test/integration/privacy_extension_test.go, test/integration/privacy_extension_case_test.go, test/integration/privacy_extension_fanout_test.go, apps/webapp/src/lib/data/privacy.test.ts, apps/webapp/e2e/privacy.test.mjs, docs/evidence/PH-08-D4-2026-10-13.md, presentation/rest/PrivacyController_test.go]
 ---
 
 # Record a data subject request and answer it in time
@@ -69,7 +69,3 @@ so it does not depend on somebody opening the screen.
 * Each kind's work is its own use case: a copy of the data, erasure, restriction, objection.
 
 See [data-protection.md](../../architecture/data-protection.md) §4.
-
-## Today
-
-* Check 2: not met — a case gets thirty days from when it is recorded, and a passed deadline is refused, tracked in #1196.

@@ -42,7 +42,10 @@ const ROLES = [
 
 async function open(browser, role = 'OWNER', options = {}) {
   const written = [];
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...options });
+  // What the server answers a recording with, where a walk needs the case it made in the register.
+  const { recordAnswer, ...contextOptions } = options;
+  const recorded = [];
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...contextOptions });
   if (options.now) await context.clock.setFixedTime(options.now);
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -68,7 +71,15 @@ async function open(browser, role = 'OWNER', options = {}) {
     }
     if (path === '/privacy/requests' && request.method() === 'POST') {
       written.push({ path, body: request.postDataJSON() });
+      if (recordAnswer) {
+        const answer = recordAnswer(request.postDataJSON());
+        recorded.push(answer);
+        return route.fulfill({ status: 201, json: answer });
+      }
       return route.fulfill({ status: 201, json: { ...OPEN, ...request.postDataJSON() } });
+    }
+    if (path === '/privacy/requests' && request.method() === 'GET' && recorded.length > 0) {
+      return route.fulfill({ json: { data: [...PRIVACY_REQUESTS, ...recorded], page: { next_cursor: null, has_more: false } } });
     }
     return stub(route);
   });
@@ -187,6 +198,43 @@ test('chromium: a case is recorded with its own deadline, owed to the end of tha
     assert.equal(written.length, 1);
     assert.equal(written[0].body.subject_email, 'new@example.invalid');
     assert.equal(written[0].body.due_at, '2027-03-28T21:59:59.000Z');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: a request received two months ago is recorded with that day and shown overdue', async () => {
+  // UC-PRV-01 check 2: the form names the day of receipt, never later than today in the
+  // workspace's zone, and a case whose month has run out is recorded and marked overdue. The
+  // answer is the server's, written out here: received 14 August in Berlin, owed to the end of
+  // 14 September there.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await open(browser, 'OWNER', {
+      now: new Date('2026-10-15T09:00:00Z'),
+      recordAnswer: (sent) => ({
+        ...OPEN, id: '01a0e2e0-0000-7000-8000-0000000000c9', ...sent,
+        received_at: '2026-08-13T22:00:00Z', received_on: '2026-08-14', due_at: '2026-09-14T21:59:59Z',
+        extendable_until: null,
+      }),
+    });
+    const form = page.locator('form', { hasText: 'Record a request' });
+    assert.equal(await form.getByLabel('Received on').getAttribute('max'), '2026-10-15');
+    await form.getByLabel('Their address').fill('late@example.invalid');
+    await form.getByLabel('Received on').fill('2026-08-14');
+    await form.getByRole('button', { name: 'Record it' }).click();
+    for (let waited = 0; written.length === 0 && waited < 5000; waited += 50) await page.waitForTimeout(50);
+
+    assert.equal(written.length, 1);
+    assert.equal(written[0].body.received_on, '2026-08-14');
+    assert.equal(written[0].body.due_at, undefined);
+    const late = page.locator('section.panel', { hasText: 'late@example.invalid' });
+    await late.waitFor();
+    const text = await late.innerText();
+    assert.match(text, /Overdue/);
+    assert.match(text, /Received .*14/);
     assert.deepEqual(failures, []);
     await close();
   } finally {

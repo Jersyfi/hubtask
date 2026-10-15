@@ -253,3 +253,22 @@ export function deadlineOfDay(day: string, zone: string): string | undefined {
   if (midnight === undefined) return undefined;
   return new Date(Date.parse(midnight) - 1000).toISOString();
 }
+
+/**
+ * The day of receipt as the record form sends it (UC-PRV-01 check 2): nothing when the field is
+ * empty, which the server reads as today in the workspace's zone, and nothing for a day that is not
+ * one or lies after `today` - the form's own bound, which the server holds too.
+ */
+export function receiptOf(day: string, today: string): { received_on?: string } {
+  const trimmed = day.trim();
+  if (!DAY.test(trimmed) || trimmed > today) return {};
+  return { received_on: trimmed };
+}
+
+/**
+ * The earliest deadline the form offers: the day of receipt, or today when none was named. A
+ * deadline that has passed is recorded and overdue; one before the request arrived is refused.
+ */
+export function earliestDeadline(receivedOn: string, today: string): string {
+  return DAY.test(receivedOn.trim()) ? receivedOn.trim() : today;
+}

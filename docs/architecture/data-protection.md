@@ -77,8 +77,10 @@ practice. Rules:
   the day of receipt does not count, a month ending on a shorter month's last day is clamped, the
   deadline ends at the end of that day in the workspace's time zone, and it is never moved to the
   next working day, so the shown date is never later than the law's. Recording names the day of
-  receipt; a case whose deadline has passed is recorded and shown overdue. Decided, not built: a
-  case gets thirty days from when it is recorded today (#1196).
+  receipt; a case whose deadline has passed is recorded and shown overdue. A day of receipt is kept
+  in `received_at`: the recording instant for a request received that day, the start of the day in
+  the workspace's zone for one received earlier; the recording instant itself is the `dsr.recorded`
+  entry's.
 * **Moving a case to `IN_PROGRESS` starts the work**; the job completes the case. An erasure needs
   its mode and an export its target first; a case that cannot be carried out is refused at that
   step, not by a running job.
