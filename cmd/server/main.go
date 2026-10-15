@@ -2953,7 +2953,7 @@ func run() error {
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
 	privacyExporter := privacyservice.Exporter{
-		Requests: privacyStore, Subjects: privacyStore,
+		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,

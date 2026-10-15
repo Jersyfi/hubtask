@@ -458,7 +458,9 @@ Rules:
 
 **Exports are archives too.** A tenant export ([tenant-export.md](./tenant-export.md)) and a data
 subject export ([data-protection.md](./data-protection.md) §4, prefix `hubtask-dsr-`) are Hubtask
-archives written unencrypted to a backup target — restorable, and no second format exists.
+archives written unencrypted to a backup target — restorable, and no second format exists. An
+installation-wide case's export is one zip, `hubtask-dsr-<case>-<time>.zip`, whose members are the
+per-workspace archives unchanged under `<tenant id>/`: a wrapper, not a format.
 
 ---
 
