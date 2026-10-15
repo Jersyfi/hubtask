@@ -90,6 +90,36 @@ func TestASubscriptionWithoutATargetIsRefusedHere(t *testing.T) {
 	}
 }
 
+// A condition and a scope travel as the contract spells them; a scope without its container is
+// named here rather than sent.
+func TestASubscriptionCarriesItsConditionAndScope(t *testing.T) {
+	const hub = "01936f2a-7c1e-7000-8000-000000000f14"
+	stub := serveJSON(t, http.StatusCreated, oneSubscription)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"webhook", "add", "--url", "https://example.org/hooks",
+		"--event", "de.hubtask.work.item.completed.v1",
+		"--filter", `data.title.startsWith("Ship")`, "--scope", "hub", "--scope-id", hub)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	scope, _ := sent["scope"].(map[string]any)
+	if sent["filter"] != `data.title.startsWith("Ship")` || scope["type"] != "HUB" || scope["id"] != hub {
+		t.Errorf("the subscription reached the server as %v", sent)
+	}
+
+	code, _, errOut = invokeAgainst(t, stub, signedIn(stub), "",
+		"webhook", "add", "--url", "https://example.org/hooks",
+		"--event", "de.hubtask.work.item.completed.v1", "--scope", "HUB")
+	if code != exitUsage || !strings.Contains(errOut, "--scope-id") {
+		t.Errorf("a scope without its container: exit %d, %q", code, errOut)
+	}
+}
+
 // Pausing is a deliberate act and `DISABLED` is a conclusion the system draws, so the client can
 // ask for one and not the other.
 func TestPausingSendsThePausedStateAndNotDisabled(t *testing.T) {

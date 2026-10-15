@@ -88,6 +88,10 @@ func (allowEveryone) Authorize(context.Context, appshared.ActorContext, access.R
 	return nil
 }
 
+func (allowEveryone) Permits(context.Context, appshared.ActorContext, access.Request) (bool, error) {
+	return true, nil
+}
+
 // Switching the source seeds the embedding pass in the same transaction as the choice and its
 // trail entry - against PostgreSQL, where a write outside the transaction would be refused.
 func TestSwitchingTheSourceSeedsTheEmbeddingPassWithTheChoice(t *testing.T) {

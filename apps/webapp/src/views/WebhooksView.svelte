@@ -16,9 +16,11 @@
   // (T-07), and that is the installation's answer rather than this screen's — so the refusal is
   // rendered where the field is, and nothing is predicted.
   //
-  // **`filter` is not on this screen.** `integration.RefuseFilter` still refuses a non-empty one.
-  // A field that is accepted and does nothing would be a subscriber receiving events they asked
-  // not to receive; a field shown and always refused would be worse.
+  // **The condition is written, not assembled.** It is the automation's language over `event`,
+  // `data`, `actor` and `now`, compiled by the server when it is saved and refused naming where -
+  // this screen does not parse it, because a second parser would be a second dialect. The scope
+  // offers the hubs and collections the reader sees, as the rule editor does; the form is open
+  // only to whoever may automate the workspace, which reaches each of them.
   //
   // **The three states say different things.** `PAUSED` is somebody's decision, `DISABLED` is what
   // sustained unreachability concluded — so the failure count and the last error are beside the
@@ -26,7 +28,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Checkbox, Input, LoadMore, OneTimeSecret, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import {
@@ -35,6 +37,8 @@
     type Subscription,
     type SubscriptionWithSecret,
   } from '../lib/data/webhooks.svelte.ts';
+  import { scopeChoiceOf, subscriptionBody } from '../lib/data/webhooks.ts';
+  import { containers } from '../lib/data/containers.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -45,7 +49,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The outcomes the contract lets a caller narrow to. `DEAD_LETTER` is the one operators want. */
-  const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER'];
+  const OUTCOMES = ['PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'FILTER_FAILED'];
 
   /** The rotation choices, in seconds. Zero is its own decision and says so. */
   const GRACE_CHOICES = ['3600', '86400', '604800', '0'];
@@ -58,6 +62,8 @@
 
   let draftUrl = $state('');
   let draftTypes = $state<readonly string[]>([]);
+  let draftCondition = $state('');
+  let draftScope = $state('TENANT');
 
   let opened = $state('');
   let outcome = $state('');
@@ -66,6 +72,29 @@
   let removing = $state('');
 
   $effect(() => untrack(() => webhooks.open()));
+  $effect(() => untrack(() => containers.start()));
+  $effect(() => {
+    const stops = containers.hubs.map((hub) => untrack(() => containers.openLevel(hub.id)));
+    return () => stops.forEach((stop) => stop());
+  });
+
+  /** Where a subscription may listen: the workspace, a hub with its collections, or one collection. */
+  const scopes = $derived([
+    { value: 'TENANT', label: t('app.rules.scope_tenant') },
+    ...containers.hubs.map((hub) => ({ value: `HUB:${hub.id}`, label: t('app.rules.scope_hub', { name: hub.name }) })),
+    ...containers.hubs.flatMap((hub) =>
+      containers.collectionsOf(hub.id).map((collection) => ({
+        value: `COLLECTION:${collection.id}`,
+        label: t('app.rules.scope_collection', { name: `${hub.name} · ${collection.name}` }),
+      })),
+    ),
+  ]);
+
+  /** Where a stored subscription listens, in the picker's words; a container this reader does not see is named by nothing more. */
+  const listensAt = (subscription: Subscription) => {
+    const choice = scopeChoiceOf(subscription.scope);
+    return scopes.find((each) => each.value === choice)?.label ?? t('app.webhooks.scope_unseen');
+  };
 
   /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by another subscription or outcome. */
   let arrived = $state<string | undefined>(undefined);
@@ -123,7 +152,7 @@
       ? 'success'
       : delivery.status === 'DEAD_LETTER'
         ? 'danger'
-        : delivery.status === 'FAILED'
+        : delivery.status === 'FAILED' || delivery.status === 'FILTER_FAILED'
           ? 'warning'
           : 'neutral';
 
@@ -152,12 +181,18 @@
     event.preventDefault();
     if (!draftUrl.trim() || draftTypes.length === 0) return;
     await attempt(async () => {
-      secret = await webhooks.subscribe({
-        target_url: draftUrl.trim(),
-        event_types: draftTypes,
-      });
+      secret = await webhooks.subscribe(
+        subscriptionBody({
+          target_url: draftUrl,
+          event_types: draftTypes,
+          condition: draftCondition,
+          scope: draftScope,
+        }),
+      );
       draftUrl = '';
       draftTypes = [];
+      draftCondition = '';
+      draftScope = 'TENANT';
     }, t('app.webhooks.subscribed_announced'));
   }
 
@@ -251,6 +286,14 @@
                 <Badge>{type}</Badge>
               {/each}
             </div>
+
+            <p class="quiet small">{t('app.webhooks.listens_at', { scope: listensAt(subscription) })}</p>
+            {#if subscription.filter}
+              <!-- The condition as its author wrote it: configuration, shown to whoever may read it. -->
+              <p class="quiet small">
+                {t('app.webhooks.only_when')} <span class="mono">{subscription.filter}</span>
+              </p>
+            {/if}
 
             {#if subscription.state === 'DISABLED' || subscription.failure_count > 0}
               <!-- What the person pressing "switch it back on" is switching back on. `DISABLED` is
@@ -424,9 +467,11 @@
                             <Badge tone={outcomeTone(delivery)}>
                               {t(`app.webhooks.outcome_${delivery.status.toLowerCase()}`)}
                             </Badge>
-                            <span class="quiet small">
-                              {t('app.webhooks.attempt', { count: String(delivery.attempt) })}
-                            </span>
+                            {#if delivery.attempt > 0}
+                              <span class="quiet small">
+                                {t('app.webhooks.attempt', { count: String(delivery.attempt) })}
+                              </span>
+                            {/if}
                             {#if delivery.response_status}
                               <span class="quiet small">
                                 {t('app.webhooks.answered', {
@@ -536,6 +581,22 @@
             {/if}
           </fieldset>
           <p class="quiet small">{t('app.webhooks.types_note')}</p>
+
+          <Select
+            label={t('app.webhooks.scope')}
+            hint={t('app.webhooks.scope_hint')}
+            error={failure?.fields.get('/scope') ?? failure?.fields.get('/scope/id')}
+            bind:value={draftScope}
+            options={scopes}
+          />
+          <Textarea
+            label={t('app.webhooks.condition')}
+            hint={t('app.webhooks.condition_hint')}
+            error={failure?.fields.get('/filter')}
+            bind:value={draftCondition}
+            rows={2}
+            spellcheck="false"
+          />
           <p class="quiet small">{t('app.webhooks.egress_note')}</p>
 
           <div>

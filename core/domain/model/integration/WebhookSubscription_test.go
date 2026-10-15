@@ -117,21 +117,18 @@ func TestAnEventTypeThisBuildDoesNotEmitIsRefusedByName(t *testing.T) {
 	}
 }
 
-// A field accepted and silently not honoured is worse than one that is not offered, because the
-// caller has been told their instruction was understood.
-func TestTheFilterIsRefusedRatherThanStoredAndIgnored(t *testing.T) {
+// A condition is stored as written, trimmed; whether it compiles is the writer's question, since
+// the domain holds no compiler.
+func TestAConditionIsStoredTrimmed(t *testing.T) {
 	in := validSubscription()
-	in.Filter = `event.type == "de.hubtask.work.item.created.v1"`
+	in.Filter = "  event.type == \"de.hubtask.work.item.created.v1\"\n"
 
-	_, err := NewWebhookSubscription(in)
-	var domainErr *shared.Error
-	if !errors.As(err, &domainErr) || domainErr.DetailCode != "webhooks.filter_not_supported" {
-		t.Fatalf("error = %v, want the filter refusal", err)
+	subscription, err := NewWebhookSubscription(in)
+	if err != nil {
+		t.Fatalf("building: %v", err)
 	}
-	// Blank is not a filter, so it passes - otherwise every subscription would need one.
-	in.Filter = "   "
-	if _, err := NewWebhookSubscription(in); err != nil {
-		t.Errorf("a blank filter was treated as a filter: %v", err)
+	if subscription.Filter != `event.type == "de.hubtask.work.item.created.v1"` {
+		t.Errorf("stored %q", subscription.Filter)
 	}
 }
 

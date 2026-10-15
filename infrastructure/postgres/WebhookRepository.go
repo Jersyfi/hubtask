@@ -52,6 +52,8 @@ func (WebhookSubscriptionRepository) Insert(
 		TargetUrl:   subscription.TargetURL,
 		EventTypes:  typeStrings(subscription.EventTypes),
 		FilterExpr:  optionalText(subscription.Filter),
+		ScopeType:   scopeTypeOf(subscription.Scope),
+		ScopeID:     scopeIDOf(subscription.Scope),
 		SecretEnc:   stored.Secret.Ciphertext,
 		SecretKeyID: optionalText(stored.Secret.KeyID),
 		State:       string(subscription.State),
@@ -160,6 +162,8 @@ func (WebhookSubscriptionRepository) Update(
 		TargetUrl:       subscription.TargetURL,
 		EventTypes:      typeStrings(subscription.EventTypes),
 		FilterExpr:      optionalText(subscription.Filter),
+		ScopeType:       scopeTypeOf(subscription.Scope),
+		ScopeID:         scopeIDOf(subscription.Scope),
 		State:           string(subscription.State),
 		FailureCount:    int32(subscription.FailureCount), //nolint:gosec // G115: a count bounded by the disable threshold.
 		LastError:       optionalText(subscription.LastError),
@@ -242,6 +246,15 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 		return repository.StoredSubscription{}, err
 	}
 
+	scope := domain.WebhookScope{Level: domain.ScopeTenant}
+	if level := stringFrom(row.ScopeType); level != "" {
+		scopeID, err := optionalID(row.ScopeID)
+		if err != nil {
+			return repository.StoredSubscription{}, err
+		}
+		scope = domain.WebhookScope{Level: domain.ScopeLevel(level), ID: scopeID}
+	}
+
 	types := make([]event.Type, 0, len(row.EventTypes))
 	for _, name := range row.EventTypes {
 		types = append(types, event.Type(name))
@@ -254,6 +267,7 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			TargetURL:           row.TargetUrl,
 			EventTypes:          types,
 			Filter:              stringFrom(row.FilterExpr),
+			Scope:               scope,
 			State:               domain.SubscriptionState(row.State),
 			FailureCount:        int(row.FailureCount),
 			LastError:           stringFrom(row.LastError),
@@ -270,6 +284,27 @@ func storedFrom(row sqlc.ListWebhookSubscriptionsRow) (repository.StoredSubscrip
 			Ciphertext: row.PreviousSecretEnc, KeyID: stringFrom(row.PreviousSecretKeyID),
 		},
 	}, nil
+}
+
+// scopeTypeOf and scopeIDOf store the whole workspace as two NULLs, which every subscription made
+// before there were scopes is.
+func scopeTypeOf(scope domain.WebhookScope) *string {
+	if scope.IsWorkspace() {
+		return nil
+	}
+	level := string(scope.Level)
+	return &level
+}
+
+func scopeIDOf(scope domain.WebhookScope) pgtype.UUID {
+	if scope.IsWorkspace() {
+		return pgtype.UUID{}
+	}
+	id, err := optionalUUID(scope.ID)
+	if err != nil {
+		return pgtype.UUID{}
+	}
+	return id
 }
 
 func typeStrings(types []event.Type) []string {
@@ -323,6 +358,7 @@ func (WebhookDeliveryRepository) Insert(ctx context.Context, delivery domain.Web
 		EventID:        eventID,
 		Attempt:        int32(delivery.Attempt), //nolint:gosec // G115: bounded by MaxDeliveryAttempts.
 		Status:         string(delivery.Status),
+		ErrorCode:      optionalText(delivery.ErrorCode),
 		NextAttemptAt:  instantOrNull(delivery.NextAttemptAt),
 		CreatedAt:      timestampOf(delivery.CreatedAt),
 		PushID:         pushID,
