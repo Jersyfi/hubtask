@@ -2415,6 +2415,7 @@ class TrashEntry(TypedDict, total=False):
     deleted_at: Required[str]
     purge_after: Required[str]
     held: Required[bool]
+    held_by: Literal["legal_hold", "restriction"] | None
     deleted_by: Required["Actor" | Any]
     title: Required[str]
     subtype: Required[str]
