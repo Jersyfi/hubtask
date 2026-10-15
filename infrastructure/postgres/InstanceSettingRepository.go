@@ -97,7 +97,7 @@ const (
 	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
 
-	// keyLevelVersion is the level's version (migration 0161): outside the five areas, so a
+	// keyLevelVersion is the level's version (migration 0162): outside the five areas, so a
 	// write's clearing never reaches it, and a key an older build skips.
 	keyLevelVersion = "level.version"
 )

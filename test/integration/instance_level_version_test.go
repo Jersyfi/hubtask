@@ -45,7 +45,7 @@ func TestTheSecondSaveOfTheInstanceLevelFromOneVersionIsRefused(t *testing.T) {
 		}
 	})
 	if before.Version < 1 {
-		t.Fatalf("the level answers version %d; migration 0161 seeds 1", before.Version)
+		t.Fatalf("the level answers version %d; migration 0162 seeds 1", before.Version)
 	}
 
 	first, err := write.Execute(ctx, operator, levelWithMinLength(before, 15), before.Version)
