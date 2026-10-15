@@ -1325,6 +1325,7 @@ func run() error {
 	//
 	// Named for the rows rather than for the hasher: `passwords` above is the Argon2 verifier.
 	passwordStore := postgres.NewPasswordRepository()
+	wayInNotices := wayInNoticesFor(cfg, jobs)
 	passwordWriter := identity.PasswordWriter{
 		Session:  sessionWriter,
 		Resolver: signInPolicyResolver,
@@ -1341,6 +1342,7 @@ func run() error {
 		},
 		Text:       forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		WayIn: wayInNotices,
 	}
 	// And the sign-in path learns the rule - with the two copies of it that open sessions of their
 	// own, which is what `teachTheRule` is for.
@@ -4217,4 +4219,14 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	slog.Info("the instance level was written from the file",
 		"source", applying.path, "mode", string(applying.mode))
 	return nil
+}
+
+// wayInNoticesFor is how a person is told that a way into their account changed (ADR-0078 §6):
+// only where there is a mail server to tell them with. Without one the change is only audited, and
+// no job is queued that could only dead-letter.
+func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayInNotices {
+	if !cfg.Mail.Configured() {
+		return nil
+	}
+	return notification.RecordWayInChanged{Jobs: jobs}
 }
