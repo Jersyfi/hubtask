@@ -148,9 +148,11 @@ func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvaila
 func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The instance layer of ADR-0070.
-func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
-func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
-func (pending) ListOperators(w http.ResponseWriter, r *http.Request)         { notAvailable(w, r) }
+func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request, _ openapi.WriteInstanceSettingsParams) {
+	notAvailable(w, r)
+}
+func (pending) ListOperators(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ElevateSession(w http.ResponseWriter, r *http.Request, _ openapi.ElevateSessionParams) {
 	notAvailable(w, r)

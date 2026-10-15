@@ -52,7 +52,9 @@ func (c *RestController) ReadInstanceSettings(w http.ResponseWriter, r *http.Req
 }
 
 // WriteInstanceSettings answers PUT /admin/settings.
-func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) WriteInstanceSettings(
+	w http.ResponseWriter, r *http.Request, _ openapi.WriteInstanceSettingsParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
 		WriteProblem(w, errNotWired, requestID)

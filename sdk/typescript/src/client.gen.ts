@@ -900,8 +900,8 @@ export class HubtaskClient {
   }
 
   /** Replace the installation's level */
-  writeInstanceSettings(body: NonNullable<operations["writeInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["writeInstanceSettings"]['responses'][200]['content']["application/json"]> {
-    return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  writeInstanceSettings(body: NonNullable<operations["writeInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["writeInstanceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/settings", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Who operates this installation */
