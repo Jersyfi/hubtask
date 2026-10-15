@@ -5829,7 +5829,7 @@ type CustomFieldValue struct {
 type DataSubjectRequest struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 
-	// DueAt The deadline in force. Thirty days from receipt unless the caller named another, and the extended deadline once the case was extended.
+	// DueAt The deadline in force. One calendar month from the day of receipt, to the end of that day in the workspace's time zone, unless the caller named another; the extended deadline once the case was extended.
 	DueAt time.Time `json:"due_at"`
 
 	// ErasureMode `ANONYMIZE` keeps the authorship as a former user and the workspace's content with it;
@@ -5867,9 +5867,14 @@ type DataSubjectRequest struct {
 	Notes *string                `json:"notes,omitempty"`
 
 	// OriginalDueAt The deadline before the extension, present once the case was extended.
-	OriginalDueAt   *time.Time `json:"original_due_at,omitempty"`
-	ReceivedAt      time.Time  `json:"received_at"`
-	RejectionReason *string    `json:"rejection_reason,omitempty"`
+	OriginalDueAt *time.Time `json:"original_due_at,omitempty"`
+
+	// ReceivedAt When the request was received: the moment it was recorded for one received that day, the start of the day of receipt for one received earlier.
+	ReceivedAt time.Time `json:"received_at"`
+
+	// ReceivedOn The day the request was received, in the workspace's time zone.
+	ReceivedOn      *openapi_types.Date `json:"received_on,omitempty"`
+	RejectionReason *string             `json:"rejection_reason,omitempty"`
 
 	// ResultArchive Where the export was written at the backup target, once an access or portability case has produced one.
 	ResultArchive  *string             `json:"result_archive,omitempty"`
@@ -5897,7 +5902,7 @@ type DataSubjectRequestKeptLegalBasis string
 
 // DataSubjectRequestCreate defines model for DataSubjectRequestCreate.
 type DataSubjectRequestCreate struct {
-	// DueAt The deadline, when it is not thirty days from receipt.
+	// DueAt The deadline, when it is not one calendar month from the day of receipt. One that has already passed is recorded, and the case is overdue; one before the day of receipt is refused.
 	DueAt *time.Time `json:"due_at,omitempty"`
 
 	// Kind The right that was exercised. `RECTIFICATION` needs no special path - a correction is an
@@ -5905,6 +5910,9 @@ type DataSubjectRequestCreate struct {
 	// responsibility either way.
 	Kind  DataSubjectRequestKind `json:"kind"`
 	Notes *string                `json:"notes,omitempty"`
+
+	// ReceivedOn The day the request reached the controller, in the workspace's time zone. Today when absent; a later day is refused.
+	ReceivedOn *openapi_types.Date `json:"received_on,omitempty"`
 
 	// Scope How far the case reaches. `TENANT` is this workspace, which is what a controller answering
 	// for their own workspace means. `INSTALLATION` is every workspace of this installation in

@@ -88,6 +88,9 @@ func (c *RestController) CreateDataSubjectRequest(
 	if body.SubjectEmail != nil {
 		in["subject_email"] = string(*body.SubjectEmail)
 	}
+	if body.ReceivedOn != nil {
+		in["received_on"] = body.ReceivedOn.String()
+	}
 	if body.DueAt != nil {
 		in["due_at"] = body.DueAt.UTC().Format(time.RFC3339Nano)
 	}
@@ -210,6 +213,7 @@ func dataSubjectRequestResponse(row usecase.Output) openapi.DataSubjectRequest {
 		value := openapi.DataSubjectRequestExtensionReason(reason)
 		request.ExtensionReason = &value
 	}
+	request.ReceivedOn = dateOrNil(row.String("received_on"))
 	request.InformedOn = dateOrNil(row.String("informed_on"))
 	request.ExtendableUntil = dateOrNil(row.String("extendable_until"))
 	if parts, ok := row["kept"].([]map[string]any); ok && len(parts) > 0 {

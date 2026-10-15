@@ -49,8 +49,16 @@ type ExtendCommand struct {
 func (h ExtendDataSubjectRequest) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ExtendCommand,
 ) (domain.Request, error) {
+	request, _, err := h.execute(ctx, actor, cmd)
+	return request, err
+}
+
+// execute is Execute, and the day of receipt read in the same transaction's zone.
+func (h ExtendDataSubjectRequest) execute(
+	ctx context.Context, actor appshared.ActorContext, cmd ExtendCommand,
+) (domain.Request, domain.Day, error) {
 	if cmd.RequestID.IsZero() {
-		return domain.Request{}, shared.ErrValidation.WithDetail(domain.CodeRequestNotFound)
+		return domain.Request{}, domain.Day{}, shared.ErrValidation.WithDetail(domain.CodeRequestNotFound)
 	}
 	if err := h.Cases.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionManageMembers,
@@ -60,11 +68,14 @@ func (h ExtendDataSubjectRequest) Execute(
 		TargetType: requestTarget,
 		TargetID:   cmd.RequestID,
 	}); err != nil {
-		return domain.Request{}, err
+		return domain.Request{}, domain.Day{}, err
 	}
 
 	now := h.Cases.Clock.Now()
-	var extended domain.Request
+	var (
+		extended domain.Request
+		received domain.Day
+	)
 	err := h.Cases.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		current, err := h.Cases.Requests.Find(ctx, cmd.RequestID)
 		if err != nil {
@@ -85,6 +96,7 @@ func (h ExtendDataSubjectRequest) Execute(
 		if extended, err = current.Extend(in); err != nil {
 			return err
 		}
+		received = extended.ReceivedOn(zone)
 
 		written, err := h.Cases.Requests.Extend(ctx, extended, now)
 		if err != nil {
@@ -101,9 +113,9 @@ func (h ExtendDataSubjectRequest) Execute(
 			extensionChanges(extended))
 	})
 	if err != nil {
-		return domain.Request{}, err
+		return domain.Request{}, domain.Day{}, err
 	}
-	return extended, nil
+	return extended, received, nil
 }
 
 // lost answers an extension whose conditional write found the case moved under it: read again in
@@ -191,10 +203,10 @@ func (h ExtendDataSubjectRequest) invoke(
 		return nil, err
 	}
 
-	request, err := h.Execute(ctx, actor, cmd)
+	request, received, err := h.execute(ctx, actor, cmd)
 	if err != nil {
 		return nil, err
 	}
 	// An extended case cannot be extended again, so it answers no extendable_until.
-	return RequestOutput(request, domain.Day{}, nil), nil
+	return RequestOutput(request, Days{ReceivedOn: received}, nil), nil
 }

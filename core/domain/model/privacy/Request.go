@@ -144,9 +144,9 @@ const (
 
 func (s Scope) Valid() bool { return s == ScopeTenant || s == ScopeInstallation }
 
-// DefaultDeadline is the statutory period the case gets when nobody names another: one month,
-// expressed as the thirty days data-protection.md §4 uses.
-const DefaultDeadline = 30 * 24 * time.Hour
+// DefaultMonths is the statutory period a case gets when nobody names another: one calendar month
+// from the day of receipt (Art. 12(3); data-protection.md §4), counted as an extension's bound is.
+const DefaultMonths = 1
 
 // maxNotes and maxReason bound the free text. A case carries what somebody wrote about it - the
 // occasion, the reason for a refusal - and both are read by a person rather than searched.
@@ -203,9 +203,13 @@ type NewRequestInput struct {
 	SubjectAccountID shared.ID
 	SubjectEmail     string
 	DueAt            time.Time
-	TargetID         shared.ID
-	Notes            string
-	Now              time.Time
+	// ReceivedOn is the day the request reached the controller, and today when nobody says. Days
+	// are the workspace's: Zone is its time zone, in which "today" is read and the deadline ends.
+	ReceivedOn Day
+	Zone       *time.Location
+	TargetID   shared.ID
+	Notes      string
+	Now        time.Time
 
 	// Text brings the notes to normal form C before they are bounded and stored (i18n-l10n.md §5);
 	// work.NewWorkItemInput says why it is handed in.
@@ -245,20 +249,41 @@ func NewRequest(in NewRequestInput) (Request, error) {
 		return Request{}, err
 	}
 
+	zone := in.Zone
+	if zone == nil {
+		zone = time.UTC
+	}
+	today := DayOf(in.Now, zone)
+	received := in.ReceivedOn
+	if received.IsZero() {
+		received = today
+	}
+	if received.After(today) {
+		return Request{}, invalid(CodeReceivedInFuture, "/received_on")
+	}
+	// The receipt is stored as received_at: the recording instant for a request received today,
+	// the start of the day for one received earlier - so that the day read back in the workspace's
+	// zone is the day of receipt either way, which is what an extension's bound counts from. The
+	// recording instant stays on the case's `dsr.recorded` entry.
+	receivedAt := in.Now
+	if received != today {
+		receivedAt = received.Start(zone)
+	}
+
 	due := in.DueAt
 	if due.IsZero() {
-		due = in.Now.Add(DefaultDeadline)
+		due = received.addMonths(DefaultMonths).End(zone)
 	}
-	if !due.After(in.Now) {
-		// A deadline that has already passed is not a period to answer within; it is a mistake
-		// somebody would only notice from the alert.
-		return Request{}, invalid(CodeDeadlineInPast, "/due_at")
+	if due.Before(received.Start(zone)) {
+		// A deadline before the request existed is a typing mistake, never a period. One that has
+		// merely passed is accepted: a request recorded late is overdue, and the register says so.
+		return Request{}, invalid(CodeDeadlineBeforeReceipt, "/due_at")
 	}
 
 	return Request{
 		ID: in.ID, Kind: in.Kind, Status: StatusReceived, Scope: scope,
 		SubjectAccountID: in.SubjectAccountID, SubjectEmail: email,
-		ReceivedAt: in.Now, DueAt: due, TargetID: in.TargetID, Notes: notes,
+		ReceivedAt: receivedAt, DueAt: due, TargetID: in.TargetID, Notes: notes,
 	}, nil
 }
 

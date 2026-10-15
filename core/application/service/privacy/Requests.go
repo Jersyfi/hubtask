@@ -117,14 +117,14 @@ func (c Cases) keptOf(ctx context.Context, erasures []shared.ID) (map[shared.ID]
 	return c.Kept.KeptOf(ctx, erasures)
 }
 
-// extendableUntil is the day a case answers as extendable_until, and the zero day where no
-// extension could succeed now.
-func extendableUntil(request domain.Request, now time.Time, zone *time.Location) domain.Day {
-	day, ok := request.ExtendableUntil(now, zone)
-	if !ok {
-		return domain.Day{}
+// daysOf is what a case answers in the workspace's own days: the day it was received, and the
+// day it can be extended to - the zero day where no extension could succeed now.
+func daysOf(request domain.Request, now time.Time, zone *time.Location) Days {
+	days := Days{ReceivedOn: request.ReceivedOn(zone)}
+	if day, ok := request.ExtendableUntil(now, zone); ok {
+		days.ExtendableUntil = day
 	}
-	return day
+	return days
 }
 
 // CreateDataSubjectRequest records a right somebody has exercised.
@@ -142,9 +142,11 @@ type CreateCommand struct {
 	Scope            domain.Scope
 	SubjectAccountID shared.ID
 	SubjectEmail     string
-	DueAt            time.Time
-	TargetID         shared.ID
-	Notes            string
+	// ReceivedOn is the day the request arrived, and today in the workspace's zone when zero.
+	ReceivedOn domain.Day
+	DueAt      time.Time
+	TargetID   shared.ID
+	Notes      string
 }
 
 // Execute records the case.
@@ -163,7 +165,7 @@ func (h CreateDataSubjectRequest) Execute(
 // execute is Execute, and the day the new case can be extended to, read in the same transaction.
 func (h CreateDataSubjectRequest) execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateCommand,
-) (domain.Request, domain.Day, error) {
+) (domain.Request, Days, error) {
 	if err := h.Cases.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []identity.Scope{identity.TenantScope()},
@@ -172,35 +174,40 @@ func (h CreateDataSubjectRequest) execute(
 		TargetType: requestTarget,
 		TargetID:   actor.TenantID,
 	}); err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 	if cmd.Scope == domain.ScopeInstallation {
 		if err := requireInstanceScope(actor); err != nil {
-			return domain.Request{}, domain.Day{}, err
+			return domain.Request{}, Days{}, err
 		}
 	}
 
 	now := h.Cases.Clock.Now()
-	request, err := domain.NewRequest(domain.NewRequestInput{
-		ID: h.Cases.IDs.NewID(), Kind: cmd.Kind, Scope: cmd.Scope,
-		SubjectAccountID: cmd.SubjectAccountID, SubjectEmail: cmd.SubjectEmail,
-		DueAt: cmd.DueAt, TargetID: cmd.TargetID, Notes: cmd.Notes,
-		Now: now, Text: h.Cases.Text,
-	})
-	if err != nil {
-		return domain.Request{}, domain.Day{}, err
-	}
-
-	var extendable domain.Day
-	err = h.Cases.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if err := h.Cases.Requests.Insert(ctx, request); err != nil {
-			return err
-		}
+	var (
+		request    domain.Request
+		extendable Days
+	)
+	err := h.Cases.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The zone first: the day of receipt, "today" and the end of the deadline are the
+		// workspace's days (data-protection.md §4).
 		zone, err := h.Cases.zone(ctx)
 		if err != nil {
 			return err
 		}
-		extendable = extendableUntil(request, now, zone)
+		request, err = domain.NewRequest(domain.NewRequestInput{
+			ID: h.Cases.IDs.NewID(), Kind: cmd.Kind, Scope: cmd.Scope,
+			SubjectAccountID: cmd.SubjectAccountID, SubjectEmail: cmd.SubjectEmail,
+			ReceivedOn: cmd.ReceivedOn, Zone: zone,
+			DueAt: cmd.DueAt, TargetID: cmd.TargetID, Notes: cmd.Notes,
+			Now: now, Text: h.Cases.Text,
+		})
+		if err != nil {
+			return err
+		}
+		if err := h.Cases.Requests.Insert(ctx, request); err != nil {
+			return err
+		}
+		extendable = daysOf(request, now, zone)
 
 		// The deadline watch is seeded by the write that creates the case, because nothing in
 		// this system may enumerate tenants: a scheduler cannot create one of these per tenant,
@@ -218,6 +225,7 @@ func (h CreateDataSubjectRequest) execute(
 			[]audit.Change{
 				{Field: "kind", Classification: audit.Open, To: string(request.Kind)},
 				{Field: "scope", Classification: audit.Open, To: string(request.Scope)},
+				{Field: "received_on", Classification: audit.Open, To: extendable.ReceivedOn.String()},
 				{
 					Field: "due_at", Classification: audit.Open,
 					To: request.DueAt.UTC().Format(time.RFC3339),
@@ -225,7 +233,7 @@ func (h CreateDataSubjectRequest) execute(
 			})
 	})
 	if err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 	return request, extendable, nil
 }
@@ -256,7 +264,7 @@ func (h ListDataSubjectRequests) Execute(
 // kept of it, read in the same transaction.
 func (h ListDataSubjectRequests) execute(
 	ctx context.Context, actor appshared.ActorContext, query ListQuery,
-) (repository.Page, []domain.Day, map[shared.ID][]domain.Kept, error) {
+) (repository.Page, []Days, map[shared.ID][]domain.Kept, error) {
 	if err := h.Cases.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []identity.Scope{identity.TenantScope()},
@@ -291,7 +299,7 @@ func (h ListDataSubjectRequests) execute(
 
 	var (
 		page       repository.Page
-		extendable []domain.Day
+		extendable []Days
 		kept       map[shared.ID][]domain.Kept
 	)
 	err := h.Cases.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -303,10 +311,10 @@ func (h ListDataSubjectRequests) execute(
 		if err != nil {
 			return err
 		}
-		extendable = make([]domain.Day, len(page.Requests))
+		extendable = make([]Days, len(page.Requests))
 		erasures := make([]shared.ID, 0, len(page.Requests))
 		for i, request := range page.Requests {
-			extendable[i] = extendableUntil(request, now, zone)
+			extendable[i] = daysOf(request, now, zone)
 			if request.Kind == domain.KindErasure {
 				erasures = append(erasures, request.ID)
 			}
@@ -349,9 +357,9 @@ func (h UpdateDataSubjectRequest) Execute(
 // writes it.
 func (h UpdateDataSubjectRequest) execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateCommand,
-) (domain.Request, domain.Day, error) {
+) (domain.Request, Days, error) {
 	if cmd.RequestID.IsZero() {
-		return domain.Request{}, domain.Day{}, shared.ErrValidation.WithDetail(domain.CodeRequestNotFound)
+		return domain.Request{}, Days{}, shared.ErrValidation.WithDetail(domain.CodeRequestNotFound)
 	}
 
 	// The case has to be read before the permission can be decided: what is being asked for
@@ -364,7 +372,7 @@ func (h UpdateDataSubjectRequest) execute(
 		current, err = h.Cases.Requests.Find(ctx, cmd.RequestID)
 		return err
 	}); err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 
 	action, permission := RequestStartedAction, service.PermissionManageMembers
@@ -387,21 +395,21 @@ func (h UpdateDataSubjectRequest) execute(
 		TargetType: requestTarget,
 		TargetID:   cmd.RequestID,
 	}); err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 	if current.Scope == domain.ScopeInstallation {
 		if err := requireInstanceScope(actor); err != nil {
-			return domain.Request{}, domain.Day{}, err
+			return domain.Request{}, Days{}, err
 		}
 	}
 
 	now := h.Cases.Clock.Now()
 	moved, changes, err := h.apply(current, cmd, actor, now)
 	if err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 
-	var extendable domain.Day
+	var extendable Days
 	err = h.Cases.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		saved, err := h.Cases.Requests.Save(ctx, moved)
 		if err != nil {
@@ -414,7 +422,7 @@ func (h UpdateDataSubjectRequest) execute(
 		if err != nil {
 			return err
 		}
-		extendable = extendableUntil(moved, now, zone)
+		extendable = daysOf(moved, now, zone)
 
 		if moved.Status == domain.StatusInProgress && needsWork(moved.Kind) {
 			if _, err := h.Cases.Jobs.Enqueue(ctx, queue.Request{
@@ -436,7 +444,7 @@ func (h UpdateDataSubjectRequest) execute(
 		return h.Cases.record(ctx, actor, action, moved, severity, changes)
 	})
 	if err != nil {
-		return domain.Request{}, domain.Day{}, err
+		return domain.Request{}, Days{}, err
 	}
 	return moved, extendable, nil
 }
@@ -638,8 +646,15 @@ func (h CreateDataSubjectRequest) Descriptor() usecase.Descriptor {
 				Description: "Who asked, where there is no account behind the request.",
 			},
 			{
+				Name: "received_on", Kind: usecase.KindString,
+				Description: "The day the request reached the controller, YYYY-MM-DD in the " +
+					"workspace's time zone. Today when absent; never later than today.",
+			},
+			{
 				Name: "due_at", Kind: usecase.KindString, Format: usecase.FormatDateTime,
-				Description: "The deadline, when it is not thirty days from receipt. RFC 3339.",
+				Description: "The deadline, when it is not one calendar month from the day of " +
+					"receipt (to the end of that day in the workspace's time zone). RFC 3339; one " +
+					"that has passed is recorded, and the case is overdue.",
 			},
 			{
 				Name: "target_id", Kind: usecase.KindID,
@@ -673,6 +688,13 @@ func (h CreateDataSubjectRequest) invoke(
 			return nil, err
 		}
 		*into = id
+	}
+	if raw := in.String("received_on"); raw != "" {
+		received, err := parseDay(raw, "received_on")
+		if err != nil {
+			return nil, err
+		}
+		cmd.ReceivedOn = received
 	}
 	if raw := in.String("due_at"); raw != "" {
 		due, err := parseInstant(raw, "due_at")

@@ -55,6 +55,47 @@ func createCommand(change func(*CreateCommand)) CreateCommand {
 	return cmd
 }
 
+// A request received on an earlier day counts from that day, read in the workspace's zone, and is
+// recorded even when its deadline has passed; one received after today is refused, and nothing is
+// written.
+func TestTheDayOfReceiptIsTheWorkspaces(t *testing.T) {
+	berlin, _ := time.LoadLocation("Europe/Berlin")
+	for _, tc := range []struct {
+		name     string
+		received domain.Day
+		refused  string
+		due      time.Time
+	}{
+		{"two months ago, overdue", domain.Day{Year: 2026, Month: time.June, Day: 26}, "",
+			time.Date(2026, 7, 26, 23, 59, 59, 0, berlin)},
+		{"tomorrow", domain.Day{Year: 2026, Month: time.August, Day: 27}, domain.CodeReceivedInFuture, time.Time{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness()
+			request, err := (CreateDataSubjectRequest{Cases: h.cases()}).Execute(context.Background(), actor(),
+				createCommand(func(cmd *CreateCommand) { cmd.ReceivedOn = tc.received }))
+			if tc.refused != "" {
+				if code := shared.AsError(err).DetailCode; code != tc.refused {
+					t.Fatalf("refused with %v, want %s", err, tc.refused)
+				}
+				if len(h.requests.stored) != 0 {
+					t.Error("a refused case was written")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("recording: %v", err)
+			}
+			if !request.DueAt.Equal(tc.due) || request.ReceivedOn(berlin) != tc.received {
+				t.Errorf("received %s, due %s; want %s, %s", request.ReceivedOn(berlin), request.DueAt, tc.received, tc.due)
+			}
+			if !request.Overdue(now) {
+				t.Error("a case past its deadline is not overdue")
+			}
+		})
+	}
+}
+
 func TestRecordingACaseAsksForTheAdministratorsLine(t *testing.T) {
 	h := newHarness()
 
@@ -67,8 +108,11 @@ func TestRecordingACaseAsksForTheAdministratorsLine(t *testing.T) {
 	if len(h.requests.stored) != 1 {
 		t.Fatalf("%d cases were written", len(h.requests.stored))
 	}
-	if request.Status != domain.StatusReceived || !request.DueAt.Equal(now.Add(domain.DefaultDeadline)) {
-		t.Errorf("the case came back as %+v", request)
+	// One calendar month from today in the workspace's zone, to the end of that day there.
+	berlin, _ := time.LoadLocation("Europe/Berlin")
+	if want := time.Date(2026, 9, 26, 23, 59, 59, 0, berlin); request.Status != domain.StatusReceived ||
+		!request.DueAt.Equal(want) {
+		t.Errorf("the case came back as %+v, want due %s", request, want)
 	}
 
 	// A data subject request is about a person rather than about the shape of the workspace.

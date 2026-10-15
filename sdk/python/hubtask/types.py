@@ -1973,6 +1973,7 @@ class DataSubjectRequest(TypedDict, total=False):
     subject_email: str | None
     erasure_mode: "ErasureMode"
     received_at: Required[str]
+    received_on: str
     due_at: Required[str]
     original_due_at: str | None
     extension_reason: "DataSubjectRequestExtensionReason"
@@ -2008,6 +2009,7 @@ class DataSubjectRequestCreate(TypedDict, total=False):
     scope: "DataSubjectRequestScope"
     subject_account_id: str
     subject_email: str
+    received_on: str
     due_at: str
     notes: str
     target_id: str

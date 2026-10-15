@@ -15312,13 +15312,23 @@ components:
           type: [string, "null"]
           description: Who asked, for a request that has no account behind it.
         erasure_mode: { $ref: "#/components/schemas/ErasureMode" }
-        received_at: { type: string, format: date-time }
+        received_at:
+          type: string
+          format: date-time
+          description: >
+            When the request was received: the moment it was recorded for one received that day,
+            the start of the day of receipt for one received earlier.
+        received_on:
+          type: string
+          format: date
+          description: The day the request was received, in the workspace's time zone.
         due_at:
           type: string
           format: date-time
           description: >
-            The deadline in force. Thirty days from receipt unless the caller named another, and
-            the extended deadline once the case was extended.
+            The deadline in force. One calendar month from the day of receipt, to the end of that
+            day in the workspace's time zone, unless the caller named another; the extended
+            deadline once the case was extended.
         original_due_at:
           type: [string, "null"]
           format: date-time
@@ -15426,10 +15436,19 @@ components:
         scope: { $ref: "#/components/schemas/DataSubjectRequestScope" }
         subject_account_id: { type: string, format: uuid }
         subject_email: { type: string, format: email }
+        received_on:
+          type: string
+          format: date
+          description: >
+            The day the request reached the controller, in the workspace's time zone. Today when
+            absent; a later day is refused.
         due_at:
           type: string
           format: date-time
-          description: The deadline, when it is not thirty days from receipt.
+          description: >
+            The deadline, when it is not one calendar month from the day of receipt. One that has
+            already passed is recorded, and the case is overdue; one before the day of receipt is
+            refused.
         notes: { type: string }
         target_id:
           type: string
