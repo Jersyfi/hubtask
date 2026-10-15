@@ -228,3 +228,18 @@ WHERE id = sqlc.arg('id')
   AND kind = 'automation.http'
   AND state IN ('PENDING', 'RUNNING')
   AND payload #>> '{secret_header_sealed,key_id}' = sqlc.arg('expected_key_id')::text;
+
+-- The catalogue's period for a finished job: seven days after it ended (docs/privacy/data-catalog.md).
+-- Every terminal state alike, dead letters included - a payload names people by identifier, and a
+-- dead letter has had A-07 for the week. Oldest first and bounded, so a backlog clears over runs
+-- rather than in one statement; no tenant, because the table has none (multi-tenancy.md §2.1).
+-- name: PurgeFinishedJobs :many
+DELETE FROM job
+WHERE id IN (
+  SELECT id FROM job
+  WHERE state IN ('SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'CANCELLED')
+    AND finished_at < sqlc.arg('before')::timestamptz
+  ORDER BY finished_at, id
+  LIMIT sqlc.arg('batch')::int
+)
+RETURNING state;

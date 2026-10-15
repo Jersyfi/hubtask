@@ -90,6 +90,44 @@ type IdentityProviderWriter struct {
 	// one nothing checked.
 	Groups repository.Groups
 	Grants repository.MembershipGrants
+	// External and WayIn tell each person connected to a provider that is removed that the
+	// connection went (ADR-0078 §6). WayIn is nil where the installation has no mail server: the
+	// removal is then only audited.
+	External repository.ExternalAccounts
+	WayIn    WayInNotices
+}
+
+// TellDisconnected queues, in the caller's transaction and workspace, a notice for every account
+// there connected to the provider - read before the provider goes, since its removal takes the
+// connections with it. The sender skips a notice whose provider still exists, so a removal that
+// fails after this queued nothing a person reads.
+func (w IdentityProviderWriter) TellDisconnected(
+	ctx context.Context, tenantID shared.ID, configured domain.IdentityProvider,
+) error {
+	if w.WayIn == nil || w.External == nil {
+		return nil
+	}
+	holders, err := w.External.HoldersOf(ctx, configured.ID)
+	if err != nil {
+		return err
+	}
+	return w.queueDisconnected(ctx, tenantID, configured, holders)
+}
+
+// queueDisconnected queues the notices for holders read before the connections went.
+func (w IdentityProviderWriter) queueDisconnected(
+	ctx context.Context, tenantID shared.ID, configured domain.IdentityProvider, holders []shared.ID,
+) error {
+	now := w.Session.Clock.Now()
+	for _, holder := range holders {
+		if err := w.WayIn.WayInChanged(ctx, tenantID, holder, domain.WayInChange{
+			Event: domain.WayInProviderDisconnected, At: now,
+			ProviderID: configured.ID, ProviderName: configured.DisplayName,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ProviderStepUpField is the input every write to a way in declares - both levels share it, so the
@@ -508,9 +546,34 @@ func (w IdentityProviderWriter) RemoveAt(
 		return shared.ErrValidation.WithDetail("identity_provider.not_found")
 	}
 	return w.Session.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		// A workspace's own provider: who is connected is read before the delete takes the
+		// connections with it, and told in this transaction. The installation's is told workspace by
+		// workspace by its own use case, before it gets here.
+		var (
+			told    domain.IdentityProvider
+			holders []shared.ID
+		)
+		if !tenantID.IsZero() && w.WayIn != nil && w.External != nil {
+			found, err := w.Providers.Find(ctx, id)
+			switch {
+			case err == nil && found.TenantID == tenantID:
+				told = found
+				if holders, err = w.External.HoldersOf(ctx, id); err != nil {
+					return err
+				}
+			case err != nil && !errors.Is(err, shared.ErrNotFound):
+				return err
+			}
+		}
 		removed, err := w.Providers.Delete(ctx, id, w.Session.Clock.Now())
 		if err != nil {
 			return err
+		}
+		if removed && !told.ID.IsZero() {
+			// The connections are gone with the row; the holders were read before it.
+			if err := w.queueDisconnected(ctx, tenantID, told, holders); err != nil {
+				return err
+			}
 		}
 		if !removed {
 			if tenantID.IsZero() {

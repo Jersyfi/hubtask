@@ -5,7 +5,7 @@ context: identity
 actors: [PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-05, P-09, P-10, P-12]
-state: built
+state: partial
 tasks: [H-01, B-02, SC-13]
 checked_by: [core/domain/service/Authorization_test.go, core/application/service/access/AuthorizationService_test.go, core/application/service/identity/Membership_test.go, core/application/service/identity/ListMemberships_test.go, core/application/service/identity/CreateManagedAccount_test.go, test/integration/role_ceiling_test.go, core/application/service/identity/InviteAccount_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/identity/RenewInvitation_test.go, presentation/rest/InvitationController_test.go, test/integration/invitation_link_test.go, apps/webapp/e2e/invitationlink.test.mjs, docs/evidence/SC-13-2026-10-12.md, docs/evidence/SC-15-D2-2026-10-13.md, apps/webapp/e2e/invitescope.test.mjs]
 ---
@@ -37,8 +37,14 @@ invitation link* instead, to hand over by any messenger.
    once, which works exactly like the mailed one.
 6. Inviting an address that already has an account here says so, rather than sending a second
    invitation.
+7. Inviting, and granting and taking away a role, can be done with `hubctl` as well as in the web
+   app, through the API and through MCP.
 
 ## Where it ends
 
 * No bulk import of people from a file; a directory provider (UC-ID-08) covers the many-people case.
 * No accounts without an address — that is UC-ID-20.
+
+## Today
+
+* Check 7: not met — `hubctl` cannot invite, grant or take away a role (#1267).

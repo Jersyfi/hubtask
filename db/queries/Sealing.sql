@@ -2,7 +2,9 @@
 -- each master key, by the kind of value. Eight places hold a sealed value - the seventh an
 -- authenticator's replacement waiting to be confirmed, the eighth an HTTP call's header secret
 -- while its job may still run - and a rotation is only finished when none of them names the key
--- that is about to leave the ring.
+-- that is about to leave the ring. Beside them, the backup archives this installation keeps name
+-- the key they were written under; nothing re-seals an archive, so that count falls only as the
+-- archives expire.
 --
 -- Per tenant, like everything else: row level security bounds every branch of the union to the
 -- transaction's workspace, and the control plane sums the answers over the tenants it may see.
@@ -46,6 +48,13 @@ FROM (
     AND kind = 'automation.http'
     AND state IN ('PENDING', 'RUNNING')
     AND payload #>> '{secret_header_sealed,key_id}' IS NOT NULL
+  UNION ALL
+  -- An archive still at its target: a successful run its retention has not expired. The manifest
+  -- copy names the master key the archive's own key was derived from.
+  SELECT 'backup_archive', manifest #>> '{encryption,key_id}'
+  FROM backup_run
+  WHERE status = 'SUCCEEDED'
+    AND manifest #>> '{encryption,key_id}' IS NOT NULL
 ) AS sealed
 GROUP BY sealed.store, sealed.key_id
 ORDER BY sealed.store, sealed.key_id;

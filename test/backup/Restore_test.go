@@ -281,9 +281,15 @@ func newRestoreHarness(t *testing.T, seed func(*runHarness)) *restoreHarness {
 
 func (h *restoreHarness) applier(t *testing.T) service.Applier {
 	t.Helper()
+	return h.applierHolding(t, "the master key of this installation, long enough")
+}
+
+// applierHolding is the applier of an installation whose key k1 is the given material.
+func (h *restoreHarness) applierHolding(t *testing.T, material string) service.Applier {
+	t.Helper()
 
 	ring, err := cryptoadapter.NewKeyring([]cryptoadapter.KeyMaterial{
-		{ID: "k1", Material: secret.New("the master key of this installation, long enough")},
+		{ID: "k1", Material: secret.New(material)},
 	})
 	if err != nil {
 		t.Fatalf("the keyring: %v", err)
@@ -496,6 +502,25 @@ func TestADryRunChangesNothingAtAll(t *testing.T) {
 	}
 	if report.Media == 0 {
 		t.Error("a dry run reported no attachments although the archive holds one")
+	}
+}
+
+// A key of the name an archive gives that is another installation's material does not open it:
+// refused by name, before anything is written, rather than as a decryption error half way
+// through (UC-BAK-04 check 5).
+func TestAKeyOfTheRightNameThatDoesNotOpenTheArchiveIsRefusedByName(t *testing.T) {
+	h := newRestoreHarness(t, aTenantWithEverythingThatCouldFire)
+
+	_, err := h.applierHolding(t, "another installation's master key under the same name").
+		Apply(context.Background(), h.accept(t, func(*domain.Restore) {}))
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != archive.CodeArchiveKeyUnknown ||
+		domainErr.Params["key_id"] != "k1" || domainErr.Params["reason"] != "does_not_open" {
+		t.Fatalf("refused with %v", err)
+	}
+	if len(h.into.tables) != 0 {
+		t.Errorf("the refused restore wrote into %d tables", len(h.into.tables))
 	}
 }
 

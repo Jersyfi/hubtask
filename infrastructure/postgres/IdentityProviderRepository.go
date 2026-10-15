@@ -436,6 +436,7 @@ func (r OidcFlowRepository) Insert(
 		// The agreement given on the invitation card (migration 0140).
 		TermsUrl:     nullableString(flow.Terms.URL),
 		TermsVersion: nullableString(flow.Terms.Version),
+		Connect:      flow.Connect,
 		ID:           id,
 		ProviderID:   provider,
 		StateHash:    r.stateHasher.Hash(presented.Secret()),
@@ -544,6 +545,48 @@ func (r OidcFlowRepository) ConsumeForStepUp(
 	}, true, nil
 }
 
+// ConsumeForConnect burns a connection's flow, and only one bound to this session (ADR-0078 §1).
+func (r OidcFlowRepository) ConsumeForConnect(
+	ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time,
+) (identity.OidcFlow, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	session, err := uuidOf(sessionID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	row, err := queries.ConsumeConnectOidcFlow(ctx, sqlc.ConsumeConnectOidcFlowParams{
+		Now:       pgtype.Timestamptz{Time: now, Valid: true},
+		StateHash: r.stateHasher.Hash(presented.Secret()),
+		SessionID: session,
+	})
+	if err != nil {
+		if IsNoRows(err) {
+			// Unknown, expired, spent, another session's, a step-up's or a sign-in's - one answer.
+			return identity.OidcFlow{}, false, nil
+		}
+		return identity.OidcFlow{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("consuming the connection flow: %w", err))
+	}
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	providerID, err := optionalID(row.ProviderID)
+	if err != nil {
+		return identity.OidcFlow{}, false, err
+	}
+	return identity.OidcFlow{
+		ID: id, TenantID: presented.TenantID(), ProviderID: providerID, SessionID: sessionID,
+		Nonce: row.Nonce, Verifier: row.CodeVerifier, Connect: true,
+		// When the flow left for the provider: the connection counts only a sign-in made after it.
+		CreatedAt: timeFrom(row.CreatedAt),
+	}, true, nil
+}
+
 // ExternalAccountRepository is the link between a provider's subject and an account.
 //
 // `account_identity` rather than `account.external_subject`, which holds one subject per account
@@ -617,6 +660,62 @@ func (ExternalAccountRepository) LinkSubject(
 }
 
 // ProvidersOf answers the providers the account is connected to (ADR-0075 §2).
+// IdentitiesOf answers the account's connections in this workspace, oldest first.
+func (ExternalAccountRepository) IdentitiesOf(
+	ctx context.Context, accountID shared.ID,
+) ([]repository.Connection, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.AccountIdentities(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an account's connections: %w", err))
+	}
+	connections := make([]repository.Connection, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ProviderID)
+		if err != nil {
+			return nil, err
+		}
+		connections = append(connections, repository.Connection{ProviderID: id, LinkedAt: timeFrom(row.LinkedAt)})
+	}
+	return connections, nil
+}
+
+// HoldersOf answers the accounts of this workspace connected to the provider.
+func (ExternalAccountRepository) HoldersOf(ctx context.Context, providerID shared.ID) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider, err := uuidOf(providerID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.ProviderIdentityHolders(ctx, provider)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading a provider's connected accounts: %w", err))
+	}
+	holders := make([]shared.ID, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row)
+		if err != nil {
+			return nil, err
+		}
+		holders = append(holders, id)
+	}
+	return holders, nil
+}
+
 func (ExternalAccountRepository) ProvidersOf(ctx context.Context, accountID shared.ID) ([]shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {

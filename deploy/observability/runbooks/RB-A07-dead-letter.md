@@ -13,6 +13,11 @@ person.
 This is a ticket rather than a page: the work is already lost time, and an hour more changes
 nothing. But it does not resolve itself.
 
+**You have seven days.** The alert fires when the job is given up on — within fifteen minutes of
+it, not for as long as the row stays. The scheduler's leader deletes every finished job seven days
+after it ended, dead letters included (`docs/privacy/data-catalog.md`; data-retention.md §5).
+Requeue it, or copy what the issue needs, within the week.
+
 ## Immediate action
 
 ```bash

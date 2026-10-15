@@ -1,0 +1,6 @@
+desktop: received_on max=2026-10-15, deadline min=2026-08-14
+desktop: POST /privacy/requests {"scope":"TENANT","kind":"ACCESS","subject_email":"late@example.invalid","received_on":"2026-08-14"}
+desktop: register row: A copy of their data Recorded late@example.invalid Overdue Owed Sep 14, 2026, 11:59 PM · last month Received Aug 14, 2026 They may see what this workspace holds about them. Starting it writes a copy to a backup target. Start answering it Refuse it Starting this writes the copy. It goes to the backup target the case names.
+375: received_on max=2026-10-15, deadline min=2026-08-14
+375: POST /privacy/requests {"scope":"TENANT","kind":"ACCESS","subject_email":"late@example.invalid","received_on":"2026-08-14"}
+375: register row: A copy of their data Recorded late@example.invalid Overdue Owed Sep 14, 2026, 11:59 PM · last month Received Aug 14, 2026 They may see what this workspace holds about them. Starting it writes a copy to a backup target. Start answering it Refuse it Starting this writes the copy. It goes to the backup target the case names.

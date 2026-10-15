@@ -24,7 +24,7 @@ test.after(() => served.close());
 const SERVICE = { id: '01a0e2e0-0000-7000-8000-0000000000f1', kind: 'SERVICE', display_name: 'Shop platform', status: 'ACTIVE' };
 const OWNER = { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] };
 
-async function open(browser, { timezoneId } = {}) {
+async function open(browser, { timezoneId, operator = true } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(timezoneId ? { timezoneId } : {}) });
   const mints = [];
   const proofs = [];
@@ -32,7 +32,9 @@ async function open(browser, { timezoneId } = {}) {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') {
-      return route.fulfill({ json: { ...MANIFEST, roles: [OWNER], token_scopes: ['account:read', 'admin:tenants'] } });
+      // The reader is in the operator register unless a walk says otherwise: minting
+      // `admin:tenants` asks the register as well as the proof.
+      return route.fulfill({ json: { ...MANIFEST, roles: [OWNER], token_scopes: ['account:read', 'admin:tenants'], instance: { reachable: operator } } });
     }
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_password: true, has_second_factor: false } });
     if (path === '/auth/service-accounts' && request.method() === 'GET') return route.fulfill({ json: [SERVICE] });
@@ -146,4 +148,25 @@ test('chromium: a service account\'s token panel speaks about the service accoun
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
   assert.equal(await section.getByText('This service account has no tokens.').count(), 1);
   assert.equal(await section.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
+});
+
+// #1331: minting `admin:tenants` asks the operator register as well as a fresh proof, so somebody the
+// register does not name - a workspace's owner on an installation run by somebody else - is not
+// offered the scope (P-05): on their own panel nor on a service account's. Every other scope stays.
+test('chromium: the operator scope is offered only to somebody the operator register names', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, { operator: false });
+  t.after(close);
+
+  await page.goto(`${served.origin}/profile/tokens`);
+  const main = page.locator('main');
+  await main.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await main.getByLabel('admin:tenants', { exact: true }).count(), 0, 'the operator scope is offered outside the register');
+
+  await page.goto(`${served.origin}/administration/service-accounts`);
+  const section = page.locator('section', { hasText: SERVICE.display_name });
+  await section.getByRole('button', { name: 'Its tokens' }).click();
+  await section.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.equal(await section.getByLabel('admin:tenants', { exact: true }).count(), 0, 'the operator scope is offered on a service account\'s panel outside the register');
 });

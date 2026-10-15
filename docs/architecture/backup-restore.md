@@ -80,15 +80,25 @@ BK-4; one is added at a major release ([versioning-release.md](./versioning-rele
 ## 4. Encryption
 
 * **Client-side encryption is the standard**: AES-256-GCM under a key **derived from the
-  installation's master key with HKDF-SHA256, bound to the target through a random salt** the
-  target is given when it is created and every archive's manifest carries. Two targets never share
-  a key, nobody remembers a second secret, and a target re-created after the database is lost still
-  opens the archives at its location: the salt is read from the manifest, not from the database's
-  row of the target. The key is not in the archive. Server-side encryption at the
-  target may be added; it replaces nothing.
+  installation's master key with HKDF-SHA256, bound by a random salt** each archive is given when
+  it is written and its manifest carries (`encryption.archive_salt`). No two archives share a key,
+  so no two targets do; nobody remembers a second secret; and a target re-created after the
+  database is lost still opens the archives at its location: the salt and the master key's ID are
+  read from the manifest, not from the database. The key is not in the archive. Server-side
+  encryption at the target may be added; it replaces nothing. An archive written before archives
+  carried a salt keeps its key bound to the target that wrote it, and opens only through that
+  target's row.
+* **What to keep for a loss of the database**: the master key ring (`HUBTASK_ENCRYPTION_KEYS`, every
+  key with its ID as it was when the archives were written) and the target's credentials. Given
+  both, a new installation lists the archives at the target and restores one as a new workspace
+  (§8.2). Without the key an archive names, a restore is refused before anything is read
+  (`backup.archive_key_unknown`, naming the key).
 * **A passphrase is not available**: `encryption_passphrase` on a target and `decryption_passphrase`
   on a restore are refused (`backup.encryption_passphrase_not_available`) rather than ignored.
-* The master key can be rotated; old archives stay readable (the key ID is in the manifest).
+* The master key can be rotated; old archives stay readable (the key ID is in the manifest). An
+  archive is never rewritten, so a re-seal cannot move it: the key census counts the archives still
+  kept under each key ([security.md](./security.md) §8.1), and a key stays in the ring until the
+  last of them has expired.
 * An unencrypted target (`encryption_mode: NONE`) requires `insecure_acknowledged` and carries the
   warning `backup.target_unencrypted` for as long as it exists.
 
@@ -335,9 +345,12 @@ can carry out the procedure.**
    for RT-9 — and place again every `legal_hold` row the recovered database lacks, with its original
    id, scope, reason and placer, each recorded as `lifecycle.hold_replaced`. Where the end of the
    archive is unusable, the source is the newest workspace archive that includes the audit trail,
-   read for `lifecycle.hold_placed`, and the gap is reported per workspace. Then the erasures
-   completed after the recovery point are re-run, both before traffic is admitted (§7). The holds go
-   first, so no re-run erasure removes what one of them keeps. A hold released after the recovery
+   read for `lifecycle.hold_placed`, and the gap is reported per workspace. Then the data subject
+   erasures completed after the recovery point are carried out again from the same temporary
+   cluster, both before traffic is admitted (§7). The holds go first, so no re-run erasure removes
+   what one of them keeps. The other removals of the rewound period (a trash emptied, a retention
+   pass, an operator's deletion) are not re-run: the recovery point is chosen before the damage, and
+   retention deletes again on its next pass. A hold released after the recovery
    point stays in force — the safe side — and its owner is told to release it again
    ([data-protection.md](./data-protection.md) §5).
 6. **Point the application at the recovered cluster** and scale back up; forward-only migrations
@@ -383,6 +396,51 @@ with `hubctl` and a credential that holds `admin:tenants`.
 
 The workspaces are those the recovered installation lists (`hubctl admin tenant ls`); a workspace
 created after the recovery point is not among them, and its holds went with it.
+
+#### Step 5's erasures, by hand
+
+After the holds, per workspace, from the same temporary cluster and with a credential that holds
+`admin:tenants` and can prove itself afresh (the operation deletes for good, so it takes a step-up,
+[identity.md](./identity.md) §16.3):
+
+```bash
+export PGPASSWORD=…    # the temporary cluster's app role
+hubctl admin tenant reapply-erasures <workspace> --recovery-point <step 1's moment> \
+  --from-cluster "postgres://hubtask_app@<temporary>-rw.<namespace>.svc:5432/<database>"
+```
+
+`hubctl` reads the workspace's erasure cases completed after the recovery point, under the
+workspace's own scope and with the workspace named in its statement. A full deletion's case no
+longer names the person once the account went. The reader takes the one account the erasure
+removed at the moment of the case's `dsr.erased` entry. Where none or several match, it sends
+nothing and reports the case (`SUBJECT_UNRESOLVED`, `SUBJECT_AMBIGUOUS`). The operator then names
+the subject from the incident record and sends the case with `--from <file>`.
+
+The server believes the cases only as far as the recovered workspace cannot contradict them:
+
+- A case it holds must be the same erasure (kind, mode, subject), still open.
+- A case it lacks must have been received after the recovery point.
+- Every case must have been completed between the recovery point and now.
+
+Anything else is answered `CASE_MISMATCH` and left alone.
+
+Each erasure runs as an erasure does, under the holds in force. A case the workspace lacks is
+written again with its own identifier. Each case is completed at its own moment, and
+`dsr.erasure_reapplied` goes into the trail. The answer lists each case:
+
+| Outcome | Meaning |
+|---|---|
+| `REAPPLIED` | The erasure was carried out again. |
+| `ALREADY_COMPLETED` | The case was already completed. A second run changes nothing, and the rewound job of a case that was open finishing first is the same answer. |
+| `SUBJECT_ABSENT` | There is nothing to erase: the account was created after the point, or the case was about an address. |
+| `ERASURE_BLOCKED` | The erasure itself refused, with its code. For example, an automation still runs as the person because its re-pointing was rewound too. The case stays open for its owner. |
+| `CASE_REJECTED` | The recovered workspace holds the case as rejected. A person decides. |
+
+**Where the end of the archive is unusable**, the erasures cannot be carried out again from an
+archive. An archive carries neither the cases, nor the pseudonyms, nor the deletion journal, and its
+trail's `dsr.erased` names the case but never the person. The workspace's administrator lists those
+entries after the recovery point, and records and carries out the cases again. The operator notes
+the workspace in the incident record.
 
 #### What proves it in advance
 
@@ -458,7 +516,9 @@ Rules:
 
 **Exports are archives too.** A tenant export ([tenant-export.md](./tenant-export.md)) and a data
 subject export ([data-protection.md](./data-protection.md) §4, prefix `hubtask-dsr-`) are Hubtask
-archives written unencrypted to a backup target — restorable, and no second format exists.
+archives written unencrypted to a backup target — restorable, and no second format exists. An
+installation-wide case's export is one zip, `hubtask-dsr-<case>-<time>.zip`, whose members are the
+per-workspace archives unchanged under `<tenant id>/`: a wrapper, not a format.
 
 ---
 

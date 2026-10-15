@@ -912,6 +912,29 @@ class LegalHoldReplaceResult(TypedDict, total=False):
     holds: Required[list[dict[str, Any]]]
     archive: dict[str, Any]
 
+class ErasureReapplyRequest(TypedDict, total=False):
+    """The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them."""
+    recovery_point: Required[str]
+    erasures: Required[list["ErasureCaseRecord"]]
+
+class ErasureCaseRecord(TypedDict, total=False):
+    """One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed."""
+    id: Required[str]
+    erasure_mode: Required["ErasureMode"]
+    subject_account_id: str | None
+    subject_email: str | None
+    received_at: Required[str]
+    due_at: Required[str]
+    completed_at: Required[str]
+    handled_by: str | None
+    notes: str | None
+    original_due_at: str | None
+    extension_reason: "DataSubjectRequestExtensionReason"
+    informed_on: str | None
+
+class ErasureReapplyResult(TypedDict, total=False):
+    erasures: Required[list[dict[str, Any]]]
+
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int
     requester: Required[str]
@@ -929,7 +952,7 @@ class EncryptionKeyUsage(TypedDict, total=False):
     stores: Required[list["EncryptionStoreCount"]]
 
 class EncryptionStoreCount(TypedDict, total=False):
-    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule", "automation_http_job"]]
+    store: Required[Literal["account_mfa", "identity_provider", "webhook_subscription", "backup_target", "ai_provider", "automation_rule", "automation_http_job", "backup_archive"]]
     sealed_values: Required[int]
 
 class ResealAccepted(TypedDict, total=False):
@@ -1050,6 +1073,26 @@ class StepUpRequest(TypedDict, total=False):
     recovery_code: str | None
     state: str | None
     authorization_code: str | None
+
+class ConnectedIdentity(TypedDict, total=False):
+    """One provider identity connected to the caller's account."""
+    provider_id: Required[str]
+    provider_name: Required[str]
+    linked_at: Required[str]
+
+class ProviderConnectStart(TypedDict, total=False):
+    provider_id: Required[str]
+
+class ProviderConnectAuthorization(TypedDict, total=False):
+    """Where to send the browser to connect a provider, and which provider that is."""
+    authorization_url: Required[str]
+    expires_at: Required[str]
+    provider_id: Required[str]
+    provider_name: Required[str]
+
+class ProviderConnectReturn(TypedDict, total=False):
+    state: Required[str]
+    authorization_code: Required[str]
 
 class ProviderStepUpAuthorization(TypedDict, total=False):
     """Where to send the browser for a `PROVIDER` step-up, and which provider that is."""
@@ -1258,6 +1301,7 @@ class WebhookSubscription(TypedDict, total=False):
     target_url: Required[str]
     event_types: Required[list[str]]
     filter: str | None
+    scope: "WebhookScope"
     state: Required[Literal["ACTIVE", "PAUSED", "DISABLED"]]
     failure_count: Required[int]
     last_error: str | None
@@ -1268,19 +1312,27 @@ class WebhookSubscriptionCreate(TypedDict, total=False):
     target_url: Required[str]
     event_types: Required[list[str]]
     filter: str | None
+    scope: "WebhookScope"
 
 class WebhookSubscriptionUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone."""
     target_url: str | None
     event_types: list[str] | None
     filter: str | None
+    scope: "WebhookScope"
     state: Literal["ACTIVE", "PAUSED"] | None
+
+class WebhookScope(TypedDict, total=False):
+    """Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again."""
+    type: Required[Literal["TENANT", "HUB", "COLLECTION"]]
+    id: str
 
 class WebhookSubscriptionSecret(TypedDict, total=False):
     id: Required[str]
     target_url: Required[str]
     event_types: Required[list[str]]
     filter: str | None
+    scope: "WebhookScope"
     state: Required[Literal["ACTIVE", "PAUSED", "DISABLED"]]
     failure_count: Required[int]
     last_error: str | None
@@ -1312,7 +1364,7 @@ class WebhookDelivery(TypedDict, total=False):
     subscription_id: Required[str]
     event_id: Required[str]
     attempt: Required[int]
-    status: Required[Literal["PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER"]]
+    status: Required[Literal["PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER", "FILTER_FAILED"]]
     response_status: int | None
     error_code: str | None
     next_attempt_at: str | None
@@ -1973,6 +2025,7 @@ class DataSubjectRequest(TypedDict, total=False):
     subject_email: str | None
     erasure_mode: "ErasureMode"
     received_at: Required[str]
+    received_on: str
     due_at: Required[str]
     original_due_at: str | None
     extension_reason: "DataSubjectRequestExtensionReason"
@@ -2008,6 +2061,7 @@ class DataSubjectRequestCreate(TypedDict, total=False):
     scope: "DataSubjectRequestScope"
     subject_account_id: str
     subject_email: str
+    received_on: str
     due_at: str
     notes: str
     target_id: str

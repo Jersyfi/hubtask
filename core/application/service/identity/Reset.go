@@ -582,7 +582,7 @@ func (h ResetPassword) Execute(
 		TenantID: tenantID, Account: held, Password: cmd.Password, Rules: rules,
 		// A reset ignores the minimum age, and says so to the rule rather than skipping the check:
 		// somebody who has lost their password cannot be told to wait a day for it.
-		IsReset: true,
+		IsReset: true, ThroughResetLink: true,
 	}
 	if err := w.Judge(ctx, candidate); err != nil {
 		return SignInResult{}, err

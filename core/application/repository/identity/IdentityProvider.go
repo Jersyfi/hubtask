@@ -84,6 +84,16 @@ type OidcFlows interface {
 	// ConsumeForStepUp is Consume for a step-up at the provider (ADR-0075 §2): only a flow bound to
 	// this very session is found, so another session's state, and a sign-in's, finish nothing.
 	ConsumeForStepUp(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
+
+	// ConsumeForConnect is Consume for a connection from a signed-in session (ADR-0078 §1): only a
+	// connection's flow bound to this very session is found - neither a step-up's nor a sign-in's.
+	ConsumeForConnect(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)
+}
+
+// Connection is one provider identity connected to an account, as the person may read it.
+type Connection struct {
+	ProviderID shared.ID
+	LinkedAt   time.Time
 }
 
 // ExternalAccounts is the link between a provider's subject and an account here.
@@ -116,6 +126,14 @@ type ExternalAccounts interface {
 	// it was still invited, without a second proof, is no credential, and the person makes it again
 	// by signing in.
 	UnlinkAll(ctx context.Context, accountID shared.ID) (int, error)
+
+	// IdentitiesOf answers the account's connections in the transaction's workspace, oldest first:
+	// the provider and when, never the subject (ADR-0078 §1, the person's own settings).
+	IdentitiesOf(ctx context.Context, accountID shared.ID) ([]Connection, error)
+
+	// HoldersOf answers the accounts of the transaction's workspace that hold an identity at the
+	// provider, read before the provider is removed so that each is told (ADR-0078 §6).
+	HoldersOf(ctx context.Context, providerID shared.ID) ([]shared.ID, error)
 
 	// CountWithoutIdentityAt answers how many active people of the workspace - service accounts and
 	// invitations aside - hold no identity at any of these providers (ADR-0078 §1): the number the

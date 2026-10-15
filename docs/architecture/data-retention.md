@@ -38,7 +38,7 @@ and they are not to be merged into one engine.
 |---|---|
 | `scope` | `TENANT`, `HUB`, `COLLECTION` — the narrower rule wins over the wider one |
 | `data_kind` | See §3 |
-| `condition` | Optional CEL on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2), over only `item`, `now` and `tenant`. Compiled on write, evaluated per candidate; one that cannot be evaluated **stops the pass** rather than defaulting either way |
+| `condition` | Optional CEL on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2), over only `item`, `now` and `tenant`. Compiled on write, evaluated per candidate; one that cannot be evaluated on a candidate **sets its rule aside for that pass** rather than defaulting either way: the rule announces and removes nothing, every other rule, phase two and the trash go on, and the rule shows `last_failure` (the code and when) until a pass evaluates it cleanly |
 | `retain_days` | The period from the kind's anchor (§3) |
 | `action` | `ARCHIVE`, `TRASH`, `ANONYMIZE`, `HARD_DELETE`, `EXPORT_THEN_DELETE`, `NOTIFY_ONLY` |
 | `then_after_days` / `then_action` | A second stage (completed → archive after 1 year → delete after 2 more) |
@@ -82,13 +82,13 @@ into both, needs no engine change, and needs something that removes it.
 | `AI_SUGGESTION` | `created_at` | 30 days | The sweep | Accepted and dismissed suggestions age out too. No marking phase; a tenant-wide legal hold stops the sweep |
 | `ACTIVITY_ENTRY` | `occurred_at` | Follows the item | With the item | Item history |
 | `RULE_RUN` | `started_at` | 30 days | The leader, as month partitions | Automation log |
-| `WEBHOOK_DELIVERY` | `created_at` | 30 days | **Nothing yet** — only with its subscription or the tenant | The 30 days are not enforced today |
+| `WEBHOOK_DELIVERY` | `created_at` | 30 days | The sweep | A pending attempt a living `webhook.deliver` job still names is never due; a hold on the workspace keeps the log. No lower bound |
 | `OUTBOX_EVENT` | `occurred_at` | 7 days | The sweep; whole months fall as partitions | ([ADR-0007](../adr/ADR-0007-events-outbox-cloudevents.md)). An event nobody has consumed is never due. A polling trigger's cursor older than this is refused, not restarted ([automation.md](./automation.md) §3.2) |
 | `SESSION` | `last_seen_at` | 30 days | The sweep | No marking phase |
 | `DEVICE` | `last_seen_at` | 30 days | The sweep | A silent device's session is revoked before its row goes ([offline-sync.md](./offline-sync.md) §6). No marking phase |
 | `SYNC_LOG` | `occurred_at` | 90 days, the offline window | The leader (change log months) and the sweep (operation log, tombstones) | One clock, `HUBTASK_TOMBSTONE_WINDOW`, which is also the **lower bound** ([offline-sync.md](./offline-sync.md) §7). No marking phase |
 | `IDEMPOTENCY_KEY` | `created_at` | 1 day | The sweep | A request's stored answer for its replay ([api-guidelines.md](./api-guidelines.md) §5); the day is also the **lower bound**. No marking phase, no hold |
-| `AUDIT` | `occurred_at` | 400 days | **Nothing yet** — no `audit_log` partition is dropped today | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6) |
+| `AUDIT` | `occurred_at` | 400 days | The leader, as month partitions ([audit.md](./audit.md) §3) | Pseudonymisation instead of deletion ([audit.md](./audit.md) §6). A month goes whole once it ended more than the longest audit period any workspace has ago, and each workspace that had entries in it gets an entry with the month and its count. **A hold on one workspace keeps the whole month for every workspace in it until the hold ends**: a month is one partition for every workspace, and a hold prevails over a period (§4); `hubtask_audit_partitions_held` counts such months. Entries in the default partition are not dropped; `hubtask_audit_default_partition_aged_rows` counts those past the period |
 | `MEDIA_ORPHAN` | `created_at` | 7 days | Nothing — the media reconciliation's own graces ([data-protection.md](./data-protection.md) §5) | Unreferenced objects |
 | `DELETED_ACCOUNT_RESIDUE` | `deleted_at` | 30 days | Nothing yet | Residual data after account deletion |
 
@@ -156,18 +156,29 @@ Evaluated in this order; the first that applies wins:
 * **Two-phase:** phase 1 marks and notifies (`retention_pending_until`); phase 2 executes after the
   grace period. In between, anyone with permission can take the object out by editing, moving, or
   `:retain`.
+* **A pass reads past what it cannot act on.** An object a legal hold keeps, one a rule's condition
+  excludes, one a narrower rule keeps longer, an announcement, a parent waiting for a retained child:
+  each stays where the next read finds it, oldest first. Each phase therefore reads on, page by page
+  in its one transaction, until it holds a batch it can act on or the objects end; it acts on at
+  most one batch. The trash's own pass does the same for a hold and the offline window.
 * **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
   its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
   suggestions) and machine records (sessions, devices, sync log) — §3 says which.
-* **Preview without effect:** `POST /retention-policies/{id}:preview` returns the count and sample
-  objects.
+* **Preview without effect:** `POST /retention-policies/{id}:preview` returns the count of
+  everything due and sample objects. The samples are the oldest due objects, held ones among them -
+  not everything due, and not only what the next pass will act on.
 * **Completeness:** a hard delete covers every storage location in the data catalogue (row, media,
   search index, vectors, derived counters); a test checks for orphans after a run.
 * **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,
   never every object.
+* **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
+  (the data catalogue's period; a payload names people by identifier). The `job` table has no
+  tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,
+  at most 10,000 per run, oldest first; `hubtask_job_purged_total{state}` counts them.
 * **Partitioned kinds:** a month of `activity_entry`, `outbox_event`, `rule_run` or `change_log`
   aged out for every tenant is dropped as one partition by the leader, with evidence in the instance
-  journal; tenant sweeps delete rows inside newer months.
+  journal; tenant sweeps delete rows inside newer months. A month of `audit_log` is dropped the same
+  way, hourly, and never row by row: no sweep touches the trail (`AUDIT` in §3).
 * **Metrics:** listed in [observability-reliability.md](./observability-reliability.md).
 
 ---

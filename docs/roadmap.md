@@ -26,7 +26,8 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
 
 1. **CP — The open promises**: the findings that leave a use case check unmet and need a task of
    their own (retention, backup, privacy requests, `hubctl` and people, webhook filters,
-   concurrent saves, the multi-mode host) and the decided sign-in tasks SC-30, SC-36 and SC-37.
+   concurrent saves, the multi-mode host) and the decided sign-in tasks SC-36 and SC-37. SC-30
+   waits for the first release after one that contains SC-26.
 2. **PK — Passkeys**, **PL — Plans**, **CD — Custom domains**: SI prepared all three without
    building any.
 3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.

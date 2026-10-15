@@ -87,6 +87,26 @@ type OidcWriter struct {
 	// through a provider that names something, rather than creating an account without it.
 	Grants repository.MembershipGrants
 	Groups repository.Groups
+	// WayIn tells the person that a provider was connected to their account (ADR-0078 §6). Nil
+	// where the installation has no mail server: the connection is then only audited.
+	WayIn WayInNotices
+}
+
+// tellConnected queues the notice that a provider was connected to an account that already
+// existed, in the connection's own transaction. A first way in on an account that had none - an
+// invited account activated, a newcomer provisioned - is not told: the person is the one acting.
+func (w OidcWriter) tellConnected(
+	ctx context.Context, account domain.Account, configured domain.IdentityProvider,
+) error {
+	// The address is read at delivery: the account a pending credential carries need not hold it,
+	// and a provider never reaches an account without one.
+	if w.WayIn == nil {
+		return nil
+	}
+	return w.WayIn.WayInChanged(ctx, account.TenantID, account.ID, domain.WayInChange{
+		Event: domain.WayInProviderConnected, At: w.Session.Clock.Now(),
+		ProviderID: configured.ID, ProviderName: configured.DisplayName,
+	})
 }
 
 // StartOidcSignIn is the first half: where to send the browser.
@@ -625,6 +645,9 @@ func (w OidcWriter) settleAccount(
 					return shared.ErrConflict.WithDetail("identity_provider.account_taken")
 				}
 				account = existing
+				if err := w.tellConnected(ctx, existing, configured); err != nil {
+					return err
+				}
 				return w.record(ctx, OidcLinkedAction, existing, configured, arriving)
 			case !errors.Is(err, shared.ErrNotFound):
 				return err

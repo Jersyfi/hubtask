@@ -278,13 +278,17 @@ type Marking interface {
 	// The anchor is a value of the domain's closed set rather than a column name from a caller:
 	// no byte of a request becomes SQL text (rule 9), so the adapter holds one statement per
 	// anchor and refuses one it has none for.
-	Due(ctx context.Context, anchor domain.Anchor, cutoff time.Time, batch int) ([]Candidate, error)
+	//
+	// skip is how many rows of the order - oldest anchor first - to pass over: an entry a hold, a
+	// condition or a narrower rule keeps stays in this set, and a caller that could act on little of
+	// a page reads the next one in the same transaction.
+	Due(ctx context.Context, anchor domain.Anchor, cutoff time.Time, skip, batch int) ([]Candidate, error)
 
 	// DueInChain is the same question for a chain's second stage, restricted to the entries the
 	// rule's own first stage acted on. An entry somebody archived by hand is not part of anybody's
 	// chain, and a rule that swept it up would be acting outside what it matched.
 	DueInChain(
-		ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, batch int,
+		ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, skip, batch int,
 	) ([]Candidate, error)
 
 	// Mark writes what is coming, when, and under which rule. Answers how many it marked, which is
@@ -305,8 +309,9 @@ type Marking interface {
 		action domain.Action, reason string,
 	) (int, error)
 
-	// MarkedDue answers the entries whose grace period has run out.
-	MarkedDue(ctx context.Context, now time.Time, batch int) ([]Candidate, error)
+	// MarkedDue answers the entries whose grace period has run out, oldest first; skip as Due
+	// reads it, for a marked entry a hold or a retained descendant keeps.
+	MarkedDue(ctx context.Context, now time.Time, skip, batch int) ([]Candidate, error)
 
 	// Marking answers one entry's marking, or ErrNotFound for an entry that has none.
 	Marking(ctx context.Context, id shared.ID) (Candidate, error)

@@ -13,21 +13,22 @@ package integration
 import (
 	"context"
 	"encoding/base64"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
-	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/crypto"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -72,6 +73,8 @@ func SecretPurpose(id shared.ID) crypto.Purpose {
 // what this package needs of it is visible in one place (ADR-0005).
 type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
+	// Permits is the same question without an audit entry, for the listing.
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
 }
 
 // Writer is what the webhook use cases share.
@@ -93,6 +96,11 @@ type Writer struct {
 	// Entropy is where a signing secret comes from. A port, so production draws from crypto/rand
 	// and a test can fix the secret it asserts on (rule 4).
 	Entropy clock.Entropy
+	// Compiler checks a subscription's condition when it is saved. Nil refuses a condition, as the
+	// rules do, rather than storing one nothing checked.
+	Compiler expression.Compiler
+	// Containers answers whether a scope's hub or collection is this workspace's, and which it is.
+	Containers condition.Containers
 }
 
 // MintedSubscription is what a creation or a rotation answers: the subscription as it will be
@@ -121,6 +129,8 @@ type CreateWebhookSubscriptionCommand struct {
 	TargetURL  string
 	EventTypes []string
 	Filter     string
+	// Scope is where it listens; nil is the whole workspace.
+	Scope *domain.WebhookScope
 }
 
 // Execute creates the subscription and answers its signing secret, once.
@@ -132,7 +142,14 @@ func (h CreateWebhookSubscription) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateWebhookSubscriptionCommand,
 ) (MintedSubscription, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookCreatedAction, shared.ID("")); err != nil {
+	scope := domain.WebhookScope{Level: domain.ScopeTenant}
+	if cmd.Scope != nil {
+		scope = *cmd.Scope
+	}
+	if err := w.authorizeAt(ctx, actor, scope, WebhookCreatedAction, shared.ID("")); err != nil {
+		return MintedSubscription{}, err
+	}
+	if err := w.compileFilter(cmd.Filter); err != nil {
 		return MintedSubscription{}, err
 	}
 	if actor.AccountID.IsZero() {
@@ -157,11 +174,14 @@ func (h CreateWebhookSubscription) Execute(
 				return err
 			}
 		}
+		if err := w.checkScope(ctx, scope); err != nil {
+			return err
+		}
 		now := w.Clock.Now()
 
 		subscription, err := domain.NewWebhookSubscription(domain.NewWebhookSubscriptionInput{
 			ID: w.IDs.NewID(), TenantID: actor.TenantID,
-			TargetURL: cmd.TargetURL, EventTypes: cmd.EventTypes, Filter: cmd.Filter,
+			TargetURL: cmd.TargetURL, EventTypes: cmd.EventTypes, Filter: cmd.Filter, Scope: scope,
 			CreatedBy: actor.AccountID, Now: now,
 		})
 		if err != nil {
@@ -195,7 +215,7 @@ func (h GetWebhookSubscription) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID,
 ) (domain.WebhookSubscription, error) {
 	w := h.Writer
-	if err := w.authorizeRead(ctx, actor, WebhookReadAction, id); err != nil {
+	if err := w.authorizeSubscriptionRead(ctx, actor, WebhookReadAction, id); err != nil {
 		return domain.WebhookSubscription{}, err
 	}
 
@@ -218,7 +238,7 @@ func (h ListWebhookSubscriptions) Execute(
 	ctx context.Context, actor appshared.ActorContext,
 ) ([]domain.WebhookSubscription, error) {
 	w := h.Writer
-	if err := w.authorizeRead(ctx, actor, WebhookReadAction, shared.ID("")); err != nil {
+	if err := actor.RequireScope(automationScope); err != nil {
 		return nil, err
 	}
 
@@ -231,16 +251,32 @@ func (h ListWebhookSubscriptions) Execute(
 	if err != nil {
 		return nil, err
 	}
-	return subscriptions, nil
+	// What the caller may read, scope by scope, as the rules' listing answers: somebody holding
+	// the automation permission on one hub sees that hub's subscriptions and no others.
+	visible := make([]domain.WebhookSubscription, 0, len(subscriptions))
+	for _, subscription := range subscriptions {
+		allowed, err := w.permitsReadAt(ctx, actor, subscription.Scope)
+		if err != nil {
+			// Not "may not see": the question could not be answered, and a refusal would shorten
+			// the list silently on a database blip.
+			return nil, err
+		}
+		if allowed {
+			visible = append(visible, subscription)
+		}
+	}
+	return visible, nil
 }
 
 // UpdateWebhookSubscriptionCommand is the input. Every field is a pointer, so that an omitted one
 // is left alone and an explicit change is told apart from an absent field.
 type UpdateWebhookSubscriptionCommand struct {
-	ID              shared.ID
-	TargetURL       *string
-	EventTypes      *[]string
-	Filter          *string
+	ID         shared.ID
+	TargetURL  *string
+	EventTypes *[]string
+	Filter     *string
+	// Scope is the new scope; nil leaves it. The workspace's level widens it again.
+	Scope           *domain.WebhookScope
 	State           *string
 	ExpectedVersion int
 }
@@ -258,8 +294,20 @@ func (h UpdateWebhookSubscription) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateWebhookSubscriptionCommand,
 ) (domain.WebhookSubscription, error) {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookUpdatedAction, cmd.ID); err != nil {
+	if err := w.authorizeSubscription(ctx, actor, WebhookUpdatedAction, cmd.ID); err != nil {
 		return domain.WebhookSubscription{}, err
+	}
+	// A new scope is the caller's to reach as well as the old one: moving a subscription is
+	// writing one where it lands.
+	if cmd.Scope != nil {
+		if err := w.authorizeAt(ctx, actor, *cmd.Scope, WebhookUpdatedAction, cmd.ID); err != nil {
+			return domain.WebhookSubscription{}, err
+		}
+	}
+	if cmd.Filter != nil {
+		if err := w.compileFilter(*cmd.Filter); err != nil {
+			return domain.WebhookSubscription{}, err
+		}
 	}
 
 	var updated domain.WebhookSubscription
@@ -273,6 +321,11 @@ func (h UpdateWebhookSubscription) Execute(
 		after, err := applyChange(before, cmd)
 		if err != nil {
 			return err
+		}
+		if cmd.Scope != nil {
+			if err := w.checkScope(ctx, after.Scope); err != nil {
+				return err
+			}
 		}
 
 		expected := before.Version
@@ -322,10 +375,15 @@ func applyChange(
 		after.EventTypes = types
 	}
 	if cmd.Filter != nil {
-		if err := domain.RefuseFilter(*cmd.Filter); err != nil {
+		// Compiled by the use case before it gets here; an empty string removes it.
+		after.Filter = strings.TrimSpace(*cmd.Filter)
+	}
+	if cmd.Scope != nil {
+		scope, err := domain.ValidWebhookScope(*cmd.Scope)
+		if err != nil {
 			return domain.WebhookSubscription{}, err
 		}
-		after.Filter = ""
+		after.Scope = scope
 	}
 	if cmd.State == nil {
 		return after, nil
@@ -358,7 +416,7 @@ func (h DeleteWebhookSubscription) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID,
 ) error {
 	w := h.Writer
-	if err := w.authorize(ctx, actor, WebhookDeletedAction, id); err != nil {
+	if err := w.authorizeSubscription(ctx, actor, WebhookDeletedAction, id); err != nil {
 		return err
 	}
 
@@ -381,41 +439,6 @@ func (h DeleteWebhookSubscription) Execute(
 	})
 }
 
-// authorize is the one permission question every webhook operation asks.
-//
-// AUTOMATION rather than MANAGE_MEMBERS: subscribing an external system to the event stream and
-// writing a rule that reacts to it are the same power over the same stream, and an installation
-// that separated them would be saying that one of the two is safe.
-func (w Writer) authorize(
-	ctx context.Context, actor appshared.ActorContext, action audit.Action, target shared.ID,
-) error {
-	return w.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionAutomation,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     action,
-		TokenScope: automationScope,
-		TargetType: webhookTarget,
-		TargetID:   target,
-	})
-}
-
-// authorizeRead is the same question with the auditor's answer added (A-4): where a
-// workspace's events are being sent is configuration, and reading it is what an auditor does with
-// the trail beside it. It reaches no secret - the signing key is never in a read (§ below).
-func (w Writer) authorizeRead(
-	ctx context.Context, actor appshared.ActorContext, action audit.Action, target shared.ID,
-) error {
-	return w.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission:  service.PermissionAutomation,
-		Alternative: service.PermissionReadConfiguration,
-		Path:        []identity.Scope{identity.TenantScope()},
-		Action:      action,
-		TokenScope:  automationScope,
-		TargetType:  webhookTarget,
-		TargetID:    target,
-	})
-}
-
 // recordAudit writes the evidence. The target address is in it, and the secret never is: where a
 // workspace's events are being sent is exactly what an auditor is looking for, and the key that
 // signs them is exactly what they are not (rule 10).
@@ -427,6 +450,10 @@ func (w Writer) recordAudit(
 		{Field: "target_url", Classification: audit.Open, To: subscription.TargetURL},
 		{Field: "event_types", Classification: audit.Open, To: joinTypes(subscription.EventTypes)},
 		{Field: "state", Classification: audit.Open, To: string(subscription.State)},
+		// Whether a condition narrows it and where it listens - never the condition's text, which a
+		// person wrote and which may carry anything (rule 10).
+		{Field: "filter_set", Classification: audit.Open, To: strconv.FormatBool(subscription.Filter != "")},
+		{Field: "scope", Classification: audit.Open, To: scopeAudit(subscription.Scope)},
 	}, extra...)
 
 	return w.Audit.Append(ctx, audit.Entry{
@@ -446,6 +473,23 @@ func (w Writer) recordAudit(
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		Changes:    audit.Changes(changes...),
 	})
+}
+
+// optionalFilter is the condition as the projection answers it: absent for none, rather than an
+// empty string a reader would have to tell from a condition.
+func optionalFilter(filter string) any {
+	if filter == "" {
+		return nil
+	}
+	return filter
+}
+
+// scopeAudit is the scope as the trail records it: the level and the container's identifier.
+func scopeAudit(scope domain.WebhookScope) string {
+	if scope.IsWorkspace() {
+		return string(domain.ScopeTenant)
+	}
+	return string(scope.Level) + ":" + scope.ID.String()
 }
 
 // changesBetween records what an update actually moved, so that the trail says "the address
@@ -481,7 +525,8 @@ func subscriptionOutput(subscription domain.WebhookSubscription) usecase.Output 
 		"failure_count": subscription.FailureCount,
 		"created_at":    subscription.CreatedAt.UTC(),
 		"version":       subscription.Version,
-		"filter":        nil,
+		"filter":        optionalFilter(subscription.Filter),
+		"scope":         scopeOutput(subscription.Scope),
 		"last_error":    nil,
 	}
 	if subscription.Filter != "" {
@@ -534,8 +579,14 @@ func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "filter", Kind: usecase.KindString,
-				Description: "A CEL expression narrowing the subscription. Refused until the " +
-					"expression engine lands, rather than accepted and ignored.",
+				Description: "A condition (CEL) an event must meet to be delivered: a boolean over " +
+					"event, data (the CloudEvent's data), actor and now. Compiled when saved; one " +
+					"that cannot be compiled is refused naming where.",
+			},
+			{
+				Name: "scope", Kind: usecase.KindObject,
+				Description: "Where it listens: {type: TENANT|HUB|COLLECTION, id}. A hub includes " +
+					"its collections. Omitted is the whole workspace.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -558,8 +609,12 @@ func (h CreateWebhookSubscription) invoke(
 		return nil, err
 	}
 
+	scope, err := scopeInput(in["scope"])
+	if err != nil {
+		return nil, err
+	}
 	minted, err := h.Execute(ctx, actor, CreateWebhookSubscriptionCommand{
-		TargetURL: in.String("target_url"), EventTypes: types, Filter: in.String("filter"),
+		TargetURL: in.String("target_url"), EventTypes: types, Filter: in.String("filter"), Scope: scope,
 	})
 	if err != nil {
 		return nil, err
@@ -653,7 +708,11 @@ func (h UpdateWebhookSubscription) Descriptor() usecase.Descriptor {
 			{Name: "webhook_id", Kind: usecase.KindID, Required: true, Description: "Which subscription."},
 			{Name: "target_url", Kind: usecase.KindString, Description: "The new address. Omitted leaves it."},
 			{Name: "event_types", Kind: usecase.KindList, Description: "The new set of types. Omitted leaves them."},
-			{Name: "filter", Kind: usecase.KindString, Description: "Refused until the expression engine lands."},
+			{Name: "filter", Kind: usecase.KindString, Description: "The new condition. An empty string removes it; omitted leaves it."},
+			{
+				Name: "scope", Kind: usecase.KindObject,
+				Description: "The new scope: {type: TENANT|HUB|COLLECTION, id}. TENANT widens it to the whole workspace; omitted leaves it.",
+			},
 			{
 				Name: "state", Kind: usecase.KindString, Enum: []string{"ACTIVE", "PAUSED"},
 				Description: "ACTIVE resumes or re-enables; PAUSED stops deliveries deliberately.",
@@ -685,6 +744,11 @@ func (h UpdateWebhookSubscription) invoke(
 	cmd := UpdateWebhookSubscriptionCommand{ID: id, ExpectedVersion: in.Int("expected_version")}
 	cmd.TargetURL = in.OptionalString("target_url")
 	cmd.Filter = in.OptionalString("filter")
+	scope, err := scopeInput(in["scope"])
+	if err != nil {
+		return nil, err
+	}
+	cmd.Scope = scope
 	cmd.State = in.OptionalString("state")
 	if in.Present("event_types") {
 		types, err := in.StringList("event_types")

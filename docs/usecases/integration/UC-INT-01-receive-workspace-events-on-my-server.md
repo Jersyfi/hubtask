@@ -5,9 +5,9 @@ context: integration
 actors: [PE-integrator, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-08, P-09, P-11]
-state: partial
-tasks: [G-02, G-03, F4-15]
-checked_by: [core/application/service/integration/Webhook_test.go, core/application/service/integration/SendWebhook_test.go, test/integration/webhook_test.go, test/security/ssrf_test.go]
+state: built
+tasks: [G-02, G-03, F4-15, CP-04]
+checked_by: [core/application/service/integration/Webhook_test.go, core/application/service/integration/SendWebhook_test.go, test/integration/webhook_test.go, test/security/ssrf_test.go, core/application/service/integration/WebhookNarrowing_test.go, core/application/service/integration/FanOutNarrowing_test.go, test/integration/webhook_scope_test.go]
 ---
 
 # Receive the workspace's events on my own server
@@ -55,7 +55,3 @@ off and the administrator is told.
 * No ordering guarantee across events; the event identifier is what a receiver deduplicates on.
 * Delivering one event on purpose, recovering dead letters and rotating the secret are the next two
   use cases.
-
-## Today
-
-* Check 9: not met — a condition (`filter`) is refused with `webhooks.filter_not_supported`, and a subscription takes no hub or collection scope, tracked in #1084.

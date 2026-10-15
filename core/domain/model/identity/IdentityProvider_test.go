@@ -282,6 +282,9 @@ func TestAFlowNeedsAVerifierWorthTheName(t *testing.T) {
 			Nonce: "n", Verifier: good, Now: at, PendingID: providerRow, InvitedAccountID: providerRow},
 		"a step-up carrying a connect link": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
 			Nonce: "n", Verifier: good, Now: at, PendingID: providerRow, SessionID: providerRow},
+		// A connection is made from a signed-in session, and from nowhere else (ADR-0078 §1).
+		"a connection without a session": {ID: id, TenantID: sessionTenant, ProviderID: providerRow,
+			Nonce: "n", Verifier: good, Now: at, Connect: true},
 	}
 	for name, in := range cases {
 		t.Run(name, func(t *testing.T) {

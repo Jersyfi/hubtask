@@ -84,6 +84,10 @@ func DefaultPolicies() []Policy {
 		// lower bound too: kept shorter, a device that was offline would recreate what was deleted
 		// and a first push that half-succeeded would apply twice (offline-sync.md §7).
 		{DataKind: KindSyncLog, RetainDays: 90, MinDays: 90},
+		// Webhook deliveries. Thirty days, as data-retention.md §3 and the data catalogue give it,
+		// and no lower bound for the jumble's reason: a tenant asking for a shorter delivery log
+		// is asking for less to be kept.
+		{DataKind: KindWebhookDelivery, RetainDays: 30},
 		// Idempotency keys. One day, the data catalogue's promise, and the day is the lower
 		// bound: api-guidelines.md §5 promises a replay for at least that long.
 		{DataKind: KindIdempotencyKey, RetainDays: 1, MinDays: 1},

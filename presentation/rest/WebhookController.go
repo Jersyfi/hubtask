@@ -76,6 +76,9 @@ func (c *RestController) CreateWebhookSubscription(
 			// actually asked for rather than about an absent field.
 			input["filter"] = *body.Filter
 		}
+		if body.Scope != nil {
+			input["scope"] = webhookScopeInput(*body.Scope)
+		}
 		return c.UseCases.Invoke(r.Context(), createWebhookSubscriptionUseCase, actor, input)
 	}, func(out usecase.Output) {
 		created := openapi.WebhookSubscriptionSecret{
@@ -89,6 +92,10 @@ func (c *RestController) CreateWebhookSubscription(
 			// The one response that carries a signing secret, beside a rotation. It is here and in
 			// no projection, which is what makes "shown once" a property of the code.
 			Secret: out.String("secret"),
+			Scope:  webhookScopeResponse(out["scope"]),
+		}
+		if filter := out.String("filter"); filter != "" {
+			created.Filter = &filter
 		}
 		w.Header().Set("Location", APIBasePath+"/integrations/webhooks/"+created.Id.String())
 		writeJSON(w, r, http.StatusCreated, created)
@@ -127,6 +134,9 @@ func (c *RestController) UpdateWebhookSubscription(
 		}
 		if body.State != nil {
 			input["state"] = string(*body.State)
+		}
+		if body.Scope != nil {
+			input["scope"] = webhookScopeInput(*body.Scope)
 		}
 		if body.EventTypes != nil {
 			// Absent leaves the set alone; present replaces it. Setting the key only when the
@@ -169,6 +179,7 @@ func webhookResponse(out usecase.Output) openapi.WebhookSubscription {
 		FailureCount: out.Int("failure_count"),
 		CreatedAt:    timeValue(out["created_at"]),
 		Version:      out.Int("version"),
+		Scope:        webhookScopeResponse(out["scope"]),
 	}
 	if filter := out.String("filter"); filter != "" {
 		subscription.Filter = &filter
@@ -177,6 +188,30 @@ func webhookResponse(out usecase.Output) openapi.WebhookSubscription {
 		subscription.LastError = &lastError
 	}
 	return subscription
+}
+
+// webhookScopeInput is a scope as the catalogue reads it: the document every channel sends.
+func webhookScopeInput(scope openapi.WebhookScope) map[string]any {
+	document := map[string]any{"type": string(scope.Type)}
+	if scope.Id != nil {
+		document["id"] = scope.Id.String()
+	}
+	return document
+}
+
+// webhookScopeResponse is the projection's scope as the contract answers it.
+func webhookScopeResponse(value any) *openapi.WebhookScope {
+	document, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	level, _ := document["type"].(string)
+	scope := openapi.WebhookScope{Type: openapi.WebhookScopeType(level)}
+	if raw, _ := document["id"].(string); raw != "" {
+		id := uuidValue(raw)
+		scope.Id = &id
+	}
+	return &scope
 }
 
 // The deliveries and the rotation. Two of the three carry a secret or a log rather than a

@@ -68,13 +68,13 @@ func (a Applier) Inspect(ctx context.Context, in InspectInput) (domain.Report, e
 		TargetID: in.TargetID, TenantID: in.TenantID, SourceArchive: in.Archive,
 		Mode: domain.RestoreInspect, DryRun: true,
 	}
-	chain, key, err := a.precheck(ctx, reader, restore, in.TenantID)
+	chain, keys, err := a.precheck(ctx, reader, restore, in.TenantID)
 	if err != nil {
 		return domain.Report{}, err
 	}
 	scope := persistence.Scope{TenantID: in.TenantID}
 	return a.apply(ctx, plan{
-		restore: restore, chain: chain, key: key, reader: reader,
+		restore: restore, chain: chain, keys: keys, reader: reader,
 		scope: scope, asker: in.TenantID, report: in.Report, dry: true,
 	})
 }

@@ -50,6 +50,9 @@ type Metrics struct {
 	jobDuration       metric.Float64Histogram
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
+	jobsPurged        metric.Int64Counter
+	auditHeld         metric.Int64Gauge
+	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
@@ -59,6 +62,7 @@ type Metrics struct {
 	retentionDeleted  metric.Int64Counter
 	retentionBlocked  metric.Int64Counter
 	retentionRun      metric.Float64Histogram
+	retentionRead     metric.Int64Counter
 	mediaReclaimed    metric.Int64Counter
 	mediaReclaimFail  metric.Int64Counter
 	notificationsRec  metric.Int64Counter
@@ -311,6 +315,27 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Jobs that used up their attempts. Every one of these needs a person."),
 	); err != nil {
 		return fmt.Errorf("dead letter counter: %w", err)
+	}
+	if m.jobsPurged, err = meter.Int64Counter(
+		namespace+"_job_purged_total",
+		metric.WithDescription("Finished jobs removed seven days after they ended, by terminal state. "+
+			"Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("purged job counter: %w", err)
+	}
+	if m.auditHeld, err = meter.Int64Gauge(
+		namespace+"_audit_partitions_held",
+		metric.WithDescription("Months of the audit trail past their period a legal hold keeps whole, "+
+			"for every workspace in them. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("held audit partitions gauge: %w", err)
+	}
+	if m.auditDefaultAged, err = meter.Int64Gauge(
+		namespace+"_audit_default_partition_aged_rows",
+		metric.WithDescription("Audit entries in the default partition past their period, which no "+
+			"partition drop reaches. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("default partition gauge: %w", err)
 	}
 	if m.jobQueueDepth, err = meter.Int64Gauge(
 		namespace+"_job_queue_depth",
@@ -673,7 +698,7 @@ func (m *Metrics) MediaReclaimFailed(ctx context.Context, count int64) {
 	m.mediaReclaimFail.Add(ctx, count)
 }
 
-// retentionInstruments are the three numbers data-retention.md §5 asks a deletion run to publish.
+// retentionInstruments are the numbers data-retention.md §5 asks a deletion run to publish.
 //
 // Counters rather than gauges for what was removed and what was kept: the question an operator asks
 // is "how much has gone since", not "how much went in the last run", and a gauge answers only the
@@ -694,11 +719,18 @@ func (m *Metrics) retentionInstruments(meter metric.Meter) error {
 	); err != nil {
 		return fmt.Errorf("retention block counter: %w", err)
 	}
+	if m.retentionRead, err = meter.Int64Counter(
+		namespace+"_retention_read_total",
+		metric.WithDescription("Rows the rule-driven retention sweep judged, by data kind: set "+
+			"against the rows deleted, what reading past held or excluded rows costs."),
+	); err != nil {
+		return fmt.Errorf("retention read counter: %w", err)
+	}
 	if m.retentionRun, err = meter.Float64Histogram(
 		namespace+"_retention_run_duration_seconds",
 		metric.WithDescription("How long one pass of a retention run took, by data kind."),
 		metric.WithUnit("s"),
-		// A pass is one batch, so it should be short. Past thirty seconds the question is no longer
+		// A pass acts on one batch, so it should be short. Past thirty seconds the question is no longer
 		// how long but what is holding the transaction.
 		metric.WithExplicitBucketBoundaries(0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60),
 	); err != nil {
@@ -741,6 +773,12 @@ func (m *Metrics) RetentionDeleted(ctx context.Context, dataKind string, count i
 // is not something an operator can act on, and "twelve were kept by a legal hold" is.
 func (m *Metrics) RetentionBlocked(ctx context.Context, reason string, count int64) {
 	m.retentionBlocked.Add(ctx, count, metric.WithAttributes(attribute.String("reason", reason)))
+}
+
+// RetentionRead counts what the rule sweep judged in a pass. Written even when it is zero, for the
+// reason RetentionDeleted is.
+func (m *Metrics) RetentionRead(ctx context.Context, dataKind string, count int64) {
+	m.retentionRead.Add(ctx, count, metric.WithAttributes(attribute.String("data_kind", dataKind)))
 }
 
 // RetentionRun records how long one pass took.
@@ -929,6 +967,22 @@ func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
 		attribute.String("job_type", kind),
 		attribute.String("attempt_class", attemptClass),
 	))
+}
+
+// JobsPurged counts the finished jobs the leader removed, by terminal state. Written at zero too,
+// for RetentionDeleted's reason.
+func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
+	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
+}
+
+// AuditPartitionsHeld is how many of the trail's aged months a hold keeps.
+func (m *Metrics) AuditPartitionsHeld(ctx context.Context, months int64) {
+	m.auditHeld.Record(ctx, months)
+}
+
+// AuditDefaultAgedRows is how many entries in the trail's default partition are past their period.
+func (m *Metrics) AuditDefaultAgedRows(ctx context.Context, rows int64) {
+	m.auditDefaultAged.Record(ctx, rows)
 }
 
 // JobDeadLettered counts a job that used up its attempts (alert A-07).

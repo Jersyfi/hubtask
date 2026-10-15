@@ -92,6 +92,16 @@ func (d Day) End(zone *time.Location) time.Time {
 	return time.Date(d.Year, d.Month, d.Day, 23, 59, 59, 0, zone)
 }
 
+// Start is the first instant of the day in a zone.
+func (d Day) Start(zone *time.Location) time.Time {
+	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, zone)
+}
+
+// ReceivedOn is the day of receipt, read in the workspace's zone.
+func (r Request) ReceivedOn(zone *time.Location) Day {
+	return DayOf(r.ReceivedAt, zone)
+}
+
 // Midnight is the day as the instant 00:00 UTC, which is how a zoneless date column stores it.
 func (d Day) Midnight() time.Time {
 	return time.Date(d.Year, d.Month, d.Day, 0, 0, 0, 0, time.UTC)
@@ -131,7 +141,7 @@ func (r Request) Extended() bool { return !r.OriginalDueAt.IsZero() }
 // LatestExtension is the last day an extension may name: the day of receipt and three months, in
 // the workspace's zone (data-protection.md §4.1).
 func (r Request) LatestExtension(zone *time.Location) Day {
-	return DayOf(r.ReceivedAt, zone).addMonths(extensionMonths)
+	return r.ReceivedOn(zone).addMonths(extensionMonths)
 }
 
 // ExtendableUntil answers the last day an extension may name, and false when no extension could
@@ -183,7 +193,7 @@ func (r Request) Extend(in ExtendInput) (Request, error) {
 		return Request{}, invalid(CodeExtensionNotLater, "/due_on")
 	}
 
-	received, today := DayOf(r.ReceivedAt, zone), DayOf(in.Now, zone)
+	received, today := r.ReceivedOn(zone), DayOf(in.Now, zone)
 	if in.InformedOn.Before(received) || in.InformedOn.After(today) {
 		return Request{}, invalidWith(CodeInformedOnOutOfRange, "/informed_on",
 			map[string]string{"from": received.String(), "to": today.String()})

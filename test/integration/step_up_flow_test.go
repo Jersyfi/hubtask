@@ -114,3 +114,80 @@ func TestAStepUpFlowFinishesOnlyItsOwnSessionsStepUp(t *testing.T) {
 		return nil
 	})
 }
+
+// ADR-0078 §1: a connection from a signed-in session is a flow bound to that session and marked a
+// connection. Only its own session's connection finishes it - not a step-up of the same session,
+// not a sign-in, not another session, not another workspace - and a step-up's flow finishes no
+// connection.
+func TestAConnectionFlowFinishesOnlyItsOwnSessionsConnection(t *testing.T) {
+	ctx := context.Background()
+	seedIdentityProviderTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	for _, id := range []shared.ID{stepUpFlowSession, stepUpFlowOther} {
+		if _, err := admin.Exec(ctx, `
+			INSERT INTO session (id, tenant_id, account_id, created_at, expires_at)
+			VALUES ($1, $2, $3, now(), now() + interval '1 day') ON CONFLICT (id) DO NOTHING`,
+			id.String(), idpTenantA.String(), idpAccount.String()); err != nil {
+			t.Fatalf("seeding a session: %v", err)
+		}
+	}
+
+	flows := postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+
+	open := func(id shared.ID, connect bool, state domain.Token) {
+		flow, err := domain.NewOidcFlow(domain.NewOidcFlowInput{
+			ID: id, TenantID: idpTenantA, ProviderID: idpRowA, SessionID: stepUpFlowSession,
+			Nonce: "the-nonce", Verifier: "v-verifier-that-is-long-enough-for-rfc-7636-000", Now: now,
+			Connect: connect,
+		})
+		if err != nil {
+			t.Fatalf("building a flow: %v", err)
+		}
+		inTenant(t, uow, idpTenantA, func(ctx context.Context) error { return flows.Insert(ctx, flow, state) })
+	}
+	connectState := stepUpFlowState(t, 0x61)
+	stepUpState := stepUpFlowState(t, 0x62)
+	open(shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd21"), true, connectState)
+	open(shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fd22"), false, stepUpState)
+
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		if _, found, err := flows.Consume(ctx, connectState, now); err != nil || found {
+			t.Errorf("a sign-in spent a connection flow: (%v, %v)", found, err)
+		}
+		if _, found, err := flows.ConsumeForStepUp(ctx, connectState, stepUpFlowSession, now); err != nil || found {
+			t.Errorf("a step-up spent a connection flow: (%v, %v)", found, err)
+		}
+		if _, found, err := flows.ConsumeForConnect(ctx, connectState, stepUpFlowOther, now); err != nil || found {
+			t.Errorf("another session spent this session's connection flow: (%v, %v)", found, err)
+		}
+		if _, found, err := flows.ConsumeForConnect(ctx, stepUpState, stepUpFlowSession, now); err != nil || found {
+			t.Errorf("a connection spent a step-up flow: (%v, %v)", found, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, idpTenantB, func(ctx context.Context) error {
+		if _, found, err := flows.ConsumeForConnect(ctx, connectState, stepUpFlowSession, now); err != nil || found {
+			t.Errorf("B spent A's connection flow: (%v, %v)", found, err)
+		}
+		return nil
+	})
+	inTenant(t, uow, idpTenantA, func(ctx context.Context) error {
+		consumed, found, err := flows.ConsumeForConnect(ctx, connectState, stepUpFlowSession, now)
+		if err != nil || !found {
+			t.Fatalf("the session spending its own connection flow: (%v, %v)", found, err)
+		}
+		if !consumed.Connect || consumed.ProviderID != idpRowA || consumed.CreatedAt.IsZero() {
+			t.Errorf("the flow came back as %+v", consumed)
+		}
+		if _, found, _ := flows.ConsumeForConnect(ctx, connectState, stepUpFlowSession, now); found {
+			t.Error("a spent connection flow was spent a second time")
+		}
+		// The step-up's flow is still the step-up's to spend.
+		if _, found, err := flows.ConsumeForStepUp(ctx, stepUpState, stepUpFlowSession, now); err != nil || !found {
+			t.Errorf("the step-up flow was not the step-up's: (%v, %v)", found, err)
+		}
+		return nil
+	})
+}

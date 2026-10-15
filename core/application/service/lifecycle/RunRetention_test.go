@@ -216,7 +216,15 @@ func (s *runStore) Finish(_ context.Context, _ shared.ID, result repository.RunR
 type signalSink struct {
 	deleted map[string]int64
 	blocked map[string]int64
+	read    map[string]int64
 	runs    int
+}
+
+func (s *signalSink) RetentionRead(_ context.Context, kind string, count int64) {
+	if s.read == nil {
+		s.read = map[string]int64{}
+	}
+	s.read[kind] += count
 }
 
 func (s *signalSink) RetentionDeleted(_ context.Context, kind string, count int64) {

@@ -244,6 +244,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dsr.consent_given` | GiveConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consent_withdrawn` | WithdrawConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consents_listed` | ListConsents | `consent_record` | INFO | When refused |
+| `dsr.erasure_reapplied` | ReapplyErasures | `data_subject_request` | CRITICAL | Every time |
 | `dsr.extended` | ExtendDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.processing_restricted` | RestrictProcessing | `account` | WARNING | Every time |
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
@@ -268,9 +269,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `identity.own_identities_read` | ListOwnIdentities | `account` | INFO | When refused |
 | `identity.provider_configured` | ConfigureFirstIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_configured` | ConfigureIdentityProvider | `identity_provider` | NOTICE | Every time |
+| `identity.provider_connect_started` | StartProviderConnect | `identity_provider` | INFO | Every time |
 | `identity.provider_linked` | CompleteLink | `account` | NOTICE | Every time |
+| `identity.provider_linked` | CompleteProviderConnect | `account` | NOTICE | Every time |
 | `identity.provider_offered` | OfferIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `identity.provider_read` | CountAccountsWithoutProvider | `identity_provider` | INFO | When refused |
 | `identity.provider_read` | ListIdentityProviderPresets | `identity_provider` | INFO | When refused |

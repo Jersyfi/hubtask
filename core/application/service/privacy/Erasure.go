@@ -130,6 +130,7 @@ func (e Eraser) Erase(
 
 func (e Eraser) erase(
 	ctx context.Context, actor appshared.ActorContext, request domain.Request, action audit.Action,
+	extra ...audit.Change,
 ) (Erased, error) {
 	if request.SubjectAccountID.IsZero() {
 		// A case about an address nobody here holds. There is nothing in this workspace to erase,
@@ -247,7 +248,7 @@ func (e Eraser) erase(
 	// nothing, which the reconciliation would then hunt for ever.
 	erased.Media = e.discardBytes(ctx, actor, orphaned, now)
 
-	if err := e.record(ctx, actor, request, erased, action, now); err != nil {
+	if err := e.record(ctx, actor, request, erased, action, now, extra...); err != nil {
 		return Erased{}, err
 	}
 	return erased, nil
@@ -424,7 +425,7 @@ func (e Eraser) discardBytes(
 // record writes the entry the erasure owes, into the trail the erasure does not touch.
 func (e Eraser) record(
 	ctx context.Context, actor appshared.ActorContext, request domain.Request,
-	erased Erased, action audit.Action, now time.Time,
+	erased Erased, action audit.Action, now time.Time, extra ...audit.Change,
 ) error {
 	changes := []audit.Change{
 		{Field: "mode", Classification: audit.Open, To: string(erased.Mode)},
@@ -436,6 +437,7 @@ func (e Eraser) record(
 		{Field: "media", Classification: audit.Open, To: erased.Media},
 		{Field: "account", Classification: audit.Open, To: accountOutcome(erased)},
 	}
+	changes = append(changes, extra...)
 	if pending := pendingParts(erased.Kept); len(pending) > 0 {
 		// What the holds kept, by hold, and why it may be kept: the hold's identifier says where to
 		// look; its reason stays on the hold, written for the hold's own readers.

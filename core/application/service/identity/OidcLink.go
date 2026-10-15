@@ -253,6 +253,9 @@ func (w OidcWriter) Connect(ctx context.Context, account domain.Account, link do
 	if proof == "" {
 		proof = domain.LinkProofPassword
 	}
+	if err := w.tellConnected(ctx, account, configured); err != nil {
+		return err
+	}
 	return w.record(ctx, OidcLinkedAction, account, configured, provider.Identity{EmailVerified: true},
 		audit.Change{Field: "proof", Classification: audit.Open, To: string(proof)})
 }

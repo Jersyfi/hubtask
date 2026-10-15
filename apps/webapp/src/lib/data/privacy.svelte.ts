@@ -38,6 +38,8 @@ export {
   keptPartPhrase,
   keptPhrase,
   deadlineOfDay,
+  earliestDeadline,
+  receiptOf,
   deadlinePhrase,
   EXTENSION_REASONS,
   extensionPayload,
@@ -121,8 +123,8 @@ class Privacy {
   /**
    * Records a right somebody exercised, and nothing else.
    *
-   * The deadline is thirty days from receipt unless one is named, and no work starts here: what
-   * happens next is a decision, and a decision is a second request.
+   * The deadline is one calendar month from the day of receipt unless one is named, and no work
+   * starts here: what happens next is a decision, and a decision is a second request.
    */
   async record(draft: Omit<DataSubjectRequestCreate, 'scope'>): Promise<Request> {
     return engine.mutate<Request>('POST', REQUESTS, { scope: 'TENANT', ...draft }, {

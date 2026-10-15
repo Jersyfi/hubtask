@@ -6,8 +6,8 @@ actors: [PE-auditor, PE-operator, PE-owner, PE-selfhoster]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-03, P-09, P-11]
 state: built
-tasks: [E-10, F4-20]
-checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go, test/integration/retention_seed_test.go, test/retention/retention_test.go, .github/workflows/ci.yml]
+tasks: [E-10, F4-20, CP-08, CP-09, CP-10]
+checked_by: [test/privacy/PG7_catalogue_test.go, test/privacy/PG2_deletion_test.go, test/privacy/PG1_classification_test.go, test/integration/retention_seed_test.go, test/retention/retention_test.go, .github/workflows/ci.yml, test/integration/queue_purge_test.go, test/retention/webhook_delivery_test.go, test/integration/audit_period_test.go]
 ---
 
 # Know what the installation stores about people, and how each piece is deleted

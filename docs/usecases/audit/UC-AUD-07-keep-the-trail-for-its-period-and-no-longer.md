@@ -6,8 +6,8 @@ actors: [PE-owner, PE-auditor, PE-operator]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-06, P-07, P-11]
 state: partial
-tasks: [H-06, H-13]
-checked_by: [test/integration/audit_read_test.go]
+tasks: [H-06, H-13, CP-10]
+checked_by: [test/integration/audit_read_test.go, test/integration/audit_period_test.go]
 ---
 
 # Keep the trail for its period, and no longer
@@ -50,6 +50,4 @@ with it, and the installation's own journal keeps the evidence that it happened.
 
 ## Today
 
-* Check 3: not met — nothing removes an audit entry: the audit kind carries its 400-day default but no action, and no partition is ever dropped, so the trail grows without end.
-* Check 4: not met — there is no removal to record.
 * Check 5: not met — configuring the audit period is refused.

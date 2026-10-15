@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -50,7 +51,20 @@ func (s *flowStore) ConsumeForStepUp(
 	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,
 ) (domain.OidcFlow, bool, error) {
 	flow, found := s.byState[presented.Secret()]
-	if !found || s.spent[presented.Secret()] || flow.SessionID.IsZero() || flow.SessionID != sessionID {
+	if !found || s.spent[presented.Secret()] || flow.SessionID.IsZero() || flow.SessionID != sessionID ||
+		flow.Connect {
+		return domain.OidcFlow{}, false, nil
+	}
+	s.spent[presented.Secret()] = true
+	return flow, true, nil
+}
+
+// ConsumeForConnect finds only a connection's flow bound to this very session, as the statement does.
+func (s *flowStore) ConsumeForConnect(
+	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,
+) (domain.OidcFlow, bool, error) {
+	flow, found := s.byState[presented.Secret()]
+	if !found || s.spent[presented.Secret()] || !flow.Connect || flow.SessionID != sessionID {
 		return domain.OidcFlow{}, false, nil
 	}
 	s.spent[presented.Secret()] = true
@@ -111,6 +125,30 @@ func (s *externalStore) ProvidersOf(_ context.Context, accountID shared.ID) ([]s
 	for key, account := range s.bySubject {
 		if account.ID == accountID {
 			found = append(found, shared.ID(strings.SplitN(key, "\x00", 2)[0]))
+		}
+	}
+	return found, nil
+}
+
+// IdentitiesOf answers the account's connections, with the fixture's clock as their moment.
+func (s *externalStore) IdentitiesOf(_ context.Context, accountID shared.ID) ([]repository.Connection, error) {
+	found := []repository.Connection{}
+	for key, account := range s.bySubject {
+		if account.ID == accountID {
+			found = append(found, repository.Connection{
+				ProviderID: shared.ID(strings.SplitN(key, "\x00", 2)[0]), LinkedAt: now,
+			})
+		}
+	}
+	return found, nil
+}
+
+// HoldersOf answers the accounts connected to the provider.
+func (s *externalStore) HoldersOf(_ context.Context, providerID shared.ID) ([]shared.ID, error) {
+	found := []shared.ID{}
+	for key, account := range s.bySubject {
+		if strings.HasPrefix(key, providerID.String()+"\x00") {
+			found = append(found, account.ID)
 		}
 	}
 	return found, nil
