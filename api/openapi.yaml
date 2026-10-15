@@ -1352,7 +1352,7 @@ paths:
           description: Narrow to one outcome - `DEAD_LETTER` is the one an operator usually wants.
           schema:
             type: string
-            enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+            enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER, FILTER_FAILED]
       responses:
         "200":
           description: The deliveries
@@ -13169,9 +13169,14 @@ components:
         filter:
           type: [string, "null"]
           description: >
-            A CEL expression narrowing the subscription further. Refused until the expression
-            engine lands, and refused rather than stored and ignored: a filter that is accepted
-            and does nothing is a subscriber receiving events they asked not to receive.
+            A condition in the automation's expression language (CEL) that an event must meet to
+            be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the
+            CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules'
+            bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming
+            where. An event whose condition cannot be evaluated is not sent, and appears in the
+            delivery log as `FILTER_FAILED`.
+        scope:
+          $ref: "#/components/schemas/WebhookScope"
         state:
           type: string
           enum: [ACTIVE, PAUSED, DISABLED]
@@ -13200,7 +13205,9 @@ components:
           items: { type: string }
         filter:
           type: [string, "null"]
-          description: Refused until the expression engine lands.
+          description: The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none.
+        scope:
+          $ref: "#/components/schemas/WebhookScope"
 
     WebhookSubscriptionUpdate:
       type: object
@@ -13211,7 +13218,11 @@ components:
           type: [array, "null"]
           minItems: 1
           items: { type: string }
-        filter: { type: [string, "null"] }
+        filter:
+          type: [string, "null"]
+          description: The new condition. An empty string removes it; omitted leaves it alone.
+        scope:
+          $ref: "#/components/schemas/WebhookScope"
         state:
           type: [string, "null"]
           enum: [ACTIVE, PAUSED, null]
@@ -13219,6 +13230,25 @@ components:
             `DISABLED` is not settable by hand: it is what the system concludes from a run of
             failures. Pausing is how somebody stops deliveries deliberately, and the two say
             different things to whoever reads the list.
+
+    WebhookScope:
+      type: object
+      description: >
+        Where a subscription listens: the whole workspace, one hub - its collections included - or
+        one collection. An entry's event belongs to its collection, a hub's or a collection's to
+        itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches
+        only a subscription of the whole workspace. Subscribing to a hub or a collection needs the
+        automation permission there. On an update, `TENANT` widens a scoped subscription to the
+        whole workspace again.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [TENANT, HUB, COLLECTION]
+        id:
+          type: string
+          format: uuid
+          description: The hub or the collection. Absent for `TENANT`, and required for the others.
 
     WebhookSubscriptionSecret:
       allOf:
@@ -13317,7 +13347,10 @@ components:
           description: Which attempt this is, from one. It carries on across a replay rather than resetting.
         status:
           type: string
-          enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+          enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER, FILTER_FAILED]
+          description: >
+            `FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it
+            was not sent, `error_code` says why, and it cannot be replayed.
         response_status:
           type: [integer, "null"]
           description: What the target answered, where it answered at all.

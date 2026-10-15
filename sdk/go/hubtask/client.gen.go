@@ -4037,10 +4037,11 @@ func (e ViewExportFormat) Valid() bool {
 
 // Defines values for WebhookDeliveryStatus.
 const (
-	WebhookDeliveryStatusDEADLETTER WebhookDeliveryStatus = "DEAD_LETTER"
-	WebhookDeliveryStatusFAILED     WebhookDeliveryStatus = "FAILED"
-	WebhookDeliveryStatusPENDING    WebhookDeliveryStatus = "PENDING"
-	WebhookDeliveryStatusSUCCEEDED  WebhookDeliveryStatus = "SUCCEEDED"
+	WebhookDeliveryStatusDEADLETTER   WebhookDeliveryStatus = "DEAD_LETTER"
+	WebhookDeliveryStatusFAILED       WebhookDeliveryStatus = "FAILED"
+	WebhookDeliveryStatusFILTERFAILED WebhookDeliveryStatus = "FILTER_FAILED"
+	WebhookDeliveryStatusPENDING      WebhookDeliveryStatus = "PENDING"
+	WebhookDeliveryStatusSUCCEEDED    WebhookDeliveryStatus = "SUCCEEDED"
 )
 
 // Valid indicates whether the value is a known member of the WebhookDeliveryStatus enum.
@@ -4050,9 +4051,32 @@ func (e WebhookDeliveryStatus) Valid() bool {
 		return true
 	case WebhookDeliveryStatusFAILED:
 		return true
+	case WebhookDeliveryStatusFILTERFAILED:
+		return true
 	case WebhookDeliveryStatusPENDING:
 		return true
 	case WebhookDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WebhookScopeType.
+const (
+	WebhookScopeTypeCOLLECTION WebhookScopeType = "COLLECTION"
+	WebhookScopeTypeHUB        WebhookScopeType = "HUB"
+	WebhookScopeTypeTENANT     WebhookScopeType = "TENANT"
+)
+
+// Valid indicates whether the value is a known member of the WebhookScopeType enum.
+func (e WebhookScopeType) Valid() bool {
+	switch e {
+	case WebhookScopeTypeCOLLECTION:
+		return true
+	case WebhookScopeTypeHUB:
+		return true
+	case WebhookScopeTypeTENANT:
 		return true
 	default:
 		return false
@@ -4277,10 +4301,11 @@ func (e ListRuleRunsParamsTrigger) Valid() bool {
 
 // Defines values for ListWebhookDeliveriesParamsStatus.
 const (
-	ListWebhookDeliveriesParamsStatusDEADLETTER ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
-	ListWebhookDeliveriesParamsStatusFAILED     ListWebhookDeliveriesParamsStatus = "FAILED"
-	ListWebhookDeliveriesParamsStatusPENDING    ListWebhookDeliveriesParamsStatus = "PENDING"
-	ListWebhookDeliveriesParamsStatusSUCCEEDED  ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
+	ListWebhookDeliveriesParamsStatusDEADLETTER   ListWebhookDeliveriesParamsStatus = "DEAD_LETTER"
+	ListWebhookDeliveriesParamsStatusFAILED       ListWebhookDeliveriesParamsStatus = "FAILED"
+	ListWebhookDeliveriesParamsStatusFILTERFAILED ListWebhookDeliveriesParamsStatus = "FILTER_FAILED"
+	ListWebhookDeliveriesParamsStatusPENDING      ListWebhookDeliveriesParamsStatus = "PENDING"
+	ListWebhookDeliveriesParamsStatusSUCCEEDED    ListWebhookDeliveriesParamsStatus = "SUCCEEDED"
 )
 
 // Valid indicates whether the value is a known member of the ListWebhookDeliveriesParamsStatus enum.
@@ -4289,6 +4314,8 @@ func (e ListWebhookDeliveriesParamsStatus) Valid() bool {
 	case ListWebhookDeliveriesParamsStatusDEADLETTER:
 		return true
 	case ListWebhookDeliveriesParamsStatusFAILED:
+		return true
+	case ListWebhookDeliveriesParamsStatusFILTERFAILED:
 		return true
 	case ListWebhookDeliveriesParamsStatusPENDING:
 		return true
@@ -9603,12 +9630,14 @@ type WebhookDelivery struct {
 	NextAttemptAt *time.Time `json:"next_attempt_at,omitempty"`
 
 	// ResponseStatus What the target answered, where it answered at all.
-	ResponseStatus *int                  `json:"response_status,omitempty"`
+	ResponseStatus *int `json:"response_status,omitempty"`
+
+	// Status `FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it was not sent, `error_code` says why, and it cannot be replayed.
 	Status         WebhookDeliveryStatus `json:"status"`
 	SubscriptionId openapi_types.UUID    `json:"subscription_id"`
 }
 
-// WebhookDeliveryStatus defines model for WebhookDelivery.Status.
+// WebhookDeliveryStatus `FILTER_FAILED` is an event the subscription's condition could not be evaluated for: it was not sent, `error_code` says why, and it cannot be replayed.
 type WebhookDeliveryStatus string
 
 // WebhookDeliveryPage defines model for WebhookDeliveryPage.
@@ -9616,6 +9645,16 @@ type WebhookDeliveryPage struct {
 	Data []WebhookDelivery `json:"data"`
 	Page PageInfo          `json:"page"`
 }
+
+// WebhookScope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+type WebhookScope struct {
+	// Id The hub or the collection. Absent for `TENANT`, and required for the others.
+	Id   *openapi_types.UUID `json:"id,omitempty"`
+	Type WebhookScopeType    `json:"type"`
+}
+
+// WebhookScopeType defines model for WebhookScope.Type.
+type WebhookScopeType string
 
 // WebhookSecretRotation defines model for WebhookSecretRotation.
 type WebhookSecretRotation struct {
@@ -9639,12 +9678,15 @@ type WebhookSubscription struct {
 	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
 	FailureCount int `json:"failure_count"`
 
-	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
 	Filter *string            `json:"filter,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// State `DISABLED` is what sustained unreachability produces, with a notification to the owner. Re-enabling is an ordinary write and is audited as one.
 	State WebhookSubscriptionState `json:"state"`
@@ -9661,9 +9703,12 @@ type WebhookSubscriptionState string
 type WebhookSubscriptionCreate struct {
 	EventTypes []string `json:"event_types"`
 
-	// Filter Refused until the expression engine lands.
-	Filter    *string `json:"filter,omitempty"`
-	TargetUrl string  `json:"target_url"`
+	// Filter The condition an event must meet, as `WebhookSubscription.filter` says. Omitted or empty for none.
+	Filter *string `json:"filter,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope     *WebhookScope `json:"scope,omitempty"`
+	TargetUrl string        `json:"target_url"`
 }
 
 // WebhookSubscriptionSecret defines model for WebhookSubscriptionSecret.
@@ -9676,12 +9721,15 @@ type WebhookSubscriptionSecret struct {
 	// FailureCount Consecutive failed deliveries. Reset by the first success, and what the auto-disable counts against.
 	FailureCount int `json:"failure_count"`
 
-	// Filter A CEL expression narrowing the subscription further. Refused until the expression engine lands, and refused rather than stored and ignored: a filter that is accepted and does nothing is a subscriber receiving events they asked not to receive.
+	// Filter A condition in the automation's expression language (CEL) that an event must meet to be delivered: a boolean over `event` (its id, type, subject and moments), `data` (the CloudEvent's `data`), `actor` and `now`. Compiled when it is saved, with the rules' bounds; one that cannot be compiled is refused with `webhooks.filter_invalid`, naming where. An event whose condition cannot be evaluated is not sent, and appears in the delivery log as `FILTER_FAILED`.
 	Filter *string            `json:"filter,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
 	// LastError A message code for the last failure, never a response body from the target.
 	LastError *string `json:"last_error,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// Secret The signing secret, in clear, for the only time. Store it or rotate it: what is kept is sealed under the installation's key, and no read answers it again.
 	Secret string `json:"secret"`
@@ -9700,7 +9748,12 @@ type WebhookSubscriptionSecretState string
 // WebhookSubscriptionUpdate Every field optional; an omitted one is left alone.
 type WebhookSubscriptionUpdate struct {
 	EventTypes *[]string `json:"event_types,omitempty"`
-	Filter     *string   `json:"filter,omitempty"`
+
+	// Filter The new condition. An empty string removes it; omitted leaves it alone.
+	Filter *string `json:"filter,omitempty"`
+
+	// Scope Where a subscription listens: the whole workspace, one hub - its collections included - or one collection. An entry's event belongs to its collection, a hub's or a collection's to itself; an event about no hub or collection (a rule run, an arrival in the jumble) reaches only a subscription of the whole workspace. Subscribing to a hub or a collection needs the automation permission there. On an update, `TENANT` widens a scoped subscription to the whole workspace again.
+	Scope *WebhookScope `json:"scope,omitempty"`
 
 	// State `DISABLED` is not settable by hand: it is what the system concludes from a run of failures. Pausing is how somebody stops deliveries deliberately, and the two say different things to whoever reads the list.
 	State     *WebhookSubscriptionUpdateState `json:"state,omitempty"`
