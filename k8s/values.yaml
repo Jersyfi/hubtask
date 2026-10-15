@@ -198,6 +198,10 @@ restoreDrill:
   enabled: false
   # A CronJob beside the release hook, five-field cron. Empty: the hook alone.
   schedule: ""
+  # Whether the drill also runs after every release (the hook). Off where releases are frequent -
+  # integration deploys every push to main, and a drill of up to `timeout` after each would hold
+  # or time out the deploy - so the schedule alone runs it; the chart refuses neither being set.
+  afterRelease: true
   # The application role's DSN, a key in existingSecret: the isolation checks run as that role.
   appDsnSecretKey: db-dsn
   # The ConfigMap the result lands in and the gauge is read from. Empty: <release>-restore-drill.

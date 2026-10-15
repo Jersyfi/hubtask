@@ -740,6 +740,13 @@ gate-chart:
 		--set database.backup.enabled=false > /dev/null 2>&1; then \
 		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
 	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
+		--set restoreDrill.enabled=true --set restoreDrill.afterRelease=false > /dev/null 2>&1; then \
+		echo "chart: a drill with neither a hook nor a schedule rendered - it must refuse"; exit 1; fi
 	@# The signature at the door (CI-3): on, the policy names the issuer and every subject the
 	@# image may be signed under; off, nothing of the kind renders; on without a subject, the
 	@# chart refuses rather than rendering a policy that verifies against nobody.
