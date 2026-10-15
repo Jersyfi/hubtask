@@ -285,8 +285,10 @@ func TestTheBoundaryHoldsOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
-	// An owner that cannot read across workspaces cannot see a legal hold either, and a hold it
-	// cannot see must not read as no hold: the trail's partition drop refuses rather than guesses.
+	// The owner's policies reach the tables the doors read (legal holds among them), but not the
+	// trail's partitions, each of which carries its own tenant policy: an owner that is neither
+	// superuser nor BYPASSRLS cannot count a month across workspaces, and a count it cannot make
+	// must not read as an empty month - the trail's partition drop refuses rather than guesses.
 	t.Run("the trail drops nothing it cannot read", func(t *testing.T) {
 		var outcomes []string
 		rows, err := app.Query(ctx, `SELECT outcome FROM drop_audit_partition(400)`)
