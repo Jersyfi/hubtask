@@ -340,6 +340,13 @@ var entities = []Entity{
 	// something to fill in (backup-restore.md §8.2).
 	{Name: "tenants", Table: "tenant", Keys: []string{"id"}},
 	{Name: "accounts", Table: "account", Keys: []string{"id"}},
+	// An account's passkeys (identity.md §23.5): a data backup keeps them, so a restore leaves
+	// people their way in; the exports lose the credential columns (tenant-export.md §9). Not
+	// duplicable: a passkey belongs to its account and its workspace's host.
+	{
+		Name: "webauthn_credentials", Table: "webauthn_credential", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
 	{Name: "account_groups", Table: "account_group", Keys: []string{"id"}, Whole: true},
 	{
 		Name: "account_group_members", Table: "account_group_member", Whole: true,
@@ -604,12 +611,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// somebody may still be using elsewhere.
 	"account_password_history": "§8.4 - hashes of passwords that are no longer current; an archive that carried them would be worth stealing, and a restore needs none of them",
 	"auth_pending":             "a half-finished sign-in lives minutes; restoring one would revive a credential that was already over",
-	// identity.md §23.5 has the data backup keep them and the exports leave them out; until the
-	// archive can do the second it does neither.
-	"webauthn_credential": "passkeys: public keys the person still holds, which the data backup is to keep once the exports can leave them out",
-	"oauth_client":        "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
-	"oauth_grant":         "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
-	"oauth_code":          "a single-use credential with minutes of life, §8.4's reasoning verbatim",
+	"oauth_client":             "half a credential: its secret hash is keyed on a live pepper, and a restore must not silently re-open a third-party door (§8.4)",
+	"oauth_grant":              "what somebody allowed an app is consent to a live door, not workspace content; the door is not restored, so neither is the consent",
+	"oauth_code":               "a single-use credential with minutes of life, §8.4's reasoning verbatim",
 	// The relying party, and oauth_client's reasoning in the other direction. The row
 	// holds a client secret sealed under the source installation's key, which a restore
 	// elsewhere cannot open - and restoring it silently would point a recovered workspace at a

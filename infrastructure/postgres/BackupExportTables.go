@@ -432,6 +432,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"webauthn_credential": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPasskeys(ctx, sqlc.ExportPasskeysParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPasskeysRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"private_hub_access": {
 		delta: false,
 		keys:  1,

@@ -246,3 +246,96 @@ func TestAPendingRegistrationCarriesItsSessionAndHandleAndNoOtherRowDoes(t *test
 		}
 	}
 }
+
+// A data backup keeps a passkey column for column, so a restore leaves the person their way in; an
+// export's copy, without identifier, key and handle, is no credential and an import skips it
+// (identity.md §23.5, tenant-export.md §9).
+func TestARestoredPasskeyIsTheSameCredentialAndAnExportedOneIsNone(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	repo := postgres.NewPasskeyRepository()
+	at := time.Date(2026, 10, 16, 9, 0, 0, 0, time.UTC)
+	original := aPasskey(t, people.ada, 0x42, "iPhone", at)
+	if err := write(ctx, t, people.tenant, func(ctx context.Context) error {
+		_, err := repo.Insert(ctx, original)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var archived map[string]any
+	for _, row := range exported(ctx, t, people.tenant, 100, "webauthn_credential", time.Time{}) {
+		if row.ID == original.ID.String() {
+			archived = row.Data
+		}
+	}
+	if archived == nil {
+		t.Fatal("the passkey was not exported")
+	}
+
+	if _, err := adminPool(ctx, t).Exec(ctx, `DELETE FROM webauthn_credential WHERE tenant_id = $1`,
+		people.tenant.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	// The export's copy first: skipped, nothing written, no error.
+	redacted := map[string]any{}
+	for column, value := range archived {
+		redacted[column] = value
+	}
+	for _, column := range []string{"credential_id", "public_key", "user_handle"} {
+		delete(redacted, column)
+	}
+	if err := write(ctx, t, people.tenant, func(ctx context.Context) error {
+		written, err := importRepo().Write(ctx, "webauthn_credential", redacted, true)
+		if written {
+			t.Error("an export's passkey was written as a credential")
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("importing the export's copy: %v", err)
+	}
+
+	// The backup's copy: the same credential, every column.
+	if err := write(ctx, t, people.tenant, func(ctx context.Context) error {
+		written, err := importRepo().Write(ctx, "webauthn_credential", archived, false)
+		if !written {
+			t.Error("the backup's passkey was not restored")
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("restoring: %v", err)
+	}
+	var restored map[string]any
+	for _, row := range exported(ctx, t, people.tenant, 100, "webauthn_credential", time.Time{}) {
+		if row.ID == original.ID.String() {
+			restored = row.Data
+		}
+	}
+	for column, before := range archived {
+		if after := restored[column]; !sameJSON(before, after) {
+			t.Errorf("%s came back as %#v, want %#v", column, after, before)
+		}
+	}
+
+	// A credential whose account the restore did not bring back is skipped, as is a second row
+	// holding a restored identifier.
+	stray := map[string]any{}
+	for column, value := range archived {
+		stray[column] = value
+	}
+	stray["id"] = freshID(t).String()
+	if err := write(ctx, t, people.tenant, func(ctx context.Context) error {
+		if written, err := importRepo().Write(ctx, "webauthn_credential", stray, true); err != nil || written {
+			t.Errorf("a second row with a held identifier: %v %v", written, err)
+		}
+		stray["account_id"] = freshID(t).String()
+		stray["credential_id"] = "AQIDBA"
+		if written, err := importRepo().Write(ctx, "webauthn_credential", stray, true); err != nil || written {
+			t.Errorf("a passkey of an account not restored: %v %v", written, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

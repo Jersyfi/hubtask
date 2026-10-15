@@ -936,9 +936,10 @@ A credential that once answered with UV and later without is held to the ceremon
 
 ### 23.5 What travels
 
-* A data backup keeps the credentials; a tenant export and a person's export leave the whole table
-  out, as they strip every credential ([tenant-export.md](./tenant-export.md) §9); an erased account
-  loses them in every mode — with the account (`CASCADE`) where it is deleted, with its tokens where
-  it is anonymised.
+* A data backup keeps the credentials, so a restore leaves people their way in; a tenant export and
+  a person's export strip them as they strip every credential
+  ([tenant-export.md](./tenant-export.md) §9) — a passkey leaves by its name and dates, without
+  identifier, key or handle, and an import skips it; an erased account loses them in every mode —
+  with the account (`CASCADE`) where it is deleted, with its tokens where it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.

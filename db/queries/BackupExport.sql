@@ -416,6 +416,20 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportPasskeys :many
+-- Exported whole: a passkey changes only by its counter and its last use, and no column says when.
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM webauthn_credential x
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportPrivateHubAccesses :many
 -- Exported whole: an access is written once and never changes.
 SELECT s.record_id, s.changed_at, s.payload
