@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13]
 state: built
-tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17]
+tasks: [H-02, SI-09, SI-15, SC-03, SC-06, SC-09, SC-16, SC-17, PK-02]
 checked_by: [core/application/service/identity/Mfa_test.go, core/application/service/identity/RedemptionFactor_test.go, presentation/rest/RedeemController_test.go, core/application/service/identity/FactorRule_test.go, core/application/service/identity/DisableTotpStepUp_test.go, core/application/service/identity/StepUpRecovery_test.go, core/application/service/identity/ReplaceAuthenticator_test.go, apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/settings.test.mjs, core/application/service/identity/Recovery_test.go, test/integration/recovery_codes_test.go, docs/evidence/SC-15-D1-account-2026-10-13.md]
 ---
 
@@ -35,7 +35,8 @@ same setup during sign-in, told why.
    profile and when setup happens during sign-in.
 3. The profile shows how many recovery codes remain; zero is shown in words, not only in colour.
 4. *New codes* asks for a fresh proof, replaces all ten, and the old ones stop working at once.
-5. When the workspace's rule requires a second factor of this person, the profile does **not**
+5. When the workspace's rule requires a second factor of this person and the authenticator app is
+   the last one the account holds (no passkey or security key, UC-ID-22), the profile does **not**
    offer to turn it off; it says the workspace requires it.
 6. When nothing requires it, turning it off asks for a fresh proof and removes the recovery codes
    with it.
@@ -47,6 +48,5 @@ same setup during sign-in, told why.
 
 ## Where it ends
 
-* One authenticator per account. Several authenticators, hardware keys and passkeys are the passkey
-  milestone's.
+* At most one authenticator app per account. Passkeys and security keys, up to ten, are UC-ID-22's.
 * No download button for the codes; the clipboard is enough for a password manager.
