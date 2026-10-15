@@ -7712,6 +7712,18 @@ type OidcCallback struct {
 	State string `json:"state"`
 }
 
+// OidcLocate The state a provider's return carried.
+type OidcLocate struct {
+	// State The handle the start answered, as the provider carried it back.
+	State string `json:"state"`
+}
+
+// OidcLocated defines model for OidcLocated.
+type OidcLocated struct {
+	// BaseUrl The workspace's own address - its subdomain of this installation in multi-tenant operation - where the return is finished at `/auth/callback`.
+	BaseUrl string `json:"base_url"`
+}
+
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
 	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account. It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
@@ -11460,6 +11472,9 @@ type DisableTotpJSONRequestBody = MfaDisable
 // CompleteOidcSignInJSONRequestBody defines body for CompleteOidcSignIn for application/json ContentType.
 type CompleteOidcSignInJSONRequestBody = OidcCallback
 
+// LocateOidcFlowJSONRequestBody defines body for LocateOidcFlow for application/json ContentType.
+type LocateOidcFlowJSONRequestBody = OidcLocate
+
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
@@ -13086,6 +13101,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/oidc:callback (the `CompleteOidcSignIn` operationId).
 	CompleteOidcSignIn(ctx context.Context, body CompleteOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LocateOidcFlowWithBody Where a provider's return belongs
+	//
+	// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+	LocateOidcFlowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LocateOidcFlow Where a provider's return belongs
+	//
+	// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+	LocateOidcFlow(ctx context.Context, body LocateOidcFlowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartOidcSignInWithBody Begin a sign-in through the workspace's identity provider
 	//
@@ -18556,6 +18589,44 @@ func (c *Client) CompleteOidcSignInWithBody(ctx context.Context, contentType str
 // Corresponds with POST /auth/oidc:callback (the `CompleteOidcSignIn` operationId).
 func (c *Client) CompleteOidcSignIn(ctx context.Context, body CompleteOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteOidcSignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LocateOidcFlowWithBody Where a provider's return belongs
+//
+// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+func (c *Client) LocateOidcFlowWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLocateOidcFlowRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LocateOidcFlow Where a provider's return belongs
+//
+// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+func (c *Client) LocateOidcFlow(ctx context.Context, body LocateOidcFlowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLocateOidcFlowRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -28235,6 +28306,46 @@ func NewCompleteOidcSignInRequestWithBody(server string, contentType string, bod
 	}
 
 	operationPath := fmt.Sprintf("/auth/oidc:callback")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewLocateOidcFlowRequest calls the generic LocateOidcFlow builder with application/json body
+func NewLocateOidcFlowRequest(server string, body LocateOidcFlowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewLocateOidcFlowRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewLocateOidcFlowRequestWithBody constructs an http.Request for the LocateOidcFlow method, with any body, and a specified content type
+func NewLocateOidcFlowRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/oidc:locate")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -41480,6 +41591,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/oidc:callback (the `CompleteOidcSignIn` operationId).
 	CompleteOidcSignInWithResponse(ctx context.Context, body CompleteOidcSignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteOidcSignInResult, error)
 
+	// LocateOidcFlowWithBodyWithResponse Where a provider's return belongs
+	//
+	// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+	LocateOidcFlowWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LocateOidcFlowResult, error)
+
+	// LocateOidcFlowWithResponse Where a provider's return belongs
+	//
+	// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+	LocateOidcFlowWithResponse(ctx context.Context, body LocateOidcFlowJSONRequestBody, reqEditors ...RequestEditorFn) (*LocateOidcFlowResult, error)
+
 	// StartOidcSignInWithBodyWithResponse Begin a sign-in through the workspace's identity provider
 	//
 	// The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
@@ -48423,6 +48552,54 @@ func (r CompleteOidcSignInResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteOidcSignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LocateOidcFlowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OidcLocated
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r LocateOidcFlowResult) GetJSON200() *OidcLocated {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r LocateOidcFlowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r LocateOidcFlowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LocateOidcFlowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LocateOidcFlowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LocateOidcFlowResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -62418,6 +62595,36 @@ func (c *ClientWithResponses) CompleteOidcSignInWithResponse(ctx context.Context
 	return ParseCompleteOidcSignInResult(rsp)
 }
 
+// LocateOidcFlowWithBodyWithResponse Where a provider's return belongs
+//
+// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+func (c *ClientWithResponses) LocateOidcFlowWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*LocateOidcFlowResult, error) {
+	rsp, err := c.LocateOidcFlowWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLocateOidcFlowResult(rsp)
+}
+
+// LocateOidcFlowWithResponse Where a provider's return belongs
+//
+// A provider returns to this installation's one registered address. In multi-tenant operation that is the installation's own host, while the flow began on a workspace's host, where its session and its browser state live. Given the state the provider carried back, this answers the address of the workspace the flow belongs to, and the browser finishes there - the code and the state unchanged. The flow is not spent: it is spent where it is completed. Only a live flow is located: an unknown, expired, spent or malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In single-tenant operation the answer is the installation's own address.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/oidc:locate (the `LocateOidcFlow` operationId).
+func (c *ClientWithResponses) LocateOidcFlowWithResponse(ctx context.Context, body LocateOidcFlowJSONRequestBody, reqEditors ...RequestEditorFn) (*LocateOidcFlowResult, error) {
+	rsp, err := c.LocateOidcFlow(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLocateOidcFlowResult(rsp)
+}
+
 // StartOidcSignInWithBodyWithResponse Begin a sign-in through the workspace's identity provider
 //
 // The first half of authorization code + PKCE. The workspace is resolved the way a password sign-in resolves it - the subdomain, or the tenant header - and its configured provider answers the URL to send the browser to.
@@ -70350,6 +70557,39 @@ func ParseCompleteOidcSignInResult(rsp *http.Response) (*CompleteOidcSignInResul
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseLocateOidcFlowResult parses an HTTP response from a LocateOidcFlowWithResponse call
+func ParseLocateOidcFlowResult(rsp *http.Response) (*LocateOidcFlowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LocateOidcFlowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OidcLocated
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

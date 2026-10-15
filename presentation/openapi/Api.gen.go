@@ -7706,6 +7706,18 @@ type OidcCallback struct {
 	State string `json:"state"`
 }
 
+// OidcLocate The state a provider's return carried.
+type OidcLocate struct {
+	// State The handle the start answered, as the provider carried it back.
+	State string `json:"state"`
+}
+
+// OidcLocated defines model for OidcLocated.
+type OidcLocated struct {
+	// BaseUrl The workspace's own address - its subdomain of this installation in multi-tenant operation - where the return is finished at `/auth/callback`.
+	BaseUrl string `json:"base_url"`
+}
+
 // OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
 	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account. It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
@@ -11454,6 +11466,9 @@ type DisableTotpJSONRequestBody = MfaDisable
 // CompleteOidcSignInJSONRequestBody defines body for CompleteOidcSignIn for application/json ContentType.
 type CompleteOidcSignInJSONRequestBody = OidcCallback
 
+// LocateOidcFlowJSONRequestBody defines body for LocateOidcFlow for application/json ContentType.
+type LocateOidcFlowJSONRequestBody = OidcLocate
+
 // StartOidcSignInJSONRequestBody defines body for StartOidcSignIn for application/json ContentType.
 type StartOidcSignInJSONRequestBody = OidcStart
 
@@ -11984,6 +11999,9 @@ type ServerInterface interface {
 	// CompleteOidcSignIn Finish the sign-in with the code the provider issued
 	// (POST /auth/oidc:callback)
 	CompleteOidcSignIn(w http.ResponseWriter, r *http.Request)
+	// LocateOidcFlow Where a provider's return belongs
+	// (POST /auth/oidc:locate)
+	LocateOidcFlow(w http.ResponseWriter, r *http.Request)
 	// StartOidcSignIn Begin a sign-in through the workspace's identity provider
 	// (POST /auth/oidc:start)
 	StartOidcSignIn(w http.ResponseWriter, r *http.Request)
@@ -14700,6 +14718,20 @@ func (siw *ServerInterfaceWrapper) CompleteOidcSignIn(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteOidcSignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LocateOidcFlow operation middleware
+func (siw *ServerInterfaceWrapper) LocateOidcFlow(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LocateOidcFlow(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23993,6 +24025,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:start", wrapper.StartOidcSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:locate", wrapper.LocateOidcFlow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
