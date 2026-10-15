@@ -1327,6 +1327,13 @@ func run() error {
 		Encryptor: encryptor, ThirdCountryConfirmed: cfg.AI.AllowThirdCountryTransfer,
 	}
 
+	// The installation's own backup targets (multi-tenancy.md §5): the backup context's validation,
+	// sealing and probe under the installation's scope and the operator's authorisation. The
+	// step-up is handed in once the sign-in rule is taught (stepUpVerifier, below).
+	instanceTargetWriter := adminservice.InstanceBackupTargetWriter{
+		Instance: instanceWriter, Targets: backupTargets, Backup: backupWriter,
+	}
+
 	// The password over its lifetime (ADR-0068 §5): one writer behind four doors, so that the rule,
 	// the history and the trail have one place each. The blocklist and the breach corpus are both
 	// nil on a plain installation: the operator's file comes with the instance layer, and nothing
@@ -1372,20 +1379,22 @@ func run() error {
 	identityProviderWriter.StepUp = stepUpVerifier
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
+	instanceTargetWriter.StepUp = stepUpVerifier
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
 	if err := requirePasswordDoors(map[string]identity.SessionWriter{
-		"the sign-in path":                 sessionWriter,
-		"the reset's session writer":       passwordWriter.Session,
-		"the provider's session writer":    oidcWriter.Session,
-		"the step-up verifier":             stepUpVerifier.Writer,
-		"the password's step-up":           verifierWriter(passwordWriter.StepUp),
-		"the restore's step-up":            verifierWriter(backupRestorer.StepUp),
-		"the access token's step-up":       verifierWriter(accessTokenWriter.StepUp),
-		"the workspace's step-up":          verifierWriter(workspaceWriter.StepUp),
-		"the identity provider's step-up":  verifierWriter(identityProviderWriter.StepUp),
-		"the installation provider's step": verifierWriter(instanceProviderWriter.Configure.StepUp),
+		"the sign-in path":                  sessionWriter,
+		"the reset's session writer":        passwordWriter.Session,
+		"the provider's session writer":     oidcWriter.Session,
+		"the step-up verifier":              stepUpVerifier.Writer,
+		"the password's step-up":            verifierWriter(passwordWriter.StepUp),
+		"the restore's step-up":             verifierWriter(backupRestorer.StepUp),
+		"the access token's step-up":        verifierWriter(accessTokenWriter.StepUp),
+		"the workspace's step-up":           verifierWriter(workspaceWriter.StepUp),
+		"the identity provider's step-up":   verifierWriter(identityProviderWriter.StepUp),
+		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
+		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
 	}); err != nil {
 		return err
 	}
@@ -1617,6 +1626,10 @@ func run() error {
 		adminservice.ListInstanceAiProviders{Writer: instanceAiWriter}.Descriptor(),
 		adminservice.ConfigureInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
 		adminservice.RemoveInstanceAiProvider{Writer: instanceAiWriter}.Descriptor(),
+		adminservice.ListInstanceBackupTargets{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.CreateInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.TestInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
+		adminservice.DeleteInstanceBackupTarget{Writer: instanceTargetWriter}.Descriptor(),
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),

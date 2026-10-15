@@ -293,6 +293,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.ai_provider_configured` | ConfigureInstanceAiProvider | `ai_provider` | NOTICE | Every time |
 | `instance.ai_provider_read` | ListInstanceAiProviders | `ai_provider` | INFO | When refused |
 | `instance.ai_provider_removed` | RemoveInstanceAiProvider | `ai_provider` | NOTICE | Every time |
+| `instance.backup_target_configured` | CreateInstanceBackupTarget | `backup_target` | WARNING | Every time |
+| `instance.backup_target_read` | ListInstanceBackupTargets | `backup_target` | INFO | When refused |
+| `instance.backup_target_removed` | DeleteInstanceBackupTarget | `backup_target` | WARNING | Every time |
+| `instance.backup_target_tested` | TestInstanceBackupTarget | `backup_target` | INFO | Every time |
 | `instance.journal_read` | ListInstanceJournal | `instance` | INFO | When refused |
 | `instance.operator_added` | AddOperator | `instance` | NOTICE | Every time |
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
