@@ -16466,6 +16466,18 @@ components:
             (`container_id`). Absent from a listing that named no container: with nothing to be in
             force *in*, the question has no answer. The narrower rule wins, and a rule switched off
             in a collection lets the wider one through rather than stopping it.
+        last_failure:
+          type: [object, "null"]
+          readOnly: true
+          description: >
+            Present while the rule's condition could not be evaluated on an entry in the last pass
+            that reached it: the rule then announced and removed nothing in that pass, and the
+            workspace's other rules went on. Gone once a pass evaluates the condition without
+            failing. `code` is the message code of what failed, `at` when.
+          required: [code, at]
+          properties:
+            code: { type: string }
+            at: { type: string, format: date-time }
 
     RetentionPolicyUpdate:
       type: object

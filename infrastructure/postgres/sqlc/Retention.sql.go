@@ -162,6 +162,22 @@ func (q *Queries) ClearRetentionMarksOfRule(ctx context.Context, arg ClearRetent
 	return result.RowsAffected(), nil
 }
 
+const clearRuleFailures = `-- name: ClearRuleFailures :execrows
+UPDATE retention_rule
+SET last_failure_code = NULL, last_failure_at = NULL
+WHERE id = ANY($1::uuid[]) AND tenant_id = current_tenant_id()
+  AND last_failure_code IS NOT NULL
+`
+
+// The rules a pass evaluated cleanly stop showing a failure.
+func (q *Queries) ClearRuleFailures(ctx context.Context, ids []pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, clearRuleFailures, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countRetainedDescendants = `-- name: CountRetainedDescendants :many
 SELECT parent.id, count(child.id)::bigint AS retained
 FROM work_item parent
@@ -360,7 +376,8 @@ func (q *Queries) FindItemRetention(ctx context.Context, id pgtype.UUID) (FindIt
 const findRetentionRule = `-- name: FindRetentionRule :one
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 WHERE id = $1
 `
@@ -388,6 +405,8 @@ func (q *Queries) FindRetentionRule(ctx context.Context, id pgtype.UUID) (Retent
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.LastFailureCode,
+		&i.LastFailureAt,
 	)
 	return i, err
 }
@@ -460,7 +479,8 @@ func (q *Queries) InsertRetentionRule(ctx context.Context, arg InsertRetentionRu
 const listRetentionRules = `-- name: ListRetentionRules :many
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 ORDER BY data_kind,
          CASE scope_kind WHEN 'COLLECTION' THEN 1 WHEN 'HUB' THEN 2 ELSE 3 END,
@@ -502,6 +522,8 @@ func (q *Queries) ListRetentionRules(ctx context.Context) ([]RetentionRule, erro
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.LastFailureCode,
+			&i.LastFailureAt,
 		); err != nil {
 			return nil, err
 		}
@@ -542,6 +564,30 @@ func (q *Queries) MarkItemsForRetention(ctx context.Context, arg MarkItemsForRet
 		arg.Action,
 		arg.Ids,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const recordRuleFailure = `-- name: RecordRuleFailure :execrows
+UPDATE retention_rule
+SET last_failure_code = $1, last_failure_at = $2
+WHERE id = $3 AND tenant_id = current_tenant_id()
+`
+
+type RecordRuleFailureParams struct {
+	Code *string
+	At   pgtype.Timestamptz
+	ID   pgtype.UUID
+}
+
+// A pass set the rule aside: its condition could not be evaluated on a candidate. The code and the
+// moment (data-retention.md §2). Written in a transaction of its own beside the pass, so that it
+// outlives the pass's rollback; it touches the rule's row only, which the pass reads and never
+// locks.
+func (q *Queries) RecordRuleFailure(ctx context.Context, arg RecordRuleFailureParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordRuleFailure, arg.Code, arg.At, arg.ID)
 	if err != nil {
 		return 0, err
 	}

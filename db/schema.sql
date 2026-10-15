@@ -2103,8 +2103,14 @@ CREATE TABLE retention_rule (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   version         integer NOT NULL DEFAULT 1,
+  -- Why a pass set the rule aside: its condition could not be evaluated on a candidate. The code
+  -- and the moment, until a pass evaluates it cleanly (migration 0154, data-retention.md §2).
+  last_failure_code text,
+  last_failure_at   timestamptz,
   CONSTRAINT retention_rule_scope_check CHECK ((scope_kind = 'TENANT') = (scope_id IS NULL)),
   CONSTRAINT retention_rule_chain_check CHECK ((then_after_days IS NULL) = (then_action IS NULL)),
+  CONSTRAINT retention_rule_last_failure_whole
+    CHECK ((last_failure_code IS NULL) = (last_failure_at IS NULL)),
   UNIQUE (tenant_id, id)
 );
 CREATE UNIQUE INDEX retention_rule_scope_idx ON retention_rule

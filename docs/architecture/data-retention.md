@@ -170,7 +170,9 @@ Evaluated in this order; the first that applies wins:
 * **Completeness:** a hard delete covers every storage location in the data catalogue (row, media,
   search index, vectors, derived counters); a test checks for orphans after a run.
 * **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,
-  never every object.
+  never every object. A rule set aside because its condition could not be evaluated (§2) is a log
+  line with the rule and the code, and its `last_failure` is written in a transaction of its own
+  beside the pass, so a pass that rolls back afterwards keeps it.
 * **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
   (the data catalogue's period; a payload names people by identifier). The `job` table has no
   tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,

@@ -1310,25 +1310,27 @@ type RetentionPolicy struct {
 }
 
 type RetentionRule struct {
-	ID             pgtype.UUID
-	TenantID       pgtype.UUID
-	ScopeKind      string
-	ScopeID        pgtype.UUID
-	DataKind       string
-	Condition      *string
-	RetainDays     int32
-	Action         string
-	ThenAfterDays  *int32
-	ThenAction     *string
-	GraceDays      int32
-	Notify         []byte
-	Justification  *string
-	Enabled        bool
-	ExportTargetID pgtype.UUID
-	CreatedBy      pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	Version        int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ScopeKind       string
+	ScopeID         pgtype.UUID
+	DataKind        string
+	Condition       *string
+	RetainDays      int32
+	Action          string
+	ThenAfterDays   *int32
+	ThenAction      *string
+	GraceDays       int32
+	Notify          []byte
+	Justification   *string
+	Enabled         bool
+	ExportTargetID  pgtype.UUID
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	LastFailureCode *string
+	LastFailureAt   pgtype.Timestamptz
 }
 
 type RetentionRun struct {

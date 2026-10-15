@@ -447,6 +447,8 @@ type conditions struct {
 	// not without writing an expression.
 	answer   map[shared.ID]bool
 	compiles bool
+	// fails makes the evaluation on one entry fail with the error given.
+	fails map[shared.ID]error
 	// touched records which names each evaluation resolved, which is how the laziness is proved.
 	touched  []string
 	compiled int
@@ -494,6 +496,9 @@ func (p *program) Evaluate(ctx context.Context, in expression.Activation) (expre
 
 	document, _ := value.(map[string]any)
 	id, _ := document["id"].(string)
+	if err := p.owner.fails[shared.ID(id)]; err != nil {
+		return expression.Value{}, err
+	}
 	return expression.Value{Bool: p.owner.answer[shared.ID(id)]}, nil
 }
 
@@ -607,10 +612,11 @@ func TestTheEntryIsReadOnlyWhenTheConditionNamesIt(t *testing.T) {
 }
 
 // Neither direction is an answer. Defaulting to true would delete what the condition was written to
-// protect; defaulting to false would quietly retain everything and look like a working rule.
-func TestAConditionThatCannotBeCompiledStopsThePass(t *testing.T) {
+// protect; defaulting to false would quietly retain everything and look like a working rule. A
+// condition this build cannot compile sets its rule aside for the pass, with the compiler's code.
+func TestAConditionThatCannotBeCompiledSetsItsRuleAside(t *testing.T) {
 	h := newSweepHarness()
-	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+	rule := h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
 	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
 
 	engine := newConditions()
@@ -618,11 +624,15 @@ func TestAConditionThatCannotBeCompiledStopsThePass(t *testing.T) {
 
 	sweeper := h.sweeper()
 	sweeper.Conditions = engine
-	if _, err := sweeper.Pass(context.Background(), actor()); err == nil {
-		t.Fatal("a rule whose condition cannot be compiled was acted on")
+	outcome, err := sweeper.Pass(context.Background(), actor())
+	if err != nil {
+		t.Fatalf("one rule's condition stopped the pass: %v", err)
 	}
 	if len(h.marking.marked) != 0 {
 		t.Errorf("%d entries were announced anyway", len(h.marking.marked))
+	}
+	if failure := outcome.SetAside[rule.ID]; failure.Code != expression.CodeSyntax || !failure.At.Equal(now) {
+		t.Errorf("the rule was set aside with %+v", failure)
 	}
 }
 

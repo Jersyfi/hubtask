@@ -33,6 +33,7 @@ var (
 	_ persistence.ScopeSource = (*UnitOfWork)(nil)
 	_ persistence.Snapshot    = (*UnitOfWork)(nil)
 	_ persistence.Writable    = (*UnitOfWork)(nil)
+	_ persistence.Independent = (*UnitOfWork)(nil)
 )
 
 // contextKey is unexported, so nothing outside this package can put a transaction into a
@@ -68,6 +69,13 @@ func (u *UnitOfWork) WithinWritable(ctx context.Context, scope persistence.Scope
 		return u.run(outsideTransaction(ctx), scope, pgx.ReadWrite, fn)
 	}
 	return u.Within(ctx, scope, fn)
+}
+
+// WithinIndependent runs fn in a read-write transaction of its own, beside any the context carries.
+func (u *UnitOfWork) WithinIndependent(
+	ctx context.Context, scope persistence.Scope, fn func(context.Context) error,
+) error {
+	return u.run(outsideTransaction(ctx), scope, pgx.ReadWrite, fn)
 }
 
 // WithinSnapshot runs fn against one consistent point in time (backup-restore.md §5).

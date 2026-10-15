@@ -3070,6 +3070,8 @@ func run() error {
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
 			Rules: postgres.NewRetentionRuleRepository(),
+			// A rule set aside for a pass shows why, written beside the pass (data-retention.md §2).
+			RuleFailures: postgres.NewRetentionRuleRepository(), Independent: unitOfWork,
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),

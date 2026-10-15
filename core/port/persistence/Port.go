@@ -138,3 +138,16 @@ type Writable interface {
 	// wait for ever.
 	WithinWritable(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
 }
+
+// Independent is a unit of work whose transaction is always its own: beside whatever transaction
+// the caller's context carries, on another connection, committed when fn returns whatever the
+// caller's transaction does afterwards.
+//
+// For a record that has to outlive its caller's rollback - the failure of a retention rule a pass
+// set aside (data-retention.md §2). Only for a write that touches no row the caller's transaction
+// has written or locked: the caller's transaction stays open while this one runs, and a wait between
+// the two would wait for ever. That is why it is a separate interface rather than Writable's
+// behaviour, which never opens a second transaction beside a read-write one.
+type Independent interface {
+	WithinIndependent(ctx context.Context, scope Scope, fn func(ctx context.Context) error) error
+}
