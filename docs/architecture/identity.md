@@ -621,13 +621,13 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
-request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
-such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, connecting a provider from a
-session (§11), a private hub's emergency access (§22), and every write of §6 (bearer door), §8–§9,
-§10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's
-erasures carried out again after a point-in-time recovery, and configuring or removing one of the
-installation's own backup targets (backup-restore.md §2).
+request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
+a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
+/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding a
+passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
+(bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
+configuring or removing one of the installation's own backup targets (backup-restore.md §2).
 
 ---
 
@@ -878,9 +878,12 @@ role given while the last member leaves is seen.
 
 ## 23. Passkeys and security keys
 
-**Decided for milestone PK, not built** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md);
-the owner, 2026-10-15). Until PK's tasks merge, §2, §8 and §16.1 describe what runs: one second
-factor, the authenticator app.
+**Decided for milestone PK** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md); the owner,
+2026-10-15). **Built:** adding one (§23.2's limit, recovery codes and step-up, §23.3, §23.5) - the
+`webauthn_credential` table, the verifier in `infrastructure/webauthn`, `ListOwnPasskeys`,
+`StartPasskeyRegistration` and `CompletePasskeyRegistration`. **Not yet:** renaming and removing, a
+key counted as the second factor, signing in, the step-up and the setup with one; until they are,
+§2, §8 and §16.1 describe what runs: one second factor, the authenticator app.
 
 ### 23.1 One credential, two strengths
 
