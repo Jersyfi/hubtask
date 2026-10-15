@@ -38,7 +38,7 @@ and they are not to be merged into one engine.
 |---|---|
 | `scope` | `TENANT`, `HUB`, `COLLECTION` — the narrower rule wins over the wider one |
 | `data_kind` | See §3 |
-| `condition` | Optional CEL on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2), over only `item`, `now` and `tenant`. Compiled on write, evaluated per candidate; one that cannot be evaluated **stops the pass** rather than defaulting either way |
+| `condition` | Optional CEL on the automation engine's port and limits ([ADR-0009](../adr/ADR-0009-automation-rules-cel.md), [automation.md](./automation.md) §1.2), over only `item`, `now` and `tenant`. Compiled on write, evaluated per candidate; one that cannot be evaluated on a candidate **sets its rule aside for that pass** rather than defaulting either way: the rule announces and removes nothing, every other rule, phase two and the trash go on, and the rule shows `last_failure` (the code and when) until a pass evaluates it cleanly |
 | `retain_days` | The period from the kind's anchor (§3) |
 | `action` | `ARCHIVE`, `TRASH`, `ANONYMIZE`, `HARD_DELETE`, `EXPORT_THEN_DELETE`, `NOTIFY_ONLY` |
 | `then_after_days` / `then_action` | A second stage (completed → archive after 1 year → delete after 2 more) |
