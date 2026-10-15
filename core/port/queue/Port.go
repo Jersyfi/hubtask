@@ -231,6 +231,12 @@ const (
 	// system may enumerate tenants.
 	KindAuditAnchor Kind = "audit.anchor"
 
+	// KindAuditTrailRemoved records, in one workspace's own trail, that a month of it went for good
+	// (audit.md §3). Queued by the leader in the transaction that dropped the month, one per
+	// workspace that had entries in it: the partition holds every workspace, the entry belongs in
+	// each one's own chain.
+	KindAuditTrailRemoved Kind = "audit.trail_removed"
+
 	// KindAuditExport writes a period of the audit trail to a backup target as a signed archive
 	// (audit.md §5).
 	//

@@ -687,6 +687,10 @@ class Client:
         """Place the legal holds of a rewound period again"""
         return self._call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")
 
+    def reapply_erasures(self, tenant_id: str, body: "ErasureReapplyRequest", *, step_up: str | None = None) -> "ErasureReapplyResult":
+        """Carry out again the erasures of a rewound period"""
+        return self._call("POST", "/admin/tenants/{tenantId}:reapply-erasures", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def export_tenant(self, tenant_id: str, body: "TenantExportRequest") -> "JobRef":
         """Export a workspace whole"""
         return self._call("POST", "/admin/tenants/{tenantId}:export", {"tenantId": tenant_id}, None, {}, body, "json", "application/json", "json")

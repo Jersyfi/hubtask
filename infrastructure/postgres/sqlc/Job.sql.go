@@ -436,6 +436,47 @@ func (q *Queries) JobQueueDepth(ctx context.Context, now pgtype.Timestamptz) ([]
 	return items, nil
 }
 
+const purgeFinishedJobs = `-- name: PurgeFinishedJobs :many
+DELETE FROM job
+WHERE id IN (
+  SELECT id FROM job
+  WHERE state IN ('SUCCEEDED', 'FAILED', 'DEAD_LETTER', 'CANCELLED')
+    AND finished_at < $1::timestamptz
+  ORDER BY finished_at, id
+  LIMIT $2::int
+)
+RETURNING state
+`
+
+type PurgeFinishedJobsParams struct {
+	Before pgtype.Timestamptz
+	Batch  int32
+}
+
+// The catalogue's period for a finished job: seven days after it ended (docs/privacy/data-catalog.md).
+// Every terminal state alike, dead letters included - a payload names people by identifier, and a
+// dead letter has had A-07 for the week. Oldest first and bounded, so a backlog clears over runs
+// rather than in one statement; no tenant, because the table has none (multi-tenancy.md §2.1).
+func (q *Queries) PurgeFinishedJobs(ctx context.Context, arg PurgeFinishedJobsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, purgeFinishedJobs, arg.Before, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var state string
+		if err := rows.Scan(&state); err != nil {
+			return nil, err
+		}
+		items = append(items, state)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const refuseJob = `-- name: RefuseJob :execrows
 UPDATE job SET
   state             = 'FAILED',

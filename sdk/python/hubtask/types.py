@@ -912,6 +912,29 @@ class LegalHoldReplaceResult(TypedDict, total=False):
     holds: Required[list[dict[str, Any]]]
     archive: dict[str, Any]
 
+class ErasureReapplyRequest(TypedDict, total=False):
+    """The erasure cases this workspace completed after the recovery point, as the cluster recovered to the end of the WAL archive holds them."""
+    recovery_point: Required[str]
+    erasures: Required[list["ErasureCaseRecord"]]
+
+class ErasureCaseRecord(TypedDict, total=False):
+    """One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed."""
+    id: Required[str]
+    erasure_mode: Required["ErasureMode"]
+    subject_account_id: str | None
+    subject_email: str | None
+    received_at: Required[str]
+    due_at: Required[str]
+    completed_at: Required[str]
+    handled_by: str | None
+    notes: str | None
+    original_due_at: str | None
+    extension_reason: "DataSubjectRequestExtensionReason"
+    informed_on: str | None
+
+class ErasureReapplyResult(TypedDict, total=False):
+    erasures: Required[list[dict[str, Any]]]
+
 class PasswordOpeningRequest(TypedDict, total=False):
     hours: int
     requester: Required[str]

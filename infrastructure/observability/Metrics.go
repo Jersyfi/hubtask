@@ -50,6 +50,9 @@ type Metrics struct {
 	jobDuration       metric.Float64Histogram
 	jobFailures       metric.Int64Counter
 	jobDeadLetters    metric.Int64Counter
+	jobsPurged        metric.Int64Counter
+	auditHeld         metric.Int64Gauge
+	auditDefaultAged  metric.Int64Gauge
 	jobQueueDepth     metric.Int64Gauge
 	quotaUsageRatio   metric.Float64Gauge
 	outboxLag         metric.Float64Histogram
@@ -312,6 +315,27 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 		metric.WithDescription("Jobs that used up their attempts. Every one of these needs a person."),
 	); err != nil {
 		return fmt.Errorf("dead letter counter: %w", err)
+	}
+	if m.jobsPurged, err = meter.Int64Counter(
+		namespace+"_job_purged_total",
+		metric.WithDescription("Finished jobs removed seven days after they ended, by terminal state. "+
+			"Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("purged job counter: %w", err)
+	}
+	if m.auditHeld, err = meter.Int64Gauge(
+		namespace+"_audit_partitions_held",
+		metric.WithDescription("Months of the audit trail past their period a legal hold keeps whole, "+
+			"for every workspace in them. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("held audit partitions gauge: %w", err)
+	}
+	if m.auditDefaultAged, err = meter.Int64Gauge(
+		namespace+"_audit_default_partition_aged_rows",
+		metric.WithDescription("Audit entries in the default partition past their period, which no "+
+			"partition drop reaches. Reported by the scheduler leader only."),
+	); err != nil {
+		return fmt.Errorf("default partition gauge: %w", err)
 	}
 	if m.jobQueueDepth, err = meter.Int64Gauge(
 		namespace+"_job_queue_depth",
@@ -943,6 +967,22 @@ func (m *Metrics) JobFailed(ctx context.Context, kind, attemptClass string) {
 		attribute.String("job_type", kind),
 		attribute.String("attempt_class", attemptClass),
 	))
+}
+
+// JobsPurged counts the finished jobs the leader removed, by terminal state. Written at zero too,
+// for RetentionDeleted's reason.
+func (m *Metrics) JobsPurged(ctx context.Context, state string, count int64) {
+	m.jobsPurged.Add(ctx, count, metric.WithAttributes(attribute.String("state", state)))
+}
+
+// AuditPartitionsHeld is how many of the trail's aged months a hold keeps.
+func (m *Metrics) AuditPartitionsHeld(ctx context.Context, months int64) {
+	m.auditHeld.Record(ctx, months)
+}
+
+// AuditDefaultAgedRows is how many entries in the trail's default partition are past their period.
+func (m *Metrics) AuditDefaultAgedRows(ctx context.Context, rows int64) {
+	m.auditDefaultAged.Record(ctx, rows)
 }
 
 // JobDeadLettered counts a job that used up its attempts (alert A-07).
