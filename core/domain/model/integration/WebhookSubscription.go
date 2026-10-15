@@ -73,7 +73,10 @@ type WebhookSubscription struct {
 	// is refused (automation.md §3.1) rather than stored and ignored - a filter that is accepted
 	// and does nothing is a subscriber receiving events they asked not to receive.
 	Filter string
-	State  SubscriptionState
+	// Scope is where the subscription listens: the whole workspace, one hub or one collection.
+	// Whether an event happened there is the dispatcher's question; this holds what was asked for.
+	Scope WebhookScope
+	State SubscriptionState
 	// FailureCount is the run of consecutive failed deliveries. The first success resets it, which
 	// is what makes it a measure of "is this target reachable now" rather than of history.
 	FailureCount int
@@ -100,6 +103,7 @@ type NewWebhookSubscriptionInput struct {
 	TargetURL  string
 	EventTypes []string
 	Filter     string
+	Scope      WebhookScope
 	CreatedBy  shared.ID
 	Now        time.Time
 }
@@ -121,10 +125,14 @@ func NewWebhookSubscription(in NewWebhookSubscriptionInput) (WebhookSubscription
 	if err := RefuseFilter(in.Filter); err != nil {
 		return WebhookSubscription{}, err
 	}
+	scope, err := ValidWebhookScope(in.Scope)
+	if err != nil {
+		return WebhookSubscription{}, err
+	}
 
 	return WebhookSubscription{
 		ID: in.ID, TenantID: in.TenantID,
-		TargetURL: target, EventTypes: types,
+		TargetURL: target, EventTypes: types, Scope: scope,
 		State:     SubscriptionActive,
 		CreatedBy: in.CreatedBy, CreatedAt: in.Now.UTC(), Version: 1,
 	}, nil

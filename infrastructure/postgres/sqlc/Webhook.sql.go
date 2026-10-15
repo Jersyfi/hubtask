@@ -167,7 +167,8 @@ func (q *Queries) FindWebhookDelivery(ctx context.Context, id pgtype.UUID) (Webh
 }
 
 const findWebhookSubscription = `-- name: FindWebhookSubscription :one
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -180,6 +181,8 @@ type FindWebhookSubscriptionRow struct {
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
+	ScopeType           *string
+	ScopeID             pgtype.UUID
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -206,6 +209,8 @@ func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (
 		&i.TargetUrl,
 		&i.EventTypes,
 		&i.FilterExpr,
+		&i.ScopeType,
+		&i.ScopeID,
 		&i.SecretEnc,
 		&i.SecretKeyID,
 		&i.PreviousSecretEnc,
@@ -225,13 +230,13 @@ func (q *Queries) FindWebhookSubscription(ctx context.Context, id pgtype.UUID) (
 const insertWebhookDelivery = `-- name: InsertWebhookDelivery :exec
 
 INSERT INTO webhook_delivery (
-  id, tenant_id, subscription_id, event_id, attempt, status, next_attempt_at, created_at,
-  push_id, subject, event_type
+  id, tenant_id, subscription_id, event_id, attempt, status, error_code, next_attempt_at,
+  created_at, push_id, subject, event_type
 )
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
-  $8, $9, $10
+  $8, $9, $10, $11
 )
 `
 
@@ -241,6 +246,7 @@ type InsertWebhookDeliveryParams struct {
 	EventID        pgtype.UUID
 	Attempt        int32
 	Status         string
+	ErrorCode      *string
 	NextAttemptAt  pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
 	PushID         pgtype.UUID
@@ -256,6 +262,7 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 		arg.EventID,
 		arg.Attempt,
 		arg.Status,
+		arg.ErrorCode,
 		arg.NextAttemptAt,
 		arg.CreatedAt,
 		arg.PushID,
@@ -268,13 +275,14 @@ func (q *Queries) InsertWebhookDelivery(ctx context.Context, arg InsertWebhookDe
 const insertWebhookSubscription = `-- name: InsertWebhookSubscription :exec
 
 INSERT INTO webhook_subscription (
-  id, tenant_id, target_url, event_types, filter_expr,
+  id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
   secret_enc, secret_key_id, state, created_by, created_at, version
 )
 VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8, $9, 1
+  $7, $8,
+  $9, $10, $11, 1
 )
 `
 
@@ -283,6 +291,8 @@ type InsertWebhookSubscriptionParams struct {
 	TargetUrl   string
 	EventTypes  []string
 	FilterExpr  *string
+	ScopeType   *string
+	ScopeID     pgtype.UUID
 	SecretEnc   []byte
 	SecretKeyID *string
 	State       string
@@ -305,6 +315,8 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 		arg.TargetUrl,
 		arg.EventTypes,
 		arg.FilterExpr,
+		arg.ScopeType,
+		arg.ScopeID,
 		arg.SecretEnc,
 		arg.SecretKeyID,
 		arg.State,
@@ -315,7 +327,8 @@ func (q *Queries) InsertWebhookSubscription(ctx context.Context, arg InsertWebho
 }
 
 const listWebhookSubscriptions = `-- name: ListWebhookSubscriptions :many
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -328,6 +341,8 @@ type ListWebhookSubscriptionsRow struct {
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
+	ScopeType           *string
+	ScopeID             pgtype.UUID
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -360,6 +375,8 @@ func (q *Queries) ListWebhookSubscriptions(ctx context.Context) ([]ListWebhookSu
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
+			&i.ScopeType,
+			&i.ScopeID,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,
@@ -509,7 +526,8 @@ func (q *Queries) RotateWebhookSecret(ctx context.Context, arg RotateWebhookSecr
 }
 
 const subscriptionsForEventType = `-- name: SubscriptionsForEventType :many
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -523,6 +541,8 @@ type SubscriptionsForEventTypeRow struct {
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
+	ScopeType           *string
+	ScopeID             pgtype.UUID
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -557,6 +577,8 @@ func (q *Queries) SubscriptionsForEventType(ctx context.Context, eventType strin
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
+			&i.ScopeType,
+			&i.ScopeID,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,
@@ -585,18 +607,22 @@ UPDATE webhook_subscription SET
   target_url  = $1,
   event_types = $2,
   filter_expr = $3,
-  state       = $4,
-  failure_count = $5,
-  last_error  = $6,
-  disabled_at = $7,
+  scope_type  = $4,
+  scope_id    = $5,
+  state       = $6,
+  failure_count = $7,
+  last_error  = $8,
+  disabled_at = $9,
   version     = version + 1
-WHERE id = $8 AND version = $9
+WHERE id = $10 AND version = $11
 `
 
 type UpdateWebhookSubscriptionParams struct {
 	TargetUrl       string
 	EventTypes      []string
 	FilterExpr      *string
+	ScopeType       *string
+	ScopeID         pgtype.UUID
 	State           string
 	FailureCount    int32
 	LastError       *string
@@ -612,6 +638,8 @@ func (q *Queries) UpdateWebhookSubscription(ctx context.Context, arg UpdateWebho
 		arg.TargetUrl,
 		arg.EventTypes,
 		arg.FilterExpr,
+		arg.ScopeType,
+		arg.ScopeID,
 		arg.State,
 		arg.FailureCount,
 		arg.LastError,
@@ -685,7 +713,8 @@ func (q *Queries) WebhookDeliveries(ctx context.Context, arg WebhookDeliveriesPa
 }
 
 const webhookSubscriptionsSealedNotUnder = `-- name: WebhookSubscriptionsSealedNotUnder :many
-SELECT id, tenant_id, target_url, event_types, filter_expr, secret_enc, secret_key_id,
+SELECT id, tenant_id, target_url, event_types, filter_expr, scope_type, scope_id,
+       secret_enc, secret_key_id,
        previous_secret_enc, previous_secret_key_id, previous_secret_until,
        state, failure_count, last_error, disabled_at, created_by, created_at, version
 FROM webhook_subscription
@@ -700,6 +729,8 @@ type WebhookSubscriptionsSealedNotUnderRow struct {
 	TargetUrl           string
 	EventTypes          []string
 	FilterExpr          *string
+	ScopeType           *string
+	ScopeID             pgtype.UUID
 	SecretEnc           []byte
 	SecretKeyID         *string
 	PreviousSecretEnc   []byte
@@ -732,6 +763,8 @@ func (q *Queries) WebhookSubscriptionsSealedNotUnder(ctx context.Context, keyID 
 			&i.TargetUrl,
 			&i.EventTypes,
 			&i.FilterExpr,
+			&i.ScopeType,
+			&i.ScopeID,
 			&i.SecretEnc,
 			&i.SecretKeyID,
 			&i.PreviousSecretEnc,

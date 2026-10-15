@@ -1434,6 +1434,9 @@ CREATE TABLE webhook_subscription (
   target_url    text NOT NULL,
   event_types   text[] NOT NULL,
   filter_expr   text,
+  -- Where it listens (migration 0154): a hub or a collection, both NULL for the whole workspace.
+  scope_type    text,
+  scope_id      uuid,
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
@@ -1453,7 +1456,11 @@ CREATE TABLE webhook_subscription (
   disabled_at   timestamptz,
   created_by    uuid NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
-  version       integer NOT NULL DEFAULT 1
+  version       integer NOT NULL DEFAULT 1,
+  CONSTRAINT webhook_subscription_scope_check CHECK (
+    (scope_type IS NULL AND scope_id IS NULL)
+    OR (scope_type IN ('HUB','COLLECTION') AND scope_id IS NOT NULL)
+  )
 );
 CREATE UNIQUE INDEX webhook_subscription_tenant_id_uq ON webhook_subscription (tenant_id, id);
 
@@ -1463,7 +1470,8 @@ CREATE TABLE webhook_delivery (
   subscription_id uuid NOT NULL,
   event_id        uuid NOT NULL,
   attempt         integer NOT NULL DEFAULT 1,
-  status          text NOT NULL CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER')),
+  status          text NOT NULL CONSTRAINT webhook_delivery_status_check
+                    CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER','FILTER_FAILED')),
   response_status integer,
   error_code      text,
   next_attempt_at timestamptz,

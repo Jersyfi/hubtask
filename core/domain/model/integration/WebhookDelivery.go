@@ -22,6 +22,11 @@ const (
 	// DeliveryDeadLetter is where the attempts stop. It is not a deletion: this is the row an
 	// operator reads and the one a replay acts on (automation.md §3.1).
 	DeliveryDeadLetter DeliveryStatus = "DEAD_LETTER"
+	// DeliveryFilterFailed is an event the subscription's condition could not be evaluated for. It
+	// was not sent - failing open would deliver what the subscriber narrowed away - and it is said
+	// here, with the expression's code, so whoever owns the subscription sees what was held back.
+	// No attempt was made, so it is never retried and cannot be replayed.
+	DeliveryFilterFailed DeliveryStatus = "FILTER_FAILED"
 )
 
 // WebhookDelivery is one attempt at one event against one subscription.
@@ -54,6 +59,21 @@ type WebhookDelivery struct {
 	// and empty for the delivery of an event made online, which folds with nothing. A retry
 	// and a replay carry none either: an attempt already made stands for the event it sent.
 	Collapse CollapseKey
+}
+
+// NewFilterFailedDelivery records an event held back because the subscription's condition could not
+// be evaluated: attempt zero, because nothing was sent, and the expression's code - never the
+// condition's text.
+func NewFilterFailedDelivery(
+	id, tenantID, subscriptionID, eventID shared.ID, code string, now time.Time,
+) (WebhookDelivery, error) {
+	if id.IsZero() || tenantID.IsZero() || subscriptionID.IsZero() || eventID.IsZero() || code == "" {
+		return WebhookDelivery{}, shared.ErrInternal.WithDetail("webhooks.delivery_incomplete")
+	}
+	return WebhookDelivery{
+		ID: id, TenantID: tenantID, SubscriptionID: subscriptionID, EventID: eventID,
+		Attempt: 0, Status: DeliveryFilterFailed, ErrorCode: code, CreatedAt: now.UTC(),
+	}, nil
 }
 
 // CollapseKey names the push, the subject and the type one delivery stands for: the events of
