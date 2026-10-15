@@ -19,10 +19,12 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	work "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -42,6 +44,7 @@ const (
 // wins" is a rule about the data rather than a detail of the engine.
 const (
 	BlockedByLegalHold       = domain.BlockedByLegalHold
+	BlockedByRestriction     = domain.BlockedByRestriction
 	BlockedByTombstoneWindow = domain.BlockedByTombstoneWindow
 )
 
@@ -52,14 +55,17 @@ const (
 // number in a report - not in what removing owes, which is the whole point of it being one thing.
 // A second implementation would be a second place for a purge to forget its tombstone.
 type Purger struct {
-	Trash    workrepo.Trash
-	Expired  repository.Expired
-	Holds    repository.LegalHolds
-	Removals repository.Removals
-	Events   outbox.Events
-	Audit    audit.Sink
-	Clock    clock.Clock
-	IDs      clock.IDGenerator
+	Trash   workrepo.Trash
+	Expired repository.Expired
+	Holds   repository.LegalHolds
+	// Restrictions is whose processing is restricted, read by the automatic sweep only
+	// (Selection.ObserveRestrictions).
+	Restrictions privacyrepo.Restrictions
+	Removals     repository.Removals
+	Events       outbox.Events
+	Audit        audit.Sink
+	Clock        clock.Clock
+	IDs          clock.IDGenerator
 	// TombstoneWindow is the maximum offline window: how long the marker of a removal has to
 	// survive it, and the lower bound an automatic run observes before removing at all.
 	TombstoneWindow time.Duration
@@ -129,7 +135,7 @@ func (p Purger) Subtree(
 	// Every entry that goes, not the root alone: a hold on an activity three levels down names
 	// that activity, and the root's own path says nothing about it. Each one shares the root's
 	// containers and ancestors, so its own identifier and its contributors are what is left to judge.
-	contributors, err := contributorsOf(ctx, p.Holds, holds, ids)
+	contributors, err := contributorsOf(ctx, p.Holds, holds, privacy.Restricted{}, ids)
 	if err != nil {
 		return 0, err
 	}
@@ -192,6 +198,10 @@ type Selection struct {
 	// today. A person emptying their own trash did ask, and the tombstone the purge writes is what
 	// stops the resurrection there - the marker outlives the row by the whole window either way.
 	ObserveTombstoneWindow bool
+	// ObserveRestrictions keeps back what a restricted person contributed (data-retention.md §4
+	// item 2, UC-PRV-04 check 8). True for the retention job and false for a person emptying a
+	// trash: a restriction stops what the system does on its own, and is not a lock on people.
+	ObserveRestrictions bool
 }
 
 // Sweep removes everything the selection covers, in one batch, and reports what it did.
@@ -213,6 +223,12 @@ func (p Purger) Sweep(
 	if err != nil {
 		return outcome, err
 	}
+	var restricted privacy.Restricted
+	if selection.ObserveRestrictions {
+		if restricted, err = restrictionsOf(ctx, p.Restrictions); err != nil {
+			return outcome, err
+		}
+	}
 
 	// The floor offline clients impose. An object may only disappear for good once every known
 	// device has had the chance to learn of the deletion; until then it is past its period and still
@@ -223,7 +239,7 @@ func (p Purger) Sweep(
 		safe = now
 	}
 
-	items, removableItems, err := p.expiredItems(ctx, holds, cutoff, safe, &outcome)
+	items, removableItems, err := p.expiredItems(ctx, holds, restricted, cutoff, safe, &outcome)
 	if err != nil {
 		return outcome, err
 	}
@@ -295,7 +311,8 @@ func (p Purger) Sweep(
 // can go, the window's rows begin, or the trash ends: a batch-full of held rows ahead of a due one
 // would otherwise be read, counted and skipped on every pass, and the due one never reached.
 func (p Purger) expiredItems(
-	ctx context.Context, holds domain.Holds, cutoff, safe time.Time, outcome *Outcome,
+	ctx context.Context, holds domain.Holds, restricted privacy.Restricted, cutoff, safe time.Time,
+	outcome *Outcome,
 ) ([]repository.ExpiredItem, []shared.ID, error) {
 	var read []repository.ExpiredItem
 	removable := make([]shared.ID, 0, max(p.BatchSize, 0))
@@ -308,7 +325,7 @@ func (p Purger) expiredItems(
 		for _, expired := range page {
 			ids = append(ids, expired.ID)
 		}
-		contributors, err := contributorsOf(ctx, p.Holds, holds, ids)
+		contributors, err := contributorsOf(ctx, p.Holds, holds, restricted, ids)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -326,6 +343,11 @@ func (p Purger) expiredItems(
 				Contributors:    contributors[expired.ID],
 			}); held {
 				outcome.blocked(BlockedByLegalHold)
+				outcome.Held++
+				continue
+			}
+			if restrictedAmong(restricted, contributors[expired.ID]) {
+				outcome.blocked(BlockedByRestriction)
 				outcome.Held++
 				continue
 			}
@@ -397,10 +419,13 @@ func lastPage[T any](batchSize int, page []T) bool {
 // contributorsOf reads whose own data goes with each of these entries - only while an account hold
 // is in force, because nothing else asks, and a removal over a workspace with no such hold should
 // cost no extra statement.
+//
+// Or while somebody's processing is restricted, which reaches the same data (§4 item 2).
 func contributorsOf(
-	ctx context.Context, port repository.LegalHolds, holds domain.Holds, ids []shared.ID,
+	ctx context.Context, port repository.LegalHolds, holds domain.Holds,
+	restricted privacy.Restricted, ids []shared.ID,
 ) (map[shared.ID][]shared.ID, error) {
-	if !holds.AnyOnAccounts() || len(ids) == 0 {
+	if (!holds.AnyOnAccounts() && restricted.Empty()) || len(ids) == 0 {
 		return nil, nil
 	}
 	return port.Contributors(ctx, ids)

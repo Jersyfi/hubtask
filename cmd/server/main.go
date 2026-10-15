@@ -745,7 +745,8 @@ func run() error {
 	// refusal is an error or a number - not in what removing owes (lifecycle.Purger).
 	purger := lifecycle.Purger{
 		Trash: trash, Expired: lifecycleStore, Holds: lifecycleStore, Removals: lifecycleStore,
-		Events: outbox, Audit: auditSink, Clock: clockadapter.System{}, IDs: ids,
+		Restrictions: privacyStore,
+		Events:       outbox, Audit: auditSink, Clock: clockadapter.System{}, IDs: ids,
 		TombstoneWindow: cfg.Retention.TombstoneWindow, BatchSize: cfg.Retention.BatchSize,
 	}
 
@@ -753,12 +754,13 @@ func run() error {
 	// share a newly created rule reports and the share its preview reports come from the same
 	// reading - RE-7 is exactly that they agree.
 	retentionRules := lifecycle.Rules{
-		Conditions: celexpression.New(),
-		Rules:      postgres.NewRetentionRuleRepository(),
-		Policies:   lifecycleStore,
-		Marking:    postgres.NewRetentionMarkingRepository(),
-		Holds:      lifecycleStore,
-		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Conditions:   celexpression.New(),
+		Rules:        postgres.NewRetentionRuleRepository(),
+		Policies:     lifecycleStore,
+		Marking:      postgres.NewRetentionMarkingRepository(),
+		Holds:        lifecycleStore,
+		Restrictions: privacyStore,
+		Authorizer:   authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 
@@ -3104,6 +3106,7 @@ func run() error {
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
 				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
+				Restrictions: privacyStore,
 				// The advance warning of data-retention.md §6 (R-1), through the notification path:
 				// the preference is honoured, the record is deduplicated, and the send is a job.
 				Warnings: notification.RecordRetentionWarning{
