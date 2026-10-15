@@ -351,7 +351,7 @@ func (a Applier) precheck(
 	var key secret.Bytes
 	if newest.Manifest.Encryption.IsEncrypted() {
 		key, err = a.Keys.ReproduceFromMaster(ctx,
-			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(restore.TargetID), archiveKeyBytes)
+			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(restore.TargetID), nil, archiveKeyBytes)
 		if err != nil {
 			return nil, secret.Bytes{}, err
 		}

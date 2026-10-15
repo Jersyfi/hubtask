@@ -93,12 +93,12 @@ var _ persistence.Snapshot = (*snapshotDouble)(nil)
 // was encrypted without owning a cipher.
 type keys struct{ purposes []crypto.Purpose }
 
-func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, length int) (crypto.MasterDerived, error) {
+func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, _ []byte, length int) (crypto.MasterDerived, error) {
 	k.purposes = append(k.purposes, purpose)
 	return crypto.MasterDerived{KeyID: "k1", Key: secret.NewBytes(bytes.Repeat([]byte{0x11}, length))}, nil
 }
 
-func (k *keys) ReproduceFromMaster(_ context.Context, _ string, _ crypto.Purpose, length int) (secret.Bytes, error) {
+func (k *keys) ReproduceFromMaster(_ context.Context, _ string, _ crypto.Purpose, _ []byte, length int) (secret.Bytes, error) {
 	return secret.NewBytes(bytes.Repeat([]byte{0x11}, length)), nil
 }
 

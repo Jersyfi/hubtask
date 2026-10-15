@@ -302,15 +302,15 @@ func TestAValueTooLargeToBeACredentialIsRefused(t *testing.T) {
 func TestADerivedKeyIsStableAndBoundToItsPurpose(t *testing.T) {
 	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
 
-	first, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	first, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, 32)
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
-	again, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	again, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, 32)
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
-	other, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:two", 32)
+	other, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:two", nil, 32)
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
@@ -327,11 +327,40 @@ func TestADerivedKeyIsStableAndBoundToItsPurpose(t *testing.T) {
 	}
 }
 
+// The salt an archive carries: the same salt gives the same key again, another salt another key,
+// and no salt the key archives were written under before they carried one.
+func TestADerivedKeyIsBoundToItsSalt(t *testing.T) {
+	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
+	const purpose = "backup_target.archive"
+	derive := func(salt []byte) secret.Bytes {
+		t.Helper()
+		derived, err := sealer.DeriveFromMaster(t.Context(), purpose, salt, 32)
+		if err != nil {
+			t.Fatalf("deriving: %v", err)
+		}
+		return derived.Key
+	}
+	one, two := bytes.Repeat([]byte{1}, 16), bytes.Repeat([]byte{2}, 16)
+
+	reproduced, err := sealer.ReproduceFromMaster(t.Context(), "a", purpose, one, 32)
+	if err != nil {
+		t.Fatalf("reproducing: %v", err)
+	}
+	switch {
+	case !derive(one).Equal(reproduced):
+		t.Fatal("the same salt gave two different keys")
+	case derive(one).Equal(derive(two)):
+		t.Fatal("two salts share a key")
+	case derive(one).Equal(derive(nil)):
+		t.Fatal("a salted key equals the unsalted one")
+	}
+}
+
 // An archive written before a rotation opens with the key its manifest names, which is what
 // reproducing from a named master key is for.
 func TestAKeyIsReproducedFromTheMasterKeyItsIdentifierNames(t *testing.T) {
 	before := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
-	written, err := before.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	written, err := before.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, 32)
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
@@ -339,7 +368,7 @@ func TestAKeyIsReproducedFromTheMasterKeyItsIdentifierNames(t *testing.T) {
 	// The rotation: a new key is added and the old one is kept.
 	after := crypto.NewEnvelope(ring(t, key("b", materialB), key("a", materialA)), clockadapter.CryptoRandom{})
 
-	reproduced, err := after.ReproduceFromMaster(t.Context(), written.KeyID, "backup_target.archive:one", 32)
+	reproduced, err := after.ReproduceFromMaster(t.Context(), written.KeyID, "backup_target.archive:one", nil, 32)
 	if err != nil {
 		t.Fatalf("reproducing: %v", err)
 	}
@@ -348,7 +377,7 @@ func TestAKeyIsReproducedFromTheMasterKeyItsIdentifierNames(t *testing.T) {
 	}
 
 	// And what the installation writes now is a different key, under the new identifier.
-	fresh, err := after.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32)
+	fresh, err := after.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, 32)
 	if err != nil {
 		t.Fatalf("deriving: %v", err)
 	}
@@ -360,7 +389,7 @@ func TestAKeyIsReproducedFromTheMasterKeyItsIdentifierNames(t *testing.T) {
 func TestAKeyFromAMasterKeyTheInstallationNoLongerHoldsIsUnavailable(t *testing.T) {
 	sealer := crypto.NewEnvelope(ring(t, key("b", materialB)), clockadapter.CryptoRandom{})
 
-	_, err := sealer.ReproduceFromMaster(t.Context(), "a", "backup_target.archive:one", 32)
+	_, err := sealer.ReproduceFromMaster(t.Context(), "a", "backup_target.archive:one", nil, 32)
 	if !errors.Is(err, shared.ErrUnavailable) {
 		t.Fatalf("a key nobody holds: %v", err)
 	}
@@ -375,7 +404,7 @@ func TestDerivingWithoutAMasterKeyIsRefused(t *testing.T) {
 	}
 	sealer := crypto.NewEnvelope(empty, clockadapter.CryptoRandom{})
 
-	if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", 32); !errors.Is(err, shared.ErrUnavailable) {
+	if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, 32); !errors.Is(err, shared.ErrUnavailable) {
 		t.Fatalf("deriving with no key: %v", err)
 	}
 }
@@ -384,7 +413,7 @@ func TestALengthNothingNeedsIsRefused(t *testing.T) {
 	sealer := crypto.NewEnvelope(ring(t, key("a", materialA)), clockadapter.CryptoRandom{})
 
 	for _, length := range []int{0, -1, 65, 1 << 20} {
-		if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", length); err == nil {
+		if _, err := sealer.DeriveFromMaster(t.Context(), "backup_target.archive:one", nil, length); err == nil {
 			t.Fatalf("a key of %d bytes was derived", length)
 		}
 	}

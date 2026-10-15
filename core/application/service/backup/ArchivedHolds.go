@@ -70,7 +70,7 @@ func (a ArchivedHolds) Read(
 	var key secret.Bytes
 	if newest.Manifest.Encryption.IsEncrypted() {
 		key, err = a.Keys.ReproduceFromMaster(ctx,
-			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(source.TargetID), archiveKeyBytes)
+			newest.Manifest.Encryption.KeyID, archiveKeyPurpose(source.TargetID), nil, archiveKeyBytes)
 		if err != nil {
 			return lifecycle.ArchivedHolds{}, err
 		}

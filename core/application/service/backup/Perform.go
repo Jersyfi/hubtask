@@ -196,7 +196,7 @@ func (p Performer) claim(ctx context.Context, in PerformInput) (prepared, error)
 	}
 
 	if out.target.EncryptionMode == domain.EncryptionAES256GCM {
-		out.key, err = p.Keys.DeriveFromMaster(ctx, archiveKeyPurpose(in.TargetID), archiveKeyBytes)
+		out.key, err = p.Keys.DeriveFromMaster(ctx, archiveKeyPurpose(in.TargetID), nil, archiveKeyBytes)
 		if err != nil {
 			return prepared{}, err
 		}

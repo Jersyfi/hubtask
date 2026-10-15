@@ -296,18 +296,18 @@ const hkdfLabel = "hubtask/derive/v1:"
 // function is for: the extract step means the master key does not have to be uniformly random, and
 // the expand step means two purposes cannot collide into one key however similar their names are.
 //
-// The salt is deliberately empty. HKDF without a salt is defined and safe, and the alternative -
-// a salt stored per target - would be a second thing to keep, back up and lose, protecting a key
-// that is already derived from a secret the installation holds. The binding that matters is the
-// purpose, and that is in the info parameter where it belongs.
+// The salt is the archive's own, drawn when it is written and carried in its manifest: it gives
+// every archive a key of its own without the database having to remember anything, so an archive
+// opens after the database is lost. A nil salt is HKDF without one - the derivation archives were
+// written under before they carried a salt.
 func (e Envelope) DeriveFromMaster(
-	_ context.Context, purpose port.Purpose, length int,
+	_ context.Context, purpose port.Purpose, salt []byte, length int,
 ) (port.MasterDerived, error) {
 	if e.ring.IsEmpty() {
 		return port.MasterDerived{}, shared.ErrUnavailable.WithDetail(portCodeNoEncryptionKey)
 	}
 	keyID := e.ring.ActiveKeyID()
-	key, err := e.derive(keyID, purpose, length)
+	key, err := e.derive(keyID, purpose, salt, length)
 	if err != nil {
 		return port.MasterDerived{}, err
 	}
@@ -316,12 +316,12 @@ func (e Envelope) DeriveFromMaster(
 
 // ReproduceFromMaster answers the same key again, from the master key the identifier names.
 func (e Envelope) ReproduceFromMaster(
-	_ context.Context, keyID string, purpose port.Purpose, length int,
+	_ context.Context, keyID string, purpose port.Purpose, salt []byte, length int,
 ) (secret.Bytes, error) {
-	return e.derive(keyID, purpose, length)
+	return e.derive(keyID, purpose, salt, length)
 }
 
-func (e Envelope) derive(keyID string, purpose port.Purpose, length int) (secret.Bytes, error) {
+func (e Envelope) derive(keyID string, purpose port.Purpose, salt []byte, length int) (secret.Bytes, error) {
 	if length <= 0 || length > maxDerivedKeyBytes {
 		return secret.Bytes{}, shared.ErrInternal.WithDetail("crypto.key_unusable").
 			WithCause(fmt.Errorf("a derived key of %d bytes", length))
@@ -331,7 +331,7 @@ func (e Envelope) derive(keyID string, purpose port.Purpose, length int) (secret
 		return secret.Bytes{}, err
 	}
 
-	material, err := hkdf.Key(sha256.New, master.Reveal(), nil, hkdfLabel+string(purpose), length)
+	material, err := hkdf.Key(sha256.New, master.Reveal(), salt, hkdfLabel+string(purpose), length)
 	if err != nil {
 		return secret.Bytes{}, shared.ErrInternal.WithDetail("crypto.key_underivable").
 			WithParams(map[string]string{"key_id": keyID}).WithCause(err)
