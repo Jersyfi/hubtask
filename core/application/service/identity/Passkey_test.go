@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/passkey"
 	stepupport "github.com/Jersyfi/hubtask/core/port/stepup"
 )
 
@@ -94,6 +97,41 @@ func (s *challengeStore) Consume(
 	return domain.PasskeyChallenge{}, false, nil
 }
 
+// verifierFake stands in for the adapter: the client data is the challenge itself, and the ceremony
+// is accepted unless refused. What it was asked is kept, so a test sees the expectations the core
+// handed over.
+type verifierFake struct {
+	refuse bool
+	asked  []passkey.Registration
+}
+
+func (v *verifierFake) ChallengeOf(clientDataJSON []byte) ([]byte, error) {
+	if bytes.HasPrefix(clientDataJSON, []byte("unreadable")) {
+		return nil, shared.ErrValidation.WithDetail(passkey.CodeRegistrationInvalid)
+	}
+	return clientDataJSON, nil
+}
+
+func (v *verifierFake) VerifyRegistration(r passkey.Registration) (passkey.Credential, error) {
+	v.asked = append(v.asked, r)
+	if v.refuse {
+		return passkey.Credential{}, shared.ErrValidation.WithDetail(passkey.CodeRegistrationInvalid)
+	}
+	return passkey.Credential{
+		ID: r.RawID, PublicKey: []byte{0xa5, 0x01, 0x02}, Algorithm: -7, SignCount: 0,
+		UserVerified: true, BackupEligible: true, BackedUp: true, Transports: r.Transports,
+	}, nil
+}
+
+// steppingEntropy answers different bytes at every draw, as the real source does, so two starts
+// issue two challenges.
+type steppingEntropy struct{ draws byte }
+
+func (e *steppingEntropy) Bytes(n int) ([]byte, error) {
+	e.draws++
+	return clock.FixedEntropy{Seed: e.draws * 16}.Bytes(n)
+}
+
 // tenantHostsFake answers the workspace's hosts.
 type tenantHostsFake struct{ hosts []domain.TenantHost }
 
@@ -109,6 +147,7 @@ func (noMethodStepUp) Methods(context.Context, shared.ID, shared.ID) ([]stepuppo
 }
 
 type passkeyFixture struct {
+	verifier   *verifierFake
 	session    *sessionFixture
 	store      *passkeyStore
 	challenges *challengeStore
@@ -122,15 +161,17 @@ type passkeyFixture struct {
 func newPasskeyFixture(t *testing.T) *passkeyFixture {
 	t.Helper()
 	session := mfaFixture(now)
+	session.writer.Entropy = &steppingEntropy{}
 	credential, _ := refreshCredential(now)
 	session.sessions.sessions[sessionRowID] = repository.SessionCredential{
 		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
 	}
 	f := &passkeyFixture{
 		session: session, store: &passkeyStore{}, challenges: &challengeStore{}, stepUp: &stepUpFake{satisfied: true},
+		verifier: &verifierFake{},
 	}
 	f.writer = PasskeyWriter{
-		Session: session.writer, Passkeys: f.store, Challenges: f.challenges,
+		Session: session.writer, Passkeys: f.store, Challenges: f.challenges, Verifier: f.verifier,
 		Workspaces: &workspaceStore{row: domain.Workspace{
 			Tenant: domain.Tenant{ID: tenant, Slug: "acme", DisplayName: "Acme"}, Version: 1,
 		}},
@@ -146,6 +187,7 @@ func (f *passkeyFixture) register(t *testing.T) {
 	registry, err := usecase.NewRegistry(nil,
 		ListOwnPasskeys{Writer: f.writer}.Descriptor(),
 		StartPasskeyRegistration{Writer: f.writer}.Descriptor(),
+		CompletePasskeyRegistration{Writer: f.writer}.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("registering: %v", err)
@@ -442,5 +484,179 @@ func TestASecondStartSpendsTheFirst(t *testing.T) {
 	}
 	if len(f.stepUp.presented) != 2 {
 		t.Errorf("a second start asked no new proof: %v", f.stepUp.presented)
+	}
+}
+
+// started runs the first half and answers the challenge the device would sign, base64url.
+func (f *passkeyFixture) started(t *testing.T) string {
+	t.Helper()
+	out, err := f.start(t, signedInActor(), "hbt_sup_fresh")
+	if err != nil {
+		t.Fatalf("starting: %v", err)
+	}
+	return out["public_key"].(usecase.Output).String("challenge")
+}
+
+func (f *passkeyFixture) complete(
+	t *testing.T, challenge, name string, rawID byte,
+) (usecase.Output, error) {
+	t.Helper()
+	return f.registry.Invoke(t.Context(), CompletePasskeyRegistrationName, signedInActor(), usecase.Input{
+		"name": name, "raw_id": base64.RawURLEncoding.EncodeToString([]byte{rawID, rawID}),
+		"client_data_json": challenge, "attestation_object": "o2NmbXRkbm9uZQ",
+		"transports": []any{"internal", "hybrid"},
+	})
+}
+
+// UC-ID-22 checks 2 and 6: the device's answer and the name keep the passkey, and the first factor of
+// an account without codes shows the ten.
+func TestAFirstPasskeyIsKeptAndAnswersTheRecoveryCodes(t *testing.T) {
+	f := newPasskeyFixture(t)
+	challenge := f.started(t)
+	out, err := f.complete(t, challenge, "  iPhone ", 0x61)
+	if err != nil {
+		t.Fatalf("completing: %v", err)
+	}
+	passkeyOut, _ := out["passkey"].(usecase.Output)
+	if passkeyOut.String("name") != "iPhone" {
+		t.Errorf("answered %v", passkeyOut)
+	}
+	codes, _ := out["recovery_codes"].([]any)
+	if len(codes) != domain.RecoveryCodeCount {
+		t.Fatalf("%d recovery codes answered, want ten", len(codes))
+	}
+	recovery := f.session.writer.Recovery.(*recoveryStore)
+	if len(recovery.codes) != domain.RecoveryCodeCount {
+		t.Errorf("%d codes stored", len(recovery.codes))
+	}
+
+	// What was kept, with the handle the start chose and the name trimmed.
+	if len(f.store.held) != 1 {
+		t.Fatalf("%d credentials held", len(f.store.held))
+	}
+	held := f.store.held[0]
+	if held.Name != "iPhone" || !bytes.Equal(held.UserHandle, f.challenges.issued[0].challenge.UserHandle) ||
+		!bytes.Equal(held.CredentialID, []byte{0x61, 0x61}) || held.AccountID != account ||
+		len(held.Transports) != 2 || !held.CreatedAt.Equal(now) {
+		t.Errorf("held %+v", held)
+	}
+	// The verifier was asked against this workspace and the challenge the start issued.
+	asked := f.verifier.asked[0]
+	if asked.RelyingParty.ID != "acme.hubtask.example" || asked.RelyingParty.Origin != "https://acme.hubtask.example" ||
+		base64.RawURLEncoding.EncodeToString(asked.Challenge) != challenge {
+		t.Errorf("verified against %+v", asked)
+	}
+	// The trail: the start and the addition, neither with the name (rule 10).
+	entries := f.session.audit.entries
+	if len(entries) != 2 || entries[1].Action != PasskeyAddedAction {
+		t.Fatalf("audited %+v", entries)
+	}
+	for _, entry := range entries {
+		if strings.Contains(fmt.Sprintf("%+v", entry), "iPhone") {
+			t.Errorf("an audit entry carries the name: %+v", entry)
+		}
+	}
+
+	// A second passkey keeps the codes the account already holds.
+	out, err = f.complete(t, f.started(t), "Key in the drawer", 0x62)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, held := out["recovery_codes"]; held || recovery.replacements != 1 {
+		t.Errorf("the second passkey answered codes (%d replacements)", recovery.replacements)
+	}
+}
+
+func TestACompletionIsRefusedWhereItIsNotTheSessionsOwnFreshAttempt(t *testing.T) {
+	t.Run("never started", func(t *testing.T) {
+		f := newPasskeyFixture(t)
+		_, err := f.complete(t, base64.RawURLEncoding.EncodeToString(bytes.Repeat([]byte{9}, 32)), "Key", 1)
+		refusedWith(t, err, codeChallengeStale)
+	})
+	t.Run("spent once already", func(t *testing.T) {
+		f := newPasskeyFixture(t)
+		challenge := f.started(t)
+		if _, err := f.complete(t, challenge, "Key", 1); err != nil {
+			t.Fatal(err)
+		}
+		_, err := f.complete(t, challenge, "Key", 2)
+		refusedWith(t, err, codeChallengeStale)
+	})
+	t.Run("superseded by a newer start", func(t *testing.T) {
+		f := newPasskeyFixture(t)
+		older := f.started(t)
+		f.started(t)
+		_, err := f.complete(t, older, "Key", 1)
+		refusedWith(t, err, codeChallengeStale)
+	})
+	t.Run("another session's", func(t *testing.T) {
+		f := newPasskeyFixture(t)
+		challenge := f.started(t)
+		f.challenges.issued[0].challenge.SessionID = "01936f2a-7c1e-7000-8000-0000000000ff"
+		_, err := f.complete(t, challenge, "Key", 1)
+		refusedWith(t, err, codeChallengeStale)
+	})
+	t.Run("a challenge of another length", func(t *testing.T) {
+		f := newPasskeyFixture(t)
+		_, err := f.complete(t, base64.RawURLEncoding.EncodeToString([]byte("short")), "Key", 1)
+		refusedWith(t, err, codeChallengeStale)
+	})
+}
+
+func TestARefusedCeremonySpendsTheChallengeAndKeepsNothing(t *testing.T) {
+	f := newPasskeyFixture(t)
+	f.verifier.refuse = true
+	_, err := f.complete(t, f.started(t), "Key", 1)
+	refusedWith(t, err, passkey.CodeRegistrationInvalid)
+	if !f.challenges.issued[0].spent || len(f.store.held) != 0 {
+		t.Errorf("spent %v, held %d", f.challenges.issued[0].spent, len(f.store.held))
+	}
+
+	// Unreadable client data names no challenge, so nothing is spent.
+	f = newPasskeyFixture(t)
+	f.started(t)
+	_, err = f.complete(t, base64.RawURLEncoding.EncodeToString([]byte("unreadable")), "Key", 1)
+	refusedWith(t, err, passkey.CodeRegistrationInvalid)
+	if f.challenges.issued[0].spent {
+		t.Error("unreadable client data spent the challenge")
+	}
+	_, err = f.registry.Invoke(t.Context(), CompletePasskeyRegistrationName, signedInActor(), usecase.Input{
+		"name": "Key", "raw_id": "not base64url!", "client_data_json": "AQ", "attestation_object": "AQ",
+	})
+	refusedWith(t, err, passkey.CodeRegistrationInvalid)
+}
+
+// A name the server refuses leaves the challenge for a second try with a better one.
+func TestAnInvalidNameSpendsNothing(t *testing.T) {
+	f := newPasskeyFixture(t)
+	challenge := f.started(t)
+	_, err := f.complete(t, challenge, strings.Repeat("x", domain.MaxPasskeyNameLength+1), 1)
+	refusedWith(t, err, "auth.passkey_name_invalid")
+	if f.challenges.issued[0].spent {
+		t.Fatal("an invalid name spent the challenge")
+	}
+	if _, err := f.complete(t, challenge, "Laptop", 1); err != nil {
+		t.Errorf("the second try: %v", err)
+	}
+}
+
+func TestACredentialHeldOrOneTooManyIsRefused(t *testing.T) {
+	f := newPasskeyFixture(t)
+	if _, err := f.complete(t, f.started(t), "Key", 7); err != nil {
+		t.Fatal(err)
+	}
+	_, err := f.complete(t, f.started(t), "Same device", 7)
+	refusedWith(t, err, codeAlreadyRegistered)
+
+	// UC-ID-22 check 3: the eleventh, reached while this ceremony ran.
+	f = newPasskeyFixture(t)
+	f.holding(t, domain.MaxPasskeys-1)
+	challenge := f.started(t)
+	f.holding(t, 1)
+	f.store.held[len(f.store.held)-1].CredentialID = []byte{0xee}
+	_, err = f.complete(t, challenge, "The eleventh", 0x70)
+	refusedWith(t, err, codeLimitReached)
+	if len(f.store.held) != domain.MaxPasskeys {
+		t.Errorf("%d held", len(f.store.held))
 	}
 }

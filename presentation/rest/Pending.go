@@ -1359,6 +1359,7 @@ func (pending) StartPasskeyRegistration(
 	notAvailable(w, r)
 }
 
+// CompletePasskeyRegistration is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

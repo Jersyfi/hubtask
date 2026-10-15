@@ -97,6 +97,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_replaced` | ConfirmAuthenticatorReplacement | `account` | NOTICE | Every time |
 | `auth.mfa_replacement_started` | StartAuthenticatorReplacement | `account` | INFO | Every time |
 | `auth.own_passkeys_read` | ListOwnPasskeys | `account` | INFO | When refused |
+| `auth.passkey_added` | CompletePasskeyRegistration | `account` | NOTICE | Every time |
 | `auth.passkey_registration_started` | StartPasskeyRegistration | `account` | INFO | Every time |
 | `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |

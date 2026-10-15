@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/passkey"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // Passkeys and security keys on the caller's own account (identity.md §23, UC-ID-22): listed with
@@ -24,9 +25,14 @@ import (
 // of a ceremony.
 
 const (
-	ListOwnPasskeysName          = "ListOwnPasskeys"
-	StartPasskeyRegistrationName = "StartPasskeyRegistration"
+	ListOwnPasskeysName             = "ListOwnPasskeys"
+	StartPasskeyRegistrationName    = "StartPasskeyRegistration"
+	CompletePasskeyRegistrationName = "CompletePasskeyRegistration"
 )
+
+// PasskeyAddedAction is a new way into the account (identity.md §23.2): the act and its moment,
+// never the name the person gave it or the credential's identifier (rule 10).
+const PasskeyAddedAction audit.Action = "auth.passkey_added" //nolint:gosec // G101: an audit code
 
 // PasskeyRegistrationStartedAction is the first half, recorded as the authenticator app's
 // enrolment start is - without the name the person will give it, which is not chosen yet anyway.
@@ -497,3 +503,238 @@ const (
 	passkeyEdDSA int64 = -8
 	passkeyRS256 int64 = -257
 )
+
+// The completion's own refusals.
+const (
+	codeChallengeStale    = "auth.passkey_challenge_stale"
+	codeAlreadyRegistered = "auth.passkey_already_registered"
+)
+
+// CompletePasskeyRegistrationCommand is the browser's answer, decoded, and the person's name for it.
+type CompletePasskeyRegistrationCommand struct {
+	Name              string
+	RawID             []byte
+	ClientDataJSON    []byte
+	AttestationObject []byte
+	Transports        []string
+}
+
+// AddedPasskey is the credential now held, and the recovery codes where they were minted.
+type AddedPasskey struct {
+	Passkey       OwnPasskey
+	RecoveryCodes []secret.Secret
+}
+
+// CompletePasskeyRegistration is the second half: the ceremony checked and the credential kept.
+type CompletePasskeyRegistration struct{ Writer PasskeyWriter }
+
+// Execute spends the session's challenge, has the verifier check the ceremony, and keeps the
+// credential under the account's lock.
+//
+// The challenge is spent first and in a transaction of its own, so a refused ceremony has used its
+// one try (known traps: a write on a refusal path). A refusal here counts nothing in the attempt
+// ledger: the step-up already proved the person, and a malformed attestation guesses nothing.
+func (h CompletePasskeyRegistration) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd CompletePasskeyRegistrationCommand,
+) (AddedPasskey, error) {
+	if err := passkeyPerson(actor); err != nil {
+		return AddedPasskey{}, err
+	}
+	w := h.Writer
+	s := w.Session
+	session, err := s.stepUpSession(ctx, actor)
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+	// The name first: a person who typed one too long fixes it and tries again with the same
+	// challenge, which nothing has spent yet.
+	name, err := domain.PasskeyName(cmd.Name)
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+	challenge, err := w.Verifier.ChallengeOf(cmd.ClientDataJSON)
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+	token, err := domain.NewPasskeyChallengeToken(actor.TenantID, challenge)
+	if err != nil {
+		// A challenge of another length was never one of ours.
+		return AddedPasskey{}, shared.ErrConflict.WithDetail(codeChallengeStale)
+	}
+	scope := actor.PersistenceScope()
+
+	var spent domain.PasskeyChallenge
+	if err := s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		found, ok, err := w.Challenges.Consume(ctx, token, session.ID, actor.AccountID, s.Clock.Now())
+		if err != nil {
+			return err
+		}
+		if !ok {
+			// Unknown, spent, superseded, expired, another session's or account's: one answer. A 409
+			// rather than a 401, which a client would read as a session to renew.
+			return shared.ErrConflict.WithDetail(codeChallengeStale)
+		}
+		spent = found
+		return nil
+	}); err != nil {
+		return AddedPasskey{}, err
+	}
+
+	var party relyingParty
+	if err := s.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, ok, err := w.relyingParty(ctx)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return shared.ErrConflict.WithDetail(codeNoRelyingParty)
+		}
+		party = found
+		return nil
+	}); err != nil {
+		return AddedPasskey{}, err
+	}
+	verified, err := w.Verifier.VerifyRegistration(passkey.Registration{
+		ClientDataJSON: cmd.ClientDataJSON, AttestationObject: cmd.AttestationObject, RawID: cmd.RawID,
+		Transports: cmd.Transports, Challenge: challenge, RelyingParty: party.RelyingParty,
+	})
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+
+	codeMaterial, err := s.Entropy.Bytes(domain.RecoveryCodeCount * domain.RecoveryCodeBytes)
+	if err != nil {
+		return AddedPasskey{}, shared.ErrInternal.WithDetail("auth.session_unmintable").WithCause(err)
+	}
+	codes, err := domain.NewRecoveryCodes(codeMaterial)
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+
+	var added AddedPasskey
+	err = s.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		// Under the account's lock: the limit's count, and whether the codes are there, read where no
+		// other completion can change them before this one writes.
+		if err := w.Passkeys.LockAccount(ctx, actor.AccountID); err != nil {
+			return err
+		}
+		count, err := w.Passkeys.CountOf(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		if count >= domain.MaxPasskeys {
+			return shared.ErrConflict.WithDetail(codeLimitReached).WithParams(limitParams())
+		}
+		remaining, err := s.Recovery.Remaining(ctx, actor.AccountID)
+		if err != nil {
+			return err
+		}
+		now := s.Clock.Now()
+		credential := domain.PasskeyCredential{
+			ID: s.IDs.NewID(), TenantID: actor.TenantID, AccountID: actor.AccountID,
+			CredentialID: verified.ID, PublicKey: verified.PublicKey, Algorithm: verified.Algorithm,
+			SignCount: verified.SignCount, UserHandle: spent.UserHandle,
+			BackupEligible: verified.BackupEligible, BackedUp: verified.BackedUp,
+			Transports: verified.Transports, Name: name, CreatedAt: now,
+		}
+		written, err := w.Passkeys.Insert(ctx, credential)
+		if err != nil {
+			return err
+		}
+		if !written {
+			return shared.ErrConflict.WithDetail(codeAlreadyRegistered)
+		}
+		added.Passkey = ownPasskeyOf(credential)
+		// The first factor of an account without a code answers ten (identity.md §9, §23.2): they back
+		// every factor the account holds.
+		if remaining == 0 {
+			ids := make([]shared.ID, 0, len(codes))
+			for range codes {
+				ids = append(ids, s.IDs.NewID())
+			}
+			if err := s.Recovery.Replace(ctx, actor.AccountID, ids, codes, now); err != nil {
+				return err
+			}
+			for _, code := range codes {
+				added.RecoveryCodes = append(added.RecoveryCodes, secret.New(code))
+			}
+		}
+		return s.recordMfaAudit(ctx, PasskeyAddedAction, audit.SeverityNotice, domain.Account{
+			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
+		}, now)
+	})
+	if err != nil {
+		return AddedPasskey{}, err
+	}
+	return added, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h CompletePasskeyRegistration) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: CompletePasskeyRegistrationName,
+		Summary: "Finishes adding a passkey or a security key: the browser's ceremony, checked " +
+			"against the challenge the same session started and the workspace's address, and the " +
+			"name the person chose. The challenge is spent whatever the outcome. Where the account " +
+			"held no unused recovery code, the answer carries ten, shown this once.",
+		SideEffects: "Spends the challenge; keeps the credential; may replace the recovery codes; " +
+			"writes an audit entry without the name.",
+		Input: []usecase.Field{
+			{Name: "name", Kind: usecase.KindString, Required: true,
+				Description: "What the person calls it: 1 to 64 characters."},
+			{Name: "raw_id", Kind: usecase.KindString, Required: true,
+				Description: "The credential's rawId, base64url without padding."},
+			{Name: "client_data_json", Kind: usecase.KindString, Required: true,
+				Description: "The response's clientDataJSON, base64url without padding."},
+			{Name: "attestation_object", Kind: usecase.KindString, Required: true,
+				Description: "The response's attestationObject, base64url without padding."},
+			{Name: "transports", Kind: usecase.KindList,
+				Description: "The response's getTransports(), where the browser offers it."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: PasskeyAddedAction, TargetType: accountTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "A way in is not an entry, and the item history is keyed on an entry.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h CompletePasskeyRegistration) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	transports, err := in.StringList("transports")
+	if err != nil {
+		return nil, err
+	}
+	cmd := CompletePasskeyRegistrationCommand{Name: in.String("name"), Transports: transports}
+	for _, field := range []struct {
+		name string
+		into *[]byte
+	}{
+		{"raw_id", &cmd.RawID}, {"client_data_json", &cmd.ClientDataJSON},
+		{"attestation_object", &cmd.AttestationObject},
+	} {
+		decoded, err := base64.RawURLEncoding.DecodeString(in.String(field.name))
+		if err != nil {
+			return nil, shared.ErrValidation.WithDetail(passkey.CodeRegistrationInvalid)
+		}
+		*field.into = decoded
+	}
+	added, err := h.Execute(ctx, actor, cmd)
+	if err != nil {
+		return nil, err
+	}
+	out := usecase.Output{"passkey": ownPasskeyOutput(added.Passkey)}
+	if len(added.RecoveryCodes) > 0 {
+		codes := make([]any, 0, len(added.RecoveryCodes))
+		for _, code := range added.RecoveryCodes {
+			codes = append(codes, code.Reveal())
+		}
+		// The one place these are answered (T-18's "shown once" as code).
+		out["recovery_codes"] = codes
+	}
+	return out, nil
+}

@@ -18,8 +18,9 @@ import (
 // The passkeys of the caller's own account (identity.md §23).
 
 const (
-	listOwnPasskeysUseCase          = "ListOwnPasskeys"
-	startPasskeyRegistrationUseCase = "StartPasskeyRegistration"
+	listOwnPasskeysUseCase             = "ListOwnPasskeys"
+	startPasskeyRegistrationUseCase    = "StartPasskeyRegistration"
+	completePasskeyRegistrationUseCase = "CompletePasskeyRegistration"
 )
 
 // ListOwnPasskeys answers GET /accounts/me/passkeys. Written out, GetOwnAccount's reasoning.
@@ -89,4 +90,48 @@ func (c *RestController) StartPasskeyRegistration(
 		return
 	}
 	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// CompletePasskeyRegistration answers POST /accounts/me/passkeys:complete.
+func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyRegistration
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{
+		"name": body.Name, "raw_id": body.RawId, "client_data_json": body.ClientDataJson,
+		"attestation_object": body.AttestationObject,
+	}
+	if body.Transports != nil {
+		transports := make([]any, 0, len(*body.Transports))
+		for _, transport := range *body.Transports {
+			transports = append(transports, string(transport))
+		}
+		in["transports"] = transports
+	}
+	out, err := c.UseCases.Invoke(r.Context(), completePasskeyRegistrationUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	passkey, _ := out["passkey"].(usecase.Output)
+	answer := openapi.PasskeyRegistered{Passkey: passkeyResponse(passkey)}
+	if codes, ok := out["recovery_codes"].([]any); ok && len(codes) > 0 {
+		// The codes are in this answer only for the account's first factor; the mark keeps them out
+		// of the idempotency record (ShownOnceByHandler).
+		w.Header().Set(ShownOnceHeader, "recovery_codes")
+		listed := make([]string, 0, len(codes))
+		for _, code := range codes {
+			text, _ := code.(string)
+			listed = append(listed, text)
+		}
+		answer.RecoveryCodes = &listed
+	}
+	writeJSON(w, r, http.StatusCreated, answer)
 }
