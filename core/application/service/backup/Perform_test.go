@@ -95,6 +95,8 @@ var _ persistence.Snapshot = (*snapshotDouble)(nil)
 type keys struct {
 	purposes []crypto.Purpose
 	salts    [][]byte
+	// lost is a master key the installation no longer holds: reproducing under it is refused.
+	lost string
 }
 
 func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, salt []byte, length int) (crypto.MasterDerived, error) {
@@ -103,7 +105,10 @@ func (k *keys) DeriveFromMaster(_ context.Context, purpose crypto.Purpose, salt 
 	return crypto.MasterDerived{KeyID: "k1", Key: secret.NewBytes(bytes.Repeat([]byte{0x11}, length))}, nil
 }
 
-func (k *keys) ReproduceFromMaster(_ context.Context, _ string, _ crypto.Purpose, _ []byte, length int) (secret.Bytes, error) {
+func (k *keys) ReproduceFromMaster(_ context.Context, keyID string, _ crypto.Purpose, _ []byte, length int) (secret.Bytes, error) {
+	if keyID == k.lost {
+		return secret.Bytes{}, shared.ErrUnavailable.WithDetail(crypto.CodeUnknownKey)
+	}
 	return secret.NewBytes(bytes.Repeat([]byte{0x11}, length)), nil
 }
 

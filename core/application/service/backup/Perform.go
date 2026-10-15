@@ -64,12 +64,48 @@ func archiveKeysOf(
 			purpose, salt = archivePurpose, decoded
 		}
 		key, err := keys.ReproduceFromMaster(ctx, encryption.KeyID, purpose, salt, archiveKeyBytes)
+		if err != nil && shared.AsError(err).DetailCode == crypto.CodeUnknownKey {
+			return nil, shared.ErrValidation.WithDetail(archive.CodeArchiveKeyUnknown).
+				WithParams(map[string]string{"key_id": encryption.KeyID, "reason": "not_in_ring"}).
+				WithCause(err)
+		}
 		if err != nil {
 			return nil, err
 		}
 		out[description.Manifest.ArchiveID] = key
 	}
 	return out, nil
+}
+
+// openableKeys derives every archive's key and proves each opens its archive, before anything is
+// read for real: a key that is missing or wrong is refused by name rather than as a decryption
+// error halfway through a restore (UC-BAK-04 check 5).
+func openableKeys(
+	ctx context.Context, keys crypto.KeyMaterialiser, reader *archive.Reader,
+	chain []archive.Description, targetID shared.ID,
+) (archive.Keys, error) {
+	derived, err := archiveKeysOf(ctx, keys, chain, targetID)
+	if err != nil {
+		return nil, err
+	}
+	for _, description := range chain {
+		if err := reader.Probe(ctx, description, derived.Of(description)); err != nil {
+			return nil, err
+		}
+	}
+	return derived, nil
+}
+
+// boundToATarget reports whether an archive of the chain is encrypted under the derivation that
+// binds its key to the target that wrote it, which only that target's row can reproduce.
+func boundToATarget(chain []archive.Description) bool {
+	for _, description := range chain {
+		encryption := description.Manifest.Encryption
+		if encryption.IsEncrypted() && encryption.ArchiveSalt == "" {
+			return true
+		}
+	}
+	return false
 }
 
 // Performer runs one backup, end to end (backup-restore.md §5).

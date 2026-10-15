@@ -327,9 +327,11 @@ func (a Applier) precheck(
 			WithDetail(domain.CodeRestoreArchiveScopeMismatch).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
 	}
-	// Its key is derived from another installation's master key, which this one does not hold:
-	// refused by name rather than left to fail as a decryption error (§4).
-	if origin == domain.ArchiveOfUnknownWorkspace && newest.Manifest.Encryption.IsEncrypted() {
+	// An archive keyed to the target that wrote it opens only through that target's row, which
+	// an installation that does not hold the workspace never had: refused by name rather than
+	// left to fail as a decryption error. One that carries its salt opens wherever the master key
+	// it names is held - the case of an installation rebuilt after its database was lost (§4).
+	if origin == domain.ArchiveOfUnknownWorkspace && boundToATarget(chain) {
 		return nil, nil, shared.ErrValidation.
 			WithDetail(domain.CodeRestoreForeignArchiveEncrypted).
 			WithParams(map[string]string{"archive": restore.SourceArchive})
@@ -347,7 +349,7 @@ func (a Applier) precheck(
 
 	// Decryptability, before anything is read. An archive that cannot be opened is worth finding
 	// out about now rather than after the first batch has landed.
-	keys, err := archiveKeysOf(ctx, a.Keys, chain, restore.TargetID)
+	keys, err := openableKeys(ctx, a.Keys, reader, chain, restore.TargetID)
 	if err != nil {
 		return nil, nil, err
 	}

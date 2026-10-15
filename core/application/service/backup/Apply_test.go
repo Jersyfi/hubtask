@@ -5,6 +5,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"maps"
 	"strings"
@@ -956,12 +957,52 @@ func TestANewTenantRestoreTakesAnArchiveFromAnotherInstallation(t *testing.T) {
 	}
 }
 
-// An encrypted archive from another installation is out of reach: its key is derived from a master
-// key this installation does not hold. Refused by its own code before anything is read, rather
-// than as a decryption error half way through.
-func TestAnEncryptedArchiveFromAnotherInstallationIsRefusedByName(t *testing.T) {
+// An encrypted archive of a workspace this installation does not hold opens when the master key
+// its manifest names is in the ring: its key comes from its own salt, not from a target row - the
+// installation rebuilt after its database was lost (UC-BAK-04 check 4).
+func TestAnEncryptedArchiveCarryingItsSaltOpensOnAnInstallationWithoutItsWorkspace(t *testing.T) {
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
 	h := newApplyHarness(t, containerRows)
+	in := h.accept(t, func(r *domain.Restore) {
+		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
+	})
+	in.TenantID = elsewhere
+
+	report, err := h.applier().Apply(context.Background(), in)
+	if err != nil {
+		t.Fatalf("restoring an encrypted archive whose master key is held: %v", err)
+	}
+	if report.New != 3 {
+		t.Errorf("%d records restored, want the container and the two items", report.New)
+	}
+}
+
+// The master key an archive names is not in the ring: refused by name, naming the key, before
+// anything is read (UC-BAK-04 check 5).
+func TestAnArchiveUnderAMasterKeyTheInstallationLostIsRefusedByName(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	h.keys.lost = "k1"
+	in := h.accept(t, func(*domain.Restore) {})
+
+	_, err := h.applier().Apply(context.Background(), in)
+
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.DetailCode != archive.CodeArchiveKeyUnknown ||
+		domainErr.Params["key_id"] != "k1" {
+		t.Fatalf("refused with %v", err)
+	}
+	if h.imports.writes != 0 {
+		t.Errorf("the refused restore wrote %d rows", h.imports.writes)
+	}
+}
+
+// An encrypted archive written before archives carried a salt is keyed to the target that wrote
+// it; an installation that does not hold its workspace never had that target, so it is refused by
+// its own code before anything is read, rather than as a decryption error half way through.
+func TestAnArchiveKeyedToAForeignTargetIsRefusedByName(t *testing.T) {
+	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
+	h := newApplyHarness(t, containerRows)
+	withoutArchiveSalt(t, h)
 	in := h.accept(t, func(r *domain.Restore) {
 		r.Mode, r.TenantID = domain.RestoreNewTenant, mintedTenant
 	})
@@ -1483,5 +1524,35 @@ func TestARestoreIntoALivingWorkspaceKeepsItsOwnLegalHolds(t *testing.T) {
 				t.Errorf("the report says %v, want the archive's hold counted as kept back", report.Withheld)
 			}
 		})
+	}
+}
+
+// withoutArchiveSalt turns the harness's archive into one written before archives carried a salt.
+func withoutArchiveSalt(t *testing.T, h *applyHarness) {
+	t.Helper()
+	path := h.prefix + "/" + archive.ManifestName
+	var manifest map[string]any
+	if err := json.Unmarshal(h.opener.store.objects[path], &manifest); err != nil {
+		t.Fatalf("reading the manifest: %v", err)
+	}
+	delete(manifest["encryption"].(map[string]any), "archive_salt")
+	rewritten, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("writing the manifest: %v", err)
+	}
+	h.opener.store.objects[path] = rewritten
+}
+
+// An archive written before archives carried a salt still restores from the target that wrote it.
+func TestAnArchiveWrittenBeforeSaltsStillRestoresFromItsTarget(t *testing.T) {
+	h := newApplyHarness(t, containerRows)
+	withoutArchiveSalt(t, h)
+	in := h.accept(t, func(*domain.Restore) {})
+
+	if _, err := h.applier().Apply(context.Background(), in); err != nil {
+		t.Fatalf("restoring an archive written before salts: %v", err)
+	}
+	if h.imports.writes == 0 {
+		t.Fatal("nothing was restored")
 	}
 }

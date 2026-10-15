@@ -65,7 +65,7 @@ func (a ArchivedHolds) Read(
 		return lifecycle.ArchivedHolds{}, scopeMismatch()
 	}
 
-	keys, err := archiveKeysOf(ctx, a.Keys, chain, source.TargetID)
+	keys, err := openableKeys(ctx, a.Keys, reader, chain, source.TargetID)
 	if err != nil {
 		return lifecycle.ArchivedHolds{}, err
 	}
