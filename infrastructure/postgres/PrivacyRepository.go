@@ -574,7 +574,7 @@ func (r PrivacyRepository) Delete(ctx context.Context, accountID shared.ID) (boo
 	return rows > 0, nil
 }
 
-// RevokeCredentials removes every token, feed and device of the person.
+// RevokeCredentials removes every token, feed, device and passkey of the person.
 func (r PrivacyRepository) RevokeCredentials(
 	ctx context.Context, accountID shared.ID,
 ) (int, error) {
@@ -588,6 +588,7 @@ func (r PrivacyRepository) RevokeCredentials(
 		"the access tokens":  queries.DeleteCredentialsOfAccount,
 		"the calendar feeds": queries.DeleteFeedsOfAccount,
 		"the sync devices":   queries.DeleteDevicesOfAccount,
+		"the passkeys":       queries.DeletePasskeysOfAccount,
 	} {
 		rows, err := remove(ctx, id)
 		if err != nil {
