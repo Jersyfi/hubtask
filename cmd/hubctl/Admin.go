@@ -78,6 +78,12 @@ func adminGroup() group {
 				run:     adminAi,
 			},
 			{
+				name:    "target",
+				usage:   "ls|add|test|rm …",
+				summary: "the installation's own backup targets, where a workspace without one is exported to",
+				run:     adminTarget,
+			},
+			{
 				name:    "encryption",
 				usage:   "show|reseal",
 				summary: "the master keyring's census, and the re-seal that lets a key retire",
