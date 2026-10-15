@@ -148,14 +148,22 @@ func TestTheMigrationKeepsOneOfEqualMemberships(t *testing.T) {
 		t.Errorf("membership_grant_uq is unique=%v valid=%v: %s - the leftover under its name was kept", unique, valid, definition)
 	}
 
+	// The migration's own policy for the dedupe is gone. What stays besides tenant_isolation is the
+	// owner's standing read the doors through the boundary need (multi-tenancy.md §2.1), and only
+	// for the owner - it owns the table and could give itself any policy. A policy for any other
+	// role, or a leftover under another name, fails.
 	var policies int
-	if err := admin.QueryRow(ctx,
-		`SELECT count(*) FROM pg_policies WHERE tablename = 'membership' AND policyname <> 'tenant_isolation'`).
+	if err := admin.QueryRow(ctx, `
+		SELECT count(*) FROM pg_policies p
+		JOIN pg_tables t ON t.schemaname = p.schemaname AND t.tablename = p.tablename
+		WHERE p.tablename = 'membership' AND p.policyname <> 'tenant_isolation'
+		  AND NOT (p.policyname = 'doors_read' AND p.cmd = 'SELECT' AND p.roles = ARRAY[t.tableowner]::name[])`).
 		Scan(&policies); err != nil {
 		t.Fatalf("reading the policies: %v", err)
 	}
 	if policies != 0 {
-		t.Errorf("%d policies of the migration's own are left on membership: the migrator still reads every workspace", policies)
+		t.Errorf("%d policies on membership besides tenant_isolation and the owner's doors_read: "+
+			"the migration's own is left, or a role besides the owner reads every workspace", policies)
 	}
 
 	_, err = admin.Exec(ctx, `
