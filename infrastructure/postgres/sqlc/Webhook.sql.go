@@ -11,6 +11,68 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countExpiredWebhookDeliveries = `-- name: CountExpiredWebhookDeliveries :one
+SELECT count(*) FROM (
+  SELECT 1 FROM webhook_delivery AS expired
+  WHERE expired.created_at < $1
+    AND (expired.status <> 'PENDING' OR NOT EXISTS (
+      SELECT 1 FROM job AS living
+      WHERE living.kind = 'webhook.deliver'
+        AND living.state IN ('PENDING', 'RUNNING')
+        AND living.tenant_id = expired.tenant_id
+        AND living.payload->>'delivery_id' = expired.id::text
+    ))
+  LIMIT $2
+) AS due
+`
+
+type CountExpiredWebhookDeliveriesParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+// What is due, bounded by the batch plus one, the jumble's reason.
+func (q *Queries) CountExpiredWebhookDeliveries(ctx context.Context, arg CountExpiredWebhookDeliveriesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredWebhookDeliveries, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteExpiredWebhookDeliveries = `-- name: DeleteExpiredWebhookDeliveries :execrows
+DELETE FROM webhook_delivery
+WHERE id IN (
+  SELECT due.id FROM webhook_delivery AS due
+  WHERE due.created_at < $1
+    AND (due.status <> 'PENDING' OR NOT EXISTS (
+      SELECT 1 FROM job AS living
+      WHERE living.kind = 'webhook.deliver'
+        AND living.state IN ('PENDING', 'RUNNING')
+        AND living.tenant_id = due.tenant_id
+        AND living.payload->>'delivery_id' = due.id::text
+    ))
+  ORDER BY due.created_at, due.id
+  LIMIT $2
+)
+`
+
+type DeleteExpiredWebhookDeliveriesParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch (data-retention.md §3: anchor `created_at`, 30 days). Every attempt past
+// the period goes, except a PENDING one a living job still names - that job will read the row by
+// its id. A pending row whose job is gone (dead-lettered and purged, or never run) is read by
+// nobody and goes like the rest. Batched through a subquery, oldest first, the jumble's reason.
+func (q *Queries) DeleteExpiredWebhookDeliveries(ctx context.Context, arg DeleteExpiredWebhookDeliveriesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredWebhookDeliveries, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteWebhookSubscription = `-- name: DeleteWebhookSubscription :execrows
 DELETE FROM webhook_subscription WHERE id = $1
 `

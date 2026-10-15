@@ -3019,6 +3019,8 @@ func run() error {
 			// is the one place raw inbound text would otherwise sit
 			// for ever.
 			Inbox: postgres.NewJumbleRepository(cursors),
+			// The webhook delivery log, thirty days (data-retention.md §3).
+			Deliveries: postgres.NewWebhookDeliveryRepository(),
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),
