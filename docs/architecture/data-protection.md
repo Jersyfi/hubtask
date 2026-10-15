@@ -91,7 +91,11 @@ practice. Rules:
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs
-  `admin:tenants`; every workspace it touches gets its own audit entry. No repository method takes a
+  `admin:tenants` of whoever records and starts it; the job that carries it out acts for the started
+  case and asks for no scope. In each workspace the person is found by their account there, read in
+  that workspace's own transaction. It writes one archive, named by the case: a zip whose members
+  are the per-workspace archives (backup-restore.md §9). Every workspace it touches gets its own
+  audit entry. No repository method takes a
   tenant as an argument; a gate keeps that true.
 
 ### 4.1 Three decisions of 2026-09-30

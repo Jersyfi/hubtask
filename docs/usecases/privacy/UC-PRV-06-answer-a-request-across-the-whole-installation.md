@@ -5,9 +5,9 @@ context: privacy
 actors: [PE-operator, PE-platform]
 deployments: [D4, D5, D6, D7]
 serves: [P-01, P-08, P-11]
-state: partial
-tasks: [E-10]
-checked_by: [core/application/service/privacy/Export_test.go]
+state: built
+tasks: [E-10, CP-02]
+checked_by: [core/application/service/privacy/Export_test.go, core/application/service/privacy/Perform_test.go, test/integration/privacy_installation_export_test.go]
 ---
 
 # Answer a request across every workspace of the installation
@@ -51,8 +51,3 @@ offer this; it says to raise such a request with whoever runs the installation.
   their own requests.
 
 See [data-protection.md](../../architecture/data-protection.md) §4.
-
-## Today
-
-* Check 3: not met — the job carries the case out as a system actor without token scopes, and the collection asks it for `admin:tenants` again, so a started installation-wide case is refused by its own job; other workspaces are also matched by address only, which misses the person's account, entries and comments there, tracked in #1076.
-* Check 4: not met — the `dsr.collected` entries are written by the collection loop, which is not reached while check 3 fails, tracked in #1076.
