@@ -548,6 +548,9 @@ func run() error {
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
+		// The same engine and bounds the rules compile with: a subscription's condition is the
+		// automation's language (automation.md §3.1).
+		Compiler: celexpression.New(),
 	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
@@ -621,6 +624,8 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	containers := postgres.NewContainerRepository(cursors)
+	// A scope's hub or collection is checked against the workspace's containers when it is written.
+	webhookWriter.Containers = containers
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
 	// The item history. One repository for both halves of the port - the append every writer makes
