@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-10, P-12]
-state: partial
-tasks: [SI-05, SI-12, SI-17, SC-07]
-checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md, apps/webapp/e2e/quotas.test.mjs, test/integration/quota_test.go, core/application/service/quota/Quota_test.go, docs/evidence/SC-15-D1-2026-10-13.md]
+state: verified
+tasks: [SI-05, SI-12, SI-17, SC-07, CP-11]
+checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md, apps/webapp/e2e/quotas.test.mjs, test/integration/quota_test.go, core/application/service/quota/Quota_test.go, docs/evidence/SC-15-D1-2026-10-13.md, core/application/service/admin/InstanceVersion_test.go, test/integration/instance_level_version_test.go, docs/evidence/CP-11-2026-10-15.md]
 ---
 
 # Decide defaults and locks for every workspace
@@ -46,7 +46,3 @@ and lands in the instance journal.
 
 * Plans, which carry the same values for a group of workspaces, are UC-INS-13.
 * Rate limits and the lockout curve stay in the environment; they are not defaults.
-
-## Today
-
-* Check 8: not met — `PUT /admin/settings` carries no version, so the second of two saves silently replaces the first (#1303).
