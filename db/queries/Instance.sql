@@ -28,7 +28,7 @@ ON CONFLICT (key) DO UPDATE
       updated_at = excluded.updated_at;
 
 -- name: AdvanceInstanceLevelVersion :one
--- The level's version, moved by one - only from `expected`, when one is named (migration 0160).
+-- The level's version, moved by one - only from `expected`, when one is named (migration 0161).
 --
 -- The guard is this statement and not a read before it: the conflicting row is locked, so a second
 -- save made on the same version waits for the first and then compares against what the first
