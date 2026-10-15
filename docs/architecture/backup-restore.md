@@ -44,6 +44,16 @@ own schedule and retention.
   the instance administrator. In provider operation a tenant may have its own targets only when the
   operator sets `HUBTASK_BACKUP_TENANT_TARGETS=true` (off by default), with an egress allowlist on
   top; otherwise `backup.tenant_targets_disabled`.
+* **The installation's own targets** (`tenant_id` NULL) are the operator's
+  (`/admin/backup-targets`, `hubctl admin target`, *Backup targets* in the instance area): behind
+  `admin:tenants` and the operator register, configured and removed only after a fresh step-up
+  ([identity.md](./identity.md) §16.3), journalled in the instance journal without the credential.
+  Only a session with no tenant set reaches them (migration 0155); no workspace lists, names or
+  writes to one. Their one use is the workspace export ([multi-tenancy.md](./multi-tenancy.md) §5),
+  whose own opener tries the workspace's target and then the installation's; the data subject
+  export, the audit archive, anchoring and schedules keep the workspace's targets only. They exist
+  in single-tenant operation too, where the owner is the operator and the workspace's own targets
+  stay the usual place.
 * **Every call to a target** goes through `GuardedClient` (SFTP through its resolver and dial-time
   control): metadata endpoints, RFC 1918 ranges and loopback are refused unless the operator sets
   `HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS`, and no redirect is followed (BK-9).
