@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // UC-LIF-04 check 10, against the database: a rule whose condition fails on an entry is set aside
@@ -98,6 +99,40 @@ func TestRE11AFailingConditionSetsItsRuleAsideAndTheOthersGoOn(t *testing.T) {
 	}
 	if code, _ := s.lastFailure(t, failing.ID); code != "" {
 		t.Errorf("a clean evaluation left %q", code)
+	}
+}
+
+// The two writes name their workspace: from another one, a rule's failure is neither set nor
+// cleared.
+func TestRE11ARulesFailureIsWrittenInItsOwnWorkspaceOnly(t *testing.T) {
+	s := newSuite(t, 24*time.Hour)
+	other := newSuite(t, 24*time.Hour)
+	rule, _ := s.createRule(t, lifecycle.CreateRetentionPolicyCommand{
+		Scope:    lifecycleDomain.Scope{Kind: lifecycleDomain.ScopeTenant},
+		DataKind: lifecycleDomain.KindCompletedItem, RetainDays: 365,
+		Action: lifecycleDomain.ActionArchive,
+	})
+	repo := postgres.NewRetentionRuleRepository()
+	write := func(tenant shared.ID, fn func(ctx context.Context) error) {
+		t.Helper()
+		if err := s.uow.Within(s.ctx, persistence.Scope{TenantID: tenant}, fn); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(other.tenant, func(ctx context.Context) error {
+		return repo.RecordFailure(ctx, rule.ID, lifecycleDomain.RuleFailure{Code: "expression.evaluation_failed", At: now})
+	})
+	if code, _ := s.lastFailure(t, rule.ID); code != "" {
+		t.Fatalf("another workspace set the failure: %q", code)
+	}
+
+	write(s.tenant, func(ctx context.Context) error {
+		return repo.RecordFailure(ctx, rule.ID, lifecycleDomain.RuleFailure{Code: "expression.evaluation_failed", At: now})
+	})
+	write(other.tenant, func(ctx context.Context) error { return repo.ClearFailures(ctx, []shared.ID{rule.ID}) })
+	if code, _ := s.lastFailure(t, rule.ID); code != "expression.evaluation_failed" {
+		t.Errorf("another workspace cleared the failure: %q", code)
 	}
 }
 
