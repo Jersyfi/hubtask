@@ -262,8 +262,7 @@ func TestALinkCredentialIsNotASecondFactorCredential(t *testing.T) {
 
 // invitedOnlyLinkFixture is the member's workspace under *Only people invited here*, at a provider
 // that verified the address and is not authoritative for it - a self-hosted issuer, say (ADR-0078
-// §5). Authority is needed only where nothing else proves the person; an existing member proves
-// themselves at the LINK step.
+// §5).
 func invitedOnlyLinkFixture(t *testing.T, armed bool) *oidcFixture {
 	t.Helper()
 	f := linkFixture(t, armed)
@@ -272,108 +271,46 @@ func invitedOnlyLinkFixture(t *testing.T, armed bool) *oidcFixture {
 	return f
 }
 
-// An existing member with a password reaches the LINK step from a provider that is not
-// authoritative, and is connected only with that password - nothing is linked before it, and a
-// wrong one links nothing.
-func TestUnderInvitedOnlyAMemberConnectsANonAuthoritativeProviderWithTheirPassword(t *testing.T) {
-	f := invitedOnlyLinkFixture(t, false)
-
-	result, err := arrive(t, f)
-	if err != nil {
-		t.Fatalf("the member's arrival was refused rather than asked for its proof: %v", err)
+// The mode bounds a connection as it bounds a newcomer (identity.md §10.4, decision #1511): under
+// INVITED_ONLY a provider that is not authoritative for the address connects no existing member,
+// whatever the member could prove - no LINK step, nothing linked, nothing created, and the refusal
+// in the trail. An authoritative one still brings the member to the LINK step.
+func TestUnderInvitedOnlyOnlyAnAuthoritativeProviderReachesAMember(t *testing.T) {
+	refusals := map[string]func(*oidcFixture){
+		"a member with a password":      func(*oidcFixture) {},
+		"an address nobody here holds":  func(f *oidcFixture) { f.relying.identity.Email = "eve@example.org" },
+		"a member with a second factor": nil,
 	}
-	if result.Pair != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
-		t.Fatalf("the arrival answered %+v, want the LINK step", result)
+	for name, arrange := range refusals {
+		t.Run(name, func(t *testing.T) {
+			f := invitedOnlyLinkFixture(t, arrange == nil)
+			if arrange != nil {
+				arrange(f)
+			}
+			result, err := arrive(t, f)
+			if detailOf(err) != "identity_provider.not_admitted" {
+				t.Fatalf("the arrival answered (%+v, %v), want not_admitted", result, err)
+			}
+			if result.Pair != nil || result.Challenge != nil {
+				t.Errorf("a refused arrival answered %+v", result)
+			}
+			if len(f.external.links) != 0 || len(f.accounts.inserted) != 0 {
+				t.Errorf("a refused arrival linked %v or created %d accounts", f.external.links, len(f.accounts.inserted))
+			}
+			if !containsAction(auditActions(f.session.audit.entries), OidcRefusedAction) {
+				t.Error("the refusal is not in the trail")
+			}
+		})
 	}
-	if len(f.external.links) != 0 {
-		t.Fatalf("the provider was connected before the account's proof: %v", f.external.links)
-	}
-
-	link := CompleteLink{Writer: f.writer}
-	if _, err := link.Execute(t.Context(), CompleteLinkCommand{
-		PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
-	}); err == nil {
-		t.Fatal("a wrong password completed the LINK step")
-	}
-	if len(f.external.links) != 0 {
-		t.Fatalf("a wrong password linked %v", f.external.links)
-	}
-
-	done, err := link.Execute(t.Context(), CompleteLinkCommand{
-		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
-	})
-	if err != nil {
-		t.Fatalf("the right password was refused: %v", err)
-	}
-	if done.Pair == nil || done.Pair.Session.AccountID != account {
-		t.Fatalf("the step answered %+v, want a session for the member", done)
-	}
-	if len(f.external.links) != 1 || f.external.links[0] != "attacker-made-subject" {
-		t.Errorf("the links are %v, want the provider's subject once", f.external.links)
-	}
-}
-
-// With a second factor armed, the password hands on to the code, and only the code connects.
-func TestUnderInvitedOnlyAnArmedMemberConnectsOnlyWithPasswordAndCode(t *testing.T) {
-	f := invitedOnlyLinkFixture(t, true)
-	result, err := arrive(t, f)
-	if err != nil || result.Challenge == nil {
-		t.Fatalf("arriving: (%+v, %v)", result, err)
-	}
-
-	next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
-		PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
-	})
-	if err != nil || next.Challenge == nil || next.Challenge.Methods[0] != methodTotp {
-		t.Fatalf("the right password answered (%+v, %v), want the second factor's step", next, err)
-	}
-	if len(f.external.links) != 0 {
-		t.Fatalf("the provider was connected before the second factor: %v", f.external.links)
-	}
-
-	material := f.session.writer.Encryptor.(*encryptorFake).sealedBy[string(mfaSecretPurpose(account))]
-	if _, _, err := (CompleteSignIn{Writer: f.session.writer}).Execute(t.Context(), CompleteSignInCommand{
-		PendingToken: next.Challenge.Token,
-		Code:         domain.TotpCode([]byte(material), domain.TotpStep(now)+1),
-	}); err != nil {
-		t.Fatalf("the second factor's step: %v", err)
-	}
-	if len(f.external.links) != 1 {
-		t.Errorf("after the code the links are %v, want the provider's subject once", f.external.links)
-	}
-}
-
-// What INVITED_ONLY still refuses from a provider that is not authoritative: an address no account
-// here holds - nobody is created - and a member with no password to prove on the card.
-func TestUnderInvitedOnlyANonAuthoritativeProviderStillRefusesTheRest(t *testing.T) {
-	t.Run("an address nobody here holds", func(t *testing.T) {
+	t.Run("an authoritative provider", func(t *testing.T) {
 		f := invitedOnlyLinkFixture(t, false)
-		f.relying.identity.Email = "eve@example.org"
-
-		_, err := arrive(t, f)
-		if detailOf(err) != "identity_provider.not_admitted" {
-			t.Fatalf("a stranger's arrival answered %v", err)
-		}
-		if len(f.external.links) != 0 || len(f.accounts.inserted) != 0 {
-			t.Errorf("a refused arrival linked %v or created %d accounts", f.external.links, len(f.accounts.inserted))
-		}
-		if !containsAction(auditActions(f.session.audit.entries), OidcRefusedAction) {
-			t.Error("the refusal is not in the trail")
-		}
-	})
-	t.Run("a member without a password", func(t *testing.T) {
-		f := newOidcFixture(t, now, ownerAccount)
-		f.store.rows[0].Provisioning = domain.ProvisionInvitedOnly
-		f.relying.identity = provider.Identity{
-			Subject: "a-subject", Email: "bert@example.org", EmailVerified: true, DisplayName: "Bert",
-		}
-
-		_, err := arrive(t, f)
-		if detailOf(err) != "identity_provider.link_needs_mailbox" {
-			t.Fatalf("a member with nothing to prove answered %v", err)
+		f.relying.identity.AddressAuthoritative = true
+		result, err := arrive(t, f)
+		if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+			t.Fatalf("arriving: (%+v, %v), want the LINK step", result, err)
 		}
 		if len(f.external.links) != 0 {
-			t.Errorf("the provider's word connected %v", f.external.links)
+			t.Fatalf("the provider was connected before the account's proof: %v", f.external.links)
 		}
 	})
 }
@@ -410,37 +347,46 @@ func TestTheLinkStepTakesThePasswordWhereThePasswordIsOff(t *testing.T) {
 	}
 }
 
-// Under *Only these domains/directories* the list decides who comes in new, not whether an existing
-// member may connect (the owner's decision of 2026-10-06): inside the list and outside it, the member
-// reaches the LINK step and is connected with its password - and only with it.
-func TestUnderDomainsAMemberConnectsWithThePasswordInsideAndOutsideTheList(t *testing.T) {
-	for name, domains := range map[string][]string{
-		"inside the list":  {"example.org"},
-		"outside the list": {"elsewhere.example"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			f := linkFixture(t, false)
-			f.store.rows[0].Provisioning = domain.ProvisionDomains
-			f.store.rows[0].AllowedEmailDomains = domains
-			f.relying.identity.AddressAuthoritative = false
+// Under *Anyone from these organisations* the list bounds a connection as it bounds a newcomer
+// (decision #1511): inside the list the member reaches the LINK step and is connected with its
+// password - and only with it; outside it nothing is asked and nothing is connected.
+func TestUnderDomainsTheListBoundsWhichMemberConnects(t *testing.T) {
+	t.Run("inside the list", func(t *testing.T) {
+		f := linkFixture(t, false)
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"example.org"}
+		f.relying.identity.AddressAuthoritative = false
 
-			result, err := arrive(t, f)
-			if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
-				t.Fatalf("arriving %s: (%+v, %v), want the LINK step", name, result, err)
-			}
-			if _, err := (CompleteLink{Writer: f.writer}).Execute(t.Context(), CompleteLinkCommand{
-				PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
-			}); err == nil || len(f.external.links) != 0 {
-				t.Fatalf("a wrong password connected %v (%v)", f.external.links, err)
-			}
-			next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
-				PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
-			})
-			if err != nil || next.Pair == nil || len(f.external.links) != 1 {
-				t.Errorf("the password answered (%+v, %v) with links %v", next, err, f.external.links)
-			}
+		result, err := arrive(t, f)
+		if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
+			t.Fatalf("arriving: (%+v, %v), want the LINK step", result, err)
+		}
+		if _, err := (CompleteLink{Writer: f.writer}).Execute(t.Context(), CompleteLinkCommand{
+			PendingToken: result.Challenge.Token, Password: secret.New("a guess"),
+		}); err == nil || len(f.external.links) != 0 {
+			t.Fatalf("a wrong password connected %v (%v)", f.external.links, err)
+		}
+		next, err := CompleteLink{Writer: f.writer}.Execute(t.Context(), CompleteLinkCommand{
+			PendingToken: result.Challenge.Token, Password: secret.New("correct horse battery"),
 		})
-	}
+		if err != nil || next.Pair == nil || len(f.external.links) != 1 {
+			t.Errorf("the password answered (%+v, %v) with links %v", next, err, f.external.links)
+		}
+	})
+	t.Run("outside the list", func(t *testing.T) {
+		f := linkFixture(t, false)
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.example"}
+		f.relying.identity.AddressAuthoritative = false
+
+		result, err := arrive(t, f)
+		if detailOf(err) != "identity_provider.not_admitted" || result.Challenge != nil {
+			t.Fatalf("arriving: (%+v, %v), want not_admitted", result, err)
+		}
+		if len(f.external.links) != 0 {
+			t.Errorf("an address outside the list connected %v", f.external.links)
+		}
+	})
 }
 
 // UC-ID-10 check 2: the connection is recorded in the trail as a link, naming the provider and
@@ -533,5 +479,22 @@ func TestAnInstallationsProviderMeetsTheLinkStepToo(t *testing.T) {
 				t.Errorf("the installation's row is connected to %q, want the account", got.ID)
 			}
 		})
+	}
+}
+
+// An identity connected before keeps signing in after a list narrows past it: daily sign-in reads no
+// list, so tightening one locks nobody out (identity.md §10.4, decision #1511).
+func TestAConnectedIdentityOutsideANarrowedListStillSignsIn(t *testing.T) {
+	f := linkFixture(t, false)
+	if _, err := f.external.LinkSubject(t.Context(), f.store.rows[0].ID, account, "attacker-made-subject", now); err != nil {
+		t.Fatalf("connecting beforehand: %v", err)
+	}
+	f.store.rows[0].Provisioning = domain.ProvisionDomains
+	f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.example"}
+	f.relying.identity.AddressAuthoritative = false
+
+	result, err := arrive(t, f)
+	if err != nil || result.Pair == nil || result.Pair.Session.AccountID != account {
+		t.Fatalf("the connected identity answered (%+v, %v), want its session", result, err)
 	}
 }

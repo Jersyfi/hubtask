@@ -460,27 +460,36 @@ func TestAConnectLinkIsSpentOnce(t *testing.T) {
 	}
 }
 
-// Under *Only these domains/directories* the list decides who comes in new, not whether an existing
-// member may connect (the owner's decision of 2026-10-06): the connect link admits the member's own
-// verified address inside the list and outside it alike.
-func TestUnderDomainsAMemberConnectsByMailInsideAndOutsideTheList(t *testing.T) {
-	for name, domains := range map[string][]string{
-		"inside the list":  {"example.org"},
-		"outside the list": {"elsewhere.example"},
-	} {
-		t.Run(name, func(t *testing.T) {
-			f := connectFixture(t)
-			f.store.rows[0].Provisioning = domain.ProvisionDomains
-			f.store.rows[0].AllowedEmailDomains = domains
-			link, id := connectLinkFor(t, f, account, connectAt.Add(domain.ResetLifetime), 1)
+// Under *Anyone from these organisations* the list bounds the link by mail as it bounds a newcomer
+// (identity.md §10.4, decision #1511): inside the list the member's own address connects; outside it
+// the mailbox proves the person and connects nothing.
+func TestUnderDomainsTheListBoundsTheConnectLink(t *testing.T) {
+	t.Run("inside the list", func(t *testing.T) {
+		f := connectFixture(t)
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"example.org"}
+		link, id := connectLinkFor(t, f, account, connectAt.Add(domain.ResetLifetime), 1)
 
-			result, err := completeConnect(t, f, startConnect(t, f, link))
-			if err != nil || result.Pair == nil {
-				t.Fatalf("connecting %s answered (%+v, %v)", name, result, err)
-			}
-			if !linkSpent(f, id) {
-				t.Error("the connection left the link unspent")
-			}
-		})
-	}
+		result, err := completeConnect(t, f, startConnect(t, f, link))
+		if err != nil || result.Pair == nil {
+			t.Fatalf("connecting answered (%+v, %v)", result, err)
+		}
+		if !linkSpent(f, id) {
+			t.Error("the connection left the link unspent")
+		}
+	})
+	t.Run("outside the list", func(t *testing.T) {
+		f := connectFixture(t)
+		f.store.rows[0].Provisioning = domain.ProvisionDomains
+		f.store.rows[0].AllowedEmailDomains = []string{"elsewhere.example"}
+		link, _ := connectLinkFor(t, f, account, connectAt.Add(domain.ResetLifetime), 1)
+
+		result, err := completeConnect(t, f, startConnect(t, f, link))
+		if detailOf(err) != "identity_provider.not_admitted" || result.Pair != nil {
+			t.Fatalf("connecting outside the list answered (%+v, %v), want not_admitted", result, err)
+		}
+		if len(f.external.links) != 0 {
+			t.Errorf("an address outside the list connected %v", f.external.links)
+		}
+	})
 }

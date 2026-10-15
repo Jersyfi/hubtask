@@ -570,17 +570,11 @@ func (w OidcWriter) settleAccount(
 		// the configured list is refused here - not provisioned a desk of its own, which would
 		// make the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
-			existing, err := w.notAdmitted(ctx, configured, arriving)
-			if err != nil {
-				if !errors.Is(err, shared.ErrForbidden) {
-					return err
-				}
-				return turnedAway(err)
+			err := w.notAdmitted(ctx, configured, arriving)
+			if !errors.Is(err, shared.ErrForbidden) {
+				return err
 			}
-			// An existing member whose provider is not authoritative for the address: the LINK
-			// step, where the account's own proof is asked and nothing is connected without it.
-			account, owed = existing, true
-			return nil
+			return turnedAway(err)
 		}
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
@@ -909,9 +903,9 @@ func (w OidcWriter) connectByMail(
 		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
 		}
-		// Admission as for every arrival that brings its own proof: the mailbox is that proof,
-		// under INVITED_ONLY and under DOMAINS alike - the list decides who comes in new.
-		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+		// Admission bounds a connection as it bounds a newcomer (identity.md §10.4, decision #1511):
+		// the mailbox proves the person, and the mode and lists decide what may be connected.
+		if !configured.MayAdmit(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 		}
 		// An identity already connected to somebody else here is that person's, and is never
@@ -994,55 +988,33 @@ func (e turnedAwayError) Unwrap() error { return e.cause }
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 
-// notAdmitted answers an arrival admission turned away (ADR-0078 §1, §5).
+// notAdmitted answers an arrival admission turned away (identity.md §10.4, decision #1511).
 //
-// Under INVITED_ONLY a provider that is not authoritative for the address - a self-hosted one, a
-// personal Google account at somebody else's domain - and under DOMAINS an address outside the
-// directory or domain list still bring two people to a door they open with their own proof, because
-// authority and the list decide only who comes in new, on the provider's word (MayAdmitWithProof):
-//
-//   - an existing ACTIVE account goes to the LINK step: its password (and its second factor) is
-//     asked, and nothing is connected without it. The account is answered, and owes that proof.
-//     One that cannot give it on this card is refused with the sentence naming the way in it has.
-//     Without this a member of a workspace that chose its provider only would have no way to
-//     connect it (P-16).
-//   - an INVITED account is pointed at its invitation's link, which is the proof it holds.
-//
-// Everybody else is refused, and nothing is created here.
+// The mode and the lists bound who comes in new *and* which identities may be connected to an
+// existing account, so an existing member is not brought to the LINK step here: the member's own
+// proof does not widen what the provider admits. The one arrival pointed somewhere is an INVITED
+// account whose provider would admit it with its invitation's link (MayAdmitInvitation) - that link
+// is not new, and it is the proof the account holds. Everybody else is refused, and nothing is
+// created or connected here. Always an error: ErrForbidden for the refusals, anything else for a
+// read that failed.
 func (w OidcWriter) notAdmitted(
 	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
-) (domain.Account, error) {
+) error {
 	refused := shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
-	if !configured.MayAdmitWithProof(admissionOf(arriving)) {
-		return domain.Account{}, refused
+	if !configured.MayAdmitInvitation(admissionOf(arriving)) {
+		return refused
 	}
 	existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return domain.Account{}, refused
+			return refused
 		}
-		return domain.Account{}, err
+		return err
 	}
-	switch existing.Status {
-	case domain.AccountInvited:
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
-	case domain.AccountActive:
-		proof, err := w.proofOwed(ctx, existing)
-		if err != nil {
-			return domain.Account{}, err
-		}
-		switch proof {
-		case proofPassword:
-			return existing, nil
-		case proofElsewhere:
-			return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
-		}
-		// No credential at all, and a provider that is not authoritative: its word does not stand
-		// in for a proof, and the way back is the mailbox.
-		return domain.Account{}, linkNeedsMailbox()
-	default:
-		return domain.Account{}, refused
+	if existing.Status == domain.AccountInvited {
+		return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
 	}
+	return refused
 }
 
 // arriveInvited is a first arrival through the invitation's own link (ADR-0078 §1): the invited
