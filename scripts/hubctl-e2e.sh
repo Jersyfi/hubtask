@@ -913,8 +913,10 @@ echo "--- a right somebody exercised ---"
 dsr="$(hubctl dsr create --kind RECTIFICATION --subject "$ACCOUNT_ID" --notes 'asked by email')"
 CASE_ID="$(printf '%s\n' "$dsr" | first_id)"
 [ -n "$CASE_ID" ] || { echo "FAILED: raising the case produced no identifier: $dsr"; exit 1; }
-# The deadline is the point of the resource: thirty days from receipt unless somebody said another.
-expect_contains "dsr ls" "$(hubctl dsr ls --due-within 31)" "$CASE_ID"
+# The deadline is the point of the resource: one calendar month from the day of receipt, to the end
+# of that day, unless somebody said another: never sooner than 28 days, always within 32.
+expect_contains "dsr ls" "$(hubctl dsr ls --due-within 32)" "$CASE_ID"
+expect_missing "dsr ls" "$(hubctl dsr ls --due-within 27)" "$CASE_ID"
 # `RECEIVED → COMPLETED` is not a step the state machine has: a case is taken on first, and that is
 # the transition that would run the work if the kind had any (data-protection.md §4).
 hubctl dsr start "$CASE_ID" >/dev/null
