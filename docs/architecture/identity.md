@@ -340,8 +340,12 @@ An unverified address comes in nowhere. Then:
 * **A shared endpoint's list bounds `ANY`** (§10.3): on Microsoft's `/organizations` or `/common`
   only a directory in `allowed_directories` comes in, and a row stored without a list admits nobody
   new. One directory's own issuer is bounded by the issuer.
-* The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
-  invitation's link (§12) is not new.
+* The mode and lists decide who comes in **new**, and **which identities may be connected** to an
+  existing account: the `LINK` step, the link by mail and a connection from a signed-in session
+  (§11) admit only what the mode and lists admit (`identity_provider.not_admitted` otherwise), the
+  member's own proof notwithstanding. An identity connected before keeps signing in, and daily
+  sign-in reads no list, so tightening a list locks nobody out. An invitation's link (§12) is not
+  new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
   group of it — given in the transaction that creates the account, recorded as a grant. Where terms
   of use are in force that transaction is the agreement's, not the arrival's (§4.2). Only a

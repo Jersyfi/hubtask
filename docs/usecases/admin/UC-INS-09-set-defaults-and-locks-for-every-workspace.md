@@ -5,7 +5,7 @@ context: admin
 actors: [PE-operator, PE-selfhoster]
 deployments: [D1, D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-10, P-12]
-state: verified
+state: partial
 tasks: [SI-05, SI-12, SI-17, SC-07]
 checked_by: [core/application/service/admin/InstanceLevels_test.go, core/application/service/admin/Instance_test.go, core/application/service/admin/InstanceDoors_test.go, test/integration/instance_values_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/e2e/instancesettings.test.mjs, apps/webapp/e2e/settings.test.mjs, docs/evidence/SC-07-2026-10-12.md, apps/webapp/e2e/quotas.test.mjs, test/integration/quota_test.go, core/application/service/quota/Quota_test.go, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
@@ -38,8 +38,15 @@ and lands in the instance journal.
 6. The same values can be read and written with `hubctl admin settings` and through the instance
    file, with the same refusals.
 7. In `enforce` mode, the screen shows the values and the file's path, and offers no control.
+8. A save of the defaults made on values somebody else changed since they were read is refused
+   with `version_conflict`, and the screen says somebody else saved first; `hubctl admin settings
+   set` is refused the same way.
 
 ## Where it ends
 
 * Plans, which carry the same values for a group of workspaces, are UC-INS-13.
 * Rate limits and the lockout curve stay in the environment; they are not defaults.
+
+## Today
+
+* Check 8: not met — `PUT /admin/settings` carries no version, so the second of two saves silently replaces the first (#1303).

@@ -50,6 +50,8 @@ announcement it had made.
    `lifecycle.rule_changed` or `lifecycle.rule_withdrawn`.
 9. All of this — including scope, grace period, warning and second stage — can be set in the web
    app, through the API, with `hubctl` and through MCP.
+10. A rule whose condition fails on an entry is shown as failing, with the reason, and announces
+    and removes nothing in that pass; the workspace's other rules and its trash go on.
 
 ## Where it ends
 
@@ -66,3 +68,4 @@ See [data-retention.md](../../architecture/data-retention.md) and
 ## Today
 
 * Check 9: not met in the web app and in part for `hubctl` — the web form writes workspace-wide rules only, without hub or collection scope, grace period, warning, second stage or condition; `hubctl retention add` has no grace or warning flags, and `set` has `--grace` only.
+* Check 10: not met — a failing condition stops the whole pass and is shown nowhere (#1484).
