@@ -408,12 +408,28 @@ reason.
 
 ### 3.1 Webhook subscriptions (push)
 
-* `POST /api/v1/integrations/webhooks` with `target_url` and `event_types[]`. A subscription receives
-  every event of its types in the whole workspace: it takes no scope, and a `filter` is refused with
-  `webhooks.filter_not_supported`; a CEL filter and a scope are planned
-  ([UC-INT-01](../usecases/integration/UC-INT-01-receive-workspace-events-on-my-server.md)).
+* `POST /api/v1/integrations/webhooks` with `target_url` and `event_types[]`, and optionally a
+  `scope` and a `filter` ([UC-INT-01](../usecases/integration/UC-INT-01-receive-workspace-events-on-my-server.md)).
   An event of a private hub is delivered only where the subscription's creator reaches the hub
   ([identity.md](./identity.md) §22).
+* **Scope:** `{type: TENANT|HUB|COLLECTION, id}`, a rule's shape and meaning (§1): a hub includes its
+  collections, an entry's event is judged by its collection (a move by where it landed), a
+  container's by itself and its hub, and an event about no hub or collection reaches only a
+  subscription of the whole workspace. Writing a subscription asks the automation permission at its
+  scope (and, on a move, at the old one too), after checking that the container is this
+  workspace's and of the named type (`containers.not_found`, `webhooks.scope_type_mismatch`);
+  reading asks it, or configuration-read, there, and the listing answers what the caller may read.
+  Omitted is the whole workspace; on an update `{type: TENANT}` widens it again.
+* **Filter:** a boolean condition in the rules' language (§1.2) over a smaller set of names - `event`,
+  `data` (the CloudEvent's `data`, as the receiver gets it), `actor` and `now` - because the
+  dispatcher does not read the work context (`condition.WebhookEnvironment`). It is compiled with
+  the rules' bounds when saved and refused with `webhooks.filter_invalid` and the expression's code
+  at `/filter`; an empty string removes it. **An event whose condition cannot be evaluated is not
+  sent**: it is a delivery row with status `FILTER_FAILED`, attempt 0 and the expression's code as
+  `error_code` - never the condition's text - listed and narrowable in the delivery log, not
+  replayable, and gone with the log's thirty days. Failing open would send what the subscriber
+  narrowed away; failing the dispatcher's batch would stop every other subscriber. The trail
+  records `filter_set` and the scope, never the condition (rule 10).
 * Payload: **CloudEvents 1.0** (structured JSON), identical to the internal event.
 * Signature: `X-Hubtask-Signature: t=<ts>,v1=<hmac-sha256(secret, ts + "." + body)>`, replays bounded by a time window.
 * Headers: `X-Hubtask-Event-Id` (for deduplication), `X-Hubtask-Event-Type`, `X-Hubtask-Delivery-Attempt`.

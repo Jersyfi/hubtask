@@ -554,6 +554,9 @@ func run() error {
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
+		// The same engine and bounds the rules compile with: a subscription's condition is the
+		// automation's language (automation.md §3.1).
+		Compiler: celexpression.New(),
 	}
 
 	// The three credential use cases share one dependency set, because the rule about whose
@@ -627,6 +630,8 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	containers := postgres.NewContainerRepository(cursors)
+	// A scope's hub or collection is checked against the workspace's containers when it is written.
+	webhookWriter.Containers = containers
 	items := postgres.NewItemRepository(cursors)
 	trash := postgres.NewTrashRepository(cursors)
 	// The item history. One repository for both halves of the port - the append every writer makes
@@ -1457,6 +1462,16 @@ func run() error {
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
 	setupCodes := postgres.NewSetupCodeRepository(security.NewSetupCodeHasher(cfg.SecretKey))
 
+	// Data subject requests: the erasure that serves every storage location - the job's, and the
+	// operator's re-run after a point-in-time recovery.
+	privacyEraser := privacyservice.Eraser{
+		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
+		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
+		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Embeddings:      postgres.NewEmbeddingRepository(),
+		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
+	}
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
 		identity.InviteAccount{
@@ -1695,6 +1710,12 @@ func run() error {
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
+		// Connecting a provider from a signed-in session (ADR-0078 §1).
+		identity.StartProviderConnect{
+			Writer: oidcWriter, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+		}.Descriptor(),
+		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -2011,6 +2032,12 @@ func run() error {
 		lifecycle.ReplaceLegalHolds{
 			Holds: legalHolds, Workspaces: postgres.NewAdminTenantRepository(),
 			Archive: backupservice.ArchivedHolds{Restorer: backupRestorer, Keys: encryptor},
+		}.Descriptor(),
+		// The erasure half of the same step, after the holds and before traffic is admitted.
+		privacyservice.ReapplyErasures{
+			Requests: privacyStore, Recovered: privacyStore, Eraser: privacyEraser,
+			Workspaces: postgres.NewAdminTenantRepository(), StepUp: stepUpVerifier,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		auditservice.ListAuditEntries{
 			Trail: auditTrail, Authorizer: authorizer, Pseudonyms: privacyStore,
@@ -2784,7 +2811,7 @@ func run() error {
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
-		Reach: authorizer,
+		Reach: authorizer, Containers: containers, Conditions: celexpression.New(),
 	}
 
 	dispatcher := eventbus.Dispatcher{
@@ -2980,16 +3007,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		SchemaVersion: schemaVersion(), ProductVersion: version,
 	}
-	// Data subject requests: the erasure that serves every storage location, and the export
-	// that is a Hubtask archive rather than a second format.
-	privacyEraser := privacyservice.Eraser{
-		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
-		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
-		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		Embeddings:      postgres.NewEmbeddingRepository(),
-		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
-	}
+	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
 		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
 		Targets: backupservice.StoreOpener{

@@ -18,13 +18,15 @@
  * for a subscriber that deduplicates, and the attempt counter continues rather than resetting so
  * that the delivery log stays a true account of how many times this event was sent.
  *
- * **`filter` is not here at all.** `integration.RefuseFilter` still refuses a non-empty one, and a
- * field that is accepted and ignored would be a subscriber receiving events they asked not to.
+ * **A condition is the server's to judge.** It is compiled when it is saved and refused naming
+ * where; a client that parsed it first would be a second dialect of the language (`webhooks.ts`
+ * builds the body, and nothing here reads the condition).
  */
 
 import type { ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import type { WebhookScope } from './webhooks.ts';
 
 const WEBHOOKS = '/integrations/webhooks';
 
@@ -40,6 +42,10 @@ export interface Subscription {
   readonly failure_count: number;
   /** A message code for the last failure, never a response body from the target. */
   readonly last_error?: string | null;
+  /** The condition an event must meet to be sent; absent for none. */
+  readonly filter?: string | null;
+  /** Where it listens; absent is the whole workspace. */
+  readonly scope?: WebhookScope | null;
   readonly created_at: string;
   readonly version: number;
 }
@@ -54,9 +60,12 @@ export interface Delivery {
   readonly id: string;
   readonly subscription_id: string;
   readonly event_id: string;
-  /** Which attempt this is, from one. It carries on across a replay rather than resetting. */
+  /**
+   * Which attempt this is, from one. It carries on across a replay rather than resetting. Zero for
+   * an event held back by the condition, which was never sent.
+   */
   readonly attempt: number;
-  readonly status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'DEAD_LETTER';
+  readonly status: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'DEAD_LETTER' | 'FILTER_FAILED';
   readonly response_status?: number | null;
   readonly error_code?: string | null;
   readonly next_attempt_at?: string | null;
@@ -146,6 +155,8 @@ class Webhooks {
   async subscribe(draft: {
     target_url: string;
     event_types: readonly string[];
+    filter?: string;
+    scope?: WebhookScope;
   }): Promise<SubscriptionWithSecret> {
     return engine.mutate<SubscriptionWithSecret>('POST', WEBHOOKS, draft, {
       idempotencyKey: crypto.randomUUID(),

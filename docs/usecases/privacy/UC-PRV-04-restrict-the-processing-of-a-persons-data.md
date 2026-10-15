@@ -36,6 +36,9 @@ the restriction.
 5. No AI suggestion is requested for an entry assigned to, or created by, a restricted person.
 6. Restricting and lifting write `dsr.processing_restricted` and `dsr.processing_resumed`.
 7. A plain member cannot restrict anybody.
+8. While a person's processing is restricted, no retention rule and no automatic trash purge
+   removes their account or what they contributed, and the entry shows that a restriction holds
+   it.
 
 ## Where it ends
 
@@ -50,3 +53,4 @@ See [data-protection.md](../../architecture/data-protection.md) §4.
 ## Today
 
 * Check 1: not met in part — the web app can restrict but not lift, and `hubctl` has no command for either.
+* Check 8: not met — the retention sweep reads only legal holds, not a restriction (#1160).

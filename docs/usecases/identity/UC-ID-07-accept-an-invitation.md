@@ -5,7 +5,7 @@ context: identity
 actors: [PE-member, PE-guest, PE-child, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
-state: built
+state: partial
 tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10]
 checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md]
 ---
@@ -39,9 +39,15 @@ invitation used twice, or after it expired, gets one plain sentence and the name
    choosing a password.
 6. After accepting, the person sees exactly what their role and scope allow — a guest on one task
    sees that task.
+7. In multi-tenant operation, an invitation link and the return from a sign-in provider lead to the
+   workspace's own address, never the installation's.
 
 ## Where it ends
 
 * Handing an invitation over without mail is its own use case (UC-ID-14 check 5).
 * No self-registration: somebody gets in because somebody invited them, or because a provider
   admits them.
+
+## Today
+
+* Check 7: not met — both lead to the installation's host (#1337).

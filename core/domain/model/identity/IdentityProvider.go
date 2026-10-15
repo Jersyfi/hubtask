@@ -888,6 +888,9 @@ type OidcFlow struct {
 	// choosing the provider (UC-ID-19 check 1): its link and version, no time - the arrival that
 	// activates the invited account stores it with its own. Empty beside every other flow.
 	Terms TermsAgreement
+	// Connect makes a flow bound to a session a connection of a provider to the session's account
+	// (ADR-0078 §1) rather than a step-up. Never without a session.
+	Connect bool
 }
 
 // NewOidcFlowInput is what starting a sign-in needs.
@@ -909,6 +912,8 @@ type NewOidcFlowInput struct {
 	PendingID shared.ID
 	// Terms is the agreement given on the invitation card; only beside an invitation.
 	Terms TermsAgreement
+	// Connect makes the session's flow a connection of a provider; only beside a session.
+	Connect bool
 }
 
 // NewOidcFlow opens one.
@@ -921,13 +926,14 @@ func NewOidcFlow(in NewOidcFlowInput) (OidcFlow, error) {
 		in.Nonce == "" || len(in.Verifier) < 43 || len(in.Verifier) > 128 ||
 		(!in.SessionID.IsZero() && !in.InvitedAccountID.IsZero()) ||
 		(!in.PendingID.IsZero() && (!in.SessionID.IsZero() || !in.InvitedAccountID.IsZero())) ||
-		(in.Terms.URL != "" && in.InvitedAccountID.IsZero()) {
+		(in.Terms.URL != "" && in.InvitedAccountID.IsZero()) ||
+		(in.Connect && in.SessionID.IsZero()) {
 		return OidcFlow{}, shared.ErrInternal.WithDetail("identity_provider.flow_incomplete")
 	}
 	return OidcFlow{
 		ID: in.ID, TenantID: in.TenantID, ProviderID: in.ProviderID,
 		Nonce: in.Nonce, Verifier: in.Verifier, SessionID: in.SessionID,
-		InvitedAccountID: in.InvitedAccountID, PendingID: in.PendingID,
+		InvitedAccountID: in.InvitedAccountID, PendingID: in.PendingID, Connect: in.Connect,
 		Terms:     TermsAgreement{URL: in.Terms.URL, Version: in.Terms.Version},
 		CreatedAt: in.Now.UTC(), ExpiresAt: in.Now.Add(OidcFlowLifetime).UTC(),
 	}, nil

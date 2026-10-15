@@ -340,8 +340,12 @@ An unverified address comes in nowhere. Then:
 * **A shared endpoint's list bounds `ANY`** (§10.3): on Microsoft's `/organizations` or `/common`
   only a directory in `allowed_directories` comes in, and a row stored without a list admits nobody
   new. One directory's own issuer is bounded by the issuer.
-* The mode and lists decide who comes in **new**; a member bringing their own proof (§11) or an
-  invitation's link (§12) is not new.
+* The mode and lists decide who comes in **new**, and **which identities may be connected** to an
+  existing account: the `LINK` step, the link by mail and a connection from a signed-in session
+  (§11) admit only what the mode and lists admit (`identity_provider.not_admitted` otherwise), the
+  member's own proof notwithstanding. An identity connected before keeps signing in, and daily
+  sign-in reads no list, so tightening a list locks nobody out. An invitation's link (§12) is not
+  new.
 * **What newcomers get** is the provider's: nothing (the default), one role on the workspace, or one
   group of it — given in the transaction that creates the account, recorded as a grant. Where terms
   of use are in force that transaction is the agreement's, not the arrival's (§4.2). Only a
@@ -385,7 +389,18 @@ safeguard belongs to connecting, not to the provider kind.
 | Holds only another provider's identity | Refused, naming the way in it has (`identity_provider.link_needs_mailbox` where no mailbox proof is possible yet). |
 
 * **At a first, unauthenticated arrival the verified address must equal the account's**; another
-  address connects only from a signed-in session (§21 I-2).
+  address connects only from a signed-in session.
+* **From a signed-in session** (*Password and sign-in*, `POST /accounts/me/identities:connect` and
+  `:complete`, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1): a step-up of the account (§16),
+  then a fresh sign-in at a provider that is a way in here (`prompt=login`, `max_age=0`, `auth_time`
+  after the flow left), on a flow bound to that session and marked a connection - neither a sign-in
+  nor a step-up finishes it. The provider's address must be verified and need not be the account's;
+  admission is the member's own proof (`MayAdmitWithProof`, §10.4). Refused for an account without
+  an address (`identity_provider.connect_needs_address`, §4.1), for a provider the account is already
+  connected to (`identity_provider.already_connected`), and for an identity connected to another
+  account (`identity_provider.connection_taken`). Recorded as `identity.provider_linked` with the
+  proof `SESSION`, and told to the person (§6). `GET /accounts/me/identities` lists the connections:
+  provider and since when, never the subject.
 * **Once connected, an identity is found by issuer and subject only**; one bound to another subject
   is refused, never re-pointed.
 * `email_verified` alone activates and connects nothing.
@@ -607,10 +622,11 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
 such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, a private hub's emergency access
-(§22), and every write of §6 (bearer door), §8–§9, §10.5, §17.2, §19 and
-[backup-restore.md](./backup-restore.md) §8's destructive modes, and configuring or removing one of
-the installation's own backup targets (backup-restore.md §2).
+member of `PATCH /tenant` that asks), §13's new start password, connecting a provider from a
+session (§11), a private hub's emergency access (§22), and every write of §6 (bearer door), §8–§9,
+§10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's
+erasures carried out again after a point-in-time recovery, and configuring or removing one of the
+installation's own backup targets (backup-restore.md §2).
 
 ---
 
@@ -759,11 +775,12 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 
 | # | Point |
 |---|---|
-| I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
+| I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
+| I-14 | Whether a provider's admission settings (§10.4) also bound which identities members may connect, not only who comes in new — the owner's to decide (decision #1511). |
 
 ---
 

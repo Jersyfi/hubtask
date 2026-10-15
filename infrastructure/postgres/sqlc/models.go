@@ -1184,6 +1184,7 @@ type OidcFlow struct {
 	PendingID        pgtype.UUID
 	TermsUrl         *string
 	TermsVersion     *string
+	Connect          bool
 }
 
 type Operator struct {
@@ -1552,6 +1553,8 @@ type WebhookSubscription struct {
 	PreviousSecretUntil pgtype.Timestamptz
 	LastError           *string
 	DisabledAt          pgtype.Timestamptz
+	ScopeType           *string
+	ScopeID             pgtype.UUID
 }
 
 type WorkItem struct {

@@ -698,6 +698,9 @@ CREATE TABLE oidc_flow (
   -- The CONNECT link a sign-in started from, in a workspace without the password (ADR-0078 §1,
   -- migration 0117). NULL is every other sign-in.
   pending_id    uuid,
+  -- A flow bound to a session that connects a provider to the account rather than stepping up
+  -- (ADR-0078 §1, migration 0152). Each callback consumes only its own kind.
+  connect       boolean NOT NULL DEFAULT false,
   -- The terms of use agreed to on the invitation card before the provider was chosen (UC-ID-19,
   -- migration 0140); the arrival that activates the invited account stores them.
   terms_url     text CONSTRAINT oidc_flow_terms_url_check CHECK (char_length(terms_url) <= 2000),
@@ -1434,6 +1437,9 @@ CREATE TABLE webhook_subscription (
   target_url    text NOT NULL,
   event_types   text[] NOT NULL,
   filter_expr   text,
+  -- Where it listens (migration 0156): a hub or a collection, both NULL for the whole workspace.
+  scope_type    text,
+  scope_id      uuid,
   secret_enc    bytea NOT NULL,
   state         text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE','PAUSED','DISABLED')),
   failure_count integer NOT NULL DEFAULT 0,
@@ -1453,7 +1459,11 @@ CREATE TABLE webhook_subscription (
   disabled_at   timestamptz,
   created_by    uuid NOT NULL,
   created_at    timestamptz NOT NULL DEFAULT now(),
-  version       integer NOT NULL DEFAULT 1
+  version       integer NOT NULL DEFAULT 1,
+  CONSTRAINT webhook_subscription_scope_check CHECK (
+    (scope_type IS NULL AND scope_id IS NULL)
+    OR (scope_type IN ('HUB','COLLECTION') AND scope_id IS NOT NULL)
+  )
 );
 CREATE UNIQUE INDEX webhook_subscription_tenant_id_uq ON webhook_subscription (tenant_id, id);
 
@@ -1463,7 +1473,8 @@ CREATE TABLE webhook_delivery (
   subscription_id uuid NOT NULL,
   event_id        uuid NOT NULL,
   attempt         integer NOT NULL DEFAULT 1,
-  status          text NOT NULL CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER')),
+  status          text NOT NULL CONSTRAINT webhook_delivery_status_check
+                    CHECK (status IN ('PENDING','SUCCEEDED','FAILED','DEAD_LETTER','FILTER_FAILED')),
   response_status integer,
   error_code      text,
   next_attempt_at timestamptz,
@@ -2508,7 +2519,7 @@ CREATE POLICY tenant_isolation ON change_log
 
 -- backup_target can be instance-wide (tenant_id IS NULL) and is then visible only to
 -- the instance administration - not to tenant users: a session with no tenant set reaches those
--- rows and only those (migration 0155).
+-- rows and only those (migration 0157).
 ALTER TABLE backup_target ENABLE ROW LEVEL SECURITY;
 ALTER TABLE backup_target FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON backup_target

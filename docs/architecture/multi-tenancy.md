@@ -80,6 +80,14 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
 
+**The doors' owner reads across tenants by policy.** `FORCE` binds the owner too, so a door owned
+by a role that is neither superuser nor `BYPASSRLS` — the database an operator brings (§2.1.1) —
+would see no rows. The owner therefore holds standing, command-scoped policies `TO CURRENT_USER`
+(the role that runs the migration), bounded by no tenant, on exactly the tables the doors read
+across tenants (`FOR SELECT`, plus `UPDATE` where a door writes). They give the owner nothing it
+could not give itself, and `hubtask_app` nothing at all. No other role holds a policy that is not
+`tenant_isolation`; the boundary test holds that.
+
 **Nothing enumerates tenants.** No job, scheduler or worker lists the tenants. Every per-tenant duty
 (outbox dispatch, retention, reminders, recurrence, backup and automation schedules, media
 reconciliation, privacy deadlines, audit anchoring, reindex, embeddings, the hard-delete grace) is

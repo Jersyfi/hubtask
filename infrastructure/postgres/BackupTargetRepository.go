@@ -43,7 +43,7 @@ func (r BackupTargetRepository) Insert(
 		return err
 	}
 	// NULL for the installation's own target, which only a session without a tenant may write
-	// (migration 0155).
+	// (migration 0157).
 	tenantID, err := optionalUUID(target.TenantID)
 	if err != nil {
 		return err

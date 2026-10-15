@@ -14,7 +14,7 @@ what it breaks; the others wait for the owner (§ "Waiting on the owner") or lea
 Every task names its use cases; a task is done when the named checks hold, with the evidence in the
 pull request.
 
-**Delivers:** UC-BAK-04 (4, 5, 6), UC-BAK-07 (1), UC-BAK-08 (3, 6), UC-ID-04 (9), UC-ID-05 (6), UC-ID-10 (8), UC-INT-01 (9), UC-PRV-01 (2), UC-PRV-06 (3, 4), UC-PRV-08 (2), UC-AUD-07 (3, 4)
+**Delivers:** UC-BAK-04 (4, 5, 6), UC-BAK-07 (1), UC-BAK-08 (3, 6), UC-ID-04 (9), UC-ID-05 (6), UC-ID-10 (8), UC-INT-01 (9), UC-PRV-01 (2), UC-PRV-06 (3, 4), UC-PRV-08 (2), UC-AUD-07 (3, 4), UC-INS-09 (8), UC-ID-14 (7), UC-ID-20 (9), UC-PRV-04 (8), UC-ID-07 (7)
 
 ## Decisions
 
@@ -46,6 +46,10 @@ Each measured against the deployments `D1`–`D7`:
 8. **CP-07 comes last** (coordinator, 2026-10-15): its manifests, `bootstrap.sh` and documents are
    built in the repository; applying them to the integration server is done by whoever holds its
    access, and the task's drill record follows that.
+
+9. **Four findings enter with checks of their own** (the owner, 2026-10-15, #1498, option A):
+   UC-INS-09 check 8 (#1303), UC-ID-14 check 7 and UC-ID-20 check 9 (#1267), UC-PRV-04 check 8
+   (#1160), UC-ID-07 check 7 (#1337). CP-11 to CP-14 carry them.
 
 ---
 
@@ -178,7 +182,8 @@ installation target.
 
 The erasure half of §8.5 step 5, in the shape of the holds half: `hubctl` reads the erasures
 completed after the recovery point from the temporary cluster recovered to the end of the WAL
-archive (or the archive fallback), and the server carries them out again per workspace after the
+archive (an archive cannot serve: it carries neither the cases nor the person, so the procedure
+names what the administrator does then), and the server carries them out again per workspace after the
 holds are placed and before traffic is admitted. Idempotent; each re-run is audited.
 
 **Acceptance:** an integration test that an erasure completed after the recovery point is undone by
@@ -230,6 +235,61 @@ and the remaining chain still verifies; a hold keeps the partition.
 
 ---
 
+## CP-11 — Two operators saving the defaults do not lose a save
+
+*Depends on: nothing.* · issue #1303 · known-traps.md "a read-then-write without a lock"
+
+**Use cases:** UC-INS-09 (8)
+
+`PUT /admin/settings` carries the version read (`If-Match`, additive), and a save made on values
+somebody else changed since is refused with `version_conflict`; the screen and `hubctl admin settings
+set` say somebody else saved first.
+
+**Acceptance:** a test of two saves from one version, the second refused; the screen's sentence in a
+walk.
+
+---
+
+## CP-12 — `hubctl` invites, places people and creates managed accounts
+
+*Depends on: nothing.* · issue #1267 · P-08
+
+**Use cases:** UC-ID-14 (7), UC-ID-20 (9)
+
+`hubctl` invites, grants and takes away a role through the use cases the web app uses, and creates a
+managed account, printing its start password once.
+
+**Acceptance:** command tests through the registry for each, the refusals included.
+
+---
+
+## CP-13 — A restriction of processing holds against retention
+
+*Depends on: CP-09.* · issue #1160 · data-retention.md §4 item 2
+
+**Use cases:** UC-PRV-04 (8)
+
+The retention sweep and the automatic trash purge keep what a restricted person's account and
+contributions are, counted as held, and the entry shows that a restriction holds it.
+
+**Acceptance:** a Testcontainers test of a due entry of a restricted person kept and of the same
+entry removed once the restriction is lifted.
+
+---
+
+## CP-14 — Multi-tenant links lead to the workspace's own address
+
+*Depends on: nothing.* · issue #1337 · multi-tenancy.md §3, identity.md
+
+**Use cases:** UC-ID-07 (7)
+
+In multi-tenant operation an invitation link and a provider's return use the workspace's own
+address; identity.md says what a provider's redirect needs for that.
+
+**Acceptance:** tests of the invitation link and the callback's target per mode; a walk.
+
+---
+
 ## CP-07 — Integration's database in production's shape
 
 *Depends on: nothing; last, because only the repository's half can be built from a worker's
@@ -254,9 +314,7 @@ checks enter `Delivers`, once its decision is answered:
 | #1431 — an administrator issues a start password to an Owner | #1462 | whether a ceiling applies to issuing a way in; UC-ID-20 check 5 reworded |
 | #1399 — a provider sign-in skips enrolment | #1428 | whether a provider sign-in counts for the second-factor rule; if not, identity.md §8 is corrected and #1399 closed |
 | #1463 — an erasure of the last owner | #1478 | whether the erasure waits for another owner; UC-PRV-03 gains a check (draft #1476) |
-| #1303, #1267, #1160, #1337 | #1498 | checks for four findings no check describes, or the CL bucket instead |
 
-#1160 touches the retention sweep itself; whatever the answer, it comes after CP-09.
 
 ## Not in CP
 
@@ -264,14 +322,14 @@ checks enter `Delivers`, once its decision is answered:
 
 ## The cut checklist
 
-1. **What it delivers** — the checks above, all existing; none changes wording.
+1. **What it delivers** — the checks above; Decision 9 added five, worded by the owner's answer.
 2. **Principles** — P-03, P-04, P-08, P-09, P-11 are the ones whose "Broken when" the findings
    show; each task restores its own.
 3. **The matrix** — per task in its readiness record: CP-02, CP-05, CP-06 and SC-37 touch access or a
    lifecycle and name their doors there.
 4. **The premise** — every finding verified against the code on 2026-10-15 (see the head of this
    file).
-5. **Decisions** — above; the owner's open points are #1462, #1428, #1478, #1498, and #1494 for
+5. **Decisions** — above; the owner's open points are #1462, #1428 and #1478; #1498 was answered on 2026-10-15 (Decision 9), and #1494 for
    CP-05 only if it needs a definer function.
 6. **The rules** — backup-restore.md §4 and §8.5, data-protection.md §4 and deployment.md §3.1
    already say what is built; automation.md §3.1 and audit.md change in their tasks.

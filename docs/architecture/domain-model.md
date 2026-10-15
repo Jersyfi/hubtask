@@ -266,7 +266,7 @@ stateDiagram-v2
 | `JumbleEntry` | `tenantId`, `channel` (`EMAIL`,`WEBHOOK`,`QUICK_CAPTURE`,`API`), `rawSubject`, `rawBody`, `attachments[]`, `sender`, `status` (`NEW`,`PROCESSED`,`DISMISSED`), `suggestion` (JSONB) | Conversion produces a `WorkItem` and sets `PROCESSED` |
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin), `enabled` | See §3.6 |
 | `AutomationRule` | See [automation.md](./automation.md) | |
-| `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure |
+| `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `scope` (`TENANT`\|`HUB`\|`COLLECTION` with an id), `filter` (a condition), `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure; scope and filter narrow it as [automation.md](./automation.md) §3.1 says |
 | `CalendarFeed` | `tenantId`, `accountId` (the owner), `viewId`, `tokenHash`, `revokedAt` | The token is answered once; revocation is a stamp; a deleted view leaves the feed serving nothing. Storage and reading: [security.md](./security.md) T-21 |
 
 **The `ActivityEntry` verbs.** The verb is a message code, rendered under the `activity` namespace

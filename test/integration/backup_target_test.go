@@ -179,7 +179,7 @@ func TestAnotherTenantSeesNothingOfATarget(t *testing.T) {
 }
 
 // An instance-wide target - the shape 0001_init has always allowed - is visible to no tenant through
-// this repository: only a session without a tenant reaches one (migration 0155,
+// this repository: only a session without a tenant reaches one (migration 0157,
 // installation_backup_target_test.go).
 func TestAnInstanceWideTargetIsVisibleToNoTenant(t *testing.T) {
 	ctx := context.Background()

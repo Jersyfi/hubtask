@@ -25,7 +25,7 @@ import (
 // The installation's own backup targets (backup-restore.md §2, multi-tenancy.md §5): where the
 // operator writes a workspace's export when the workspace has none of its own. They belong to no
 // workspace - `tenant_id` is NULL - and only a session without a tenant reaches them (migration
-// 0155), so no workspace lists, names or opens one.
+// 0157), so no workspace lists, names or opens one.
 
 const (
 	ListInstanceBackupTargetsName  = "ListInstanceBackupTargets"

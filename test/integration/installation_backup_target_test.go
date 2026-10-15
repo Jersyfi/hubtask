@@ -16,7 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// The installation's own backup targets (migration 0155), as the application role sees them: a
+// The installation's own backup targets (migration 0157), as the application role sees them: a
 // session with no tenant writes and reads them, and a session with a tenant reaches none of them -
 // per repository method, the cross-tenant rule of SG-3 with the installation as the other side.
 
