@@ -147,6 +147,23 @@ type AiNotices interface {
 	Notice(ctx context.Context, accountID shared.ID, at time.Time) error
 }
 
+// RecoveredCases is what carrying out again the erasures of a rewound period needs beyond the
+// ordinary case store (backup-restore.md §8.5 step 5).
+type RecoveredCases interface {
+	// InsertAsItWas writes an erasure case the recovery rewound away, open, with its own
+	// identifier, moments, deadline and extension; false when the workspace holds the case already.
+	InsertAsItWas(ctx context.Context, request domain.Request) (bool, error)
+
+	// CompleteIfOpen completes the case at the given moment, with its mode and the subject it still
+	// names (zero for none), while it is open; false when it no longer is.
+	CompleteIfOpen(
+		ctx context.Context, id shared.ID, mode domain.ErasureMode, completedAt time.Time, subject shared.ID,
+	) (bool, error)
+
+	// SubjectExists answers whether the workspace has the account.
+	SubjectExists(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
 // Subjects is what an erasure and a restriction reach for: the account behind the case.
 //
 // Its own port rather than a method on the identity repository, because these two writes are not

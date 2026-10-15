@@ -864,6 +864,11 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:replace-legal-holds", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Carry out again the erasures of a rewound period */
+  reapplyErasures(tenantId: string, body: NonNullable<operations["reapplyErasures"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["reapplyErasures"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:reapply-erasures", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Export a workspace whole */
   exportTenant(tenantId: string, body: NonNullable<operations["exportTenant"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exportTenant"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:export", { "tenantId": tenantId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

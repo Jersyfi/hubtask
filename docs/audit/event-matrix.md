@@ -244,6 +244,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dsr.consent_given` | GiveConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consent_withdrawn` | WithdrawConsent | `consent_record` | NOTICE | Every time |
 | `dsr.consents_listed` | ListConsents | `consent_record` | INFO | When refused |
+| `dsr.erasure_reapplied` | ReapplyErasures | `data_subject_request` | CRITICAL | Every time |
 | `dsr.extended` | ExtendDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
 | `dsr.processing_restricted` | RestrictProcessing | `account` | WARNING | Every time |
 | `dsr.recorded` | CreateDataSubjectRequest | `data_subject_request` | NOTICE | Every time |
