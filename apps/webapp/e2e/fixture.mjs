@@ -402,6 +402,8 @@ const ARRAYS = new Set([
   '/auth/service-accounts', '/auth/tokens', '/auth/sessions', '/sync/devices',
   '/backup-targets', '/backup-schedules', '/backups', '/integrations/webhooks',
   '/integrations/calendar-feeds', '/private-hubs', '/accounts/me/emergency-notices',
+  // The providers connected to the reader's own account, read by *Password and sign-in*.
+  '/accounts/me/identities',
   // The provider surface, plural and read by the administration's sign-in screen. Both
   // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
   // like from the outside.

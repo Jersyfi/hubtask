@@ -101,6 +101,8 @@ test('chromium: a signed-in person connects another provider and finds it among 
   // Only what is not connected yet is offered.
   assert.equal(await panel.getByRole('button', { name: 'Connect Contoso Entra ID' }).count(), 0);
 
+  // EVIDENCE=<dir> keeps what the person sees, for the owner's look (docs/evidence/).
+  if (process.env.EVIDENCE) await panel.screenshot({ path: join(process.env.EVIDENCE, 'before.png') });
   await panel.getByRole('button', { name: 'Connect Google' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
@@ -116,6 +118,7 @@ test('chromium: a signed-in person connects another provider and finds it among 
   assert.deepEqual(sent.starts[1].body, { provider_id: GOOGLE.id });
   assert.deepEqual(sent.completes, [{ state: 'the-state', authorization_code: 'the-code' }]);
   assert.equal(await panel.getByRole('button', { name: /^Connect / }).count(), 0, 'a connected provider is still offered');
+  if (process.env.EVIDENCE) await panel.screenshot({ path: join(process.env.EVIDENCE, 'after.png') });
 });
 
 // identity.md §4.1: an account without an address is one no provider reaches - nothing is offered.

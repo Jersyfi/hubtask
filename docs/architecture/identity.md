@@ -385,7 +385,18 @@ safeguard belongs to connecting, not to the provider kind.
 | Holds only another provider's identity | Refused, naming the way in it has (`identity_provider.link_needs_mailbox` where no mailbox proof is possible yet). |
 
 * **At a first, unauthenticated arrival the verified address must equal the account's**; another
-  address connects only from a signed-in session (§21 I-2).
+  address connects only from a signed-in session.
+* **From a signed-in session** (*Password and sign-in*, `POST /accounts/me/identities:connect` and
+  `:complete`, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1): a step-up of the account (§16),
+  then a fresh sign-in at a provider that is a way in here (`prompt=login`, `max_age=0`, `auth_time`
+  after the flow left), on a flow bound to that session and marked a connection - neither a sign-in
+  nor a step-up finishes it. The provider's address must be verified and need not be the account's;
+  admission is the member's own proof (`MayAdmitWithProof`, §10.4). Refused for an account without
+  an address (`identity_provider.connect_needs_address`, §4.1), for a provider the account is already
+  connected to (`identity_provider.already_connected`), and for an identity connected to another
+  account (`identity_provider.connection_taken`). Recorded as `identity.provider_linked` with the
+  proof `SESSION`, and told to the person (§6). `GET /accounts/me/identities` lists the connections:
+  provider and since when, never the subject.
 * **Once connected, an identity is found by issuer and subject only**; one bound to another subject
   is refused, never re-pointed.
 * `email_verified` alone activates and connects nothing.
@@ -758,7 +769,6 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 
 | # | Point |
 |---|---|
-| I-2 | Connecting a provider from a signed-in session, for a differing address ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §1). Decided, not built. |
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys (the contract is shaped for them: `methods` a list, `signed_in_with` a closed set, recovery codes on the account), then plans, then custom domains. |
