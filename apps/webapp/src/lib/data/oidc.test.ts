@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { navigableUrl, readArrival, startRequest } from './oidc.ts';
+import { forwardTo, navigableUrl, readArrival, returnState, startRequest } from './oidc.ts';
 
 test('a code and a state are the handoff', () => {
   const arrival = readArrival('?code=abc&state=xyz');
@@ -97,4 +97,47 @@ test('a sign-in begun on the connect card carries the link, and no other does', 
     connect_token: 'connect-token',
   });
   assert.deepEqual(startRequest(undefined, 'p-entra', undefined, ''), { provider_id: 'p-entra' });
+});
+
+test('a return carries its state with a code or with a refusal', () => {
+  assert.equal(returnState('?code=abc&state=xyz'), 'xyz');
+  assert.equal(returnState('?error=access_denied&state=xyz'), 'xyz');
+  assert.equal(returnState('?code=abc'), '');
+  assert.equal(returnState(''), '');
+});
+
+// multi-tenancy.md §3: the provider returns to the installation's address, the flow began on the
+// workspace's own host, and the return is finished there.
+const installation = { protocol: 'https:', hostname: 'hub.example', origin: 'https://hub.example' };
+
+test('a return for a workspace goes to its host, the query whole', () => {
+  assert.equal(
+    forwardTo('https://anna.hub.example', installation, '?code=abc&state=xyz&iss=x'),
+    'https://anna.hub.example/auth/callback?code=abc&state=xyz&iss=x',
+  );
+  const local = { protocol: 'http:', hostname: 'hubtask.localhost', origin: 'http://hubtask.localhost:18545' };
+  assert.equal(
+    forwardTo('http://anna.hubtask.localhost:18545/', local, '?error=access_denied&state=xyz'),
+    'http://anna.hubtask.localhost:18545/auth/callback?error=access_denied&state=xyz',
+  );
+});
+
+test('a return already where it belongs is finished here', () => {
+  // The single-tenant answer is the installation's own address, and so is a return that is home.
+  assert.equal(forwardTo('https://hub.example', installation, '?code=abc&state=xyz'), undefined);
+  const anna = { protocol: 'https:', hostname: 'anna.hub.example', origin: 'https://anna.hub.example' };
+  assert.equal(forwardTo('https://anna.hub.example', anna, '?code=abc&state=xyz'), undefined);
+});
+
+test('a code goes nowhere but a host beneath this one, by the same scheme', () => {
+  for (const stranger of [
+    'https://evil.example',
+    'https://anna.hub.example.evil.test',
+    'https://evilhub.example',
+    'http://anna.hub.example',
+    'javascript:alert(1)//.hub.example',
+    'not a url',
+  ]) {
+    assert.equal(forwardTo(stranger, installation, '?code=abc&state=xyz'), undefined, stranger);
+  }
 });
