@@ -6797,6 +6797,9 @@ type InstanceSettings struct {
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
 	Source *string `json:"source,omitempty"`
+
+	// Version The level's version, the same value as the `ETag`. It moves with every save, and a write ignores it: the version a save was made on travels in `If-Match`.
+	Version *int `json:"version,omitempty"`
 }
 
 // InvitationInspection defines model for InvitationInspection.
@@ -10313,6 +10316,12 @@ type ListInstanceJournalParams struct {
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// WriteInstanceSettingsParams defines parameters for WriteInstanceSettings.
+type WriteInstanceSettingsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -11881,7 +11890,7 @@ type ServerInterface interface {
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
 	// WriteInstanceSettings Replace the installation's level
 	// (PUT /admin/settings)
-	WriteInstanceSettings(w http.ResponseWriter, r *http.Request)
+	WriteInstanceSettings(w http.ResponseWriter, r *http.Request, params WriteInstanceSettingsParams)
 	// ListTenants The installation's workspaces
 	// (GET /admin/tenants)
 	ListTenants(w http.ResponseWriter, r *http.Request)
@@ -13799,8 +13808,35 @@ func (siw *ServerInterfaceWrapper) ReadInstanceSettings(w http.ResponseWriter, r
 // WriteInstanceSettings operation middleware
 func (siw *ServerInterfaceWrapper) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WriteInstanceSettingsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.WriteInstanceSettings(w, r)
+		siw.Handler.WriteInstanceSettings(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

@@ -6,10 +6,12 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -94,6 +96,10 @@ const (
 	keyManagedAccounts    = signInArea + ".managed_accounts"
 	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
+
+	// keyLevelVersion is the level's version (migration 0162): outside the five areas, so a
+	// write's clearing never reaches it, and a key an older build skips.
+	keyLevelVersion = "level.version"
 )
 
 // switchKeys maps each policy switch to its row's key. `rotation_from` is deliberately absent: it
@@ -234,6 +240,11 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		patch.Methods = &methods
 	case keyBlocklistFile:
 		level.BlocklistFile, err = word()
+	case keyLevelVersion:
+		var version *int
+		if version, err = number(); err == nil {
+			level.Version = *version
+		}
 	case localisationArea + ".locale":
 		level.Localisation.Locale, err = word()
 	case localisationArea + ".time_zone":
@@ -327,29 +338,48 @@ func malformedSetting(key string, cause error) error {
 		WithCause(fmt.Errorf("the instance setting %q does not parse: %w", key, cause))
 }
 
-// Write replaces the level whole.
+// Write replaces the level whole, while it is still at `expected`.
+//
+// The version moves first: its statement takes the row lock, so a second writer on the same
+// version waits here, before it has written a single switch, and is then refused.
 func (r InstanceSettingRepository) Write(
-	ctx context.Context, level repository.InstanceLevel, by shared.ID, at time.Time,
-) error {
+	ctx context.Context, level repository.InstanceLevel, expected int, by shared.ID, at time.Time,
+) (bool, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	rows, err := rowsOf(level)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	actor := pgtype.UUID{}
 	if !by.IsZero() {
 		parsed, err := uuidOf(by)
 		if err != nil {
-			return err
+			return false, err
 		}
 		actor = parsed
 	}
 	moment := pgtype.Timestamptz{Time: at.UTC(), Valid: true}
+
+	var compared *int64
+	if expected > 0 {
+		version := int64(expected)
+		compared = &version
+	}
+	if _, err := queries.AdvanceInstanceLevelVersion(ctx, sqlc.AdvanceInstanceLevelVersionParams{
+		UpdatedBy: actor, UpdatedAt: moment, Expected: compared,
+	}); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving the instance level's version: %w", err))
+	}
 
 	kept := make([]string, 0, len(rows))
 	for _, row := range rows {
@@ -358,7 +388,7 @@ func (r InstanceSettingRepository) Write(
 			Key: row.key, Value: row.value, LockOrigin: row.lock,
 			UpdatedBy: actor, UpdatedAt: moment,
 		}); err != nil {
-			return shared.ErrUnavailable.
+			return false, shared.ErrUnavailable.
 				WithDetail("postgres.query_failed").
 				WithCause(fmt.Errorf("writing the instance setting %q: %w", row.key, err))
 		}
@@ -368,11 +398,11 @@ func (r InstanceSettingRepository) Write(
 		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea},
 		Kept:  kept,
 	}); err != nil {
-		return shared.ErrUnavailable.
+		return false, shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("clearing the instance settings: %w", err))
 	}
-	return nil
+	return true, nil
 }
 
 // settingRow is one row on its way to the table: the key, the value as JSON, and the lock.

@@ -741,6 +741,7 @@ class InstanceSettings(TypedDict, total=False):
     blocklist_file: str
     source: str
     is_enforced_from_file: bool
+    version: int
 
 class Operator(TypedDict, total=False):
     """One row of the register: an account of some workspace that operates this installation."""

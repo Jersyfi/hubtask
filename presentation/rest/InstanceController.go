@@ -48,11 +48,14 @@ func (c *RestController) ReadInstanceSettings(w http.ResponseWriter, r *http.Req
 		WriteProblem(w, err, requestID)
 		return
 	}
+	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, instanceSettingsResponse(out))
 }
 
 // WriteInstanceSettings answers PUT /admin/settings.
-func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) {
+func (c *RestController) WriteInstanceSettings(
+	w http.ResponseWriter, r *http.Request, params openapi.WriteInstanceSettingsParams,
+) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
 		WriteProblem(w, errNotWired, requestID)
@@ -83,12 +86,18 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
 	}
+	// The body's `version` is read-only and ignored: the version a save was made on travels in
+	// `If-Match`, as everywhere else in the API.
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), writeInstanceSettingsUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
+	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, instanceSettingsResponse(out))
 }
 
@@ -219,6 +228,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if enforced, held := out["is_enforced_from_file"].(bool); held {
 		answer.IsEnforcedFromFile = &enforced
+	}
+	if version := out.Int("version"); version > 0 {
+		answer.Version = &version
 	}
 	return answer
 }
