@@ -55,12 +55,21 @@ type ExportQuota interface {
 	ExportJobs(ctx context.Context, tenant string) error
 }
 
+// ExportTargets answers whether an export could write to a target now: the workspace's own or the
+// installation's, existing and enabled (backup.ExportStoreOpener).
+type ExportTargets interface {
+	Usable(ctx context.Context, tenantID, targetID shared.ID) error
+}
+
 // ExportTenant accepts one workspace export: a job that writes the complete, documented
 // archive of tenant-export.md to a configured backup target. It works for ACTIVE, SUSPENDED and
 // PENDING_DELETION workspaces alike - the suspended and the leaving are exactly who needs it -
 // and it is audited with its target, never its content.
 type ExportTenant struct {
-	Tenants    adminrepo.Tenants
+	Tenants adminrepo.Tenants
+	// Targets checks the target when the export is accepted, so a wrong identifier is a refusal
+	// the operator sees rather than a job that fails. Nil skips the check.
+	Targets    ExportTargets
 	Quota      ExportQuota
 	Jobs       JobQueue
 	Audit      audit.Sink
@@ -88,6 +97,9 @@ func (h ExportTenant) Execute(
 	exportID := h.IDs.NewID()
 	accepted := ExportAccepted{ExportID: exportID}
 	scope := persistence.Scope{TenantID: cmd.TenantID, ActorID: actor.AccountID}
+	if err := h.targetUsable(ctx, scope, cmd); err != nil {
+		return ExportAccepted{}, err
+	}
 	err := h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		// Deliberately no standing check beyond existence: every lifecycle state exports
 		// (multi-tenancy.md §5 - "the read export still works" is the suspension's own promise).
@@ -187,6 +199,28 @@ func (h ExportTenant) invoke(
 		"job_id":    accepted.JobID.String(),
 		"export_id": accepted.ExportID.String(),
 	}, nil
+}
+
+// targetUsable asks about the target once the workspace is known to exist - an unknown workspace
+// stays `admin.tenant_not_found`, whatever the target. Its own reads, before the transaction that
+// enqueues: the target is read in two scopes, and a transaction has one.
+func (h ExportTenant) targetUsable(
+	ctx context.Context, scope persistence.Scope, cmd ExportTenantCommand,
+) error {
+	if h.Targets == nil {
+		return nil
+	}
+	err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		_, err := h.Tenants.Find(ctx)
+		if errors.Is(err, shared.ErrNotFound) {
+			return shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+		}
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return h.Targets.Usable(ctx, cmd.TenantID, cmd.TargetID)
 }
 
 // ============================ The archive half =============================

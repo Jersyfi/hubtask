@@ -39,6 +39,8 @@ var privilegedUseCases = map[string]string{
 	"StartAuthenticatorReplacement":            "replacing the second factor is the same power as removing it (identity.md §8)",
 	"WithdrawInstanceIdentityProvider":         "ends a way in every workspace is offered; Withdraw now is the answer to a compromised provider (ADR-0076 §3)",
 	"CancelInstanceIdentityProviderWithdrawal": "offers a way in to every workspace again (ADR-0076 §2)",
+	"CreateInstanceBackupTarget":               "a storage credential every workspace's export may be written with (backup-restore.md §2)",
+	"DeleteInstanceBackupTarget":               "removes where the operator's exports go (backup-restore.md §2)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

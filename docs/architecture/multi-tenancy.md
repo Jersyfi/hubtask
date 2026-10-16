@@ -121,7 +121,10 @@ CREATE DATABASE hubtask OWNER hubtask_migrator;
 ```
 
 `HUBTASK_DB_DSN` connects as `hubtask_app`, the migration's DSN as `hubtask_migrator`; nothing needs
-`SUPERUSER` or `BYPASSRLS`. The integration suite migrates under exactly this arrangement.
+`SUPERUSER` or `BYPASSRLS`. The managed-database tests (`test/integration/managed_postgres_test.go`,
+`managed_doors_test.go`, and the migration tests built on them) migrate under exactly this
+arrangement; the rest of the integration suite, like Compose and CI, migrates as the superuser,
+which `FORCE` does not bind.
 
 ### 2.1.2 References carry the tenant
 
@@ -392,9 +395,11 @@ from the primary system at once and from the operator's system backups **35 days
 **Export:** `POST /admin/tenants/{id}:export` writes one complete, unencrypted archive of the
 workspace ([tenant-export.md](./tenant-export.md)) to a backup target, as a job, in every lifecycle
 state. It reads through the same RLS path as the API (T-20), is audited with its target, never its
-content, and counts against the §4 export quota. The target must be one the workspace itself can
-see — so in multi mode with `HUBTASK_BACKUP_TENANT_TARGETS=false` (the default) a workspace cannot
-be exported: an open gap; the contract's "or an installation-wide one" does not hold today.
+content, and counts against the §4 export quota. The target is the workspace's own or one of the
+installation's own targets ([backup-restore.md](./backup-restore.md) §2) - so in multi mode with
+`HUBTASK_BACKUP_TENANT_TARGETS=false` (the default) the operator exports to a target of the
+installation. It is checked when the export is accepted: an unknown target answers
+`backup.target_not_found`, a disabled one `backup.target_disabled`.
 
 ---
 

@@ -11,6 +11,7 @@ The rules are drafted in [identity.md](../architecture/identity.md) §23 and the
 is done when the named checks hold, with the evidence in the pull request.
 
 **Delivers:** UC-ID-03 (5), UC-ID-21 (1–9), UC-ID-22 (1–8)
+**Released:** 2026-10-15
 
 ## Decisions
 

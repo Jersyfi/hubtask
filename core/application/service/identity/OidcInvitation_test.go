@@ -319,9 +319,10 @@ func TestAnInvitationsFlowDoesNotSignInSomebodyElse(t *testing.T) {
 }
 
 // Under *Only these domains/directories* the invitation's own link admits the invited address even
-// outside the list - the invitation is the administrator's explicit choice of this person - and
-// widens nothing beyond it: the plain arrival stays refused, the link admits nobody but the invited
-// address, and an existing member outside the list is not brought to the LINK step.
+// outside the list - the invitation is the administrator's explicit choice of this person, and it is
+// not new (identity.md §10.4) - and widens nothing beyond it: the plain arrival stays refused, the
+// link admits nobody but the invited address, and an existing member outside the list is refused
+// rather than brought to the LINK step (identity.md §10.4).
 func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) {
 	outsideTheList := func(t *testing.T) (*oidcFixture, secret.Secret) {
 		t.Helper()
@@ -362,8 +363,8 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 		}
 		assertStillInvited(t, f, invitation)
 	})
-	// The list decides who comes in new (the owner's decision of 2026-10-06): an existing member
-	// outside it brings its own proof to the LINK step, and nothing is connected without it.
+	// The list bounds a connection too (identity.md §10.4): an existing member outside it is refused,
+	// and the member's password is not asked for.
 	t.Run("an existing member outside the list", func(t *testing.T) {
 		f := newOidcFixture(t, now, ownerAccount)
 		f.session.withAccount("bert@example.org", "correct horse battery")
@@ -373,11 +374,11 @@ func TestUnderDomainsTheLinkAdmitsTheInvitedAddressOutsideTheList(t *testing.T) 
 			Subject: "a-subject", Email: "bert@example.org", EmailVerified: true, DisplayName: "Bert",
 		}
 		result, err := complete(t, f, start(t, f))
-		if err != nil || result.Challenge == nil || result.Challenge.Methods[0] != methodLink {
-			t.Fatalf("a member outside the list answered (%+v, %v), want the LINK step", result, err)
+		if detailOf(err) != "identity_provider.not_admitted" || result.Challenge != nil {
+			t.Fatalf("a member outside the list answered (%+v, %v), want not_admitted", result, err)
 		}
 		if len(f.external.links) != 0 {
-			t.Errorf("the provider was connected before the member's proof: %v", f.external.links)
+			t.Errorf("an address outside the list connected %v", f.external.links)
 		}
 	})
 	// And an address nobody here holds stays outside: the list still decides who comes in new.

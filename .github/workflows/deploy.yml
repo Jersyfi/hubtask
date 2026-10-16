@@ -118,6 +118,32 @@ jobs:
           printf '%s' "$KUBE_CONFIG" > "${RUNNER_TEMP}/kubeconfig"
           echo "KUBECONFIG=${RUNNER_TEMP}/kubeconfig" >> "$GITHUB_ENV"
 
+      - name: The database first, after a rebuild
+        # The migration is a pre-upgrade hook, and a pre-upgrade hook runs before every regular
+        # resource of the release - the CloudNativePG Cluster included. So on the first deploy after
+        # the database was rebuilt there is nothing to migrate into, and the hook would fail looking
+        # for the Secret the operator has not generated yet (scripts/pitr-drill.sh meets the same
+        # thing). Then: the release once without the migration, the Cluster ready, and the ordinary
+        # upgrade below migrates into it. Every other deploy finds the Cluster and skips this.
+        run: |
+          # --ignore-not-found: empty means absent, and any other failure - a refused verb, an API
+          # server away - fails the step rather than being read as "no database".
+          if [ -z "$(kubectl -n hubtask get clusters.postgresql.cnpg.io hubtask-db --ignore-not-found -o name)" ]; then
+            .tools/helm upgrade --install hubtask k8s \
+              --namespace hubtask \
+              --values "$VALUES" \
+              --set image.tag="main-${GITHUB_SHA}" \
+              --set migration.enabled=false \
+              --timeout 10m
+            for _ in $(seq 1 60); do
+              ready="$(kubectl -n hubtask get clusters.postgresql.cnpg.io hubtask-db -o jsonpath='{.status.readyInstances}' 2>/dev/null || true)"
+              [ "${ready:-0}" -ge 1 ] && exit 0
+              sleep 10
+            done
+            echo "the CloudNativePG cluster never reported a ready instance" >&2
+            exit 1
+          fi
+
       - name: helm upgrade
         # No --create-namespace: the deploy identity cannot create namespaces, on purpose
         # (deploy/integration/deployer-rbac.yaml). Bootstrap made it.

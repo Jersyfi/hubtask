@@ -41,6 +41,7 @@ import type {
 import { TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
 import { engine } from './engine.ts';
 import { identityProviderPresetPath } from './identityprovider.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
@@ -56,6 +57,8 @@ const JOURNAL = '/admin/journal';
 const PROVIDERS = '/admin/identity-providers';
 const ENCRYPTION = '/admin/encryption';
 const AI_PROVIDERS = '/admin/ai-providers';
+/** The installation's own backup targets, where a workspace without one is exported to. */
+const TARGETS = '/admin/backup-targets';
 
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
 const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS];
@@ -79,6 +82,7 @@ class Instance {
   #providers = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
   #encryption = $state<ResourceState<EncryptionStatus>>({ status: 'idle' });
   #offeredAi = $state<ResourceState<readonly OfferedAiModel[]>>({ status: 'idle' });
+  #targets = $state<ResourceState<readonly Target[]>>({ status: 'idle' });
   // The presets are neither the installation's nor a workspace's: they are what Hubtask knows about
   // three issuers, and the same list answers at both levels. Read through the path the workspace's
   // own store already names, so one route has one constant.
@@ -148,6 +152,14 @@ class Instance {
     return this.#offeredAi;
   }
 
+  get targets(): readonly Target[] {
+    return this.#targets.status === 'ready' ? this.#targets.data : [];
+  }
+
+  get targetsState(): ResourceState<readonly Target[]> {
+    return this.#targets;
+  }
+
   /**
    * Forgets the elevation, because the session it belonged to is gone.
    *
@@ -169,6 +181,7 @@ class Instance {
     this.#providers = { status: 'idle' };
     this.#encryption = { status: 'idle' };
     this.#offeredAi = { status: 'idle' };
+    this.#targets = { status: 'idle' };
   }
 
   /**
@@ -285,6 +298,13 @@ class Instance {
   openOfferedAi(): () => void {
     return engine.subscribe<readonly OfferedAiModel[]>({ path: AI_PROVIDERS }, (next) => {
       this.#offeredAi = next;
+    });
+  }
+
+  /** The installation's own backup targets (multi-tenancy.md §5). */
+  openTargets(): () => void {
+    return engine.subscribe<readonly Target[]>({ path: TARGETS }, (next) => {
+      this.#targets = next;
     });
   }
 
@@ -513,6 +533,33 @@ class Instance {
   }
 
   /**
+   * Configures a backup target of the installation. Behind a fresh step-up: a storage credential
+   * every workspace's export may be written with is a privileged write. The credential goes in
+   * and never comes back.
+   */
+  async createTarget(draft: TargetDraft): Promise<Target> {
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<Target>('POST', TARGETS, draft, {
+        stepUpToken,
+        idempotencyKey: crypto.randomUUID(),
+        invalidates: [TARGETS, JOURNAL],
+      }),
+    );
+  }
+
+  /** A write-read-delete probe of one, through the server's guarded client. */
+  async testTarget(id: string): Promise<Probe> {
+    return engine.mutate<Probe>('POST', `${TARGETS}/${id}:test`, {}, { invalidates: [TARGETS, JOURNAL] });
+  }
+
+  /** Removes one, behind a fresh step-up. Nothing at the target is touched. */
+  async removeTarget(id: string): Promise<void> {
+    await stepUp.around((stepUpToken) =>
+      engine.mutate('DELETE', `${TARGETS}/${id}`, undefined, { stepUpToken, invalidates: [TARGETS, JOURNAL] }),
+    );
+  }
+
+  /**
    * Removes one from every workspace at once: the row, not only the offer. A workspace left with no
    * way in falls back to the password for the accounts that hold one (ADR-0076 §4).
    */
@@ -537,6 +584,7 @@ export {
   OVERVIEW as instanceOverviewPath,
   SETTINGS as instanceSettingsPath,
   TENANTS as instanceWorkspacesPath,
+  TARGETS as instanceTargetsPath,
 };
 
 /** The end of a running hour a refused raise names, or `undefined` for any other refusal. */
