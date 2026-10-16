@@ -3539,6 +3539,7 @@ func run() error {
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
+		plans:      planWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -4222,7 +4223,10 @@ type applyingInstanceFile struct {
 	write    adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
-	ai         adminservice.InstanceAiWriter
+	ai adminservice.InstanceAiWriter
+	// plans writes the plans the file names, as the file: it passes every check the API's writes
+	// pass, and is the one writer of plans while the file enforces.
+	plans      adminservice.PlanWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4261,6 +4265,31 @@ func applyAiModels(ctx context.Context, applying applyingInstanceFile, document 
 	return nil
 }
 
+// applyPlans writes the plans the file names (multi-tenancy.md §4.2). In single mode there are no
+// plans, and the file's are skipped with a line saying so rather than refusing the start.
+func applyPlans(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	plans, present, err := instancefile.Plans(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.plans.ApplyFile(ctx, plans, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names plans, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	for _, kept := range outcome.Kept {
+		slog.Warn("a plan the instance file no longer names was kept: workspaces are on it",
+			"source", applying.path, "plan", kept)
+	}
+	slog.Info("the plans were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "plans", len(plans))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4283,7 +4312,16 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	if err := applyAiModels(ctx, applying, document); err != nil {
 		return err
 	}
+	if err := applyLevel(ctx, applying, document); err != nil {
+		return err
+	}
+	// The plans after the level: a plan is checked against the installation's values, so the
+	// file's own values have to be in place first.
+	return applyPlans(ctx, applying, document)
+}
 
+// applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
+func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),

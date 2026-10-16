@@ -65,3 +65,8 @@ SELECT id
 FROM plan
 WHERE name = sqlc.arg('name') AND removed_at IS NULL
 FOR SHARE;
+
+-- name: AnyPlanEver :one
+-- Whether any plan was ever created, removed ones included: what a seeding file asks, so that a
+-- plan an operator removed after the seed is not written again at the next start.
+SELECT EXISTS (SELECT 1 FROM plan)::boolean AS ever;

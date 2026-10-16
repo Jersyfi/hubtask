@@ -143,3 +143,28 @@ func TestTheFilesAiModelsTakeTheirKeyFromTheEnvironment(t *testing.T) {
 		t.Error("a file without the key claims to name models")
 	}
 }
+
+// Plans are rows of their own, each the document the API takes; a file without the key leaves
+// plans to the other doors, and a plan without a name is a malformed file.
+func TestPlansAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	const document = `{"plans": [{"name": "family", "display_name": "Family",
+	  "quotas": {"items": {"value": 5000, "locked": true}}, "left_out": ["WEBHOOKS"]}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, _, err := Read(path)
+	if err != nil {
+		t.Fatalf("a file with plans answered %v", err)
+	}
+	plans, present, err := Plans(body, path)
+	if err != nil || !present || len(plans) != 1 || plans[0]["name"] != "family" {
+		t.Fatalf("read %v (present %t, %v)", plans, present, err)
+	}
+	if _, present, _ := Plans(map[string]any{}, path); present {
+		t.Error("a file without plans answered them present")
+	}
+	if _, _, err := Plans(map[string]any{"plans": []any{map[string]any{"display_name": "Nameless"}}}, path); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a plan without a name answered %v", err)
+	}
+}

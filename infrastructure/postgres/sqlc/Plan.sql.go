@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anyPlanEver = `-- name: AnyPlanEver :one
+SELECT EXISTS (SELECT 1 FROM plan)::boolean AS ever
+`
+
+// Whether any plan was ever created, removed ones included: what a seeding file asks, so that a
+// plan an operator removed after the seed is not written again at the next start.
+func (q *Queries) AnyPlanEver(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, anyPlanEver)
+	var ever bool
+	err := row.Scan(&ever)
+	return ever, err
+}
+
 const clearPlanSettings = `-- name: ClearPlanSettings :exec
 DELETE FROM plan_setting WHERE plan_id = $1
 `

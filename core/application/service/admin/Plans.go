@@ -5,6 +5,8 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"slices"
 	"time"
 
@@ -325,9 +327,16 @@ func planCommandFrom(in usecase.Input) (PlanCommand, error) {
 	if err != nil {
 		return PlanCommand{}, err
 	}
+	// In the domain's order, so that two documents naming the same features read the same; a
+	// name outside the set is kept for the check to refuse.
 	features := make([]plan.Feature, 0, len(leftOut))
+	for _, known := range plan.Features() {
+		if slices.Contains(leftOut, string(known)) {
+			features = append(features, known)
+		}
+	}
 	for _, name := range leftOut {
-		if feature := plan.Feature(name); !slices.Contains(features, feature) {
+		if feature := plan.Feature(name); !feature.Valid() && !slices.Contains(features, feature) {
 			features = append(features, feature)
 		}
 	}
@@ -514,4 +523,102 @@ func (h RemovePlan) Descriptor() usecase.Descriptor {
 			return usecase.Output{}, nil
 		}),
 	}
+}
+
+// PlanFileOutcome is what writing the file's plans came to: nothing in single mode, where plans do
+// not exist, and the plans an enforcing file no longer names that stayed because workspaces are on
+// them.
+type PlanFileOutcome struct {
+	Skipped bool
+	Kept    []string
+}
+
+// ApplyFile writes the instance file's plans, the third door (ADR-0070 §5) for plans: `seed` writes
+// them where no plan exists yet; `enforce` writes them at every start and removes the plans the file
+// no longer names - except one a workspace is on, which no door can remove and which is answered as
+// kept. It goes through the same reading and the same checks the API does, as the file, so a plan a
+// file may set is one the API accepts (UC-INS-13 check 7).
+func (w PlanWriter) ApplyFile(
+	ctx context.Context, documents []map[string]any, enforce bool, source string,
+) (PlanFileOutcome, error) {
+	if w.Tenancy != env.TenancyMulti {
+		return PlanFileOutcome{Skipped: true}, nil
+	}
+	var existing []plan.Plan
+	var ever bool
+	if err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		read, err := w.Plans.List(ctx)
+		if err != nil {
+			return err
+		}
+		existing = read
+		ever, err = w.Plans.Ever(ctx)
+		return err
+	}); err != nil {
+		return PlanFileOutcome{}, err
+	}
+	// Seeded once: a plan ever created, removed ones included, means the file wrote its plans
+	// before - and a plan an operator removed since is not written again.
+	if !enforce && ever {
+		return PlanFileOutcome{}, nil
+	}
+	held := map[string]plan.Plan{}
+	for _, standing := range existing {
+		held[standing.Name] = standing
+	}
+
+	file := appshared.ActorContext{AccountName: source}
+	named := map[string]bool{}
+	for _, document := range documents {
+		cmd, err := planCommandFrom(usecase.Input(document))
+		if err != nil {
+			return PlanFileOutcome{}, err
+		}
+		named[cmd.Name] = true
+		if standing, isHeld := held[cmd.Name]; isHeld {
+			// Unchanged is left alone: an enforcing file is read at every start, and a write per
+			// start would be a journal entry and a new version per restart for nothing.
+			if samePlan(standing, cmd) {
+				continue
+			}
+			_, err = w.change(ctx, file, cmd, nil, true)
+		} else {
+			_, err = w.create(ctx, file, cmd, true)
+		}
+		if err != nil {
+			return PlanFileOutcome{}, err
+		}
+	}
+
+	var outcome PlanFileOutcome
+	if !enforce {
+		return outcome, nil
+	}
+	for _, standing := range existing {
+		if named[standing.Name] {
+			continue
+		}
+		err := w.remove(ctx, file, standing.Name, true)
+		var refusal *shared.Error
+		switch {
+		case err == nil:
+		case errors.As(err, &refusal) && refusal.DetailCode == "admin.plan_in_use":
+			outcome.Kept = append(outcome.Kept, standing.Name)
+		default:
+			return PlanFileOutcome{}, err
+		}
+	}
+	return outcome, nil
+}
+
+// samePlan reports whether a command would leave a plan as it stands: the same display name, and
+// the same values as the control plane answers them.
+func samePlan(standing plan.Plan, cmd PlanCommand) bool {
+	if standing.DisplayName != cmd.DisplayName {
+		return false
+	}
+	return reflect.DeepEqual(
+		planOutput(PlanView{Plan: plan.Plan{Values: standing.Values}}),
+		planOutput(PlanView{Plan: plan.Plan{Values: cmd.Values}}),
+	)
 }

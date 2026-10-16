@@ -103,6 +103,19 @@ func (PlanRepository) Hold(ctx context.Context, name string) (shared.ID, error) 
 	return idFrom(id)
 }
 
+// Ever reports whether any plan was ever created, removed ones included.
+func (PlanRepository) Ever(ctx context.Context) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ever, err := queries.AnyPlanEver(ctx)
+	if err != nil {
+		return false, queryFailed("asking whether a plan exists", err)
+	}
+	return ever, nil
+}
+
 // Workspaces answers how many workspaces are on each plan.
 func (PlanRepository) Workspaces(ctx context.Context) (map[string]int64, error) {
 	queries, err := queriesFrom(ctx)
