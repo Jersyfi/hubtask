@@ -117,8 +117,8 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 	}
 
 	installation := domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
-	legal, legalLocks := domain.EffectiveLegal(instance.Legal, workspace.Settings.LegalLayer())
-	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{})
+	legal, legalLocks := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{}, workspace.Settings.LegalLayer())
+	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{}, domain.LegalLayer{})
 	return ResolvedPolicy{
 		Effective: domain.Effective(
 			instance.Policy, domain.PolicyLayer{}, workspace.Settings.SignInLayer()),

@@ -346,9 +346,9 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			"installation": resolved.InstallationLegal.Of(name),
 			"lock":         nil,
 			"source": string(domain.LegalSourceOf(
-				name, resolved.InstanceLegal, resolved.Workspace.Settings.LegalLayer())),
+				name, resolved.InstanceLegal, domain.LegalLayer{}, resolved.Workspace.Settings.LegalLayer())),
 			"installation_source": string(domain.LegalSourceOf(
-				name, resolved.InstanceLegal, domain.LegalLayer{})),
+				name, resolved.InstanceLegal, domain.LegalLayer{}, domain.LegalLayer{})),
 		}
 		if origin := resolved.LegalLock[name]; origin != domain.LockNone {
 			out["lock"] = string(origin)
