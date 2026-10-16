@@ -182,7 +182,7 @@ type noJobs struct{}
 func (noJobs) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
 func (noJobs) Claim(context.Context, queue.Lease) ([]queue.Job, error)   { return nil, nil }
 func (noJobs) Hold(context.Context, queue.Job) error                     { return nil }
-func (noJobs) Complete(context.Context, queue.Job) error                 { return nil }
+func (noJobs) Complete(context.Context, queue.Job, string) error         { return nil }
 func (noJobs) Repeat(context.Context, queue.Job, time.Time) error        { return nil }
 func (noJobs) Fail(context.Context, queue.Failure) error                 { return nil }
 func (noJobs) Depth(context.Context) ([]queue.Depth, error)              { return nil, nil }

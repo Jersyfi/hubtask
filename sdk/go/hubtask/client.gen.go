@@ -7270,6 +7270,9 @@ type Job struct {
 	FinishedAt *time.Time         `json:"finished_at"`
 	JobId      openapi_types.UUID `json:"job_id"`
 
+	// OutcomeCode How a `SUCCEEDED` job ended, as a message code, where its kind says more than that it finished - never a message and never free text. A question to the workspace's AI answers `ai.proposed` (the suggestion stands under `GET /suggestions`), `ai.nothing_to_change` (the model found nothing to propose), `ai.nothing_to_work_with` (nothing was left to describe when the job ran), or `ai.kept_out` / `ai.processing_restricted` (the person who asked keeps their content out since asking). Absent on every other job; a client treats a code it does not know as "finished".
+	OutcomeCode *string `json:"outcome_code,omitempty"`
+
 	// Progress How far along, between 0 and 1, or `null` from a job that cannot say. `null` is the honest answer rather than a number nobody computed - a client renders an indeterminate bar for it.
 	Progress *float32 `json:"progress"`
 
