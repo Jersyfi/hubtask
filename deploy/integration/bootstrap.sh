@@ -154,6 +154,18 @@ if ! kubectl -n "$NAMESPACE" get secret hubtask-secrets >/dev/null 2>&1; then
     --from-literal=secret-key="$(openssl rand -base64 32)"
 fi
 
+# The master keyring (values.yaml, encryption.keys): one key, generated here and never printed,
+# added to a Secret made before the keyring existed. Losing it makes every sealed value unreadable
+# (backup-restore.md §4), so it is never replaced once it is there.
+if [[ -z "$(kubectl -n "$NAMESPACE" get secret hubtask-secrets -o go-template='{{if index .data "encryption-key-k1"}}set{{end}}' 2>/dev/null)" ]]; then
+  kubectl -n "$NAMESPACE" patch secret hubtask-secrets --type merge \
+    -p "{\"stringData\":{\"encryption-key-k1\":\"$(openssl rand -base64 32)\"}}"
+fi
+
+# Plain HTTP redirects to HTTPS on the application's route (https-redirect.yaml): a Traefik object,
+# so it is made here rather than by the release.
+kubectl apply -f "${HERE}/https-redirect.yaml"
+
 # The restore drill's Role, created here rather than by the release: the deploy identity may not
 # create RBAC objects (deployer-rbac.yaml), the same arrangement as production's
 # (deploy/production/PLATFORM-INTERFACE.md). values.yaml sets restoreDrill.rbac.create=false.
