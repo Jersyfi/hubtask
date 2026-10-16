@@ -117,8 +117,13 @@ HUBTASK_ADMIN_TOKEN=… HUBTASK_DEMO_PASSWORD='…' \
 scripts/dev-workspace.sh --api https://api.integration.hubtask.eu --slug demo
 ```
 
-Then `https://demo.api.integration.hubtask.eu/` is a sign-in screen, and `owner@example.org` with
-that password gets in. Every API pod prints a code of its own; any one of them works, once. A lost
+Then `https://demo.api.integration.hubtask.eu/` and `https://operations.api.integration.hubtask.eu/`
+are sign-in screens, and `owner@example.org` with that password gets into each - two accounts, one
+per workspace; only the one in `operations` is the operator and reaches the instance area. Every
+API pod prints a code of its own; any one of them works, once. After a rebuild a pod that started
+before the migration had run prints no code but `no setup code could be issued`, and
+`kubectl logs deploy/hubtask-api` may pick that one: read the pods one by one
+(`kubectl -n hubtask get pods`) and take the code from one that printed it. A lost
 token is replaced by the operator minting a new one (*Profile → Access tokens*, or `POST
 /auth/tokens` behind a step-up); `--bootstrap` runs only on an installation that is not set up.
 
