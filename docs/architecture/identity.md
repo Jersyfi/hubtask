@@ -35,7 +35,7 @@ Decision records: [ADR-0005](../adr/ADR-0005-authn-authz.md),
 | Accounts belong to one workspace | The address is unique per tenant (`account_email_uq` on `(tenant_id, lower(email))`); one address in two workspaces is two accounts, with no global identity ([non-goals](../vision/non-goals.md)). |
 | Two kinds | `USER` and `SERVICE_ACCOUNT`, recorded in every audit entry. A service account holds tokens only (§15). |
 | States | `INVITED` (§12), `ACTIVE`, `DISABLED`, `RESTRICTED` (Art. 18, [data-protection.md](./data-protection.md) §4), `ANONYMIZED` (erased, authorship kept). Only `ACTIVE` and `RESTRICTED` act; a disabled account, or one of a suspended workspace, is refused at every door, a provider's token exchange included. |
-| What an account holds | Any of: a password, one second factor with recovery codes, provider identities (`account_identity`, unique per provider and subject). `GET /accounts/me` answers `has_password` and `recovery_codes_remaining`. |
+| What an account holds | Any of: a password, one second factor with recovery codes, provider identities (`account_identity`, unique per provider and subject). `GET /accounts/me` answers `has_password`, `has_second_factor` (the app or a passkey, §23.2), `has_authenticator_app` and `recovery_codes_remaining`. |
 | A provider-only account | No password: the password doors refuse it, and it never meets a password change or password step-up. |
 
 ---
@@ -206,13 +206,14 @@ the password's shape), one place the history is written. An invitation's first p
 written by the redemption itself and recorded as `auth.invitation_redeemed`.
 
 **The person is told** ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6): a password changed or set
-through a reset, a provider connected to an account that already existed, and a provider removed
-with the connections it held are each mailed to the account's own address — what changed, when, and
+through a reset, a provider connected to an account that already existed, a provider removed
+with the connections it held, and a passkey or security key added or removed (§23.2) are each mailed to the account's own address — what changed, when, and
 the way back — from a job queued in the change's own transaction, which no preference silences. A
 first way in made by the person on an account that had none (an invitation redeemed, an invited
 account activated, a newcomer provisioned) is not told. Without a mail server, or for an account
 without an address (§13), the change is only audited. An operator's opening (§17.2) tells the
-administrators, not every member. A second factor and its recovery codes are not among the notices.
+administrators, not every member. The authenticator app and the recovery codes are not among the
+notices; a passkey's notice never names it.
 
 | Rule | Detail |
 |---|---|
@@ -254,7 +255,7 @@ administrators, not every member. A second factor and its recovery codes are not
 | Verification | One step either side of now, never twice for one step; attempts count in the ledger (§4.3). |
 | Enrolment | The secret is sealed under its own purpose ([security.md](./security.md) §8); the provisioning URI and ten recovery codes are shown **once**; the factor is armed only after a valid code. The client draws the QR code. |
 | Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
-| Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person. The body's `password` is `deprecated` until the next major contract version. |
+| Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of the workspace's address (§23.2). The recovery codes go with it unless such a key remains, which they then back (§9). Decided under the account's row lock, which removing a passkey takes too, so two removals never each count the other as the factor that remains. The body's `password` is `deprecated` until the next major contract version. |
 | Replacing the authenticator | A step-up with any method held, a new secret confirmed by a code from the new app, one atomic swap answering ten new recovery codes; until then the old factor and codes hold, the replacement waiting ten minutes as an unconfirmed enrolment. Audited as `auth.mfa_replaced`. |
 | No secret travels | The secret and every code appear nowhere after their single showing; MFA state does not travel to devices ([offline-sync.md](./offline-sync.md) §4.2). |
 
@@ -269,10 +270,14 @@ factor and back whatever second factor the account holds.
   normalised (case, spaces, dashes) before hashing.
 * Stored hashed, each once: using one at sign-in or a step-up burns it, is audited, and the answer
   says how many are left.
-* `POST /auth/mfa/recovery:regenerate` takes a step-up: ten new codes, the old ten burned in the same
-  transaction, audited as `auth.mfa_recovery_regenerated` (a filter for it also finds the older
-  `mfa.recovery_regenerated`).
-* `recovery_codes_remaining` is answered to the holder only, at sign-in and on `GET /accounts/me`.
+* `POST /auth/mfa/recovery:regenerate` takes a step-up, for an account that holds a second factor -
+  the app or a passkey (§23.2) - and refuses before the proof where it holds none: ten new codes,
+  the old ten burned in the same transaction, audited as `auth.mfa_recovery_regenerated` (a filter
+  for it also finds the older `mfa.recovery_regenerated`).
+* They go with the last factor of either kind, by one statement whose condition is that no app row
+  (armed or begun) and no passkey remains; beside no armed factor they open nothing.
+* `recovery_codes_remaining` is answered to the holder only, at sign-in and on `GET /accounts/me`
+  wherever a second factor is held.
 * Somebody with neither the app, a code, a password nor a provider is not let through
   (`NG-weaker-recovery`, §17.4).
 
@@ -593,12 +598,13 @@ A fresh proof on the current session, demanded by a privileged action.
 | Method | Who holds it | How it proves |
 |---|---|---|
 | `PASSWORD` | An account with a password | The password, checked as at sign-in |
-| `TOTP` | An account with a second factor on | A current code |
-| `RECOVERY` | An account with a factor on and at least one code left | A recovery code, consumed |
+| `TOTP` | An account with the authenticator app armed | A current code |
+| `RECOVERY` | An account with the app armed and at least one code left | A recovery code, consumed |
 | `PROVIDER` | An account with an identity at a provider switched on in its workspace | A fresh sign-in there |
 
 `stepup.Methods` answers the methods held, in this order; the refusal's `params.methods` carries
-them and the client builds its prompt from that list alone.
+them and the client builds its prompt from that list alone. A passkey is not yet among them (§23,
+*Not yet*): an account holding only keys proves itself with its password or its provider.
 
 **`PROVIDER` is verified twice.** The flow sends `prompt=login` and `max_age=0`, bound to the
 session that asked; the proof holds only when the ID token's subject is the identity connected to
@@ -623,8 +629,8 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
 request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
 a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
-/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding a
-passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
+/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
+removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
 destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
 configuring or removing one of the installation's own backup targets (backup-restore.md §2).
@@ -887,9 +893,13 @@ role given while the last member leaves is seen.
 **Decided for milestone PK** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md); the owner,
 2026-10-15). **Built:** adding one (§23.2's limit, recovery codes and step-up, §23.3, §23.5) - the
 `webauthn_credential` table, the verifier in `infrastructure/webauthn`, `ListOwnPasskeys`,
-`StartPasskeyRegistration` and `CompletePasskeyRegistration`. **Not yet:** renaming and removing, a
-key counted as the second factor, signing in, the step-up and the setup with one; until they are,
-§2, §8 and §16.1 describe what runs: one second factor, the authenticator app.
+`StartPasskeyRegistration` and `CompletePasskeyRegistration`; renaming and removing one
+(`RenameOwnPasskey`, `RemoveOwnPasskey`), and a key counted as the second factor where the profile,
+turning the app off and the recovery codes ask (§8, §9, `SecondFactor`). **Not yet:** signing in,
+the second-factor step, the step-up and the setup with one. Until they are, the sign-in's step,
+§16.1's methods, replacing the app and a provider's kept factor read the app alone - a person whom
+the rule covers and who holds only a key is led into setting up the app, never let in with the
+password alone.
 
 ### 23.1 One credential, two strengths
 
@@ -919,7 +929,7 @@ A credential that once answered with UV and later without is held to the ceremon
 
 | Rule | Detail |
 |---|---|
-| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). |
+| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
 | Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
