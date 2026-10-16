@@ -2170,7 +2170,7 @@ CREATE TABLE retention_rule (
   updated_at      timestamptz NOT NULL DEFAULT now(),
   version         integer NOT NULL DEFAULT 1,
   -- Why a pass set the rule aside: its condition could not be evaluated on a candidate. The code
-  -- and the moment, until a pass evaluates it cleanly (migration 0160, data-retention.md §2).
+  -- and the moment, until a pass evaluates it cleanly (migration 0167, data-retention.md §2).
   last_failure_code text,
   last_failure_at   timestamptz,
   CONSTRAINT retention_rule_scope_check CHECK ((scope_kind = 'TENANT') = (scope_id IS NULL)),
