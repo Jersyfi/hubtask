@@ -139,6 +139,8 @@ var rlsExceptions = map[string]string{
 	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
 		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
 		"applies in full to every role that is not the owner, hubtask_app among them",
+	"restore_drill_marker": "the restore drill's two marker rows per run (migration 0071): " +
+		"installation-scoped, no tenant column, and the application role has no access at all",
 	"operator": "the installation's operator register (ADR-0070 §1): reachable only through " +
 		"SECURITY DEFINER functions, and the application role has no direct grant on it",
 	"instance_setup_code": "the first start's one-time setup code (UC-INS-01): it exists before " +
