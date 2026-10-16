@@ -277,7 +277,8 @@ type MfaEnrollments interface {
 	// the same or an older code presented again.
 	RecordStep(ctx context.Context, accountID shared.ID, step int64, now time.Time) (bool, error)
 
-	// Disable removes the enrolment whole. False means there was none.
+	// Disable removes the enrolment whole, and leaves the recovery codes to
+	// RecoveryCodes.DiscardUnbacked. False means there was none.
 	Disable(ctx context.Context, accountID shared.ID) (bool, error)
 
 	// StartReplacement puts a new secret beside an armed one, replacing a replacement begun
@@ -308,6 +309,10 @@ type RecoveryCodes interface {
 
 	// Remaining counts what is left, for the answer that tells a person to re-enrol in time.
 	Remaining(ctx context.Context, accountID shared.ID) (int, error)
+
+	// DiscardUnbacked burns every code of an account that holds no second factor any more - no
+	// authenticator app, armed or begun, and no passkey - and leaves them where it still does.
+	DiscardUnbacked(ctx context.Context, accountID shared.ID) error
 }
 
 // PendingLookup is what presenting a pending credential yields: the row, its account, and the

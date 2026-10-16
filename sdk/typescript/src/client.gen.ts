@@ -1084,6 +1084,16 @@ export class HubtaskClient {
     return this.call("POST", "/accounts/me/passkeys:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Rename one of the caller's passkeys or security keys */
+  renameOwnPasskey(passkeyId: string, body: NonNullable<operations["renameOwnPasskey"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["renameOwnPasskey"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove one of the caller's passkeys or security keys */
+  removeOwnPasskey(passkeyId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** The emergency accesses the caller was told of in the last 30 days */
   listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

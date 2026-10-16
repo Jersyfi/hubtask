@@ -9,7 +9,7 @@
  * Nothing here judges a ceremony. The server's verifier does; this only carries bytes across.
  */
 
-import type { PasskeyRegistration, PasskeyRegistrationOptions } from '@hubtask/sync-engine';
+import type { Passkey, PasskeyList, PasskeyRegistration, PasskeyRegistrationOptions } from '@hubtask/sync-engine';
 
 /** base64url without padding, as WebAuthn's JSON form writes every binary value. */
 export function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
@@ -124,4 +124,35 @@ export function suggestedName(word: string, held: readonly { name: string }[]): 
     const candidate = `${word} ${number}`;
     if (!taken.has(candidate)) return candidate;
   }
+}
+
+/** The most characters a name holds, counted as the server counts them: code points, after trimming. */
+export const NAME_LIMIT = 64;
+
+/** Whether a name would be accepted: not blank, and at most `NAME_LIMIT` code points once trimmed. */
+export function nameFits(name: string): boolean {
+  const trimmed = name.trim();
+  return trimmed !== '' && [...trimmed].length <= NAME_LIMIT;
+}
+
+/**
+ * Whether a passkey was made for another address than the workspace's - moved since, or restored
+ * from another workspace. It opens nothing here, counts as no factor, and can always be removed.
+ */
+export function isStale(passkey: Pick<Passkey, 'rp_id'>, list: Pick<PasskeyList, 'rp_id'>): boolean {
+  return Boolean(passkey.rp_id) && passkey.rp_id !== list.rp_id;
+}
+
+/** What a passkey's row offers for removing it: the button, or the reason in its place. */
+export type Removal = { readonly offered: true } | { readonly offered: false; readonly reason: string };
+
+/**
+ * The server's own answer (P-05): `can_remove` for the passkeys of the workspace's address, and a
+ * stale one always - asked only for the proof, which `auth.step_up_no_method` withholds from both.
+ */
+export function removalOf(passkey: Pick<Passkey, 'rp_id'>, list: PasskeyList): Removal {
+  const reason = list.cannot_remove_reason;
+  if (list.can_remove) return { offered: true };
+  if (isStale(passkey, list) && reason !== 'auth.step_up_no_method') return { offered: true };
+  return { offered: false, reason: reason ?? 'auth.mfa_required_by_tenant' };
 }

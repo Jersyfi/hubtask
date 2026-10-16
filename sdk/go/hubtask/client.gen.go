@@ -2792,19 +2792,37 @@ func (e PasskeyDescriptorType) Valid() bool {
 
 // Defines values for PasskeyListCannotAddReason.
 const (
-	AuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
-	AuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
-	AuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
+	PasskeyListCannotAddReasonAuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
+	PasskeyListCannotAddReasonAuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
+	PasskeyListCannotAddReasonAuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
 )
 
 // Valid indicates whether the value is a known member of the PasskeyListCannotAddReason enum.
 func (e PasskeyListCannotAddReason) Valid() bool {
 	switch e {
-	case AuthPasskeyLimitReached:
+	case PasskeyListCannotAddReasonAuthPasskeyLimitReached:
 		return true
-	case AuthPasskeyUnavailable:
+	case PasskeyListCannotAddReasonAuthPasskeyUnavailable:
 		return true
-	case AuthStepUpNoMethod:
+	case PasskeyListCannotAddReasonAuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotRemoveReason.
+const (
+	PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant PasskeyListCannotRemoveReason = "auth.mfa_required_by_tenant"
+	PasskeyListCannotRemoveReasonAuthStepUpNoMethod      PasskeyListCannotRemoveReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotRemoveReason enum.
+func (e PasskeyListCannotRemoveReason) Valid() bool {
+	switch e {
+	case PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant:
+		return true
+	case PasskeyListCannotRemoveReasonAuthStepUpNoMethod:
 		return true
 	default:
 		return false
@@ -4627,6 +4645,9 @@ type AccessTokenSecret struct {
 
 // Account defines model for Account.
 type Account struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -4635,10 +4656,13 @@ type Account struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -7011,6 +7035,9 @@ type InvitationSummary struct {
 
 // InvitedAccount defines model for InvitedAccount.
 type InvitedAccount struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -7019,10 +7046,13 @@ type InvitedAccount struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -8008,6 +8038,9 @@ type Passkey struct {
 
 	// Name The name the person gave it.
 	Name string `json:"name"`
+
+	// RpId The host it was made for. Where it is not the list's `rp_id` - the workspace moved to another address, or the account was restored into another workspace - it opens nothing here, counts as no second factor, and can always be removed. Null for one made before the host was recorded, which counts as this workspace's.
+	RpId *string `json:"rp_id"`
 }
 
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
@@ -8078,8 +8111,14 @@ type PasskeyList struct {
 	// CanAdd Whether starting to add another would be accepted now.
 	CanAdd bool `json:"can_add"`
 
+	// CanRemove Whether removing one of the passkeys of this workspace's address would be accepted now. False where it is the last second factor the account holds and the workspace's rule requires one of this person, and where the account holds nothing to give the fresh proof with. A passkey of another address can always be removed.
+	CanRemove bool `json:"can_remove"`
+
 	// CannotAddReason Present where `can_add` is false - the message code saying why.
 	CannotAddReason *PasskeyListCannotAddReason `json:"cannot_add_reason,omitempty"`
+
+	// CannotRemoveReason Present where `can_remove` is false - the message code saying why.
+	CannotRemoveReason *PasskeyListCannotRemoveReason `json:"cannot_remove_reason,omitempty"`
 
 	// Limit The most an account may hold.
 	Limit    int       `json:"limit"`
@@ -8091,6 +8130,9 @@ type PasskeyList struct {
 
 // PasskeyListCannotAddReason Present where `can_add` is false - the message code saying why.
 type PasskeyListCannotAddReason string
+
+// PasskeyListCannotRemoveReason Present where `can_remove` is false - the message code saying why.
+type PasskeyListCannotRemoveReason string
 
 // PasskeyRegistered defines model for PasskeyRegistered.
 type PasskeyRegistered struct {
@@ -8124,6 +8166,12 @@ type PasskeyRegistrationOptions struct {
 	// ExpiresAt When the challenge stops being accepted.
 	ExpiresAt time.Time              `json:"expires_at"`
 	PublicKey PasskeyCreationOptions `json:"public_key"`
+}
+
+// PasskeyRename defines model for PasskeyRename.
+type PasskeyRename struct {
+	// Name What the person calls it, 1 to 64 characters.
+	Name string `json:"name"`
 }
 
 // PasskeyTransport defines model for PasskeyTransport.
@@ -10596,6 +10644,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// PasskeyId defines model for PasskeyId.
+type PasskeyId = openapi_types.UUID
+
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
@@ -10628,6 +10679,12 @@ type WebhookId = openapi_types.UUID
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveOwnPasskeyParams defines parameters for RemoveOwnPasskey.
+type RemoveOwnPasskeyParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -11758,6 +11815,9 @@ type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 // StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
 type StartProviderConnectJSONRequestBody = ProviderConnectStart
 
+// RenameOwnPasskeyJSONRequestBody defines body for RenameOwnPasskey for application/json ContentType.
+type RenameOwnPasskeyJSONRequestBody = PasskeyRename
+
 // CompletePasskeyRegistrationJSONRequestBody defines body for CompletePasskeyRegistration for application/json ContentType.
 type CompletePasskeyRegistrationJSONRequestBody = PasskeyRegistration
 
@@ -12381,6 +12441,52 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
 	ListOwnPasskeys(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveOwnPasskey Remove one of the caller's passkeys or security keys
+	//
+	// Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+	// fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+	// for a token). The person is told by mail, as every change to a way into the account is.
+	//
+	// Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+	// caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+	// second factor the account holds - no authenticator app, no other passkey or security key of
+	// this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+	// on the list answers the same condition. Where the last factor of any kind goes, the recovery
+	// codes go with it.
+	//
+	// Corresponds with DELETE /accounts/me/passkeys/{passkeyId} (the `RemoveOwnPasskey` operationId).
+	RemoveOwnPasskey(ctx context.Context, passkeyId PasskeyId, params *RemoveOwnPasskeyParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenameOwnPasskeyWithBody Rename one of the caller's passkeys or security keys
+	//
+	// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+	// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+	// write wins: a name only its holder writes has no lost update worth a version.
+	//
+	// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+	// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+	// control characters, and `auth.passkey_person_only` for anyone but a person.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+	RenameOwnPasskeyWithBody(ctx context.Context, passkeyId PasskeyId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RenameOwnPasskey Rename one of the caller's passkeys or security keys
+	//
+	// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+	// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+	// write wins: a name only its holder writes has no lost update worth a version.
+	//
+	// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+	// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+	// control characters, and `auth.passkey_person_only` for anyone but a person.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+	RenameOwnPasskey(ctx context.Context, passkeyId PasskeyId, body RenameOwnPasskeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CompletePasskeyRegistrationWithBody Finish adding a passkey or a security key to the caller's account
 	//
@@ -13532,7 +13638,7 @@ type ClientInterface interface {
 
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	//
-	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
 	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 	//
 	// Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
@@ -13606,7 +13712,7 @@ type ClientInterface interface {
 
 	// DisableTotpWithBody Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type.
@@ -13616,7 +13722,7 @@ type ClientInterface interface {
 
 	// DisableTotp Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type.
@@ -16977,6 +17083,82 @@ func (c *Client) ListOwnPasskeys(ctx context.Context, reqEditors ...RequestEdito
 	return c.Client.Do(req)
 }
 
+// RemoveOwnPasskey Remove one of the caller's passkeys or security keys
+//
+// Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+// fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+// for a token). The person is told by mail, as every change to a way into the account is.
+//
+// Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+// caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+// second factor the account holds - no authenticator app, no other passkey or security key of
+// this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+// on the list answers the same condition. Where the last factor of any kind goes, the recovery
+// codes go with it.
+//
+// Corresponds with DELETE /accounts/me/passkeys/{passkeyId} (the `RemoveOwnPasskey` operationId).
+func (c *Client) RemoveOwnPasskey(ctx context.Context, passkeyId PasskeyId, params *RemoveOwnPasskeyParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOwnPasskeyRequest(c.Server, passkeyId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RenameOwnPasskeyWithBody Rename one of the caller's passkeys or security keys
+//
+// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+// write wins: a name only its holder writes has no lost update worth a version.
+//
+// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+// control characters, and `auth.passkey_person_only` for anyone but a person.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+func (c *Client) RenameOwnPasskeyWithBody(ctx context.Context, passkeyId PasskeyId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenameOwnPasskeyRequestWithBody(c.Server, passkeyId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RenameOwnPasskey Rename one of the caller's passkeys or security keys
+//
+// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+// write wins: a name only its holder writes has no lost update worth a version.
+//
+// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+// control characters, and `auth.passkey_person_only` for anyone but a person.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+func (c *Client) RenameOwnPasskey(ctx context.Context, passkeyId PasskeyId, body RenameOwnPasskeyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRenameOwnPasskeyRequest(c.Server, passkeyId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CompletePasskeyRegistrationWithBody Finish adding a passkey or a security key to the caller's account
 //
 // The second call: what the browser's ceremony answered, and the name the person chose. The
@@ -19167,7 +19349,7 @@ func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSON
 
 // RegenerateRecoveryCodes Replace the ten recovery codes
 //
-// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
 // Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 //
 // Corresponds with POST /auth/mfa/recovery:regenerate (the `RegenerateRecoveryCodes` operationId).
@@ -19321,7 +19503,7 @@ func (c *Client) StartAuthenticatorReplacement(ctx context.Context, params *Star
 
 // DisableTotpWithBody Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type.
@@ -19341,7 +19523,7 @@ func (c *Client) DisableTotpWithBody(ctx context.Context, params *DisableTotpPar
 
 // DisableTotp Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type.
@@ -26195,6 +26377,102 @@ func NewListOwnPasskeysRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewRemoveOwnPasskeyRequest constructs an http.Request for the RemoveOwnPasskey method
+func NewRemoveOwnPasskeyRequest(server string, passkeyId PasskeyId, params *RemoveOwnPasskeyParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "passkeyId", passkeyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/passkeys/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRenameOwnPasskeyRequest calls the generic RenameOwnPasskey builder with application/json body
+func NewRenameOwnPasskeyRequest(server string, passkeyId PasskeyId, body RenameOwnPasskeyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRenameOwnPasskeyRequestWithBody(server, passkeyId, "application/json", bodyReader)
+}
+
+// NewRenameOwnPasskeyRequestWithBody constructs an http.Request for the RenameOwnPasskey method, with any body, and a specified content type
+func NewRenameOwnPasskeyRequestWithBody(server string, passkeyId PasskeyId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "passkeyId", passkeyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/passkeys/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -41522,6 +41800,54 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /accounts/me/passkeys (the `ListOwnPasskeys` operationId).
 	ListOwnPasskeysWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnPasskeysResult, error)
 
+	// RemoveOwnPasskeyWithResponse Remove one of the caller's passkeys or security keys
+	//
+	// Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+	// fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+	// for a token). The person is told by mail, as every change to a way into the account is.
+	//
+	// Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+	// caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+	// second factor the account holds - no authenticator app, no other passkey or security key of
+	// this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+	// on the list answers the same condition. Where the last factor of any kind goes, the recovery
+	// codes go with it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /accounts/me/passkeys/{passkeyId} (the `RemoveOwnPasskey` operationId).
+	RemoveOwnPasskeyWithResponse(ctx context.Context, passkeyId PasskeyId, params *RemoveOwnPasskeyParams, reqEditors ...RequestEditorFn) (*RemoveOwnPasskeyResult, error)
+
+	// RenameOwnPasskeyWithBodyWithResponse Rename one of the caller's passkeys or security keys
+	//
+	// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+	// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+	// write wins: a name only its holder writes has no lost update worth a version.
+	//
+	// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+	// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+	// control characters, and `auth.passkey_person_only` for anyone but a person.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+	RenameOwnPasskeyWithBodyWithResponse(ctx context.Context, passkeyId PasskeyId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameOwnPasskeyResult, error)
+
+	// RenameOwnPasskeyWithResponse Rename one of the caller's passkeys or security keys
+	//
+	// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+	// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+	// write wins: a name only its holder writes has no lost update worth a version.
+	//
+	// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+	// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+	// control characters, and `auth.passkey_person_only` for anyone but a person.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+	RenameOwnPasskeyWithResponse(ctx context.Context, passkeyId PasskeyId, body RenameOwnPasskeyJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameOwnPasskeyResult, error)
+
 	// CompletePasskeyRegistrationWithBodyWithResponse Finish adding a passkey or a security key to the caller's account
 	//
 	// The second call: what the browser's ceremony answered, and the name the person chose. The
@@ -42736,7 +43062,7 @@ type ClientWithResponsesInterface interface {
 
 	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 	//
-	// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+	// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
 	// Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -42814,7 +43140,7 @@ type ClientWithResponsesInterface interface {
 
 	// DisableTotpWithBodyWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -42824,7 +43150,7 @@ type ClientWithResponsesInterface interface {
 
 	// DisableTotpWithResponse Disable the second factor
 	//
-	// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+	// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 	// The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -46622,6 +46948,95 @@ func (r ListOwnPasskeysResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListOwnPasskeysResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveOwnPasskeyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOwnPasskeyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOwnPasskeyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOwnPasskeyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOwnPasskeyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOwnPasskeyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RenameOwnPasskeyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Passkey
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RenameOwnPasskeyResult) GetJSON200() *Passkey {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RenameOwnPasskeyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RenameOwnPasskeyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RenameOwnPasskeyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RenameOwnPasskeyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RenameOwnPasskeyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -62448,6 +62863,72 @@ func (c *ClientWithResponses) ListOwnPasskeysWithResponse(ctx context.Context, r
 	return ParseListOwnPasskeysResult(rsp)
 }
 
+// RemoveOwnPasskeyWithResponse Remove one of the caller's passkeys or security keys
+//
+// Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+// fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+// for a token). The person is told by mail, as every change to a way into the account is.
+//
+// Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+// caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+// second factor the account holds - no authenticator app, no other passkey or security key of
+// this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+// on the list answers the same condition. Where the last factor of any kind goes, the recovery
+// codes go with it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /accounts/me/passkeys/{passkeyId} (the `RemoveOwnPasskey` operationId).
+func (c *ClientWithResponses) RemoveOwnPasskeyWithResponse(ctx context.Context, passkeyId PasskeyId, params *RemoveOwnPasskeyParams, reqEditors ...RequestEditorFn) (*RemoveOwnPasskeyResult, error) {
+	rsp, err := c.RemoveOwnPasskey(ctx, passkeyId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOwnPasskeyResult(rsp)
+}
+
+// RenameOwnPasskeyWithBodyWithResponse Rename one of the caller's passkeys or security keys
+//
+// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+// write wins: a name only its holder writes has no lost update worth a version.
+//
+// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+// control characters, and `auth.passkey_person_only` for anyone but a person.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+func (c *ClientWithResponses) RenameOwnPasskeyWithBodyWithResponse(ctx context.Context, passkeyId PasskeyId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RenameOwnPasskeyResult, error) {
+	rsp, err := c.RenameOwnPasskeyWithBody(ctx, passkeyId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameOwnPasskeyResult(rsp)
+}
+
+// RenameOwnPasskeyWithResponse Rename one of the caller's passkeys or security keys
+//
+// Changes the name the person gave it, and nothing else. The session alone is enough, or a
+// token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+// write wins: a name only its holder writes has no lost update worth a version.
+//
+// Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+// `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+// control characters, and `auth.passkey_person_only` for anyone but a person.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me/passkeys/{passkeyId} (the `RenameOwnPasskey` operationId).
+func (c *ClientWithResponses) RenameOwnPasskeyWithResponse(ctx context.Context, passkeyId PasskeyId, body RenameOwnPasskeyJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameOwnPasskeyResult, error) {
+	rsp, err := c.RenameOwnPasskey(ctx, passkeyId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRenameOwnPasskeyResult(rsp)
+}
+
 // CompletePasskeyRegistrationWithBodyWithResponse Finish adding a passkey or a security key to the caller's account
 //
 // The second call: what the browser's ceremony answered, and the name the person chose. The
@@ -64286,7 +64767,7 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 
 // RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 //
-// Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
+// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
 // Shown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -64412,7 +64893,7 @@ func (c *ClientWithResponses) StartAuthenticatorReplacementWithResponse(ctx cont
 
 // DisableTotpWithBodyWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -64428,7 +64909,7 @@ func (c *ClientWithResponses) DisableTotpWithBodyWithResponse(ctx context.Contex
 
 // DisableTotpWithResponse Disable the second factor
 //
-// Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.
+// Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.
 // The body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -70218,6 +70699,68 @@ func ParseListOwnPasskeysResult(rsp *http.Response) (*ListOwnPasskeysResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PasskeyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOwnPasskeyResult parses an HTTP response from a RemoveOwnPasskeyWithResponse call
+func ParseRemoveOwnPasskeyResult(rsp *http.Response) (*RemoveOwnPasskeyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOwnPasskeyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRenameOwnPasskeyResult parses an HTTP response from a RenameOwnPasskeyWithResponse call
+func ParseRenameOwnPasskeyResult(rsp *http.Response) (*RenameOwnPasskeyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RenameOwnPasskeyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Passkey
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

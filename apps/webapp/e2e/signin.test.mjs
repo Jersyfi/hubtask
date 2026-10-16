@@ -319,7 +319,7 @@ test('a recovery code leaves a note that survives a reload and leads to the repl
       return route.fulfill({ status: 201, json: { ...TOKENS, recovery_codes_remaining: 7 } });
     }
     if (path.endsWith('/api/v1/accounts/me')) {
-      return route.fulfill({ json: { id: '01936f2a-7c1e-7000-8000-0000000000aa', display_name: 'Walker', email: 'walker@example.invalid', locale: 'en', time_zone: 'UTC', has_password: true, has_second_factor: true, recovery_codes_remaining: 7, second_factor_required: false, onboarding_completed_at: '2026-01-01T00:00:00Z' } });
+      return route.fulfill({ json: { id: '01936f2a-7c1e-7000-8000-0000000000aa', display_name: 'Walker', email: 'walker@example.invalid', locale: 'en', time_zone: 'UTC', has_password: true, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: true, recovery_codes_remaining: 7, second_factor_required: false, onboarding_completed_at: '2026-01-01T00:00:00Z' } });
     }
     return stubFor({ answer: owed })(route);
   });

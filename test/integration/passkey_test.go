@@ -58,7 +58,7 @@ func aPasskey(t *testing.T, account shared.ID, credentialID byte, name string, a
 		CredentialID: bytes.Repeat([]byte{credentialID}, 16), PublicKey: []byte{0xa5, 0x01, 0x02},
 		Algorithm: -7, SignCount: 3, UserHandle: bytes.Repeat([]byte{0x11}, identity.PasskeyUserHandleBytes),
 		BackupEligible: true, BackedUp: true, Transports: []string{"internal", "hybrid"},
-		Name: name, CreatedAt: at,
+		Name: name, CreatedAt: at, RPID: "passkeys.example",
 	}
 }
 
@@ -99,7 +99,7 @@ func TestAPasskeyIsKeptOnceAndReadOnlyInItsWorkspace(t *testing.T) {
 			first.SignCount != 3 || !first.BackupEligible || !first.BackedUp || !first.CreatedAt.Equal(at) ||
 			!first.LastUsedAt.IsZero() || len(first.UserHandle) != identity.PasskeyUserHandleBytes ||
 			!bytes.Equal(first.CredentialID, bytes.Repeat([]byte{1}, 16)) ||
-			len(first.Transports) != 2 || first.Transports[0] != "internal" {
+			len(first.Transports) != 2 || first.Transports[0] != "internal" || first.RPID != "passkeys.example" {
 			t.Errorf("the stored shape: %+v", first)
 		}
 		if count, err := repo.CountOf(ctx, people.ada); err != nil || count != 2 {
@@ -429,4 +429,44 @@ func TestAPasskeyChallengeIsSpentOnceByItsOwnSession(t *testing.T) {
 	if consume(people.tenant, signIn, sessionA, people.ada, at.Add(time.Second)) {
 		t.Error("a pending sign-in's own token was spent as a challenge")
 	}
+}
+
+// A rename reaches only the account's own credential: another account's in the same workspace and
+// any of another workspace match nothing (gate SG-3).
+func TestAPasskeyIsRenamedOnlyByItsOwnAccountInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	repo := postgres.NewPasskeyRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Date(2026, 10, 16, 9, 0, 0, 0, time.UTC)
+	adas := aPasskey(t, people.ada, 1, "iPhone", at)
+	beas := aPasskey(t, people.bea, 2, "Laptop", at)
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		for _, credential := range []identity.PasskeyCredential{adas, beas} {
+			if written, err := repo.Insert(ctx, credential); err != nil || !written {
+				t.Fatalf("inserting: %v %v", written, err)
+			}
+		}
+		renamed, err := repo.Rename(ctx, people.ada, adas.ID, "Phone, old")
+		if err != nil || renamed.Name != "Phone, old" || renamed.ID != adas.ID || renamed.RPID != "passkeys.example" {
+			t.Errorf("renaming her own: %+v %v", renamed, err)
+		}
+		if _, err := repo.Rename(ctx, people.ada, beas.ID, "Taken"); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("Ada renamed Bea's passkey: %v", err)
+		}
+		return nil
+	})
+	inTenant(t, uow, people.other, func(ctx context.Context) error {
+		if _, err := repo.Rename(ctx, people.ada, adas.ID, "From next door"); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("next door renamed Ada's passkey: %v", err)
+		}
+		return nil
+	})
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		held, err := repo.ListOf(ctx, people.bea)
+		if err != nil || len(held) != 1 || held[0].Name != "Laptop" {
+			t.Errorf("Bea's passkey reads %+v (%v)", held, err)
+		}
+		return nil
+	})
 }

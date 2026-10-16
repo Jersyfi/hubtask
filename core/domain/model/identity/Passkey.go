@@ -50,6 +50,16 @@ type PasskeyCredential struct {
 	Name       string
 	CreatedAt  time.Time
 	LastUsedAt time.Time
+	// RPID is the host it was made for; empty for one made before it was recorded, which counts as
+	// the workspace's own.
+	RPID string
+}
+
+// BelongsTo is whether the credential answers at the relying party rpID: one made elsewhere - the
+// workspace moved, or the account was restored into another - can never sign here, so it counts as
+// no factor (P-16).
+func (c PasskeyCredential) BelongsTo(rpID string) bool {
+	return c.RPID == "" || c.RPID == rpID
 }
 
 // PasskeyName checks the person's name for a credential: trimmed, one to MaxPasskeyNameLength

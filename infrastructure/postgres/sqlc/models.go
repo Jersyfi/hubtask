@@ -1554,6 +1554,7 @@ type WebauthnCredential struct {
 	Name           string
 	CreatedAt      pgtype.Timestamptz
 	LastUsedAt     pgtype.Timestamptz
+	RpID           *string
 }
 
 type WebhookDelivery struct {

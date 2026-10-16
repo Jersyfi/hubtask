@@ -238,7 +238,7 @@ export const ENCRYPTION_STATUS = {
 };
 
 /** The passkeys of `ACCOUNT` as *Password and sign-in* reads them (identity.md §23). */
-export const PASSKEYS = { passkeys: [], limit: 10, can_add: true, rp_id: 'localhost' };
+export const PASSKEYS = { passkeys: [], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' };
 
 export function stub(route) {
   const request = route.request();

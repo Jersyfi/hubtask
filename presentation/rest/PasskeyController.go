@@ -21,6 +21,8 @@ const (
 	listOwnPasskeysUseCase             = "ListOwnPasskeys"
 	startPasskeyRegistrationUseCase    = "StartPasskeyRegistration"
 	completePasskeyRegistrationUseCase = "CompletePasskeyRegistration"
+	renameOwnPasskeyUseCase            = "RenameOwnPasskey"
+	removeOwnPasskeyUseCase            = "RemoveOwnPasskey"
 )
 
 // ListOwnPasskeys answers GET /accounts/me/passkeys. Written out, GetOwnAccount's reasoning.
@@ -38,7 +40,7 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 	rows, _ := out["data"].([]usecase.Output)
 	answer := openapi.PasskeyList{
 		Passkeys: make([]openapi.Passkey, 0, len(rows)),
-		CanAdd:   out["can_add"] == true,
+		CanAdd:   out["can_add"] == true, CanRemove: out["can_remove"] == true,
 	}
 	answer.Limit, _ = out["limit"].(int)
 	if rpID := out.String("rp_id"); rpID != "" {
@@ -48,6 +50,10 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 		code := openapi.PasskeyListCannotAddReason(reason)
 		answer.CannotAddReason = &code
 	}
+	if reason := out.String("cannot_remove_reason"); reason != "" {
+		code := openapi.PasskeyListCannotRemoveReason(reason)
+		answer.CannotRemoveReason = &code
+	}
 	for _, row := range rows {
 		answer.Passkeys = append(answer.Passkeys, passkeyResponse(row))
 	}
@@ -56,10 +62,36 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 
 func passkeyResponse(out usecase.Output) openapi.Passkey {
 	id, _ := uuid.Parse(out.String("id"))
-	return openapi.Passkey{
+	answer := openapi.Passkey{
 		Id: id, Name: out.String("name"),
 		CreatedAt: timeValue(out["created_at"]), LastUsedAt: timePointer(out["last_used_at"]),
 	}
+	if rpID := out.String("rp_id"); rpID != "" {
+		answer.RpId = &rpID
+	}
+	return answer
+}
+
+// RenameOwnPasskey answers PATCH /accounts/me/passkeys/{passkeyId}.
+func (c *RestController) RenameOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyID openapi.PasskeyId) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyRename
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"passkey_id": passkeyID.String(), "name": body.Name}
+	out, err := c.UseCases.Invoke(r.Context(), renameOwnPasskeyUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	passkey, _ := out["passkey"].(usecase.Output)
+	writeJSON(w, r, http.StatusOK, passkeyResponse(passkey))
 }
 
 // StartPasskeyRegistration answers POST /accounts/me/passkeys:start.
@@ -134,4 +166,22 @@ func (c *RestController) CompletePasskeyRegistration(w http.ResponseWriter, r *h
 		answer.RecoveryCodes = &listed
 	}
 	writeJSON(w, r, http.StatusCreated, answer)
+}
+
+// RemoveOwnPasskey answers DELETE /accounts/me/passkeys/{passkeyId}.
+func (c *RestController) RemoveOwnPasskey(
+	w http.ResponseWriter, r *http.Request, passkeyID openapi.PasskeyId, params openapi.RemoveOwnPasskeyParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	if _, err := c.UseCases.Invoke(r.Context(), removeOwnPasskeyUseCase, actorOf(r), usecase.Input{
+		"passkey_id": passkeyID.String(), "step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	}); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

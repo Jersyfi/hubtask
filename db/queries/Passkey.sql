@@ -3,7 +3,7 @@
 
 -- name: ListPasskeys :many
 SELECT id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
-       backup_eligible, backed_up, transports, name, created_at, last_used_at
+       backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id
 FROM webauthn_credential
 WHERE account_id = sqlc.arg('account_id')
 ORDER BY created_at, id;
@@ -19,12 +19,12 @@ SELECT id FROM account WHERE id = sqlc.arg('account_id') FOR UPDATE;
 -- A credential identifier already held in this workspace writes nothing.
 INSERT INTO webauthn_credential (
   id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
-  backup_eligible, backed_up, transports, name, created_at
+  backup_eligible, backed_up, transports, name, created_at, rp_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('credential_id'),
   sqlc.arg('public_key'), sqlc.arg('algorithm'), sqlc.arg('sign_count'), sqlc.arg('user_handle'),
   sqlc.arg('backup_eligible'), sqlc.arg('backed_up'), sqlc.arg('transports')::text[],
-  sqlc.arg('name'), sqlc.arg('created_at')
+  sqlc.arg('name'), sqlc.arg('created_at'), sqlc.narg('rp_id')
 )
 ON CONFLICT (tenant_id, credential_id) DO NOTHING;
 
@@ -49,3 +49,14 @@ WHERE token_hash = sqlc.arg('token_hash') AND purpose = 'PASSKEY_REGISTER'
   AND session_id = sqlc.arg('session_id') AND account_id = sqlc.arg('account_id')
   AND consumed_at IS NULL AND expires_at > sqlc.arg('now')
 RETURNING id, account_id, session_id, user_handle, created_at, expires_at;
+
+-- name: RenamePasskey :one
+-- Only the account's own: another's, another workspace's or a removed one matches nothing.
+UPDATE webauthn_credential SET name = sqlc.arg('name')
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
+RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
+          backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id;
+
+-- name: RemovePasskey :execrows
+-- Only the account's own; it signs and proves nothing from the moment this commits.
+DELETE FROM webauthn_credential WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id');

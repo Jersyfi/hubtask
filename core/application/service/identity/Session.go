@@ -127,7 +127,11 @@ type SessionWriter struct {
 	// The second factor's stores. Nil switches the second step off wholesale.
 	Enrollments repository.MfaEnrollments
 	Recovery    repository.RecoveryCodes
-	Pending     repository.PendingCredentials
+	// Keys counts the account's passkeys as second factors (identity.md §23.2) where turning the app
+	// off and the codes ask. Set in the literal, the step-up's reason below: every writer is a copy.
+	// Nil holds none.
+	Keys    FactorKeys
+	Pending repository.PendingCredentials
 	// Encryptor opens and seals the TOTP secret: verification needs the plaintext for
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor

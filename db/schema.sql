@@ -432,6 +432,8 @@ CREATE TABLE webauthn_credential (
   name            text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 64),
   created_at      timestamptz NOT NULL,
   last_used_at    timestamptz,
+  -- The host it was made for; NULL for one made before the column (migration 0163).
+  rp_id           text CHECK (rp_id IS NULL OR char_length(rp_id) BETWEEN 1 AND 253),
   CONSTRAINT webauthn_credential_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT webauthn_credential_backup_state CHECK (backup_eligible OR NOT backed_up)

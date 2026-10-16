@@ -5049,7 +5049,7 @@
         ],
         "operationId": "regenerateRecoveryCodes",
         "summary": "Replace the ten recovery codes",
-        "description": "Ten new ones, behind a step-up. The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.\nShown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.\n",
+        "description": "Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.\nShown once, exactly as at enrolment, and stored only as hashes. The codes are the **account's** rather than the factor's: somebody who has burned eight of ten gets ten back without taking their working second factor off for a minute. Nothing about them mentions TOTP, so they stay right whatever the second factor is.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -5079,7 +5079,7 @@
         ],
         "operationId": "disableTotp",
         "summary": "Disable the second factor",
-        "description": "Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person it cannot be disabled at all; the refusal names the rule.\nThe body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.\n",
+        "description": "Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key remains, which they then back. It demands a step-up like every privileged action - a stolen session removing the second factor is exactly the attack the factor exists against - and takes it with whatever the account holds: a code, a recovery code, its provider, or its password. Where the workspace's rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of this workspace's address - it cannot be disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me` answers the same condition.\nThe body's `password` is the proof this route took before; it is still accepted for one release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -7090,6 +7090,67 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/accounts/me/passkeys/{passkeyId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PasskeyId"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "renameOwnPasskey",
+        "summary": "Rename one of the caller's passkeys or security keys",
+        "description": "Changes the name the person gave it, and nothing else. The session alone is enough, or a\ntoken with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last\nwrite wins: a name only its holder writes has no lost update worth a version.\n\nRefused with `auth.passkey_not_found` for a credential the caller's account does not hold,\n`auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds\ncontrol characters, and `auth.passkey_person_only` for anyone but a person.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The passkey with its new name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Passkey"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "removeOwnPasskey",
+        "summary": "Remove one of the caller's passkeys or security keys",
+        "description": "Removes the credential at once: it signs in and proves nothing from this moment. Asks a\nfresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`\nfor a token). The person is told by mail, as every change to a way into the account is.\n\nRefused before the proof is spent with `auth.passkey_not_found` for a credential the\ncaller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last\nsecond factor the account holds - no authenticator app, no other passkey or security key of\nthis workspace's address - and the workspace's rule requires one of this person. `can_remove`\non the list answers the same condition. Where the last factor of any kind goes, the recovery\ncodes go with it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -12626,6 +12687,15 @@
           "format": "uuid"
         }
       },
+      "PasskeyId": {
+        "name": "passkeyId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "IfMatch": {
         "name": "If-Match",
         "in": "header",
@@ -12954,11 +13024,19 @@
           },
           "has_second_factor": {
             "type": "boolean",
-            "description": "Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.\nUntil this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - \"make new recovery codes\" and \"turn it off\" - under a red banner saying none were left.\n"
+            "description": "Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.\nUntil this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - \"make new recovery codes\" and \"turn it off\" - under a red banner saying none were left.\n"
           },
           "recovery_codes_remaining": {
             "type": "integer",
             "description": "How many of the ten recovery codes are still usable, answered on `GET /accounts/me` and on nothing else. **Present exactly when `has_second_factor` is true**, and then zero is answered as zero, because there zero is the number to act on. Absent where there is nothing to count: an account holding no second factor, or an installation wired without one. Its codes are not \"zero left\" - they are a thing that does not exist yet, and a screen told zero sends somebody to make codes the server would refuse to make.\nThe same number rides along with a sign-in, where nobody can act on it; here it is beside the account, which is where the screen that makes new ones is.\n"
+          },
+          "has_authenticator_app": {
+            "type": "boolean",
+            "description": "Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.\n"
+          },
+          "authenticator_app_removable": {
+            "type": "boolean",
+            "description": "Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.\n"
           },
           "second_factor_required": {
             "type": "boolean",
@@ -17930,7 +18008,8 @@
           "id",
           "name",
           "created_at",
-          "last_used_at"
+          "last_used_at",
+          "rp_id"
         ],
         "properties": {
           "id": {
@@ -17954,6 +18033,26 @@
             ],
             "format": "date-time",
             "description": "When it last signed in or gave a fresh proof; null until it has."
+          },
+          "rp_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The host it was made for. Where it is not the list's `rp_id` - the workspace moved to another address, or the account was restored into another workspace - it opens nothing here, counts as no second factor, and can always be removed. Null for one made before the host was recorded, which counts as this workspace's.\n"
+          }
+        }
+      },
+      "PasskeyRename": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "What the person calls it, 1 to 64 characters."
           }
         }
       },
@@ -17963,6 +18062,7 @@
           "passkeys",
           "limit",
           "can_add",
+          "can_remove",
           "rp_id"
         ],
         "properties": {
@@ -17987,6 +18087,18 @@
             "enum": [
               "auth.passkey_limit_reached",
               "auth.passkey_unavailable",
+              "auth.step_up_no_method"
+            ]
+          },
+          "can_remove": {
+            "type": "boolean",
+            "description": "Whether removing one of the passkeys of this workspace's address would be accepted now. False where it is the last second factor the account holds and the workspace's rule requires one of this person, and where the account holds nothing to give the fresh proof with. A passkey of another address can always be removed.\n"
+          },
+          "cannot_remove_reason": {
+            "type": "string",
+            "description": "Present where `can_remove` is false - the message code saying why.",
+            "enum": [
+              "auth.mfa_required_by_tenant",
               "auth.step_up_no_method"
             ]
           },

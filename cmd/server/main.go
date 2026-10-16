@@ -501,6 +501,16 @@ func run() error {
 		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
+		// A passkey is a second factor as the app is (identity.md §23.2), counted where turning the
+		// app off and the codes ask. In the literal: every writer below is a copy of this one.
+		Keys: identity.PasskeyKeys{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+		},
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
 		StepUpWindow: cfg.StepUpWindow,
 		Encryptor:    encryptor,
@@ -1406,6 +1416,7 @@ func run() error {
 		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
 		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
 		StepUp:       stepUpVerifier,
+		WayIn:        wayInNotices,
 	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
@@ -1504,6 +1515,7 @@ func run() error {
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+			Keys:     sessionWriter.Keys,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
@@ -1737,6 +1749,8 @@ func run() error {
 		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
 		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
+		identity.RemoveOwnPasskey{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),

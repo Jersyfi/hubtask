@@ -1385,6 +1385,18 @@ func (pending) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Reques
 	notAvailable(w, r)
 }
 
+// RenameOwnPasskey is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RenameOwnPasskey(w http.ResponseWriter, r *http.Request, _ openapi.PasskeyId) {
+	notAvailable(w, r)
+}
+
+// RemoveOwnPasskey is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RemoveOwnPasskey(
+	w http.ResponseWriter, r *http.Request, _ openapi.PasskeyId, _ openapi.RemoveOwnPasskeyParams,
+) {
+	notAvailable(w, r)
+}
+
 // The installation's own backup targets (backup-restore.md §2).
 func (pending) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)

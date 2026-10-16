@@ -62,6 +62,28 @@ func (s *passkeyStore) Insert(_ context.Context, credential domain.PasskeyCreden
 	return true, nil
 }
 
+func (s *passkeyStore) Rename(
+	_ context.Context, accountID, id shared.ID, name string,
+) (domain.PasskeyCredential, error) {
+	for i := range s.held {
+		if s.held[i].ID == id && s.held[i].AccountID == accountID {
+			s.held[i].Name = name
+			return s.held[i], nil
+		}
+	}
+	return domain.PasskeyCredential{}, shared.ErrNotFound.WithDetail("auth.passkey_not_found")
+}
+
+func (s *passkeyStore) Remove(_ context.Context, accountID, id shared.ID) (bool, error) {
+	for i := range s.held {
+		if s.held[i].ID == id && s.held[i].AccountID == accountID {
+			s.held = append(s.held[:i], s.held[i+1:]...)
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // challengeStore keeps registrations' challenges, spending them as the statement does.
 type challengeStore struct {
 	issued []issuedChallenge
@@ -188,6 +210,8 @@ func (f *passkeyFixture) register(t *testing.T) {
 		ListOwnPasskeys{Writer: f.writer}.Descriptor(),
 		StartPasskeyRegistration{Writer: f.writer}.Descriptor(),
 		CompletePasskeyRegistration{Writer: f.writer}.Descriptor(),
+		RenameOwnPasskey{Writer: f.writer}.Descriptor(),
+		RemoveOwnPasskey{Writer: f.writer}.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("registering: %v", err)
@@ -315,6 +339,18 @@ func relyingPartyOf(t *testing.T, f *passkeyFixture) (relyingParty, bool) {
 		t.Fatal(err)
 	}
 	return party, ok
+}
+
+// A token reads the list only where it may read its holder's account.
+func TestATokenWithoutAccountsReadDoesNotListPasskeys(t *testing.T) {
+	f := newPasskeyFixture(t)
+	actor := signedInActor()
+	actor.Scopes = []string{"items:read"}
+	_, err := f.list(t, actor)
+	refusedWith(t, err, "access.insufficient_scope")
+	if descriptor, _ := f.registry.Lookup(ListOwnPasskeysName); descriptor.TokenScope != accountsRead {
+		t.Errorf("token scope %q", descriptor.TokenScope)
+	}
 }
 
 func TestOnlyAPersonHoldsPasskeys(t *testing.T) {

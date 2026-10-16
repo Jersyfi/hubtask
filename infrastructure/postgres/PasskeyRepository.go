@@ -118,11 +118,57 @@ func (PasskeyRepository) Insert(ctx context.Context, credential identity.Passkey
 		Transports:     transports,
 		Name:           credential.Name,
 		CreatedAt:      timestampOf(credential.CreatedAt),
+		RpID:           optionalText(credential.RPID),
 	})
 	if err != nil {
 		return false, passkeyQueryFailed("keeping a passkey", err)
 	}
 	return written > 0, nil
+}
+
+func (PasskeyRepository) Rename(
+	ctx context.Context, accountID, id shared.ID, name string,
+) (identity.PasskeyCredential, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	credential, err := uuidOf(id)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	row, err := queries.RenamePasskey(ctx, sqlc.RenamePasskeyParams{ID: credential, AccountID: account, Name: name})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return identity.PasskeyCredential{}, shared.ErrNotFound.WithDetail("auth.passkey_not_found")
+	}
+	if err != nil {
+		return identity.PasskeyCredential{}, passkeyQueryFailed("renaming a passkey", err)
+	}
+	return passkeyOf(row)
+}
+
+func (PasskeyRepository) Remove(ctx context.Context, accountID, id shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	credential, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	removed, err := queries.RemovePasskey(ctx, sqlc.RemovePasskeyParams{ID: credential, AccountID: account})
+	if err != nil {
+		return false, passkeyQueryFailed("removing a passkey", err)
+	}
+	return removed > 0, nil
 }
 
 func passkeyOf(row sqlc.WebauthnCredential) (identity.PasskeyCredential, error) {
@@ -148,6 +194,7 @@ func passkeyOf(row sqlc.WebauthnCredential) (identity.PasskeyCredential, error) 
 		UserHandle: row.UserHandle, BackupEligible: row.BackupEligible, BackedUp: row.BackedUp,
 		Transports: row.Transports, Name: row.Name,
 		CreatedAt: timeFrom(row.CreatedAt), LastUsedAt: timeFrom(row.LastUsedAt),
+		RPID: textFrom(row.RpID),
 	}, nil
 }
 

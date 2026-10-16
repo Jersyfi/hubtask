@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { PasskeyRegistrationOptions } from '@hubtask/sync-engine';
+import type { PasskeyList, PasskeyRegistrationOptions } from '@hubtask/sync-engine';
 
 import {
   canCreatePasskeys,
@@ -15,7 +15,10 @@ import {
   creationOptionsOf,
   fromBase64Url,
   isAtRelyingParty,
+  isStale,
+  nameFits,
   registrationOf,
+  removalOf,
   suggestedName,
   toBase64Url,
 } from './passkeys.ts';
@@ -113,4 +116,33 @@ test('the suggested name counts on past the names already taken', () => {
   assert.equal(suggestedName('Passkey', []), 'Passkey 1');
   assert.equal(suggestedName('Passkey', [{ name: 'iPhone' }]), 'Passkey 2');
   assert.equal(suggestedName('Passkey', [{ name: 'Passkey 2' }]), 'Passkey 3');
+});
+
+test('a name fits as the server counts it: code points after trimming, never blank', () => {
+  assert.equal(nameFits('  Laptop at work '), true);
+  assert.equal(nameFits('   '), false);
+  assert.equal(nameFits('ä'.repeat(64)), true);
+  assert.equal(nameFits('ä'.repeat(65)), false);
+  // Sixty-four emoji are 128 UTF-16 units and still a name that fits.
+  assert.equal(nameFits('🔑'.repeat(64)), true);
+  assert.equal(nameFits('🔑'.repeat(65)), false);
+});
+
+const list: PasskeyList = { passkeys: [], limit: 10, can_add: true, can_remove: true, rp_id: 'acme.hubtask.example' };
+
+test('a passkey of another address is stale; one without a recorded host is not', () => {
+  assert.equal(isStale({ rp_id: 'old.acme.example' }, list), true);
+  assert.equal(isStale({ rp_id: 'acme.hubtask.example' }, list), false);
+  assert.equal(isStale({ rp_id: null }, list), false);
+});
+
+test('Remove is offered exactly where the server would let it pass, and the reason stands in its place', () => {
+  const current = { rp_id: 'acme.hubtask.example' };
+  const stale = { rp_id: 'old.acme.example' };
+  assert.deepEqual(removalOf(current, list), { offered: true });
+  const lastRequired: PasskeyList = { ...list, can_remove: false, cannot_remove_reason: 'auth.mfa_required_by_tenant' };
+  assert.deepEqual(removalOf(current, lastRequired), { offered: false, reason: 'auth.mfa_required_by_tenant' });
+  assert.deepEqual(removalOf(stale, lastRequired), { offered: true }, 'a stale key is no factor and always goes');
+  const noProof: PasskeyList = { ...list, can_remove: false, cannot_remove_reason: 'auth.step_up_no_method' };
+  assert.deepEqual(removalOf(stale, noProof), { offered: false, reason: 'auth.step_up_no_method' });
 });

@@ -150,7 +150,7 @@ class Mfa {
     let answer: Confirmed | undefined;
     const ok = await this.#attempt(async () => {
       // Invalidating nothing, on purpose. The default re-reads every open resource, `/accounts/me`
-      // among them, and the answer now says `has_second_factor: true` - which is what the profile
+      // among them, and the answer now says `has_authenticator_app: true` - which is what the profile
       // switches its panel on, so the ten codes the setup still has to show were torn down with it
       // before anybody saw them. The caller re-reads the account at *Continue* instead.
       answer = await engine.mutate<Confirmed>(

@@ -2786,19 +2786,37 @@ func (e PasskeyDescriptorType) Valid() bool {
 
 // Defines values for PasskeyListCannotAddReason.
 const (
-	AuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
-	AuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
-	AuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
+	PasskeyListCannotAddReasonAuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
+	PasskeyListCannotAddReasonAuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
+	PasskeyListCannotAddReasonAuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
 )
 
 // Valid indicates whether the value is a known member of the PasskeyListCannotAddReason enum.
 func (e PasskeyListCannotAddReason) Valid() bool {
 	switch e {
-	case AuthPasskeyLimitReached:
+	case PasskeyListCannotAddReasonAuthPasskeyLimitReached:
 		return true
-	case AuthPasskeyUnavailable:
+	case PasskeyListCannotAddReasonAuthPasskeyUnavailable:
 		return true
-	case AuthStepUpNoMethod:
+	case PasskeyListCannotAddReasonAuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotRemoveReason.
+const (
+	PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant PasskeyListCannotRemoveReason = "auth.mfa_required_by_tenant"
+	PasskeyListCannotRemoveReasonAuthStepUpNoMethod      PasskeyListCannotRemoveReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotRemoveReason enum.
+func (e PasskeyListCannotRemoveReason) Valid() bool {
+	switch e {
+	case PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant:
+		return true
+	case PasskeyListCannotRemoveReasonAuthStepUpNoMethod:
 		return true
 	default:
 		return false
@@ -4621,6 +4639,9 @@ type AccessTokenSecret struct {
 
 // Account defines model for Account.
 type Account struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -4629,10 +4650,13 @@ type Account struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -7005,6 +7029,9 @@ type InvitationSummary struct {
 
 // InvitedAccount defines model for InvitedAccount.
 type InvitedAccount struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -7013,10 +7040,13 @@ type InvitedAccount struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -8002,6 +8032,9 @@ type Passkey struct {
 
 	// Name The name the person gave it.
 	Name string `json:"name"`
+
+	// RpId The host it was made for. Where it is not the list's `rp_id` - the workspace moved to another address, or the account was restored into another workspace - it opens nothing here, counts as no second factor, and can always be removed. Null for one made before the host was recorded, which counts as this workspace's.
+	RpId *string `json:"rp_id"`
 }
 
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
@@ -8072,8 +8105,14 @@ type PasskeyList struct {
 	// CanAdd Whether starting to add another would be accepted now.
 	CanAdd bool `json:"can_add"`
 
+	// CanRemove Whether removing one of the passkeys of this workspace's address would be accepted now. False where it is the last second factor the account holds and the workspace's rule requires one of this person, and where the account holds nothing to give the fresh proof with. A passkey of another address can always be removed.
+	CanRemove bool `json:"can_remove"`
+
 	// CannotAddReason Present where `can_add` is false - the message code saying why.
 	CannotAddReason *PasskeyListCannotAddReason `json:"cannot_add_reason,omitempty"`
+
+	// CannotRemoveReason Present where `can_remove` is false - the message code saying why.
+	CannotRemoveReason *PasskeyListCannotRemoveReason `json:"cannot_remove_reason,omitempty"`
 
 	// Limit The most an account may hold.
 	Limit    int       `json:"limit"`
@@ -8085,6 +8124,9 @@ type PasskeyList struct {
 
 // PasskeyListCannotAddReason Present where `can_add` is false - the message code saying why.
 type PasskeyListCannotAddReason string
+
+// PasskeyListCannotRemoveReason Present where `can_remove` is false - the message code saying why.
+type PasskeyListCannotRemoveReason string
 
 // PasskeyRegistered defines model for PasskeyRegistered.
 type PasskeyRegistered struct {
@@ -8118,6 +8160,12 @@ type PasskeyRegistrationOptions struct {
 	// ExpiresAt When the challenge stops being accepted.
 	ExpiresAt time.Time              `json:"expires_at"`
 	PublicKey PasskeyCreationOptions `json:"public_key"`
+}
+
+// PasskeyRename defines model for PasskeyRename.
+type PasskeyRename struct {
+	// Name What the person calls it, 1 to 64 characters.
+	Name string `json:"name"`
 }
 
 // PasskeyTransport defines model for PasskeyTransport.
@@ -10590,6 +10638,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// PasskeyId defines model for PasskeyId.
+type PasskeyId = openapi_types.UUID
+
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
@@ -10622,6 +10673,12 @@ type WebhookId = openapi_types.UUID
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveOwnPasskeyParams defines parameters for RemoveOwnPasskey.
+type RemoveOwnPasskeyParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -11752,6 +11809,9 @@ type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 // StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
 type StartProviderConnectJSONRequestBody = ProviderConnectStart
 
+// RenameOwnPasskeyJSONRequestBody defines body for RenameOwnPasskey for application/json ContentType.
+type RenameOwnPasskeyJSONRequestBody = PasskeyRename
+
 // CompletePasskeyRegistrationJSONRequestBody defines body for CompletePasskeyRegistration for application/json ContentType.
 type CompletePasskeyRegistrationJSONRequestBody = PasskeyRegistration
 
@@ -12207,6 +12267,12 @@ type ServerInterface interface {
 	// ListOwnPasskeys The passkeys and security keys the caller's account holds
 	// (GET /accounts/me/passkeys)
 	ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
+	// RemoveOwnPasskey Remove one of the caller's passkeys or security keys
+	// (DELETE /accounts/me/passkeys/{passkeyId})
+	RemoveOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyId PasskeyId, params RemoveOwnPasskeyParams)
+	// RenameOwnPasskey Rename one of the caller's passkeys or security keys
+	// (PATCH /accounts/me/passkeys/{passkeyId})
+	RenameOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyId PasskeyId)
 	// CompletePasskeyRegistration Finish adding a passkey or a security key to the caller's account
 	// (POST /accounts/me/passkeys:complete)
 	CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request)
@@ -13271,6 +13337,82 @@ func (siw *ServerInterfaceWrapper) ListOwnPasskeys(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListOwnPasskeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOwnPasskey operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOwnPasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "passkeyId" -------------
+	var passkeyId PasskeyId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "passkeyId", r.PathValue("passkeyId"), &passkeyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "passkeyId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveOwnPasskeyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOwnPasskey(w, r, passkeyId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameOwnPasskey operation middleware
+func (siw *ServerInterfaceWrapper) RenameOwnPasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "passkeyId" -------------
+	var passkeyId PasskeyId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "passkeyId", r.PathValue("passkeyId"), &passkeyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "passkeyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameOwnPasskey(w, r, passkeyId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24770,6 +24912,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/passkeys", wrapper.ListOwnPasskeys)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:start", wrapper.StartPasskeyRegistration)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:complete", wrapper.CompletePasskeyRegistration)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RemoveOwnPasskey)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RenameOwnPasskey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)

@@ -863,6 +863,14 @@ class Client:
         """Finish adding a passkey or a security key to the caller's account"""
         return self._call("POST", "/accounts/me/passkeys:complete", {}, None, {}, body, "json", "application/json", "json")
 
+    def rename_own_passkey(self, passkey_id: str, body: "PasskeyRename") -> "Passkey":
+        """Rename one of the caller's passkeys or security keys"""
+        return self._call("PATCH", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_own_passkey(self, passkey_id: str, *, step_up: str | None = None) -> None:
+        """Remove one of the caller's passkeys or security keys"""
+        return self._call("DELETE", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
+
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")

@@ -72,6 +72,17 @@ type PasskeyWriter struct {
 	Installation PasskeyInstallation
 	// StepUp is the fresh proof adding asks for (identity.md §23.2). Nil refuses, as everywhere.
 	StepUp stepup.Verifier
+	// WayIn tells the person that a passkey was added or removed (ADR-0078 §6). Nil where the
+	// installation has no mail server; set in the literal that builds the writer.
+	WayIn WayInNotices
+}
+
+// told queues the notice of a changed way in, inside the caller's transaction.
+func (w PasskeyWriter) told(ctx context.Context, actor appshared.ActorContext, event domain.WayInEvent, at time.Time) error {
+	if w.WayIn == nil {
+		return nil
+	}
+	return w.WayIn.WayInChanged(ctx, actor.TenantID, actor.AccountID, domain.WayInChange{Event: event, At: at})
 }
 
 // relyingParty is a workspace's relying party with the name its options carry.
@@ -80,43 +91,17 @@ type relyingParty struct {
 	Name string
 }
 
+// party is the writer's relying party, derived as the factor rules derive it.
+func (w PasskeyWriter) party() PasskeyParty {
+	return PasskeyParty{
+		Workspaces: w.Workspaces, Hosts: w.Hosts, Installation: w.Installation, Domains: w.Session.Domains,
+	}
+}
+
 // relyingParty answers the workspace's relying party, inside a transaction bound to it; false where
 // the installation has no public address.
 func (w PasskeyWriter) relyingParty(ctx context.Context) (relyingParty, bool, error) {
-	workspace, err := w.Workspaces.Find(ctx)
-	if err != nil {
-		return relyingParty{}, false, err
-	}
-	host := domain.CanonicalHostOf(workspace.Slug, w.Installation.Host, w.Installation.Multi)
-	if w.Installation.Host == "" {
-		host = ""
-	}
-	if w.Hosts != nil {
-		hosts, err := w.Hosts.List(ctx)
-		if err != nil {
-			return relyingParty{}, false, err
-		}
-		for _, candidate := range hosts {
-			if candidate.Canonical && candidate.State == domain.HostActive {
-				host = candidate.Host
-				break
-			}
-		}
-	}
-	if host != "" && w.Session.Domains != nil {
-		ascii, err := w.Session.Domains.ToASCII(host)
-		if err != nil {
-			return relyingParty{}, false, nil
-		}
-		host = ascii
-	}
-	rpID, origin, ok := domain.PasskeyRelyingParty(host, w.Installation.Scheme, w.Installation.Port)
-	if !ok {
-		return relyingParty{}, false, nil
-	}
-	return relyingParty{
-		RelyingParty: passkey.RelyingParty{ID: rpID, Origin: origin}, Name: workspace.DisplayName,
-	}, true, nil
+	return w.party().of(ctx)
 }
 
 // passkeyPerson admits a person acting for themselves, and nobody else: a machine holds tokens
@@ -191,6 +176,15 @@ func (w PasskeyWriter) withMethods(
 	return decided, nil
 }
 
+// provable is whether the account can give the fresh proof adding and removing ask for.
+func (w PasskeyWriter) provable(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if w.StepUp == nil || !w.StepUp.Available() {
+		return false, nil
+	}
+	methods, err := w.StepUp.Methods(ctx, actor.TenantID, actor.AccountID)
+	return len(methods) > 0, err
+}
+
 // refusal is the reason as starting answers it.
 func (a addability) refusal() error {
 	switch a.reason {
@@ -214,6 +208,11 @@ type OwnPasskeys struct {
 	CannotAddReason string
 	// RPID is the host the workspace's passkeys belong to, empty where there is none.
 	RPID string
+	// CanRemove is whether removing one of the passkeys of the workspace's address would be accepted
+	// now, and CannotRemoveReason the message code saying why not - the condition RemoveOwnPasskey
+	// asks before the proof (P-05). One of another address always goes.
+	CanRemove          bool
+	CannotRemoveReason string
 }
 
 // OwnPasskey is one credential as its holder sees it: never its identifier, key or handle.
@@ -222,12 +221,14 @@ type OwnPasskey struct {
 	Name       string
 	CreatedAt  time.Time
 	LastUsedAt time.Time
+	// RPID is the host it was made for; empty where it was not recorded.
+	RPID string
 }
 
 func ownPasskeyOf(credential domain.PasskeyCredential) OwnPasskey {
 	return OwnPasskey{
 		ID: credential.ID, Name: credential.Name,
-		CreatedAt: credential.CreatedAt, LastUsedAt: credential.LastUsedAt,
+		CreatedAt: credential.CreatedAt, LastUsedAt: credential.LastUsedAt, RPID: credential.RPID,
 	}
 }
 
@@ -239,11 +240,26 @@ func (h ListOwnPasskeys) Execute(ctx context.Context, actor appshared.ActorConte
 	if err := passkeyPerson(actor); err != nil {
 		return OwnPasskeys{}, err
 	}
+	// A read of one's own account, bounded as GetOwnAccount is: a token minted for items reads no
+	// list of its holder's ways in.
+	if err := actor.RequireScope(accountsRead); err != nil {
+		return OwnPasskeys{}, err
+	}
 	w := h.Writer
-	var decided addability
-	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	verdict, err := w.Session.ownVerdict(ctx, actor)
+	if err != nil {
+		return OwnPasskeys{}, err
+	}
+	var (
+		decided  addability
+		removing removal
+	)
+	err = w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		decided, err = w.addable(ctx, actor)
+		if decided, err = w.addable(ctx, actor); err != nil {
+			return err
+		}
+		removing, err = w.decideRemoval(ctx, actor, verdict, "")
 		return err
 	})
 	if err != nil {
@@ -253,9 +269,20 @@ func (h ListOwnPasskeys) Execute(ctx context.Context, actor appshared.ActorConte
 	if err != nil {
 		return OwnPasskeys{}, err
 	}
+	provable, err := w.provable(ctx, actor)
+	if err != nil {
+		return OwnPasskeys{}, err
+	}
 	listed := OwnPasskeys{
 		Passkeys: make([]OwnPasskey, 0, len(decided.held)),
 		CanAdd:   decided.possible(), CannotAddReason: decided.reason, RPID: decided.party.ID,
+		CanRemove: true,
+	}
+	switch {
+	case removing.factor.Keys > 0 && removing.refusal() != nil:
+		listed.CanRemove, listed.CannotRemoveReason = false, codeFactorRequired
+	case !provable:
+		listed.CanRemove, listed.CannotRemoveReason = false, codeStepUpNoMethod
 	}
 	for _, credential := range decided.held {
 		listed.Passkeys = append(listed.Passkeys, ownPasskeyOf(credential))
@@ -274,6 +301,7 @@ func (h ListOwnPasskeys) Descriptor() usecase.Descriptor {
 			"name, when it was added and when it was last used, never its identifier or key - and " +
 			"whether another can be added now, with the reason where not.",
 		SideEffects: "None. Reads only.",
+		TokenScope:  accountsRead,
 		ReadOnly:    true,
 		Audit: usecase.AuditDeclaration{
 			// The caller's own records: nothing to refuse beyond the credential, nothing to record.
@@ -293,9 +321,13 @@ func (h ListOwnPasskeys) Descriptor() usecase.Descriptor {
 			}
 			out := usecase.Output{
 				"data": data, "limit": domain.MaxPasskeys, "can_add": listed.CanAdd, "rp_id": listed.RPID,
+				"can_remove": listed.CanRemove,
 			}
 			if listed.CannotAddReason != "" {
 				out["cannot_add_reason"] = listed.CannotAddReason
+			}
+			if listed.CannotRemoveReason != "" {
+				out["cannot_remove_reason"] = listed.CannotRemoveReason
 			}
 			return out, nil
 		}),
@@ -308,6 +340,9 @@ func ownPasskeyOutput(each OwnPasskey) usecase.Output {
 	}
 	if !each.LastUsedAt.IsZero() {
 		out["last_used_at"] = each.LastUsedAt.UTC()
+	}
+	if each.RPID != "" {
+		out["rp_id"] = each.RPID
 	}
 	return out
 }
@@ -635,7 +670,7 @@ func (h CompletePasskeyRegistration) Execute(
 			CredentialID: verified.ID, PublicKey: verified.PublicKey, Algorithm: verified.Algorithm,
 			SignCount: verified.SignCount, UserHandle: spent.UserHandle,
 			BackupEligible: verified.BackupEligible, BackedUp: verified.BackedUp,
-			Transports: verified.Transports, Name: name, CreatedAt: now,
+			Transports: verified.Transports, Name: name, CreatedAt: now, RPID: party.ID,
 		}
 		written, err := w.Passkeys.Insert(ctx, credential)
 		if err != nil {
@@ -659,9 +694,12 @@ func (h CompletePasskeyRegistration) Execute(
 				added.RecoveryCodes = append(added.RecoveryCodes, secret.New(code))
 			}
 		}
-		return s.recordMfaAudit(ctx, PasskeyAddedAction, audit.SeverityNotice, domain.Account{
+		if err := s.recordMfaAudit(ctx, PasskeyAddedAction, audit.SeverityNotice, domain.Account{
 			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
-		}, now)
+		}, now); err != nil {
+			return err
+		}
+		return w.told(ctx, actor, domain.WayInPasskeyAdded, now)
 	})
 	if err != nil {
 		return AddedPasskey{}, err

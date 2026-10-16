@@ -1510,7 +1510,8 @@ INSERT INTO webauthn_credential (
   transports,
   name,
   created_at,
-  last_used_at
+  last_used_at,
+  rp_id
 )
 SELECT
   r.id,
@@ -1526,7 +1527,8 @@ SELECT
   r.transports,
   r.name,
   r.created_at,
-  r.last_used_at
+  r.last_used_at,
+  r.rp_id
 FROM jsonb_populate_record(
   NULL::webauthn_credential,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1549,7 +1551,8 @@ ON CONFLICT (id) DO UPDATE SET
   transports = EXCLUDED.transports,
   name = EXCLUDED.name,
   created_at = EXCLUDED.created_at,
-  last_used_at = EXCLUDED.last_used_at
+  last_used_at = EXCLUDED.last_used_at,
+  rp_id = EXCLUDED.rp_id
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsPasskey :one
