@@ -302,8 +302,10 @@ never rows — the boundary is a database policy, not a role.
 
 ## 4.2 Plans
 
-**Decided for milestone PL, not built** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md);
-the owner, 2026-10-15). Until PL's tasks merge, §4 and §4.1 describe what runs: no plan level.
+**Decided for milestone PL** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md); the
+owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace and
+provisioning on a plan. Not built yet: the resolution, the entitlements, the people limit and the
+account link - until they merge, §4 and §4.1 describe what a workspace meets.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's

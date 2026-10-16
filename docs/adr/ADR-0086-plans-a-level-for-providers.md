@@ -1,6 +1,6 @@
 # ADR-0086 — Plans, a level for providers
 
-**Status:** proposed · **Date:** 2026-10-15
+**Status:** accepted · **Date:** 2026-10-15
 
 **Rule lives in:** [multi-tenancy.md](../architecture/multi-tenancy.md) §4.2, §4.3,
 [identity.md](../architecture/identity.md) §18

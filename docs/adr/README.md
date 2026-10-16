@@ -118,4 +118,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0083](./ADR-0083-a-merge-without-catching-up.md) | A pull request merges without catching up with `main` | accepted | CI, process |
 | [0084](./ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md) | The first major's shells cost nothing to ship | accepted | Clients, release |
 | [0085](./ADR-0085-passkeys-verified-in-house.md) | Passkeys, verified in-house | accepted | Identity, security |
-| [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | proposed | Tenancy, administration |
+| [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | accepted | Tenancy, administration |
