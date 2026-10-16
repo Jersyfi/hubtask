@@ -2835,6 +2835,27 @@ func (e PasskeyTransport) Valid() bool {
 	}
 }
 
+// Defines values for PlanFeature.
+const (
+	AUTOMATIONRULES    PlanFeature = "AUTOMATION_RULES"
+	OWNSIGNINPROVIDERS PlanFeature = "OWN_SIGN_IN_PROVIDERS"
+	WEBHOOKS           PlanFeature = "WEBHOOKS"
+)
+
+// Valid indicates whether the value is a known member of the PlanFeature enum.
+func (e PlanFeature) Valid() bool {
+	switch e {
+	case AUTOMATIONRULES:
+		return true
+	case OWNSIGNINPROVIDERS:
+		return true
+	case WEBHOOKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -4773,6 +4794,9 @@ type AdminTenant struct {
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
 
@@ -4780,6 +4804,9 @@ type AdminTenant struct {
 	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
 	Slug           string            `json:"slug"`
 	Status         AdminTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -8244,6 +8271,57 @@ type PasswordViolation struct {
 	Rule string `json:"rule"`
 }
 
+// Plan defines model for Plan.
+type Plan struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	CreatedAt   time.Time                   `json:"created_at"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name      string                      `json:"name"`
+	Quotas    *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn    *map[string]InstanceSetting `json:"sign_in,omitempty"`
+	UpdatedAt time.Time                   `json:"updated_at"`
+	Version   int                         `json:"version"`
+
+	// Workspaces How many workspaces are on the plan.
+	Workspaces int `json:"workspaces"`
+}
+
+// PlanChange What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan").
+type PlanChange struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+	Quotas  *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn  *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanCreate A new plan - its short name and what it decides, as PlanChange.
+type PlanCreate struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name   string                      `json:"name"`
+	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanFeature defines model for PlanFeature.
+type PlanFeature string
+
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
 
@@ -8426,6 +8504,9 @@ type ProvisionedTenant struct {
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
 
@@ -8433,6 +8514,9 @@ type ProvisionedTenant struct {
 	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
 	Slug           string                  `json:"slug"`
 	Status         ProvisionedTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -9842,6 +9926,25 @@ type TenantExportRequest struct {
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
+// TenantPlanMove defines model for TenantPlanMove.
+type TenantPlanMove struct {
+	// ExpectedVersion The workspace's version as last read; a stale one is refused.
+	ExpectedVersion *int `json:"expected_version,omitempty"`
+
+	// Plan The plan's short name, or null for none.
+	Plan *string `json:"plan"`
+}
+
+// TenantPlanMoved defines model for TenantPlanMoved.
+type TenantPlanMoved struct {
+	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
+	ExceptionsKept []string `json:"exceptions_kept"`
+
+	// FeaturesResting The features the workspace's plan now leaves out.
+	FeaturesResting []PlanFeature `json:"features_resting"`
+	Tenant          AdminTenant   `json:"tenant"`
+}
+
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
 	DefaultLocale    *string             `json:"default_locale,omitempty"`
@@ -9849,6 +9952,9 @@ type TenantProvision struct {
 	DisplayName      string              `json:"display_name"`
 	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
 	OwnerEmail       openapi_types.Email `json:"owner_email"`
+
+	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
+	Plan *string `json:"plan,omitempty"`
 
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
@@ -10598,6 +10704,18 @@ type ListInstanceJournalParams struct {
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// CreatePlanParams defines parameters for CreatePlan.
+type CreatePlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangePlanParams defines parameters for ChangePlan.
+type ChangePlanParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -10608,6 +10726,12 @@ type ProvisionTenantParams struct {
 type RequestTenantDeletionParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// MoveTenantPlanParams defines parameters for MoveTenantPlan.
+type MoveTenantPlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
@@ -11670,6 +11794,12 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
+type CreatePlanJSONRequestBody = PlanCreate
+
+// ChangePlanJSONRequestBody defines body for ChangePlan for application/json ContentType.
+type ChangePlanJSONRequestBody = PlanChange
+
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
@@ -11684,6 +11814,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
+
+// MoveTenantPlanJSONRequestBody defines body for MoveTenantPlan for application/json ContentType.
+type MoveTenantPlanJSONRequestBody = TenantPlanMove
 
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
@@ -12173,6 +12306,21 @@ type ServerInterface interface {
 	// ReadInstanceOverview How big this installation is and how its workspaces stand
 	// (GET /admin/overview)
 	ReadInstanceOverview(w http.ResponseWriter, r *http.Request)
+	// ListPlans The installation's plans
+	// (GET /admin/plans)
+	ListPlans(w http.ResponseWriter, r *http.Request)
+	// CreatePlan Create a plan
+	// (POST /admin/plans)
+	CreatePlan(w http.ResponseWriter, r *http.Request, params CreatePlanParams)
+	// RemovePlan Remove a plan
+	// (DELETE /admin/plans/{planName})
+	RemovePlan(w http.ResponseWriter, r *http.Request, planName string)
+	// ReadPlan One plan
+	// (GET /admin/plans/{planName})
+	ReadPlan(w http.ResponseWriter, r *http.Request, planName string)
+	// ChangePlan Replace a plan's values
+	// (PUT /admin/plans/{planName})
+	ChangePlan(w http.ResponseWriter, r *http.Request, planName string, params ChangePlanParams)
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	// (GET /admin/settings)
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
@@ -12200,6 +12348,9 @@ type ServerInterface interface {
 	// ExportTenant Export a workspace whole
 	// (POST /admin/tenants/{tenantId}:export)
 	ExportTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// MoveTenantPlan Put a workspace on another plan
+	// (POST /admin/tenants/{tenantId}:move-plan)
+	MoveTenantPlan(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params MoveTenantPlanParams)
 	// OpenTenantPassword Open the password for one workspace
 	// (POST /admin/tenants/{tenantId}:open-password)
 	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
@@ -14148,6 +14299,163 @@ func (siw *ServerInterfaceWrapper) ReadInstanceOverview(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListPlans operation middleware
+func (siw *ServerInterfaceWrapper) ListPlans(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlans(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlan operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreatePlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlan(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemovePlan operation middleware
+func (siw *ServerInterfaceWrapper) RemovePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemovePlan(w, r, planName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPlan operation middleware
+func (siw *ServerInterfaceWrapper) ReadPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPlan(w, r, planName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePlan operation middleware
+func (siw *ServerInterfaceWrapper) ChangePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePlan(w, r, planName, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadInstanceSettings operation middleware
 func (siw *ServerInterfaceWrapper) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -14376,6 +14684,56 @@ func (siw *ServerInterfaceWrapper) ExportTenant(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveTenantPlan operation middleware
+func (siw *ServerInterfaceWrapper) MoveTenantPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveTenantPlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveTenantPlan(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24376,6 +24734,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets/{targetId}:test", wrapper.TestInstanceBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans", wrapper.ListPlans)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/plans", wrapper.CreatePlan)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.RemovePlan)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ReadPlan)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ChangePlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)

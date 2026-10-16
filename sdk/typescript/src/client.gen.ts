@@ -904,6 +904,36 @@ export class HubtaskClient {
     return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The installation's plans */
+  listPlans(options: CallOptions = {}): Promise<operations["listPlans"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a plan */
+  createPlan(body: NonNullable<operations["createPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["createPlan"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/plans", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One plan */
+  readPlan(planName: string, options: CallOptions = {}): Promise<operations["readPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a plan's values */
+  changePlan(planName: string, body: NonNullable<operations["changePlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changePlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/plans/{planName}", { "planName": planName }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a plan */
+  removePlan(planName: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Put a workspace on another plan */
+  moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Who operates this installation */
   listOperators(options: CallOptions = {}): Promise<operations["listOperators"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/operators", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

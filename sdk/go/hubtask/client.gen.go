@@ -2841,6 +2841,27 @@ func (e PasskeyTransport) Valid() bool {
 	}
 }
 
+// Defines values for PlanFeature.
+const (
+	AUTOMATIONRULES    PlanFeature = "AUTOMATION_RULES"
+	OWNSIGNINPROVIDERS PlanFeature = "OWN_SIGN_IN_PROVIDERS"
+	WEBHOOKS           PlanFeature = "WEBHOOKS"
+)
+
+// Valid indicates whether the value is a known member of the PlanFeature enum.
+func (e PlanFeature) Valid() bool {
+	switch e {
+	case AUTOMATIONRULES:
+		return true
+	case OWNSIGNINPROVIDERS:
+		return true
+	case WEBHOOKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -4779,6 +4800,9 @@ type AdminTenant struct {
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
 
@@ -4786,6 +4810,9 @@ type AdminTenant struct {
 	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
 	Slug           string            `json:"slug"`
 	Status         AdminTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
@@ -8250,6 +8277,57 @@ type PasswordViolation struct {
 	Rule string `json:"rule"`
 }
 
+// Plan defines model for Plan.
+type Plan struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	CreatedAt   time.Time                   `json:"created_at"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name      string                      `json:"name"`
+	Quotas    *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn    *map[string]InstanceSetting `json:"sign_in,omitempty"`
+	UpdatedAt time.Time                   `json:"updated_at"`
+	Version   int                         `json:"version"`
+
+	// Workspaces How many workspaces are on the plan.
+	Workspaces int `json:"workspaces"`
+}
+
+// PlanChange What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan").
+type PlanChange struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+	Quotas  *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn  *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanCreate A new plan - its short name and what it decides, as PlanChange.
+type PlanCreate struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name   string                      `json:"name"`
+	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanFeature defines model for PlanFeature.
+type PlanFeature string
+
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
 
@@ -8432,6 +8510,9 @@ type ProvisionedTenant struct {
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
 
@@ -8439,6 +8520,9 @@ type ProvisionedTenant struct {
 	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
 	Slug           string                  `json:"slug"`
 	Status         ProvisionedTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -9848,6 +9932,25 @@ type TenantExportRequest struct {
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
+// TenantPlanMove defines model for TenantPlanMove.
+type TenantPlanMove struct {
+	// ExpectedVersion The workspace's version as last read; a stale one is refused.
+	ExpectedVersion *int `json:"expected_version,omitempty"`
+
+	// Plan The plan's short name, or null for none.
+	Plan *string `json:"plan"`
+}
+
+// TenantPlanMoved defines model for TenantPlanMoved.
+type TenantPlanMoved struct {
+	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
+	ExceptionsKept []string `json:"exceptions_kept"`
+
+	// FeaturesResting The features the workspace's plan now leaves out.
+	FeaturesResting []PlanFeature `json:"features_resting"`
+	Tenant          AdminTenant   `json:"tenant"`
+}
+
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
 	DefaultLocale    *string             `json:"default_locale,omitempty"`
@@ -9855,6 +9958,9 @@ type TenantProvision struct {
 	DisplayName      string              `json:"display_name"`
 	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
 	OwnerEmail       openapi_types.Email `json:"owner_email"`
+
+	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
+	Plan *string `json:"plan,omitempty"`
 
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
@@ -10604,6 +10710,18 @@ type ListInstanceJournalParams struct {
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// CreatePlanParams defines parameters for CreatePlan.
+type CreatePlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangePlanParams defines parameters for ChangePlan.
+type ChangePlanParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -10614,6 +10732,12 @@ type ProvisionTenantParams struct {
 type RequestTenantDeletionParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// MoveTenantPlanParams defines parameters for MoveTenantPlan.
+type MoveTenantPlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
@@ -11676,6 +11800,12 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
+type CreatePlanJSONRequestBody = PlanCreate
+
+// ChangePlanJSONRequestBody defines body for ChangePlan for application/json ContentType.
+type ChangePlanJSONRequestBody = PlanChange
+
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
@@ -11690,6 +11820,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
+
+// MoveTenantPlanJSONRequestBody defines body for MoveTenantPlan for application/json ContentType.
+type MoveTenantPlanJSONRequestBody = TenantPlanMove
 
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
@@ -12850,6 +12983,61 @@ type ClientInterface interface {
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverview(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPlans The installation's plans
+	//
+	// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
+	//
+	// Corresponds with GET /admin/plans (the `ListPlans` operationId).
+	ListPlans(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlanWithBody Create a plan
+	//
+	// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+	CreatePlanWithBody(ctx context.Context, params *CreatePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlan Create a plan
+	//
+	// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+	CreatePlan(ctx context.Context, params *CreatePlanParams, body CreatePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemovePlan Remove a plan
+	//
+	// Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no more, and its short name stays taken.
+	//
+	// Corresponds with DELETE /admin/plans/{planName} (the `RemovePlan` operationId).
+	RemovePlan(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPlan One plan
+	//
+	// Corresponds with GET /admin/plans/{planName} (the `ReadPlan` operationId).
+	ReadPlan(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePlanWithBody Replace a plan's values
+	//
+	// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+	ChangePlanWithBody(ctx context.Context, planName string, params *ChangePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePlan Replace a plan's values
+	//
+	// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+	ChangePlan(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	//
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -12973,6 +13161,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 	ExportTenant(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveTenantPlanWithBody Put a workspace on another plan
+	//
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+	MoveTenantPlanWithBody(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MoveTenantPlan Put a workspace on another plan
+	//
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+	MoveTenantPlan(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, body MoveTenantPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// OpenTenantPasswordWithBody Open the password for one workspace
 	//
@@ -17842,6 +18048,131 @@ func (c *Client) ReadInstanceOverview(ctx context.Context, reqEditors ...Request
 	return c.Client.Do(req)
 }
 
+// ListPlans The installation's plans
+//
+// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
+//
+// Corresponds with GET /admin/plans (the `ListPlans` operationId).
+func (c *Client) ListPlans(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPlansRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlanWithBody Create a plan
+//
+// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+func (c *Client) CreatePlanWithBody(ctx context.Context, params *CreatePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlanRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlan Create a plan
+//
+// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+func (c *Client) CreatePlan(ctx context.Context, params *CreatePlanParams, body CreatePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlanRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemovePlan Remove a plan
+//
+// Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no more, and its short name stays taken.
+//
+// Corresponds with DELETE /admin/plans/{planName} (the `RemovePlan` operationId).
+func (c *Client) RemovePlan(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemovePlanRequest(c.Server, planName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPlan One plan
+//
+// Corresponds with GET /admin/plans/{planName} (the `ReadPlan` operationId).
+func (c *Client) ReadPlan(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPlanRequest(c.Server, planName)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePlanWithBody Replace a plan's values
+//
+// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+func (c *Client) ChangePlanWithBody(ctx context.Context, planName string, params *ChangePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePlanRequestWithBody(c.Server, planName, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePlan Replace a plan's values
+//
+// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+func (c *Client) ChangePlan(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePlanRequest(c.Server, planName, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadInstanceSettings What this installation has decided for every workspace on it
 //
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -18096,6 +18427,44 @@ func (c *Client) ExportTenantWithBody(ctx context.Context, tenantId AdminTenantI
 // Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 func (c *Client) ExportTenant(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExportTenantRequest(c.Server, tenantId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveTenantPlanWithBody Put a workspace on another plan
+//
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+func (c *Client) MoveTenantPlanWithBody(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveTenantPlanRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MoveTenantPlan Put a workspace on another plan
+//
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+func (c *Client) MoveTenantPlan(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, body MoveTenantPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMoveTenantPlanRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -27255,6 +27624,218 @@ func NewReadInstanceOverviewRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewListPlansRequest constructs an http.Request for the ListPlans method
+func NewListPlansRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/plans")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePlanRequest calls the generic CreatePlan builder with application/json body
+func NewCreatePlanRequest(server string, params *CreatePlanParams, body CreatePlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePlanRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreatePlanRequestWithBody constructs an http.Request for the CreatePlan method, with any body, and a specified content type
+func NewCreatePlanRequestWithBody(server string, params *CreatePlanParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/plans")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRemovePlanRequest constructs an http.Request for the RemovePlan method
+func NewRemovePlanRequest(server string, planName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planName", planName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPlanRequest constructs an http.Request for the ReadPlan method
+func NewReadPlanRequest(server string, planName string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planName", planName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangePlanRequest calls the generic ChangePlan builder with application/json body
+func NewChangePlanRequest(server string, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangePlanRequestWithBody(server, planName, params, "application/json", bodyReader)
+}
+
+// NewChangePlanRequestWithBody constructs an http.Request for the ChangePlan method, with any body, and a specified content type
+func NewChangePlanRequestWithBody(server string, planName string, params *ChangePlanParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "planName", planName, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/plans/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReadInstanceSettingsRequest constructs an http.Request for the ReadInstanceSettings method
 func NewReadInstanceSettingsRequest(server string) (*http.Request, error) {
 	var err error
@@ -27624,6 +28205,68 @@ func NewExportTenantRequestWithBody(server string, tenantId AdminTenantId, conte
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMoveTenantPlanRequest calls the generic MoveTenantPlan builder with application/json body
+func NewMoveTenantPlanRequest(server string, tenantId AdminTenantId, params *MoveTenantPlanParams, body MoveTenantPlanJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMoveTenantPlanRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewMoveTenantPlanRequestWithBody constructs an http.Request for the MoveTenantPlan method, with any body, and a specified content type
+func NewMoveTenantPlanRequestWithBody(server string, tenantId AdminTenantId, params *MoveTenantPlanParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:move-plan", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -41518,6 +42161,67 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverviewWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceOverviewResult, error)
 
+	// ListPlansWithResponse The installation's plans
+	//
+	// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/plans (the `ListPlans` operationId).
+	ListPlansWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPlansResult, error)
+
+	// CreatePlanWithBodyWithResponse Create a plan
+	//
+	// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+	CreatePlanWithBodyWithResponse(ctx context.Context, params *CreatePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlanResult, error)
+
+	// CreatePlanWithResponse Create a plan
+	//
+	// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+	CreatePlanWithResponse(ctx context.Context, params *CreatePlanParams, body CreatePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlanResult, error)
+
+	// RemovePlanWithResponse Remove a plan
+	//
+	// Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no more, and its short name stays taken.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/plans/{planName} (the `RemovePlan` operationId).
+	RemovePlanWithResponse(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*RemovePlanResult, error)
+
+	// ReadPlanWithResponse One plan
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/plans/{planName} (the `ReadPlan` operationId).
+	ReadPlanWithResponse(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*ReadPlanResult, error)
+
+	// ChangePlanWithBodyWithResponse Replace a plan's values
+	//
+	// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+	ChangePlanWithBodyWithResponse(ctx context.Context, planName string, params *ChangePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePlanResult, error)
+
+	// ChangePlanWithResponse Replace a plan's values
+	//
+	// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+	ChangePlanWithResponse(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePlanResult, error)
+
 	// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 	//
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -41649,6 +42353,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:export (the `ExportTenant` operationId).
 	ExportTenantWithResponse(ctx context.Context, tenantId AdminTenantId, body ExportTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportTenantResult, error)
+
+	// MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
+	//
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+	MoveTenantPlanWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveTenantPlanResult, error)
+
+	// MoveTenantPlanWithResponse Put a workspace on another plan
+	//
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+	MoveTenantPlanWithResponse(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, body MoveTenantPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveTenantPlanResult, error)
 
 	// OpenTenantPasswordWithBodyWithResponse Open the password for one workspace
 	//
@@ -47455,6 +48177,264 @@ func (r ReadInstanceOverviewResult) ContentType() string {
 	return ""
 }
 
+type ListPlansResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []Plan `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPlansResult) GetJSON200() *struct {
+	Data []Plan `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPlansResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPlansResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPlansResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPlansResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPlansResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CreatePlanResult201Headers the declared response headers of an HTTP 201 response for CreatePlan
+type CreatePlanResult201Headers struct {
+	ETag *string
+}
+
+type CreatePlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Plan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreatePlanResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePlanResult) GetJSON201() *Plan {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemovePlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemovePlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemovePlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemovePlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemovePlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemovePlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ReadPlanResult200Headers the declared response headers of an HTTP 200 response for ReadPlan
+type ReadPlanResult200Headers struct {
+	ETag *string
+}
+
+type ReadPlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Plan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReadPlanResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPlanResult) GetJSON200() *Plan {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ChangePlanResult200Headers the declared response headers of an HTTP 200 response for ChangePlan
+type ChangePlanResult200Headers struct {
+	ETag *string
+}
+
+type ChangePlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Plan
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ChangePlanResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangePlanResult) GetJSON200() *Plan {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangePlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangePlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangePlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangePlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangePlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadInstanceSettingsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -47874,6 +48854,54 @@ func (r ExportTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ExportTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MoveTenantPlanResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TenantPlanMoved
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MoveTenantPlanResult) GetJSON200() *TenantPlanMoved {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MoveTenantPlanResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MoveTenantPlanResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MoveTenantPlanResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MoveTenantPlanResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MoveTenantPlanResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -62341,6 +63369,109 @@ func (c *ClientWithResponses) ReadInstanceOverviewWithResponse(ctx context.Conte
 	return ParseReadInstanceOverviewResult(rsp)
 }
 
+// ListPlansWithResponse The installation's plans
+//
+// Every plan not removed, oldest first, each with its values in the installation level's shape, the features it leaves out and the number of workspaces on it. A plan holds only what it decides; the rest falls through to the installation. Plans exist in multi mode only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a provider's platform sells plans and puts workspaces on them.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/plans (the `ListPlans` operationId).
+func (c *ClientWithResponses) ListPlansWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPlansResult, error) {
+	rsp, err := c.ListPlans(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPlansResult(rsp)
+}
+
+// CreatePlanWithBodyWithResponse Create a plan
+//
+// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+func (c *ClientWithResponses) CreatePlanWithBodyWithResponse(ctx context.Context, params *CreatePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlanResult, error) {
+	rsp, err := c.CreatePlanWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlanResult(rsp)
+}
+
+// CreatePlanWithResponse Create a plan
+//
+// A short name that never changes and is never reused, even after the plan is removed - it is what a provider's platform maps its products to. A value is refused where the installation locks it (`admin.plan_under_installation_lock`) or where it is looser than the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/plans (the `CreatePlan` operationId).
+func (c *ClientWithResponses) CreatePlanWithResponse(ctx context.Context, params *CreatePlanParams, body CreatePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlanResult, error) {
+	rsp, err := c.CreatePlan(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlanResult(rsp)
+}
+
+// RemovePlanWithResponse Remove a plan
+//
+// Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no more, and its short name stays taken.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/plans/{planName} (the `RemovePlan` operationId).
+func (c *ClientWithResponses) RemovePlanWithResponse(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*RemovePlanResult, error) {
+	rsp, err := c.RemovePlan(ctx, planName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemovePlanResult(rsp)
+}
+
+// ReadPlanWithResponse One plan
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/plans/{planName} (the `ReadPlan` operationId).
+func (c *ClientWithResponses) ReadPlanWithResponse(ctx context.Context, planName string, reqEditors ...RequestEditorFn) (*ReadPlanResult, error) {
+	rsp, err := c.ReadPlan(ctx, planName, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPlanResult(rsp)
+}
+
+// ChangePlanWithBodyWithResponse Replace a plan's values
+//
+// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+func (c *ClientWithResponses) ChangePlanWithBodyWithResponse(ctx context.Context, planName string, params *ChangePlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePlanResult, error) {
+	rsp, err := c.ChangePlanWithBody(ctx, planName, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePlanResult(rsp)
+}
+
+// ChangePlanWithResponse Replace a plan's values
+//
+// A `PUT`, as the installation's level is: a value the body does not name is no longer decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it was read is refused with `version_conflict`. The change applies to every workspace on the plan at its next request; nothing is copied into a workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
+func (c *ClientWithResponses) ChangePlanWithResponse(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePlanResult, error) {
+	rsp, err := c.ChangePlan(ctx, planName, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePlanResult(rsp)
+}
+
 // ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 //
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -62555,6 +63686,36 @@ func (c *ClientWithResponses) ExportTenantWithResponse(ctx context.Context, tena
 		return nil, err
 	}
 	return ParseExportTenantResult(rsp)
+}
+
+// MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
+//
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+func (c *ClientWithResponses) MoveTenantPlanWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveTenantPlanResult, error) {
+	rsp, err := c.MoveTenantPlanWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveTenantPlanResult(rsp)
+}
+
+// MoveTenantPlanWithResponse Put a workspace on another plan
+//
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:move-plan (the `MoveTenantPlan` operationId).
+func (c *ClientWithResponses) MoveTenantPlanWithResponse(ctx context.Context, tenantId AdminTenantId, params *MoveTenantPlanParams, body MoveTenantPlanJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveTenantPlanResult, error) {
+	rsp, err := c.MoveTenantPlan(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMoveTenantPlanResult(rsp)
 }
 
 // OpenTenantPasswordWithBodyWithResponse Open the password for one workspace
@@ -70143,6 +71304,208 @@ func ParseReadInstanceOverviewResult(rsp *http.Response) (*ReadInstanceOverviewR
 	return response, nil
 }
 
+// ParseListPlansResult parses an HTTP response from a ListPlansWithResponse call
+func ParseListPlansResult(rsp *http.Response) (*ListPlansResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPlansResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []Plan `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePlanResult parses an HTTP response from a CreatePlanWithResponse call
+func ParseCreatePlanResult(rsp *http.Response) (*CreatePlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Plan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreatePlanResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseRemovePlanResult parses an HTTP response from a RemovePlanWithResponse call
+func ParseRemovePlanResult(rsp *http.Response) (*RemovePlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemovePlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPlanResult parses an HTTP response from a ReadPlanWithResponse call
+func ParseReadPlanResult(rsp *http.Response) (*ReadPlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Plan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReadPlanResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseChangePlanResult parses an HTTP response from a ChangePlanWithResponse call
+func ParseChangePlanResult(rsp *http.Response) (*ChangePlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangePlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Plan
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ChangePlanResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseReadInstanceSettingsResult parses an HTTP response from a ReadInstanceSettingsWithResponse call
 func ParseReadInstanceSettingsResult(rsp *http.Response) (*ReadInstanceSettingsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -70423,6 +71786,39 @@ func ParseExportTenantResult(rsp *http.Response) (*ExportTenantResult, error) {
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMoveTenantPlanResult parses an HTTP response from a MoveTenantPlanWithResponse call
+func ParseMoveTenantPlanResult(rsp *http.Response) (*MoveTenantPlanResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MoveTenantPlanResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TenantPlanMoved
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

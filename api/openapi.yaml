@@ -4686,6 +4686,152 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/plans:
+    get:
+      tags: [admin]
+      operationId: listPlans
+      summary: The installation's plans
+      description: >
+        Every plan not removed, oldest first, each with its values in the installation level's
+        shape, the features it leaves out and the number of workspaces on it. A plan holds only
+        what it decides; the rest falls through to the installation. Plans exist in multi mode
+        only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a
+        provider's platform sells plans and puts workspaces on them.
+      responses:
+        "200":
+          description: The plans
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createPlan
+      summary: Create a plan
+      description: >
+        A short name that never changes and is never reused, even after the plan is removed -
+        it is what a provider's platform maps its products to. A value is refused where the
+        installation locks it (`admin.plan_under_installation_lock`) or where it is looser than
+        the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation
+        (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanCreate" }
+      responses:
+        "201":
+          description: The plan
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/plans/{planName}:
+    parameters:
+      - name: planName
+        in: path
+        required: true
+        description: The plan's short name.
+        schema: { type: string }
+    get:
+      tags: [admin]
+      operationId: readPlan
+      summary: One plan
+      responses:
+        "200":
+          description: The plan
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [admin]
+      operationId: changePlan
+      summary: Replace a plan's values
+      description: >
+        A `PUT`, as the installation's level is: a value the body does not name is no longer
+        decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it
+        was read is refused with `version_conflict`. The change applies to every workspace on the
+        plan at its next request; nothing is copied into a workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanChange" }
+      responses:
+        "200":
+          description: The plan as it now stands
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: removePlan
+      summary: Remove a plan
+      description: >
+        Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no
+        more, and its short name stays taken.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:move-plan:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: moveTenantPlan
+      summary: Put a workspace on another plan
+      description: >
+        Applies at the workspace's next request, with no job. `plan: null` takes the workspace
+        off plans: it has the installation's values and every feature again. With
+        `expected_version`, a move made on a workspace that changed since it was read is refused
+        with `version_conflict`, so a late retry of an older move cannot undo a newer one;
+        repeated under one `Idempotency-Key` it moves once and answers the same. The answer names
+        the features that now rest and the limit exceptions that stay. Nothing is deleted.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantPlanMove" }
+      responses:
+        "200":
+          description: The workspace on its plan
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantPlanMoved" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/operators:
     get:
       tags: [admin]
@@ -12379,6 +12525,14 @@ components:
         default_locale: { type: string }
         default_time_zone: { type: string }
         created_at: { type: string, format: date-time }
+        plan:
+          type: [string, "null"]
+          description: The short name of the workspace's plan, null for none.
+        version:
+          type: integer
+          description: >
+            The workspace's version: it grows with every change to the workspace, by the control
+            plane or by its own administrators. A move names it to refuse a stale one.
         purge_after:
           type: [string, "null"]
           format: date-time
@@ -12703,6 +12857,109 @@ components:
           type: integer
           description: How many workspaces were given a re-sealing job.
 
+    PlanFeature:
+      type: string
+      enum: [AUTOMATION_RULES, WEBHOOKS, OWN_SIGN_IN_PROVIDERS]
+
+    PlanChange:
+      type: object
+      description: >
+        What a plan decides, in the installation level's shape: each area maps a key to
+        `{value, locked}`, and a key the plan does not name falls through to the installation.
+        A lock here holds every workspace on the plan to the value ("Set by your plan").
+      required: [display_name]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        legal:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        quotas:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        ai:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        left_out:
+          type: array
+          description: >
+            The features the plan leaves out. Each rests while left out - it stops running and
+            keeps everything it holds - and comes back when included again. Export, deletion,
+            access requests, language, time zone, accessibility and every door are no such feature.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+
+    PlanCreate:
+      type: object
+      description: A new plan - its short name and what it decides, as PlanChange.
+      required: [name, display_name]
+      properties:
+        name:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,39}$"
+          description: The short name, which never changes and is never reused.
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        legal:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        quotas:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        ai:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        left_out:
+          type: array
+          description: >
+            The features the plan leaves out. Each rests while left out - it stops running and
+            keeps everything it holds - and comes back when included again. Export, deletion,
+            access requests, language, time zone, accessibility and every door are no such feature.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+
+    Plan:
+      allOf:
+        - $ref: "#/components/schemas/PlanCreate"
+        - type: object
+          required: [version, workspaces, created_at, updated_at]
+          properties:
+            version: { type: integer }
+            workspaces:
+              type: integer
+              description: How many workspaces are on the plan.
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    TenantPlanMove:
+      type: object
+      required: [plan]
+      properties:
+        plan:
+          type: [string, "null"]
+          description: The plan's short name, or null for none.
+        expected_version:
+          type: integer
+          description: The workspace's version as last read; a stale one is refused.
+
+    TenantPlanMoved:
+      type: object
+      required: [tenant, features_resting, exceptions_kept]
+      properties:
+        tenant: { $ref: "#/components/schemas/AdminTenant" }
+        features_resting:
+          type: array
+          description: The features the workspace's plan now leaves out.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+        exceptions_kept:
+          type: array
+          description: >
+            The limits for which the workspace keeps an operator's exception: an exception stays
+            the last word, so a platform that sold an add-on sets it again where it should change.
+          items: { type: string }
+
     TenantProvision:
       type: object
       required: [slug, display_name, owner_email]
@@ -12716,6 +12973,11 @@ components:
         default_time_zone: { type: [string, "null"] }
         owner_email: { type: string, format: email, maxLength: 254 }
         owner_display_name: { type: [string, "null"], maxLength: 200 }
+        plan:
+          type: [string, "null"]
+          description: >
+            The short name of the plan the workspace starts on, or none. An unknown or removed
+            plan is refused before anything is written.
 
     ProvisionedTenant:
       allOf:

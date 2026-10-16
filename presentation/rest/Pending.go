@@ -210,6 +210,27 @@ func (pending) ProvisionTenant(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
+// The plans (multi-tenancy.md §4.2).
+func (pending) ListPlans(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePlan(w http.ResponseWriter, r *http.Request, _ openapi.CreatePlanParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPlan(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) ChangePlan(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangePlanParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemovePlan(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) MoveTenantPlan(
+	w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.MoveTenantPlanParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) SuspendTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
 	notAvailable(w, r)
 }

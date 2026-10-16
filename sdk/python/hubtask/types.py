@@ -876,6 +876,8 @@ class AdminTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
@@ -959,6 +961,49 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
+PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
+
+class PlanChange(TypedDict, total=False):
+    """What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan")."""
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class PlanCreate(TypedDict, total=False):
+    """A new plan - its short name and what it decides, as PlanChange."""
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class Plan(TypedDict, total=False):
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+    version: Required[int]
+    workspaces: Required[int]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class TenantPlanMove(TypedDict, total=False):
+    plan: Required[str | None]
+    expected_version: int
+
+class TenantPlanMoved(TypedDict, total=False):
+    tenant: Required["AdminTenant"]
+    features_resting: Required[list["PlanFeature"]]
+    exceptions_kept: Required[list[str]]
+
 class TenantProvision(TypedDict, total=False):
     slug: Required[str]
     display_name: Required[str]
@@ -966,6 +1011,7 @@ class TenantProvision(TypedDict, total=False):
     default_time_zone: str | None
     owner_email: Required[str]
     owner_display_name: str | None
+    plan: str | None
 
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
@@ -975,6 +1021,8 @@ class ProvisionedTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
