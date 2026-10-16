@@ -1090,6 +1090,52 @@ func (q *Queries) ExportNotificationPreferences(ctx context.Context, arg ExportN
 	return items, nil
 }
 
+const exportPasskeys = `-- name: ExportPasskeys :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM webauthn_credential x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPasskeysParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPasskeysRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Exported whole: a passkey changes only by its counter and its last use, and no column says when.
+func (q *Queries) ExportPasskeys(ctx context.Context, arg ExportPasskeysParams) ([]ExportPasskeysRow, error) {
+	rows, err := q.db.Query(ctx, exportPasskeys, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPasskeysRow{}
+	for rows.Next() {
+		var i ExportPasskeysRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPrivateHubAccesses = `-- name: ExportPrivateHubAccesses :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

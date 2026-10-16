@@ -177,7 +177,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-19](./identity/UC-ID-19-agree-to-the-terms.md) | Agree to the terms, and again when they change | identity | built |
 | [UC-ID-20](./identity/UC-ID-20-give-someone-an-account-without-an-address.md) | Give a family member an account without their own mail address | identity | built |
 | [UC-ID-21](./identity/UC-ID-21-sign-in-with-a-passkey.md) | Sign in with a passkey | identity | specified |
-| [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity | specified |
+| [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity | partial |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin | verified |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin | built |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |

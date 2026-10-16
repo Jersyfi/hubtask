@@ -1039,6 +1039,21 @@ export class HubtaskClient {
     return this.call("POST", "/accounts/me/identities:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The passkeys and security keys the caller's account holds */
+  listOwnPasskeys(options: CallOptions = {}): Promise<operations["listOwnPasskeys"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/passkeys", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin adding a passkey or a security key to the caller's account */
+  startPasskeyRegistration(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startPasskeyRegistration"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:start", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Finish adding a passkey or a security key to the caller's account */
+  completePasskeyRegistration(body: NonNullable<operations["completePasskeyRegistration"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeyRegistration"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The emergency accesses the caller was told of in the last 30 days */
   listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

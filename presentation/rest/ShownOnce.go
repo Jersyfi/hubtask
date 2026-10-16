@@ -55,6 +55,7 @@ var ShownOnceRoutes = map[string]bool{
 var ShownOnceByHandler = map[string]string{
 	http.MethodPost + " " + APIBasePath + "/accounts:invite":                       "the link only where no mail is sent",
 	http.MethodPost + " " + APIBasePath + "/accounts/{accountId}:renew-invitation": "the link only where no mail is sent",
+	http.MethodPost + " " + APIBasePath + "/accounts/me/passkeys:complete":         "the recovery codes only for the account's first factor",
 }
 
 // ShownOnceKept are the operations whose answer carries a credential and whose replay record still

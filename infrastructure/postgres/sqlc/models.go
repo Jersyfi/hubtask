@@ -603,6 +603,8 @@ type AuthPending struct {
 	ArrivalEmail       *string
 	ArrivalDisplayName *string
 	ArrivalDirectory   *string
+	SessionID          pgtype.UUID
+	UserHandle         []byte
 }
 
 type AutoAssignPolicy struct {
@@ -1517,6 +1519,23 @@ type UsageRecord struct {
 	Period   pgtype.Date
 	Metric   string
 	Value    int64
+}
+
+type WebauthnCredential struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	AccountID      pgtype.UUID
+	CredentialID   []byte
+	PublicKey      []byte
+	Algorithm      int32
+	SignCount      int64
+	UserHandle     []byte
+	BackupEligible bool
+	BackedUp       bool
+	Transports     []string
+	Name           string
+	CreatedAt      pgtype.Timestamptz
+	LastUsedAt     pgtype.Timestamptz
 }
 
 type WebhookDelivery struct {

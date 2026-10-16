@@ -621,13 +621,13 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
-request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
-such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, connecting a provider from a
-session (§11), a private hub's emergency access (§22), and every write of §6 (bearer door), §8–§9,
-§10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's
-erasures carried out again after a point-in-time recovery, and configuring or removing one of the
-installation's own backup targets (backup-restore.md §2).
+request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
+a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
+/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding a
+passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
+(bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
+configuring or removing one of the installation's own backup targets (backup-restore.md §2).
 
 ---
 
@@ -884,9 +884,12 @@ role given while the last member leaves is seen.
 
 ## 23. Passkeys and security keys
 
-**Decided for milestone PK, not built** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md);
-the owner, 2026-10-15). Until PK's tasks merge, §2, §8 and §16.1 describe what runs: one second
-factor, the authenticator app.
+**Decided for milestone PK** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md); the owner,
+2026-10-15). **Built:** adding one (§23.2's limit, recovery codes and step-up, §23.3, §23.5) - the
+`webauthn_credential` table, the verifier in `infrastructure/webauthn`, `ListOwnPasskeys`,
+`StartPasskeyRegistration` and `CompletePasskeyRegistration`. **Not yet:** renaming and removing, a
+key counted as the second factor, signing in, the step-up and the setup with one; until they are,
+§2, §8 and §16.1 describe what runs: one second factor, the authenticator app.
 
 ### 23.1 One credential, two strengths
 
@@ -917,7 +920,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Rule | Detail |
 |---|---|
 | RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). |
-| Origin | `https://` and that host (the configured public port where it is not 443); any other origin is refused. Neither the shells' webview origin nor a localhost origin outside development passes; the shells' path is F7's. |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
@@ -942,7 +945,10 @@ A credential that once answered with UV and later without is held to the ceremon
 
 ### 23.5 What travels
 
-* A backup keeps the credentials, a tenant export strips them as it strips every credential, and an
-  erased account loses them with the account (`CASCADE`).
+* A data backup keeps the credentials, so a restore leaves people their way in; a tenant export and
+  a person's export strip them as they strip every credential
+  ([tenant-export.md](./tenant-export.md) §9) — a passkey leaves by its name and dates, without
+  identifier, key or handle, and an import skips it; an erased account loses them in every mode —
+  with the account (`CASCADE`) where it is deleted, with its tokens where it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.

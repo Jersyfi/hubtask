@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13, P-16]
-state: specified
+state: partial
 tasks: [PK-01, PK-02, PK-04]
-checked_by: []
+checked_by: [core/application/service/identity/Passkey_test.go, core/domain/model/identity/Passkey_test.go, test/integration/passkey_test.go, infrastructure/webauthn/Registration_test.go, infrastructure/webauthn/Captured_test.go, apps/webapp/e2e/passkeys.test.mjs, docs/evidence/PK-01-2026-10-16.md]
 ---
 
 # Manage my passkeys and security keys
@@ -56,11 +56,9 @@ tells her that a way into her account was removed.
 
 ## Today
 
-* Check 1: not met — the profile has no passkeys; tracked in PK-01.
-* Check 2: not met — PK-01.
-* Check 3: not met — PK-01.
+* Check 1: not met in full — the last use is written once a passkey signs in or proves; PK-03, PK-04.
+* Check 2: not met in full — the name is chosen when adding; changing it afterwards is PK-02.
 * Check 4: not met — PK-02.
 * Check 5: not met — the profile counts the authenticator app only; PK-02.
-* Check 6: not met — PK-01.
 * Check 7: not met — PK-02.
 * Check 8: not met — the setup during sign-in offers the authenticator app only; PK-04.

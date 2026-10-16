@@ -827,6 +827,18 @@ class Client:
         """Finish connecting a sign-in provider to the caller's account"""
         return self._call("POST", "/accounts/me/identities:complete", {}, None, {}, body, "json", "application/json", "json")
 
+    def list_own_passkeys(self) -> "PasskeyList":
+        """The passkeys and security keys the caller's account holds"""
+        return self._call("GET", "/accounts/me/passkeys", {}, None, {}, None, "none", None, "json")
+
+    def start_passkey_registration(self, *, step_up: str | None = None) -> "PasskeyRegistrationOptions":
+        """Begin adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:start", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def complete_passkey_registration(self, body: "PasskeyRegistration") -> "PasskeyRegistered":
+        """Finish adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:complete", {}, None, {}, body, "json", "application/json", "json")
+
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
