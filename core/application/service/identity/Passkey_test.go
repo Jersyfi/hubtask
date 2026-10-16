@@ -317,6 +317,18 @@ func relyingPartyOf(t *testing.T, f *passkeyFixture) (relyingParty, bool) {
 	return party, ok
 }
 
+// A token reads the list only where it may read its holder's account.
+func TestATokenWithoutAccountsReadDoesNotListPasskeys(t *testing.T) {
+	f := newPasskeyFixture(t)
+	actor := signedInActor()
+	actor.Scopes = []string{"items:read"}
+	_, err := f.list(t, actor)
+	refusedWith(t, err, "access.insufficient_scope")
+	if descriptor, _ := f.registry.Lookup(ListOwnPasskeysName); descriptor.TokenScope != accountsRead {
+		t.Errorf("token scope %q", descriptor.TokenScope)
+	}
+}
+
 func TestOnlyAPersonHoldsPasskeys(t *testing.T) {
 	f := newPasskeyFixture(t)
 	for _, kind := range []appshared.ActorKind{

@@ -239,6 +239,11 @@ func (h ListOwnPasskeys) Execute(ctx context.Context, actor appshared.ActorConte
 	if err := passkeyPerson(actor); err != nil {
 		return OwnPasskeys{}, err
 	}
+	// A read of one's own account, bounded as GetOwnAccount is: a token minted for items reads no
+	// list of its holder's ways in.
+	if err := actor.RequireScope(accountsRead); err != nil {
+		return OwnPasskeys{}, err
+	}
 	w := h.Writer
 	var decided addability
 	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -274,6 +279,7 @@ func (h ListOwnPasskeys) Descriptor() usecase.Descriptor {
 			"name, when it was added and when it was last used, never its identifier or key - and " +
 			"whether another can be added now, with the reason where not.",
 		SideEffects: "None. Reads only.",
+		TokenScope:  accountsRead,
 		ReadOnly:    true,
 		Audit: usecase.AuditDeclaration{
 			// The caller's own records: nothing to refuse beyond the credential, nothing to record.

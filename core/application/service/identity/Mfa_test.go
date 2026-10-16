@@ -324,6 +324,8 @@ func signedInActor() appshared.ActorContext {
 	return appshared.ActorContext{
 		Kind: shared.ActorUser, TenantID: tenant, AccountID: account,
 		AccountName: "Bert", TokenID: sessionRowID,
+		// What a session carries: every scope of its holder (identity.md §15.4).
+		Scopes: []string{accountsRead, accountRead},
 	}
 }
 
