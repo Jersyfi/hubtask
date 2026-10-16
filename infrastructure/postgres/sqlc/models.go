@@ -1512,6 +1512,7 @@ type Tenant struct {
 	PasswordOpenedReason    *string
 	StatusBeforeDeletion    *TenantStatus
 	PurgeStartedAt          pgtype.Timestamptz
+	ExternalReference       *string
 }
 
 type TenantHost struct {

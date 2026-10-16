@@ -77,6 +77,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 |---|---|---|
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Sign-in before a credential exists (§3) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
+| `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
