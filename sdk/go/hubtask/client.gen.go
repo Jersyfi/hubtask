@@ -15476,7 +15476,7 @@ type ClientInterface interface {
 
 	// AiClassifyWithBody Ask AI to propose labels for this entry
 	//
-	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -15485,7 +15485,7 @@ type ClientInterface interface {
 
 	// AiClassify Ask AI to propose labels for this entry
 	//
-	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -23400,7 +23400,7 @@ func (c *Client) AutoAssignWorkItem(ctx context.Context, itemId ItemId, params *
 
 // AiClassifyWithBody Ask AI to propose labels for this entry
 //
-// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 //
 // Takes any type of body and a specified content type.
 //
@@ -23419,7 +23419,7 @@ func (c *Client) AiClassifyWithBody(ctx context.Context, itemId ItemId, contentT
 
 // AiClassify Ask AI to propose labels for this entry
 //
-// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -45388,7 +45388,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiClassifyWithBodyWithResponse Ask AI to propose labels for this entry
 	//
-	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45397,7 +45397,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiClassifyWithResponse Ask AI to propose labels for this entry
 	//
-	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+	// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -68598,7 +68598,7 @@ func (c *ClientWithResponses) AutoAssignWorkItemWithResponse(ctx context.Context
 
 // AiClassifyWithBodyWithResponse Ask AI to propose labels for this entry
 //
-// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -68613,7 +68613,7 @@ func (c *ClientWithResponses) AiClassifyWithBodyWithResponse(ctx context.Context
 
 // AiClassifyWithResponse Ask AI to propose labels for this entry
 //
-// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.
+// Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
