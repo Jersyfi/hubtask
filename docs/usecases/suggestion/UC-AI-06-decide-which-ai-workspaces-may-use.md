@@ -6,7 +6,7 @@ actors: [PE-operator, PE-platform]
 deployments: [D4, D5, D6, D7]
 serves: [P-06, P-07, P-08, P-14, P-15]
 state: verified
-tasks: [SC-11, SC-12]
+tasks: [SC-11, SC-12, PL-03]
 checked_by: [core/domain/model/integration/AiSource_test.go, core/application/service/admin/InstanceAi_test.go, core/application/service/integration/AiSource_test.go, test/integration/offered_ai_resolver_test.go, apps/webapp/e2e/instanceai.test.mjs, test/integration/installation_rotation_test.go, test/integration/ai_budget_source_test.go, core/application/service/quota/OwnAiBudget_test.go, cmd/hubctl/AiOffered_test.go, apps/webapp/src/lib/navigation.test.ts, docs/evidence/SC-15-D1-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md]
 ---
 

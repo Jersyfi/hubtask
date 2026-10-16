@@ -5,8 +5,8 @@ context: admin
 actors: [PE-operator, PE-owner, PE-admin]
 deployments: [D5, D6, D7]
 serves: [P-03, P-07, P-11]
-state: built
-tasks: [H-08, SI-17]
+state: partial
+tasks: [H-08, SI-17, PL-03, PL-04]
 checked_by: [core/application/service/admin/Quotas_test.go]
 ---
 
@@ -14,7 +14,7 @@ checked_by: [core/application/service/admin/Quotas_test.go]
 
 ## Goal
 
-An operator sets ceilings — entries, storage, requests, automation runs, AI budget — for every
+An operator sets ceilings — people, entries, storage, requests, automation runs, AI budget — for every
 workspace and exceptions for single ones; a workspace sees its limits and its use before it hits
 one, and hitting one never deletes anything.
 
@@ -34,8 +34,17 @@ limit, the next new entry is refused with a sentence naming the limit; everythin
 3. Reaching a limit refuses the next creation with the limit named; nothing existing is removed or
    hidden.
 4. A workspace's administrators see use and limit side by side; they cannot change the limit.
+5. The people limit counts active and managed accounts and open invitations, never service
+   accounts; at the limit the next invitation, managed account and account a provider would create
+   on a first sign-in are refused with the limit named, and nobody existing is disabled, removed or
+   hidden. It is unlimited unless an operator sets it.
 
 ## Where it ends
 
 * No warnings by mail at 80 %; telling a platform is UC-INS-14.
-* No prices ([NG-billing](../../vision/non-goals.md)).
+* No prices ([NG-billing](../../vision/non-goals.md)); a link to the provider's own page is
+  UC-INS-13's.
+
+## Today
+
+* Check 5: not met — there is no limit on people.

@@ -221,6 +221,11 @@ operation checks cannot exist; `GET /meta/capabilities` and the contract list th
   session raised by a step-up carries `admin:tenants` for an hour
   ([ADR-0070](../adr/ADR-0070-the-instance-layer.md) §4). A scope a signed-in person needs is
   therefore named otherwise (`ops:read`).
+* `admin:provisioning` (decided for milestone PL, not built; [multi-tenancy.md](./multi-tenancy.md)
+  §4.3) is the purchase platform's subset of `admin:tenants`, checked against the operator register
+  the same way: provisioning, reading and listing workspaces, moving them between plans, suspend, resume, a
+  deletion request, a workspace's limit exception, use and events, the installation's
+  subscriptions — nothing else.
 * Watching and acting are separate scopes where a watching token has no business acting:
   `jobs:read` / `jobs:cancel`, `audit:read` / `audit:export`.
 * Without a matching scope → `403 forbidden` with `access.insufficient_scope`, naming the scope.

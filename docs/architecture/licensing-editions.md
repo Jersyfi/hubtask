@@ -44,13 +44,16 @@ come only from the project registry.
 ## 4. One edition
 
 There is **one** code path and **one** image. No licence key, no commercial edition, no `ee/`
-directory, no feature that is switched off anywhere. What differs between installations is
+directory, no feature the project switches off anywhere. What differs between installations is
 operational, never a matter of licence:
 
 * `HUBTASK_TENANCY_MODE` chooses between one workspace and many.
 * Quotas and the usage record (`usage_record`, the quota guard) let an operator of a shared
   installation bound what one workspace consumes. They are about operating an installation, not
   about licensing it.
+* Plans ([multi-tenancy.md](./multi-tenancy.md) §4.2, decided for PL) let the operator of a shared
+  installation group its workspaces, with limits and entitlements of the operator's choosing.
+  Hubtask ships no plan, and an installation without one restricts nothing.
 * No telemetry without consent.
 
 ## 5. Funding
