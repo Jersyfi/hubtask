@@ -69,12 +69,12 @@ func (q *Queries) CountPasskeys(ctx context.Context, accountID pgtype.UUID) (int
 const insertPasskey = `-- name: InsertPasskey :execrows
 INSERT INTO webauthn_credential (
   id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
-  backup_eligible, backed_up, transports, name, created_at
+  backup_eligible, backed_up, transports, name, created_at, rp_id
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6, $7,
   $8, $9, $10::text[],
-  $11, $12
+  $11, $12, $13
 )
 ON CONFLICT (tenant_id, credential_id) DO NOTHING
 `
@@ -92,6 +92,7 @@ type InsertPasskeyParams struct {
 	Transports     []string
 	Name           string
 	CreatedAt      pgtype.Timestamptz
+	RpID           *string
 }
 
 // A credential identifier already held in this workspace writes nothing.
@@ -109,6 +110,7 @@ func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) (i
 		arg.Transports,
 		arg.Name,
 		arg.CreatedAt,
+		arg.RpID,
 	)
 	if err != nil {
 		return 0, err
@@ -152,7 +154,7 @@ func (q *Queries) InsertPasskeyChallenge(ctx context.Context, arg InsertPasskeyC
 const listPasskeys = `-- name: ListPasskeys :many
 
 SELECT id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
-       backup_eligible, backed_up, transports, name, created_at, last_used_at
+       backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id
 FROM webauthn_credential
 WHERE account_id = $1
 ORDER BY created_at, id
@@ -184,6 +186,7 @@ func (q *Queries) ListPasskeys(ctx context.Context, accountID pgtype.UUID) ([]We
 			&i.Name,
 			&i.CreatedAt,
 			&i.LastUsedAt,
+			&i.RpID,
 		); err != nil {
 			return nil, err
 		}

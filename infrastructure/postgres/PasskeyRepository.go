@@ -118,6 +118,7 @@ func (PasskeyRepository) Insert(ctx context.Context, credential identity.Passkey
 		Transports:     transports,
 		Name:           credential.Name,
 		CreatedAt:      timestampOf(credential.CreatedAt),
+		RpID:           optionalText(credential.RPID),
 	})
 	if err != nil {
 		return false, passkeyQueryFailed("keeping a passkey", err)
@@ -148,6 +149,7 @@ func passkeyOf(row sqlc.WebauthnCredential) (identity.PasskeyCredential, error) 
 		UserHandle: row.UserHandle, BackupEligible: row.BackupEligible, BackedUp: row.BackedUp,
 		Transports: row.Transports, Name: row.Name,
 		CreatedAt: timeFrom(row.CreatedAt), LastUsedAt: timeFrom(row.LastUsedAt),
+		RPID: textFrom(row.RpID),
 	}, nil
 }
 

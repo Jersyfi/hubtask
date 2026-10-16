@@ -641,7 +641,7 @@ func (h CompletePasskeyRegistration) Execute(
 			CredentialID: verified.ID, PublicKey: verified.PublicKey, Algorithm: verified.Algorithm,
 			SignCount: verified.SignCount, UserHandle: spent.UserHandle,
 			BackupEligible: verified.BackupEligible, BackedUp: verified.BackedUp,
-			Transports: verified.Transports, Name: name, CreatedAt: now,
+			Transports: verified.Transports, Name: name, CreatedAt: now, RPID: party.ID,
 		}
 		written, err := w.Passkeys.Insert(ctx, credential)
 		if err != nil {

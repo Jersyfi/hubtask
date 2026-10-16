@@ -58,7 +58,7 @@ func aPasskey(t *testing.T, account shared.ID, credentialID byte, name string, a
 		CredentialID: bytes.Repeat([]byte{credentialID}, 16), PublicKey: []byte{0xa5, 0x01, 0x02},
 		Algorithm: -7, SignCount: 3, UserHandle: bytes.Repeat([]byte{0x11}, identity.PasskeyUserHandleBytes),
 		BackupEligible: true, BackedUp: true, Transports: []string{"internal", "hybrid"},
-		Name: name, CreatedAt: at,
+		Name: name, CreatedAt: at, RPID: "passkeys.example",
 	}
 }
 
@@ -99,7 +99,7 @@ func TestAPasskeyIsKeptOnceAndReadOnlyInItsWorkspace(t *testing.T) {
 			first.SignCount != 3 || !first.BackupEligible || !first.BackedUp || !first.CreatedAt.Equal(at) ||
 			!first.LastUsedAt.IsZero() || len(first.UserHandle) != identity.PasskeyUserHandleBytes ||
 			!bytes.Equal(first.CredentialID, bytes.Repeat([]byte{1}, 16)) ||
-			len(first.Transports) != 2 || first.Transports[0] != "internal" {
+			len(first.Transports) != 2 || first.Transports[0] != "internal" || first.RPID != "passkeys.example" {
 			t.Errorf("the stored shape: %+v", first)
 		}
 		if count, err := repo.CountOf(ctx, people.ada); err != nil || count != 2 {
