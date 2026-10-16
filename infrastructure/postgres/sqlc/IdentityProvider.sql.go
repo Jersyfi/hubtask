@@ -777,6 +777,30 @@ func (q *Queries) ListIdentityProviders(ctx context.Context) ([]ListIdentityProv
 	return items, nil
 }
 
+const oidcFlowLive = `-- name: OidcFlowLive :one
+SELECT EXISTS (
+  SELECT 1 FROM oidc_flow
+  WHERE state_hash = $1
+    AND consumed_at IS NULL
+    AND expires_at > $2
+) AS live
+`
+
+type OidcFlowLiveParams struct {
+	StateHash []byte
+	Now       pgtype.Timestamptz
+}
+
+// Whether a flow of any kind - a sign-in, a step-up, a connection - is still live for this state:
+// unexpired and unspent. Read, never burned: a provider's return asks where it belongs before it is
+// finished, and is spent where it is finished (multi-tenancy.md §3).
+func (q *Queries) OidcFlowLive(ctx context.Context, arg OidcFlowLiveParams) (bool, error) {
+	row := q.db.QueryRow(ctx, oidcFlowLive, arg.StateHash, arg.Now)
+	var live bool
+	err := row.Scan(&live)
+	return live, err
+}
+
 const providerIdentityHolders = `-- name: ProviderIdentityHolders :many
 SELECT account_id FROM account_identity
 WHERE provider_id = $1 AND tenant_id = current_tenant_id()

@@ -819,6 +819,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/oidc:callback", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Where a provider's return belongs
+   * Public: sent without a bearer where the client holds none. */
+  locateOidcFlow(body: NonNullable<operations["locateOidcFlow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["locateOidcFlow"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/oidc:locate", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The installation's workspaces */
   listTenants(options: CallOptions = {}): Promise<operations["listTenants"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/tenants", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

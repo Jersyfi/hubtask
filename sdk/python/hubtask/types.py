@@ -262,6 +262,13 @@ class OidcCallback(TypedDict, total=False):
     code: Required[str]
     state: Required[str]
 
+class OidcLocate(TypedDict, total=False):
+    """The state a provider's return carried."""
+    state: Required[str]
+
+class OidcLocated(TypedDict, total=False):
+    base_url: Required[str]
+
 class Suggestion(TypedDict, total=False):
     """One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record."""
     id: Required[str]

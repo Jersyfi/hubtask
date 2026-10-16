@@ -1367,3 +1367,6 @@ func (pending) DeleteInstanceBackupTarget(
 func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+// LocateOidcFlow is overridden by RestController, for the reason given at CreateContainer.
+func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

@@ -31,6 +31,7 @@ import { session, type TermsInForce } from '../session.svelte.ts';
 
 const START = '/auth/oidc:start';
 const CALLBACK = '/auth/oidc:callback';
+const LOCATE = '/auth/oidc:locate';
 
 /** The one refusal every spent, unknown or unverifiable flow gets. It is the server's own code. */
 const REFUSED = 'auth.oidc_failed';
@@ -43,6 +44,11 @@ const DEFECT = 'app.something_went_wrong';
 /** Where to send the browser, as `OidcAuthorization` answers it. */
 interface Authorization {
   readonly authorization_url: string;
+}
+
+/** Where a flow belongs, as `OidcLocated` answers it. */
+interface Located {
+  readonly base_url: string;
 }
 
 /** The pair, as `SessionTokens` answers it — the same pair a password sign-in mints. */
@@ -166,6 +172,22 @@ class Oidc {
       return false;
     } finally {
       this.#working = false;
+    }
+  }
+
+  /**
+   * Asks where the flow this return names belongs: the address of its workspace (multi-tenancy.md
+   * §3). Spends nothing.
+   *
+   * `undefined` for any failure, and deliberately without a sentence of its own: the return is then
+   * finished here, and a state that names no live flow meets the one refusal the exchange already
+   * says - two sentences for an expired handle would tell them apart.
+   */
+  async locate(state: string): Promise<string | undefined> {
+    try {
+      return (await engine.mutate<Located>('POST', LOCATE, { state })).base_url;
+    } catch {
+      return undefined;
     }
   }
 

@@ -4196,12 +4196,12 @@ paths:
         invitation. Whatever was connected to the invited account before the proof is dropped when
         it is activated.
 
-        Authority for the address, and a domains or directories list, decide only who comes in new
-        on the provider's word. Under *Only people invited here* a provider that is not
-        authoritative, and under *Only these domains/directories* an address outside the list,
-        still bring an existing active account to the `LINK` step - connected only with its
-        password and its second factor - or through its connect link; neither ever creates an
-        account, and an address nobody here holds is refused. An existing account that holds no
+        Authority for the address, and a domains or directories list, decide who comes in new on
+        the provider's word and which identities may be connected to an existing account at all:
+        the `LINK` step and the connect link admit only what they admit, the account's own proof
+        notwithstanding, and anything else is `identity_provider.not_admitted`. An identity
+        connected before keeps signing in, as daily sign-in reads no list. *Only people invited
+        here* never creates an account, and an address nobody here holds is refused. An existing account that holds no
         credential at all is connected only by a provider authoritative for its address, in every
         mode; otherwise nothing is connected and the answer is
         `identity_provider.link_needs_mailbox`, whose sentence points at *Forgot your password?*.
@@ -4244,6 +4244,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MfaChallenge"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/oidc:locate:
+    post:
+      tags: [auth]
+      operationId: locateOidcFlow
+      security: []
+      summary: Where a provider's return belongs
+      description: >
+        A provider returns to this installation's one registered address. In multi-tenant
+        operation that is the installation's own host, while the flow began on a workspace's
+        host, where its session and its browser state live. Given the state the provider carried
+        back, this answers the address of the workspace the flow belongs to, and the browser
+        finishes there - the code and the state unchanged. The flow is not spent: it is spent
+        where it is completed. Only a live flow is located: an unknown, expired, spent or
+        malformed state is refused indistinguishably with `auth.oidc_flow_not_found`. In
+        single-tenant operation the answer is the installation's own address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OidcLocate"
+      responses:
+        "200":
+          description: The address to finish at
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OidcLocated"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -10192,6 +10223,26 @@ components:
         state:
           type: string
           description: The handle `/auth/oidc:start` answered.
+
+    OidcLocate:
+      type: object
+      description: The state a provider's return carried.
+      required: [state]
+      properties:
+        state:
+          type: string
+          description: The handle the start answered, as the provider carried it back.
+
+    OidcLocated:
+      type: object
+      required: [base_url]
+      properties:
+        base_url:
+          type: string
+          format: uri
+          description: >
+            The workspace's own address - its subdomain of this installation in multi-tenant
+            operation - where the return is finished at `/auth/callback`.
 
     Suggestion:
       type: object

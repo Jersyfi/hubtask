@@ -46,6 +46,12 @@ func (s *flowStore) Consume(
 	return flow, true, nil
 }
 
+// Live is the statement's reading: any kind, unexpired, unspent, and nothing spent by asking.
+func (s *flowStore) Live(_ context.Context, presented domain.Token, now time.Time) (bool, error) {
+	flow, found := s.byState[presented.Secret()]
+	return found && !s.spent[presented.Secret()] && (flow.ExpiresAt.IsZero() || flow.ExpiresAt.After(now)), nil
+}
+
 // ConsumeForStepUp finds only a flow bound to this very session, as the statement does.
 func (s *flowStore) ConsumeForStepUp(
 	_ context.Context, presented domain.Token, sessionID shared.ID, _ time.Time,

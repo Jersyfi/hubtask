@@ -289,7 +289,10 @@ func isAuthRoute(r *http.Request) bool {
 		APIBasePath + "/auth/address:confirm",
 		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
-		APIBasePath + "/auth/oidc:callback":
+		APIBasePath + "/auth/oidc:callback",
+		// Anonymous too, and a read keyed on a presented state: unbounded, it would be a way to try
+		// states at the speed of the network.
+		APIBasePath + "/auth/oidc:locate":
 		return true
 	}
 	return false

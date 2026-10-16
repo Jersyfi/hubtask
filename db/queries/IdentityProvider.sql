@@ -155,6 +155,17 @@ VALUES (
   sqlc.narg('terms_url'), sqlc.narg('terms_version'), sqlc.arg('connect')
 );
 
+-- name: OidcFlowLive :one
+-- Whether a flow of any kind - a sign-in, a step-up, a connection - is still live for this state:
+-- unexpired and unspent. Read, never burned: a provider's return asks where it belongs before it is
+-- finished, and is spent where it is finished (multi-tenancy.md §3).
+SELECT EXISTS (
+  SELECT 1 FROM oidc_flow
+  WHERE state_hash = sqlc.arg('state_hash')
+    AND consumed_at IS NULL
+    AND expires_at > sqlc.arg('now')
+) AS live;
+
 -- name: ConsumeOidcFlow :one
 -- Judged and burned in one statement, ConsumeOauthCode's discipline: unexpired and unconsumed,
 -- or nothing at all - so a state presented twice matches no row whoever races whom. A sign-in's:

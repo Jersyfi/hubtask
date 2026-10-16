@@ -594,3 +594,28 @@ func TestAMessageAboutASubscriptionNamesTheHostOnly(t *testing.T) {
 		t.Errorf("the body links elsewhere: %q", message.Body)
 	}
 }
+
+// UC-ID-07 check 7: in multi-tenant operation the invitation mail's link leads to the workspace's
+// own address, read from the workspace the record belongs to.
+func TestInMultiTenantOperationTheInvitationMailLeadsToTheWorkspacesAddress(t *testing.T) {
+	fixture := delivery(t, domain.CategoryInvitation, false)
+	fixture.delivery.Redemptions = &redemptionMinter{token: "hbt_inv_0192f0000000700080000000000000aa_secret"}
+	fixture.delivery.Multi = true
+	fixture.delivery.Workspaces = workspaceSlugged{slug: "anna"}
+
+	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
+		t.Fatalf("delivering: %v", err)
+	}
+	body := fixture.mailbox.sent[0].Body
+	if !strings.Contains(body, "https://anna.hub.example.org/redeem#token=") {
+		t.Errorf("body %q, want the link at the workspace's own address", body)
+	}
+}
+
+type workspaceSlugged struct{ slug string }
+
+func (w workspaceSlugged) Find(context.Context) (identity.Workspace, error) {
+	workspace := identity.Workspace{}
+	workspace.Slug = w.slug
+	return workspace, nil
+}

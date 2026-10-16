@@ -1709,6 +1709,13 @@ func run() error {
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
+		// Where a provider's return belongs: the workspace's own address in multi-tenant
+		// operation, where the flow began (multi-tenancy.md §3).
+		identity.LocateOidcFlow{
+			Flows:      postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
 		identity.StartProviderConnect{
@@ -2938,6 +2945,9 @@ func run() error {
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
 			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
+			// An invitation's link leads to the workspace's own address in multi-tenant
+			// operation (multi-tenancy.md §3).
+			Multi:   cfg.Tenancy == envport.TenancyMulti,
 			Signals: metrics,
 			// The invitation mail's link is the redemption token, minted at delivery so
 			// the plaintext exists exactly once, in the message on its way out.
@@ -3754,6 +3764,7 @@ func invitationLinks(
 			Entropy: clockadapter.CryptoRandom{},
 		},
 		BaseURL: cfg.BaseURL,
+		Multi:   cfg.Tenancy == envport.TenancyMulti,
 	}
 }
 

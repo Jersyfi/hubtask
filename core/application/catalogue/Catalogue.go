@@ -282,6 +282,7 @@ func Descriptors() []usecase.Descriptor {
 		work.AiTranslate{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
+		identity.LocateOidcFlow{}.Descriptor(),
 		identity.CompleteLink{}.Descriptor(),
 		identity.StartProviderConnect{}.Descriptor(),
 		identity.CompleteProviderConnect{}.Descriptor(),

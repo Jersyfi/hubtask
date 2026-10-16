@@ -181,3 +181,22 @@ func stringOf(change any) string {
 	}
 	return b.String()
 }
+
+// UC-ID-07 check 7: in multi-tenant operation the link answered where no mail goes out leads to
+// the workspace's own address, the inviter's workspace as the credential names it.
+func TestInMultiTenantOperationTheLinkLeadsToTheWorkspacesAddress(t *testing.T) {
+	accounts, sink, queued, minter := newAccounts(), &auditSink{}, &notifier{}, &linkMinter{}
+	handler := withoutMail(inviteHandler(accounts, &authorizer{}, sink, queued), minter)
+	handler.Links.Multi = true
+	actor := admin()
+	actor.TenantSlug = "anna"
+
+	invitation, err := handler.Execute(t.Context(), actor, InviteAccountCommand{Email: "bert@example.org"})
+	if err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+	want := "https://anna.home.example/redeem#token=hbt_inv_" + invitedID.String()
+	if invitation.Link.Reveal() != want {
+		t.Errorf("link %q, want the workspace's own address %q", invitation.Link.Reveal(), want)
+	}
+}
