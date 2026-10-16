@@ -299,6 +299,13 @@ func TestRedactionStripsExactlyTheCredentialColumns(t *testing.T) {
 			ID: "w1", Op: archive.OpUpsert,
 			Data: map[string]any{"title": "untouched"},
 		}},
+		"webauthn_credential": {{
+			ID: "p1", Op: archive.OpUpsert,
+			Data: map[string]any{
+				"account_id": "a1", "name": "iPhone", "created_at": "2026-10-16T09:00:00Z",
+				"credential_id": "AQID", "public_key": "pQECAyYg", "user_handle": "ERER",
+			},
+		}},
 	}}
 
 	redacted := service.Redacted(inner)
@@ -326,6 +333,17 @@ func TestRedactionStripsExactlyTheCredentialColumns(t *testing.T) {
 	feed := collect(archive.Entity{Name: "calendar_feeds", Table: "calendar_feed"})[0]
 	if _, held := feed.Data["token_hash"]; held {
 		t.Error("the feed still carries its token hash")
+	}
+
+	// A passkey leaves by name and date, and as no credential.
+	passkey := collect(archive.Entity{Name: "webauthn_credentials", Table: "webauthn_credential"})[0]
+	for _, gone := range []string{"credential_id", "public_key", "user_handle"} {
+		if _, held := passkey.Data[gone]; held {
+			t.Errorf("the passkey still carries %s", gone)
+		}
+	}
+	if passkey.Data["name"] != "iPhone" || passkey.Data["account_id"] != "a1" {
+		t.Errorf("the passkey lost what the person sees of it: %v", passkey.Data)
 	}
 
 	item := collect(archive.Entity{Name: "work_items", Table: "work_item"})[0]

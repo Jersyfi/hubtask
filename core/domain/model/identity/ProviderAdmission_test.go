@@ -314,3 +314,27 @@ func TestADirectoryListNarrowsInvitedOnly(t *testing.T) {
 		})
 	}
 }
+
+// Whether a provider could connect an existing account at all (identity.md §10.4): the modes that admit
+// on a list do, INVITED_ONLY only through a preset that can be authoritative, and a mode this build
+// does not know never does.
+func TestWhichProvidersCouldConnectAnExistingAccount(t *testing.T) {
+	cases := []struct {
+		kind ProviderKind
+		mode Provisioning
+		want bool
+	}{
+		{KindGeneric, ProvisionDomains, true},
+		{KindGeneric, ProvisionAny, true},
+		{KindGeneric, ProvisionInvitedOnly, false},
+		{KindGoogle, ProvisionInvitedOnly, true},
+		{KindMicrosoft, ProvisionInvitedOnly, true},
+		{KindGoogle, Provisioning("SOMETHING_NEWER"), false},
+	}
+	for _, c := range cases {
+		got := IdentityProvider{Kind: c.kind, Provisioning: c.mode}.MayConnectExisting()
+		if got != c.want {
+			t.Errorf("%s under %s: %v, want %v", c.kind, c.mode, got, c.want)
+		}
+	}
+}

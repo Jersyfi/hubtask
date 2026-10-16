@@ -106,7 +106,7 @@ func (h UpdateTenantQuotas) Execute(
 			return err
 		}
 		if !written {
-			return shared.ErrConflict.WithDetail("admin.tenant_version_moved")
+			return shared.ErrVersionConflict.WithDetail("admin.tenant_version_moved")
 		}
 
 		if err := h.recordAudit(ctx, actor, cmd, before, now); err != nil {

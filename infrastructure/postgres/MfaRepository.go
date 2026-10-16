@@ -233,13 +233,24 @@ func (r MfaRepository) Disable(ctx context.Context, accountID shared.ID) (bool, 
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing the enrolment: %w", err))
 	}
-	// The codes go in the same transaction: half a disable is worse than none.
-	if _, err := queries.DeleteRecoveryCodes(ctx, id); err != nil {
-		return false, shared.ErrUnavailable.
+	return changed > 0, nil
+}
+
+func (r MfaRepository) DiscardUnbacked(ctx context.Context, accountID shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return err
+	}
+	if _, err := queries.DiscardUnbackedRecoveryCodes(ctx, id); err != nil {
+		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("removing the recovery codes: %w", err))
 	}
-	return changed > 0, nil
+	return nil
 }
 
 func (r MfaRepository) Replace(

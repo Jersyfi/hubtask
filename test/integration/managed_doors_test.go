@@ -88,6 +88,11 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		var listed, active, accounts, workspaces int
 		var unset bool
 		one(t, `SELECT count(*) FROM admin_tenants()`, &listed)
+		var queried int
+		one(t, `SELECT count(*) FROM admin_tenants_query(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 50)`, &queried)
+		if queried != 2 {
+			t.Errorf("admin_tenants_query found %d workspaces, want 2", queried)
+		}
 		one(t, `SELECT workspaces_active FROM instance_census()`, &active)
 		one(t, `SELECT accounts_total FROM instance_census()`, &accounts)
 		one(t, `SELECT workspaces FROM operator_register_state()`, &workspaces)
@@ -124,6 +129,24 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		one(t, `SELECT count(*) FROM operator_roster($1) WHERE workspace_slug = 'door-a'`, &roster, ownerA)
 		if !isOperator || isNot || roster != 1 {
 			t.Errorf("is_operator %t for the operator and %t for another, roster %d", isOperator, isNot, roster)
+		}
+	})
+
+	t.Run("a plan with a workspace on it is not removed", func(t *testing.T) {
+		const plan = "01936f2a-7c1e-7000-8000-000000145641"
+		for _, statement := range []string{
+			`INSERT INTO plan (id, name, display_name, created_at, updated_at)
+			 VALUES ('` + plan + `', 'door-family', 'Family', now(), now())`,
+			`UPDATE tenant SET plan_id = '` + plan + `' WHERE id = '` + tenantB + `'`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+		var outcome string
+		one(t, `SELECT remove_plan($1, now(), NULL)`, &outcome, plan)
+		if outcome != "IN_USE" {
+			t.Errorf("remove_plan answered %q for a plan a workspace is on, want IN_USE", outcome)
 		}
 	})
 

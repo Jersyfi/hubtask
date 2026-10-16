@@ -96,6 +96,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_recovery_regenerated` | RegenerateRecoveryCodes | `account` | NOTICE | Every time |
 | `auth.mfa_replaced` | ConfirmAuthenticatorReplacement | `account` | NOTICE | Every time |
 | `auth.mfa_replacement_started` | StartAuthenticatorReplacement | `account` | INFO | Every time |
+| `auth.own_passkeys_read` | ListOwnPasskeys | `account` | INFO | When refused |
+| `auth.passkey_added` | CompletePasskeyRegistration | `account` | NOTICE | Every time |
+| `auth.passkey_registration_started` | StartPasskeyRegistration | `account` | INFO | Every time |
+| `auth.passkey_removed` | RemoveOwnPasskey | `account` | NOTICE | Every time |
+| `auth.passkey_renamed` | RenameOwnPasskey | `account` | INFO | Every time |
 | `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |
@@ -369,6 +374,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
 
+## Plan
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan.changed` | ChangePlan | `plan` | NOTICE | Every time |
+| `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
+| `plan.listed` | ListPlans | `plan` | INFO | When refused |
+| `plan.read` | ReadPlan | `plan` | INFO | When refused |
+| `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
+
 ## Private_hubs
 
 | Action | Use case | Target | Severity | Recorded |
@@ -459,8 +474,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
+| `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |
 | `tenant.provisioned` | ProvisionTenant | `tenant` | INFO | Every time |
+| `tenant.queried` | QueryTenants | `tenant` | INFO | When refused |
 | `tenant.quotas_changed` | UpdateTenantQuotas | `quota` | WARNING | Every time |
+| `tenant.read` | ReadTenant | `tenant` | INFO | When refused |
+| `tenant.reference_changed` | UpdateTenant | `tenant` | INFO | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
 

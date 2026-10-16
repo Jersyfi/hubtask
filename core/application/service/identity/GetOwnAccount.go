@@ -5,7 +5,6 @@ package identity
 
 import (
 	"context"
-	"errors"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -48,6 +47,9 @@ type GetOwnAccount struct {
 	// all been spent: it would show somebody with no authenticator a red "none left" and offer them
 	// two actions the server would refuse.
 	Enrollments repository.MfaEnrollments
+	// Keys counts the account's passkeys, which are a second factor as the app is (identity.md
+	// §23.2). Nil holds none.
+	Keys FactorKeys
 	// Factor answers whether the workspace's rule demands a second factor of this person - the
 	// reading signing in and turning the factor off make (UC-ID-03 check 5). Nil answers false,
 	// which is what an installation wired without the rule enforces.
@@ -100,10 +102,15 @@ type PasswordHolder interface {
 // cache one.
 type OwnAccount struct {
 	Account domain.Account
-	// HasSecondFactor is whether an *armed* enrolment stands. An enrolment begun and never
-	// confirmed protects nobody and locks nobody out, so it counts as none here - the same reading
-	// the sign-in path takes.
+	// HasSecondFactor is whether a second factor stands: the app armed, or a passkey (identity.md
+	// §23.2). An enrolment begun and never confirmed protects nobody and locks nobody out, so it
+	// counts as none here.
 	HasSecondFactor bool
+	// HasAuthenticatorApp is the app alone, armed - what the app's own controls hang off.
+	HasAuthenticatorApp bool
+	// AuthenticatorAppRemovable is whether turning the app off passes the rule DisableTotp asks, so
+	// the screen offers it exactly there (P-05).
+	AuthenticatorAppRemovable bool
 	// SecondFactorRequired is whether the rule in force demands a factor of this person, so that a
 	// screen can say so rather than offer a control the server refuses (P-05).
 	SecondFactorRequired bool
@@ -209,19 +216,19 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 		return answer, nil
 	}
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		enrollment, err := h.Enrollments.Find(ctx, actor.AccountID)
-		switch {
-		case errors.Is(err, shared.ErrNotFound):
-			return nil
-		case err != nil:
+		// An enrolment begun and not armed is no factor: the codes shown on its screen are still
+		// the ones that count, and this screen has nothing to say about them yet - unless a passkey
+		// stands, which they back as well.
+		factor, _, err := secondFactorOf(ctx, h.Enrollments, h.Keys, actor.AccountID)
+		if err != nil {
 			return err
-		case enrollment.ConfirmedAt.IsZero():
-			// Begun and not armed. The codes shown on the enrolment screen are still the ones
-			// that count, and this screen has nothing to say about them yet.
+		}
+		answer.HasSecondFactor = factor.Held()
+		answer.HasAuthenticatorApp = factor.App
+		answer.AuthenticatorAppRemovable = factor.AppRemovable(answer.SecondFactorRequired)
+		if !factor.Held() {
 			return nil
 		}
-		answer.HasSecondFactor = true
-
 		remaining, err := h.Recovery.Remaining(ctx, actor.AccountID)
 		if err != nil {
 			return err
@@ -244,6 +251,8 @@ func (h GetOwnAccount) invoke(
 	}
 	out := accountOutput(own.Account)
 	out["has_second_factor"] = own.HasSecondFactor
+	out["has_authenticator_app"] = own.HasAuthenticatorApp
+	out["authenticator_app_removable"] = own.AuthenticatorAppRemovable
 	out["second_factor_required"] = own.SecondFactorRequired
 	out["has_password"] = own.HasPassword
 	out["has_access"] = own.HasAccess

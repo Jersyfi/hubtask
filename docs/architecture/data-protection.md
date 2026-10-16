@@ -328,7 +328,7 @@ tenants, data categories and period within 72 hours
 | A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1) |
 | External search index | Off (PostgreSQL full text is data-local) |
 | Telemetry / usage statistics sent to the project | Does not exist |
-| Metering (usage figures for billing) | Off; when enabled, aggregates only, no content |
+| Metering (usage figures for billing) | Off; when enabled, aggregates only, no content. Use is always recorded where a limit needs it (the AI budget); switching metering on is what offers it for billing ([multi-tenancy.md](./multi-tenancy.md) §4.3, decided for PL, not built) |
 | Public sharing links | Off, expiring, revocable, not indexable |
 | Avatar retrieval from third-party services (Gravatar and similar) | Off (it leaks IP addresses to third parties) |
 | Full IP addresses in logs | No, truncated |

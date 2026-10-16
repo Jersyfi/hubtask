@@ -237,6 +237,9 @@ export const ENCRYPTION_STATUS = {
   ],
 };
 
+/** The passkeys of `ACCOUNT` as *Password and sign-in* reads them (identity.md §23). */
+export const PASSKEYS = { passkeys: [], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' };
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
@@ -255,6 +258,9 @@ export function stub(route) {
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  // The reader's passkeys: none yet, and another can be added - at `localhost`, the host a walk opens
+  // the bundle at when it needs a browser to make one (an address is no relying party).
+  if (path.endsWith('/api/v1/accounts/me/passkeys')) return route.fulfill({ json: PASSKEYS });
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
   if (path.endsWith(`/api/v1/accounts/${INVITED.id}`)) return route.fulfill({ json: INVITED });

@@ -25,6 +25,11 @@ const (
 	WayInProviderConnected WayInEvent = "PROVIDER_CONNECTED"
 	// WayInProviderDisconnected is a provider identity gone because its provider was removed.
 	WayInProviderDisconnected WayInEvent = "PROVIDER_DISCONNECTED"
+	// WayInPasskeyAdded is a passkey or security key added to the account (identity.md §23.2).
+	WayInPasskeyAdded WayInEvent = "PASSKEY_ADDED"
+	// WayInPasskeyRemoved is one removed. The notice never carries the name the person gave it: that
+	// is user content, shown on the profile and nowhere else (rule 10).
+	WayInPasskeyRemoved WayInEvent = "PASSKEY_REMOVED"
 )
 
 // WayInChange is one change, as the notice carries it: what, when, and for a provider which one by

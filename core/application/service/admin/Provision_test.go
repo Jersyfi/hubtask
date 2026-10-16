@@ -55,6 +55,10 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope
 }
 
 type tenantsStore struct {
+	// planNames is what a plan's identifier names, for SetPlan.
+	planNames map[shared.ID]string
+	// taken are references another workspace holds, for SetReference.
+	taken     map[string]bool
 	inserted  []adminrepo.TenantRecord
 	record    adminrepo.TenantRecord
 	findErr   error

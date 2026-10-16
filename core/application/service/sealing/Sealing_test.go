@@ -96,6 +96,10 @@ func (tenants) OpenPassword(context.Context, identity.PasswordOpening, time.Time
 	return false, nil
 }
 
+func (tenants) SetPlan(context.Context, shared.ID, int, time.Time) (bool, error) { return false, nil }
+
+func (tenants) SetReference(context.Context, string, int, time.Time) (bool, error) { return false, nil }
+
 func (tenants) ClosePassword(context.Context, time.Time, time.Time) (bool, error) {
 	return false, nil
 }

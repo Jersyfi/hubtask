@@ -659,6 +659,18 @@ class Client:
         """Provision a workspace"""
         return self._call("POST", "/admin/tenants", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def read_tenant(self, tenant_id: str) -> "AdminTenant":
+        """One workspace"""
+        return self._call("GET", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
+
+    def update_tenant(self, tenant_id: str, body: "TenantUpdate", *, if_match: str | None = None) -> "AdminTenant":
+        """Set or clear the platform's reference on a workspace"""
+        return self._call("PATCH", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def query_tenants(self, body: "TenantQuery") -> "AdminTenantPage":
+        """Find workspaces"""
+        return self._call("POST", "/admin/tenants:query", {}, None, {}, body, "json", "application/json", "json")
+
     def suspend_tenant(self, tenant_id: str) -> None:
         """Suspend a workspace"""
         return self._call("POST", "/admin/tenants/{tenantId}:suspend", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
@@ -718,6 +730,30 @@ class Client:
     def write_instance_settings(self, body: "InstanceSettings") -> "InstanceSettings":
         """Replace the installation's level"""
         return self._call("PUT", "/admin/settings", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_plans(self) -> dict[str, Any]:
+        """The installation's plans"""
+        return self._call("GET", "/admin/plans", {}, None, {}, None, "none", None, "json")
+
+    def create_plan(self, body: "PlanCreate", *, idempotency_key: str | None = None) -> "Plan":
+        """Create a plan"""
+        return self._call("POST", "/admin/plans", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_plan(self, plan_name: str) -> "Plan":
+        """One plan"""
+        return self._call("GET", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "json")
+
+    def change_plan(self, plan_name: str, body: "PlanChange", *, if_match: str | None = None) -> "Plan":
+        """Replace a plan's values"""
+        return self._call("PUT", "/admin/plans/{planName}", {"planName": plan_name}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_plan(self, plan_name: str) -> None:
+        """Remove a plan"""
+        return self._call("DELETE", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "void")
+
+    def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
+        """Put a workspace on another plan"""
+        return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def list_operators(self) -> dict[str, Any]:
         """Who operates this installation"""
@@ -826,6 +862,26 @@ class Client:
     def complete_provider_connect(self, body: "ProviderConnectReturn") -> "ConnectedIdentity":
         """Finish connecting a sign-in provider to the caller's account"""
         return self._call("POST", "/accounts/me/identities:complete", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_own_passkeys(self) -> "PasskeyList":
+        """The passkeys and security keys the caller's account holds"""
+        return self._call("GET", "/accounts/me/passkeys", {}, None, {}, None, "none", None, "json")
+
+    def start_passkey_registration(self, *, step_up: str | None = None) -> "PasskeyRegistrationOptions":
+        """Begin adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:start", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def complete_passkey_registration(self, body: "PasskeyRegistration") -> "PasskeyRegistered":
+        """Finish adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:complete", {}, None, {}, body, "json", "application/json", "json")
+
+    def rename_own_passkey(self, passkey_id: str, body: "PasskeyRename") -> "Passkey":
+        """Rename one of the caller's passkeys or security keys"""
+        return self._call("PATCH", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_own_passkey(self, passkey_id: str, *, step_up: str | None = None) -> None:
+        """Remove one of the caller's passkeys or security keys"""
+        return self._call("DELETE", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""

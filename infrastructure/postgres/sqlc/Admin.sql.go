@@ -22,7 +22,9 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        coalesce(password_opened_requester, '')::text AS password_opened_requester,
        coalesce(password_opened_reason, '')::text AS password_opened_reason,
        legal_hold::boolean AS legal_hold,
-       purge_started_at::timestamptz AS purge_started_at
+       purge_started_at::timestamptz AS purge_started_at,
+       coalesce(plan_name, '')::text AS plan_name,
+       version::integer AS version
 FROM admin_tenants()
 `
 
@@ -40,6 +42,8 @@ type AdminTenantsRow struct {
 	PasswordOpenedReason    string
 	LegalHold               bool
 	PurgeStartedAt          pgtype.Timestamptz
+	PlanName                string
+	Version                 int32
 }
 
 // The control plane (multi-tenancy.md §5): provisioning, suspension, the deletion request
@@ -74,6 +78,8 @@ func (q *Queries) AdminTenants(ctx context.Context) ([]AdminTenantsRow, error) {
 			&i.PasswordOpenedReason,
 			&i.LegalHold,
 			&i.PurgeStartedAt,
+			&i.PlanName,
+			&i.Version,
 		); err != nil {
 			return nil, err
 		}
@@ -333,12 +339,14 @@ func (q *Queries) DisableAllAutomationRules(ctx context.Context, now pgtype.Time
 }
 
 const findTenantForAdmin = `-- name: FindTenantForAdmin :one
-SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       created_at, purge_after, version,
-       password_opened_until, password_opened_requester, password_opened_reason,
-       status_before_deletion, purge_started_at
-FROM tenant
-WHERE id = current_tenant_id() AND deleted_at IS NULL
+SELECT t.id, t.slug, t.display_name, t.status, t.default_locale, t.default_time_zone,
+       t.created_at, t.purge_after, t.version,
+       t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
+       t.status_before_deletion, t.purge_started_at,
+       coalesce(p.name, '')::text AS plan_name
+FROM tenant t
+LEFT JOIN plan p ON p.id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL
 `
 
 type FindTenantForAdminRow struct {
@@ -356,8 +364,11 @@ type FindTenantForAdminRow struct {
 	PasswordOpenedReason    *string
 	StatusBeforeDeletion    *TenantStatus
 	PurgeStartedAt          pgtype.Timestamptz
+	PlanName                string
 }
 
+// The plan's short name through a join: `plan` carries no policy, so it reads inside the tenant's
+// own transaction (migration 0164).
 func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow, error) {
 	row := q.db.QueryRow(ctx, findTenantForAdmin)
 	var i FindTenantForAdminRow
@@ -376,6 +387,7 @@ func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow
 		&i.PasswordOpenedReason,
 		&i.StatusBeforeDeletion,
 		&i.PurgeStartedAt,
+		&i.PlanName,
 	)
 	return i, err
 }
@@ -650,6 +662,105 @@ func (q *Queries) PurgeTenantTrail(ctx context.Context) (int64, error) {
 	return removed, err
 }
 
+const queryTenants = `-- name: QueryTenants :many
+SELECT id::uuid, slug::text, display_name::text, status::text,
+       default_locale::text, default_time_zone::text,
+       created_at::timestamptz, purge_after::timestamptz AS purge_after,
+       password_opened_until::timestamptz AS password_opened_until,
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason,
+       legal_hold::boolean AS legal_hold,
+       purge_started_at::timestamptz AS purge_started_at,
+       coalesce(plan_name, '')::text AS plan_name,
+       version::integer AS version,
+       coalesce(external_reference, '')::text AS external_reference
+FROM admin_tenants_query(
+  $1::uuid, $2::text, $3::text,
+  $4::text, $5::boolean, $6::text,
+  $7::timestamptz, $8::uuid, $9::integer
+)
+`
+
+type QueryTenantsParams struct {
+	WantID          pgtype.UUID
+	WantSlug        *string
+	WantReference   *string
+	WantPlan        *string
+	WantWithoutPlan *bool
+	WantStatus      *string
+	AfterAt         pgtype.Timestamptz
+	AfterID         pgtype.UUID
+	PageSize        int32
+}
+
+type QueryTenantsRow struct {
+	ID                      pgtype.UUID
+	Slug                    string
+	DisplayName             string
+	Status                  string
+	DefaultLocale           string
+	DefaultTimeZone         string
+	CreatedAt               pgtype.Timestamptz
+	PurgeAfter              pgtype.Timestamptz
+	PasswordOpenedUntil     pgtype.Timestamptz
+	PasswordOpenedRequester string
+	PasswordOpenedReason    string
+	LegalHold               bool
+	PurgeStartedAt          pgtype.Timestamptz
+	PlanName                string
+	Version                 int32
+	ExternalReference       string
+}
+
+// The control plane's filtered, paged read, through the one narrow door that filters and pages
+// across tenant_self (migration 0165). The casts are for the generator.
+func (q *Queries) QueryTenants(ctx context.Context, arg QueryTenantsParams) ([]QueryTenantsRow, error) {
+	rows, err := q.db.Query(ctx, queryTenants,
+		arg.WantID,
+		arg.WantSlug,
+		arg.WantReference,
+		arg.WantPlan,
+		arg.WantWithoutPlan,
+		arg.WantStatus,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []QueryTenantsRow{}
+	for rows.Next() {
+		var i QueryTenantsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.DisplayName,
+			&i.Status,
+			&i.DefaultLocale,
+			&i.DefaultTimeZone,
+			&i.CreatedAt,
+			&i.PurgeAfter,
+			&i.PasswordOpenedUntil,
+			&i.PasswordOpenedRequester,
+			&i.PasswordOpenedReason,
+			&i.LegalHold,
+			&i.PurgeStartedAt,
+			&i.PlanName,
+			&i.Version,
+			&i.ExternalReference,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const requestTenantDeletion = `-- name: RequestTenantDeletion :execrows
 UPDATE tenant
 SET status = 'PENDING_DELETION', purge_after = $1,
@@ -668,6 +779,53 @@ type RequestTenantDeletionParams struct {
 // came from is kept, so that a cancel returns it there; the right-hand side reads the row as it was.
 func (q *Queries) RequestTenantDeletion(ctx context.Context, arg RequestTenantDeletionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, requestTenantDeletion, arg.PurgeAfter, arg.Now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setTenantPlan = `-- name: SetTenantPlan :execrows
+UPDATE tenant
+SET plan_id = $1, version = version + 1, updated_at = $2
+WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
+  AND version = $3
+`
+
+type SetTenantPlanParams struct {
+	PlanID  pgtype.UUID
+	Now     pgtype.Timestamptz
+	Version int32
+}
+
+// A workspace onto another plan, or none (multi-tenancy.md §4.2). Guarded on the version read, so a
+// move cannot land on a workspace that changed meanwhile, and refused once the purge has begun.
+func (q *Queries) SetTenantPlan(ctx context.Context, arg SetTenantPlanParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTenantPlan, arg.PlanID, arg.Now, arg.Version)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setTenantReference = `-- name: SetTenantReference :execrows
+UPDATE tenant
+SET external_reference = $1, version = version + 1, updated_at = $2
+WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
+  AND version = $3
+`
+
+type SetTenantReferenceParams struct {
+	ExternalReference *string
+	Now               pgtype.Timestamptz
+	Version           int32
+}
+
+// A platform's reference on the workspace, or none (multi-tenancy.md §4.3). Guarded on the version
+// read, and refused once the purge has begun; a reference another workspace holds is the unique
+// index's refusal.
+func (q *Queries) SetTenantReference(ctx context.Context, arg SetTenantReferenceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTenantReference, arg.ExternalReference, arg.Now, arg.Version)
 	if err != nil {
 		return 0, err
 	}

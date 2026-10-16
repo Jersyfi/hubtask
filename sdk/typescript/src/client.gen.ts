@@ -829,6 +829,21 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** One workspace */
+  readTenant(tenantId: string, options: CallOptions = {}): Promise<operations["readTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set or clear the platform's reference on a workspace */
+  updateTenant(tenantId: string, body: NonNullable<operations["updateTenant"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Find workspaces */
+  queryTenants(body: NonNullable<operations["queryTenants"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["queryTenants"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Suspend a workspace */
   suspendTenant(tenantId: string, options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/admin/tenants/{tenantId}:suspend", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
@@ -902,6 +917,36 @@ export class HubtaskClient {
   /** Replace the installation's level */
   writeInstanceSettings(body: NonNullable<operations["writeInstanceSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["writeInstanceSettings"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The installation's plans */
+  listPlans(options: CallOptions = {}): Promise<operations["listPlans"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a plan */
+  createPlan(body: NonNullable<operations["createPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["createPlan"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/plans", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One plan */
+  readPlan(planName: string, options: CallOptions = {}): Promise<operations["readPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a plan's values */
+  changePlan(planName: string, body: NonNullable<operations["changePlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changePlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/plans/{planName}", { "planName": planName }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a plan */
+  removePlan(planName: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Put a workspace on another plan */
+  moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Who operates this installation */
@@ -1037,6 +1082,31 @@ export class HubtaskClient {
   /** Finish connecting a sign-in provider to the caller's account */
   completeProviderConnect(body: NonNullable<operations["completeProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeProviderConnect"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/accounts/me/identities:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The passkeys and security keys the caller's account holds */
+  listOwnPasskeys(options: CallOptions = {}): Promise<operations["listOwnPasskeys"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/passkeys", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin adding a passkey or a security key to the caller's account */
+  startPasskeyRegistration(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startPasskeyRegistration"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:start", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Finish adding a passkey or a security key to the caller's account */
+  completePasskeyRegistration(body: NonNullable<operations["completePasskeyRegistration"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeyRegistration"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Rename one of the caller's passkeys or security keys */
+  renameOwnPasskey(passkeyId: string, body: NonNullable<operations["renameOwnPasskey"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["renameOwnPasskey"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove one of the caller's passkeys or security keys */
+  removeOwnPasskey(passkeyId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** The emergency accesses the caller was told of in the last 30 days */

@@ -3,20 +3,21 @@ id: UC-INS-13
 title: Put workspaces on plans with their own limits, features and locks
 context: admin
 actors: [PE-operator, PE-platform, PE-owner]
-deployments: [D5, D6]
-serves: [P-03, P-05, P-07, P-15]
-state: specified
-tasks: []
-checked_by: []
+deployments: [D5, D6, D7]
+serves: [P-03, P-05, P-06, P-07, P-08, P-15]
+state: partial
+tasks: [PL-01, PL-02, PL-03, PL-04, PL-05, PL-06, PL-09, PL-11]
+checked_by: [core/domain/model/plan/Plan_test.go, core/application/service/admin/Plans_test.go, core/application/service/admin/MovePlan_test.go, core/application/service/admin/PlanFile_test.go, test/integration/plan_test.go, test/integration/managed_doors_test.go, presentation/rest/PlanController_test.go, cmd/hubctl/AdminPlan_test.go, infrastructure/instancefile/File_test.go, core/application/service/admin/Reference_test.go, test/integration/tenant_reference_test.go, cmd/hubctl/AdminTenantFind_test.go]
 ---
 
 # Put workspaces on plans with their own limits, features and locks
 
 ## Goal
 
-A provider groups workspaces into plans — "Private", "Family", "Business" — each with its own
-limits, its own switched-on features and its own locked values, so that consumers and companies can
-live on one installation; changing a plan takes effect at once and never destroys anything.
+A provider sells plans — "Private", "Family", "Business" — through its own purchase or billing
+platform, and Hubtask is prepared for it: the platform puts each workspace on a plan and moves it,
+Hubtask holds which plan a workspace is on and applies its limits, locked values and features at
+once, and never destroys anything; prices, contracts and invoices stay with the platform.
 
 ## Story
 
@@ -33,23 +34,54 @@ upgrading.
 2. Changing a plan's value changes it for every workspace on the plan at the next request, without
    a job that visits workspaces.
 3. A workspace's screens say "Set by your plan" where the plan locked a value, and "Not included in
-   your plan" where a feature is off — without selling anything.
-4. Downgrading refuses new items beyond a limit and stops removed features; nothing existing is
-   deleted, and a value the plan newly locks is kept and applies again when the lock goes.
+   your plan" where a feature is off — without selling anything. A plan can leave out exactly three
+   features: automation rules, webhooks, and the workspace's own sign-in providers.
+4. Downgrading refuses new items beyond a limit and stops removed features — rules stop running,
+   webhooks stop delivering, the workspace's own providers stop signing people in, and where that
+   leaves nobody a way in the password opens; nothing existing is deleted, a value the plan newly
+   locks is kept and applies again when the lock goes, and an upgrade brings each feature back.
 5. Export, deletion, access requests, language, time zone and accessibility can never be switched
    off by a plan.
-6. A plan change is in the instance journal and in the workspace's own trail.
+6. Moving a workspace to another plan is in the instance journal and in the workspace's own trail;
+   changing a plan is in the instance journal.
+7. Plans are created, changed, removed and assigned on the installation's screens, with
+   `hubctl admin plan`, through the API and in the instance file, with the same refusals; a save
+   made on a plan somebody else changed since it was read is refused with `version_conflict`.
+8. A workspace can be provisioned on a plan, by every door that provisions; a plan with workspaces
+   on it cannot be removed.
+9. A purchase platform, with its service account's credential, provisions a workspace on a plan and
+   moves it to another through the API, naming the plan by its short name, which never changes and
+   is never reused once created; a move repeated with the same idempotency key moves once, and a
+   move that names the workspace's version it last saw is refused with `version_conflict` when the
+   workspace has changed since, so a late retry of an older downgrade cannot overwrite a newer
+   upgrade. A refusal is a code the platform can act on. Hubtask never asks the platform anything.
+10. A workspace carries an optional reference of the platform's own (its customer or subscription
+    id), set at provisioning and changeable, unique on the installation; the platform reads one
+    workspace — status, plan, version, deletion date — by its id, its short name or that reference,
+    and lists workspaces filtered by plan, status and reference, page by page, so a provisioning
+    call whose answer was lost can be reconciled.
+11. Where the operator set an account link for the installation or the plan, owners and
+    administrators see "Your provider's account page" beside "Not included in your plan", at a
+    reached limit and on the suspended workspace's page; Hubtask writes the label, the operator only
+    the address, and nothing shows a price, another plan or an offer to upgrade.
 
 ## Where it ends
 
-* No prices, trials or invoices ([NG-billing](../../vision/non-goals.md)).
-* No per-seat licensing inside Hubtask; a limit on accounts is a limit like any other.
+* No prices, trials or invoices ([NG-billing](../../vision/non-goals.md)); a link to the
+  provider's own page (check 11) is not selling.
+* A move applies at once; a change at the end of a billing period is the platform's to schedule.
+* A feature for one workspace beyond its plan is another plan.
+* No per-seat licensing inside Hubtask; a limit on people is a limit like any other (UC-INS-10).
+* Plans prepare Hubtask for a provider's platform; Hubtask ships no plan, and an installation
+  without one — every self-hosted one — has every feature and its own limits. A single-mode
+  installation offers no plans at all.
 
 ## Today
 
-* Check 1: not met — there are no plans; only `tenant.plan_id` and the resolver's plan parameter are prepared.
-* Check 2: not met — there are no plans whose values could change.
+* Check 2: not met — a plan's values do not reach a workspace yet: no resolver reads the plan.
 * Check 3: not met — no screen says "Set by your plan" or "Not included in your plan".
-* Check 4: not met — there is no downgrade.
-* Check 5: not met — there are no plans, so nothing yet guards these features against one.
-* Check 6: not met — there is no plan change to record.
+* Check 4: not met — a workspace can move to a smaller plan, and nothing it meets changes yet.
+* Check 5: not met — the set of features a plan may leave out is closed, and leaving one out does nothing yet.
+* Check 7: not met — plans are reached through the API, `hubctl` and the instance file, not yet on the installation's screens.
+* Check 8: not met — the API and `hubctl` provision on a plan; the installation's *New workspace* screen does not yet offer one.
+* Check 11: not met — there is no account link.

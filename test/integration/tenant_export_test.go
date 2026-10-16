@@ -113,6 +113,13 @@ func seedExportTenants(ctx context.Context, t *testing.T) string {
 		 VALUES ('01936f2a-7c1e-7000-8000-00000000e126', '` + exportTenantX.String() + `',
 		         '` + exportAccountX.String() + `', '\xdeadbeef', now())
 		 ON CONFLICT (id) DO NOTHING`,
+		// A passkey, whose identifier, key and handle are credentials the export must not carry.
+		`INSERT INTO webauthn_credential (id, tenant_id, account_id, credential_id, public_key, algorithm,
+		     user_handle, backup_eligible, backed_up, name, created_at)
+		 VALUES ('01936f2a-7c1e-7000-8000-00000000e127', '` + exportTenantX.String() + `',
+		         '` + exportAccountX.String() + `', '\x0102030405', '\xa501020326', -7,
+		         '\x` + strings.Repeat("11", 32) + `', false, false, 'Export key', now())
+		 ON CONFLICT (id) DO NOTHING`,
 	}
 	for _, statement := range statements {
 		if _, err := admin.Exec(ctx, statement); err != nil {
@@ -252,10 +259,13 @@ func TestTheExportedArchiveHoldsOneTenantWholeAndNothingOfTheNeighbour(t *testin
 
 	// The redaction (tenant-export.md §9): the account line carries no password hash, the feed
 	// line no token hash - and the redacted fields appear nowhere in the bytes.
-	for _, gone := range []string{"password_hash", "token_hash"} {
+	for _, gone := range []string{"password_hash", "token_hash", "credential_id", "public_key", "user_handle"} {
 		if strings.Contains(written, `"`+gone+`"`) {
 			t.Errorf("the archive still carries %q", gone)
 		}
+	}
+	if !strings.Contains(written, `"Export key"`) {
+		t.Error("the passkey's name is not in the export: it leaves as what the person sees of it")
 	}
 	var accountLine map[string]any
 	if err := json.Unmarshal(firstLine(fileBytes, prefix+"data/accounts.jsonl"), &accountLine); err != nil {

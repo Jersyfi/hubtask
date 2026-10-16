@@ -16,6 +16,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // The recovery codes against the real database. The service tests run them against fakes whose
@@ -184,5 +185,39 @@ func TestNewCodesReplaceAllTenAndTheOldOnesStopAtOnce(t *testing.T) {
 	}
 	if _, err := armed.stepUp(identityservice.StepUpCommand{RecoveryCode: fresh.Codes[0]}); err != nil {
 		t.Errorf("a new code was refused: %v", err)
+	}
+}
+
+// UC-ID-22 check 5 and identity.md §9: beside a passkey the app may go, and the codes stay to back
+// the key - the statement's condition against the real tables.
+func TestTurningTheAppOffBesideAPasskeyKeepsTheRecoveryCodes(t *testing.T) {
+	ctx := context.Background()
+	account := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000053c3")
+	armed := armForRecovery(ctx, t, account, shared.MustParseID("01936f2a-7c1e-7000-8000-0000000053d3"),
+		"app-beside-a-key@example.org")
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO webauthn_credential (id, tenant_id, account_id, credential_id, public_key, algorithm,
+		                                 user_handle, backup_eligible, backed_up, name, created_at, rp_id)
+		VALUES ($1, $2, $3, '\x0102', '\xa50102', -7, $4, true, true, 'Key', now(), 'recovery-codes.hubtask.example')
+		ON CONFLICT (id) DO NOTHING`,
+		"01936f2a-7c1e-7000-8000-0000000053e3", recoveryTenant.String(), account.String(),
+		make([]byte, domain.PasskeyUserHandleBytes)); err != nil {
+		t.Fatalf("seeding the key: %v", err)
+	}
+	writer := armed.writer
+	writer.Keys = identityservice.PasskeyKeys{
+		Passkeys: postgres.NewPasskeyRepository(),
+		Party: identityservice.PasskeyParty{
+			Workspaces:   postgres.NewWorkspaceSettingsRepository(),
+			Installation: identityservice.PasskeyInstallation{Host: "hubtask.example", Scheme: "https", Multi: true},
+		},
+	}
+
+	if err := (identityservice.DisableTotp{Writer: writer}).Execute(ctx, armed.actor,
+		identityservice.DisableTotpCommand{StepUpToken: armed.byPassword()}); err != nil {
+		t.Fatalf("turning the app off beside a key: %v", err)
+	}
+	if got := armed.remaining(); got != domain.RecoveryCodeCount {
+		t.Errorf("%d codes remain beside the key, want all ten", got)
 	}
 }

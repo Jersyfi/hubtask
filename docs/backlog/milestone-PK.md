@@ -43,6 +43,9 @@ Each measured against the deployments `D1`–`D7`:
 9. **#1337 stays in CP** (the owner's word that CP is untouched for now): until it is fixed, an
    invitation in multi mode is redeemed at the installation's host, so PK-04 offers a passkey at
    the setup during sign-in only where the page runs at the workspace's own host.
+10. **The recovery codes stay while a key remains** (the owner, 2026-10-16, #1556): turning the
+    authenticator app off keeps them while a passkey or security key remains; they go with the last
+    factor of either kind. UC-ID-03 check 6 follows; identity.md §8 and §9 with PK-02.
 
 ---
 
@@ -53,14 +56,15 @@ Each measured against the deployments `D1`–`D7`:
 **Use cases:** UC-ID-22 (1, 2, 3, 6)
 
 The contract first: listing an account's WebAuthn credentials, beginning and finishing a
-registration (the finish behind a step-up). A migration creates the credential table under the
-tenant's row security and widens `auth_pending`'s purpose for a registration challenge. The
-in-house verifier: the CBOR subset, the COSE key, the three algorithms, the registration checks of
-WebAuthn Level 2 §7.1, an outbound adapter behind a port, with the specification's examples as
-table tests and a fuzz target. Up to ten per account; the first factor of an account without
-recovery codes answers ten. The profile's *Password and sign-in* lists them with name, added and
-last used, offers *Add a passkey* only where the browser can and the account holds fewer than ten.
-The data catalogue gains the table; backup keeps it, export strips it.
+registration (the beginning behind a step-up, whose challenge carries it, bound to the session). A
+migration creates the credential table under the tenant's row security and widens `auth_pending`'s
+purpose for a registration challenge. The in-house verifier: the CBOR subset, the COSE key, the
+three algorithms, the registration checks of WebAuthn Level 2 §7.1, an outbound adapter behind a
+port, with the specification's examples as table tests and a fuzz target. Up to ten per account; the
+first factor of an account without recovery codes answers ten. The profile's *Password and sign-in*
+lists them with name, added and last used, offers *Add a passkey* only where the browser can and the
+account holds fewer than ten. The data catalogue gains the table; backup keeps it, export strips it,
+and an erasure removes it.
 
 **Acceptance:** verifier table tests against the published examples and malformed inputs, a fuzz
 target in `make gate-unit`'s reach; a Testcontainers test for the repository with a cross-tenant
@@ -78,9 +82,12 @@ virtual authenticator; a walk with a real platform passkey and a FIDO2 key, reco
 
 Renaming with the session alone; removing behind a step-up, at once. `FactorRule` reads an account
 as holding a second factor when the authenticator app is armed or a WebAuthn credential exists, so
-the profile does not offer removing the last factor — app or key — where the workspace requires
-one, and says why. Adding and removing are audited without the name and tell the person through the
-notice SC-36 built for every change to a way in.
+the profile does not offer removing the last factor — app or key — where the workspace requires one,
+and says why. Adding and removing are audited without the name and tell the person through the
+notice SC-36 built for every change to a way in. The recovery codes follow the same reading:
+`has_second_factor`, `recovery_codes_remaining` and regenerating the codes count a key, and turning
+the authenticator app off keeps the codes while a key remains (PK-01 answers codes with the first
+key).
 
 **Acceptance:** application tests that the last factor is refused for removal under each value of
 `mfa_required_for`, and the app is removable while a key remains; an audit test that the name is in
@@ -119,9 +126,9 @@ authenticator signing in under `mfa_required_for = EVERYONE`; a keyboard and scr
 
 The second-factor step (`TOTP` in `MfaChallenge.methods`, and the reset's kept factor) accepts an
 assertion with presence only, beside the code and the recovery code, and the card offers *Use my
-security key*. The step-up gains `PASSKEY` after `TOTP`. The `ENROLL` step offers adding a passkey
-or a security key beside the authenticator app — only where the page runs at the workspace's own
-host (Decision 9).
+security key*. The step-up gains `PASSKEY` after `TOTP`. `RECOVERY` is offered where a key is held,
+as where the app is. The `ENROLL` step offers adding a passkey or a security key beside the
+authenticator app — only where the page runs at the workspace's own host (Decision 9).
 
 **Acceptance:** application tests that a presence-only assertion completes the second-factor step
 and never opens a session alone; a step-up test with `PASSKEY`, and that the elevation of an

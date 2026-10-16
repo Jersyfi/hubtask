@@ -227,7 +227,9 @@ func TestTheQuotaWriteIsGuardedOnTheVersion(t *testing.T) {
 		TenantID: lifecycleTenant,
 		Changes:  []QuotaChange{{Quota: quotaservice.Items, Value: hold(1)}},
 	})
-	if !errors.Is(err, shared.ErrConflict) {
+	// A stale version is `version_conflict` (api-guidelines.md §5), the code a client already
+	// handles by reading again, rather than the generic `conflict`.
+	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("answer %v, want the version conflict", err)
 	}
 	if len(f.audit.entries) != 0 {

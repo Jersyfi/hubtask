@@ -19,7 +19,8 @@ import (
 )
 
 // A person is told by mail when a way into their account changes (ADR-0078 §6, identity.md §6):
-// a password changed or set through a reset, a provider connected or disconnected.
+// a password changed or set through a reset, a provider connected or disconnected, a passkey added
+// or removed.
 //
 // **Deliberately not a notification record**, SendPasswordReset's reasoning: a notice about the
 // way into an account that no preference may silence. The job is queued in the transaction of the
@@ -35,6 +36,10 @@ const (
 	bodyProviderConnected       = "email.way_in.provider_connected.body"
 	subjectProviderDisconnected = "email.way_in.provider_disconnected.subject"
 	bodyProviderDisconnected    = "email.way_in.provider_disconnected.body"
+	subjectPasskeyAdded         = "email.way_in.passkey_added.subject"   //nolint:gosec // G101: a message code, not a credential
+	bodyPasskeyAdded            = "email.way_in.passkey_added.body"      //nolint:gosec // G101: a message code, not a credential
+	subjectPasskeyRemoved       = "email.way_in.passkey_removed.subject" //nolint:gosec // G101: a message code, not a credential
+	bodyPasskeyRemoved          = "email.way_in.passkey_removed.body"    //nolint:gosec // G101: a message code, not a credential
 )
 
 // RecordWayInChanged queues the notice. It implements the identity writers' WayInNotices.
@@ -154,15 +159,20 @@ func (s SendWayInChanged) Execute(ctx context.Context, tenantID shared.ID, notic
 		subjectCode, bodyCode = subjectProviderConnected, bodyProviderConnected
 	case identity.WayInProviderDisconnected:
 		subjectCode, bodyCode = subjectProviderDisconnected, bodyProviderDisconnected
+	case identity.WayInPasskeyAdded:
+		subjectCode, bodyCode = subjectPasskeyAdded, bodyPasskeyAdded
+	case identity.WayInPasskeyRemoved:
+		subjectCode, bodyCode = subjectPasskeyRemoved, bodyPasskeyRemoved
 	default:
 		return shared.ErrInternal.WithDetail("notifications.payload_malformed").
 			WithParams(map[string]string{"field": "event"})
 	}
 	if base != "" {
-		// A connected provider is undone from the person's own security settings; a password from
-		// the sign-in page, where *Forgot your password?* ends every session.
+		// A connected provider and a passkey are undone from the person's own security settings; a
+		// password from the sign-in page, where *Forgot your password?* ends every session.
 		params["link"] = base + "/"
-		if notice.Change.Event == identity.WayInProviderConnected {
+		switch notice.Change.Event {
+		case identity.WayInProviderConnected, identity.WayInPasskeyAdded, identity.WayInPasskeyRemoved:
 			params["link"] = base + "/profile/security"
 		}
 	}

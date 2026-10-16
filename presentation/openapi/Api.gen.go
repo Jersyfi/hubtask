@@ -2216,19 +2216,19 @@ func (e ItemAccess) Valid() bool {
 
 // Defines values for ItemQueryCount.
 const (
-	Estimated ItemQueryCount = "estimated"
-	Exact     ItemQueryCount = "exact"
-	None      ItemQueryCount = "none"
+	ItemQueryCountEstimated ItemQueryCount = "estimated"
+	ItemQueryCountExact     ItemQueryCount = "exact"
+	ItemQueryCountNone      ItemQueryCount = "none"
 )
 
 // Valid indicates whether the value is a known member of the ItemQueryCount enum.
 func (e ItemQueryCount) Valid() bool {
 	switch e {
-	case Estimated:
+	case ItemQueryCountEstimated:
 		return true
-	case Exact:
+	case ItemQueryCountExact:
 		return true
-	case None:
+	case ItemQueryCountNone:
 		return true
 	default:
 		return false
@@ -2682,6 +2682,192 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAttestation.
+const (
+	PasskeyCreationOptionsAttestationNone PasskeyCreationOptionsAttestation = "none"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAttestation enum.
+func (e PasskeyCreationOptionsAttestation) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAttestationNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionResidentKey.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred PasskeyCreationOptionsAuthenticatorSelectionResidentKey = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionResidentKey enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionResidentKey) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionResidentKeyPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsAuthenticatorSelectionUserVerification.
+const (
+	PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred PasskeyCreationOptionsAuthenticatorSelectionUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsAuthenticatorSelectionUserVerification enum.
+func (e PasskeyCreationOptionsAuthenticatorSelectionUserVerification) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsAuthenticatorSelectionUserVerificationPreferred:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsAlg.
+const (
+	Minus257 PasskeyCreationOptionsPubKeyCredParamsAlg = -257
+	Minus7   PasskeyCreationOptionsPubKeyCredParamsAlg = -7
+	Minus8   PasskeyCreationOptionsPubKeyCredParamsAlg = -8
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsAlg enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsAlg) Valid() bool {
+	switch e {
+	case Minus257:
+		return true
+	case Minus7:
+		return true
+	case Minus8:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyCreationOptionsPubKeyCredParamsType.
+const (
+	PasskeyCreationOptionsPubKeyCredParamsTypePublicKey PasskeyCreationOptionsPubKeyCredParamsType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyCreationOptionsPubKeyCredParamsType enum.
+func (e PasskeyCreationOptionsPubKeyCredParamsType) Valid() bool {
+	switch e {
+	case PasskeyCreationOptionsPubKeyCredParamsTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyDescriptorType.
+const (
+	PasskeyDescriptorTypePublicKey PasskeyDescriptorType = "public-key"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyDescriptorType enum.
+func (e PasskeyDescriptorType) Valid() bool {
+	switch e {
+	case PasskeyDescriptorTypePublicKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotAddReason.
+const (
+	PasskeyListCannotAddReasonAuthPasskeyLimitReached PasskeyListCannotAddReason = "auth.passkey_limit_reached"
+	PasskeyListCannotAddReasonAuthPasskeyUnavailable  PasskeyListCannotAddReason = "auth.passkey_unavailable"
+	PasskeyListCannotAddReasonAuthStepUpNoMethod      PasskeyListCannotAddReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotAddReason enum.
+func (e PasskeyListCannotAddReason) Valid() bool {
+	switch e {
+	case PasskeyListCannotAddReasonAuthPasskeyLimitReached:
+		return true
+	case PasskeyListCannotAddReasonAuthPasskeyUnavailable:
+		return true
+	case PasskeyListCannotAddReasonAuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyListCannotRemoveReason.
+const (
+	PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant PasskeyListCannotRemoveReason = "auth.mfa_required_by_tenant"
+	PasskeyListCannotRemoveReasonAuthStepUpNoMethod      PasskeyListCannotRemoveReason = "auth.step_up_no_method"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyListCannotRemoveReason enum.
+func (e PasskeyListCannotRemoveReason) Valid() bool {
+	switch e {
+	case PasskeyListCannotRemoveReasonAuthMfaRequiredByTenant:
+		return true
+	case PasskeyListCannotRemoveReasonAuthStepUpNoMethod:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyTransport.
+const (
+	Ble       PasskeyTransport = "ble"
+	Hybrid    PasskeyTransport = "hybrid"
+	Internal  PasskeyTransport = "internal"
+	Nfc       PasskeyTransport = "nfc"
+	SmartCard PasskeyTransport = "smart-card"
+	Usb       PasskeyTransport = "usb"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyTransport enum.
+func (e PasskeyTransport) Valid() bool {
+	switch e {
+	case Ble:
+		return true
+	case Hybrid:
+		return true
+	case Internal:
+		return true
+	case Nfc:
+		return true
+	case SmartCard:
+		return true
+	case Usb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlanFeature.
+const (
+	AUTOMATIONRULES    PlanFeature = "AUTOMATION_RULES"
+	OWNSIGNINPROVIDERS PlanFeature = "OWN_SIGN_IN_PROVIDERS"
+	WEBHOOKS           PlanFeature = "WEBHOOKS"
+)
+
+// Valid indicates whether the value is a known member of the PlanFeature enum.
+func (e PlanFeature) Valid() bool {
+	switch e {
+	case AUTOMATIONRULES:
+		return true
+	case OWNSIGNINPROVIDERS:
+		return true
+	case WEBHOOKS:
 		return true
 	default:
 		return false
@@ -4002,6 +4188,27 @@ func (e TemplateScope) Valid() bool {
 	}
 }
 
+// Defines values for TenantQueryStatus.
+const (
+	TenantQueryStatusACTIVE          TenantQueryStatus = "ACTIVE"
+	TenantQueryStatusPENDINGDELETION TenantQueryStatus = "PENDING_DELETION"
+	TenantQueryStatusSUSPENDED       TenantQueryStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the TenantQueryStatus enum.
+func (e TenantQueryStatus) Valid() bool {
+	switch e {
+	case TenantQueryStatusACTIVE:
+		return true
+	case TenantQueryStatusPENDINGDELETION:
+		return true
+	case TenantQueryStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TermsInForceSetBy.
 const (
 	TermsInForceSetByINSTALLATION TermsInForceSetBy = "INSTALLATION"
@@ -4453,6 +4660,9 @@ type AccessTokenSecret struct {
 
 // Account defines model for Account.
 type Account struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -4461,10 +4671,13 @@ type Account struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -4614,17 +4827,23 @@ type AddressRequested struct {
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
-	CreatedAt       time.Time          `json:"created_at"`
-	DefaultLocale   *string            `json:"default_locale,omitempty"`
-	DefaultTimeZone *string            `json:"default_time_zone,omitempty"`
-	DisplayName     string             `json:"display_name"`
-	Id              openapi_types.UUID `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	DefaultLocale   *string   `json:"default_locale,omitempty"`
+	DefaultTimeZone *string   `json:"default_time_zone,omitempty"`
+	DisplayName     string    `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
 
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
+
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
 
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
@@ -4633,10 +4852,19 @@ type AdminTenant struct {
 	PurgeStartedAt *time.Time        `json:"purge_started_at,omitempty"`
 	Slug           string            `json:"slug"`
 	Status         AdminTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
+
+// AdminTenantPage defines model for AdminTenantPage.
+type AdminTenantPage struct {
+	Data []AdminTenant `json:"data"`
+	Page PageInfo      `json:"page"`
+}
 
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
@@ -6831,6 +7059,9 @@ type InvitationSummary struct {
 
 // InvitedAccount defines model for InvitedAccount.
 type InvitedAccount struct {
+	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
+	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -6839,10 +7070,13 @@ type InvitedAccount struct {
 	// HasAccess Whether this account holds a role anywhere in the workspace - on the workspace, a hub, a collection or one entry, directly or through a group - answered on `GET /accounts/me` and on nothing else. False is a person an administrator still has to give access to, such as somebody a sign-in provider brought in with nothing: a screen says so instead of an empty workspace. It is also the condition for creating a private hub of one's own, so where it is false no hub can be created; a person whose only role is on their own private hub, or on one shared entry, holds access.
 	HasAccess *bool `json:"has_access,omitempty"`
 
+	// HasAuthenticatorApp Whether an *armed* authenticator app stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	HasAuthenticatorApp *bool `json:"has_authenticator_app,omitempty"`
+
 	// HasPassword Whether this account holds a password, answered on `GET /accounts/me` and on nothing else. An account that signs in only through a provider holds none: a screen does not offer it a password change, and no step-up asks it for one.
 	HasPassword *bool `json:"has_password,omitempty"`
 
-	// HasSecondFactor Whether an *armed* second factor stands on this account, answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none, the same reading the sign-in path takes.
+	// HasSecondFactor Whether a second factor stands on this account - an armed authenticator app, or a passkey or security key of this workspace's address - answered on `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as none. Whether the app itself is armed is `has_authenticator_app`.
 	// Until this was answered, nothing in the contract said it, and a screen could not tell an account with no authenticator from one whose recovery codes had all been spent. That is how the security screen came to offer two actions the server refuses - "make new recovery codes" and "turn it off" - under a red banner saying none were left.
 	HasSecondFactor *bool              `json:"has_second_factor,omitempty"`
 	Id              openapi_types.UUID `json:"id"`
@@ -7817,6 +8051,156 @@ type PageInfo struct {
 	NextCursor *string `json:"next_cursor"`
 }
 
+// Passkey One passkey or security key of the caller's account.
+type Passkey struct {
+	// CreatedAt When it was added.
+	CreatedAt time.Time          `json:"created_at"`
+	Id        openapi_types.UUID `json:"id"`
+
+	// LastUsedAt When it last signed in or gave a fresh proof; null until it has.
+	LastUsedAt *time.Time `json:"last_used_at"`
+
+	// Name The name the person gave it.
+	Name string `json:"name"`
+
+	// RpId The host it was made for. Where it is not the list's `rp_id` - the workspace moved to another address, or the account was restored into another workspace - it opens nothing here, counts as no second factor, and can always be removed. Null for one made before the host was recorded, which counts as this workspace's.
+	RpId *string `json:"rp_id"`
+}
+
+// PasskeyCreationOptions defines model for PasskeyCreationOptions.
+type PasskeyCreationOptions struct {
+	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
+	AuthenticatorSelection struct {
+		RequireResidentKey bool                                                         `json:"requireResidentKey"`
+		ResidentKey        PasskeyCreationOptionsAuthenticatorSelectionResidentKey      `json:"residentKey"`
+		UserVerification   PasskeyCreationOptionsAuthenticatorSelectionUserVerification `json:"userVerification"`
+	} `json:"authenticatorSelection"`
+
+	// Challenge Thirty-two random bytes
+	Challenge          string              `json:"challenge"`
+	ExcludeCredentials []PasskeyDescriptor `json:"excludeCredentials"`
+	PubKeyCredParams   []struct {
+		Alg  PasskeyCreationOptionsPubKeyCredParamsAlg  `json:"alg"`
+		Type PasskeyCreationOptionsPubKeyCredParamsType `json:"type"`
+	} `json:"pubKeyCredParams"`
+	Rp struct {
+		// Id The workspace's host.
+		Id string `json:"id"`
+
+		// Name The workspace's name.
+		Name string `json:"name"`
+	} `json:"rp"`
+
+	// Timeout Milliseconds.
+	Timeout int `json:"timeout"`
+	User    struct {
+		DisplayName string `json:"displayName"`
+
+		// Id The account's opaque user handle
+		Id string `json:"id"`
+
+		// Name The account's address
+		Name string `json:"name"`
+	} `json:"user"`
+}
+
+// PasskeyCreationOptionsAttestation defines model for PasskeyCreationOptions.Attestation.
+type PasskeyCreationOptionsAttestation string
+
+// PasskeyCreationOptionsAuthenticatorSelectionResidentKey defines model for PasskeyCreationOptions.AuthenticatorSelection.ResidentKey.
+type PasskeyCreationOptionsAuthenticatorSelectionResidentKey string
+
+// PasskeyCreationOptionsAuthenticatorSelectionUserVerification defines model for PasskeyCreationOptions.AuthenticatorSelection.UserVerification.
+type PasskeyCreationOptionsAuthenticatorSelectionUserVerification string
+
+// PasskeyCreationOptionsPubKeyCredParamsAlg defines model for PasskeyCreationOptions.PubKeyCredParams.Alg.
+type PasskeyCreationOptionsPubKeyCredParamsAlg int
+
+// PasskeyCreationOptionsPubKeyCredParamsType defines model for PasskeyCreationOptions.PubKeyCredParams.Type.
+type PasskeyCreationOptionsPubKeyCredParamsType string
+
+// PasskeyDescriptor defines model for PasskeyDescriptor.
+type PasskeyDescriptor struct {
+	// Id A credential identifier
+	Id         string                `json:"id"`
+	Transports *[]PasskeyTransport   `json:"transports,omitempty"`
+	Type       PasskeyDescriptorType `json:"type"`
+}
+
+// PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
+type PasskeyDescriptorType string
+
+// PasskeyList defines model for PasskeyList.
+type PasskeyList struct {
+	// CanAdd Whether starting to add another would be accepted now.
+	CanAdd bool `json:"can_add"`
+
+	// CanRemove Whether removing one of the passkeys of this workspace's address would be accepted now. False where it is the last second factor the account holds and the workspace's rule requires one of this person, and where the account holds nothing to give the fresh proof with. A passkey of another address can always be removed.
+	CanRemove bool `json:"can_remove"`
+
+	// CannotAddReason Present where `can_add` is false - the message code saying why.
+	CannotAddReason *PasskeyListCannotAddReason `json:"cannot_add_reason,omitempty"`
+
+	// CannotRemoveReason Present where `can_remove` is false - the message code saying why.
+	CannotRemoveReason *PasskeyListCannotRemoveReason `json:"cannot_remove_reason,omitempty"`
+
+	// Limit The most an account may hold.
+	Limit    int       `json:"limit"`
+	Passkeys []Passkey `json:"passkeys"`
+
+	// RpId The host this workspace's passkeys belong to; null where the installation has no public address. A page served at another host cannot add or use one.
+	RpId *string `json:"rp_id"`
+}
+
+// PasskeyListCannotAddReason Present where `can_add` is false - the message code saying why.
+type PasskeyListCannotAddReason string
+
+// PasskeyListCannotRemoveReason Present where `can_remove` is false - the message code saying why.
+type PasskeyListCannotRemoveReason string
+
+// PasskeyRegistered defines model for PasskeyRegistered.
+type PasskeyRegistered struct {
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+}
+
+// PasskeyRegistration What `navigator.credentials.create()` answered, base64url without padding, and the name.
+type PasskeyRegistration struct {
+	// AttestationObject The response's `attestationObject`.
+	AttestationObject string `json:"attestation_object"`
+
+	// ClientDataJson The response's `clientDataJSON`.
+	ClientDataJson string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name string `json:"name"`
+
+	// RawId The credential's `rawId`.
+	RawId string `json:"raw_id"`
+
+	// Transports The response's `getTransports()`, where the browser offers it.
+	Transports *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyRegistrationOptions The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding.
+type PasskeyRegistrationOptions struct {
+	// ExpiresAt When the challenge stops being accepted.
+	ExpiresAt time.Time              `json:"expires_at"`
+	PublicKey PasskeyCreationOptions `json:"public_key"`
+}
+
+// PasskeyRename defines model for PasskeyRename.
+type PasskeyRename struct {
+	// Name What the person calls it, 1 to 64 characters.
+	Name string `json:"name"`
+}
+
+// PasskeyTransport defines model for PasskeyTransport.
+type PasskeyTransport string
+
 // PasswordChange defines model for PasswordChange.
 type PasswordChange struct {
 	// Password The new password, judged against this workspace's rule.
@@ -7964,6 +8348,57 @@ type PasswordViolation struct {
 	// Rule The rule's name, which is what the message code `auth.password_rule.<rule>` is held under and what the client keys its line on.
 	Rule string `json:"rule"`
 }
+
+// Plan defines model for Plan.
+type Plan struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	CreatedAt   time.Time                   `json:"created_at"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name      string                      `json:"name"`
+	Quotas    *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn    *map[string]InstanceSetting `json:"sign_in,omitempty"`
+	UpdatedAt time.Time                   `json:"updated_at"`
+	Version   int                         `json:"version"`
+
+	// Workspaces How many workspaces are on the plan.
+	Workspaces int `json:"workspaces"`
+}
+
+// PlanChange What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan").
+type PlanChange struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+	Quotas  *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn  *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanCreate A new plan - its short name and what it decides, as PlanChange.
+type PlanCreate struct {
+	Ai          *map[string]InstanceSetting `json:"ai,omitempty"`
+	DisplayName string                      `json:"display_name"`
+
+	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
+	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
+	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Name The short name, which never changes and is never reused.
+	Name   string                      `json:"name"`
+	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
+}
+
+// PlanFeature defines model for PlanFeature.
+type PlanFeature string
 
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
@@ -8135,7 +8570,10 @@ type ProvisionedTenant struct {
 	DefaultTimeZone     *string            `json:"default_time_zone,omitempty"`
 	DisplayName         string             `json:"display_name"`
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
-	Id                  openapi_types.UUID `json:"id"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -8147,6 +8585,9 @@ type ProvisionedTenant struct {
 	// PasswordOpening The operator's opening of the password while it is in force, null otherwise - an opening past its end is answered as none, whatever the row still holds.
 	PasswordOpening *PasswordOpening `json:"password_opening,omitempty"`
 
+	// Plan The short name of the workspace's plan, null for none.
+	Plan *string `json:"plan,omitempty"`
+
 	// PurgeAfter Set while a deletion request stands - when the grace runs out.
 	PurgeAfter *time.Time `json:"purge_after,omitempty"`
 
@@ -8154,6 +8595,9 @@ type ProvisionedTenant struct {
 	PurgeStartedAt *time.Time              `json:"purge_started_at,omitempty"`
 	Slug           string                  `json:"slug"`
 	Status         ProvisionedTenantStatus `json:"status"`
+
+	// Version The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.
+	Version *int `json:"version,omitempty"`
 }
 
 // ProvisionedTenantStatus defines model for ProvisionedTenant.Status.
@@ -9569,17 +10013,65 @@ type TenantExportRequest struct {
 	TargetId openapi_types.UUID `json:"target_id"`
 }
 
+// TenantPlanMove defines model for TenantPlanMove.
+type TenantPlanMove struct {
+	// ExpectedVersion The workspace's version as last read; a stale one is refused.
+	ExpectedVersion *int `json:"expected_version,omitempty"`
+
+	// Plan The plan's short name, or null for none.
+	Plan *string `json:"plan"`
+}
+
+// TenantPlanMoved defines model for TenantPlanMoved.
+type TenantPlanMoved struct {
+	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
+	ExceptionsKept []string `json:"exceptions_kept"`
+
+	// FeaturesResting The features the workspace's plan now leaves out.
+	FeaturesResting []PlanFeature `json:"features_resting"`
+	Tenant          AdminTenant   `json:"tenant"`
+}
+
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
-	DefaultLocale    *string             `json:"default_locale,omitempty"`
-	DefaultTimeZone  *string             `json:"default_time_zone,omitempty"`
-	DisplayName      string              `json:"display_name"`
-	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail       openapi_types.Email `json:"owner_email"`
+	DefaultLocale   *string `json:"default_locale,omitempty"`
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+	DisplayName     string  `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
+	ExternalReference *string             `json:"external_reference,omitempty"`
+	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail        openapi_types.Email `json:"owner_email"`
+
+	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
+	Plan *string `json:"plan,omitempty"`
 
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
 }
+
+// TenantQuery defines model for TenantQuery.
+type TenantQuery struct {
+	// Cursor The cursor of the page before.
+	Cursor *string `json:"cursor,omitempty"`
+
+	// ExternalReference The platform's own reference.
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Plan The short name of a plan; not with without_plan.
+	Plan *string `json:"plan,omitempty"`
+	Size *int    `json:"size,omitempty"`
+
+	// Slug The workspace's short name.
+	Slug   *string            `json:"slug,omitempty"`
+	Status *TenantQueryStatus `json:"status,omitempty"`
+
+	// WithoutPlan Only workspaces on no plan.
+	WithoutPlan *bool `json:"without_plan,omitempty"`
+}
+
+// TenantQueryStatus defines model for TenantQuery.Status.
+type TenantQueryStatus string
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
@@ -9591,6 +10083,12 @@ type TenantQuotas struct {
 	Items                 *int64 `json:"items,omitempty"`
 	MediaBytes            *int64 `json:"media_bytes,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
+}
+
+// TenantUpdate defines model for TenantUpdate.
+type TenantUpdate struct {
+	// ExternalReference The platform's own reference, or null to clear it.
+	ExternalReference *string `json:"external_reference"`
 }
 
 // TermsAgreement defines model for TermsAgreement.
@@ -10211,6 +10709,9 @@ type PageSize = int
 // ParentId defines model for ParentId.
 type ParentId = openapi_types.UUID
 
+// PasskeyId defines model for PasskeyId.
+type PasskeyId = openapi_types.UUID
+
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
 
@@ -10243,6 +10744,18 @@ type WebhookId = openapi_types.UUID
 
 // StartProviderConnectParams defines parameters for StartProviderConnect.
 type StartProviderConnectParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// RemoveOwnPasskeyParams defines parameters for RemoveOwnPasskey.
+type RemoveOwnPasskeyParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// StartPasskeyRegistrationParams defines parameters for StartPasskeyRegistration.
+type StartPasskeyRegistrationParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
@@ -10319,16 +10832,40 @@ type ListInstanceJournalParams struct {
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// CreatePlanParams defines parameters for CreatePlan.
+type CreatePlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// ChangePlanParams defines parameters for ChangePlan.
+type ChangePlanParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// UpdateTenantParams defines parameters for UpdateTenant.
+type UpdateTenantParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
 type RequestTenantDeletionParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// MoveTenantPlanParams defines parameters for MoveTenantPlan.
+type MoveTenantPlanParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // OpenTenantPasswordParams defines parameters for OpenTenantPassword.
@@ -11349,6 +11886,12 @@ type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 // StartProviderConnectJSONRequestBody defines body for StartProviderConnect for application/json ContentType.
 type StartProviderConnectJSONRequestBody = ProviderConnectStart
 
+// RenameOwnPasskeyJSONRequestBody defines body for RenameOwnPasskey for application/json ContentType.
+type RenameOwnPasskeyJSONRequestBody = PasskeyRename
+
+// CompletePasskeyRegistrationJSONRequestBody defines body for CompletePasskeyRegistration for application/json ContentType.
+type CompletePasskeyRegistrationJSONRequestBody = PasskeyRegistration
+
 // SetNotificationPreferenceJSONRequestBody defines body for SetNotificationPreference for application/json ContentType.
 type SetNotificationPreferenceJSONRequestBody = NotificationPreferenceUpdate
 
@@ -11388,11 +11931,20 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
+type CreatePlanJSONRequestBody = PlanCreate
+
+// ChangePlanJSONRequestBody defines body for ChangePlan for application/json ContentType.
+type ChangePlanJSONRequestBody = PlanChange
+
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
+
+// UpdateTenantJSONRequestBody defines body for UpdateTenant for application/json ContentType.
+type UpdateTenantJSONRequestBody = TenantUpdate
 
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
@@ -11403,6 +11955,9 @@ type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 // ExportTenantJSONRequestBody defines body for ExportTenant for application/json ContentType.
 type ExportTenantJSONRequestBody = TenantExportRequest
 
+// MoveTenantPlanJSONRequestBody defines body for MoveTenantPlan for application/json ContentType.
+type MoveTenantPlanJSONRequestBody = TenantPlanMove
+
 // OpenTenantPasswordJSONRequestBody defines body for OpenTenantPassword for application/json ContentType.
 type OpenTenantPasswordJSONRequestBody = PasswordOpeningRequest
 
@@ -11411,6 +11966,9 @@ type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
+
+// QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
+type QueryTenantsJSONRequestBody = TenantQuery
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
@@ -11789,6 +12347,21 @@ type ServerInterface interface {
 	// StartProviderConnect Begin connecting a sign-in provider to the caller's account
 	// (POST /accounts/me/identities:connect)
 	StartProviderConnect(w http.ResponseWriter, r *http.Request, params StartProviderConnectParams)
+	// ListOwnPasskeys The passkeys and security keys the caller's account holds
+	// (GET /accounts/me/passkeys)
+	ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
+	// RemoveOwnPasskey Remove one of the caller's passkeys or security keys
+	// (DELETE /accounts/me/passkeys/{passkeyId})
+	RemoveOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyId PasskeyId, params RemoveOwnPasskeyParams)
+	// RenameOwnPasskey Rename one of the caller's passkeys or security keys
+	// (PATCH /accounts/me/passkeys/{passkeyId})
+	RenameOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyId PasskeyId)
+	// CompletePasskeyRegistration Finish adding a passkey or a security key to the caller's account
+	// (POST /accounts/me/passkeys:complete)
+	CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request)
+	// StartPasskeyRegistration Begin adding a passkey or a security key to the caller's account
+	// (POST /accounts/me/passkeys:start)
+	StartPasskeyRegistration(w http.ResponseWriter, r *http.Request, params StartPasskeyRegistrationParams)
 	// GetAccount The name behind an account identifier
 	// (GET /accounts/{accountId})
 	GetAccount(w http.ResponseWriter, r *http.Request, accountId AccountId)
@@ -11882,6 +12455,21 @@ type ServerInterface interface {
 	// ReadInstanceOverview How big this installation is and how its workspaces stand
 	// (GET /admin/overview)
 	ReadInstanceOverview(w http.ResponseWriter, r *http.Request)
+	// ListPlans The installation's plans
+	// (GET /admin/plans)
+	ListPlans(w http.ResponseWriter, r *http.Request)
+	// CreatePlan Create a plan
+	// (POST /admin/plans)
+	CreatePlan(w http.ResponseWriter, r *http.Request, params CreatePlanParams)
+	// RemovePlan Remove a plan
+	// (DELETE /admin/plans/{planName})
+	RemovePlan(w http.ResponseWriter, r *http.Request, planName string)
+	// ReadPlan One plan
+	// (GET /admin/plans/{planName})
+	ReadPlan(w http.ResponseWriter, r *http.Request, planName string)
+	// ChangePlan Replace a plan's values
+	// (PUT /admin/plans/{planName})
+	ChangePlan(w http.ResponseWriter, r *http.Request, planName string, params ChangePlanParams)
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	// (GET /admin/settings)
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
@@ -11894,6 +12482,12 @@ type ServerInterface interface {
 	// ProvisionTenant Provision a workspace
 	// (POST /admin/tenants)
 	ProvisionTenant(w http.ResponseWriter, r *http.Request, params ProvisionTenantParams)
+	// ReadTenant One workspace
+	// (GET /admin/tenants/{tenantId})
+	ReadTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// UpdateTenant Set or clear the platform's reference on a workspace
+	// (PATCH /admin/tenants/{tenantId})
+	UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params UpdateTenantParams)
 	// UpdateTenantQuotas Set a workspace's quotas
 	// (PATCH /admin/tenants/{tenantId}/quotas)
 	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -11909,6 +12503,9 @@ type ServerInterface interface {
 	// ExportTenant Export a workspace whole
 	// (POST /admin/tenants/{tenantId}:export)
 	ExportTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// MoveTenantPlan Put a workspace on another plan
+	// (POST /admin/tenants/{tenantId}:move-plan)
+	MoveTenantPlan(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params MoveTenantPlanParams)
 	// OpenTenantPassword Open the password for one workspace
 	// (POST /admin/tenants/{tenantId}:open-password)
 	OpenTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params OpenTenantPasswordParams)
@@ -11924,6 +12521,9 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// QueryTenants Find workspaces
+	// (POST /admin/tenants:query)
+	QueryTenants(w http.ResponseWriter, r *http.Request)
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
@@ -12815,6 +13415,151 @@ func (siw *ServerInterfaceWrapper) StartProviderConnect(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartProviderConnect(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOwnPasskeys operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnPasskeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnPasskeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOwnPasskey operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOwnPasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "passkeyId" -------------
+	var passkeyId PasskeyId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "passkeyId", r.PathValue("passkeyId"), &passkeyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "passkeyId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveOwnPasskeyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOwnPasskey(w, r, passkeyId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenameOwnPasskey operation middleware
+func (siw *ServerInterfaceWrapper) RenameOwnPasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "passkeyId" -------------
+	var passkeyId PasskeyId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "passkeyId", r.PathValue("passkeyId"), &passkeyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "passkeyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenameOwnPasskey(w, r, passkeyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompletePasskeyRegistration operation middleware
+func (siw *ServerInterfaceWrapper) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompletePasskeyRegistration(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPasskeyRegistration operation middleware
+func (siw *ServerInterfaceWrapper) StartPasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartPasskeyRegistrationParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPasskeyRegistration(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -13788,6 +14533,163 @@ func (siw *ServerInterfaceWrapper) ReadInstanceOverview(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListPlans operation middleware
+func (siw *ServerInterfaceWrapper) ListPlans(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlans(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlan operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreatePlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlan(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemovePlan operation middleware
+func (siw *ServerInterfaceWrapper) RemovePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemovePlan(w, r, planName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPlan operation middleware
+func (siw *ServerInterfaceWrapper) ReadPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPlan(w, r, planName)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePlan operation middleware
+func (siw *ServerInterfaceWrapper) ChangePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "planName" -------------
+	var planName string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "planName", r.PathValue("planName"), &planName, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "planName", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePlan(w, r, planName, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadInstanceSettings operation middleware
 func (siw *ServerInterfaceWrapper) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -13862,6 +14764,82 @@ func (siw *ServerInterfaceWrapper) ProvisionTenant(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ProvisionTenant(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadTenant operation middleware
+func (siw *ServerInterfaceWrapper) ReadTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTenant operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateTenantParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTenant(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14016,6 +14994,56 @@ func (siw *ServerInterfaceWrapper) ExportTenant(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ExportTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveTenantPlan operation middleware
+func (siw *ServerInterfaceWrapper) MoveTenantPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MoveTenantPlanParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveTenantPlan(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -14194,6 +15222,20 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SuspendTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryTenants operation middleware
+func (siw *ServerInterfaceWrapper) QueryTenants(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryTenants(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24001,6 +25043,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants/{tenantId}", wrapper.ReadTenant)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}", wrapper.UpdateTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants:query", wrapper.QueryTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:cancel-deletion", wrapper.CancelTenantDeletion)
@@ -24016,6 +25061,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/backup-targets/{targetId}:test", wrapper.TestInstanceBackupTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/settings", wrapper.ReadInstanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/settings", wrapper.WriteInstanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans", wrapper.ListPlans)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/plans", wrapper.CreatePlan)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.RemovePlan)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ReadPlan)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ChangePlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
@@ -24043,6 +25094,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/identities", wrapper.ListOwnIdentities)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:connect", wrapper.StartProviderConnect)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/identities:complete", wrapper.CompleteProviderConnect)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/passkeys", wrapper.ListOwnPasskeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:start", wrapper.StartPasskeyRegistration)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/passkeys:complete", wrapper.CompletePasskeyRegistration)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RemoveOwnPasskey)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RenameOwnPasskey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)

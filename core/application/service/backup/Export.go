@@ -149,6 +149,9 @@ var redactedFields = map[string][]string{
 	"automation_rule":      {"inbound_token_hash"},
 	"webhook_subscription": {"secret_enc", "secret_key_id", "previous_secret_enc", "previous_secret_key_id", "previous_secret_until"},
 	"calendar_feed":        {"token_hash"},
+	// A passkey leaves as what the person sees of it - its name and dates - and never as a
+	// credential: without its identifier, key and handle it opens nothing, and an import skips it.
+	"webauthn_credential": {"credential_id", "public_key", "user_handle"},
 }
 
 // Redacted wraps a source so that every record loses the credential columns of tenant-export.md

@@ -282,10 +282,28 @@ const disableMfa = `-- name: DisableMfa :execrows
 DELETE FROM account_mfa WHERE account_id = $1
 `
 
-// The enrolment goes whole; the recovery codes go with it by their own statement in the same
-// transaction, because half a disable is worse than none.
+// The enrolment goes whole. The recovery codes are the account's: they go by their own statement
+// where nothing remains for them to back (DiscardUnbackedRecoveryCodes).
 func (q *Queries) DisableMfa(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, disableMfa, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const discardUnbackedRecoveryCodes = `-- name: DiscardUnbackedRecoveryCodes :execrows
+DELETE FROM account_recovery_code c
+WHERE c.account_id = $1
+  AND NOT EXISTS (SELECT 1 FROM account_mfa m WHERE m.account_id = c.account_id)
+  AND NOT EXISTS (SELECT 1 FROM webauthn_credential w WHERE w.account_id = c.account_id)
+`
+
+// The codes back whatever second factor the account holds (identity.md §9), so they go only where
+// it holds none: no app, armed or begun, and no passkey. The condition sits in the statement, so a
+// removal that raced an enrolment's start never takes the codes that enrolment just showed.
+func (q *Queries) DiscardUnbackedRecoveryCodes(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, discardUnbackedRecoveryCodes, accountID)
 	if err != nil {
 		return 0, err
 	}

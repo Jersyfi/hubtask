@@ -100,6 +100,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
+	"github.com/Jersyfi/hubtask/infrastructure/webauthn"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
@@ -500,6 +501,16 @@ func run() error {
 		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
+		// A passkey is a second factor as the app is (identity.md §23.2), counted where turning the
+		// app off and the codes ask. In the literal: every writer below is a copy of this one.
+		Keys: identity.PasskeyKeys{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+		},
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
 		StepUpWindow: cfg.StepUpWindow,
 		Encryptor:    encryptor,
@@ -1312,6 +1323,14 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// Plans, between the installation and its workspaces (multi-tenancy.md §4.2): the instance
+	// writer for the register, the level and the journal, and the mode - plans are multi mode's.
+	planWriter := adminservice.PlanWriter{
+		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
+	}
+	// One workspace, and the query a platform finds its workspaces with (multi-tenancy.md §4.3).
+	tenantReader := adminservice.TenantReader{Writer: planWriter, Finder: postgres.NewTenantQueryRepository(cursors)}
+
 	// The same writer over the *plain* repository, for the one caller allowed to write while a
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
@@ -1391,6 +1410,16 @@ func run() error {
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	instanceTargetWriter.StepUp = stepUpVerifier
+	// Passkeys (identity.md §23), built here for the verifiers' reason: the writer is a copy of the
+	// session writer, and adding one asks the step-up whose methods the rule decides.
+	passkeyWriter := identity.PasskeyWriter{
+		Session: sessionWriter, Passkeys: postgres.NewPasskeyRepository(), Verifier: webauthn.Verifier{},
+		Challenges: postgres.NewPasskeyChallengeRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+		StepUp:       stepUpVerifier,
+		WayIn:        wayInNotices,
+	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
@@ -1406,6 +1435,7 @@ func run() error {
 		"the identity provider's step-up":   verifierWriter(identityProviderWriter.StepUp),
 		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
 		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
+		"the passkeys' session writer":      passkeyWriter.Session,
 	}); err != nil {
 		return err
 	}
@@ -1446,7 +1476,8 @@ func run() error {
 	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
 	// began (UC-INS-01).
 	provisioning := adminservice.ProvisionTenant{
-		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
+		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
 		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
@@ -1486,6 +1517,7 @@ func run() error {
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+			Keys:     sessionWriter.Keys,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
@@ -1716,6 +1748,11 @@ func run() error {
 		}.Descriptor(),
 		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
 		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
+		identity.RemoveOwnPasskey{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -2225,6 +2262,21 @@ func run() error {
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlans{Writer: planWriter}.Descriptor(),
+		adminservice.ReadPlan{Writer: planWriter}.Descriptor(),
+		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
+		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ReadTenant{Reader: tenantReader}.Descriptor(),
+		adminservice.QueryTenants{Reader: tenantReader}.Descriptor(),
+		adminservice.UpdateTenant{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Finder: postgres.NewTenantQueryRepository(cursors), Audit: auditSink,
+		}.Descriptor(),
+		adminservice.MoveTenantPlan{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
+		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
@@ -3511,6 +3563,7 @@ func run() error {
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
+		plans:      planWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -3659,6 +3712,18 @@ func teachTheRule(
 // whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
 // password through at every door it guards and offers it as a step-up proof, silently - which is what
 // a test that wires no rule wants, and what a server must never do.
+// passkeyInstallationOf reads the installation's public address for the relying party a workspace's
+// passkeys belong to (identity.md §23.3). An address that does not parse, or none, binds nothing.
+func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallation {
+	parsed, err := url.Parse(baseURL)
+	if err != nil || parsed.Hostname() == "" {
+		return identity.PasskeyInstallation{Multi: multi}
+	}
+	return identity.PasskeyInstallation{
+		Host: parsed.Hostname(), Scheme: parsed.Scheme, Port: parsed.Port(), Multi: multi,
+	}
+}
+
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {
@@ -4182,7 +4247,10 @@ type applyingInstanceFile struct {
 	write    adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
-	ai         adminservice.InstanceAiWriter
+	ai adminservice.InstanceAiWriter
+	// plans writes the plans the file names, as the file: it passes every check the API's writes
+	// pass, and is the one writer of plans while the file enforces.
+	plans      adminservice.PlanWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4221,6 +4289,31 @@ func applyAiModels(ctx context.Context, applying applyingInstanceFile, document 
 	return nil
 }
 
+// applyPlans writes the plans the file names (multi-tenancy.md §4.2). In single mode there are no
+// plans, and the file's are skipped with a line saying so rather than refusing the start.
+func applyPlans(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	plans, present, err := instancefile.Plans(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.plans.ApplyFile(ctx, plans, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names plans, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	for _, kept := range outcome.Kept {
+		slog.Warn("a plan the instance file no longer names was kept: workspaces are on it",
+			"source", applying.path, "plan", kept)
+	}
+	slog.Info("the plans were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "plans", len(plans))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4243,7 +4336,16 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	if err := applyAiModels(ctx, applying, document); err != nil {
 		return err
 	}
+	if err := applyLevel(ctx, applying, document); err != nil {
+		return err
+	}
+	// The plans after the level: a plan is checked against the installation's values, so the
+	// file's own values have to be in place first.
+	return applyPlans(ctx, applying, document)
+}
 
+// applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
+func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),

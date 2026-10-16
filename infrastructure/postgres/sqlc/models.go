@@ -603,6 +603,8 @@ type AuthPending struct {
 	ArrivalEmail       *string
 	ArrivalDisplayName *string
 	ArrivalDirectory   *string
+	SessionID          pgtype.UUID
+	UserHandle         []byte
 }
 
 type AutoAssignPolicy struct {
@@ -1214,6 +1216,24 @@ type OutboxEvent struct {
 	PushID         pgtype.UUID
 }
 
+type Plan struct {
+	ID          pgtype.UUID
+	Name        string
+	DisplayName string
+	Version     int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	RemovedAt   pgtype.Timestamptz
+}
+
+type PlanSetting struct {
+	PlanID pgtype.UUID
+	Key    string
+	Value  []byte
+	Locked bool
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -1494,6 +1514,7 @@ type Tenant struct {
 	PasswordOpenedReason    *string
 	StatusBeforeDeletion    *TenantStatus
 	PurgeStartedAt          pgtype.Timestamptz
+	ExternalReference       *string
 }
 
 type TenantHost struct {
@@ -1519,6 +1540,24 @@ type UsageRecord struct {
 	Period   pgtype.Date
 	Metric   string
 	Value    int64
+}
+
+type WebauthnCredential struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	AccountID      pgtype.UUID
+	CredentialID   []byte
+	PublicKey      []byte
+	Algorithm      int32
+	SignCount      int64
+	UserHandle     []byte
+	BackupEligible bool
+	BackedUp       bool
+	Transports     []string
+	Name           string
+	CreatedAt      pgtype.Timestamptz
+	LastUsedAt     pgtype.Timestamptz
+	RpID           *string
 }
 
 type WebhookDelivery struct {

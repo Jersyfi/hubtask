@@ -64,6 +64,8 @@ class Account(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -121,6 +123,8 @@ class InvitedAccount(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -876,6 +880,9 @@ class AdminTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    external_reference: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
@@ -959,6 +966,65 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
+PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
+
+class PlanChange(TypedDict, total=False):
+    """What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan")."""
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class PlanCreate(TypedDict, total=False):
+    """A new plan - its short name and what it decides, as PlanChange."""
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class Plan(TypedDict, total=False):
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+    version: Required[int]
+    workspaces: Required[int]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class TenantPlanMove(TypedDict, total=False):
+    plan: Required[str | None]
+    expected_version: int
+
+class TenantPlanMoved(TypedDict, total=False):
+    tenant: Required["AdminTenant"]
+    features_resting: Required[list["PlanFeature"]]
+    exceptions_kept: Required[list[str]]
+
+class TenantUpdate(TypedDict, total=False):
+    external_reference: Required[str | None]
+
+class TenantQuery(TypedDict, total=False):
+    slug: str
+    external_reference: str
+    plan: str
+    without_plan: bool
+    status: Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]
+    size: int
+    cursor: str | None
+
+class AdminTenantPage(TypedDict, total=False):
+    data: Required[list["AdminTenant"]]
+    page: Required["PageInfo"]
+
 class TenantProvision(TypedDict, total=False):
     slug: Required[str]
     display_name: Required[str]
@@ -966,6 +1032,8 @@ class TenantProvision(TypedDict, total=False):
     default_time_zone: str | None
     owner_email: Required[str]
     owner_display_name: str | None
+    plan: str | None
+    external_reference: str | None
 
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
@@ -975,6 +1043,9 @@ class ProvisionedTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    external_reference: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
@@ -1079,6 +1150,60 @@ class ConnectedIdentity(TypedDict, total=False):
     provider_id: Required[str]
     provider_name: Required[str]
     linked_at: Required[str]
+
+class Passkey(TypedDict, total=False):
+    """One passkey or security key of the caller's account."""
+    id: Required[str]
+    name: Required[str]
+    created_at: Required[str]
+    last_used_at: Required[str | None]
+    rp_id: Required[str | None]
+
+class PasskeyRename(TypedDict, total=False):
+    name: Required[str]
+
+class PasskeyList(TypedDict, total=False):
+    passkeys: Required[list["Passkey"]]
+    limit: Required[int]
+    can_add: Required[bool]
+    cannot_add_reason: Literal["auth.passkey_limit_reached", "auth.passkey_unavailable", "auth.step_up_no_method"]
+    can_remove: Required[bool]
+    cannot_remove_reason: Literal["auth.mfa_required_by_tenant", "auth.step_up_no_method"]
+    rp_id: Required[str | None]
+
+class PasskeyRegistrationOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
+    public_key: Required["PasskeyCreationOptions"]
+    expires_at: Required[str]
+
+class PasskeyCreationOptions(TypedDict, total=False):
+    rp: Required[dict[str, Any]]
+    user: Required[dict[str, Any]]
+    challenge: Required[str]
+    pubKeyCredParams: Required[list[dict[str, Any]]]
+    timeout: Required[int]
+    excludeCredentials: Required[list["PasskeyDescriptor"]]
+    authenticatorSelection: Required[dict[str, Any]]
+    attestation: Required[Literal["none"]]
+
+class PasskeyDescriptor(TypedDict, total=False):
+    type: Required[Literal["public-key"]]
+    id: Required[str]
+    transports: list["PasskeyTransport"]
+
+PasskeyTransport = Literal["usb", "nfc", "ble", "hybrid", "internal", "smart-card"]
+
+class PasskeyRegistration(TypedDict, total=False):
+    """What `navigator.credentials.create()` answered, base64url without padding, and the name."""
+    name: Required[str]
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    attestation_object: Required[str]
+    transports: list["PasskeyTransport"]
+
+class PasskeyRegistered(TypedDict, total=False):
+    passkey: Required["Passkey"]
+    recovery_codes: list[str]
 
 class ProviderConnectStart(TypedDict, total=False):
     provider_id: Required[str]
