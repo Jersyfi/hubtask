@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -112,7 +113,7 @@ func TestASeededWorkspaceIsStillAtItsFirstVersion(t *testing.T) {
 	tenants := postgres.NewAdminTenantRepository()
 	tenant := freshID(t)
 	if _, err := admin.Exec(ctx, `INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, 'Fresh')`,
-		tenant.String(), "fr-"+planName("x")[2:11]); err != nil {
+		tenant.String(), fmt.Sprintf("fr-%09d", time.Now().UnixNano()%1_000_000_000)); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
 	t.Cleanup(func() {

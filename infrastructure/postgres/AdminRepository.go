@@ -6,9 +6,11 @@ package postgres
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -658,4 +660,121 @@ func (InstallationRepository) Census(ctx context.Context) (repository.Census, er
 		AccountsTotal:             row.AccountsTotal,
 		WorkspacesServiceOnly:     row.WorkspacesServiceOnly,
 	}, nil
+}
+
+// tenantReferenceIndex is the unique index on a platform's reference (migration 0166).
+const tenantReferenceIndex = "tenant_external_reference_key"
+
+func referenceTaken(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == tenantReferenceIndex
+}
+
+// referenceTakenError carries no parameter and no cause: the database's detail names the value, and
+// a reference may name a customer (rule 10). Nor does it say whose it is (P-01).
+func referenceTakenError() error {
+	return shared.ErrConflict.WithDetail("admin.reference_taken")
+}
+
+// SetReference sets a platform's reference on the transaction's own tenant, or clears it.
+func (AdminTenantRepository) SetReference(ctx context.Context, reference string, version int, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	written, err := queries.SetTenantReference(ctx, sqlc.SetTenantReferenceParams{
+		ExternalReference: optionalText(reference), Now: pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+		Version: int32(version), //nolint:gosec // a version is a small counter
+	})
+	if referenceTaken(err) {
+		return false, referenceTakenError()
+	}
+	if err != nil {
+		// The database's message and code, never its detail, which names the value (rule 10).
+		return false, queryFailed("setting the tenant's reference", err)
+	}
+	return written == 1, nil
+}
+
+// TenantQueryRepository is the control plane's filtered, paged read of the workspaces.
+type TenantQueryRepository struct{ cursors security.CursorCodec }
+
+// NewTenantQueryRepository answers the repository; the cursors are signed with the installation's
+// secret.
+func NewTenantQueryRepository(cursors security.CursorCodec) TenantQueryRepository {
+	return TenantQueryRepository{cursors: cursors}
+}
+
+var _ repository.TenantFinder = TenantQueryRepository{}
+
+// Query answers one page of the matching workspaces, oldest first.
+func (r TenantQueryRepository) Query(
+	ctx context.Context, query repository.TenantQuery,
+) ([]repository.TenantRecord, repository.PageInfo, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, repository.PageInfo{}, err
+	}
+	params := sqlc.QueryTenantsParams{
+		WantSlug: optionalText(query.Slug), WantReference: optionalText(query.Reference),
+		WantPlan: optionalText(query.Plan), WantStatus: optionalText(string(query.Status)),
+		PageSize: int32(query.Size) + 1, //nolint:gosec // clamped by the use case
+	}
+	if query.WithoutPlan {
+		without := true
+		params.WantWithoutPlan = &without
+	}
+	if !query.ID.IsZero() {
+		if params.WantID, err = uuidOf(query.ID); err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+	}
+	if query.Cursor != "" {
+		position, err := r.cursors.Decode(query.Cursor)
+		if err != nil {
+			return nil, repository.PageInfo{}, shared.ErrValidation.WithDetail("shared.cursor_invalid")
+		}
+		at, err := time.Parse(time.RFC3339Nano, position.SortKey())
+		if err != nil {
+			return nil, repository.PageInfo{}, shared.ErrValidation.WithDetail("shared.cursor_invalid")
+		}
+		if params.AfterID, err = uuidOf(position.ID); err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+		params.AfterAt = pgtype.Timestamptz{Time: at, Valid: true}
+	}
+
+	rows, err := queries.QueryTenants(ctx, params)
+	if err != nil {
+		return nil, repository.PageInfo{}, queryFailed("querying the tenants", err)
+	}
+	records := make([]repository.TenantRecord, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, repository.PageInfo{}, err
+		}
+		records = append(records, repository.TenantRecord{
+			ID: id, Slug: row.Slug, DisplayName: row.DisplayName,
+			Status:        identity.TenantStatus(row.Status),
+			DefaultLocale: row.DefaultLocale, DefaultTimeZone: row.DefaultTimeZone,
+			CreatedAt: timeFrom(row.CreatedAt), PurgeAfter: timeFrom(row.PurgeAfter),
+			PasswordOpening: identity.PasswordOpening{
+				Until:     timeFrom(row.PasswordOpenedUntil),
+				Requester: row.PasswordOpenedRequester, Reason: row.PasswordOpenedReason,
+			},
+			LegalHold: row.LegalHold, PurgeStartedAt: timeFrom(row.PurgeStartedAt),
+			PlanName: row.PlanName, Version: int(row.Version), ExternalReference: row.ExternalReference,
+		})
+	}
+	page := repository.PageInfo{}
+	if len(records) > query.Size {
+		records = records[:query.Size]
+		last := records[len(records)-1]
+		page.HasMore = true
+		page.NextCursor = r.cursors.Encode(security.Position{
+			ID: last.ID, Keys: []string{last.CreatedAt.UTC().Format(time.RFC3339Nano)},
+		})
+	}
+	return records, page, nil
 }

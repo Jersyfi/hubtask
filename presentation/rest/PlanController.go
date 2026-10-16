@@ -220,3 +220,33 @@ func featuresOf(value any) []openapi.PlanFeature {
 	}
 	return features
 }
+
+// UpdateTenant answers PATCH /admin/tenants/{tenantId}: a platform's reference, set or cleared.
+func (c *RestController) UpdateTenant(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId, params openapi.UpdateTenantParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TenantUpdate
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"tenant_id": tenantID.String(), "external_reference": optionalStringField(body.ExternalReference)}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+	out, err := c.UseCases.Invoke(r.Context(), "UpdateTenant", actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	answer := adminTenantResponse(out)
+	if answer.Version != nil {
+		w.Header().Set("ETag", etag(*answer.Version))
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}

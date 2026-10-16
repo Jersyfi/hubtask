@@ -149,3 +149,26 @@ func TestProvisioningCarriesThePlan(t *testing.T) {
 		t.Errorf("an unknown plan answered %d", recorder.Code)
 	}
 }
+
+// The reference travels to its use case with the version from If-Match, and the answer's version is
+// the tag; null clears.
+func TestAReferenceIsSetOverREST(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "maria", "display_name": "Maria",
+		"status": "ACTIVE", "created_at": time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC),
+		"external_reference": "cus_8f2a91", "version": 6,
+	}}
+	recorder := callPlans(t, registry, http.MethodPatch, "/admin/tenants/0192f000-0000-7000-8000-0000000000e1",
+		`{"external_reference": "cus_8f2a91"}`, map[string]string{"If-Match": `"5"`})
+	if recorder.Code != http.StatusOK || recorder.Header().Get("ETag") != `"6"` {
+		t.Fatalf("status %d, ETag %q, body %s", recorder.Code, recorder.Header().Get("ETag"), recorder.Body)
+	}
+	if registry.name != "UpdateTenant" || registry.in["external_reference"] != "cus_8f2a91" || registry.in["expected_version"] != 5 {
+		t.Errorf("reached %q with %v", registry.name, registry.in)
+	}
+	callPlans(t, registry, http.MethodPatch, "/admin/tenants/0192f000-0000-7000-8000-0000000000e1",
+		`{"external_reference": null}`, nil)
+	if registry.in["external_reference"] != nil {
+		t.Errorf("a null reached the use case as %v", registry.in["external_reference"])
+	}
+}

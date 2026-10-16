@@ -2265,6 +2265,10 @@ func run() error {
 		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
 		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
 		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.UpdateTenant{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Finder: postgres.NewTenantQueryRepository(cursors), Audit: auditSink,
+		}.Descriptor(),
 		adminservice.MoveTenantPlan{
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
 			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,

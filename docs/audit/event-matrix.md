@@ -477,6 +477,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |
 | `tenant.provisioned` | ProvisionTenant | `tenant` | INFO | Every time |
 | `tenant.quotas_changed` | UpdateTenantQuotas | `quota` | WARNING | Every time |
+| `tenant.reference_changed` | UpdateTenant | `tenant` | INFO | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
 
