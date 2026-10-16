@@ -213,6 +213,15 @@
           {/each}
         </ul>
       {/if}
+      <!-- The limit, said before it is reached (UC-ID-22 check 3): at the limit the reason below
+           says it instead. -->
+      {#if held.length < list.limit}
+        <p class="quiet">
+          {held.length === 0
+            ? t('app.passkeys.limit', { limit: String(list.limit) })
+            : t('app.passkeys.count', { count: String(held.length), limit: String(list.limit) })}
+        </p>
+      {/if}
 
       {#if reason}
         <p class="quiet">{reason}</p>

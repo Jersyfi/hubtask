@@ -1739,6 +1739,8 @@
   "app.passkeys.title": "Passkeys und Sicherheitsschlüssel",
   "app.passkeys.body": "Ein Passkey oder ein Sicherheitsschlüssel ist ein Weg in dein Konto, der auf einem Gerät liegt, das du hast. Füge für jedes Gerät, das du nutzt, einen hinzu – und einen als Reserve.",
   "app.passkeys.none": "Noch kein Passkey und kein Sicherheitsschlüssel.",
+  "app.passkeys.limit": "Ein Konto hält bis zu {limit}.",
+  "app.passkeys.count": "{count, plural, one {Du hast # von höchstens {limit}.} other {Du hast # von höchstens {limit}.}}",
   "app.passkeys.meta_unused": "Hinzugefügt am {added} · noch nicht verwendet",
   "app.passkeys.meta_used": "Hinzugefügt am {added} · zuletzt verwendet am {used}",
   "app.passkeys.name_label": "Name",

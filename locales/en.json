@@ -1826,6 +1826,8 @@
   "app.passkeys.title": "Passkeys and security keys",
   "app.passkeys.body": "A passkey or a security key is a way into your account kept on a device you hold. Add one for each device you use, and a spare.",
   "app.passkeys.none": "No passkey or security key yet.",
+  "app.passkeys.limit": "An account holds up to {limit}.",
+  "app.passkeys.count": "{count, plural, one {You hold # of at most {limit}.} other {You hold # of at most {limit}.}}",
   "app.passkeys.meta_unused": "Added {added} · not used yet",
   "app.passkeys.meta_used": "Added {added} · last used {used}",
   "app.passkeys.name_label": "Name",

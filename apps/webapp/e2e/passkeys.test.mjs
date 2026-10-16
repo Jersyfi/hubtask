@@ -165,6 +165,8 @@ test('chromium: a passkey is added with a fresh proof, then the device, named, a
 
   // Check 1: none yet, in words.
   await panel.getByText('No passkey or security key yet.').waitFor();
+  // Check 3: the limit is said before it is reached.
+  await panel.getByText('An account holds up to 10.').waitFor();
 
   // Check 2: the name first, suggested and replaced; then the proof; then the device.
   const name = panel.getByRole('textbox', { name: 'Name' });
@@ -219,6 +221,7 @@ test('chromium: at ten passkeys none is offered, and the profile says why', asyn
   await panel.getByText('An account holds at most 10 passkeys and security keys.', { exact: false }).waitFor();
   assert.equal(await panel.getByRole('button', { name: 'Add a passkey' }).count(), 0);
   assert.equal(await panel.getByRole('listitem').count(), 10);
+  assert.equal(await panel.getByText('of at most', { exact: false }).count(), 0, 'the count stood beside the reason');
   await panel.getByText('last used', { exact: false }).waitFor();
   assert.deepEqual(failures, []);
 });
@@ -286,6 +289,7 @@ test('chromium: a passkey is renamed with the session alone, and another removed
   t.after(() => context.close());
   const panel = page.getByTestId('passkeys');
   const laptop = panel.getByRole('listitem').filter({ hasText: 'Laptop' });
+  await panel.getByText('You hold 2 of at most 10.').waitFor();
 
   await laptop.getByRole('button', { name: 'Rename' }).click();
   const field = panel.getByRole('textbox', { name: 'New name for Laptop' });
@@ -308,6 +312,7 @@ test('chromium: a passkey is renamed with the session alone, and another removed
   await panel.getByText('Key in the drawer was removed. It no longer works.').waitFor();
   assert.deepEqual(sent.removals, [{ id: DRAWER.id, proof: null }, { id: DRAWER.id, proof: GRANT }]);
   assert.equal(await panel.getByRole('listitem').count(), 1, 'the removed passkey is still listed');
+  await panel.getByText('You hold 1 of at most 10.').waitFor();
   assert.deepEqual(failures, []);
 });
 
