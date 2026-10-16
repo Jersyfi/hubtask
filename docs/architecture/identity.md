@@ -701,15 +701,18 @@ for **one named workspace** (`POST /admin/tenants/{id}:open-password`):
 ## 18. The levels of the sign-in settings
 
 ```
-product bounds (§5.2)  →  the installation's default and lock  →  the workspace, where no lock lies
+product bounds (§5.2)  →  the installation's default and lock  →  the plan's, under the installation's lock
+                      →  the workspace, where no lock lies
 ```
 
 * The installation sets a **default** and a **lock** per switch, as every instance setting
   ([multi-tenancy.md](./multi-tenancy.md) §4.1); a locked control shows **the value, the reason and
-  who set it**. A lock's origin, `INSTANCE` or `PLAN` (no writer yet), tells "ask your
-  administrator" from "ask your provider". The plan's level is decided for milestone PL and not
-  built: it tightens what the installation left open and never writes under its lock
-  ([multi-tenancy.md](./multi-tenancy.md) §4.2).
+  who set it**. A lock's origin, `INSTANCE` or `PLAN`, tells "ask your administrator" from "ask
+  your provider". A workspace's plan sets a default and a lock the same way: it tightens what the
+  installation left open and never writes under its lock; where the installation locks a switch,
+  the plan's value for it is not read at all ([multi-tenancy.md](./multi-tenancy.md) §4.2). The
+  level above a workspace is the installation and its plan together; the workspace's screen names
+  the plan (`plan` on the sign-in policy) and says "your plan" for what the plan set or locked.
 * **A workspace only ever tightens**, enforced field by field; a screen offers nothing looser than
   the level above.
 * `Effective(product, instance, plan, workspace)` resolves the rule on read for the sign-in path,
@@ -730,15 +733,22 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   in the fallback opens (§17.1). While the mandated provider's offer stands it is a way in, so the
   fallback stays shut; the operator's opening (§17.2) still overrides it. The installation's count
   of a mandated provider is every live workspace, so its removal waits for the withdrawal.
+* A plan that locks the ways in with providers among them mandates the same offers in every
+  workspace on that plan, read the same way and lifted the same way — a move off the plan included.
+  Where the installation locks the ways in itself, its lock decides and the plan's is not read. The
+  count of a mandated provider includes every live workspace on such a plan; the installation's own
+  list names only its own lock (`installation_lock`), so a removal the count refuses is explained by
+  the count, not by that column.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
 * The legal links (imprint, privacy, terms, accessibility statement) resolve
-  `workspace → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line shown.
-  *Decided for milestone PL, not built* (#1531): `workspace → plan → installation → nothing`, a plan
-  setting and locking them as the installation does; moving a workspace to a plan with other terms
-  asks everybody once more, as a changed link does ([multi-tenancy.md](./multi-tenancy.md) §4.2).
-  The provider's account link resolves the same way, from installation and plan only (§4.2 there).
+  `workspace → plan → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line
+  shown. A plan sets and locks them as the installation does, under the installation's lock; moving
+  a workspace to a plan with other terms asks everybody once more, as a changed link does
+  ([multi-tenancy.md](./multi-tenancy.md) §4.2). A plan's terms answer `terms_set_by: INSTALLATION`:
+  the provider is whom a person who does not agree asks, as for the installation's. The provider's
+  account link resolves from installation and plan only (§4.2 there; not built yet, milestone PL).
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
@@ -790,7 +800,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 |---|---|
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
-| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans: decided ([multi-tenancy.md](./multi-tenancy.md) §4.2, [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)), not built — milestone PL. Custom domains follow. |
+| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans: decided ([multi-tenancy.md](./multi-tenancy.md) §4.2, [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)), being built — milestone PL; the sign-in rule and the legal links resolve through them. Custom domains follow. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
 | I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
 | I-14 | Decided ([decision #1511](https://github.com/Jersyfi/hubtask/issues/1511), option b) and built: a provider's admission settings bound which identities members may connect as well as who comes in new (§10.4). |
