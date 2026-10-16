@@ -97,3 +97,33 @@ func TestRemovingAPasskeySendsTheProofAndAnswersNoContent(t *testing.T) {
 		t.Errorf("sent %v, the use case declares %v", got, want)
 	}
 }
+
+// The list's answers about removing, and each passkey's host, through the hand-written projection: a
+// field the use case answers but the projection drops would hide *Remove* in every client.
+func TestTheListCarriesWhetherAPasskeyCanBeRemovedAndEachOnesHost(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"data": []usecase.Output{{
+			"id": aPasskeyID, "name": "Old laptop", "created_at": time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC),
+			"rp_id": "old.acme.example",
+		}},
+		"limit": 10, "can_add": true, "rp_id": "acme.hubtask.example",
+		"can_remove": false, "cannot_remove_reason": "auth.mfa_required_by_tenant",
+	}}
+	recorder := identityRequest(t, registry, http.MethodGet, "/accounts/me/passkeys")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	var body openapi.PasskeyList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.CanRemove || body.CannotRemoveReason == nil || *body.CannotRemoveReason != "auth.mfa_required_by_tenant" {
+		t.Errorf("answered %s", recorder.Body)
+	}
+	if len(body.Passkeys) != 1 || body.Passkeys[0].RpId == nil || *body.Passkeys[0].RpId != "old.acme.example" {
+		t.Errorf("the passkey's host: %s", recorder.Body)
+	}
+	if !strings.Contains(recorder.Body.String(), `"can_remove":false`) {
+		t.Errorf("can_remove is not in the body: %s", recorder.Body)
+	}
+}

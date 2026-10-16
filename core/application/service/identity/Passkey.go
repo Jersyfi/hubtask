@@ -165,6 +165,15 @@ func (w PasskeyWriter) withMethods(
 	return decided, nil
 }
 
+// provable is whether the account can give the fresh proof adding and removing ask for.
+func (w PasskeyWriter) provable(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if w.StepUp == nil || !w.StepUp.Available() {
+		return false, nil
+	}
+	methods, err := w.StepUp.Methods(ctx, actor.TenantID, actor.AccountID)
+	return len(methods) > 0, err
+}
+
 // refusal is the reason as starting answers it.
 func (a addability) refusal() error {
 	switch a.reason {
@@ -188,6 +197,11 @@ type OwnPasskeys struct {
 	CannotAddReason string
 	// RPID is the host the workspace's passkeys belong to, empty where there is none.
 	RPID string
+	// CanRemove is whether removing one of the passkeys of the workspace's address would be accepted
+	// now, and CannotRemoveReason the message code saying why not - the condition RemoveOwnPasskey
+	// asks before the proof (P-05). One of another address always goes.
+	CanRemove          bool
+	CannotRemoveReason string
 }
 
 // OwnPasskey is one credential as its holder sees it: never its identifier, key or handle.
@@ -221,10 +235,20 @@ func (h ListOwnPasskeys) Execute(ctx context.Context, actor appshared.ActorConte
 		return OwnPasskeys{}, err
 	}
 	w := h.Writer
-	var decided addability
-	err := w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	verdict, err := w.Session.ownVerdict(ctx, actor)
+	if err != nil {
+		return OwnPasskeys{}, err
+	}
+	var (
+		decided  addability
+		removing removal
+	)
+	err = w.Session.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		decided, err = w.addable(ctx, actor)
+		if decided, err = w.addable(ctx, actor); err != nil {
+			return err
+		}
+		removing, err = w.decideRemoval(ctx, actor, verdict, "")
 		return err
 	})
 	if err != nil {
@@ -234,9 +258,20 @@ func (h ListOwnPasskeys) Execute(ctx context.Context, actor appshared.ActorConte
 	if err != nil {
 		return OwnPasskeys{}, err
 	}
+	provable, err := w.provable(ctx, actor)
+	if err != nil {
+		return OwnPasskeys{}, err
+	}
 	listed := OwnPasskeys{
 		Passkeys: make([]OwnPasskey, 0, len(decided.held)),
 		CanAdd:   decided.possible(), CannotAddReason: decided.reason, RPID: decided.party.ID,
+		CanRemove: true,
+	}
+	switch {
+	case removing.factor.Keys > 0 && removing.refusal() != nil:
+		listed.CanRemove, listed.CannotRemoveReason = false, codeFactorRequired
+	case !provable:
+		listed.CanRemove, listed.CannotRemoveReason = false, codeStepUpNoMethod
 	}
 	for _, credential := range decided.held {
 		listed.Passkeys = append(listed.Passkeys, ownPasskeyOf(credential))
@@ -275,9 +310,13 @@ func (h ListOwnPasskeys) Descriptor() usecase.Descriptor {
 			}
 			out := usecase.Output{
 				"data": data, "limit": domain.MaxPasskeys, "can_add": listed.CanAdd, "rp_id": listed.RPID,
+				"can_remove": listed.CanRemove,
 			}
 			if listed.CannotAddReason != "" {
 				out["cannot_add_reason"] = listed.CannotAddReason
+			}
+			if listed.CannotRemoveReason != "" {
+				out["cannot_remove_reason"] = listed.CannotRemoveReason
 			}
 			return out, nil
 		}),

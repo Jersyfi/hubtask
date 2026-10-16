@@ -40,7 +40,7 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 	rows, _ := out["data"].([]usecase.Output)
 	answer := openapi.PasskeyList{
 		Passkeys: make([]openapi.Passkey, 0, len(rows)),
-		CanAdd:   out["can_add"] == true,
+		CanAdd:   out["can_add"] == true, CanRemove: out["can_remove"] == true,
 	}
 	answer.Limit, _ = out["limit"].(int)
 	if rpID := out.String("rp_id"); rpID != "" {
@@ -49,6 +49,10 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 	if reason := out.String("cannot_add_reason"); reason != "" {
 		code := openapi.PasskeyListCannotAddReason(reason)
 		answer.CannotAddReason = &code
+	}
+	if reason := out.String("cannot_remove_reason"); reason != "" {
+		code := openapi.PasskeyListCannotRemoveReason(reason)
+		answer.CannotRemoveReason = &code
 	}
 	for _, row := range rows {
 		answer.Passkeys = append(answer.Passkeys, passkeyResponse(row))

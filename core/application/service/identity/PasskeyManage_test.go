@@ -256,3 +256,43 @@ func TestRemovingAsksAFreshProofOfTheSessionAndOnlyForTheCallersOwn(t *testing.T
 	// Gone at once: the list no longer has it, and removing it again finds nothing.
 	refusedWith(t, f.remove(t, signedInActor(), held, "hbt_sup_proof"), "auth.passkey_not_found")
 }
+
+// P-05: the list says a passkey can be removed exactly where removing it would pass before the
+// proof, and why not where it would not.
+func TestTheListSaysWhetherAPasskeyCanBeRemovedAndWhyNot(t *testing.T) {
+	for name, c := range map[string]struct {
+		requirement domain.MfaRequirement
+		app         bool
+		keys        int
+		noProof     bool
+		can         bool
+		reason      string
+	}{
+		"the last key under a rule":   {domain.MfaForEveryone, false, 1, false, false, codeFactorRequired},
+		"beside the app under a rule": {domain.MfaForEveryone, true, 1, false, true, ""},
+		"two keys under a rule":       {domain.MfaForEveryone, false, 2, false, true, ""},
+		"the last key, no rule":       {domain.MfaForNobody, false, 1, false, true, ""},
+		"no proof to give":            {domain.MfaForNobody, false, 1, true, false, codeStepUpNoMethod},
+		"none held":                   {domain.MfaForEveryone, false, 0, false, true, ""},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newPasskeyFixture(t)
+			if c.noProof {
+				f.writer.StepUp = &noMethodStepUp{}
+			}
+			f.under(t, c.requirement, c.app, c.keys, domain.RoleMember)
+			out, err := f.list(t, signedInActor())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out["can_remove"] != c.can || out.String("cannot_remove_reason") != c.reason {
+				t.Errorf("can_remove %v, reason %q", out["can_remove"], out.String("cannot_remove_reason"))
+			}
+			if c.can || len(f.store.held) == 0 {
+				return
+			}
+			// And removing is refused with the reason the list gave.
+			refusedWith(t, f.remove(t, signedInActor(), f.store.held[0].ID, "hbt_sup_proof"), "forbidden")
+		})
+	}
+}
