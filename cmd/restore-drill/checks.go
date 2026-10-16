@@ -147,6 +147,10 @@ var rlsExceptions = map[string]string{
 		"any workspace does, and the application role has no direct grant on it",
 	"instance_setting": "the installation's own configuration (ADR-0070 §2): every workspace has " +
 		"to read it, and it holds configuration rather than a person's data",
+	"plan": "the installation's plans (multi-tenancy.md §4.2): every workspace reads its plan, and " +
+		"it holds configuration rather than a person's data",
+	"plan_setting": "what a plan decides (multi-tenancy.md §4.2): read with its plan, configuration " +
+		"rather than a person's data",
 }
 
 // rowLevelSecurityForced is T-20's structural half: every table carrying a tenant column has row

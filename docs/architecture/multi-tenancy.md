@@ -68,6 +68,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through narrow `SECURITY DEFINER` functions |
 | `instance_setup_code` | The first start's one-time setup code ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); it exists before any workspace does | No grant to the application role; reached only through the issuing and claiming `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
+| `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
@@ -80,6 +81,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
+| `remove_plan(plan, at, actor)` | `REMOVED`, `IN_USE` or `NOT_FOUND` — never a row | Removing a plan, refused while a workspace is on it (§4.2) |
 
 **The doors' owner reads across tenants by policy.** `FORCE` binds the owner too, so a door owned
 by a role that is neither superuser nor `BYPASSRLS` — the database an operator brings (§2.1.1) —
