@@ -57,3 +57,11 @@ VALUES (sqlc.arg('plan_id'), sqlc.arg('key'), sqlc.arg('value'), sqlc.arg('locke
 -- name: RemovePlan :one
 -- Through the one door that can see which workspaces are on the plan (migration 0164).
 SELECT remove_plan(sqlc.arg('id'), sqlc.arg('now'), sqlc.narg('actor'))::text AS outcome;
+
+-- name: HoldPlanByName :one
+-- The plan a workspace is moving onto, held against a removal until the move commits: a removal
+-- waits on this lock, then counts the workspace (remove_plan).
+SELECT id
+FROM plan
+WHERE name = sqlc.arg('name') AND removed_at IS NULL
+FOR SHARE;

@@ -159,6 +159,12 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 	if opening, held := row["password_opening"].(usecase.Output); held {
 		tenant.PasswordOpening = passwordOpeningResponse(opening)
 	}
+	if name := row.String("plan"); name != "" {
+		tenant.Plan = &name
+	}
+	if version := row.Int("version"); version > 0 {
+		tenant.Version = &version
+	}
 	return tenant
 }
 

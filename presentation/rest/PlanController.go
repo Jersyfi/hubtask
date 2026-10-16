@@ -20,6 +20,7 @@ const (
 	createPlanUseCase = "CreatePlan"
 	changePlanUseCase = "ChangePlan"
 	removePlanUseCase = "RemovePlan"
+	moveTenantPlanUse = "MoveTenantPlan"
 )
 
 // ListPlans answers GET /admin/plans.
@@ -171,4 +172,51 @@ func int64Of(value any) int64 {
 		return int64(number)
 	}
 	return 0
+}
+
+// MoveTenantPlan answers POST /admin/tenants/{tenantId}:move-plan. A POST so that the replay guard
+// keeps its answer under an idempotency key, as it does for every control-plane act.
+func (c *RestController) MoveTenantPlan(
+	w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId, _ openapi.MoveTenantPlanParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TenantPlanMove
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"tenant_id": tenantID.String()}
+	if body.Plan != nil {
+		in["plan"] = *body.Plan
+	}
+	if body.ExpectedVersion != nil {
+		in["expected_version"] = *body.ExpectedVersion
+	}
+	out, err := c.UseCases.Invoke(r.Context(), moveTenantPlanUse, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	tenant, _ := out["tenant"].(usecase.Output)
+	writeJSON(w, r, http.StatusOK, openapi.TenantPlanMoved{
+		Tenant:          adminTenantResponse(tenant),
+		FeaturesResting: featuresOf(out["features_resting"]),
+		ExceptionsKept:  stringsOf(out["exceptions_kept"]),
+	})
+}
+
+func featuresOf(value any) []openapi.PlanFeature {
+	features := []openapi.PlanFeature{}
+	if listed, held := value.([]any); held {
+		for _, feature := range listed {
+			if name, isString := feature.(string); isString {
+				features = append(features, openapi.PlanFeature(name))
+			}
+		}
+	}
+	return features
 }

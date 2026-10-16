@@ -31,6 +31,10 @@ type Plans interface {
 	// shared.ErrNotFound.
 	Find(ctx context.Context, name string) (plan.Plan, error)
 
+	// Hold answers the identifier of a plan not removed and locks it against a removal until the
+	// transaction ends, or an error wrapping shared.ErrNotFound. A move holds the plan it moves onto.
+	Hold(ctx context.Context, name string) (shared.ID, error)
+
 	// Workspaces answers how many workspaces are on each plan, by short name. It reads through
 	// the control plane's enumerator, so it runs under the installation's read scope.
 	Workspaces(ctx context.Context) (map[string]int64, error)

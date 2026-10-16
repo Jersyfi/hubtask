@@ -339,6 +339,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.CreatePlan{}.Descriptor(),
 		adminservice.ChangePlan{}.Descriptor(),
 		adminservice.RemovePlan{}.Descriptor(),
+		adminservice.MoveTenantPlan{}.Descriptor(),
 		adminservice.ProvisionTenant{}.Descriptor(),
 		adminservice.ListTenants{}.Descriptor(),
 		adminservice.SuspendTenant{}.Descriptor(),

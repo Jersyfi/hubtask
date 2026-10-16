@@ -2250,6 +2250,10 @@ func run() error {
 		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
 		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
 		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.MoveTenantPlan{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
+		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose

@@ -51,6 +51,22 @@ func (q *Queries) FindPlanByName(ctx context.Context, name string) (FindPlanByNa
 	return i, err
 }
 
+const holdPlanByName = `-- name: HoldPlanByName :one
+SELECT id
+FROM plan
+WHERE name = $1 AND removed_at IS NULL
+FOR SHARE
+`
+
+// The plan a workspace is moving onto, held against a removal until the move commits: a removal
+// waits on this lock, then counts the workspace (remove_plan).
+func (q *Queries) HoldPlanByName(ctx context.Context, name string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, holdPlanByName, name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertPlan = `-- name: InsertPlan :execrows
 INSERT INTO plan (id, name, display_name, version, created_at, updated_at, updated_by)
 VALUES (

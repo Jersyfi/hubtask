@@ -1697,6 +1697,7 @@
   "app.instance.action.plan_created": "Plan angelegt",
   "app.instance.action.plan_changed": "Plan geändert",
   "app.instance.action.plan_removed": "Plan entfernt",
+  "app.instance.action.tenant_plan_changed": "Workspace auf einen anderen Plan gesetzt",
   "app.step_up.title": "Beweise, dass du es bist",
   "app.step_up.why": "Vor einem Schritt wie diesem fragt Hubtask noch einmal nach. Nichts ändert sich, bis du antwortest.",
   "app.step_up.password_label": "Dein Passwort",

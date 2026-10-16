@@ -234,3 +234,138 @@ func TestTheApplicationRoleCannotDeleteAPlan(t *testing.T) {
 		t.Error("the application role may delete from plan")
 	}
 }
+
+// A move writes the workspace's plan in its own transaction and raises its version, and the
+// control plane's reads answer the plan by its short name (UC-INS-13 checks 1, 9). A move on a
+// stale version writes nothing.
+func TestAWorkspaceIsMovedOntoAPlan(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	admin := adminPool(ctx, t)
+	plans := postgres.NewPlanRepository()
+	tenants := postgres.NewAdminTenantRepository()
+	family := newPlan(t, planName("move"))
+	inSystem(ctx, t, uow, func(ctx context.Context) error { return plans.Insert(ctx, family, "") })
+
+	tenant := freshID(t)
+	if _, err := admin.Exec(ctx, `INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, 'Moving')`,
+		tenant.String(), "mv-"+family.Name[len(family.Name)-9:]); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(), `UPDATE tenant SET plan_id = NULL, deleted_at = now() WHERE id = $1`, tenant.String())
+	})
+
+	scope := persistence.Scope{TenantID: tenant}
+	var version int
+	if err := uow.Within(ctx, scope, func(ctx context.Context) error {
+		record, err := tenants.Find(ctx)
+		if err != nil {
+			return err
+		}
+		version = record.Version
+		held, err := plans.Hold(ctx, family.Name)
+		if err != nil {
+			return err
+		}
+		moved, err := tenants.SetPlan(ctx, held, record.Version, time.Now())
+		if err == nil && !moved {
+			t.Error("the move on the version read wrote nothing")
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("moving: %v", err)
+	}
+
+	if err := uow.Within(ctx, scope, func(ctx context.Context) error {
+		record, err := tenants.Find(ctx)
+		if err != nil {
+			return err
+		}
+		if record.PlanName != family.Name || record.Version != version+1 {
+			t.Errorf("after the move: plan %q, version %d (was %d)", record.PlanName, record.Version, version)
+		}
+		moved, err := tenants.SetPlan(ctx, "", version, time.Now())
+		if err == nil && moved {
+			t.Error("a move on a stale version took the workspace off its plan")
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("reading back: %v", err)
+	}
+
+	if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		listed, err := tenants.List(ctx)
+		for _, record := range listed {
+			if record.ID == tenant && (record.PlanName != family.Name || record.Version != version+1) {
+				t.Errorf("the listing answers plan %q, version %d", record.PlanName, record.Version)
+			}
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+}
+
+// A removal and a move onto the same plan at once: whichever comes second sees the first. Here the
+// move holds the plan and commits; the removal, waiting on the hold, then counts the workspace.
+func TestARemovalWaitsForAMoveOntoThePlan(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	admin := adminPool(ctx, t)
+	plans := postgres.NewPlanRepository()
+	tenants := postgres.NewAdminTenantRepository()
+	contested := newPlan(t, planName("contested"))
+	inSystem(ctx, t, uow, func(ctx context.Context) error { return plans.Insert(ctx, contested, "") })
+
+	tenant := freshID(t)
+	if _, err := admin.Exec(ctx, `INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, 'Contested')`,
+		tenant.String(), "ct-"+contested.Name[len(contested.Name)-9:]); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.Background(), `UPDATE tenant SET plan_id = NULL, deleted_at = now() WHERE id = $1`, tenant.String())
+	})
+
+	held := make(chan struct{})
+	release := make(chan struct{})
+	moveDone := make(chan error, 1)
+	go func() {
+		moveDone <- uow.Within(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
+			record, err := tenants.Find(ctx)
+			if err != nil {
+				return err
+			}
+			planID, err := plans.Hold(ctx, contested.Name)
+			if err != nil {
+				return err
+			}
+			if _, err := tenants.SetPlan(ctx, planID, record.Version, time.Now()); err != nil {
+				return err
+			}
+			close(held)
+			<-release
+			return nil
+		})
+	}()
+	<-held
+
+	removed := make(chan adminrepo.RemoveOutcome, 1)
+	go func() {
+		var outcome adminrepo.RemoveOutcome
+		_ = uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+			var err error
+			outcome, err = plans.Remove(ctx, contested.ID, "", time.Now())
+			return err
+		})
+		removed <- outcome
+	}()
+	time.Sleep(200 * time.Millisecond)
+	close(release)
+	if err := <-moveDone; err != nil {
+		t.Fatalf("the move: %v", err)
+	}
+	if outcome := <-removed; outcome != adminrepo.PlanInUse {
+		t.Errorf("the removal that waited for the move answered %s, want IN_USE", outcome)
+	}
+}

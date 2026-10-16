@@ -104,3 +104,36 @@ func TestAPlanIsRemovedOverREST(t *testing.T) {
 		t.Errorf("status %d, reached %q with %v", recorder.Code, registry.name, registry.in)
 	}
 }
+
+// The move is a POST, so the replay guard keeps its answer under an idempotency key as it does for
+// every keyed POST (Idempotency_test.go); here, that the body reaches the use case and the answer
+// carries the workspace on its plan.
+func TestAWorkspaceMoveReachesItsUseCase(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"tenant": usecase.Output{
+			"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "maria", "display_name": "Maria",
+			"status": "ACTIVE", "created_at": time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC),
+			"plan": "family", "version": 5,
+		},
+		"features_resting": []any{"WEBHOOKS"},
+		"exceptions_kept":  []string{"items"},
+	}}
+	recorder := callPlans(t, registry, http.MethodPost,
+		"/admin/tenants/0192f000-0000-7000-8000-0000000000e1:move-plan",
+		`{"plan": "family", "expected_version": 4}`, nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "MoveTenantPlan" || registry.in["plan"] != "family" || registry.in["expected_version"] != 4 ||
+		registry.in["tenant_id"] != "0192f000-0000-7000-8000-0000000000e1" {
+		t.Errorf("reached %q with %v", registry.name, registry.in)
+	}
+	var answer map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatal(err)
+	}
+	tenant, _ := answer["tenant"].(map[string]any)
+	if tenant["plan"] != "family" || tenant["version"] != float64(5) || answer["exceptions_kept"].([]any)[0] != "items" {
+		t.Errorf("answered %s", recorder.Body)
+	}
+}

@@ -472,6 +472,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
+| `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |
 | `tenant.provisioned` | ProvisionTenant | `tenant` | INFO | Every time |
 | `tenant.quotas_changed` | UpdateTenantQuotas | `quota` | WARNING | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |

@@ -554,6 +554,13 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 		"created_at":        record.CreatedAt,
 		"purge_after":       nil,
 		"legal_hold":        record.LegalHold,
+		"plan":              nil,
+	}
+	if record.PlanName != "" {
+		out["plan"] = record.PlanName
+	}
+	if record.Version > 0 {
+		out["version"] = record.Version
 	}
 	if !record.PurgeAfter.IsZero() {
 		out["purge_after"] = record.PurgeAfter

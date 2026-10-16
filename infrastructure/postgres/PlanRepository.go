@@ -87,6 +87,22 @@ func (PlanRepository) Find(ctx context.Context, name string) (plan.Plan, error) 
 	return plans[0], nil
 }
 
+// Hold answers a plan's identifier and holds it against a removal until the transaction ends.
+func (PlanRepository) Hold(ctx context.Context, name string) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	id, err := queries.HoldPlanByName(ctx, name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", shared.ErrNotFound.WithDetail("admin.plan_not_found")
+	}
+	if err != nil {
+		return "", queryFailed("holding a plan", err)
+	}
+	return idFrom(id)
+}
+
 // Workspaces answers how many workspaces are on each plan.
 func (PlanRepository) Workspaces(ctx context.Context) (map[string]int64, error) {
 	queries, err := queriesFrom(ctx)
