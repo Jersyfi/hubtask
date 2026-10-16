@@ -43,6 +43,9 @@ Each measured against the deployments `D1`–`D7`:
 9. **#1337 stays in CP** (the owner's word that CP is untouched for now): until it is fixed, an
    invitation in multi mode is redeemed at the installation's host, so PK-04 offers a passkey at
    the setup during sign-in only where the page runs at the workspace's own host.
+10. **The recovery codes stay while a key remains** (the owner, 2026-10-16, #1556): turning the
+    authenticator app off keeps them while a passkey or security key remains; they go with the last
+    factor of either kind. UC-ID-03 check 6 follows; identity.md §8 and §9 with PK-02.
 
 ---
 

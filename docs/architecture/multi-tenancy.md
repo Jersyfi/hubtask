@@ -174,6 +174,44 @@ an authenticated request, a subdomain) that names another tenant is refused with
 `403 access.tenant_mismatch`. On an authenticated request the header may carry the identifier or
 the slug. A path prefix is deliberately not used.
 
+### 3.1 A workspace's address
+
+**Decided, not built — milestone CD** ([decision #1568](https://github.com/Jersyfi/hubtask/issues/1568),
+2026-10-16; the market research behind it in
+[backlog/workspace-addressing-research-2026-10.md](../backlog/workspace-addressing-research-2026-10.md)).
+The browser origin is a workspace's boundary on the client - its session, its offline cache, its
+passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
+workspace has a host of its own:
+
+| Case | Address |
+|---|---|
+| One workspace on its own domain | Single mode, as today |
+| Several workspaces, a wildcard on the base host | Multi mode: `<short name>.<base host>` |
+| Several workspaces, no wildcard certificate | Multi mode with **hosts the operator assigns** per workspace |
+| A workspace's own domain | Set up by its **owner** without the operator (a DNS proof, a certificate on demand); the operator sees every one and may block it; an installation switch allows it |
+
+Never a path prefix, and never a root-domain workspace beside subdomain workspaces.
+
+* **Changing the address.** The operator always; the owner where the installation allows it, behind
+  a switch and a cooldown. The **old address is free at once**: no redirect, no hold. Every member
+  with an address is told by mail; one without sees it at the next sign-in. Everyone signs in again,
+  the workspace's passkeys end (their RP ID is the old host), and links, calendar subscriptions,
+  MCP and `hubctl` set up on the old host stop working. Reserved short names are refused (the
+  product's list and the operator's own).
+* **Nobody is locked out** ([P-16](../vision/principles.md#p-16-nobody-is-locked-out)). A change is
+  refused while it would leave the person making it, or the workspace's last owner, without a way
+  in that survives it: a password (or a sign-in name) or a connected provider, plus an app factor
+  or recovery codes where a factor is required. It is confirmed through that way, never through a
+  passkey: a password step-up, or a fresh provider sign-in where passwords are off. A provider's
+  return is one address per installation and is untouched by a workspace's change.
+* **An own domain as the main address** costs what a change costs; the workspace's subdomain then
+  stays with it and redirects, so the owner can switch back if the domain fails.
+* **Switching** between workspaces is a list the device keeps (host and name only, never a token),
+  in the web app on the base host and in the shells, with *Switch workspace*. There is no
+  cross-workspace account, session or count ([NG-global-identity](../vision/non-goals.md)), no
+  *Find your workspaces*, and no routing by an address or its domain: no screen tells anybody which
+  workspaces an address belongs to.
+
 ---
 
 ## 4. Quotas, fairness, limits
