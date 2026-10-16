@@ -5488,6 +5488,59 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me/passkeys/{passkeyId}:
+    parameters:
+      - $ref: "#/components/parameters/PasskeyId"
+    patch:
+      tags: [identity]
+      operationId: renameOwnPasskey
+      summary: Rename one of the caller's passkeys or security keys
+      description: |
+        Changes the name the person gave it, and nothing else. The session alone is enough, or a
+        token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+        write wins: a name only its holder writes has no lost update worth a version.
+
+        Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+        `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+        control characters, and `auth.passkey_person_only` for anyone but a person.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyRename"
+      responses:
+        "200":
+          description: The passkey with its new name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passkey"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: removeOwnPasskey
+      summary: Remove one of the caller's passkeys or security keys
+      description: |
+        Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+        fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+        for a token). The person is told by mail, as every change to a way into the account is.
+
+        Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+        caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+        second factor the account holds - no authenticator app, no other passkey or security key of
+        this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+        on the list answers the same condition. Where the last factor of any kind goes, the recovery
+        codes go with it.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/me/emergency-notices:
     get:
       tags: [identity]
@@ -9432,6 +9485,12 @@ components:
         repeat reaches the operation again. A client that is asked for a proof retries with the
         proof under the same key.
       schema: { type: string, format: uuid }
+    PasskeyId:
+      name: passkeyId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     IfMatch:
       name: If-Match
       in: header
@@ -9660,9 +9719,10 @@ components:
         has_second_factor:
           type: boolean
           description: >
-            Whether an *armed* second factor stands on this account, answered on `GET /accounts/me`
-            and on nothing else. An enrolment begun and never confirmed counts as none, the same
-            reading the sign-in path takes.
+            Whether a second factor stands on this account - an armed authenticator app, or a
+            passkey or security key of this workspace's address - answered on `GET /accounts/me` and
+            on nothing else. An enrolment begun and never confirmed counts as none. Whether the app
+            itself is armed is `has_authenticator_app`.
 
             Until this was answered, nothing in the contract said it, and a screen could not tell
             an account with no authenticator from one whose recovery codes had all been spent. That
@@ -9680,6 +9740,18 @@ components:
 
             The same number rides along with a sign-in, where nobody can act on it; here it is
             beside the account, which is where the screen that makes new ones is.
+        has_authenticator_app:
+          type: boolean
+          description: >
+            Whether an *armed* authenticator app stands on this account, answered on
+            `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as
+            none, the same reading the sign-in path takes.
+        authenticator_app_removable:
+          type: boolean
+          description: >
+            Whether turning the authenticator app off would be accepted now, answered on
+            `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule
+            does not require a second factor of this person or a passkey or security key remains.
         second_factor_required:
           type: boolean
           description: >
@@ -12992,7 +13064,7 @@ components:
     Passkey:
       type: object
       description: One passkey or security key of the caller's account.
-      required: [id, name, created_at, last_used_at]
+      required: [id, name, created_at, last_used_at, rp_id]
       properties:
         id: { type: string, format: uuid }
         name:
@@ -13007,10 +13079,26 @@ components:
           type: [string, "null"]
           format: date-time
           description: When it last signed in or gave a fresh proof; null until it has.
+        rp_id:
+          type: [string, "null"]
+          description: >
+            The host it was made for. Where it is not the list's `rp_id` - the workspace moved to
+            another address, or the account was restored into another workspace - it opens nothing
+            here, counts as no second factor, and can always be removed. Null for one made before the
+            host was recorded, which counts as this workspace's.
+
+    PasskeyRename:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: What the person calls it, 1 to 64 characters.
 
     PasskeyList:
       type: object
-      required: [passkeys, limit, can_add, rp_id]
+      required: [passkeys, limit, can_add, can_remove, rp_id]
       properties:
         passkeys:
           type: array
@@ -13027,6 +13115,17 @@ components:
           type: string
           description: Present where `can_add` is false - the message code saying why.
           enum: [auth.passkey_limit_reached, auth.passkey_unavailable, auth.step_up_no_method]
+        can_remove:
+          type: boolean
+          description: >
+            Whether removing one of the passkeys of this workspace's address would be accepted now.
+            False where it is the last second factor the account holds and the workspace's rule
+            requires one of this person, and where the account holds nothing to give the fresh proof
+            with. A passkey of another address can always be removed.
+        cannot_remove_reason:
+          type: string
+          description: Present where `can_remove` is false - the message code saying why.
+          enum: [auth.mfa_required_by_tenant, auth.step_up_no_method]
         rp_id:
           type: [string, "null"]
           description: >

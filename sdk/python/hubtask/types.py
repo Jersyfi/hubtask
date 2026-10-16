@@ -64,6 +64,8 @@ class Account(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -121,6 +123,8 @@ class InvitedAccount(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -1086,12 +1090,18 @@ class Passkey(TypedDict, total=False):
     name: Required[str]
     created_at: Required[str]
     last_used_at: Required[str | None]
+    rp_id: Required[str | None]
+
+class PasskeyRename(TypedDict, total=False):
+    name: Required[str]
 
 class PasskeyList(TypedDict, total=False):
     passkeys: Required[list["Passkey"]]
     limit: Required[int]
     can_add: Required[bool]
     cannot_add_reason: Literal["auth.passkey_limit_reached", "auth.passkey_unavailable", "auth.step_up_no_method"]
+    can_remove: Required[bool]
+    cannot_remove_reason: Literal["auth.mfa_required_by_tenant", "auth.step_up_no_method"]
     rp_id: Required[str | None]
 
 class PasskeyRegistrationOptions(TypedDict, total=False):
