@@ -229,18 +229,20 @@ func TestAnUnverifiedAddressConnectsNothing(t *testing.T) {
 	refusedWith(t, err, "identity_provider.not_admitted")
 }
 
-// The lists bound who comes in new, not a member bringing their own proof (identity.md §10.4), as
-// the LINK step and the link by mail read it today: an address outside the provider's domain list
-// connects. Whether the lists should bound connections too is the owner's open question (§21 I-14);
-// this pins the documented rule until it is answered.
-func TestAnAddressOutsideTheProvidersListConnectsOnTheMembersOwnProof(t *testing.T) {
+// The mode and lists bound a connection from a session as they bound a newcomer (identity.md
+// §10.4): an address outside the provider's domain list is refused, the step-up
+// notwithstanding, and nothing is connected.
+func TestAnAddressOutsideTheProvidersListIsNotConnected(t *testing.T) {
 	c := newConnectFromSession(t, bertWithAddress())
 	c.f.relying.identity.Email = "bert@elsewhere.example"
 	if err := c.start(t, signedInActor()); err != nil {
 		t.Fatalf("starting: %v", err)
 	}
-	if _, err := c.complete(t, signedInActor()); err != nil {
-		t.Fatalf("an address outside the list was refused: %v", err)
+	links := len(c.f.external.links)
+	_, err := c.complete(t, signedInActor())
+	refusedWith(t, err, "identity_provider.not_admitted")
+	if len(c.f.external.links) != links {
+		t.Errorf("an address outside the list connected %v", c.f.external.links)
 	}
 }
 

@@ -150,7 +150,7 @@
   "identity_provider.provisioning_personal": "{issuer} also serves personal accounts, which come in only by invitation, so it never signs in everybody it knows: only people invited here, or people from the organisations listed.",
   "identity_provider.position_invalid": "The order has to be a number between 0 and {limit}.",
   "identity_provider.display_name_too_long": "At most {limit} characters for the name on the button.",
-  "identity_provider.not_admitted": "This provider only signs in people whose address is one it was configured for. Ask whoever runs this workspace.",
+  "identity_provider.not_admitted": "This provider only signs in, or connects to an account, people whose address is one it was configured for. Ask whoever runs this workspace.",
   "identity_provider.not_invited": "This provider signs in people who were invited here first, and there is no invitation for you. Ask whoever runs this workspace.",
   "identity_provider.not_found": "No such sign-in provider.",
   "identity_provider.too_many": "At most {limit} sign-in providers.",

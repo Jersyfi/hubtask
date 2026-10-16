@@ -208,3 +208,26 @@ func TestAConnectLinkNeedsAProviderThatAdmitsTheAccountsOwnProof(t *testing.T) {
 		})
 	}
 }
+
+// A connect link is mailed only through a provider that could connect an existing account at all
+// (P-05, identity.md §10.4): under INVITED_ONLY a provider that is never authoritative - a self-hosted
+// or generic issuer - refuses every member, so its link would be a control for a refused action.
+func TestNoConnectLinkIsMailedThroughAProviderThatConnectsNobody(t *testing.T) {
+	never := ownProvider
+	never.Provisioning, never.AllowedEmailDomains = domain.ProvisionInvitedOnly, nil
+
+	f := newStepFixture(now)
+	passwordOffWith(f, []domain.IdentityProvider{never})
+	link := mintFor(t, f)
+	if link.Connect {
+		t.Fatalf("mailed %+v, want no connect link through a provider that connects nobody", link)
+	}
+
+	google := never
+	google.Kind, google.Issuer = domain.KindGoogle, "https://accounts.google.com"
+	f = newStepFixture(now)
+	passwordOffWith(f, []domain.IdentityProvider{google})
+	if link := mintFor(t, f); !link.Connect {
+		t.Fatalf("mailed %+v, want a connect link through a provider that can be authoritative", link)
+	}
+}

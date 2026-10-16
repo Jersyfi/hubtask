@@ -685,18 +685,16 @@ func (p IdentityProvider) MayAdmit(arriving Arriving) bool {
 	}
 }
 
-// MayAdmitWithProof answers whether this provider may bring an arriving subject to a door it opens
-// only with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
-// flow, for the one invited account it names, or an existing account's own proof at the LINK step.
+// MayAdmitWithProof answers whether this provider may bring an arriving subject to the one door it
+// opens with a second proof of its own (ADR-0078 §1, §5): the invitation's own link bound to the
+// flow, for the one invited account it names (MayAdmitInvitation).
 //
-// Everything `MayAdmit` admits, and in every mode it knows one more: an address the
-// provider verified but would not admit on its own word - not authoritative for it, or outside the
-// directory or domain list. Authority and the list decide who comes in *new*, on the provider's
-// word alone - a new account, an invitation activated without its link. An existing account that
-// brings its own proof - its password at the LINK step, its mailbox through the connect link, an
-// invitation's link - is not coming in new: it is a member connecting a provider, with the
-// provider's verified address equal to its own (the caller checks that), and nothing is created
-// through this (identity.md §10.4). A mode this build does not know admits nobody.
+// Everything `MayAdmit` admits, and in every mode it knows one more: an address the provider
+// verified but would not admit on its own word - not authoritative for it, or outside the directory
+// or domain list. An invitation is not new (identity.md §10.4). Connecting a provider to an existing
+// account is not this question: the LINK step, the link by mail and a connection from a session
+// admit only what `MayAdmit` admits, the member's own proof notwithstanding (identity.md §10.4). A mode
+// this build does not know admits nobody.
 func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	if p.MayAdmit(arriving) {
 		return true
@@ -704,13 +702,30 @@ func (p IdentityProvider) MayAdmitWithProof(arriving Arriving) bool {
 	return p.AdmitsOwnProof() && arriving.EmailVerified && emailDomain(arriving.Email) != ""
 }
 
-// AdmitsOwnProof answers whether this provider can connect an existing account that brings its own
-// proof at all: every mode this build knows does, for a verified address. A mailed connect link is
-// pointless through a provider that never would - one whose mode a newer build wrote.
+// AdmitsOwnProof answers whether the mode is one this build knows, which is what the invitation's
+// widening needs (MayAdmitWithProof).
 func (p IdentityProvider) AdmitsOwnProof() bool {
 	switch p.Provisioning {
 	case ProvisionInvitedOnly, ProvisionDomains, ProvisionAny:
 		return true
+	default:
+		return false
+	}
+}
+
+// MayConnectExisting answers whether this provider could connect an existing account at all - the
+// question the mailed connect link is offered on (P-05): a link the provider refuses whatever the
+// person does is a control for a refused action. `DOMAINS` and `ANY` admit on their lists;
+// `INVITED_ONLY` admits only an address the provider is authoritative for, so a preset that is never
+// authoritative - a self-hosted or generic issuer - connects nobody that way (identity.md §10.4). A mode
+// this build does not know connects nobody.
+func (p IdentityProvider) MayConnectExisting() bool {
+	switch p.Provisioning {
+	case ProvisionDomains, ProvisionAny:
+		return true
+	case ProvisionInvitedOnly:
+		preset, known := PresetOf(p.Kind)
+		return known && preset.MayBeAuthoritative()
 	default:
 		return false
 	}

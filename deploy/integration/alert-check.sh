@@ -84,11 +84,12 @@ for group in groups:
                 continue
             (firing if alert["state"] == "firing" else pending).append((rule, alert))
 
-# A-12 is true here by decision rather than by accident: this environment keeps no backups, and
-# the rule is written as an absence so that "nobody configured one" is loud everywhere else. It is
-# routed to a receiver that sends nothing, and it is printed with that said rather than hidden -
-# a check that silently drops an alert is a check that lies.
-EXPECTED = {"A-12": "expected here: no backups by decision, routed to the muted receiver"}
+# A-12's backup half is true here by decision rather than by accident: this environment runs no
+# application backups - its recovery is the database's WAL archive - and the rule is written as an
+# absence so that "nobody configured one" is loud everywhere else. It is routed to a receiver that
+# sends nothing, and printed with that said rather than hidden - a check that silently drops an
+# alert is a check that lies. A-12's recovery half is not here: on this environment it is real.
+EXPECTED = {"HubtaskBackupStale": "expected here: no application backups by decision, routed to the muted receiver"}
 
 def show(rule, alert):
     labels = alert["labels"]
@@ -98,8 +99,8 @@ def show(rule, alert):
     print(f"  [{labels.get('severity','?')}] {ident} {rule['name']} {where}")
     print(f"      since {alert['activeAt']}")
     print(f"      {rule['annotations'].get('summary','')}")
-    if ident in EXPECTED:
-        print(f"      ({EXPECTED[ident]})")
+    if labels.get("alertname") in EXPECTED:
+        print(f"      ({EXPECTED[labels['alertname']]})")
     book = rule["annotations"].get("runbook")
     if book:
         path = os.path.join(sys.argv[2], book)
@@ -121,7 +122,7 @@ else:
     for rule, alert in pending:
         show(rule, alert)
 
-raise SystemExit(1 if [r for r, a in firing if a["labels"].get("alert_id") not in EXPECTED] else 0)
+raise SystemExit(1 if [r for r, a in firing if a["labels"].get("alertname") not in EXPECTED] else 0)
 PY
 
 echo

@@ -254,7 +254,7 @@
   "identity_provider.provisioning_personal": "{issuer} bedient auch private Konten, und die kommen nur auf Einladung herein. Deshalb meldet dieser Anbieter dort nie alle an, die er kennt: nur hierher Eingeladene oder Personen aus den genannten Organisationen.",
   "identity_provider.position_invalid": "Die Reihenfolge muss eine Zahl zwischen 0 und {limit} sein.",
   "identity_provider.display_name_too_long": "Höchstens {limit} Zeichen für den Namen auf der Schaltfläche.",
-  "identity_provider.not_admitted": "Dieser Anbieter meldet nur Leute an, deren Adresse zu den eingerichteten gehört. Frage nach bei denen, die diesen Arbeitsbereich betreiben.",
+  "identity_provider.not_admitted": "Dieser Anbieter meldet nur Leute an oder verbindet sie mit einem Konto, deren Adresse zu den eingerichteten gehört. Frage nach bei denen, die diesen Arbeitsbereich betreiben.",
   "identity_provider.not_invited": "Dieser Anbieter meldet nur Leute an, die vorher hierher eingeladen wurden – und für dich gibt es keine Einladung. Frage nach bei denen, die diesen Arbeitsbereich betreiben.",
   "identity_provider.not_found": "Diesen Anmeldeanbieter gibt es nicht.",
   "identity_provider.too_many": "Höchstens {limit} Anmeldeanbieter.",
