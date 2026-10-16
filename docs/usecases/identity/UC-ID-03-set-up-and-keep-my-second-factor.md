@@ -38,8 +38,8 @@ same setup during sign-in, told why.
 5. When the workspace's rule requires a second factor of this person and the authenticator app is
    the last one the account holds (no passkey or security key, UC-ID-22), the profile does **not**
    offer to turn it off; it says the workspace requires it.
-6. When nothing requires it, turning it off asks for a fresh proof and removes the recovery codes
-   with it.
+6. When nothing requires it, turning it off asks for a fresh proof; the recovery codes go with it
+   unless a passkey or security key remains, which they then back (UC-ID-22).
 7. A person routed into setup during sign-in sees why ("Your workspace requires a second factor")
    and the identity line.
 8. Accepting an invitation counts as a sign-in: when the workspace's rule requires a second factor
