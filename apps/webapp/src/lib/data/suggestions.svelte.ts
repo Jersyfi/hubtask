@@ -23,7 +23,7 @@
 import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { followArrival, suggestionsPath, type FollowOutcome, type Operation, type Target } from './suggestions.ts';
+import { followArrival, suggestionsPath, whilePending, type FollowOutcome, type Operation, type Target } from './suggestions.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 export { suggestionsPath } from './suggestions.ts';
@@ -74,24 +74,29 @@ class Suggestions {
    */
   async ask(itemId: string, operation: Operation): Promise<void> {
     const askedAt = new Date().toISOString();
-    this.#put(itemId, { operation, askedAt, outcome: 'following' });
+    const begin = () => this.#put(itemId, { operation, askedAt, outcome: 'following' });
+    const withdraw = () => this.#withdraw(itemId, askedAt);
 
     if (operation === 'duplicates') {
-      const answer = await engine.mutate<Suggestion | undefined>('POST', `/items/${itemId}:duplicates`, undefined, {
-        idempotencyKey: crypto.randomUUID(),
-        timeoutMs: ASK_TIMEOUT_MS,
-        invalidates: touches(itemId),
-      });
+      const answer = await whilePending(begin, withdraw, () =>
+        engine.mutate<Suggestion | undefined>('POST', `/items/${itemId}:duplicates`, undefined, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: touches(itemId),
+        }),
+      );
       this.#put(itemId, { operation, askedAt, outcome: answer ? 'arrived' : 'nothing_near' });
       return;
     }
 
-    const accepted = await engine.mutate<Accepted | undefined>('POST', `/items/${itemId}:${operation}`, {}, {
-      idempotencyKey: crypto.randomUUID(),
-      timeoutMs: ASK_TIMEOUT_MS,
-      // Nothing to invalidate: the answer is not there yet, and the follow reads the listing itself.
-      invalidates: [],
-    });
+    const accepted = await whilePending(begin, withdraw, () =>
+      engine.mutate<Accepted | undefined>('POST', `/items/${itemId}:${operation}`, {}, {
+        idempotencyKey: crypto.randomUUID(),
+        timeoutMs: ASK_TIMEOUT_MS,
+        // Nothing to invalidate: the answer is not there yet, and the follow reads the listing itself.
+        invalidates: [],
+      }),
+    );
 
     const token = Symbol(operation);
     this.#follows.set(itemId, token);
@@ -117,12 +122,16 @@ class Suggestions {
    */
   async askJumble(entryId: string): Promise<void> {
     const askedAt = new Date().toISOString();
-    this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' });
-    const accepted = await engine.mutate<Accepted | undefined>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
-      idempotencyKey: crypto.randomUUID(),
-      timeoutMs: ASK_TIMEOUT_MS,
-      invalidates: [],
-    });
+    const accepted = await whilePending(
+      () => this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' }),
+      () => this.#withdraw(entryId, askedAt),
+      () =>
+        engine.mutate<Accepted | undefined>('POST', `/jumble/entries/${entryId}:suggest`, undefined, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: [],
+        }),
+    );
     const token = Symbol('jumble');
     this.#follows.set(entryId, token);
     const outcome = await followArrival(
@@ -146,12 +155,16 @@ class Suggestions {
    */
   async askContainer(containerId: string): Promise<void> {
     const askedAt = new Date().toISOString();
-    this.#put(containerId, { operation: 'container', askedAt, outcome: 'following' });
-    const accepted = await engine.mutate<Accepted | undefined>('POST', `/containers/${containerId}:summarize`, undefined, {
-      idempotencyKey: crypto.randomUUID(),
-      timeoutMs: ASK_TIMEOUT_MS,
-      invalidates: [],
-    });
+    const accepted = await whilePending(
+      () => this.#put(containerId, { operation: 'container', askedAt, outcome: 'following' }),
+      () => this.#withdraw(containerId, askedAt),
+      () =>
+        engine.mutate<Accepted | undefined>('POST', `/containers/${containerId}:summarize`, undefined, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: [],
+        }),
+    );
     const token = Symbol('container');
     this.#follows.set(containerId, token);
     const outcome = await followArrival(
@@ -259,6 +272,16 @@ class Suggestions {
   forget(itemId: string): void {
     this.#follows.delete(itemId);
     const { [itemId]: _removed, ...rest } = this.#asking;
+    this.#asking = rest;
+  }
+
+  /**
+   * Ends the pending state of an ask that was refused, where it is still this ask's: the caller says
+   * the refusal, and a later ask about the same entry keeps its own state.
+   */
+  #withdraw(itemId: string, askedAt: string): void {
+    if (this.#asking[itemId]?.askedAt !== askedAt) return;
+    const { [itemId]: _withdrawn, ...rest } = this.#asking;
     this.#asking = rest;
   }
 

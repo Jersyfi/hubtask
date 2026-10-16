@@ -23,6 +23,7 @@ import {
   operationOf,
   shapeOf,
   suggestionsPath,
+  whilePending,
 } from './suggestions.ts';
 
 const ITEM = '0192f000-0000-7000-8000-00000000aa01';
@@ -381,6 +382,30 @@ test('a job still running, or one this reader may not see, leaves the follow to 
   const before = new ListingTransport([page()]);
   await followArrival(new SyncEngine({ transport: before }), ITEM, '2026-09-16T12:00:00Z', noWait);
   assert.ok(before.reads.every((path) => path === suggestionsPath(ITEM)));
+});
+
+test('an ask that is refused withdraws its pending state at once and passes the refusal on', async () => {
+  const states: string[] = [];
+  const refusal = new TransportError('problem', { status: 503, code: 'unavailable', detailCode: 'ai.unavailable' });
+
+  await assert.rejects(
+    whilePending(
+      () => states.push('pending'),
+      () => states.push('withdrawn'),
+      () => Promise.reject(refusal),
+    ),
+    (error) => error === refusal,
+  );
+  assert.deepEqual(states, ['pending', 'withdrawn'], 'pending first, so the strip shows the ask at once; then ended');
+
+  states.length = 0;
+  const answer = await whilePending(
+    () => states.push('pending'),
+    () => states.push('withdrawn'),
+    () => Promise.resolve({ job_id: 'j1' }),
+  );
+  assert.deepEqual(answer, { job_id: 'j1' });
+  assert.deepEqual(states, ['pending'], 'an accepted ask keeps its pending state for the follow');
 });
 
 test('arrivedSince reads the listing the way the follow does', () => {

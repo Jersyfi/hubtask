@@ -363,6 +363,23 @@ export function arrivedSince(suggestions: readonly Pick<Suggestion, 'created_at'
   );
 }
 
+/**
+ * Sends an ask while its pending state stands, and withdraws that state when the ask is refused.
+ *
+ * The state is put first so the strip says *Suggesting…* the moment the person asks; a refusal of
+ * the ask itself - AI unavailable, nothing to work with, a timeout - ends it at once, and the caller
+ * says the refusal. Without the withdrawal the pending card would stand until the screen was left.
+ */
+export async function whilePending<T>(begin: () => void, withdraw: () => void, send: () => Promise<T>): Promise<T> {
+  begin();
+  try {
+    return await send();
+  } catch (error) {
+    withdraw();
+    throw error;
+  }
+}
+
 /** What a suggestion is about, as the listing filters it. */
 export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER';
 
