@@ -19,8 +19,13 @@ built once is an environment nobody dares touch.
 
 ```bash
 scp -r deploy root@<host>:/root/
-ssh root@<host> /root/deploy/integration/bootstrap.sh
+ssh root@<host>
+export HUBTASK_WAL_ACCESS_KEY=… HUBTASK_WAL_SECRET_KEY=…   # the WAL bucket's keys, below
+/root/deploy/integration/bootstrap.sh
 ```
+
+The two keys are read once, into the Secret `hubtask-wal`, and never printed; a later run finds the
+Secret and does not ask again.
 
 The whole `deploy/` directory rather than `deploy/integration` alone: the script builds
 Prometheus's rules ConfigMap from `deploy/observability/alerts/`, so that what evaluates on this
@@ -37,6 +42,56 @@ ssh root@<host> cat /root/deploy-kubeconfig.yaml | gh secret set KUBE_CONFIG --e
 What the host needs beforehand: ports 22, 80, 443 and 6443 open inbound, and a DNS record
 `*.<environment>.hubtask.eu` pointing at it (A and AAAA). Port 80 is not optional — it is where
 Let's Encrypt validates.
+
+## The database
+
+PostgreSQL runs in production's shape ([ADR-0082](../../docs/adr/ADR-0082-integration-in-production-shape.md)):
+a CloudNativePG `Cluster` of one instance named `hubtask-db`, which the release owns
+([`values.yaml`](./values.yaml), `database`); its WAL archive and a daily base backup in the
+object-store bucket `hubtask-integration-wal`; and the restore drill as a CronJob at 04:30, never
+after a release, because integration releases on every push. The operator is installed by
+`bootstrap.sh` at the version and checksum `gate-pitr` drills (`make gate-pitr`; a test holds the
+two pins equal). Smaller in size, the same in shape: one instance, 4 GiB, a quarter of a gigabyte
+requested.
+
+| | |
+|---|---|
+| The live cluster | `kubectl -n hubtask get cluster hubtask-db` |
+| The archive | `kubectl -n hubtask get backups` (base backups), `cnpg_collector_*` in Prometheus |
+| The last drill | `kubectl -n hubtask get configmap hubtask-restore-drill -o yaml` |
+| A drill now | `kubectl -n hubtask create job --from=cronjob/hubtask-restore-drill drill-$(date +%s)` |
+
+### Rebuilding the database
+
+What turned the StatefulSet of before into the cluster, and what rebuilds the cluster later. The
+data is nobody's ([ADR-0082](../../docs/adr/ADR-0082-integration-in-production-shape.md)), and the
+workspace is bootstrapped again afterwards. It deletes a database, so a person runs it; the
+script stops rather than doing it itself.
+
+1. **The bucket.** In the Hetzner console, check whether Object Storage offers Object Lock. If
+   it does, create `hubtask-integration-wal` with Object Lock in compliance mode and a default
+   retention of 35 days - equal to `database.backup.retentionPolicy`, as `k8s/values.yaml` requires.
+   If it does not, create it without, and say so in the first drill's record. Make one access key
+   for it.
+2. **The old database away** (only where it still runs):
+
+   ```bash
+   kubectl -n hubtask delete statefulset hubtask-db
+   kubectl -n hubtask delete service hubtask-db
+   kubectl -n hubtask delete pvc -l app.kubernetes.io/name=postgresql
+   kubectl -n hubtask delete secret hubtask-db hubtask-secrets
+   ```
+
+3. **Bootstrap**, with the bucket's keys exported (above). It installs the operator and makes the
+   secrets and the drill's Role.
+4. **Deploy**: re-run the last `deploy.yml` on `main`. After a rebuild it creates the cluster first
+   and migrates into it once it is ready.
+5. **The workspace**, again (below).
+6. **The first drill**: start one now (the table above), and when the record says it passed,
+   write it down under `docs/evidence/` as `RESTORE-DRILL-integration-<date>.md`: the date, the
+   commit, whether the bucket has Object Lock, the RPO and RTO the record measured, and whether the
+   8 GB node held the live cluster and the temporary one together. That record is UC-BAK-08
+   check 6.
 
 ## A workspace somebody can sign in to
 
@@ -148,9 +203,11 @@ as well as by hand.
    reads its metrics cannot fire while it is gone.
 
 Two things are expected here and are not reasons to act. The watchdog fires permanently — that is
-what it is for, and it is reported under question 1 rather than counted as an incident. And A-12
-fires because this environment keeps no backups by the decision below; it is printed with that
-said rather than hidden, because a check that silently drops an alert is a check that lies.
+what it is for, and it is reported under question 1 rather than counted as an incident. And A-12's
+backup half, `HubtaskBackupStale`, fires because this environment runs no application backups by
+the decision below; it is printed with that said rather than hidden, because a check that silently
+drops an alert is a check that lies. A-12's recovery half - the archive, the base backup, the
+recoverability point - is real here and is not expected to fire.
 
 If a run finds something, the fix path is the alert's runbook, and a fix that changes this
 repository goes through a branch and a pull request like any other.
@@ -169,17 +226,15 @@ kill %1
 
 ## What is not here, and why
 
-Decided, not built ([ADR-0082](../../docs/adr/ADR-0082-integration-in-production-shape.md)):
-the database moves to production's shape — CloudNativePG with one instance, a WAL archive and a
-restore drill — which retires the first and third points below.
-
-* **No backup.** Nothing in this environment is anybody's data, and a restore drill against a
-  throwaway database would prove nothing about production's. RT-9 belongs to a real target
-  ([backup-restore.md](../../docs/architecture/backup-restore.md)).
-* **No high availability.** One node, one database pod. The environment answers questions about the
-  chart, the migration hook and the rollout — none of which needs a second node.
-* **No production hardening of PostgreSQL.** It is a container with a local volume and
-  `sslmode=disable` inside the cluster. Production runs CloudNativePG ([ADR-0046](../../docs/adr/ADR-0046-production-on-a-platform-namespace.md)).
+* **No application backups.** The workspace's own backups to a target - what A-12's backup half
+  watches - are a workspace's choice, and nothing here is anybody's data. The installation's
+  recovery is the database's WAL archive and the daily drill, as production's is
+  ([ADR-0082](../../docs/adr/ADR-0082-integration-in-production-shape.md)); `HubtaskBackupStale`
+  is routed to `muted` for that reason, and A-12's recovery half routes like every other alert.
+* **No high availability.** One node, one database instance, as production's single instance. The
+  environment answers questions about the chart, the migration hook, the rollout and the recovery
+  path - none of which needs a second node - and rehearses no node failure. The database shares a
+  disk with the workload.
 * **No egress.** The application's allowlist names one host, the e2e walk's webhook target, and
   it never resolves (`values.yaml`). The list exists because production runs with one (T-07) and
   an empty list means "anywhere public"; it is short because nothing here has anywhere to go. A
@@ -188,26 +243,28 @@ restore drill — which retires the first and third points below.
 * **No silenced A-14.** The three findings that once filled the ticket mailbox for a week were
   answered by making them untrue — a mail server, an allowlist, and a warning that had outlived
   the code it warned about — rather than by a route to `muted`. The one route to `muted` is
-  A-12's, for a decision this list records above; a finding this environment does not mean to
-  keep is a finding to fix.
+  `HubtaskBackupStale`'s, for a decision this list records above; a finding this environment does
+  not mean to keep is a finding to fix.
 
 ## What an RT-8 run leaves behind
 
 RT-8 needs an empty database at the previous schema, and it gets one by adding rather than
-deleting — the environment's own database is never touched. So a run leaves these behind, and they
-are listed here because state nobody wrote down is state nobody dares remove:
+deleting — the environment's own database is never touched. [`rt8-database.sh`](./rt8-database.sh)
+makes it: a second database `hubtask_rt8` in the live cluster, as a CloudNativePG `Database` object
+owned by `hubtask_migrator`, and a secret with its two DSNs. The run's release points at that
+secret. So a run leaves these behind, and they are listed here because state nobody wrote down is
+state nobody dares remove:
 
 | | |
 |---|---|
-| `hubtask_rt8` | a second database in the same PostgreSQL, holding the run's items |
+| `hubtask_rt8` | the `Database` object `rt8` and the database it made, holding the run's items |
 | `hubtask-secrets-rt8` | the secret pointing at it |
 | `ghcr.io/jersyfi/hubtask:rt8-*` | images imported into containerd for the run, never pushed anywhere |
 
 They are the fixtures for the next run, so leaving them is reasonable. Removing them is:
 
 ```bash
-kubectl -n hubtask exec -i hubtask-db-0 -- psql -U hubtask -d postgres -c 'DROP DATABASE hubtask_rt8'
-kubectl -n hubtask delete secret hubtask-secrets-rt8
+deploy/integration/rt8-database.sh down
 k3s ctr images ls -q | grep ':rt8-' | xargs -r k3s ctr images rm
 ```
 

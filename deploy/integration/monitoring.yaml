@@ -116,6 +116,23 @@ data:
           - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_component]
             target_label: role
 
+      # The database's own metrics port (CloudNativePG serves it on 9187, named `metrics`): what
+      # A-12's point-in-time recovery half reads (prometheus-rules-pitr.yaml). By its pods rather
+      # than a Service, because the chart renders that Service only beside a ServiceMonitor, and
+      # there is no Prometheus Operator here. The live cluster only: the drill's temporary one
+      # comes and goes within the hour, and an alert about its absence would be about nothing.
+      - job_name: hubtask-db
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [hubtask]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_cnpg_io_cluster, __meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: hubtask-db;metrics
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: instance
+
       - job_name: prometheus
         static_configs:
           - targets: ["localhost:9090"]
@@ -304,13 +321,15 @@ data:
           receiver: watchdog
           group_wait: 0s
           repeat_interval: 12h
-        # A-12 is true here, and deliberately so: this environment keeps no backups, and the rule
-        # fires on the *absent* series precisely so that "nobody configured one" is loud rather
-        # than silent. What is a finding on a real installation is a written decision on a
-        # throwaway one (deploy/integration/README.md, "What is not here, and why"), so it is
-        # routed to a receiver that sends nothing. Not a silence: a silence expires, and this
-        # decision does not - and a route is in the diff where somebody can argue with it.
-        - matchers: ['alert_id="A-12"']
+        # A-12's backup half is true here, and deliberately so. It reads the application's own
+        # backup runs per target, and this environment runs none: its recovery is the database's
+        # WAL archive, as production's is (ADR-0082). The rule fires on the *absent* series so that
+        # "nobody configured one" is loud elsewhere; here it is a written decision
+        # (deploy/integration/README.md, "What is not here, and why"), so it is routed to a
+        # receiver that sends nothing. A-12's recovery half - the archive, the base backup, the
+        # recoverability point - routes like every other alert. Not a silence: a silence expires,
+        # and this decision does not - and a route is in the diff where somebody can argue with it.
+        - matchers: ['alertname="HubtaskBackupStale"']
           receiver: muted
         - matchers: ['severity="page"']
           receiver: page
@@ -343,7 +362,7 @@ data:
         email_configs:
           - to: "info@integration.hubtask.eu"
             send_resolved: false
-      # Sends nothing, on purpose. See the A-12 route above.
+      # Sends nothing, on purpose. See the HubtaskBackupStale route above.
       - name: muted
       # Its own mailbox, so that "is the path alive" is one query and never competes with a page.
       - name: watchdog

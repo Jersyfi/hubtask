@@ -310,8 +310,10 @@ routing by `severity`, the SMTP delivery into a mail catcher and the retention.
   hours; every other alert's silence means nothing until it has arrived.
 * The watchdog and the scrape check (`up{job="hubtask"} == 0`) carry no `alert_id`: they are this
   cluster watching itself, not the product's catalogue.
-* A-12 fires permanently on an environment that keeps no backups by decision; it is routed to a
-  receiver that sends nothing rather than silenced by hand.
+* A-12's backup half (`HubtaskBackupStale`) fires permanently on an environment that runs no
+  application backups by decision; it is routed to a receiver that sends nothing rather than
+  silenced by hand. Its recovery half - the WAL archive, the base backup, the recoverability
+  point - routes like every other alert where the database is in production's shape.
 
 ### 13.2 Capacity
 

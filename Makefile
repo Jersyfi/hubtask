@@ -740,6 +740,27 @@ gate-chart:
 		--set database.backup.enabled=false > /dev/null 2>&1; then \
 		echo "chart: a database rendered without the application role's secret - it must refuse"; exit 1; fi
 	@echo "chart: the database renders, and refuses a backup or an application role without its secret"
+	@# Integration's own values (deploy/integration/values.yaml, ADR-0082): the database in
+	@# production's shape, the drill by its schedule alone and never as a release hook - a deploy on
+	@# every push must not wait on a restore - and the migration still a hook.
+	@integration="$$($(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		-f deploy/integration/values.yaml --set image.tag=check)"; \
+		for kind in 'kind: Cluster' 'kind: ScheduledBackup' 'kind: CronJob'; do \
+			printf '%s' "$$integration" | grep -q "^$$kind" || \
+				{ echo "chart: integration's values render no $$kind"; exit 1; }; \
+		done; \
+		printf '%s' "$$integration" | grep -B12 'helm.sh/hook": post-install,post-upgrade' | grep -q 'restore-drill' && \
+			{ echo "chart: integration's values render the drill as a release hook"; exit 1; }; \
+		printf '%s' "$$integration" | grep -q 'name: hubtask-migrate' || \
+			{ echo "chart: integration's values render no migration"; exit 1; }; \
+		echo "chart: integration renders the database, its backup and the drill by schedule alone"
+	@if $(TOOLS_DIR)/helm template hubtask k8s --kube-version $(KUBE_VERSION) \
+		--set existingSecret=hubtask-secrets --set database.enabled=true \
+		--set database.backup.destinationPath=s3://backups/hubtask \
+		--set database.backup.existingSecret=hubtask-backup-s3 \
+		--set database.appRole.passwordSecret=hubtask-app-role \
+		--set restoreDrill.enabled=true --set restoreDrill.afterRelease=false > /dev/null 2>&1; then \
+		echo "chart: a drill with neither a hook nor a schedule rendered - it must refuse"; exit 1; fi
 	@# The signature at the door (CI-3): on, the policy names the issuer and every subject the
 	@# image may be signed under; off, nothing of the kind renders; on without a subject, the
 	@# chart refuses rather than rendering a policy that verifies against nobody.
