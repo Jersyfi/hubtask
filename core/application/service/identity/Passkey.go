@@ -196,12 +196,14 @@ type OwnPasskey struct {
 	Name       string
 	CreatedAt  time.Time
 	LastUsedAt time.Time
+	// RPID is the host it was made for; empty where it was not recorded.
+	RPID string
 }
 
 func ownPasskeyOf(credential domain.PasskeyCredential) OwnPasskey {
 	return OwnPasskey{
 		ID: credential.ID, Name: credential.Name,
-		CreatedAt: credential.CreatedAt, LastUsedAt: credential.LastUsedAt,
+		CreatedAt: credential.CreatedAt, LastUsedAt: credential.LastUsedAt, RPID: credential.RPID,
 	}
 }
 
@@ -288,6 +290,9 @@ func ownPasskeyOutput(each OwnPasskey) usecase.Output {
 	}
 	if !each.LastUsedAt.IsZero() {
 		out["last_used_at"] = each.LastUsedAt.UTC()
+	}
+	if each.RPID != "" {
+		out["rp_id"] = each.RPID
 	}
 	return out
 }

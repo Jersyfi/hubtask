@@ -49,3 +49,10 @@ WHERE token_hash = sqlc.arg('token_hash') AND purpose = 'PASSKEY_REGISTER'
   AND session_id = sqlc.arg('session_id') AND account_id = sqlc.arg('account_id')
   AND consumed_at IS NULL AND expires_at > sqlc.arg('now')
 RETURNING id, account_id, session_id, user_handle, created_at, expires_at;
+
+-- name: RenamePasskey :one
+-- Only the account's own: another's, another workspace's or a removed one matches nothing.
+UPDATE webauthn_credential SET name = sqlc.arg('name')
+WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
+RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
+          backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id;

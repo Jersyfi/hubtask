@@ -210,6 +210,43 @@ func (q *Queries) LockAccountForPasskeys(ctx context.Context, accountID pgtype.U
 	return id, err
 }
 
+const renamePasskey = `-- name: RenamePasskey :one
+UPDATE webauthn_credential SET name = $1
+WHERE id = $2 AND account_id = $3
+RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
+          backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id
+`
+
+type RenamePasskeyParams struct {
+	Name      string
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Only the account's own: another's, another workspace's or a removed one matches nothing.
+func (q *Queries) RenamePasskey(ctx context.Context, arg RenamePasskeyParams) (WebauthnCredential, error) {
+	row := q.db.QueryRow(ctx, renamePasskey, arg.Name, arg.ID, arg.AccountID)
+	var i WebauthnCredential
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.CredentialID,
+		&i.PublicKey,
+		&i.Algorithm,
+		&i.SignCount,
+		&i.UserHandle,
+		&i.BackupEligible,
+		&i.BackedUp,
+		&i.Transports,
+		&i.Name,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+		&i.RpID,
+	)
+	return i, err
+}
+
 const supersedePasskeyChallenges = `-- name: SupersedePasskeyChallenges :exec
 UPDATE auth_pending SET consumed_at = $1
 WHERE account_id = $2 AND purpose = 'PASSKEY_REGISTER' AND consumed_at IS NULL

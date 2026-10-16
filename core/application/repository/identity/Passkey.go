@@ -30,6 +30,10 @@ type PasskeyCredentials interface {
 	// Insert keeps a credential, and answers false where the workspace already holds one with its
 	// identifier - nothing is written then.
 	Insert(ctx context.Context, credential identity.PasskeyCredential) (bool, error)
+
+	// Rename changes the name of one of the account's credentials and answers it; ErrNotFound where
+	// the account holds none by that id.
+	Rename(ctx context.Context, accountID, id shared.ID, name string) (identity.PasskeyCredential, error)
 }
 
 // PasskeyChallenges is a registration's challenge, waiting in auth_pending under its own purpose

@@ -126,6 +126,31 @@ func (PasskeyRepository) Insert(ctx context.Context, credential identity.Passkey
 	return written > 0, nil
 }
 
+func (PasskeyRepository) Rename(
+	ctx context.Context, accountID, id shared.ID, name string,
+) (identity.PasskeyCredential, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	credential, err := uuidOf(id)
+	if err != nil {
+		return identity.PasskeyCredential{}, err
+	}
+	row, err := queries.RenamePasskey(ctx, sqlc.RenamePasskeyParams{ID: credential, AccountID: account, Name: name})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return identity.PasskeyCredential{}, shared.ErrNotFound.WithDetail("auth.passkey_not_found")
+	}
+	if err != nil {
+		return identity.PasskeyCredential{}, passkeyQueryFailed("renaming a passkey", err)
+	}
+	return passkeyOf(row)
+}
+
 func passkeyOf(row sqlc.WebauthnCredential) (identity.PasskeyCredential, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {

@@ -21,6 +21,7 @@ const (
 	listOwnPasskeysUseCase             = "ListOwnPasskeys"
 	startPasskeyRegistrationUseCase    = "StartPasskeyRegistration"
 	completePasskeyRegistrationUseCase = "CompletePasskeyRegistration"
+	renameOwnPasskeyUseCase            = "RenameOwnPasskey"
 )
 
 // ListOwnPasskeys answers GET /accounts/me/passkeys. Written out, GetOwnAccount's reasoning.
@@ -56,10 +57,36 @@ func (c *RestController) ListOwnPasskeys(w http.ResponseWriter, r *http.Request)
 
 func passkeyResponse(out usecase.Output) openapi.Passkey {
 	id, _ := uuid.Parse(out.String("id"))
-	return openapi.Passkey{
+	answer := openapi.Passkey{
 		Id: id, Name: out.String("name"),
 		CreatedAt: timeValue(out["created_at"]), LastUsedAt: timePointer(out["last_used_at"]),
 	}
+	if rpID := out.String("rp_id"); rpID != "" {
+		answer.RpId = &rpID
+	}
+	return answer
+}
+
+// RenameOwnPasskey answers PATCH /accounts/me/passkeys/{passkeyId}.
+func (c *RestController) RenameOwnPasskey(w http.ResponseWriter, r *http.Request, passkeyID openapi.PasskeyId) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyRename
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"passkey_id": passkeyID.String(), "name": body.Name}
+	out, err := c.UseCases.Invoke(r.Context(), renameOwnPasskeyUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	passkey, _ := out["passkey"].(usecase.Output)
+	writeJSON(w, r, http.StatusOK, passkeyResponse(passkey))
 }
 
 // StartPasskeyRegistration answers POST /accounts/me/passkeys:start.

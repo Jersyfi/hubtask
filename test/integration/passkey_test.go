@@ -430,3 +430,43 @@ func TestAPasskeyChallengeIsSpentOnceByItsOwnSession(t *testing.T) {
 		t.Error("a pending sign-in's own token was spent as a challenge")
 	}
 }
+
+// A rename reaches only the account's own credential: another account's in the same workspace and
+// any of another workspace match nothing (gate SG-3).
+func TestAPasskeyIsRenamedOnlyByItsOwnAccountInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	repo := postgres.NewPasskeyRepository()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Date(2026, 10, 16, 9, 0, 0, 0, time.UTC)
+	adas := aPasskey(t, people.ada, 1, "iPhone", at)
+	beas := aPasskey(t, people.bea, 2, "Laptop", at)
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		for _, credential := range []identity.PasskeyCredential{adas, beas} {
+			if written, err := repo.Insert(ctx, credential); err != nil || !written {
+				t.Fatalf("inserting: %v %v", written, err)
+			}
+		}
+		renamed, err := repo.Rename(ctx, people.ada, adas.ID, "Phone, old")
+		if err != nil || renamed.Name != "Phone, old" || renamed.ID != adas.ID || renamed.RPID != "passkeys.example" {
+			t.Errorf("renaming her own: %+v %v", renamed, err)
+		}
+		if _, err := repo.Rename(ctx, people.ada, beas.ID, "Taken"); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("Ada renamed Bea's passkey: %v", err)
+		}
+		return nil
+	})
+	inTenant(t, uow, people.other, func(ctx context.Context) error {
+		if _, err := repo.Rename(ctx, people.ada, adas.ID, "From next door"); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("next door renamed Ada's passkey: %v", err)
+		}
+		return nil
+	})
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		held, err := repo.ListOf(ctx, people.bea)
+		if err != nil || len(held) != 1 || held[0].Name != "Laptop" {
+			t.Errorf("Bea's passkey reads %+v (%v)", held, err)
+		}
+		return nil
+	})
+}

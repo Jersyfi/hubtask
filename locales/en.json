@@ -223,6 +223,7 @@
   "auth.passkey_person_only": "Passkeys belong to people: a service account, an automation or an agent signs in with a token.",
   "auth.passkey_challenge_stale": "That attempt to add a passkey has run out - it took longer than five minutes, or it was started again elsewhere. Start once more.",
   "auth.passkey_already_registered": "This device already holds a passkey for your account here.",
+  "auth.passkey_not_found": "That passkey is no longer on your account. It may have been removed in another window.",
   "auth.password_rule.min_length": "{minimum, plural, one {At least # character} other {At least # characters}}",
   "auth.password_rule.min_lowercase": "{count, plural, one {At least one lowercase letter} other {At least # lowercase letters}}",
   "auth.password_rule.min_uppercase": "{count, plural, one {At least one uppercase letter} other {At least # uppercase letters}}",

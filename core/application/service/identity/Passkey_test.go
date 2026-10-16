@@ -62,6 +62,18 @@ func (s *passkeyStore) Insert(_ context.Context, credential domain.PasskeyCreden
 	return true, nil
 }
 
+func (s *passkeyStore) Rename(
+	_ context.Context, accountID, id shared.ID, name string,
+) (domain.PasskeyCredential, error) {
+	for i := range s.held {
+		if s.held[i].ID == id && s.held[i].AccountID == accountID {
+			s.held[i].Name = name
+			return s.held[i], nil
+		}
+	}
+	return domain.PasskeyCredential{}, shared.ErrNotFound.WithDetail("auth.passkey_not_found")
+}
+
 // challengeStore keeps registrations' challenges, spending them as the statement does.
 type challengeStore struct {
 	issued []issuedChallenge
@@ -188,6 +200,7 @@ func (f *passkeyFixture) register(t *testing.T) {
 		ListOwnPasskeys{Writer: f.writer}.Descriptor(),
 		StartPasskeyRegistration{Writer: f.writer}.Descriptor(),
 		CompletePasskeyRegistration{Writer: f.writer}.Descriptor(),
+		RenameOwnPasskey{Writer: f.writer}.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("registering: %v", err)
