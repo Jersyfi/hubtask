@@ -2821,6 +2821,10 @@ CREATE TABLE plan_setting (
 ALTER TABLE tenant ADD CONSTRAINT tenant_plan_fk
   FOREIGN KEY (plan_id) REFERENCES plan (id) ON DELETE RESTRICT;
 
+-- A platform's reference names one workspace (multi-tenancy.md §4.3, 0166).
+CREATE UNIQUE INDEX tenant_external_reference_key
+  ON tenant (external_reference) WHERE external_reference IS NOT NULL;
+
 -- The installation at a glance (migrations 0105, 0128). Counts, states and limits - never rows,
 -- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
 -- behind row level security and FORCE, so the application role cannot count across workspaces at
