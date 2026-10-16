@@ -1131,6 +1131,8 @@
   "ai.budget_invalid": "A daily budget is a number of tokens of at least 1. To let the workspace's own model spend without a budget, leave it empty.",
   "ai.jurisdiction_below_minimum": "This installation requires a workspace's own model to process content {minimum, select, ADEQUACY {in the EEA or a country with an adequacy decision} EEA {in the EEA} SELF_HOSTED {on this installation's own machine} other {where its rules allow}}, {origin, select, PLAN {set by your plan} other {set by the operator for every workspace}}. Choose a provider that does.",
   "ai.nothing_to_work_with": "AI has nothing to work with here.",
+  "ai.proposed": "AI proposed something; it is shown here.",
+  "ai.nothing_to_change": "AI found nothing to propose here.",
   "ai.kept_out": "You keep your own content out of AI, so AI actions are not offered to you. You can change that under Your settings.",
   "ai.processing_restricted": "The processing of your data is restricted in this workspace, so AI actions are not offered to you. An administrator of this workspace can tell you more.",
   "ai.opt_out_workspace_only": "Only a workspace can make AI part of everybody's work, because only it can name the legal basis. The installation can hold workspaces at letting each person keep their own content out.",

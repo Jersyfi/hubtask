@@ -107,12 +107,15 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 	if err != nil {
 		return queue.Result{}, err
 	}
-	// What the narrowing dropped is the job's result: a node the profile refused is absent from
-	// the payload, and this is where the fact is written down.
+	// How the question ended is the job's outcome, which the person who asked follows: without it a
+	// question that proposed nothing reads like one still on its way. What the narrowing dropped is
+	// counted beside it: a node the profile refused is absent from the payload, and this is where
+	// the fact is written down.
+	result := queue.Result{Outcome: outcome.Code}
 	if outcome.Dropped > 0 {
-		return queue.Result{Counts: map[string]int{"nodes_dropped": outcome.Dropped}}, nil
+		result.Counts = map[string]int{"nodes_dropped": outcome.Dropped}
 	}
-	return queue.Result{}, nil
+	return result, nil
 }
 
 // payloadBool reads one flag. Absent is false, which is what a proposal is: applying an answer
