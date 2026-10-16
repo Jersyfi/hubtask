@@ -1328,6 +1328,8 @@ func run() error {
 	planWriter := adminservice.PlanWriter{
 		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
 	}
+	// One workspace, and the query a platform finds its workspaces with (multi-tenancy.md §4.3).
+	tenantReader := adminservice.TenantReader{Writer: planWriter, Finder: postgres.NewTenantQueryRepository(cursors)}
 
 	// The same writer over the *plain* repository, for the one caller allowed to write while a
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
@@ -2265,6 +2267,8 @@ func run() error {
 		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
 		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
 		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ReadTenant{Reader: tenantReader}.Descriptor(),
+		adminservice.QueryTenants{Reader: tenantReader}.Descriptor(),
 		adminservice.UpdateTenant{
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
 			Finder: postgres.NewTenantQueryRepository(cursors), Audit: auditSink,

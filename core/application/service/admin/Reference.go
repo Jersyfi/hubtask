@@ -170,3 +170,148 @@ func (h UpdateTenant) Descriptor() usecase.Descriptor {
 		}),
 	}
 }
+
+const (
+	defaultTenantPage = 50
+	maxTenantPage     = 200
+)
+
+// TenantReader reads workspaces for the control plane: one by its identifier, or a page of those
+// matching a platform's filters.
+type TenantReader struct {
+	Writer PlanWriter
+	Finder adminrepo.TenantFinder
+}
+
+// ReadTenant answers one workspace.
+type ReadTenant struct{ Reader TenantReader }
+
+// QueryTenants answers a page of the workspaces matching the filters.
+type QueryTenants struct{ Reader TenantReader }
+
+func (r TenantReader) query(
+	ctx context.Context, actor appshared.ActorContext, query adminrepo.TenantQuery,
+) ([]adminrepo.TenantRecord, adminrepo.PageInfo, error) {
+	if err := r.Writer.Instance.authorize(ctx, actor); err != nil {
+		return nil, adminrepo.PageInfo{}, err
+	}
+	var records []adminrepo.TenantRecord
+	var page adminrepo.PageInfo
+	err := r.Writer.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
+		func(ctx context.Context) error {
+			found, info, err := r.Finder.Query(ctx, query)
+			records, page = found, info
+			return err
+		})
+	if err != nil {
+		return nil, adminrepo.PageInfo{}, err
+	}
+	// An operator's opening of the password is answered only while it stands, as the listing does.
+	for i := range records {
+		if !records[i].PasswordOpening.InForce(r.Writer.Instance.Clock.Now()) {
+			records[i].PasswordOpening = domain.PasswordOpening{}
+		}
+	}
+	return records, page, nil
+}
+
+// Execute reads one workspace.
+func (h ReadTenant) Execute(ctx context.Context, actor appshared.ActorContext, id shared.ID) (adminrepo.TenantRecord, error) {
+	if id.IsZero() {
+		return adminrepo.TenantRecord{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	records, _, err := h.Reader.query(ctx, actor, adminrepo.TenantQuery{ID: id, Size: 1})
+	if err != nil {
+		return adminrepo.TenantRecord{}, err
+	}
+	if len(records) == 0 {
+		return adminrepo.TenantRecord{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	return records[0], nil
+}
+
+// Execute answers one page.
+func (h QueryTenants) Execute(
+	ctx context.Context, actor appshared.ActorContext, query adminrepo.TenantQuery,
+) ([]adminrepo.TenantRecord, adminrepo.PageInfo, error) {
+	switch {
+	case query.Size <= 0:
+		query.Size = defaultTenantPage
+	case query.Size > maxTenantPage:
+		query.Size = maxTenantPage
+	}
+	if query.Plan != "" && query.WithoutPlan {
+		return nil, adminrepo.PageInfo{}, shared.ErrValidation.WithDetail("admin.tenant_query_conflicting").
+			WithFields(shared.FieldError{Path: "/without_plan", Code: "admin.tenant_query_conflicting"})
+	}
+	if query.Status != "" && query.Status != domain.TenantActive && query.Status != domain.TenantSuspended &&
+		query.Status != domain.TenantPendingDeletion {
+		return nil, adminrepo.PageInfo{}, shared.ErrValidation.WithDetail("admin.tenant_status_unknown").
+			WithFields(shared.FieldError{Path: "/status", Code: "admin.tenant_status_unknown"})
+	}
+	return h.Reader.query(ctx, actor, query)
+}
+
+// Descriptor is the catalogue entry.
+func (h ReadTenant) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ReadTenantName,
+		Summary: "Reads one workspace as the control plane sees it: state, plan, version, the platform's " +
+			"reference, the legal hold and the deletion dates.",
+		TokenScope: adminTenantsScope,
+		ReadOnly:   true,
+		Input:      []usecase.Field{{Name: "tenant_id", Kind: usecase.KindID, Required: true}},
+		Audit:      usecase.AuditDeclaration{Action: "tenant.read", TargetType: tenantTarget, Severity: audit.SeverityInfo},
+		Activity:   usecase.ActivityDeclaration{Exempt: "a read of the control plane touches no item."},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("tenant_id")
+			if err != nil {
+				return nil, err
+			}
+			record, err := h.Execute(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			return adminTenantOutput(record), nil
+		}),
+	}
+}
+
+// Descriptor is the catalogue entry.
+func (h QueryTenants) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: QueryTenantsName,
+		Summary: "Finds the workspaces matching every filter given - short name, the platform's " +
+			"reference, plan, no plan, status - oldest first, one page at a time.",
+		TokenScope: adminTenantsScope,
+		ReadOnly:   true,
+		Input: []usecase.Field{
+			{Name: "slug", Kind: usecase.KindString},
+			{Name: "external_reference", Kind: usecase.KindString},
+			{Name: "plan", Kind: usecase.KindString},
+			{Name: "without_plan", Kind: usecase.KindBool},
+			{Name: "status", Kind: usecase.KindString},
+			{Name: "size", Kind: usecase.KindInt},
+			{Name: "cursor", Kind: usecase.KindString},
+		},
+		Audit:    usecase.AuditDeclaration{Action: "tenant.queried", TargetType: tenantTarget, Severity: audit.SeverityInfo},
+		Activity: usecase.ActivityDeclaration{Exempt: "a read of the control plane touches no item."},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			records, page, err := h.Execute(ctx, actor, adminrepo.TenantQuery{
+				Slug: in.String("slug"), Reference: in.String("external_reference"), Plan: in.String("plan"),
+				WithoutPlan: in.Bool("without_plan"), Status: domain.TenantStatus(in.String("status")),
+				Size: in.Int("size"), Cursor: in.String("cursor"),
+			})
+			if err != nil {
+				return nil, err
+			}
+			rows := make([]usecase.Output, 0, len(records))
+			for _, record := range records {
+				rows = append(rows, adminTenantOutput(record))
+			}
+			return usecase.Output{
+				"data": rows, "page": usecase.Output{"next_cursor": page.NextCursor, "has_more": page.HasMore},
+			}, nil
+		}),
+	}
+}

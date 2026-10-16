@@ -172,3 +172,26 @@ func TestAReferenceIsSetOverREST(t *testing.T) {
 		t.Errorf("a null reached the use case as %v", registry.in["external_reference"])
 	}
 }
+
+func TestTheWorkspacesAreQueriedOverREST(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"data": []usecase.Output{{
+			"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "maria", "display_name": "Maria",
+			"status": "ACTIVE", "created_at": time.Date(2026, 10, 1, 8, 0, 0, 0, time.UTC), "external_reference": "cus_8f2a91",
+		}},
+		"page": usecase.Output{"next_cursor": "c2", "has_more": true},
+	}}
+	recorder := callPlans(t, registry, http.MethodPost, "/admin/tenants:query",
+		`{"external_reference": "cus_8f2a91", "size": 1}`, nil)
+	if recorder.Code != http.StatusOK || registry.name != "QueryTenants" || registry.in["external_reference"] != "cus_8f2a91" || registry.in["size"] != 1 {
+		t.Fatalf("status %d, reached %q with %v", recorder.Code, registry.name, registry.in)
+	}
+	var answer map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answer); err != nil {
+		t.Fatal(err)
+	}
+	page, _ := answer["page"].(map[string]any)
+	if page["next_cursor"] != "c2" || page["has_more"] != true || len(answer["data"].([]any)) != 1 {
+		t.Errorf("answered %s", recorder.Body)
+	}
+}

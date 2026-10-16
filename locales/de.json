@@ -392,6 +392,8 @@
   "admin.provisioning_incomplete": "Der Workspace konnte nicht fertig angelegt werden und wurde deshalb nicht angelegt. Versuche es erneut.",
   "admin.reference_taken": "Ein anderer Workspace hat diese Referenz bereits.",
   "admin.reference_invalid": "Eine Referenz hat 1 bis 200 Zeichen, ohne Zeilenumbrüche und ohne Leerzeichen am Anfang oder Ende.",
+  "admin.tenant_status_unknown": "Diesen Zustand kann ein Workspace nicht haben.",
+  "admin.tenant_query_conflicting": "Frag nach Workspaces auf einem Plan oder nach denen ohne Plan, nicht nach beidem.",
   "automation.check_without_tenant": "Eine Prüfung muss zu einem Workspace gehören.",
   "automation.rule_unwritable": "Die Befunde der Prüfung ließen sich nicht in einer Form schreiben, die diese Version speichert.",
   "automation.run_as_restricted": "Diese Regel handelt als ein Konto, dessen Daten derzeit nicht automatisch verarbeitet werden dürfen, darum hat dieser Lauf nichts getan. Sie läuft wieder, sobald die Einschränkung aufgehoben ist.",

@@ -188,3 +188,32 @@ func TestAWorkspaceIsProvisionedWithAReference(t *testing.T) {
 		t.Errorf("an invalid reference answered %v, with %d workspaces written", err, len(invalid.tenants.inserted))
 	}
 }
+
+func TestOneWorkspaceIsReadAndTheQueryIsBounded(t *testing.T) {
+	f := newReferenceFixture(t)
+	reader := TenantReader{Writer: f.writer, Finder: tenantFinder{f.tenants}}
+	f.tenants.record.ExternalReference = "cus_8f2a91"
+	read, err := ReadTenant{reader}.Execute(t.Context(), operator(), lifecycleTenant)
+	if err != nil || read.ExternalReference != "cus_8f2a91" {
+		t.Errorf("read %+v, %v", read, err)
+	}
+	if _, err := (ReadTenant{reader}).Execute(t.Context(), operator(), shared.ID("018f2a1b-0000-7000-8000-0000000000ff")); refusalCode(err) != "admin.tenant_not_found" {
+		t.Errorf("an unknown workspace answered %v", err)
+	}
+	if _, _, err := (QueryTenants{reader}).Execute(t.Context(), operator(), adminrepo.TenantQuery{Status: "GONE"}); refusalCode(err) != "admin.tenant_status_unknown" {
+		t.Errorf("an unknown state answered %v", err)
+	}
+	found, _, err := QueryTenants{reader}.Execute(t.Context(), operator(), adminrepo.TenantQuery{Reference: "cus_8f2a91", Size: 1000})
+	if err != nil || len(found) != 1 {
+		t.Errorf("by reference: %v, %v", found, err)
+	}
+}
+
+func TestAQueryForAPlanAndForNoneIsRefused(t *testing.T) {
+	f := newReferenceFixture(t)
+	reader := TenantReader{Writer: f.writer, Finder: tenantFinder{f.tenants}}
+	_, _, err := QueryTenants{reader}.Execute(t.Context(), operator(), adminrepo.TenantQuery{Plan: "family", WithoutPlan: true})
+	if refusalCode(err) != "admin.tenant_query_conflicting" {
+		t.Errorf("a plan and no plan answered %v", err)
+	}
+}

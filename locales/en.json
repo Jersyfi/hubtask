@@ -1525,6 +1525,8 @@
   "admin.provisioning_incomplete": "The workspace could not be finished, so it was not created. Try again.",
   "admin.reference_taken": "Another workspace already holds that reference.",
   "admin.reference_invalid": "A reference is 1 to 200 characters, without line breaks and without spaces at its start or end.",
+  "admin.tenant_status_unknown": "That is not a state a workspace can be in.",
+  "admin.tenant_query_conflicting": "Ask for workspaces on a plan, or for those on none - not both.",
   "query.filter_too_expensive": "The filter's estimated cost is {cost}; at most {maximum} is planned for. Fewer text scans, shorter lists.",
   "app.back_to_start": "Back to the start",
   "app.dismiss": "Dismiss",

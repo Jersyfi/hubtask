@@ -250,3 +250,69 @@ func (c *RestController) UpdateTenant(
 	}
 	writeJSON(w, r, http.StatusOK, answer)
 }
+
+// ReadTenant answers GET /admin/tenants/{tenantId}, with the version as the tag.
+func (c *RestController) ReadTenant(w http.ResponseWriter, r *http.Request, tenantID openapi.AdminTenantId) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), "ReadTenant", actorOf(r), usecase.Input{"tenant_id": tenantID.String()})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	answer := adminTenantResponse(out)
+	if answer.Version != nil {
+		w.Header().Set("ETag", etag(*answer.Version))
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// QueryTenants answers POST /admin/tenants:query.
+func (c *RestController) QueryTenants(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.TenantQuery
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{}
+	for name, value := range map[string]*string{
+		"slug": body.Slug, "external_reference": body.ExternalReference, "plan": body.Plan, "cursor": body.Cursor,
+	} {
+		if value != nil {
+			in[name] = *value
+		}
+	}
+	if body.Status != nil {
+		in["status"] = string(*body.Status)
+	}
+	if body.WithoutPlan != nil {
+		in["without_plan"] = *body.WithoutPlan
+	}
+	if body.Size != nil {
+		in["size"] = *body.Size
+	}
+	out, err := c.UseCases.Invoke(r.Context(), "QueryTenants", actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	rows, _ := out["data"].([]usecase.Output)
+	answer := openapi.AdminTenantPage{Data: make([]openapi.AdminTenant, 0, len(rows))}
+	for _, row := range rows {
+		answer.Data = append(answer.Data, adminTenantResponse(row))
+	}
+	page, _ := out["page"].(usecase.Output)
+	if next := page.String("next_cursor"); next != "" {
+		answer.Page.NextCursor = &next
+	}
+	answer.Page.HasMore, _ = page["has_more"].(bool)
+	writeJSON(w, r, http.StatusOK, answer)
+}
