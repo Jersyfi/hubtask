@@ -6,7 +6,9 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,5 +72,28 @@ func TestRenamingAPasskeySendsWhatTheUseCaseDeclaresAndAnswersThePasskey(t *test
 		`{"name":"x"}`)
 	if malformed.Code != http.StatusBadRequest {
 		t.Errorf("a malformed id answered %d", malformed.Code)
+	}
+}
+
+func TestRemovingAPasskeySendsTheProofAndAnswersNoContent(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{}}
+	controller := NewRestController()
+	controller.UseCases = registry
+	request := httptest.NewRequestWithContext(identityContext(t), http.MethodDelete,
+		APIBasePath+"/accounts/me/passkeys/"+aPasskeyID, nil)
+	request.Header.Set("X-Hubtask-Step-Up", "hbt_sup_proof")
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusNoContent || recorder.Body.Len() != 0 {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != identity.RemoveOwnPasskeyName || registry.in.String("passkey_id") != aPasskeyID ||
+		registry.in.String("step_up_token") != "hbt_sup_proof" {
+		t.Errorf("invoked %s with %v", registry.name, registry.in)
+	}
+	want, got := declaredInputs(identity.RemoveOwnPasskey{}.Descriptor()), sentInputs(registry.in)
+	if strings.Join(want, ",") != strings.Join(got, ",") {
+		t.Errorf("sent %v, the use case declares %v", got, want)
 	}
 }

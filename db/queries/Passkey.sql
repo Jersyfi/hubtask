@@ -56,3 +56,7 @@ UPDATE webauthn_credential SET name = sqlc.arg('name')
 WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id')
 RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
           backup_eligible, backed_up, transports, name, created_at, last_used_at, rp_id;
+
+-- name: RemovePasskey :execrows
+-- Only the account's own; it signs and proves nothing from the moment this commits.
+DELETE FROM webauthn_credential WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id');

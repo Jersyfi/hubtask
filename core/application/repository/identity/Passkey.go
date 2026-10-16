@@ -34,6 +34,9 @@ type PasskeyCredentials interface {
 	// Rename changes the name of one of the account's credentials and answers it; ErrNotFound where
 	// the account holds none by that id.
 	Rename(ctx context.Context, accountID, id shared.ID, name string) (identity.PasskeyCredential, error)
+
+	// Remove deletes one of the account's credentials; false where the account holds none by that id.
+	Remove(ctx context.Context, accountID, id shared.ID) (bool, error)
 }
 
 // PasskeyChallenges is a registration's challenge, waiting in auth_pending under its own purpose

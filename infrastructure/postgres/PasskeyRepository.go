@@ -151,6 +151,26 @@ func (PasskeyRepository) Rename(
 	return passkeyOf(row)
 }
 
+func (PasskeyRepository) Remove(ctx context.Context, accountID, id shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+	credential, err := uuidOf(id)
+	if err != nil {
+		return false, err
+	}
+	removed, err := queries.RemovePasskey(ctx, sqlc.RemovePasskeyParams{ID: credential, AccountID: account})
+	if err != nil {
+		return false, passkeyQueryFailed("removing a passkey", err)
+	}
+	return removed > 0, nil
+}
+
 func passkeyOf(row sqlc.WebauthnCredential) (identity.PasskeyCredential, error) {
 	id, err := idFrom(row.ID)
 	if err != nil {

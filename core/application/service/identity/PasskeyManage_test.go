@@ -4,13 +4,18 @@
 package identity
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // UC-ID-22 checks 2 and 4: a person renames one of their passkeys with the session alone, and only
@@ -92,4 +97,162 @@ func TestRenamingIsRefusedForWhatIsNotTheCallersOrNotAName(t *testing.T) {
 	if len(f.session.audit.entries) != 0 {
 		t.Errorf("a refusal was audited as a rename: %+v", f.session.audit.entries)
 	}
+}
+
+// ruleFake is the workspace's rule as the factor reads it: who a second factor is demanded of.
+type ruleFake struct{ requirement domain.MfaRequirement }
+
+func (r ruleFake) JudgeSignIn(context.Context, shared.ID, domain.Account, secret.Secret) (SignInVerdict, error) {
+	return SignInVerdict{FactorRequired: r.requirement}, nil
+}
+
+// under puts Bert under the rule given with the roles given, holding keys passkeys and, where app,
+// the authenticator app; the codes stay while any factor does.
+func (f *passkeyFixture) under(
+	t *testing.T, requirement domain.MfaRequirement, app bool, keys int, roles ...domain.Role,
+) *recoveryStore {
+	t.Helper()
+	f.writer.Session.Rule = ruleFake{requirement: requirement}
+	f.writer.Session.Memberships = membershipsFake{roles: roles}
+	enrollments, _ := f.writer.Session.Enrollments.(*enrollmentsStore)
+	if app {
+		enrollments.rows[account] = &repository.MfaEnrollment{AccountID: account, ConfirmedAt: now.Add(-time.Hour)}
+	}
+	f.holding(t, keys)
+	for i := range f.store.held {
+		f.store.held[i].RPID = "acme.hubtask.example"
+	}
+	recovery, _ := f.writer.Session.Recovery.(*recoveryStore)
+	_ = recovery.Replace(t.Context(), account, nil, []string{"AAAA-BBBB-CCCC-DDDD"}, now)
+	recovery.backed = func() bool {
+		_, enrolled := enrollments.rows[account]
+		return enrolled || len(f.store.held) > 0
+	}
+	f.register(t)
+	return recovery
+}
+
+func (f *passkeyFixture) remove(t *testing.T, actor appshared.ActorContext, id shared.ID, proof string) error {
+	t.Helper()
+	_, err := f.registry.Invoke(t.Context(), RemoveOwnPasskeyName, actor, usecase.Input{
+		"passkey_id": id.String(), "step_up_token": proof,
+	})
+	return err
+}
+
+// UC-ID-22 check 5: the last key is not removed where the rule demands a factor of the person, under
+// each value of mfa_required_for, and the refusal comes before the proof is spent.
+func TestTheLastKeyIsRefusedWhereTheRuleDemandsAFactor(t *testing.T) {
+	for _, c := range []struct {
+		requirement domain.MfaRequirement
+		role        domain.Role
+		refused     bool
+	}{
+		{domain.MfaForNobody, domain.RoleMember, false},
+		{domain.MfaForNobody, domain.RoleOwner, false},
+		{domain.MfaForAdmins, domain.RoleMember, false},
+		{domain.MfaForAdmins, domain.RoleAdmin, true},
+		{domain.MfaForAdmins, domain.RoleOwner, true},
+		{domain.MfaForEveryone, domain.RoleMember, true},
+	} {
+		t.Run(string(c.requirement)+"/"+string(c.role), func(t *testing.T) {
+			f := newPasskeyFixture(t)
+			recovery := f.under(t, c.requirement, false, 1, c.role)
+			err := f.remove(t, signedInActor(), f.store.held[0].ID, "hbt_sup_proof")
+			if c.refused {
+				refusedWith(t, err, "auth.mfa_required_by_tenant")
+				if len(f.stepUp.presented) != 0 || len(f.store.held) != 1 {
+					t.Errorf("the refusal spent %v, left %d", f.stepUp.presented, len(f.store.held))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("removing where nothing demands a factor: %v", err)
+			}
+			if len(f.store.held) != 0 {
+				t.Error("the passkey is still held")
+			}
+			if left, _ := recovery.Remaining(t.Context(), account); left != 0 {
+				t.Errorf("%d codes outlived the last factor", left)
+			}
+		})
+	}
+}
+
+// Where something else answers the rule - the app, another key - the key goes, and the codes stay; a
+// key of another address is no factor and always goes.
+func TestAKeyGoesWhereAnotherFactorRemains(t *testing.T) {
+	for name, c := range map[string]struct {
+		app   bool
+		keys  int
+		stale bool
+	}{
+		"beside the app":           {true, 1, false},
+		"beside another key":       {false, 2, false},
+		"made for another address": {false, 1, true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newPasskeyFixture(t)
+			recovery := f.under(t, domain.MfaForEveryone, c.app, c.keys, domain.RoleMember)
+			if c.stale {
+				f.store.held[0].RPID = "old.acme.example"
+			}
+			target := f.store.held[0].ID
+			if err := f.remove(t, signedInActor(), target, "hbt_sup_proof"); err != nil {
+				t.Fatalf("removing: %v", err)
+			}
+			for _, held := range f.store.held {
+				if held.ID == target {
+					t.Fatal("the passkey is still held")
+				}
+			}
+			left, _ := recovery.Remaining(t.Context(), account)
+			if want := map[bool]int{true: 0, false: 1}[c.stale]; left != want {
+				t.Errorf("%d codes left, want %d", left, want)
+			}
+			if f.store.locked[len(f.store.locked)-1] != account {
+				t.Error("the write took no lock on the account")
+			}
+		})
+	}
+}
+
+func TestRemovingAsksAFreshProofOfTheSessionAndOnlyForTheCallersOwn(t *testing.T) {
+	f := newPasskeyFixture(t)
+	f.under(t, domain.MfaForNobody, false, 1, domain.RoleMember)
+	held := f.store.held[0].ID
+
+	// Not the caller's: refused before the proof.
+	refusedWith(t, f.remove(t, signedInActor(), "01936f2a-7c1e-7000-8000-0000000000f9", "hbt_sup_proof"),
+		"auth.passkey_not_found")
+	if len(f.stepUp.presented) != 0 {
+		t.Errorf("an unknown passkey spent the proof: %v", f.stepUp.presented)
+	}
+	// No proof: the methods are asked for.
+	refusedWith(t, f.remove(t, signedInActor(), held, ""), "auth.step_up_required")
+	// A token has no session to prove afresh.
+	token := signedInActor()
+	token.TokenID = "01936f2a-7c1e-7000-8000-0000000000e9"
+	refusedWith(t, f.remove(t, token, held, "hbt_sup_proof"), "auth.step_up_session_required")
+	// Machines hold no passkeys.
+	machine := signedInActor()
+	machine.Kind = appshared.ActorServiceAccount
+	refusedWith(t, f.remove(t, machine, held, "hbt_sup_proof"), codePersonOnly)
+	if len(f.store.held) != 1 || len(f.session.audit.entries) != 0 {
+		t.Fatalf("a refusal removed or audited: %+v %+v", f.store.held, f.session.audit.entries)
+	}
+
+	// With the proof it goes, audited without its name (rule 10).
+	if err := f.remove(t, signedInActor(), held, "hbt_sup_proof"); err != nil {
+		t.Fatal(err)
+	}
+	entries := f.session.audit.entries
+	if len(entries) != 1 || entries[0].Action != PasskeyRemovedAction {
+		t.Fatalf("audited %+v", entries)
+	}
+	if strings.Contains(fmt.Sprintf("%+v", entries[0]), "Key") {
+		t.Errorf("the entry carries the name: %+v", entries[0])
+	}
+	// Gone at once: the list no longer has it, and removing it again finds nothing.
+	refusedWith(t, f.remove(t, signedInActor(), held, "hbt_sup_proof"), "auth.passkey_not_found")
 }

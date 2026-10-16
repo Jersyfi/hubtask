@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -47,18 +48,22 @@ func identityRequestWithBody(
 	controller := NewRestController()
 	controller.UseCases = registry
 
-	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
-		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
-		AccountID: shared.MustParseID(signedInAccount),
-	})
-
-	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(body))
+	request := httptest.NewRequestWithContext(identityContext(t), method, APIBasePath+path, strings.NewReader(body))
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)
 	return recorder
+}
+
+// identityContext is the signed-in person every request of these tests comes from.
+func identityContext(t *testing.T) context.Context {
+	t.Helper()
+	return appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID(signedInAccount),
+	})
 }
 
 // The read a client makes before it can render anything: who am I, and in which language, time

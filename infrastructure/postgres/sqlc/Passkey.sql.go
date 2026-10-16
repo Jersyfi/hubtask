@@ -210,6 +210,24 @@ func (q *Queries) LockAccountForPasskeys(ctx context.Context, accountID pgtype.U
 	return id, err
 }
 
+const removePasskey = `-- name: RemovePasskey :execrows
+DELETE FROM webauthn_credential WHERE id = $1 AND account_id = $2
+`
+
+type RemovePasskeyParams struct {
+	ID        pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+// Only the account's own; it signs and proves nothing from the moment this commits.
+func (q *Queries) RemovePasskey(ctx context.Context, arg RemovePasskeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removePasskey, arg.ID, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const renamePasskey = `-- name: RenamePasskey :one
 UPDATE webauthn_credential SET name = $1
 WHERE id = $2 AND account_id = $3
