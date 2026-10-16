@@ -15004,7 +15004,7 @@
       },
       "SignInPolicyNumber": {
         "type": "object",
-        "description": "One numeric switch, at the three levels that decide it. Zero is off for every one of them.\n",
+        "description": "One numeric switch, at the levels that decide it. Zero is off for every one of them.\n",
         "required": [
           "value",
           "installation",
@@ -15029,7 +15029,7 @@
           },
           "installation_source": {
             "$ref": "#/components/schemas/PolicySource",
-            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
+            "description": "Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did."
           }
         }
       },
@@ -15057,7 +15057,7 @@
           },
           "installation_source": {
             "$ref": "#/components/schemas/PolicySource",
-            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
+            "description": "Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did."
           }
         }
       },
@@ -15085,7 +15085,7 @@
           },
           "installation_source": {
             "$ref": "#/components/schemas/PolicySource",
-            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
+            "description": "Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did."
           }
         }
       },
@@ -15127,7 +15127,7 @@
           },
           "installation_source": {
             "$ref": "#/components/schemas/PolicySource",
-            "description": "Who decided the level above's value - `DEFAULT` where the installation decided nothing."
+            "description": "Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did."
           }
         }
       },
@@ -15155,7 +15155,7 @@
       },
       "SignInPolicy": {
         "type": "object",
-        "description": "The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.\n**A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.\n",
+        "description": "The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it.\n**A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.\n",
         "required": [
           "password",
           "mfa_required_for",
@@ -15180,6 +15180,13 @@
           },
           "legal": {
             "$ref": "#/components/schemas/LegalPolicySettings"
+          },
+          "plan": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The name of the plan the workspace is on, as its provider named it, null for none - what \"Set by your plan\" refers to.\n"
           },
           "managed_accounts": {
             "$ref": "#/components/schemas/SignInPolicyFlag",

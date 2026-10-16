@@ -8260,34 +8260,34 @@ type PasswordPolicySettings struct {
 	CommonPasswords SignInPolicyFlag `json:"common_passwords"`
 	ContextWords    SignInPolicyFlag `json:"context_words"`
 
-	// HistoryCount One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// HistoryCount One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	HistoryCount SignInPolicyNumber `json:"history_count"`
 
-	// MaxAgeDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MaxAgeDays One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MaxAgeDays SignInPolicyNumber `json:"max_age_days"`
 
-	// MaxRepeat One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MaxRepeat One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MaxRepeat SignInPolicyNumber `json:"max_repeat"`
 
-	// MinAgeHours One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinAgeHours One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinAgeHours SignInPolicyNumber `json:"min_age_hours"`
 
-	// MinClasses One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinClasses One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinClasses SignInPolicyNumber `json:"min_classes"`
 
-	// MinDigits One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinDigits One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinDigits SignInPolicyNumber `json:"min_digits"`
 
-	// MinLength One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinLength One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinLength SignInPolicyNumber `json:"min_length"`
 
-	// MinLowercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinLowercase One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinLowercase SignInPolicyNumber `json:"min_lowercase"`
 
-	// MinSymbols One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinSymbols One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinSymbols SignInPolicyNumber `json:"min_symbols"`
 
-	// MinUppercase One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MinUppercase One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MinUppercase SignInPolicyNumber `json:"min_uppercase"`
 }
 
@@ -9344,10 +9344,10 @@ type SessionElevation struct {
 
 // SessionPolicySettings The two bounds a session answers to beside its own expiry.
 type SessionPolicySettings struct {
-	// IdleMinutes One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// IdleMinutes One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	IdleMinutes SignInPolicyNumber `json:"idle_minutes"`
 
-	// MaxDays One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+	// MaxDays One numeric switch, at the levels that decide it. Zero is off for every one of them.
 	MaxDays SignInPolicyNumber `json:"max_days"`
 }
 
@@ -9412,7 +9412,7 @@ type SignInPasswordChange struct {
 	PendingToken string `json:"pending_token"`
 }
 
-// SignInPolicy The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
+// SignInPolicy The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it.
 // **A locked switch is answered, not withheld.** A setting that simply is not there is a setting somebody opens a support ticket about; one shown with its value, its reason and a control that is switched off is one they understand.
 type SignInPolicy struct {
 	// Legal The four links, each with its own lock - B2C locks them, B2B leaves them open.
@@ -9427,6 +9427,9 @@ type SignInPolicy struct {
 
 	// Password The thirteen switches about the password itself, each at its three levels.
 	Password PasswordPolicySettings `json:"password"`
+
+	// Plan The name of the plan the workspace is on, as its provider named it, null for none - what "Set by your plan" refers to.
+	Plan *string `json:"plan,omitempty"`
 
 	// PrivateHubs Whether people here may make private hubs. On by default; off is the stricter value. Off stops new ones only: every private hub already here stays private.
 	PrivateHubs *SignInPolicyFlag `json:"private_hubs,omitempty"`
@@ -9491,7 +9494,7 @@ type SignInPolicyChangeRotationFrom string
 type SignInPolicyFlag struct {
 	Installation bool `json:"installation"`
 
-	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	// InstallationSource Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 	InstallationSource PolicySource `json:"installation_source"`
 
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
@@ -9506,7 +9509,7 @@ type SignInPolicyFlag struct {
 type SignInPolicyMethods struct {
 	Installation []SignInMethod `json:"installation"`
 
-	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	// InstallationSource Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 	InstallationSource PolicySource `json:"installation_source"`
 
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
@@ -9517,12 +9520,12 @@ type SignInPolicyMethods struct {
 	Value  []SignInMethod `json:"value"`
 }
 
-// SignInPolicyNumber One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+// SignInPolicyNumber One numeric switch, at the levels that decide it. Zero is off for every one of them.
 type SignInPolicyNumber struct {
 	// Installation What the level above set, which is what this workspace may tighten.
 	Installation int `json:"installation"`
 
-	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	// InstallationSource Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 	InstallationSource PolicySource `json:"installation_source"`
 
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
@@ -9539,7 +9542,7 @@ type SignInPolicyNumber struct {
 type SignInPolicyText struct {
 	Installation string `json:"installation"`
 
-	// InstallationSource Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+	// InstallationSource Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 	InstallationSource PolicySource `json:"installation_source"`
 
 	// Lock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.

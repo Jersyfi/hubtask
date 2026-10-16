@@ -376,6 +376,10 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 		"private_hubs": setting(domain.SwitchPrivateHubs,
 			policy.PrivateHubs, above.PrivateHubs),
 		"rotation_from": nil,
+		"plan":          nil,
+	}
+	if name := resolved.Workspace.Plan.DisplayName; name != "" {
+		out["plan"] = name
 	}
 	if !policy.RotationFrom.IsZero() {
 		out["rotation_from"] = policy.RotationFrom.UTC()

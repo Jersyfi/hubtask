@@ -6,6 +6,7 @@ package identity
 import (
 	"testing"
 
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 )
 
@@ -141,5 +142,44 @@ func TestWithoutAPlanLockTheInviteOnlyOfferStaysTheWorkspacesSwitch(t *testing.T
 
 	if f.cardShows(t, fallbackRow) {
 		t.Error("an unlocked plan turned the invite-only offer on")
+	}
+}
+
+// The workspace's screen names the plan and says which values and locks are the plan's, so "Set by
+// your plan" refers to something a person can find (UC-ID-12 check 4).
+func TestTheWorkspacePolicyProjectionNamesThePlan(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	fixture.store.row.Plan = onPlan(domain.PolicyLayer{
+		Patch: domain.PolicyPatch{MinLength: intOf(16)},
+		Locks: map[domain.PolicySwitch]bool{domain.SwitchMinLength: true},
+	}, domain.LegalLayer{Links: domain.LegalLinks{TermsURL: "https://plan.example/terms"}})
+
+	resolved, err := fixture.writer.Resolver.Resolve(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving: %v", err)
+	}
+	out := signInPolicyOutput(resolved)
+
+	if out["plan"] != "Team" {
+		t.Errorf("the plan reads %v, want its display name", out["plan"])
+	}
+	password, _ := out["password"].(usecase.Output)
+	locked, _ := password["min_length"].(usecase.Output)
+	if locked["value"] != 16 || locked["lock"] != "PLAN" || locked["installation_source"] != "PLAN" {
+		t.Errorf("the plan's locked switch reads %v", locked)
+	}
+	legal, _ := out["legal"].(usecase.Output)
+	terms, _ := legal["terms_url"].(usecase.Output)
+	if terms["value"] != "https://plan.example/terms" || terms["installation_source"] != "PLAN" {
+		t.Errorf("the plan's terms read %v", terms)
+	}
+
+	fixture.store.row.Plan = domain.WorkspacePlan{}
+	resolved, err = fixture.writer.Resolver.Resolve(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving: %v", err)
+	}
+	if plan := signInPolicyOutput(resolved)["plan"]; plan != nil {
+		t.Errorf("a workspace on no plan names %v", plan)
 	}
 }
