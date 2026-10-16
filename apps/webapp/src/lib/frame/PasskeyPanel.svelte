@@ -15,6 +15,11 @@
   // check 2), with the name typed beforehand, so that the passkey lands in the list already named. A
   // prompt the person closes says nothing and leaves focus on the button (P-11). The first factor of
   // an account without codes shows the ten codes once, as the authenticator's setup does.
+  //
+  // **Each row renames with the session alone and removes behind a fresh proof** (UC-ID-22 check 4).
+  // *Remove* is drawn where the server's `can_remove` says removing would pass - never on the last
+  // second factor a workspace requires of this person, where the sentence saying so stands instead
+  // (check 5). A passkey made for another address opens nothing here and always goes.
 
   import { untrack } from 'svelte';
 
@@ -23,7 +28,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { passkeys } from '../data/passkeys.svelte.ts';
-  import { canCreatePasskeys, isAtRelyingParty, suggestedName } from '../data/passkeys.ts';
+  import { canCreatePasskeys, isAtRelyingParty, isStale, nameFits, removalOf, suggestedName } from '../data/passkeys.ts';
   import { formatDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -57,6 +62,39 @@
     const suggestion = suggestedName(t('app.passkeys.default_name'), held);
     if (!untrack(() => nameTouched)) name = suggestion;
   });
+
+  // The one row being renamed, and its draft.
+  let renaming = $state<string | undefined>(undefined);
+  let draft = $state('');
+
+  function startRenaming(id: string, current: string): void {
+    notice = undefined;
+    renaming = id;
+    draft = current;
+  }
+
+  async function rename(event: SubmitEvent, id: string): Promise<void> {
+    event.preventDefault();
+    const chosen = draft.trim();
+    if (await passkeys.rename(id, chosen)) {
+      renaming = undefined;
+      notice = t('app.passkeys.renamed', { name: chosen });
+      announcer.say(notice);
+    }
+  }
+
+  async function remove(id: string, name: string): Promise<void> {
+    notice = undefined;
+    if (await passkeys.remove(id)) {
+      notice = t('app.passkeys.removed', { name });
+      announcer.say(notice);
+    }
+  }
+
+  /** Why a row offers no *Remove*, in words. */
+  function removalReason(code: string): string {
+    return code === 'auth.mfa_required_by_tenant' ? t('app.passkeys.required_by_workspace') : t(code, {});
+  }
 
   async function add(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -106,7 +144,33 @@
       {:else}
         <ul class="held">
           {#each held as each (each.id)}
+            {@const removal = removalOf(each, list)}
             <li>
+              {#if renaming === each.id}
+                <form onsubmit={(event) => rename(event, each.id)}>
+                  <Stack gap="100">
+                    <Input
+                      label={t('app.passkeys.rename_label', { name: each.name })}
+                      bind:value={draft}
+                      maxlength={64}
+                      isRequired
+                      autocomplete="off"
+                    />
+                    <div class="actions">
+                      <Button
+                        type="submit"
+                        tone="secondary"
+                        isBusy={passkeys.isWorking}
+                        busyLabel={t('app.passkeys.saving')}
+                        disabledReason={nameFits(draft) ? undefined : t('app.passkeys.name_needed')}
+                      >
+                        {t('app.passkeys.save')}
+                      </Button>
+                      <Button tone="subtle" onclick={() => (renaming = undefined)}>{t('app.passkeys.cancel')}</Button>
+                    </div>
+                  </Stack>
+                </form>
+              {:else}
               <span class="name">{each.name}</span>
               <span class="quiet">
                 {each.last_used_at
@@ -116,6 +180,28 @@
                     })
                   : t('app.passkeys.meta_unused', { added: formatDay(each.created_at, messages.locale) })}
               </span>
+              {#if isStale(each, list)}
+                <span class="quiet">{t('app.passkeys.stale', { host: each.rp_id ?? '' })}</span>
+              {/if}
+              <div class="actions">
+                <Button tone="subtle" onclick={() => startRenaming(each.id, each.name)}>
+                  {t('app.passkeys.rename', { name: each.name })}
+                </Button>
+                {#if removal.offered}
+                  <Button
+                    tone="danger"
+                    isBusy={passkeys.isWorking}
+                    busyLabel={t('app.passkeys.removing')}
+                    onclick={() => void remove(each.id, each.name)}
+                  >
+                    {t('app.passkeys.remove', { name: each.name })}
+                  </Button>
+                {/if}
+              </div>
+              {#if !removal.offered}
+                <p class="quiet">{removalReason(removal.reason)}</p>
+              {/if}
+              {/if}
             </li>
           {/each}
         </ul>
@@ -141,7 +227,7 @@
                 tone="secondary"
                 isBusy={passkeys.isWorking}
                 busyLabel={t('app.passkeys.adding')}
-                disabledReason={name.trim() === '' ? t('app.passkeys.name_needed') : undefined}
+                disabledReason={nameFits(name) ? undefined : t('app.passkeys.name_needed')}
               >
                 {t('app.passkeys.add')}
               </Button>
@@ -188,4 +274,10 @@
   }
 
   .name { font-weight: var(--fw-semibold); }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-100);
+  }
 </style>

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Adding a passkey on *Password and sign-in* (UC-ID-22 checks 1, 2, 3 and 6), walked in the browser
-// against a stubbed API with Chromium's virtual authenticator standing in for the device: the list,
-// the fresh proof, the device, the name, and the ten codes once; ten reached; a prompt closed; a
-// challenge run out.
+// Passkeys on *Password and sign-in* (UC-ID-22 checks 1 to 6), walked in the browser against a
+// stubbed API with Chromium's virtual authenticator standing in for the device: the list, the fresh
+// proof, the device, the name, and the ten codes once; ten reached; a prompt closed; a challenge run
+// out; renaming and removing; the last factor a workspace requires; a key beside the app.
 //
 // Chromium only: the virtual authenticator is a DevTools protocol of Chromium's own. The bundle is
 // opened at `localhost`, because a browser makes no passkey for an address - an IP is no relying
@@ -53,8 +53,8 @@ const OPTIONS = {
  * A signed-in tab on *Password and sign-in* with the passkey routes stood in for, a virtual
  * authenticator attached, and a record of what each step sent.
  */
-async function open(browser, { list = PASSKEYS, complete } = {}) {
-  const sent = { starts: [], proofs: [], completes: [] };
+async function open(browser, { list = PASSKEYS, complete, account, onRemoved, afterDisable } = {}) {
+  const sent = { starts: [], proofs: [], completes: [], renames: [], removals: [], disables: [] };
   let held = [...list.passkeys];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
@@ -62,6 +62,48 @@ async function open(browser, { list = PASSKEYS, complete } = {}) {
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me/passkeys') {
       return route.fulfill({ json: { ...list, passkeys: held } });
+    }
+    if (path === '/accounts/me' && account) {
+      return route.fulfill({ json: { ...ACCOUNT, ...account } });
+    }
+    if (path.startsWith('/accounts/me/passkeys/')) {
+      const id = decodeURIComponent(path.slice('/accounts/me/passkeys/'.length));
+      if (request.method() === 'PATCH') {
+        const { name } = request.postDataJSON();
+        sent.renames.push({ id, name });
+        held = held.map((each) => (each.id === id ? { ...each, name } : each));
+        return route.fulfill({ json: held.find((each) => each.id === id) });
+      }
+      if (request.method() === 'DELETE') {
+        const proof = request.headers()['x-hubtask-step-up'];
+        sent.removals.push({ id, proof: proof ?? null });
+        if (proof !== GRANT) {
+          return route.fulfill({
+            status: 403,
+            json: {
+              code: 'forbidden', detail_code: 'auth.step_up_required', status: 403, request_id: 'req_r',
+              params: { methods: 'PASSWORD' },
+            },
+          });
+        }
+        held = held.filter((each) => each.id !== id);
+        onRemoved?.(list);
+        return route.fulfill({ status: 204, body: '' });
+      }
+    }
+    if (path === '/auth/mfa:disable') {
+      sent.disables.push(request.headers()['x-hubtask-step-up'] ?? null);
+      if (request.headers()['x-hubtask-step-up'] !== GRANT) {
+        return route.fulfill({
+          status: 403,
+          json: {
+            code: 'forbidden', detail_code: 'auth.step_up_required', status: 403, request_id: 'req_d',
+            params: { methods: 'PASSWORD' },
+          },
+        });
+      }
+      afterDisable?.(list, account);
+      return route.fulfill({ status: 204, body: '' });
     }
     if (path === '/accounts/me/passkeys:start') {
       const proof = request.headers()['x-hubtask-step-up'];
@@ -221,5 +263,121 @@ test('chromium: a challenge that ran out is refused with its sentence and the pe
   await panel.getByText('That attempt to add a passkey has run out', { exact: false }).waitFor();
   assert.equal(new URL(page.url()).pathname, '/profile/security', 'the person was sent away');
   assert.ok(await page.getByRole('navigation', { name: 'Your settings', exact: true }).isVisible(), 'the frame is gone - signed out');
+  assert.deepEqual(failures, []);
+});
+
+const LAPTOP = { id: '01936f2a-7c1e-7000-8000-0000000000b1', name: 'Laptop', created_at: '2026-02-01T09:00:00Z', last_used_at: '2026-06-01T09:00:00Z', rp_id: 'localhost' };
+const DRAWER = { id: '01936f2a-7c1e-7000-8000-0000000000b2', name: 'Key in the drawer', created_at: '2026-03-01T09:00:00Z', last_used_at: null, rp_id: 'localhost' };
+
+async function proveWithPassword(page) {
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Your password').fill('the one in force');
+  await dialog.getByRole('button', { name: 'Prove it' }).click();
+}
+
+// Check 2 and 4: a name changed with the session alone, and a passkey removed behind a fresh proof,
+// gone from the list at once.
+test('chromium: a passkey is renamed with the session alone, and another removed behind a fresh proof', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, sent, failures } = await open(browser, {
+    list: { passkeys: [LAPTOP, DRAWER], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' },
+  });
+  t.after(() => context.close());
+  const panel = page.getByTestId('passkeys');
+  const laptop = panel.getByRole('listitem').filter({ hasText: 'Laptop' });
+
+  await laptop.getByRole('button', { name: 'Rename' }).click();
+  const field = panel.getByRole('textbox', { name: 'New name for Laptop' });
+  assert.equal(await field.inputValue(), 'Laptop');
+  await field.fill('Old laptop, at home');
+  await panel.getByRole('button', { name: 'Save name' }).click();
+  await panel.getByText('Renamed to Old laptop, at home.').waitFor();
+  assert.deepEqual(sent.renames, [{ id: LAPTOP.id, name: 'Old laptop, at home' }]);
+  assert.deepEqual(sent.proofs, [], 'renaming asked for a fresh proof');
+  await panel.getByText('Old laptop, at home', { exact: true }).waitFor();
+
+  const drawer = panel.getByRole('listitem').filter({ hasText: 'Key in the drawer' });
+  await drawer.getByRole('button', { name: 'Remove' }).click();
+  await proveWithPassword(page);
+  await panel.getByText('Key in the drawer was removed. It no longer works.').waitFor();
+  assert.deepEqual(sent.removals, [{ id: DRAWER.id, proof: null }, { id: DRAWER.id, proof: GRANT }]);
+  assert.equal(await panel.getByRole('listitem').count(), 1, 'the removed passkey is still listed');
+  assert.deepEqual(failures, []);
+});
+
+// Check 5: where the workspace requires a second factor and this is the last one, no *Remove* - the
+// sentence stands in its place; a passkey of another address is no factor and goes.
+test('chromium: the last factor the workspace requires is not offered for removal, and the profile says why', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const stale = { ...DRAWER, rp_id: 'old.example' };
+  const { context, page, failures } = await open(browser, {
+    list: {
+      passkeys: [LAPTOP, stale], limit: 10, can_add: true, rp_id: 'localhost',
+      can_remove: false, cannot_remove_reason: 'auth.mfa_required_by_tenant',
+    },
+  });
+  t.after(() => context.close());
+  const panel = page.getByTestId('passkeys');
+  const laptop = panel.getByRole('listitem').filter({ hasText: 'Laptop' });
+  await laptop.getByText('Your workspace requires a second factor, and this is the last one', { exact: false }).waitFor();
+  assert.equal(await laptop.getByRole('button', { name: 'Remove' }).count(), 0);
+  assert.equal(await laptop.getByRole('button', { name: 'Rename' }).count(), 1, 'renaming is not the rule\'s business');
+  const old = panel.getByRole('listitem').filter({ hasText: 'Key in the drawer' });
+  await old.getByText('Made for old.example.', { exact: false }).waitFor();
+  assert.equal(await old.getByRole('button', { name: 'Remove' }).count(), 1);
+  assert.deepEqual(failures, []);
+});
+
+// A key alone: the codes are the key's, counted and renewable; the app is offered to set up, and the
+// profile does not say there is no second factor.
+test('chromium: with a key alone, the recovery codes are counted and renewable, and the app can still be set up', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await open(browser, {
+    list: { passkeys: [LAPTOP], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' },
+    account: {
+      has_password: true, has_second_factor: true, has_authenticator_app: false,
+      authenticator_app_removable: false, recovery_codes_remaining: 9, second_factor_required: false,
+    },
+  });
+  t.after(() => context.close());
+  await page.getByText('Off. Your passkey or security key is your second factor.').waitFor();
+  await page.getByText('Left: 9 of 10.').waitFor();
+  await page.getByRole('button', { name: 'Make new codes' }).waitFor();
+  assert.equal(await page.getByText('there is no second factor on this account yet', { exact: false }).count(), 0);
+  assert.equal(await page.getByText('Turn the second factor off').count(), 0, 'an app nobody set up was offered to turn off');
+  assert.deepEqual(failures, []);
+});
+
+// UC-ID-03 check 5 beside a key: under a rule the app may go while a key remains - and once it has,
+// the last key shows the sentence instead of *Remove*, because the list was read again.
+test('chromium: beside a key the app may be turned off under a rule, and then the last key stays', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const account = {
+    has_password: true, has_second_factor: true, has_authenticator_app: true,
+    authenticator_app_removable: true, recovery_codes_remaining: 10, second_factor_required: true,
+  };
+  const { context, page, sent, failures } = await open(browser, {
+    list: { passkeys: [LAPTOP], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' },
+    account,
+    afterDisable: (list, held) => {
+      Object.assign(list, { can_remove: false, cannot_remove_reason: 'auth.mfa_required_by_tenant' });
+      Object.assign(held, { has_authenticator_app: false, authenticator_app_removable: false });
+    },
+  });
+  t.after(() => context.close());
+  const panel = page.getByTestId('passkeys');
+  await panel.getByRole('listitem').filter({ hasText: 'Laptop' }).getByRole('button', { name: 'Remove' }).waitFor();
+
+  await page.getByText('Turn the second factor off').click();
+  await page.getByText('Your recovery codes keep working beside your passkey', { exact: false }).waitFor();
+  await page.getByRole('button', { name: 'Turn it off' }).click();
+  await proveWithPassword(page);
+  await panel.getByText('this is the last one your account holds', { exact: false }).waitFor();
+  assert.equal(await panel.getByRole('button', { name: 'Remove' }).count(), 0, 'the last key stayed removable');
+  assert.deepEqual(sent.disables, [null, GRANT]);
   assert.deepEqual(failures, []);
 });

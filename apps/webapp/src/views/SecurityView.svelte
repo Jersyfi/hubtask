@@ -54,6 +54,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
   import { identities } from '../lib/data/identities.svelte.ts';
+  import { passkeys } from '../lib/data/passkeys.svelte.ts';
+  import { isStale } from '../lib/data/passkeys.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
 
@@ -67,6 +69,12 @@
   // Whether any second factor stands - the app or a passkey. The recovery codes back whichever the
   // account holds (identity.md §9), so their count and *New codes* hang off this, not off the app.
   const factor = $derived(actor.hasSecondFactor === true);
+  // Whether a passkey of this workspace's address stands beside the app: then the codes stay when
+  // the app goes, and the account is not left without a second factor.
+  const keyHeld = $derived.by(() => {
+    const list = passkeys.list;
+    return list !== undefined && list.passkeys.some((each) => !isStale(each, list));
+  });
 
   // The setup on this screen confirmed its code: the factor is on although the ten codes are still
   // on screen and the account has not been read again, so the panel's state line says so already.
@@ -118,7 +126,9 @@
   async function armedFactor(): Promise<void> {
     notice = t('app.mfa.armed');
     announcer.say(notice);
-    await actor.reread();
+    // The confirmation invalidated nothing (mfa.svelte.ts), so both answers that just moved are
+    // read again: the account's, and whether the last passkey may now go.
+    await Promise.all([actor.reread(), passkeys.reread()]);
     confirmedHere = false;
   }
 
@@ -231,7 +241,7 @@
     <div class="panel">
       <Stack gap="150">
         <h2>{t('app.mfa.title')}</h2>
-        <p class="quiet">{isOn ? t('app.mfa.on') : t('app.mfa.off')}</p>
+        <p class="quiet">{isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}</p>
         <!-- Beside the state it is about. At the foot of the panel it sat under the "turn it off"
              section and read as a caption for it. -->
         {#if notice}<p class="quiet">{notice}</p>{/if}
@@ -306,7 +316,7 @@
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>
               <Stack gap="150">
-                <p class="quiet">{t('app.mfa.disable_body')}</p>
+                <p class="quiet">{keyHeld ? t('app.mfa.disable_body_beside_key') : t('app.mfa.disable_body')}</p>
                 <p class="quiet">{t('app.mfa.disable_hint')}</p>
                 <div>
                   <Button tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')} onclick={() => void disableFactor()}>
