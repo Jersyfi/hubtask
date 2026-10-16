@@ -73,6 +73,7 @@ func (c *RestController) ProvisionTenant(
 		"default_time_zone":  optionalStringField(body.DefaultTimeZone),
 		"owner_email":        string(body.OwnerEmail),
 		"owner_display_name": optionalStringField(body.OwnerDisplayName),
+		"plan":               optionalStringField(body.Plan),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

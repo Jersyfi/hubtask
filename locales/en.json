@@ -1517,6 +1517,7 @@
   "admin.plan_version_moved": "Somebody changed the plan while you were editing; read it again.",
   "admin.plan_display_name_invalid": "A plan's name is 1 to 200 characters.",
   "admin.plan_feature_unknown": "{feature} is not a feature a plan can leave out.",
+  "admin.plan_not_set": "The workspace could not be put on its plan, so it was not created. Try again.",
   "query.filter_too_expensive": "The filter's estimated cost is {cost}; at most {maximum} is planned for. Fewer text scans, shorter lists.",
   "app.back_to_start": "Back to the start",
   "app.dismiss": "Dismiss",

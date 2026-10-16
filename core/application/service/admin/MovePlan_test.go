@@ -186,3 +186,41 @@ func TestAMoveIsMultiModes(t *testing.T) {
 		t.Errorf("a move in single mode answered %v", err)
 	}
 }
+
+// A workspace provisioned on a plan starts on it (UC-INS-13 check 8, UC-INS-07's starting plan),
+// and an unknown plan is refused before anything is written.
+func TestAWorkspaceIsProvisionedOnAPlan(t *testing.T) {
+	plans := newPlanFixture(t)
+	if _, err := plans.registry.Invoke(t.Context(), CreatePlanName, operator(), familyInput()); err != nil {
+		t.Fatal(err)
+	}
+	family, _ := plans.plans.Find(t.Context(), "family")
+
+	f := newProvisionFixture()
+	f.handler.Plans = plans.plans
+	f.tenants.record.Version = 1
+	f.tenants.planNames = map[shared.ID]string{family.ID: "family"}
+	cmd := provisionCommand()
+	cmd.Plan = "family"
+	provisioned, err := f.handler.Execute(t.Context(), operator(), cmd)
+	if err != nil {
+		t.Fatalf("provisioning on a plan: %v", err)
+	}
+	if provisioned.Plan != "family" || provisioned.Version != 2 || f.tenants.record.PlanName != "family" {
+		t.Errorf("provisioned on %q at version %d; the row says %q", provisioned.Plan, provisioned.Version, f.tenants.record.PlanName)
+	}
+	if last := f.journal.entries[len(f.journal.entries)-1]; last.Details["plan"] != "family" {
+		t.Errorf("the journal's provisioning entry names plan %v", last.Details["plan"])
+	}
+
+	unknown := newProvisionFixture()
+	unknown.handler.Plans = plans.plans
+	cmd.Plan = "business"
+	_, err = unknown.handler.Execute(t.Context(), operator(), cmd)
+	if refusalCode(err) != "admin.plan_unknown" {
+		t.Errorf("an unknown plan answered %v", err)
+	}
+	if len(unknown.tenants.inserted) != 0 || len(unknown.accounts.inserted) != 0 {
+		t.Error("an unknown plan let the workspace be written")
+	}
+}

@@ -137,3 +137,15 @@ func TestAWorkspaceMoveReachesItsUseCase(t *testing.T) {
 		t.Errorf("answered %s", recorder.Body)
 	}
 }
+
+func TestProvisioningCarriesThePlan(t *testing.T) {
+	registry := &catalogue{err: shared.ErrValidation.WithDetail("admin.plan_unknown")}
+	recorder := callPlans(t, registry, http.MethodPost, "/admin/tenants",
+		`{"slug": "maria", "display_name": "Maria", "owner_email": "maria@example.org", "plan": "family"}`, nil)
+	if registry.name != "ProvisionTenant" || registry.in["plan"] != "family" {
+		t.Errorf("reached %q with %v", registry.name, registry.in)
+	}
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("an unknown plan answered %d", recorder.Code)
+	}
+}

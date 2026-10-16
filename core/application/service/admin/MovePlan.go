@@ -88,9 +88,7 @@ func (h MoveTenantPlan) Execute(
 		if cmd.Plan != "" {
 			planID, err := h.Writer.Plans.Hold(ctx, cmd.Plan)
 			if errors.Is(err, shared.ErrNotFound) {
-				return shared.ErrValidation.WithDetail("admin.plan_unknown").
-					WithParams(map[string]string{"plan": cmd.Plan}).
-					WithFields(shared.FieldError{Path: "/plan", Code: "admin.plan_unknown"})
+				return unknownPlan(cmd.Plan)
 			}
 			if err != nil {
 				return err

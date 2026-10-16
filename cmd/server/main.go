@@ -1463,7 +1463,8 @@ func run() error {
 	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
 	// began (UC-INS-01).
 	provisioning := adminservice.ProvisionTenant{
-		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
+		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
 		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
