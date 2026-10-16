@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDue, formatRelative } from './datetime.ts';
+import { formatDateTime, formatDay, formatDue, formatRelative } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -15,6 +15,14 @@ test('a moment is written the way the locale writes moments', () => {
   assert.notEqual(english, german);
   assert.match(english, /2026/);
   assert.match(german, /2026/);
+});
+
+test('a day is written without its minute', () => {
+  const day = formatDay('2026-09-04T15:30:00Z', 'en-GB');
+  assert.match(day, /2026/);
+  assert.doesNotMatch(day, /15:30|3:30/);
+  assert.notEqual(day, formatDay('2026-09-04T15:30:00Z', 'de-DE'));
+  assert.equal(formatDay('not a moment', 'en'), 'not a moment');
 });
 
 test('a value this cannot read is shown as it arrived', () => {

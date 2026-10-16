@@ -267,7 +267,8 @@ func TestTheServerRefusesAWriterWhoseRuleCannotSayWhetherThePasswordIsOpen(t *te
 // The verifiers are copies of the session writer too, and one copied before the rule is taught names
 // PASSWORD as a proof in a workspace that switched the password off - a field the step-up refuses.
 // Every verifier literal in main.go therefore comes after teachTheRule; the writers built before it
-// are handed theirs there.
+// are handed theirs there. The passkey writer is held to the same place: it copies the session writer
+// and asks the step-up's methods for whether a passkey can be added.
 func TestEveryStepUpVerifierIsTakenAfterTheRule(t *testing.T) {
 	file, err := parser.ParseFile(token.NewFileSet(), "main.go", nil, 0)
 	if err != nil {
@@ -292,12 +293,12 @@ func TestEveryStepUpVerifierIsTakenAfterTheRule(t *testing.T) {
 			return true
 		}
 		selector, ok := literal.Type.(*ast.SelectorExpr)
-		if !ok || selector.Sel.Name != "StepUpVerifier" {
+		if !ok || (selector.Sel.Name != "StepUpVerifier" && selector.Sel.Name != "PasskeyWriter") {
 			return true
 		}
 		found++
 		if literal.Pos() < taught {
-			t.Errorf("a step-up verifier is copied from the session writer before the rule is taught "+
+			t.Errorf("a step-up verifier or the passkey writer is copied from the session writer before the rule is taught "+
 				"(offset %d) - it would offer the password where a workspace switched it off", literal.Pos())
 		}
 		return true

@@ -1492,6 +1492,72 @@ SELECT EXISTS (SELECT 1 FROM legal_hold WHERE id = (sqlc.arg('payload')::jsonb->
 -- name: ClearLegalHold :execrows
 DELETE FROM legal_hold;
 
+-- name: ImportPasskey :execrows
+-- Skipped rather than refused: a passkey whose account the restore did not bring back, one whose
+-- identifier another row of the workspace holds, one past the account's ten, and one from an
+-- export, which carries no identifier or key (tenant-export.md §9) and so is no credential.
+INSERT INTO webauthn_credential (
+  id,
+  tenant_id,
+  account_id,
+  credential_id,
+  public_key,
+  algorithm,
+  sign_count,
+  user_handle,
+  backup_eligible,
+  backed_up,
+  transports,
+  name,
+  created_at,
+  last_used_at
+)
+SELECT
+  r.id,
+  r.tenant_id,
+  r.account_id,
+  r.credential_id,
+  r.public_key,
+  r.algorithm,
+  r.sign_count,
+  r.user_handle,
+  r.backup_eligible,
+  r.backed_up,
+  r.transports,
+  r.name,
+  r.created_at,
+  r.last_used_at
+FROM jsonb_populate_record(
+  NULL::webauthn_credential,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.credential_id IS NOT NULL AND r.public_key IS NOT NULL AND r.user_handle IS NOT NULL
+  AND EXISTS (SELECT 1 FROM account a WHERE a.id = r.account_id)
+  AND NOT EXISTS (
+    SELECT 1 FROM webauthn_credential w WHERE w.credential_id = r.credential_id AND w.id <> r.id
+  )
+  AND (SELECT count(*) FROM webauthn_credential w WHERE w.account_id = r.account_id AND w.id <> r.id) < 10
+ON CONFLICT (id) DO UPDATE SET
+  account_id = EXCLUDED.account_id,
+  credential_id = EXCLUDED.credential_id,
+  public_key = EXCLUDED.public_key,
+  algorithm = EXCLUDED.algorithm,
+  sign_count = EXCLUDED.sign_count,
+  user_handle = EXCLUDED.user_handle,
+  backup_eligible = EXCLUDED.backup_eligible,
+  backed_up = EXCLUDED.backed_up,
+  transports = EXCLUDED.transports,
+  name = EXCLUDED.name,
+  created_at = EXCLUDED.created_at,
+  last_used_at = EXCLUDED.last_used_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPasskey :one
+SELECT EXISTS (SELECT 1 FROM webauthn_credential WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPasskeys :execrows
+DELETE FROM webauthn_credential;
+
 -- name: ImportPrivateHubAccess :execrows
 -- An access whose hub the restore did not bring back has nothing to describe, and is skipped
 -- rather than refused by the foreign key.

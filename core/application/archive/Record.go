@@ -340,6 +340,13 @@ var entities = []Entity{
 	// something to fill in (backup-restore.md §8.2).
 	{Name: "tenants", Table: "tenant", Keys: []string{"id"}},
 	{Name: "accounts", Table: "account", Keys: []string{"id"}},
+	// An account's passkeys (identity.md §23.5): a data backup keeps them, so a restore leaves
+	// people their way in; the exports lose the credential columns (tenant-export.md §9). Not
+	// duplicable: a passkey belongs to its account and its workspace's host.
+	{
+		Name: "webauthn_credentials", Table: "webauthn_credential", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
 	{Name: "account_groups", Table: "account_group", Keys: []string{"id"}, Whole: true},
 	{
 		Name: "account_group_members", Table: "account_group_member", Whole: true,

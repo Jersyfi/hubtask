@@ -88,6 +88,12 @@ func seedSubject(ctx context.Context, t *testing.T, email string) person {
 		  VALUES ($1, $2, $3, NULL, $4)`,
 			[]any{subject.feed.String(), subject.tenant.String(), subject.account.String(),
 				"feed-" + subject.feed.String()}},
+		// A passkey: a credential, which an erasure removes in every mode (identity.md §23.5).
+		{`INSERT INTO webauthn_credential (id, tenant_id, account_id, credential_id, public_key, algorithm,
+		    user_handle, backup_eligible, backed_up, name, created_at)
+		  VALUES ($1, $2, $3, $4, '\xa501', -7, $5, false, false, 'Anna''s phone', now())`,
+			[]any{freshID(t).String(), subject.tenant.String(), subject.account.String(),
+				[]byte(subject.account.String()), make([]byte, 32)}},
 		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, checksum,
 		    usage, created_by)
 		  VALUES ($1, $2, $3, 'text/plain', 12, $4, 'ATTACHMENT', $5)`,
@@ -174,6 +180,7 @@ func TestAFullErasureServesEveryStorageLocation(t *testing.T) {
 		"their memberships":   `SELECT count(*) FROM membership WHERE account_id = $1`,
 		"their tokens":        `SELECT count(*) FROM access_token WHERE account_id = $1`,
 		"their feeds":         `SELECT count(*) FROM calendar_feed WHERE account_id = $1`,
+		"their passkeys":      `SELECT count(*) FROM webauthn_credential WHERE account_id = $1`,
 		"their comments":      `SELECT count(*) FROM comment WHERE author_id = $1`,
 		"their notifications": `SELECT count(*) FROM notification WHERE recipient_id = $1`,
 	} {
@@ -252,6 +259,10 @@ func TestAnAnonymisationKeepsTheWorkspacesContent(t *testing.T) {
 	if rows := countIn(ctx, t, `SELECT count(*) FROM access_token WHERE account_id = $1`,
 		subject.account.String()); rows != 0 {
 		t.Errorf("%d credentials survived", rows)
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM webauthn_credential WHERE account_id = $1`,
+		subject.account.String()); rows != 0 {
+		t.Errorf("%d passkeys survived an anonymisation", rows)
 	}
 }
 

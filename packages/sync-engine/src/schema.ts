@@ -170,6 +170,14 @@ export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */
 export type ProviderConnectAuthorization = components['schemas']['ProviderConnectAuthorization'];
+/** The passkeys of the reader's own account, and whether another can be added now (identity.md §23). */
+export type PasskeyList = components['schemas']['PasskeyList'];
+export type Passkey = components['schemas']['Passkey'];
+/** The options `navigator.credentials.create()` is asked with, in WebAuthn's JSON form. */
+export type PasskeyRegistrationOptions = components['schemas']['PasskeyRegistrationOptions'];
+/** What the browser's ceremony answered, encoded, and the name the person chose. */
+export type PasskeyRegistration = components['schemas']['PasskeyRegistration'];
+export type PasskeyRegistered = components['schemas']['PasskeyRegistered'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**
