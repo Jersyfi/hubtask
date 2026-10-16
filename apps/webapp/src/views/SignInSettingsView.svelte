@@ -61,7 +61,7 @@
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
+  import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
@@ -148,6 +148,13 @@
     return setting.source === 'WORKSPACE' ? setting.value : '';
   }
 
+  /** The level above's value in a sentence, naming the plan where the plan decided it. */
+  function aboveValue(source: PolicySource, value: string): string {
+    return source === 'PLAN'
+      ? t('app.signin_settings.plan_default', { value })
+      : t('app.signin_settings.installation_default', { value });
+  }
+
   /**
    * Where a link comes from, said under its field: nothing where it is locked (the field says who
    * locked it), the installation's where this workspace set none, the installation's beside the
@@ -159,12 +166,13 @@
     const inherited = setting.installation_source !== 'DEFAULT' && setting.installation !== '';
     if (own.trim() !== '') {
       return inherited
-        ? `${t('app.signin_settings.source_workspace')} ${t('app.signin_settings.installation_default', { value: setting.installation })}`
+        ? `${t('app.signin_settings.source_workspace')} ${aboveValue(setting.installation_source, setting.installation)}`
         : t('app.signin_settings.source_workspace');
     }
-    return inherited
-      ? t('app.signin_settings.link_inherited', { value: setting.installation })
-      : t('app.signin_settings.link_none');
+    if (!inherited) return t('app.signin_settings.link_none');
+    return setting.installation_source === 'PLAN'
+      ? t('app.signin_settings.link_inherited_plan', { value: setting.installation })
+      : t('app.signin_settings.link_inherited', { value: setting.installation });
   }
 
   /** The rows that moved, in the shape the contract takes. Empty means there is nothing to save. */
@@ -194,8 +202,9 @@
     // The level above is the installation over Hubtask's default: where the installation decided
     // nothing, it is Hubtask's default that the workspace may not go below, and saying "the
     // installation" there would contradict the origin line beside it.
-    return setting.installation_source === 'DEFAULT'
-      ? t('app.signin_settings.required_default')
+    if (setting.installation_source === 'DEFAULT') return t('app.signin_settings.required_default');
+    return setting.installation_source === 'PLAN'
+      ? t('app.signin_settings.required_plan')
       : t('app.signin_settings.required_above');
   }
 
@@ -204,7 +213,7 @@
     if (setting.lock !== null) return '';
     const above = setting.installation_source === 'DEFAULT'
       ? ''
-      : ` ${t('app.signin_settings.installation_default', { value: shown(setting.installation) })}`;
+      : ` ${aboveValue(setting.installation_source, shown(setting.installation))}`;
     switch (setting.source) {
       case 'WORKSPACE': return `${t('app.signin_settings.source_workspace')}${above}`;
       case 'INSTANCE': return t('app.signin_settings.source_installation');
@@ -417,7 +426,15 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet notices()}
+      {#if policy?.plan}
+        <!-- The plan a workspace is on, so "Set by your plan" refers to something a person can
+             name to their provider. A note, not an offer: no price, no other plan. -->
+        <p class="plan" data-testid="sign-in-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: policy.plan })}</Badge></p>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
@@ -550,17 +567,18 @@
                         <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
                       {:else}
                         {@const mandated = one.installation_lock === 'TURNS_ON'}
+                        {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
                         <Switch
                           label={one.display_name}
                           hint={mandated
-                            ? t('app.signin_settings.way_mandated')
+                            ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
                             : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
                           checked={one.offered_here === true}
                           onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
                           disabledReason={offerRefusal ??
                             (switching === one.id
                               ? t('app.signin_settings.switching')
-                              : mandated ? t('app.signin_settings.locked_installation') : lastWay(one.offered_here === true))}
+                              : mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true))}
                         />
                         {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
                           <!-- Said under the switch it is about, while there is still time to act. -->
@@ -701,6 +719,7 @@
   }
 
   .lead { margin: 0; color: var(--text-secondary); }
+  .plan { margin: 0; }
 
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
