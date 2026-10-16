@@ -23,6 +23,15 @@ func TestThePasskeysAreInTheSessionWritersOwnLiteral(t *testing.T) {
 	}
 }
 
+// Adding and removing a passkey tell the person (ADR-0078 §6) through the writer's own WayIn, which
+// only its literal can carry to the use cases built from it.
+func TestThePasskeyWriterTellsOfAChangedWayIn(t *testing.T) {
+	fields, late := literalOf(t, "passkeyWriter")
+	if !fields["WayIn"] || late["passkeyWriter.WayIn"] {
+		t.Error("the passkey writer's literal tells nobody of a passkey added or removed")
+	}
+}
+
 // literalOf answers the keys of the composite literal `name := …{…}` in main.go, and every field of
 // it assigned anywhere afterwards.
 func literalOf(t *testing.T, name string) (fields, late map[string]bool) {

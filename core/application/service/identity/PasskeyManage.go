@@ -225,9 +225,13 @@ func (h RemoveOwnPasskey) Execute(
 		if err := s.Recovery.DiscardUnbacked(ctx, actor.AccountID); err != nil {
 			return err
 		}
-		return s.recordMfaAudit(ctx, PasskeyRemovedAction, audit.SeverityNotice, domain.Account{
+		now := s.Clock.Now()
+		if err := s.recordMfaAudit(ctx, PasskeyRemovedAction, audit.SeverityNotice, domain.Account{
 			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
-		}, s.Clock.Now())
+		}, now); err != nil {
+			return err
+		}
+		return w.told(ctx, actor, domain.WayInPasskeyRemoved, now)
 	})
 }
 

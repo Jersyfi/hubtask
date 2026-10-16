@@ -132,3 +132,31 @@ func TestAPasswordChangedAtTheChangeStepIsTold(t *testing.T) {
 	}
 	told.only(t, domain.WayInPasswordChanged)
 }
+
+// UC-ID-22 check 7: adding and removing a passkey each tell the person once, in the write's own
+// transaction; a refused removal tells nothing, and no notice can carry the name, which the change
+// has no field for.
+func TestAPasskeyAddedOrRemovedIsTold(t *testing.T) {
+	f := newPasskeyFixture(t)
+	told := &toldOf{}
+	f.writer.WayIn = told
+	f.register(t)
+
+	if _, err := f.complete(t, f.started(t), "iPhone", 0x61); err != nil {
+		t.Fatalf("adding: %v", err)
+	}
+	told.only(t, domain.WayInPasskeyAdded)
+
+	told.notices = nil
+	f.under(t, domain.MfaForEveryone, false, 0, domain.RoleMember)
+	refusedWith(t, f.remove(t, signedInActor(), f.store.held[0].ID, "hbt_sup_proof"), "auth.mfa_required_by_tenant")
+	if len(told.notices) != 0 {
+		t.Fatalf("a refused removal told %+v", told.notices)
+	}
+
+	f.under(t, domain.MfaForNobody, false, 0, domain.RoleMember)
+	if err := f.remove(t, signedInActor(), f.store.held[0].ID, "hbt_sup_proof"); err != nil {
+		t.Fatalf("removing: %v", err)
+	}
+	told.only(t, domain.WayInPasskeyRemoved)
+}

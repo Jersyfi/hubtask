@@ -72,6 +72,17 @@ type PasskeyWriter struct {
 	Installation PasskeyInstallation
 	// StepUp is the fresh proof adding asks for (identity.md §23.2). Nil refuses, as everywhere.
 	StepUp stepup.Verifier
+	// WayIn tells the person that a passkey was added or removed (ADR-0078 §6). Nil where the
+	// installation has no mail server; set in the literal that builds the writer.
+	WayIn WayInNotices
+}
+
+// told queues the notice of a changed way in, inside the caller's transaction.
+func (w PasskeyWriter) told(ctx context.Context, actor appshared.ActorContext, event domain.WayInEvent, at time.Time) error {
+	if w.WayIn == nil {
+		return nil
+	}
+	return w.WayIn.WayInChanged(ctx, actor.TenantID, actor.AccountID, domain.WayInChange{Event: event, At: at})
 }
 
 // relyingParty is a workspace's relying party with the name its options carry.
@@ -683,9 +694,12 @@ func (h CompletePasskeyRegistration) Execute(
 				added.RecoveryCodes = append(added.RecoveryCodes, secret.New(code))
 			}
 		}
-		return s.recordMfaAudit(ctx, PasskeyAddedAction, audit.SeverityNotice, domain.Account{
+		if err := s.recordMfaAudit(ctx, PasskeyAddedAction, audit.SeverityNotice, domain.Account{
 			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
-		}, now)
+		}, now); err != nil {
+			return err
+		}
+		return w.told(ctx, actor, domain.WayInPasskeyAdded, now)
 	})
 	if err != nil {
 		return AddedPasskey{}, err

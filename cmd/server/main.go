@@ -1410,6 +1410,7 @@ func run() error {
 		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
 		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
 		StepUp:       stepUpVerifier,
+		WayIn:        wayInNotices,
 	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
