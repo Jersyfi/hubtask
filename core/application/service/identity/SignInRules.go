@@ -116,12 +116,16 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		return ResolvedPolicy{}, err
 	}
 
-	installation := domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
-	legal, legalLocks := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{}, workspace.Settings.LegalLayer())
-	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{}, domain.LegalLayer{})
+	// The level above the workspace is the installation and the workspace's plan together
+	// (multi-tenancy.md §4.2): what a workspace may tighten, and what its screen shows beside its
+	// own values.
+	plan := workspace.Plan
+	installation := domain.Effective(instance.Policy, plan.Policy, domain.PolicyLayer{})
+	legal, legalLocks := domain.EffectiveLegal(instance.Legal, plan.Legal, workspace.Settings.LegalLayer())
+	above, _ := domain.EffectiveLegal(instance.Legal, plan.Legal, domain.LegalLayer{})
 	return ResolvedPolicy{
 		Effective: domain.Effective(
-			instance.Policy, domain.PolicyLayer{}, workspace.Settings.SignInLayer()),
+			instance.Policy, plan.Policy, workspace.Settings.SignInLayer()),
 		Legal:     legal,
 		LegalLock: legalLocks,
 		// The same two levels without the workspace's, which is the default it may tighten.

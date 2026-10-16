@@ -190,12 +190,14 @@ func (w WorkspaceWriter) keepsAWayIn(
 			return nil
 		}
 	}
-	// The row being written is the workspace; only the installation's lock is read beside it.
+	// The row being written is the workspace; the level above is read beside it, and the lock is
+	// settled again against the workspace's own plan.
 	here, err := readWaysHere(ctx, nil, w.Resolver.Instance)
 	if err != nil {
 		return err
 	}
 	here.workspace = stored
+	here.settle()
 	on, err := providerOnHere(ctx, w.Providers, here, "", w.Clock.Now())
 	if err != nil {
 		return err
@@ -346,9 +348,9 @@ func signInPolicyOutput(resolved ResolvedPolicy) usecase.Output {
 			"installation": resolved.InstallationLegal.Of(name),
 			"lock":         nil,
 			"source": string(domain.LegalSourceOf(
-				name, resolved.InstanceLegal, domain.LegalLayer{}, resolved.Workspace.Settings.LegalLayer())),
+				name, resolved.InstanceLegal, resolved.Workspace.Plan.Legal, resolved.Workspace.Settings.LegalLayer())),
 			"installation_source": string(domain.LegalSourceOf(
-				name, resolved.InstanceLegal, domain.LegalLayer{}, domain.LegalLayer{})),
+				name, resolved.InstanceLegal, resolved.Workspace.Plan.Legal, domain.LegalLayer{})),
 		}
 		if origin := resolved.LegalLock[name]; origin != domain.LockNone {
 			out["lock"] = string(origin)
