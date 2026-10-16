@@ -114,6 +114,9 @@ func (s *enrollmentsStore) Disable(_ context.Context, accountID shared.ID) (bool
 
 type recoveryStore struct {
 	codes map[string]bool // normalised code -> live
+	// backed answers whether the account still holds a factor, the statement's condition; nil holds
+	// none, the shape of an account with the app alone.
+	backed func() bool
 	// replacements counts the calls, because "the burn and the write are one act" is a property of
 	// the statement rather than of the codes it leaves behind.
 	replacements int
@@ -139,6 +142,13 @@ func (s *recoveryStore) Burn(_ context.Context, _ shared.ID, presented string, _
 	}
 	s.codes[key] = false
 	return true, nil
+}
+
+func (s *recoveryStore) DiscardUnbacked(context.Context, shared.ID) error {
+	if s.backed == nil || !s.backed() {
+		s.codes = map[string]bool{}
+	}
+	return nil
 }
 
 func (s *recoveryStore) Remaining(context.Context, shared.ID) (int, error) {

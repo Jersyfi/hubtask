@@ -80,43 +80,17 @@ type relyingParty struct {
 	Name string
 }
 
+// party is the writer's relying party, derived as the factor rules derive it.
+func (w PasskeyWriter) party() PasskeyParty {
+	return PasskeyParty{
+		Workspaces: w.Workspaces, Hosts: w.Hosts, Installation: w.Installation, Domains: w.Session.Domains,
+	}
+}
+
 // relyingParty answers the workspace's relying party, inside a transaction bound to it; false where
 // the installation has no public address.
 func (w PasskeyWriter) relyingParty(ctx context.Context) (relyingParty, bool, error) {
-	workspace, err := w.Workspaces.Find(ctx)
-	if err != nil {
-		return relyingParty{}, false, err
-	}
-	host := domain.CanonicalHostOf(workspace.Slug, w.Installation.Host, w.Installation.Multi)
-	if w.Installation.Host == "" {
-		host = ""
-	}
-	if w.Hosts != nil {
-		hosts, err := w.Hosts.List(ctx)
-		if err != nil {
-			return relyingParty{}, false, err
-		}
-		for _, candidate := range hosts {
-			if candidate.Canonical && candidate.State == domain.HostActive {
-				host = candidate.Host
-				break
-			}
-		}
-	}
-	if host != "" && w.Session.Domains != nil {
-		ascii, err := w.Session.Domains.ToASCII(host)
-		if err != nil {
-			return relyingParty{}, false, nil
-		}
-		host = ascii
-	}
-	rpID, origin, ok := domain.PasskeyRelyingParty(host, w.Installation.Scheme, w.Installation.Port)
-	if !ok {
-		return relyingParty{}, false, nil
-	}
-	return relyingParty{
-		RelyingParty: passkey.RelyingParty{ID: rpID, Origin: origin}, Name: workspace.DisplayName,
-	}, true, nil
+	return w.party().of(ctx)
 }
 
 // passkeyPerson admits a person acting for themselves, and nobody else: a machine holds tokens

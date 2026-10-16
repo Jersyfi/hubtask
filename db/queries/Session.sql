@@ -379,9 +379,18 @@ WHERE account_id = sqlc.arg('account_id')
   AND (last_step IS NULL OR last_step < sqlc.arg('step'));
 
 -- name: DisableMfa :execrows
--- The enrolment goes whole; the recovery codes go with it by their own statement in the same
--- transaction, because half a disable is worse than none.
+-- The enrolment goes whole. The recovery codes are the account's: they go by their own statement
+-- where nothing remains for them to back (DiscardUnbackedRecoveryCodes).
 DELETE FROM account_mfa WHERE account_id = sqlc.arg('account_id');
+
+-- name: DiscardUnbackedRecoveryCodes :execrows
+-- The codes back whatever second factor the account holds (identity.md §9), so they go only where
+-- it holds none: no app, armed or begun, and no passkey. The condition sits in the statement, so a
+-- removal that raced an enrolment's start never takes the codes that enrolment just showed.
+DELETE FROM account_recovery_code c
+WHERE c.account_id = sqlc.arg('account_id')
+  AND NOT EXISTS (SELECT 1 FROM account_mfa m WHERE m.account_id = c.account_id)
+  AND NOT EXISTS (SELECT 1 FROM webauthn_credential w WHERE w.account_id = c.account_id);
 
 -- name: DeleteRecoveryCodes :execrows
 DELETE FROM account_recovery_code WHERE account_id = sqlc.arg('account_id');
