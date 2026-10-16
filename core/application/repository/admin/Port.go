@@ -43,6 +43,8 @@ type TenantRecord struct {
 	// on a cancel is refused, because the bytes are already going.
 	PurgeStartedAt time.Time
 	Version        int
+	// PlanName is the short name of the workspace's plan, empty for none (multi-tenancy.md §4.2).
+	PlanName string
 }
 
 // Tenants is the lifecycle of the tenant row.
@@ -80,6 +82,10 @@ type Tenants interface {
 	// replacing one that stands (ADR-0078 §3). False means the workspace is not active - suspended,
 	// leaving, or gone.
 	OpenPassword(ctx context.Context, opening identity.PasswordOpening, now time.Time) (bool, error)
+
+	// SetPlan puts the transaction's own tenant on a plan, or none where planID is zero, raising its
+	// version. False means the version moved since `version` was read, or the purge has begun.
+	SetPlan(ctx context.Context, planID shared.ID, version int, now time.Time) (bool, error)
 
 	// ClosePassword ends the opening on the transaction's own tenant: whatever stands where `due` is
 	// zero, and only one whose end has come by `due` otherwise - so a close at the old end leaves a

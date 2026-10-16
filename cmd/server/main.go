@@ -1313,6 +1313,12 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// Plans, between the installation and its workspaces (multi-tenancy.md §4.2): the instance
+	// writer for the register, the level and the journal, and the mode - plans are multi mode's.
+	planWriter := adminservice.PlanWriter{
+		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
+	}
+
 	// The same writer over the *plain* repository, for the one caller allowed to write while a
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
@@ -1457,7 +1463,8 @@ func run() error {
 	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
 	// began (UC-INS-01).
 	provisioning := adminservice.ProvisionTenant{
-		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
+		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
 		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
@@ -2239,6 +2246,15 @@ func run() error {
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlans{Writer: planWriter}.Descriptor(),
+		adminservice.ReadPlan{Writer: planWriter}.Descriptor(),
+		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
+		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.MoveTenantPlan{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
+		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
@@ -3523,6 +3539,7 @@ func run() error {
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
+		plans:      planWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -4206,7 +4223,10 @@ type applyingInstanceFile struct {
 	write    adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
-	ai         adminservice.InstanceAiWriter
+	ai adminservice.InstanceAiWriter
+	// plans writes the plans the file names, as the file: it passes every check the API's writes
+	// pass, and is the one writer of plans while the file enforces.
+	plans      adminservice.PlanWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4245,6 +4265,31 @@ func applyAiModels(ctx context.Context, applying applyingInstanceFile, document 
 	return nil
 }
 
+// applyPlans writes the plans the file names (multi-tenancy.md §4.2). In single mode there are no
+// plans, and the file's are skipped with a line saying so rather than refusing the start.
+func applyPlans(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	plans, present, err := instancefile.Plans(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.plans.ApplyFile(ctx, plans, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names plans, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	for _, kept := range outcome.Kept {
+		slog.Warn("a plan the instance file no longer names was kept: workspaces are on it",
+			"source", applying.path, "plan", kept)
+	}
+	slog.Info("the plans were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "plans", len(plans))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4267,7 +4312,16 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	if err := applyAiModels(ctx, applying, document); err != nil {
 		return err
 	}
+	if err := applyLevel(ctx, applying, document); err != nil {
+		return err
+	}
+	// The plans after the level: a plan is checked against the installation's values, so the
+	// file's own values have to be in place first.
+	return applyPlans(ctx, applying, document)
+}
 
+// applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
+func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),

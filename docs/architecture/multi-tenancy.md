@@ -62,11 +62,13 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 |---|---|---|
 | `job` | A worker must claim a job before it knows whose it is | The job names its tenant; the transaction that runs it is as bounded as a request |
 | `goose_db_version` | The migration ledger | No grant to the application role; the readiness probe reads the applied version numbers through `applied_schema_versions()`, a `SECURITY DEFINER` function that answers nothing else |
-| `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written only by the tenant lifecycle use cases; no API reads it |
+| `instance_event` | The installation's own journal; its rows outlive the tenants they name ([audit.md](./audit.md) §6) | Append-only grants; written by the control plane's use cases; read only by `GET /admin/journal`, behind `admin:tenants` and the register |
 | `item_capability_profile` | Has RLS but **no `FORCE`**: the system rows are the owner's to seed, and `FORCE` would bind the owner too ([ADR-0052](../adr/ADR-0052-managed-postgresql-support.md)) | The policy binds every non-owner role in full, `hubtask_app` included |
 | `restore_drill_marker` | The restore drill's marker rows; no tenant column | No grant to the application role |
 | `operator` | The operator register names accounts across workspaces | No grant to the application role; reachable only through narrow `SECURITY DEFINER` functions |
+| `instance_setup_code` | The first start's one-time setup code ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); it exists before any workspace does | No grant to the application role; reached only through the issuing and claiming `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
+| `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
@@ -79,6 +81,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
+| `remove_plan(plan, at, actor)` | `REMOVED`, `IN_USE` or `NOT_FOUND` — never a row | Removing a plan, refused while a workspace is on it (§4.2) |
 
 **The doors' owner reads across tenants by policy.** `FORCE` binds the owner too, so a door owned
 by a role that is neither superuser nor `BYPASSRLS` — the database an operator brings (§2.1.1) —
@@ -299,8 +302,10 @@ never rows — the boundary is a database policy, not a role.
 
 ## 4.2 Plans
 
-**Decided for milestone PL, not built** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md);
-the owner, 2026-10-15). Until PL's tasks merge, §4 and §4.1 describe what runs: no plan level.
+**Decided for milestone PL** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md); the
+owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace and
+provisioning on a plan. Not built yet: the resolution, the entitlements, the people limit and the
+account link - until they merge, §4 and §4.1 describe what a workspace meets.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's

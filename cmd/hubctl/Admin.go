@@ -40,12 +40,18 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|create|suspend|resume|delete|cancel-deletion|export|open-password|close-password|replace-holds|reapply-erasures …",
+				usage:   "ls|create|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
 				// piece of work.
 				waits: true,
+			},
+			{
+				name:    "plan",
+				usage:   "ls|show|create|set|clear|rm …",
+				summary: "the plans a provider puts workspaces on",
+				run:     adminPlan,
 			},
 			{
 				name:    "settings",
@@ -95,7 +101,7 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, create, suspend, resume, delete, cancel-deletion, export, open-password, close-password, replace-holds, reapply-erasures"
+	const verbs = "ls, create, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
@@ -112,6 +118,8 @@ func adminTenant(ctx context.Context, cli *CLI, args []string) error {
 		return adminTenantDelete(ctx, cli, args[1:])
 	case "cancel-deletion":
 		return adminTenantFlip(ctx, cli, args[1:], "cancel-deletion")
+	case "move-plan":
+		return adminTenantMovePlan(ctx, cli, args[1:])
 	case "export":
 		return adminTenantExport(ctx, cli, args[1:])
 	case "open-password":
@@ -152,13 +160,14 @@ func adminTenantList(ctx context.Context, cli *CLI, args []string) error {
 func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin tenant", "create",
 		"--slug <name> --name <display name> --owner-email <address> [--owner-name <name>] "+
-			"[--locale <tag>] [--zone <zone>]")
+			"[--locale <tag>] [--zone <zone>] [--plan <short name>]")
 	slug := flags.String("slug", "", "the subdomain the workspace answers on")
 	name := flags.String("name", "", "what people read")
 	ownerEmail := flags.String("owner-email", "", "who the workspace is for")
 	ownerName := flags.String("owner-name", "", "what to call them")
 	locale := flags.String("locale", "", "the workspace's default language tag")
 	zone := flags.String("zone", "", "the workspace's default time zone")
+	plan := flags.String("plan", "", "the plan the workspace starts on")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -178,6 +187,7 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 		OwnerDisplayName: optional(*ownerName),
 		DefaultLocale:    optional(*locale),
 		DefaultTimeZone:  optional(*zone),
+		Plan:             optional(*plan),
 	}, &provisioned); err != nil {
 		return err
 	}

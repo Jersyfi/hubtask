@@ -719,6 +719,30 @@ class Client:
         """Replace the installation's level"""
         return self._call("PUT", "/admin/settings", {}, None, {}, body, "json", "application/json", "json")
 
+    def list_plans(self) -> dict[str, Any]:
+        """The installation's plans"""
+        return self._call("GET", "/admin/plans", {}, None, {}, None, "none", None, "json")
+
+    def create_plan(self, body: "PlanCreate", *, idempotency_key: str | None = None) -> "Plan":
+        """Create a plan"""
+        return self._call("POST", "/admin/plans", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_plan(self, plan_name: str) -> "Plan":
+        """One plan"""
+        return self._call("GET", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "json")
+
+    def change_plan(self, plan_name: str, body: "PlanChange", *, if_match: str | None = None) -> "Plan":
+        """Replace a plan's values"""
+        return self._call("PUT", "/admin/plans/{planName}", {"planName": plan_name}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_plan(self, plan_name: str) -> None:
+        """Remove a plan"""
+        return self._call("DELETE", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "void")
+
+    def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
+        """Put a workspace on another plan"""
+        return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def list_operators(self) -> dict[str, Any]:
         """Who operates this installation"""
         return self._call("GET", "/admin/operators", {}, None, {}, None, "none", None, "json")

@@ -60,6 +60,8 @@ func (AdminTenantRepository) List(ctx context.Context) ([]repository.TenantRecor
 			},
 			LegalHold:      row.LegalHold,
 			PurgeStartedAt: timeFrom(row.PurgeStartedAt),
+			PlanName:       row.PlanName,
+			Version:        int(row.Version),
 		})
 	}
 	return records, nil
@@ -126,7 +128,30 @@ func (AdminTenantRepository) Find(ctx context.Context) (repository.TenantRecord,
 		StatusBeforeDeletion: statusFrom(row.StatusBeforeDeletion),
 		PurgeStartedAt:       timeFrom(row.PurgeStartedAt),
 		Version:              int(row.Version),
+		PlanName:             row.PlanName,
 	}, nil
+}
+
+// SetPlan puts the transaction's own tenant on a plan, or none.
+func (AdminTenantRepository) SetPlan(ctx context.Context, planID shared.ID, version int, now time.Time) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	reference := pgtype.UUID{}
+	if !planID.IsZero() {
+		if reference, err = uuidOf(planID); err != nil {
+			return false, err
+		}
+	}
+	moved, err := queries.SetTenantPlan(ctx, sqlc.SetTenantPlanParams{
+		PlanID: reference, Now: pgtype.Timestamptz{Time: now.UTC(), Valid: true},
+		Version: int32(version), //nolint:gosec // a version is a small counter
+	})
+	if err != nil {
+		return false, queryFailed("moving the tenant to another plan", err)
+	}
+	return moved == 1, nil
 }
 
 // statusFrom reads a nullable status; NULL is the empty status.

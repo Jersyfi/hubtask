@@ -94,6 +94,14 @@ var rlsExceptions = map[string]string{
 		"password screen, so a policy comparing current_tenant_id() would make it invisible to " +
 		"everybody; it holds configuration and never a person's data, which is what makes that " +
 		"acceptable, and the bound on writing it is the one control-plane use case that does",
+	"plan": "the installation's plans (multi-tenancy.md §4.2, migration 0164): every workspace " +
+		"reads its plan once plans resolve, so a policy comparing current_tenant_id() would make " +
+		"every plan invisible to everybody; it holds configuration and never a person's data, the " +
+		"control plane's use cases are what write it, and without a DELETE grant a short name is " +
+		"never reused",
+	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
+		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
+		"person's data, written only by the control plane's use cases",
 }
 
 // Every tenant table carries RLS, and it is FORCE - without that the owner would be exempt.

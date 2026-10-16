@@ -127,6 +127,24 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	t.Run("a plan with a workspace on it is not removed", func(t *testing.T) {
+		const plan = "01936f2a-7c1e-7000-8000-000000145641"
+		for _, statement := range []string{
+			`INSERT INTO plan (id, name, display_name, created_at, updated_at)
+			 VALUES ('` + plan + `', 'door-family', 'Family', now(), now())`,
+			`UPDATE tenant SET plan_id = '` + plan + `' WHERE id = '` + tenantB + `'`,
+		} {
+			if _, err := super.Exec(ctx, statement); err != nil {
+				t.Fatalf("seeding: %v", err)
+			}
+		}
+		var outcome string
+		one(t, `SELECT remove_plan($1, now(), NULL)`, &outcome, plan)
+		if outcome != "IN_USE" {
+			t.Errorf("remove_plan answered %q for a plan a workspace is on, want IN_USE", outcome)
+		}
+	})
+
 	t.Run("an offered provider is counted and moved", func(t *testing.T) {
 		var offers int
 		one(t, `SELECT count_provider_offers($1)`, &offers, provider)

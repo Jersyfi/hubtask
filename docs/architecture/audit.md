@@ -222,7 +222,9 @@ The hard delete of a tenant ([multi-tenancy.md](./multi-tenancy.md) §5) removes
 by design. Its evidence, and that of every control-plane act, lives in **`instance_event`**: one row
 per act (`tenant.provisioned`, `tenant.suspended`, `tenant.resumed`, `tenant.deletion_requested`,
 `tenant.deletion_cancelled`, `tenant.hard_deleted`, `tenant.password_opened`, `tenant.password_closed`,
-`instance.session_elevated`). A row carries identifiers, the slug, the acting operator's label,
+`tenant.plan_changed`, `plan.created`, `plan.changed`, `plan.removed`, `instance.session_elevated`).
+A row carries identifiers, the slug, a plan's short name - never its display name - the acting
+operator's label,
 moments and counts (for a hard delete: rows, media objects and bytes, outbox events, queued jobs and
 trail entries removed; for an opening of the password: its end, and that a requester and a reason
 were given — never their texts, which stay in the workspace's own trail). Never content.

@@ -84,7 +84,7 @@ Each measured against the deployments `D1`–`D7`:
 **Use cases:** UC-INS-13 (1, 6, 7, 8, 9)
 
 The contract first: `/admin/plans` (list, read, create, change with the version read, remove),
-assigning a workspace (`PUT /admin/tenants/{id}/plan`, empty to leave plans), a `plan` in
+moving a workspace (`POST /admin/tenants/{id}:move-plan`, `null` to leave plans), a `plan` in
 `TenantProvision` and `AdminTenant`. A migration creates `plan` without row-level policy — the
 exception entered in all three boundary lists in the same commit — and makes `tenant.plan_id` a
 reference that refuses removing a plan in use, and gives the workspace a version that grows with
@@ -93,8 +93,8 @@ never reused, a display name, a version, sparse values per area with locks, the 
 values are refused where an installation lock lies or where they loosen what is open. Every write in
 `instance_event`; moving a workspace in its trail as well. A move may name the workspace's version
 and is refused with `version_conflict` when stale; repeated under its idempotency key it moves once
-and writes once; its answer names the limits now exceeded, the entitlements that rest and the
-exceptions that stay (Decision 17). Multi mode only: single mode answers
+and writes once; its answer names the entitlements that rest and the exceptions that stay (Decision
+17); the limits now exceeded join it in PL-03. Multi mode only: single mode answers
 `admin.multi_mode_required`. `hubctl admin plan` and the instance file in both modes, through the
 same use case.
 
@@ -138,10 +138,10 @@ two switches; the preview shown to the owner first (Decision 16).
 
 `quota.Resolve` gains the plan between the installation and the operator's exception, which stays
 the last word; `/quotas` says which level set each limit, `PLAN` among them, and the limits screen
-names the plan. `EffectiveAi` receives the workspace's plan instead of the empty layer, for
-`sources`, `min_jurisdiction` and `person_opt_out`. A lowered limit refuses the next creation past
-it and removes nothing; a narrowed AI rule rests the workspace's own model as UC-AI-06 check 5
-already does.
+names the plan; the move's answer gains the limits the workspace is now over. `EffectiveAi` receives
+the workspace's plan instead of the empty layer, for `sources`, `min_jurisdiction` and
+`person_opt_out`. A lowered limit refuses the next creation past it and removes nothing; a narrowed
+AI rule rests the workspace's own model as UC-AI-06 check 5 already does.
 
 **Acceptance:** table tests of `Resolve` across product, installation, plan and exception; an
 integration test that a plan's change reaches the guard at the next request; tests for the three AI

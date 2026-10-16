@@ -140,8 +140,8 @@ CREATE TABLE tenant (
   -- The synchronisation epoch (0087): every cursor carries the epoch it was minted under,
   -- and a restore into the workspace advances it, so that a cursor minted before is refused.
   sync_epoch         bigint NOT NULL DEFAULT 0,
-  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: the column
-  -- exists so that plans need no migration through the sign-in path.
+  -- The plan this workspace is on (ADR-0070 §3, migration 0099), NULL for none; the reference
+  -- (tenant_plan_fk) is added with the plan table below (0164).
   plan_id            uuid,
   -- An operator's opening of the password for this workspace (0118, ADR-0078 §3): when it
   -- ends, who asked and why. Honoured where it is read - past the end it is over, whatever the row
@@ -2786,6 +2786,35 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Plans, between the installation and its workspaces (multi-tenancy.md §4.2, ADR-0086,
+-- migration 0164). No row level security, for instance_setting's reason: every workspace reads
+-- its plan, and the tables hold configuration. A removed plan keeps its row, and the application
+-- role holds no DELETE on `plan`, so a short name is never reused.
+CREATE TABLE plan (
+  id           uuid PRIMARY KEY,
+  name         text NOT NULL CHECK (name ~ '^[a-z0-9][a-z0-9-]{1,39}$'),
+  display_name text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 200),
+  version      integer NOT NULL DEFAULT 1,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  removed_at   timestamptz,
+  CONSTRAINT plan_name_key UNIQUE (name)
+);
+
+-- What a plan decides, in the installation level's key shape, and `entitlement.<feature>` for a
+-- feature it leaves out.
+CREATE TABLE plan_setting (
+  plan_id uuid NOT NULL REFERENCES plan (id) ON DELETE RESTRICT,
+  key     text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value   jsonb NOT NULL,
+  locked  boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (plan_id, key)
+);
+
+ALTER TABLE tenant ADD CONSTRAINT tenant_plan_fk
+  FOREIGN KEY (plan_id) REFERENCES plan (id) ON DELETE RESTRICT;
+
 -- The installation at a glance (migrations 0105, 0128). Counts, states and limits - never rows,
 -- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
 -- behind row level security and FORCE, so the application role cannot count across workspaces at
@@ -2866,6 +2895,8 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE ON plan TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON plan_setting TO hubtask_app;
 
 -- The operator register's four doors (migration 0101). SECURITY DEFINER for resolve_tenant's
 -- reason: reading a table that belongs to no tenant is the owner's right and the application role
@@ -3219,21 +3250,48 @@ RETURNS TABLE (
   default_locale text, default_time_zone text,
   created_at timestamptz, purge_after timestamptz,
   password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
-  legal_hold boolean, purge_started_at timestamptz
+  legal_hold boolean, purge_started_at timestamptz,
+  plan_name text, version integer
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT t.id, t.slug, t.display_name, t.status::text,
          t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
          t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
          EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL),
-         t.purge_started_at
+         t.purge_started_at,
+         p.name, t.version
   FROM tenant t
+  LEFT JOIN plan p ON p.id = t.plan_id
   WHERE t.deleted_at IS NULL
   ORDER BY t.created_at, t.id
 $$;
 
 REVOKE ALL ON FUNCTION admin_tenants() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_tenants() TO hubtask_app;
+
+-- Removing a plan, refused while a workspace is on it (migration 0164). `tenant` is behind
+-- tenant_self, so only the owner sees which workspaces are on a plan: the plan row is locked first,
+-- then counted in a statement of its own, so a move that committed meanwhile is counted and a later
+-- one finds the plan gone. One word, never a row.
+CREATE OR REPLACE FUNCTION remove_plan(removed_plan uuid, at timestamptz, actor uuid)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM 1 FROM plan WHERE id = removed_plan AND removed_at IS NULL FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN 'NOT_FOUND';
+  END IF;
+  IF EXISTS (SELECT 1 FROM tenant WHERE plan_id = removed_plan AND deleted_at IS NULL) THEN
+    RETURN 'IN_USE';
+  END IF;
+  UPDATE plan
+     SET removed_at = at, updated_at = at, updated_by = actor, version = version + 1
+   WHERE id = removed_plan;
+  RETURN 'REMOVED';
+END $$;
+
+REVOKE ALL ON FUNCTION remove_plan(uuid, timestamptz, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION remove_plan(uuid, timestamptz, uuid) TO hubtask_app;
 
 -- The trail that dies with its tenant: audit_log rows carry no foreign key to tenant and the
 -- application role deliberately holds no DELETE on them (T-15) - both correct for a living

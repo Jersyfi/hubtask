@@ -1216,6 +1216,24 @@ type OutboxEvent struct {
 	PushID         pgtype.UUID
 }
 
+type Plan struct {
+	ID          pgtype.UUID
+	Name        string
+	DisplayName string
+	Version     int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	RemovedAt   pgtype.Timestamptz
+}
+
+type PlanSetting struct {
+	PlanID pgtype.UUID
+	Key    string
+	Value  []byte
+	Locked bool
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID

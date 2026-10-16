@@ -190,7 +190,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-10](./admin/UC-INS-10-set-limits-for-workspaces.md) | Set limits for workspaces, and see them before they hurt | admin | partial |
 | [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | verified |
 | [UC-INS-12](./admin/UC-INS-12-see-the-installation-at-a-glance.md) | See the installation at a glance and read what happened | admin | built |
-| [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | specified |
+| [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | partial |
 | [UC-INS-14](./admin/UC-INS-14-tell-a-platform-what-happened.md) | Tell the purchase platform what happened, without it asking | admin | specified |
 | [UC-INS-15](./admin/UC-INS-15-give-a-workspace-its-own-domain.md) | Give a workspace its own domain | admin | specified |
 | [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | verified |
