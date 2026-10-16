@@ -81,7 +81,7 @@ database:
     # (README, "Rebuilding the database"). Its name and endpoint are configuration; its keys are
     # the Secret bootstrap.sh makes from the holder's environment.
     destinationPath: s3://hubtask-integration-wal/
-    endpointURL: https://fsn1.your-objectstorage.com
+    endpointURL: https://nbg1.your-objectstorage.com
     existingSecret: hubtask-wal
 
 migration:
