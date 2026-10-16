@@ -63,6 +63,10 @@
     if (!untrack(() => nameTouched)) name = suggestion;
   });
 
+  // The control that is working, so that only it shows so: `add`, or a row's `rename:` or `remove:`.
+  let acting = $state<string | undefined>(undefined);
+  const busy = (control: string): boolean => passkeys.isWorking && acting === control;
+
   // The one row being renamed, and its draft.
   let renaming = $state<string | undefined>(undefined);
   let draft = $state('');
@@ -76,6 +80,7 @@
   async function rename(event: SubmitEvent, id: string): Promise<void> {
     event.preventDefault();
     const chosen = draft.trim();
+    acting = `rename:${id}`;
     if (await passkeys.rename(id, chosen)) {
       renaming = undefined;
       notice = t('app.passkeys.renamed', { name: chosen });
@@ -85,6 +90,7 @@
 
   async function remove(id: string, name: string): Promise<void> {
     notice = undefined;
+    acting = `remove:${id}`;
     if (await passkeys.remove(id)) {
       notice = t('app.passkeys.removed', { name });
       announcer.say(notice);
@@ -100,6 +106,7 @@
     event.preventDefault();
     notice = undefined;
     const chosen = name.trim();
+    acting = 'add';
     const ended = await passkeys.add(chosen, (options) => navigator.credentials.create(options));
     if (ended === 'added') {
       notice = t('app.passkeys.added', { name: chosen });
@@ -160,7 +167,7 @@
                       <Button
                         type="submit"
                         tone="secondary"
-                        isBusy={passkeys.isWorking}
+                        isBusy={busy(`rename:${each.id}`)}
                         busyLabel={t('app.passkeys.saving')}
                         disabledReason={nameFits(draft) ? undefined : t('app.passkeys.name_needed')}
                       >
@@ -190,7 +197,7 @@
                 {#if removal.offered}
                   <Button
                     tone="danger"
-                    isBusy={passkeys.isWorking}
+                    isBusy={busy(`remove:${each.id}`)}
                     busyLabel={t('app.passkeys.removing')}
                     onclick={() => void remove(each.id, each.name)}
                   >
@@ -225,7 +232,7 @@
               <Button
                 type="submit"
                 tone="secondary"
-                isBusy={passkeys.isWorking}
+                isBusy={busy('add')}
                 busyLabel={t('app.passkeys.adding')}
                 disabledReason={nameFits(name) ? undefined : t('app.passkeys.name_needed')}
               >

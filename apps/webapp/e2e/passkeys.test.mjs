@@ -299,6 +299,11 @@ test('chromium: a passkey is renamed with the session alone, and another removed
 
   const drawer = panel.getByRole('listitem').filter({ hasText: 'Key in the drawer' });
   await drawer.getByRole('button', { name: 'Remove' }).click();
+  await page.getByRole('dialog').waitFor();
+  // Only the row asked about waits for the proof; the others and *Add a passkey* stay as they were.
+  const waiting = await panel.locator('[aria-busy="true"]').count();
+  assert.ok(waiting <= 1, `${waiting} controls show they are working`);
+  assert.equal(await panel.getByRole('button', { name: 'Add a passkey' }).getAttribute('aria-busy'), null);
   await proveWithPassword(page);
   await panel.getByText('Key in the drawer was removed. It no longer works.').waitFor();
   assert.deepEqual(sent.removals, [{ id: DRAWER.id, proof: null }, { id: DRAWER.id, proof: GRANT }]);
