@@ -32,6 +32,7 @@
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
   import {
     acceptCodeOf,
+    hasChoices,
     headingCodeOf,
     isPending,
     isStale,
@@ -60,10 +61,21 @@
 
   $effect(() => untrack(() => labels.open(item.collection_id)));
   $effect(() => untrack(() => buckets.open(item.collection_id)));
+  $effect(() => untrack(() => customFields.open(item.collection_id)));
   $effect(() => () => suggestions.forget(item.id));
 
   const hasComments = $derived(thread.state.status === 'ready' && (thread.state.data.data ?? []).length > 0);
-  const offers = $derived(offersFor(manifest.value?.features, item, hasComments));
+  // What a classification could choose from: the same three lists the server reads before it
+  // queues one, so the menu offers it exactly where it can succeed (P-05).
+  const choices = $derived(
+    hasChoices(
+      item,
+      labels.stateOf(item.collection_id),
+      buckets.stateOf(item.collection_id),
+      customFields.stateOf(item.collection_id),
+    ),
+  );
+  const offers = $derived(offersFor(manifest.value?.features, item, hasComments, choices));
 
   const open = $derived(
     listing.state.status === 'ready'

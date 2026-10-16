@@ -305,7 +305,11 @@
                       tone="secondary"
                       icon="sparkles"
                       data-ai
-                      disabledReason={isPending(suggestions.askingOf(entry.id)) ? t('app.suggestions.pending') : undefined}
+                      disabledReason={isPending(suggestions.askingOf(entry.id))
+                        ? t('app.suggestions.pending')
+                        : !entry.raw_subject?.trim() && !entry.raw_body?.trim()
+                          ? t('app.jumble.ask_empty')
+                          : undefined}
                       onclick={() => void ask(entry)}
                     >
                       {t('app.jumble.ask')}

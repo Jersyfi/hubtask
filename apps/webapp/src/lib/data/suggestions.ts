@@ -65,6 +65,7 @@ export function offersFor(
   features: Readonly<Record<string, unknown>> | undefined,
   item: Pick<WorkItem, 'archived_at'>,
   hasComments: boolean,
+  choices: boolean | 'reading' = true,
 ): readonly Offer[] {
   if (features?.ai_suggestions !== true) return [];
   const frozen = item.archived_at ? 'app.entries.archived' : undefined;
@@ -78,8 +79,40 @@ export function offersFor(
     if (operation === 'summarize-thread' && !hasComments) {
       return { operation, disabledCode: 'app.suggestions.no_comments' };
     }
+    if (operation === 'classify' && !frozen && choices !== true) {
+      // The server refuses a classification with nothing to choose from (`ai.nothing_to_choose_from`),
+      // reading the same three lists; until they are read, nothing is offered as possible.
+      return { operation, disabledCode: choices === 'reading' ? 'app.suggestions.choices_reading' : 'app.suggestions.no_choices' };
+    }
     return { operation, disabledCode: frozen };
   });
+}
+
+/** The custom field kinds a classification may choose a value for - the closed ones. */
+const CLOSED_KINDS: ReadonlySet<string> = new Set(['SELECT', 'MULTI_SELECT', 'BOOL']);
+
+/** One of the three lists a classification chooses from, as the client holds it. */
+type Held<T> = { readonly status: string; readonly data?: readonly T[] } | undefined;
+
+/**
+ * Whether a classification of this entry has anything to choose from: a label its collection uses,
+ * a column of the board it sits on directly, or a closed custom field for its type - the three sets
+ * the server reads before it queues one (`Asking.workable`). `reading` while a list is still
+ * being read; a list that failed to read is no reason to withhold the question, so the server's
+ * answer decides it then.
+ */
+export function hasChoices(
+  item: Pick<WorkItem, 'type'> & { readonly parent_id?: string | null },
+  labels: Held<unknown>,
+  buckets: Held<unknown>,
+  fields: Held<{ readonly kind: string; readonly applies_to?: readonly string[] }>,
+): boolean | 'reading' {
+  const lists = [labels, item.parent_id ? { status: 'ready', data: [] } : buckets, fields];
+  if (lists.some((list) => list?.status === 'failed')) return true;
+  if ((labels?.data ?? []).length > 0) return true;
+  if (!item.parent_id && (buckets?.data ?? []).length > 0) return true;
+  if ((fields?.data ?? []).some((field) => CLOSED_KINDS.has(field.kind) && (field.applies_to ?? []).includes(item.type))) return true;
+  return lists.every((list) => list?.status === 'ready') ? false : 'reading';
 }
 
 /**

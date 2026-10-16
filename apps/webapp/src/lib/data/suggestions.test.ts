@@ -17,6 +17,7 @@ import {
   arrivedSince,
   endedAs,
   followArrival,
+  hasChoices,
   headingCodeOf,
   isPending,
   isStale,
@@ -79,6 +80,36 @@ test('with AI on every operation is offered, and the ones that cannot be asked s
   assert.equal(by['suggest-fields'], undefined);
   assert.equal(by['summarize-thread'], 'app.suggestions.no_comments');
   assert.equal(by.duplicates, 'app.suggestions.no_semantic_search');
+});
+
+test('a classification is offered exactly where it has something to choose from', () => {
+  const classify = (choices: boolean | 'reading') =>
+    offersFor({ ai_suggestions: true }, item(), true, choices).find((offer) => offer.operation === 'classify')?.disabledCode;
+  assert.equal(classify(true), undefined);
+  assert.equal(classify(false), 'app.suggestions.no_choices');
+  assert.equal(classify('reading'), 'app.suggestions.choices_reading');
+});
+
+test('what a classification may choose from is the three lists the server reads', () => {
+  const ready = <T,>(data: T[]) => ({ status: 'ready', data });
+  const none = ready([]);
+  const task = { type: 'TASK' } as const;
+
+  assert.equal(hasChoices(task, none, none, none), false, 'nothing anywhere');
+  assert.equal(hasChoices(task, ready([{ id: 'l1' }]), none, none), true, 'a label');
+  assert.equal(hasChoices(task, none, ready([{ id: 'b1' }]), none), true, 'a column');
+  assert.equal(
+    hasChoices({ type: 'TASK', parent_id: 'p1' }, none, ready([{ id: 'b1' }]), none),
+    false,
+    'a column, but the entry sits under another and has no place on the board',
+  );
+  assert.equal(hasChoices(task, none, none, ready([{ kind: 'SELECT', applies_to: ['TASK'] }])), true, 'a closed field');
+  assert.equal(hasChoices(task, none, none, ready([{ kind: 'BOOL', applies_to: ['TASK'] }])), true);
+  assert.equal(hasChoices(task, none, none, ready([{ kind: 'TEXT', applies_to: ['TASK'] }])), false, 'an open field is not chosen');
+  assert.equal(hasChoices(task, none, none, ready([{ kind: 'SELECT', applies_to: ['WORK_PACKAGE'] }])), false, 'another type');
+  assert.equal(hasChoices(task, { status: 'loading' }, none, none), 'reading', 'still reading');
+  assert.equal(hasChoices(task, undefined, none, none), 'reading', 'not yet asked');
+  assert.equal(hasChoices(task, { status: 'failed' }, none, none), true, 'a failed read leaves it to the server');
 });
 
 test('an archived entry is not written to, so nothing that accepts into it is asked', () => {
