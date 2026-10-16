@@ -372,6 +372,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
 
+## Plan
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan.changed` | ChangePlan | `plan` | NOTICE | Every time |
+| `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
+| `plan.listed` | ListPlans | `plan` | INFO | When refused |
+| `plan.read` | ReadPlan | `plan` | INFO | When refused |
+| `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
+
 ## Private_hubs
 
 | Action | Use case | Target | Severity | Recorded |

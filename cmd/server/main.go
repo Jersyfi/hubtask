@@ -1313,6 +1313,12 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
 
+	// Plans, between the installation and its workspaces (multi-tenancy.md §4.2): the instance
+	// writer for the register, the level and the journal, and the mode - plans are multi mode's.
+	planWriter := adminservice.PlanWriter{
+		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
+	}
+
 	// The same writer over the *plain* repository, for the one caller allowed to write while a
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
@@ -2239,6 +2245,11 @@ func run() error {
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlans{Writer: planWriter}.Descriptor(),
+		adminservice.ReadPlan{Writer: planWriter}.Descriptor(),
+		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
+		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
