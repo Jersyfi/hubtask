@@ -100,10 +100,15 @@ type PasswordHolder interface {
 // cache one.
 type OwnAccount struct {
 	Account domain.Account
-	// HasSecondFactor is whether an *armed* enrolment stands. An enrolment begun and never
-	// confirmed protects nobody and locks nobody out, so it counts as none here - the same reading
-	// the sign-in path takes.
+	// HasSecondFactor is whether a second factor stands: the app armed, or a passkey (identity.md
+	// §23.2). An enrolment begun and never confirmed protects nobody and locks nobody out, so it
+	// counts as none here.
 	HasSecondFactor bool
+	// HasAuthenticatorApp is the app alone, armed - what the app's own controls hang off.
+	HasAuthenticatorApp bool
+	// AuthenticatorAppRemovable is whether turning the app off passes the rule DisableTotp asks, so
+	// the screen offers it exactly there (P-05).
+	AuthenticatorAppRemovable bool
 	// SecondFactorRequired is whether the rule in force demands a factor of this person, so that a
 	// screen can say so rather than offer a control the server refuses (P-05).
 	SecondFactorRequired bool
@@ -208,6 +213,7 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 	if h.Recovery == nil || h.Enrollments == nil {
 		return answer, nil
 	}
+	var factor domain.SecondFactor
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		enrollment, err := h.Enrollments.Find(ctx, actor.AccountID)
 		switch {
@@ -220,7 +226,10 @@ func (h GetOwnAccount) ExecuteWithRecovery(
 			// that count, and this screen has nothing to say about them yet.
 			return nil
 		}
-		answer.HasSecondFactor = true
+		factor.App = true
+		answer.HasSecondFactor = factor.Held()
+		answer.HasAuthenticatorApp = factor.App
+		answer.AuthenticatorAppRemovable = factor.AppRemovable(answer.SecondFactorRequired)
 
 		remaining, err := h.Recovery.Remaining(ctx, actor.AccountID)
 		if err != nil {
@@ -244,6 +253,8 @@ func (h GetOwnAccount) invoke(
 	}
 	out := accountOutput(own.Account)
 	out["has_second_factor"] = own.HasSecondFactor
+	out["has_authenticator_app"] = own.HasAuthenticatorApp
+	out["authenticator_app_removable"] = own.AuthenticatorAppRemovable
 	out["second_factor_required"] = own.SecondFactorRequired
 	out["has_password"] = own.HasPassword
 	out["has_access"] = own.HasAccess
