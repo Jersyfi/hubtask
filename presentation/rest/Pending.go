@@ -210,6 +210,19 @@ func (pending) ProvisionTenant(w http.ResponseWriter, r *http.Request, _ openapi
 	notAvailable(w, r)
 }
 
+// One workspace, its reference, and the query a platform finds workspaces with (§4.3).
+func (pending) ReadTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateTenant(
+	w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.UpdateTenantParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) QueryTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The plans (multi-tenancy.md §4.2).
 func (pending) ListPlans(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

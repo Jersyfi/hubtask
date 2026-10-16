@@ -5423,6 +5423,123 @@
         }
       }
     },
+    "/admin/tenants/{tenantId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/AdminTenantId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "readTenant",
+        "summary": "One workspace",
+        "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.\n",
+        "responses": {
+          "200": {
+            "description": "The workspace",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenant"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "updateTenant",
+        "summary": "Set or clear the platform's reference on a workspace",
+        "description": "The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace as it now stands",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenant"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/tenants:query": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "queryTenants",
+        "summary": "Find workspaces",
+        "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantQuery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "One page of workspaces",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminTenantPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/tenants/{tenantId}:suspend": {
       "parameters": [
         {
@@ -16726,6 +16843,13 @@
             ],
             "description": "The short name of the workspace's plan, null for none."
           },
+          "external_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The purchase platform's own reference, where it set one."
+          },
           "version": {
             "type": "integer",
             "description": "The workspace's version: it grows with every change to the workspace, by the control plane or by its own administrators. A move names it to refuse a stale one.\n"
@@ -17437,6 +17561,85 @@
           }
         }
       },
+      "TenantUpdate": {
+        "type": "object",
+        "required": [
+          "external_reference"
+        ],
+        "properties": {
+          "external_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200,
+            "description": "The platform's own reference, or null to clear it."
+          }
+        }
+      },
+      "TenantQuery": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The workspace's short name."
+          },
+          "external_reference": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The platform's own reference."
+          },
+          "plan": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The short name of a plan; not with without_plan."
+          },
+          "without_plan": {
+            "type": "boolean",
+            "description": "Only workspaces on no plan."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUSPENDED",
+              "PENDING_DELETION"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          },
+          "cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cursor of the page before."
+          }
+        }
+      },
+      "AdminTenantPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminTenant"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
       "TenantProvision": {
         "type": "object",
         "required": [
@@ -17485,6 +17688,14 @@
               "null"
             ],
             "description": "The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.\n"
+          },
+          "external_reference": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200,
+            "description": "The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.\n"
           }
         }
       },

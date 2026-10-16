@@ -4188,6 +4188,27 @@ func (e TemplateScope) Valid() bool {
 	}
 }
 
+// Defines values for TenantQueryStatus.
+const (
+	TenantQueryStatusACTIVE          TenantQueryStatus = "ACTIVE"
+	TenantQueryStatusPENDINGDELETION TenantQueryStatus = "PENDING_DELETION"
+	TenantQueryStatusSUSPENDED       TenantQueryStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the TenantQueryStatus enum.
+func (e TenantQueryStatus) Valid() bool {
+	switch e {
+	case TenantQueryStatusACTIVE:
+		return true
+	case TenantQueryStatusPENDINGDELETION:
+		return true
+	case TenantQueryStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TermsInForceSetBy.
 const (
 	TermsInForceSetByINSTALLATION TermsInForceSetBy = "INSTALLATION"
@@ -4806,11 +4827,14 @@ type AddressRequested struct {
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
-	CreatedAt       time.Time          `json:"created_at"`
-	DefaultLocale   *string            `json:"default_locale,omitempty"`
-	DefaultTimeZone *string            `json:"default_time_zone,omitempty"`
-	DisplayName     string             `json:"display_name"`
-	Id              openapi_types.UUID `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	DefaultLocale   *string   `json:"default_locale,omitempty"`
+	DefaultTimeZone *string   `json:"default_time_zone,omitempty"`
+	DisplayName     string    `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
@@ -4835,6 +4859,12 @@ type AdminTenant struct {
 
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
+
+// AdminTenantPage defines model for AdminTenantPage.
+type AdminTenantPage struct {
+	Data []AdminTenant `json:"data"`
+	Page PageInfo      `json:"page"`
+}
 
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
@@ -8540,7 +8570,10 @@ type ProvisionedTenant struct {
 	DefaultTimeZone     *string            `json:"default_time_zone,omitempty"`
 	DisplayName         string             `json:"display_name"`
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
-	Id                  openapi_types.UUID `json:"id"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -9995,11 +10028,14 @@ type TenantPlanMoved struct {
 
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
-	DefaultLocale    *string             `json:"default_locale,omitempty"`
-	DefaultTimeZone  *string             `json:"default_time_zone,omitempty"`
-	DisplayName      string              `json:"display_name"`
-	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail       openapi_types.Email `json:"owner_email"`
+	DefaultLocale   *string `json:"default_locale,omitempty"`
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+	DisplayName     string  `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
+	ExternalReference *string             `json:"external_reference,omitempty"`
+	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail        openapi_types.Email `json:"owner_email"`
 
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
@@ -10007,6 +10043,29 @@ type TenantProvision struct {
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
 }
+
+// TenantQuery defines model for TenantQuery.
+type TenantQuery struct {
+	// Cursor The cursor of the page before.
+	Cursor *string `json:"cursor,omitempty"`
+
+	// ExternalReference The platform's own reference.
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Plan The short name of a plan; not with without_plan.
+	Plan *string `json:"plan,omitempty"`
+	Size *int    `json:"size,omitempty"`
+
+	// Slug The workspace's short name.
+	Slug   *string            `json:"slug,omitempty"`
+	Status *TenantQueryStatus `json:"status,omitempty"`
+
+	// WithoutPlan Only workspaces on no plan.
+	WithoutPlan *bool `json:"without_plan,omitempty"`
+}
+
+// TenantQueryStatus defines model for TenantQuery.Status.
+type TenantQueryStatus string
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
@@ -10018,6 +10077,12 @@ type TenantQuotas struct {
 	Items                 *int64 `json:"items,omitempty"`
 	MediaBytes            *int64 `json:"media_bytes,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
+}
+
+// TenantUpdate defines model for TenantUpdate.
+type TenantUpdate struct {
+	// ExternalReference The platform's own reference, or null to clear it.
+	ExternalReference *string `json:"external_reference"`
 }
 
 // TermsAgreement defines model for TermsAgreement.
@@ -10777,6 +10842,12 @@ type ChangePlanParams struct {
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateTenantParams defines parameters for UpdateTenant.
+type UpdateTenantParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -11866,6 +11937,9 @@ type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
+// UpdateTenantJSONRequestBody defines body for UpdateTenant for application/json ContentType.
+type UpdateTenantJSONRequestBody = TenantUpdate
+
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
@@ -11886,6 +11960,9 @@ type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
+
+// QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
+type QueryTenantsJSONRequestBody = TenantQuery
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
@@ -12399,6 +12476,12 @@ type ServerInterface interface {
 	// ProvisionTenant Provision a workspace
 	// (POST /admin/tenants)
 	ProvisionTenant(w http.ResponseWriter, r *http.Request, params ProvisionTenantParams)
+	// ReadTenant One workspace
+	// (GET /admin/tenants/{tenantId})
+	ReadTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// UpdateTenant Set or clear the platform's reference on a workspace
+	// (PATCH /admin/tenants/{tenantId})
+	UpdateTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params UpdateTenantParams)
 	// UpdateTenantQuotas Set a workspace's quotas
 	// (PATCH /admin/tenants/{tenantId}/quotas)
 	UpdateTenantQuotas(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -12432,6 +12515,9 @@ type ServerInterface interface {
 	// SuspendTenant Suspend a workspace
 	// (POST /admin/tenants/{tenantId}:suspend)
 	SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// QueryTenants Find workspaces
+	// (POST /admin/tenants:query)
+	QueryTenants(w http.ResponseWriter, r *http.Request)
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
@@ -14681,6 +14767,82 @@ func (siw *ServerInterfaceWrapper) ProvisionTenant(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ReadTenant operation middleware
+func (siw *ServerInterfaceWrapper) ReadTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateTenant operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateTenantParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTenant(w, r, tenantId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // UpdateTenantQuotas operation middleware
 func (siw *ServerInterfaceWrapper) UpdateTenantQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -15054,6 +15216,20 @@ func (siw *ServerInterfaceWrapper) SuspendTenant(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SuspendTenant(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// QueryTenants operation middleware
+func (siw *ServerInterfaceWrapper) QueryTenants(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.QueryTenants(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24861,6 +25037,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants/{tenantId}", wrapper.ReadTenant)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/tenants/{tenantId}", wrapper.UpdateTenant)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants:query", wrapper.QueryTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:suspend", wrapper.SuspendTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:resume", wrapper.ResumeTenant)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:cancel-deletion", wrapper.CancelTenantDeletion)

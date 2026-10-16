@@ -659,6 +659,18 @@ class Client:
         """Provision a workspace"""
         return self._call("POST", "/admin/tenants", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def read_tenant(self, tenant_id: str) -> "AdminTenant":
+        """One workspace"""
+        return self._call("GET", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
+
+    def update_tenant(self, tenant_id: str, body: "TenantUpdate", *, if_match: str | None = None) -> "AdminTenant":
+        """Set or clear the platform's reference on a workspace"""
+        return self._call("PATCH", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def query_tenants(self, body: "TenantQuery") -> "AdminTenantPage":
+        """Find workspaces"""
+        return self._call("POST", "/admin/tenants:query", {}, None, {}, body, "json", "application/json", "json")
+
     def suspend_tenant(self, tenant_id: str) -> None:
         """Suspend a workspace"""
         return self._call("POST", "/admin/tenants/{tenantId}:suspend", {"tenantId": tenant_id}, None, {}, None, "none", None, "void")
