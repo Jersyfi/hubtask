@@ -40,7 +40,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|create|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
+				usage:   "ls|show|find|create|set-reference|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
@@ -101,15 +101,21 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, create, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
+	const verbs = "ls, show, find, create, set-reference, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
 	switch args[0] {
 	case "ls":
 		return adminTenantList(ctx, cli, args[1:])
+	case "show":
+		return adminTenantShow(ctx, cli, args[1:])
+	case "find":
+		return adminTenantFind(ctx, cli, args[1:])
 	case "create":
 		return adminTenantCreate(ctx, cli, args[1:])
+	case "set-reference":
+		return adminTenantSetReference(ctx, cli, args[1:])
 	case "suspend":
 		return adminTenantFlip(ctx, cli, args[1:], "suspend")
 	case "resume":
@@ -160,7 +166,7 @@ func adminTenantList(ctx context.Context, cli *CLI, args []string) error {
 func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin tenant", "create",
 		"--slug <name> --name <display name> --owner-email <address> [--owner-name <name>] "+
-			"[--locale <tag>] [--zone <zone>] [--plan <short name>]")
+			"[--locale <tag>] [--zone <zone>] [--plan <short name>] [--reference <ref>]")
 	slug := flags.String("slug", "", "the subdomain the workspace answers on")
 	name := flags.String("name", "", "what people read")
 	ownerEmail := flags.String("owner-email", "", "who the workspace is for")
@@ -168,6 +174,7 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	locale := flags.String("locale", "", "the workspace's default language tag")
 	zone := flags.String("zone", "", "the workspace's default time zone")
 	plan := flags.String("plan", "", "the plan the workspace starts on")
+	reference := flags.String("reference", "", "the platform's own reference for the workspace")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -181,13 +188,14 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	}
 	var provisioned openapi.ProvisionedTenant
 	if err := client.Post(ctx, adminTenantsPath, openapi.TenantProvision{
-		Slug:             *slug,
-		DisplayName:      *name,
-		OwnerEmail:       openapitypes.Email(*ownerEmail),
-		OwnerDisplayName: optional(*ownerName),
-		DefaultLocale:    optional(*locale),
-		DefaultTimeZone:  optional(*zone),
-		Plan:             optional(*plan),
+		Slug:              *slug,
+		DisplayName:       *name,
+		OwnerEmail:        openapitypes.Email(*ownerEmail),
+		OwnerDisplayName:  optional(*ownerName),
+		DefaultLocale:     optional(*locale),
+		DefaultTimeZone:   optional(*zone),
+		Plan:              optional(*plan),
+		ExternalReference: optional(*reference),
 	}, &provisioned); err != nil {
 		return err
 	}
@@ -430,11 +438,13 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 			purgeAfter(tenant.PurgeStartedAt),
 			passwordOpenUntil(tenant.PasswordOpening),
 			legalHold(tenant),
+			text(tenant.Plan),
+			text(tenant.ExternalReference),
 		})
 	}
 	return Table{
 		// "removal began" is the moment from which the deletion can no longer be called off.
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold"},
+		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold", "plan", "reference"},
 		Rows:    rows,
 	}
 }
