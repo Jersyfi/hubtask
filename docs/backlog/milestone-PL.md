@@ -265,12 +265,12 @@ test with the installation ledger named and reasoned.
 
 **Use cases:** UC-INS-13 (10)
 
-The contract: `external_reference` in provisioning and `PATCH /admin/tenants/{id}`, unique on the
-installation; `GET /admin/tenants/{id}`; `GET /admin/tenants` filtered by short name, reference,
-plan and status, with a cursor instead of today's unpaged list (additive: the unfiltered first page
-answers as today's list did). The reference is `PERSONAL_TECHNICAL` in the data catalogue, in no
-log, metric or journal detail (rule 10), and removed at the purge. `hubctl admin tenant show
---reference`.
+The contract: `external_reference` in provisioning and `PATCH /admin/tenants/{id}` (with
+`If-Match`), unique on the installation; `GET /admin/tenants/{id}`; `POST /admin/tenants:query`
+filtered by short name, reference, plan and status, paged with `size` and `cursor` and answering
+`{data, page}` (a reference stays out of query strings and access logs; `GET /admin/tenants` stays as
+it is). The reference is `PERSONAL_TECHNICAL` in the data catalogue, in no log, metric or journal
+detail (rule 10), and removed at the purge. `hubctl admin tenant show`, `find --reference`.
 
 **Acceptance:** application tests for a duplicate reference refused, a change, and the purge
 removing it; a Testcontainers test for the filters and the cursor; a test that a provisioning call

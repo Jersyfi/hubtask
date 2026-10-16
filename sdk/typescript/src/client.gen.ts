@@ -829,6 +829,21 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** One workspace */
+  readTenant(tenantId: string, options: CallOptions = {}): Promise<operations["readTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set or clear the platform's reference on a workspace */
+  updateTenant(tenantId: string, body: NonNullable<operations["updateTenant"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Find workspaces */
+  queryTenants(body: NonNullable<operations["queryTenants"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["queryTenants"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Suspend a workspace */
   suspendTenant(tenantId: string, options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/admin/tenants/{tenantId}:suspend", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);

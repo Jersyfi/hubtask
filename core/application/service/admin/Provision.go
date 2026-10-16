@@ -96,6 +96,9 @@ type ProvisionTenantCommand struct {
 	// Plan is the short name of the plan the workspace starts on, empty for none
 	// (multi-tenancy.md §4.2).
 	Plan string
+	// ExternalReference is a purchase platform's own reference for the workspace, empty for none
+	// (multi-tenancy.md §4.3).
+	ExternalReference string
 }
 
 // ProvisionedTenant is what the one answer carries - including the owner's redemption token,
@@ -104,6 +107,7 @@ type ProvisionedTenant struct {
 	Tenant domain.Tenant
 	// Plan is the plan the workspace started on, and Version the row's version once it is there.
 	Plan                string
+	ExternalReference   string
 	Version             int
 	OwnerAccountID      shared.ID
 	OwnerRedemption     secret.Secret
@@ -179,6 +183,11 @@ func (h ProvisionTenant) Execute(
 	if h.Tenancy != env.TenancyMulti {
 		return ProvisionedTenant{}, shared.ErrForbidden.WithDetail("admin.multi_mode_required")
 	}
+	if cmd.ExternalReference != "" {
+		if err := domain.ValidTenantReference(cmd.ExternalReference); err != nil {
+			return ProvisionedTenant{}, err
+		}
+	}
 
 	locale, zone, err := startingLocalisation(ctx, h.UnitOfWork, h.Instance, cmd.DefaultLocale, cmd.DefaultTimeZone)
 	if err != nil {
@@ -247,17 +256,28 @@ func (h ProvisionTenant) Execute(
 		result.DefaultHubID = hubID
 		result.ExampleCollectionID = collectionID
 		result.Version = 1
-		if !planID.IsZero() {
-			// The row was written in this transaction at its first version, so nothing can have
-			// moved it: a refusal here is a defect, never a race.
-			written, err := h.Tenants.SetPlan(ctx, planID, 1, now)
+		// The row was written in this transaction at its first version, so nothing can have moved
+		// it: a refused guard here is a defect, never a race. A reference another workspace holds is
+		// the index's refusal, and rolls the whole workspace back.
+		if cmd.ExternalReference != "" {
+			written, err := h.Tenants.SetReference(ctx, cmd.ExternalReference, result.Version, now)
 			if err != nil {
 				return err
 			}
 			if !written {
-				return shared.ErrInternal.WithDetail("admin.plan_not_set")
+				return shared.ErrInternal.WithDetail("admin.provisioning_incomplete")
 			}
-			result.Plan, result.Version = cmd.Plan, 2
+			result.ExternalReference, result.Version = cmd.ExternalReference, result.Version+1
+		}
+		if !planID.IsZero() {
+			written, err := h.Tenants.SetPlan(ctx, planID, result.Version, now)
+			if err != nil {
+				return err
+			}
+			if !written {
+				return shared.ErrInternal.WithDetail("admin.provisioning_incomplete")
+			}
+			result.Plan, result.Version = cmd.Plan, result.Version+1
 		}
 
 		if _, err := h.Redemption.SetRedemptionToken(
@@ -540,6 +560,8 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 			{Name: "owner_display_name", Kind: usecase.KindString},
 			{Name: "plan", Kind: usecase.KindString,
 				Description: "The short name of the plan the workspace starts on; absent for none."},
+			{Name: "external_reference", Kind: usecase.KindString,
+				Description: "A purchase platform's own reference for the workspace, unique on the installation."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TenantProvisionedAction, TargetType: tenantTarget,
@@ -558,13 +580,14 @@ func (h ProvisionTenant) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	provisioned, err := h.Execute(ctx, actor, ProvisionTenantCommand{
-		Slug:             in.String("slug"),
-		DisplayName:      in.String("display_name"),
-		DefaultLocale:    in.String("default_locale"),
-		DefaultTimeZone:  in.String("default_time_zone"),
-		OwnerEmail:       in.String("owner_email"),
-		OwnerDisplayName: in.String("owner_display_name"),
-		Plan:             in.String("plan"),
+		Slug:              in.String("slug"),
+		DisplayName:       in.String("display_name"),
+		DefaultLocale:     in.String("default_locale"),
+		DefaultTimeZone:   in.String("default_time_zone"),
+		OwnerEmail:        in.String("owner_email"),
+		OwnerDisplayName:  in.String("owner_display_name"),
+		Plan:              in.String("plan"),
+		ExternalReference: in.String("external_reference"),
 	})
 	if err != nil {
 		return nil, err
@@ -577,6 +600,7 @@ func (h ProvisionTenant) invoke(
 		DefaultTimeZone: provisioned.Tenant.DefaultTimeZone,
 		CreatedAt:       provisioned.Tenant.CreatedAt,
 		PlanName:        provisioned.Plan, Version: provisioned.Version,
+		ExternalReference: provisioned.ExternalReference,
 	})
 	out["owner_account_id"] = provisioned.OwnerAccountID.String()
 	// The one appearance of the owner's way in (T-18's "shown once").
@@ -603,6 +627,9 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 	}
 	if record.PlanName != "" {
 		out["plan"] = record.PlanName
+	}
+	if record.ExternalReference != "" {
+		out["external_reference"] = record.ExternalReference
 	}
 	if record.Version > 0 {
 		out["version"] = record.Version

@@ -4194,6 +4194,27 @@ func (e TemplateScope) Valid() bool {
 	}
 }
 
+// Defines values for TenantQueryStatus.
+const (
+	TenantQueryStatusACTIVE          TenantQueryStatus = "ACTIVE"
+	TenantQueryStatusPENDINGDELETION TenantQueryStatus = "PENDING_DELETION"
+	TenantQueryStatusSUSPENDED       TenantQueryStatus = "SUSPENDED"
+)
+
+// Valid indicates whether the value is a known member of the TenantQueryStatus enum.
+func (e TenantQueryStatus) Valid() bool {
+	switch e {
+	case TenantQueryStatusACTIVE:
+		return true
+	case TenantQueryStatusPENDINGDELETION:
+		return true
+	case TenantQueryStatusSUSPENDED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TermsInForceSetBy.
 const (
 	TermsInForceSetByINSTALLATION TermsInForceSetBy = "INSTALLATION"
@@ -4812,11 +4833,14 @@ type AddressRequested struct {
 
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
-	CreatedAt       time.Time          `json:"created_at"`
-	DefaultLocale   *string            `json:"default_locale,omitempty"`
-	DefaultTimeZone *string            `json:"default_time_zone,omitempty"`
-	DisplayName     string             `json:"display_name"`
-	Id              openapi_types.UUID `json:"id"`
+	CreatedAt       time.Time `json:"created_at"`
+	DefaultLocale   *string   `json:"default_locale,omitempty"`
+	DefaultTimeZone *string   `json:"default_time_zone,omitempty"`
+	DisplayName     string    `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
@@ -4841,6 +4865,12 @@ type AdminTenant struct {
 
 // AdminTenantStatus defines model for AdminTenant.Status.
 type AdminTenantStatus string
+
+// AdminTenantPage defines model for AdminTenantPage.
+type AdminTenantPage struct {
+	Data []AdminTenant `json:"data"`
+	Page PageInfo      `json:"page"`
+}
 
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
@@ -8546,7 +8576,10 @@ type ProvisionedTenant struct {
 	DefaultTimeZone     *string            `json:"default_time_zone,omitempty"`
 	DisplayName         string             `json:"display_name"`
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
-	Id                  openapi_types.UUID `json:"id"`
+
+	// ExternalReference The purchase platform's own reference, where it set one.
+	ExternalReference *string            `json:"external_reference,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -10001,11 +10034,14 @@ type TenantPlanMoved struct {
 
 // TenantProvision defines model for TenantProvision.
 type TenantProvision struct {
-	DefaultLocale    *string             `json:"default_locale,omitempty"`
-	DefaultTimeZone  *string             `json:"default_time_zone,omitempty"`
-	DisplayName      string              `json:"display_name"`
-	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail       openapi_types.Email `json:"owner_email"`
+	DefaultLocale   *string `json:"default_locale,omitempty"`
+	DefaultTimeZone *string `json:"default_time_zone,omitempty"`
+	DisplayName     string  `json:"display_name"`
+
+	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
+	ExternalReference *string             `json:"external_reference,omitempty"`
+	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail        openapi_types.Email `json:"owner_email"`
 
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
@@ -10013,6 +10049,29 @@ type TenantProvision struct {
 	// Slug The subdomain the workspace answers on. Unique across the installation.
 	Slug string `json:"slug"`
 }
+
+// TenantQuery defines model for TenantQuery.
+type TenantQuery struct {
+	// Cursor The cursor of the page before.
+	Cursor *string `json:"cursor,omitempty"`
+
+	// ExternalReference The platform's own reference.
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Plan The short name of a plan; not with without_plan.
+	Plan *string `json:"plan,omitempty"`
+	Size *int    `json:"size,omitempty"`
+
+	// Slug The workspace's short name.
+	Slug   *string            `json:"slug,omitempty"`
+	Status *TenantQueryStatus `json:"status,omitempty"`
+
+	// WithoutPlan Only workspaces on no plan.
+	WithoutPlan *bool `json:"without_plan,omitempty"`
+}
+
+// TenantQueryStatus defines model for TenantQuery.Status.
+type TenantQueryStatus string
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
@@ -10024,6 +10083,12 @@ type TenantQuotas struct {
 	Items                 *int64 `json:"items,omitempty"`
 	MediaBytes            *int64 `json:"media_bytes,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
+}
+
+// TenantUpdate defines model for TenantUpdate.
+type TenantUpdate struct {
+	// ExternalReference The platform's own reference, or null to clear it.
+	ExternalReference *string `json:"external_reference"`
 }
 
 // TermsAgreement defines model for TermsAgreement.
@@ -10783,6 +10848,12 @@ type ChangePlanParams struct {
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// UpdateTenantParams defines parameters for UpdateTenant.
+type UpdateTenantParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -11872,6 +11943,9 @@ type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
+// UpdateTenantJSONRequestBody defines body for UpdateTenant for application/json ContentType.
+type UpdateTenantJSONRequestBody = TenantUpdate
+
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
@@ -11892,6 +11966,9 @@ type ReapplyErasuresJSONRequestBody = ErasureReapplyRequest
 
 // ReplaceLegalHoldsJSONRequestBody defines body for ReplaceLegalHolds for application/json ContentType.
 type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
+
+// QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
+type QueryTenantsJSONRequestBody = TenantQuery
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
@@ -13200,6 +13277,31 @@ type ClientInterface interface {
 	// Corresponds with POST /admin/tenants (the `ProvisionTenant` operationId).
 	ProvisionTenant(ctx context.Context, params *ProvisionTenantParams, body ProvisionTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ReadTenant One workspace
+	//
+	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+	//
+	// Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
+	ReadTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTenantWithBody Set or clear the platform's reference on a workspace
+	//
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+	UpdateTenantWithBody(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateTenant Set or clear the platform's reference on a workspace
+	//
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+	UpdateTenant(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, body UpdateTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// UpdateTenantQuotasWithBody Set a workspace's quotas
 	//
 	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
@@ -13355,6 +13457,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// QueryTenantsWithBody Find workspaces
+	//
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+	QueryTenantsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// QueryTenants Find workspaces
+	//
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+	QueryTenants(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
 	//
@@ -18471,6 +18591,61 @@ func (c *Client) ProvisionTenant(ctx context.Context, params *ProvisionTenantPar
 	return c.Client.Do(req)
 }
 
+// ReadTenant One workspace
+//
+// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+//
+// Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
+func (c *Client) ReadTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateTenantWithBody Set or clear the platform's reference on a workspace
+//
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+func (c *Client) UpdateTenantWithBody(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTenantRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateTenant Set or clear the platform's reference on a workspace
+//
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+func (c *Client) UpdateTenant(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, body UpdateTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateTenantRequest(c.Server, tenantId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // UpdateTenantQuotasWithBody Set a workspace's quotas
 //
 // The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
@@ -18797,6 +18972,44 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSuspendTenantRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// QueryTenantsWithBody Find workspaces
+//
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+func (c *Client) QueryTenantsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewQueryTenantsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// QueryTenants Find workspaces
+//
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+func (c *Client) QueryTenants(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewQueryTenantsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -28263,6 +28476,102 @@ func NewProvisionTenantRequestWithBody(server string, params *ProvisionTenantPar
 	return req, nil
 }
 
+// NewReadTenantRequest constructs an http.Request for the ReadTenant method
+func NewReadTenantRequest(server string, tenantId AdminTenantId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdateTenantRequest calls the generic UpdateTenant builder with application/json body
+func NewUpdateTenantRequest(server string, tenantId AdminTenantId, params *UpdateTenantParams, body UpdateTenantJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateTenantRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewUpdateTenantRequestWithBody constructs an http.Request for the UpdateTenant method, with any body, and a specified content type
+func NewUpdateTenantRequestWithBody(server string, tenantId AdminTenantId, params *UpdateTenantParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewUpdateTenantQuotasRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdateTenantQuotas builder with application/merge-patch+json body
 func NewUpdateTenantQuotasRequestWithApplicationMergePatchPlusJSONBody(server string, tenantId AdminTenantId, body UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -28784,6 +29093,46 @@ func NewSuspendTenantRequest(server string, tenantId AdminTenantId) (*http.Reque
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewQueryTenantsRequest calls the generic QueryTenants builder with application/json body
+func NewQueryTenantsRequest(server string, body QueryTenantsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewQueryTenantsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewQueryTenantsRequestWithBody constructs an http.Request for the QueryTenants method, with any body, and a specified content type
+func NewQueryTenantsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants:query")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -42608,6 +42957,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants (the `ProvisionTenant` operationId).
 	ProvisionTenantWithResponse(ctx context.Context, params *ProvisionTenantParams, body ProvisionTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*ProvisionTenantResult, error)
 
+	// ReadTenantWithResponse One workspace
+	//
+	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
+	ReadTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*ReadTenantResult, error)
+
+	// UpdateTenantWithBodyWithResponse Set or clear the platform's reference on a workspace
+	//
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+	UpdateTenantWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTenantResult, error)
+
+	// UpdateTenantWithResponse Set or clear the platform's reference on a workspace
+	//
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+	UpdateTenantWithResponse(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, body UpdateTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTenantResult, error)
+
 	// UpdateTenantQuotasWithBodyWithResponse Set a workspace's quotas
 	//
 	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
@@ -42771,6 +43147,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*SuspendTenantResult, error)
+
+	// QueryTenantsWithBodyWithResponse Find workspaces
+	//
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+	QueryTenantsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*QueryTenantsResult, error)
+
+	// QueryTenantsWithResponse Find workspaces
+	//
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+	QueryTenantsWithResponse(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*QueryTenantsResult, error)
 
 	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 	//
@@ -49042,6 +49436,116 @@ func (r ProvisionTenantResult) ContentType() string {
 	return ""
 }
 
+// ReadTenantResult200Headers the declared response headers of an HTTP 200 response for ReadTenant
+type ReadTenantResult200Headers struct {
+	ETag *string
+}
+
+type ReadTenantResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminTenant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReadTenantResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadTenantResult) GetJSON200() *AdminTenant {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadTenantResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadTenantResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadTenantResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadTenantResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// UpdateTenantResult200Headers the declared response headers of an HTTP 200 response for UpdateTenant
+type UpdateTenantResult200Headers struct {
+	ETag *string
+}
+
+type UpdateTenantResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminTenant
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *UpdateTenantResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateTenantResult) GetJSON200() *AdminTenant {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateTenantResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateTenantResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateTenantResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateTenantResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type UpdateTenantQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -49543,6 +50047,54 @@ func (r SuspendTenantResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SuspendTenantResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type QueryTenantsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminTenantPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r QueryTenantsResult) GetJSON200() *AdminTenantPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r QueryTenantsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r QueryTenantsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r QueryTenantsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r QueryTenantsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r QueryTenantsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -64049,6 +64601,51 @@ func (c *ClientWithResponses) ProvisionTenantWithResponse(ctx context.Context, p
 	return ParseProvisionTenantResult(rsp)
 }
 
+// ReadTenantWithResponse One workspace
+//
+// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
+func (c *ClientWithResponses) ReadTenantWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*ReadTenantResult, error) {
+	rsp, err := c.ReadTenant(ctx, tenantId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadTenantResult(rsp)
+}
+
+// UpdateTenantWithBodyWithResponse Set or clear the platform's reference on a workspace
+//
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+func (c *ClientWithResponses) UpdateTenantWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateTenantResult, error) {
+	rsp, err := c.UpdateTenantWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTenantResult(rsp)
+}
+
+// UpdateTenantWithResponse Set or clear the platform's reference on a workspace
+//
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/tenants/{tenantId} (the `UpdateTenant` operationId).
+func (c *ClientWithResponses) UpdateTenantWithResponse(ctx context.Context, tenantId AdminTenantId, params *UpdateTenantParams, body UpdateTenantJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateTenantResult, error) {
+	rsp, err := c.UpdateTenant(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateTenantResult(rsp)
+}
+
 // UpdateTenantQuotasWithBodyWithResponse Set a workspace's quotas
 //
 // The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
@@ -64319,6 +64916,36 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 		return nil, err
 	}
 	return ParseSuspendTenantResult(rsp)
+}
+
+// QueryTenantsWithBodyWithResponse Find workspaces
+//
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+func (c *ClientWithResponses) QueryTenantsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*QueryTenantsResult, error) {
+	rsp, err := c.QueryTenantsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseQueryTenantsResult(rsp)
+}
+
+// QueryTenantsWithResponse Find workspaces
+//
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
+func (c *ClientWithResponses) QueryTenantsWithResponse(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*QueryTenantsResult, error) {
+	rsp, err := c.QueryTenants(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseQueryTenantsResult(rsp)
 }
 
 // SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
@@ -72181,6 +72808,98 @@ func ParseProvisionTenantResult(rsp *http.Response) (*ProvisionTenantResult, err
 	return response, nil
 }
 
+// ParseReadTenantResult parses an HTTP response from a ReadTenantWithResponse call
+func ParseReadTenantResult(rsp *http.Response) (*ReadTenantResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadTenantResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReadTenantResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseUpdateTenantResult parses an HTTP response from a UpdateTenantWithResponse call
+func ParseUpdateTenantResult(rsp *http.Response) (*UpdateTenantResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateTenantResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminTenant
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers UpdateTenantResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseUpdateTenantQuotasResult parses an HTTP response from a UpdateTenantQuotasWithResponse call
 func ParseUpdateTenantQuotasResult(rsp *http.Response) (*UpdateTenantQuotasResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -72519,6 +73238,39 @@ func ParseSuspendTenantResult(rsp *http.Response) (*SuspendTenantResult, error) 
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseQueryTenantsResult parses an HTTP response from a QueryTenantsWithResponse call
+func ParseQueryTenantsResult(rsp *http.Response) (*QueryTenantsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &QueryTenantsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminTenantPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

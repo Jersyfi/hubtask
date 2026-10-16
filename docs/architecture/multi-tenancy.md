@@ -77,6 +77,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 |---|---|---|
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Sign-in before a credential exists (§3) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
+| `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |
 | `subject_tenants(email)` | The tenants one data subject has an account in | An installation-wide data subject request ([data-protection.md](./data-protection.md) §4) |
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
@@ -363,8 +364,9 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 ## 4.3 The purchase platform's connection
 
-**Decided for milestone PL, not built** (the owner, 2026-10-16;
-[ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Plans exist so that a provider's own
+**Decided for milestone PL** (the owner, 2026-10-16;
+[ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
+order and finding; the credential, the events and the use are not built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
 `NG-billing`). Hubtask never asks the platform anything, and single mode offers none of this.
@@ -382,8 +384,12 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   `version_conflict` when it is stale; repeated under its idempotency key it acts once. Its answer
   names the limits the workspace is now over, the entitlements that rest and the exceptions that
   stay.
-* **Finding.** One workspace is read by its id, short name or reference; the list filters by plan,
-  status and reference, with a cursor.
+* **Finding.** One workspace is read by its id (`GET /admin/tenants/{id}`, the version as its tag);
+  `POST /admin/tenants:query` finds workspaces by short name, reference, plan or state, a page at a
+  time - a `POST`, because a reference in a query string would reach access logs. A taken reference
+  is refused without its value and without saying whose; its change is in the trail masked and in
+  the journal without the value. It is not in the workspace's export: it is the provider's mapping,
+  not the workspace's data.
 * **Events.** Installation subscriptions sign, retry and dead-letter as a workspace's do (UC-INT-01),
   but are never switched off for being unreachable: the operator is told and the dead letters stay
   re-deliverable. Every event carries the workspace's id, reference, status, plan, version and

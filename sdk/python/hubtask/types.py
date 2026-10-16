@@ -881,6 +881,7 @@ class AdminTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     plan: str | None
+    external_reference: str | None
     version: int
     purge_after: str | None
     legal_hold: bool
@@ -1008,6 +1009,22 @@ class TenantPlanMoved(TypedDict, total=False):
     features_resting: Required[list["PlanFeature"]]
     exceptions_kept: Required[list[str]]
 
+class TenantUpdate(TypedDict, total=False):
+    external_reference: Required[str | None]
+
+class TenantQuery(TypedDict, total=False):
+    slug: str
+    external_reference: str
+    plan: str
+    without_plan: bool
+    status: Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]
+    size: int
+    cursor: str | None
+
+class AdminTenantPage(TypedDict, total=False):
+    data: Required[list["AdminTenant"]]
+    page: Required["PageInfo"]
+
 class TenantProvision(TypedDict, total=False):
     slug: Required[str]
     display_name: Required[str]
@@ -1016,6 +1033,7 @@ class TenantProvision(TypedDict, total=False):
     owner_email: Required[str]
     owner_display_name: str | None
     plan: str | None
+    external_reference: str | None
 
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
@@ -1026,6 +1044,7 @@ class ProvisionedTenant(TypedDict, total=False):
     default_time_zone: str
     created_at: Required[str]
     plan: str | None
+    external_reference: str | None
     version: int
     purge_after: str | None
     legal_hold: bool

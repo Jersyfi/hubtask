@@ -46,6 +46,35 @@ FROM tenant t
 LEFT JOIN plan p ON p.id = t.plan_id
 WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;
 
+-- name: SetTenantReference :execrows
+-- A platform's reference on the workspace, or none (multi-tenancy.md §4.3). Guarded on the version
+-- read, and refused once the purge has begun; a reference another workspace holds is the unique
+-- index's refusal.
+UPDATE tenant
+SET external_reference = sqlc.narg('external_reference'), version = version + 1, updated_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
+  AND version = sqlc.arg('version');
+
+-- name: QueryTenants :many
+-- The control plane's filtered, paged read, through the one narrow door that filters and pages
+-- across tenant_self (migration 0165). The casts are for the generator.
+SELECT id::uuid, slug::text, display_name::text, status::text,
+       default_locale::text, default_time_zone::text,
+       created_at::timestamptz, purge_after::timestamptz AS purge_after,
+       password_opened_until::timestamptz AS password_opened_until,
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason,
+       legal_hold::boolean AS legal_hold,
+       purge_started_at::timestamptz AS purge_started_at,
+       coalesce(plan_name, '')::text AS plan_name,
+       version::integer AS version,
+       coalesce(external_reference, '')::text AS external_reference
+FROM admin_tenants_query(
+  sqlc.narg('want_id')::uuid, sqlc.narg('want_slug')::text, sqlc.narg('want_reference')::text,
+  sqlc.narg('want_plan')::text, sqlc.narg('want_without_plan')::boolean, sqlc.narg('want_status')::text,
+  sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid, sqlc.arg('page_size')::integer
+);
+
 -- name: SetTenantPlan :execrows
 -- A workspace onto another plan, or none (multi-tenancy.md §4.2). Guarded on the version read, so a
 -- move cannot land on a workspace that changed meanwhile, and refused once the purge has begun.

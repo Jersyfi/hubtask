@@ -45,6 +45,29 @@ type TenantRecord struct {
 	Version        int
 	// PlanName is the short name of the workspace's plan, empty for none (multi-tenancy.md §4.2).
 	PlanName string
+	// ExternalReference is a purchase platform's own reference for the workspace, empty for none
+	// (multi-tenancy.md §4.3). It may name a customer: it goes into no log, metric or journal.
+	ExternalReference string
+}
+
+// TenantQuery is the control plane's filters over the workspaces; an empty field filters nothing.
+type TenantQuery struct {
+	ID          shared.ID
+	Slug        string
+	Reference   string
+	Plan        string
+	WithoutPlan bool
+	Status      identity.TenantStatus
+	Cursor      string
+	Size        int
+}
+
+// TenantFinder finds workspaces across the installation (multi-tenancy.md §4.3), through the one
+// narrow door that filters and pages across tenant_self.
+type TenantFinder interface {
+	// Query answers one page of the matching workspaces, oldest first. A cursor this server did not
+	// produce is a validation error with code `shared.cursor_invalid`.
+	Query(ctx context.Context, query TenantQuery) ([]TenantRecord, PageInfo, error)
 }
 
 // Tenants is the lifecycle of the tenant row.
@@ -82,6 +105,12 @@ type Tenants interface {
 	// replacing one that stands (ADR-0078 §3). False means the workspace is not active - suspended,
 	// leaving, or gone.
 	OpenPassword(ctx context.Context, opening identity.PasswordOpening, now time.Time) (bool, error)
+
+	// SetReference sets a platform's reference on the transaction's own tenant, or clears it where
+	// reference is empty, raising its version. False means the version moved since `version` was
+	// read, or the purge has begun. A reference another workspace holds is a conflict error with code
+	// `admin.reference_taken`, carrying neither the value nor the database's detail.
+	SetReference(ctx context.Context, reference string, version int, now time.Time) (bool, error)
 
 	// SetPlan puts the transaction's own tenant on a plan, or none where planID is zero, raising its
 	// version. False means the version moved since `version` was read, or the purge has begun.

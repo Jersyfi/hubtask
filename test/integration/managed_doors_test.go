@@ -88,6 +88,11 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		var listed, active, accounts, workspaces int
 		var unset bool
 		one(t, `SELECT count(*) FROM admin_tenants()`, &listed)
+		var queried int
+		one(t, `SELECT count(*) FROM admin_tenants_query(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 50)`, &queried)
+		if queried != 2 {
+			t.Errorf("admin_tenants_query found %d workspaces, want 2", queried)
+		}
 		one(t, `SELECT workspaces_active FROM instance_census()`, &active)
 		one(t, `SELECT accounts_total FROM instance_census()`, &accounts)
 		one(t, `SELECT workspaces FROM operator_register_state()`, &workspaces)

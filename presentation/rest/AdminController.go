@@ -74,6 +74,7 @@ func (c *RestController) ProvisionTenant(
 		"owner_email":        string(body.OwnerEmail),
 		"owner_display_name": optionalStringField(body.OwnerDisplayName),
 		"plan":               optionalStringField(body.Plan),
+		"external_reference": optionalStringField(body.ExternalReference),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -162,6 +163,9 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 	}
 	if name := row.String("plan"); name != "" {
 		tenant.Plan = &name
+	}
+	if reference := row.String("external_reference"); reference != "" {
+		tenant.ExternalReference = &reference
 	}
 	if version := row.Int("version"); version > 0 {
 		tenant.Version = &version

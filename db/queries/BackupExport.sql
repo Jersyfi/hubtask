@@ -21,7 +21,9 @@ SELECT s.record_id, s.changed_at, s.payload
 FROM (
   SELECT (t.id)::text AS record_id,
          t.updated_at AS changed_at,
-         (to_jsonb(t) - 'tenant_id')::jsonb AS payload,
+         -- A platform's reference is the provider's mapping, not the workspace's data: it stays
+         -- out of the archive, and a copy restored beside the original cannot claim it.
+         (to_jsonb(t) - 'tenant_id' - 'external_reference')::jsonb AS payload,
          t.id AS key_1
   FROM tenant t
 ) s
