@@ -46,6 +46,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { jumble, type IntakeToken, type JumbleEntry } from '../lib/data/jumble.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
+  import { isPending } from '../lib/data/suggestions.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -304,7 +305,7 @@
                       tone="secondary"
                       icon="sparkles"
                       data-ai
-                      disabledReason={suggestions.askingOf(entry.id)?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
+                      disabledReason={isPending(suggestions.askingOf(entry.id)) ? t('app.suggestions.pending') : undefined}
                       onclick={() => void ask(entry)}
                     >
                       {t('app.jumble.ask')}

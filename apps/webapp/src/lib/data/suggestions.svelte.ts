@@ -6,11 +6,12 @@
  *
  * **Asking is a `202` with the job.** The provider has not been asked yet, so the job is all there
  * is to answer with, and the change stream carries no suggestion record. So the strip follows the
- * *listing*, re-read on the job watcher's schedule (`followArrival`) until a proposal made after
- * the ask stands in it - and the job beside it, which is where a refusal met after the ask (a spent
- * budget, AI switched off) is said - and gives up after ten reads rather than polling forever. `duplicates` is
- * the exception the contract makes: it is a query, answered now with the suggestion or with
- * nothing near.
+ * job on the job watcher's schedule (`followArrival`) until it ends - refused, with a proposal the
+ * listing then shows, or with an outcome that is said as a note - and says after about a minute
+ * that the AI takes longer than usual, while it keeps following. The follow pauses while the page
+ * is hidden and stops when the strip is left (`forget`). A refused ask ends its pending state at
+ * once. `duplicates` is the exception the contract makes: it is a query, answered now with the
+ * suggestion or with nothing near.
  *
  * **A decision is the server's write.** `:accept` performs the use case as the accepting person;
  * this module sends the identifier and, where the person changed something first, the overrides.
@@ -23,20 +24,28 @@
 import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { followArrival, suggestionsPath, whilePending, type FollowOutcome, type Operation, type Target } from './suggestions.ts';
+import {
+  endedAs,
+  followArrival,
+  suggestionsPath,
+  waitWhileVisible,
+  whilePending,
+  type AskingState,
+  type Operation,
+  type Target,
+} from './suggestions.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
 
 export { suggestionsPath } from './suggestions.ts';
 export type { SuggestionPage };
 
-/** What the strip shows while an ask is being followed, or after it stopped. */
-export interface Asking {
+/**
+ * What the strip shows while an ask is being followed, or after it stopped: `following`, `slow`
+ * after about a minute without an end, or how it ended (`noteOf` says it).
+ */
+export interface Asking extends AskingState {
   readonly operation: Operation | 'jumble' | 'container' | 'template';
   readonly askedAt: string;
-  /** `following` while the listing is re-read; the others are how it ended. */
-  readonly outcome: 'following' | 'arrived' | 'gave_up' | 'nothing_near' | 'refused';
-  /** With `refused`: the refusal the job ended with, for `renderRefusal` to say. */
-  readonly refusal?: { readonly code: string; readonly params?: Readonly<Record<string, string>> };
 }
 
 /** The pointer a `202` hands back; only its identifier is read here. */
@@ -44,10 +53,8 @@ interface Accepted {
   readonly job_id?: string;
 }
 
-/** A finished follow as the strip records it. */
-function ended(outcome: Exclude<FollowOutcome, 'left'>): Pick<Asking, 'outcome' | 'refusal'> {
-  return typeof outcome === 'string' ? { outcome } : { outcome: 'refused', refusal: outcome.refused };
-}
+/** The follow's wait: paused while the page is hidden, so a tab left open does not read for nothing. */
+const wait = waitWhileVisible(typeof document === 'undefined' ? undefined : document);
 
 /** How long an ask may take to be accepted. It queues and returns; it does not wait for the model. */
 const ASK_TIMEOUT_MS = 15_000;
@@ -98,20 +105,7 @@ class Suggestions {
       }),
     );
 
-    const token = Symbol(operation);
-    this.#follows.set(itemId, token);
-    const outcome = await followArrival(
-      engine,
-      itemId,
-      askedAt,
-      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      () => this.#follows.get(itemId) === token,
-      'WORK_ITEM',
-      accepted?.job_id,
-    );
-    if (outcome === 'left') return;
-    this.#follows.delete(itemId);
-    this.#put(itemId, { operation, askedAt, ...ended(outcome) });
+    await this.#follow(itemId, operation, askedAt, 'WORK_ITEM', accepted?.job_id);
   }
 
   /**
@@ -132,20 +126,7 @@ class Suggestions {
           invalidates: [],
         }),
     );
-    const token = Symbol('jumble');
-    this.#follows.set(entryId, token);
-    const outcome = await followArrival(
-      engine,
-      entryId,
-      askedAt,
-      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      () => this.#follows.get(entryId) === token,
-      'JUMBLE_ENTRY',
-      accepted?.job_id,
-    );
-    if (outcome === 'left') return;
-    this.#follows.delete(entryId);
-    this.#put(entryId, { operation: 'jumble', askedAt, ...ended(outcome) });
+    await this.#follow(entryId, 'jumble', askedAt, 'JUMBLE_ENTRY', accepted?.job_id);
   }
 
   /**
@@ -165,20 +146,7 @@ class Suggestions {
           invalidates: [],
         }),
     );
-    const token = Symbol('container');
-    this.#follows.set(containerId, token);
-    const outcome = await followArrival(
-      engine,
-      containerId,
-      askedAt,
-      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      () => this.#follows.get(containerId) === token,
-      'CONTAINER',
-      accepted?.job_id,
-    );
-    if (outcome === 'left') return;
-    this.#follows.delete(containerId);
-    this.#put(containerId, { operation: 'container', askedAt, ...ended(outcome) });
+    await this.#follow(containerId, 'container', askedAt, 'CONTAINER', accepted?.job_id);
   }
 
   /**
@@ -196,24 +164,7 @@ class Suggestions {
     // Answered once the ask is accepted, not once the draft lands: the dialog that asked closes,
     // and the follow's outcome is the strip's to show.
     this.#put(collectionId, { operation: 'template', askedAt, outcome: 'following' });
-    void this.#followTemplate(collectionId, askedAt, accepted?.job_id);
-  }
-
-  async #followTemplate(collectionId: string, askedAt: string, jobId?: string): Promise<void> {
-    const token = Symbol('template');
-    this.#follows.set(collectionId, token);
-    const outcome = await followArrival(
-      engine,
-      collectionId,
-      askedAt,
-      (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      () => this.#follows.get(collectionId) === token,
-      'CONTAINER',
-      jobId,
-    );
-    if (outcome === 'left') return;
-    this.#follows.delete(collectionId);
-    this.#put(collectionId, { operation: 'template', askedAt, ...ended(outcome) });
+    void this.#follow(collectionId, 'template', askedAt, 'CONTAINER', accepted?.job_id);
   }
 
   /**
@@ -273,6 +224,22 @@ class Suggestions {
     this.#follows.delete(itemId);
     const { [itemId]: _removed, ...rest } = this.#asking;
     this.#asking = rest;
+  }
+
+  /**
+   * Follows one ask to its end, and records how it ended. A follow that was superseded - the strip
+   * left, or asked again - records nothing.
+   */
+  async #follow(id: string, operation: Asking['operation'], askedAt: string, target: Target, jobId?: string): Promise<void> {
+    const token = Symbol(operation);
+    this.#follows.set(id, token);
+    const isLive = () => this.#follows.get(id) === token;
+    const outcome = await followArrival(engine, id, askedAt, wait, isLive, target, jobId, () => {
+      if (isLive()) this.#put(id, { operation, askedAt, outcome: 'slow' });
+    });
+    if (outcome === 'left' || !isLive()) return;
+    this.#follows.delete(id);
+    this.#put(id, { operation, askedAt, ...endedAs(outcome) });
   }
 
   /**

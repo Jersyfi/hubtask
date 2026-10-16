@@ -15,14 +15,18 @@ import {
   FOLLOW_ATTEMPTS,
   acceptCodeOf,
   arrivedSince,
+  endedAs,
   followArrival,
   headingCodeOf,
+  isPending,
   isStale,
   isSummary,
+  noteOf,
   offersFor,
   operationOf,
   shapeOf,
   suggestionsPath,
+  waitWhileVisible,
   whilePending,
 } from './suggestions.ts';
 
@@ -309,79 +313,194 @@ class ListingTransport implements Transport {
 const page = (...items: Suggestion[]) => ({ items, has_more: false });
 const noWait = async () => {};
 
-test('the listing is re-read until a proposal made after the ask stands in it', async () => {
-  const askedAt = '2026-09-16T12:00:00Z';
-  const before = suggestion({ id: 'old', created_at: '2026-09-16T11:00:01Z' });
-  const after = suggestion({ id: 'new', created_at: '2026-09-16T12:00:05Z' });
-  const transport = new ListingTransport([page(before), page(before), page(before, after)]);
-  const engine = new SyncEngine({ transport });
+const JOB = '0192f000-0000-7000-8000-00000000ac01';
+const ASKED = '2026-09-16T12:00:00Z';
+const after = suggestion({ id: 'new', created_at: '2026-09-16T12:00:05Z' });
 
-  const outcome = await followArrival(engine, ITEM, askedAt, noWait);
+/** A follow bounded by a number of rounds, so a test of an unbounded follow ends. */
+const rounds = (n: number) => {
+  let left = n;
+  return () => left-- > 0;
+};
+
+test('without a job, the listing is re-read until a proposal made after the ask stands in it', async () => {
+  const before = suggestion({ id: 'old', created_at: '2026-09-16T11:00:01Z' });
+  const transport = new ListingTransport([page(before), page(before), page(before, after)]);
+
+  const outcome = await followArrival(new SyncEngine({ transport }), ITEM, ASKED, noWait);
 
   assert.equal(outcome, 'arrived');
   assert.equal(transport.reads.length, 3, 'stops at the read that shows the answer');
   assert.ok(transport.reads.every((path) => path === suggestionsPath(ITEM)));
 });
 
-test('a decided proposal is not an arrival, and the follow gives up rather than polling forever', async () => {
-  const decided = suggestion({ id: 'done', status: 'DISMISSED', created_at: '2026-09-16T12:00:05Z' });
-  const transport = new ListingTransport([page(decided)]);
-  const engine = new SyncEngine({ transport });
+test('a job that proposed something ends the follow with the proposal the listing shows', async () => {
+  const transport = new ListingTransport([page(after)]).answer(`/jobs/${JOB}`, {
+    job_id: JOB,
+    status: 'SUCCEEDED',
+    outcome_code: 'ai.proposed',
+  });
 
-  const outcome = await followArrival(engine, ITEM, '2026-09-16T12:00:00Z', noWait);
+  const outcome = await followArrival(new SyncEngine({ transport }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB);
 
-  assert.equal(outcome, 'gave_up');
-  assert.equal(transport.reads.length, FOLLOW_ATTEMPTS);
+  assert.equal(outcome, 'arrived');
+  assert.deepEqual(transport.reads, [`/jobs/${JOB}`, suggestionsPath(ITEM)], 'the job, then the listing once');
 });
 
-test('a screen that was left stops the follow between two reads', async () => {
-  const transport = new ListingTransport([page()]);
-  const engine = new SyncEngine({ transport });
-  let reads = 0;
-  const outcome = await followArrival(engine, ITEM, '2026-09-16T12:00:00Z', noWait, () => reads++ < 3);
-  assert.equal(outcome, 'left');
-  assert.ok(transport.reads.length <= 2);
+test('a job that proposed nothing ends the follow with the reason, at once, not after a minute', async () => {
+  for (const code of ['ai.nothing_to_change', 'ai.nothing_to_work_with', 'ai.kept_out', 'ai.processing_restricted']) {
+    const transport = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'SUCCEEDED', outcome_code: code });
+
+    const outcome = await followArrival(new SyncEngine({ transport }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB);
+
+    assert.deepEqual(outcome, { ended: { code } }, code);
+    assert.deepEqual(transport.reads, [`/jobs/${JOB}`], `${code}: one read of the job and nothing else`);
+  }
 });
 
-const JOB = '0192f000-0000-7000-8000-00000000ac01';
+test('a job that says no outcome - a worker of the release before - is read from the listing once', async () => {
+  const proposed = new ListingTransport([page(after)]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'SUCCEEDED' });
+  assert.equal(
+    await followArrival(new SyncEngine({ transport: proposed }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB),
+    'arrived',
+  );
 
-test('a job that ended refused ends the follow with its refusal, not with a silent give-up', async () => {
-  const transport = new ListingTransport([page()]).answer(`/jobs/${JOB}`, {
+  const empty = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'SUCCEEDED' });
+  assert.deepEqual(
+    await followArrival(new SyncEngine({ transport: empty }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB),
+    { ended: { code: 'ai.nothing_to_change' } },
+  );
+
+  // An outcome this version has never met is a job that finished, said with nothing.
+  const unknown = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'SUCCEEDED', outcome_code: 'ai.newer' });
+  assert.deepEqual(
+    await followArrival(new SyncEngine({ transport: unknown }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB),
+    { ended: undefined },
+  );
+});
+
+test('a job that ended refused ends the follow with its refusal; a cancelled one ends with nothing to say', async () => {
+  const refused = new ListingTransport([page()]).answer(`/jobs/${JOB}`, {
     job_id: JOB,
     status: 'FAILED',
     error_code: 'ai.unavailable',
     error_params: { reason: 'budget_spent', renews_at: '2026-09-17T00:00:00Z' },
   });
-  const engine = new SyncEngine({ transport });
-
-  const outcome = await followArrival(engine, ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB);
-
-  assert.deepEqual(outcome, {
-    refused: { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: '2026-09-17T00:00:00Z' } },
-  });
-  assert.ok(transport.reads.length < FOLLOW_ATTEMPTS * 2, 'stops at the read that shows the refusal');
-});
-
-test('a job still running, or one this reader may not see, leaves the follow to the listing', async () => {
-  const running = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'RUNNING' });
-  assert.equal(
-    await followArrival(new SyncEngine({ transport: running }), ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB),
-    'gave_up',
+  assert.deepEqual(
+    await followArrival(new SyncEngine({ transport: refused }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB),
+    { refused: { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: '2026-09-17T00:00:00Z' } } },
   );
 
-  const hidden = new ListingTransport([page()]).refuse(
+  const cancelled = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'CANCELLED' });
+  assert.deepEqual(
+    await followArrival(new SyncEngine({ transport: cancelled }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB),
+    { ended: undefined },
+  );
+});
+
+test('a job still running is followed past a minute: slow is said once, and the follow keeps going', async () => {
+  const transport = new ListingTransport([page()]).answer(`/jobs/${JOB}`, { job_id: JOB, status: 'RUNNING' });
+  let slow = 0;
+  const outcome = await followArrival(
+    new SyncEngine({ transport }),
+    ITEM,
+    ASKED,
+    noWait,
+    rounds(FOLLOW_ATTEMPTS * 4),
+    'WORK_ITEM',
+    JOB,
+    () => slow++,
+  );
+
+  assert.equal(outcome, 'left', 'only leaving the screen ends a follow of a job that has not ended');
+  assert.equal(slow, 1, 'said once');
+  assert.ok(transport.reads.length > FOLLOW_ATTEMPTS, 'kept reading after the minute');
+  assert.ok(transport.reads.every((path) => path === `/jobs/${JOB}`), 'the job, not the listing, while it runs');
+});
+
+test('slow, then the job ends: the follow ends with it', async () => {
+  let reads = 0;
+  const transport = new ListingTransport([page(after)]);
+  const engine = new SyncEngine({ transport });
+  const reader = {
+    refresh: <T,>(request: { readonly path: string; readonly timeoutMs?: number }) => {
+      if (request.path === `/jobs/${JOB}`) {
+        reads++;
+        transport.answer(`/jobs/${JOB}`, reads > FOLLOW_ATTEMPTS + 2 ? { job_id: JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed' } : { job_id: JOB, status: 'RUNNING' });
+      }
+      return engine.refresh<T>(request);
+    },
+  };
+  let slow = 0;
+
+  const outcome = await followArrival(reader, ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB, () => slow++);
+
+  assert.equal(outcome, 'arrived');
+  assert.equal(slow, 1);
+});
+
+test('a job this reader may not see leaves the follow to the listing', async () => {
+  const hidden = new ListingTransport([page(), page(after)]).refuse(
     `/jobs/${JOB}`,
     new TransportError('problem', { status: 404, code: 'not_found', detailCode: 'jobs.not_found' }),
   );
-  assert.equal(
-    await followArrival(new SyncEngine({ transport: hidden }), ITEM, '2026-09-16T12:00:00Z', noWait, () => true, 'WORK_ITEM', JOB),
-    'gave_up',
-  );
 
-  // An older server that answered no job: the listing alone, exactly as before.
-  const before = new ListingTransport([page()]);
-  await followArrival(new SyncEngine({ transport: before }), ITEM, '2026-09-16T12:00:00Z', noWait);
-  assert.ok(before.reads.every((path) => path === suggestionsPath(ITEM)));
+  const outcome = await followArrival(new SyncEngine({ transport: hidden }), ITEM, ASKED, noWait, () => true, 'WORK_ITEM', JOB);
+
+  assert.equal(outcome, 'arrived');
+  assert.equal(hidden.reads.filter((path) => path === `/jobs/${JOB}`).length, 1, 'the job is not asked again');
+});
+
+test('a screen that was left stops the follow between two reads', async () => {
+  const transport = new ListingTransport([page()]);
+  const outcome = await followArrival(new SyncEngine({ transport }), ITEM, ASKED, noWait, rounds(3));
+  assert.equal(outcome, 'left');
+  assert.ok(transport.reads.length <= 2);
+});
+
+test('the follow waits while the page is hidden and goes on once it is shown again', async () => {
+  const listeners = new Set<() => void>();
+  const page = {
+    visibilityState: 'hidden',
+    addEventListener: (_type: 'visibilitychange', listener: () => void) => void listeners.add(listener),
+    removeEventListener: (_type: 'visibilitychange', listener: () => void) => void listeners.delete(listener),
+  };
+  const wait = waitWhileVisible(page, async () => {});
+
+  let done = false;
+  const waiting = wait(15_000).then(() => (done = true));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(done, false, 'a hidden page does not read');
+  assert.equal(listeners.size, 1);
+
+  page.visibilityState = 'visible';
+  for (const listener of [...listeners]) listener();
+  await waiting;
+  assert.equal(done, true, 'shown again, the follow reads');
+  assert.equal(listeners.size, 0, 'and listens no longer');
+
+  // A page that is shown waits only the time.
+  await waitWhileVisible({ ...page, visibilityState: 'visible' }, async () => {})(15_000);
+  await waitWhileVisible(undefined, async () => {})(15_000);
+});
+
+test('one reading of an ask for every screen: pending, slow, ended, refused', () => {
+  assert.ok(isPending({ outcome: 'following' }));
+  assert.ok(isPending({ outcome: 'slow' }));
+  assert.ok(!isPending({ outcome: 'ended' }));
+  assert.ok(!isPending(undefined));
+
+  assert.equal(noteOf({ outcome: 'following' }), undefined);
+  assert.equal(noteOf({ outcome: 'arrived' }), undefined);
+  assert.deepEqual(noteOf({ outcome: 'slow' }), { code: 'app.suggestions.slow', tone: 'note' });
+  assert.deepEqual(noteOf({ outcome: 'ended', note: { code: 'ai.nothing_to_change' } }), { code: 'ai.nothing_to_change', tone: 'note' });
+  assert.equal(noteOf({ outcome: 'ended' }), undefined);
+  assert.deepEqual(noteOf({ outcome: 'refused', refusal: { code: 'ai.unavailable' } }), { code: 'ai.unavailable', tone: 'refusal' });
+  assert.deepEqual(noteOf({ outcome: 'nothing_near' }), { code: 'app.suggestions.nothing_near', tone: 'note' });
+
+  assert.deepEqual(endedAs('arrived'), { outcome: 'arrived' });
+  assert.deepEqual(endedAs({ refused: { code: 'x' } }), { outcome: 'refused', refusal: { code: 'x' } });
+  assert.deepEqual(endedAs({ ended: { code: 'ai.kept_out' } }), { outcome: 'ended', note: { code: 'ai.kept_out' } });
 });
 
 test('an ask that is refused withdraws its pending state at once and passes the refusal on', async () => {

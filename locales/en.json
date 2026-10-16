@@ -5234,7 +5234,7 @@
   "app.suggestions.provenance": "Where this came from",
   "app.suggestions.provenance_line": "{model} · {when} · prompt {prompt} {version}",
   "app.suggestions.pending": "Suggesting…",
-  "app.suggestions.gave_up": "No suggestion arrived in a minute. It may still come; look again later.",
+  "app.suggestions.slow": "The AI is taking longer than usual. The suggestion appears here when it arrives.",
   "app.suggestions.nothing_near": "Nothing looks like this entry.",
   "app.suggestions.deciding": "Applying…",
   "app.suggestions.dismissing": "Dismissing…",

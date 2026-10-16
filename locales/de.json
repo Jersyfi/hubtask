@@ -4009,7 +4009,7 @@
   "app.suggestions.provenance": "Woher das stammt",
   "app.suggestions.provenance_line": "{model} · {when} · Prompt {prompt} {version}",
   "app.suggestions.pending": "Wird vorgeschlagen…",
-  "app.suggestions.gave_up": "In einer Minute ist kein Vorschlag angekommen. Er kommt vielleicht noch; sieh später wieder nach.",
+  "app.suggestions.slow": "Die KI braucht länger als sonst. Der Vorschlag erscheint hier, sobald er da ist.",
   "app.suggestions.nothing_near": "Nichts ähnelt diesem Eintrag.",
   "app.suggestions.deciding": "Wird angewendet…",
   "app.suggestions.dismissing": "Wird verworfen…",
