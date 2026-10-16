@@ -382,6 +382,8 @@
   "admin.plan_looser_than_installation": "Ein Plan darf {setting} nur strenger festlegen als die Installation.",
   "admin.plan_localisation": "Ein Plan legt keine Sprache, Zeitzone oder keinen Wochenbeginn fest: {setting} gehört der Installation und jedem Workspace.",
   "admin.plan_version_moved": "Jemand hat den Plan geändert, während du ihn bearbeitet hast; lies ihn erneut.",
+  "admin.plan_display_name_invalid": "Der Name eines Plans hat 1 bis 200 Zeichen.",
+  "admin.plan_feature_unknown": "{feature} ist keine Funktion, die ein Plan weglassen kann.",
   "automation.check_without_tenant": "Eine Prüfung muss zu einem Workspace gehören.",
   "automation.rule_unwritable": "Die Befunde der Prüfung ließen sich nicht in einer Form schreiben, die diese Version speichert.",
   "automation.run_as_restricted": "Diese Regel handelt als ein Konto, dessen Daten derzeit nicht automatisch verarbeitet werden dürfen, darum hat dieser Lauf nichts getan. Sie läuft wieder, sobald die Einschränkung aufgehoben ist.",
