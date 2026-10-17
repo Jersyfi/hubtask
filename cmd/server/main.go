@@ -3276,7 +3276,7 @@ func run() error {
 		Events:        postgres.NewPlatformEventRepository(),
 		Encryptor:     encryptor, Signer: security.NewWebhookSigner(), Client: outboundClient,
 		UnitOfWork: backgroundWork, Jobs: jobs, Clock: clockadapter.System{}, Source: cfg.BaseURL,
-		NextAttempt: webhookDelivery.NextAttempt,
+		NextAttempt: webhookDelivery.NextAttempt, Signals: metrics,
 	}
 
 	// The outbound call: an HTTP_REQUEST action's HTTP, detached from every transaction and
@@ -3584,8 +3584,10 @@ func run() error {
 				return onBackground
 			}(),
 			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:      jobs,
-			Backlog:    jobs,
+			// Alert A-21's number: the dead letters waiting for a purchase platform (UC-INS-14).
+			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
+			Queue:              jobs,
+			Backlog:            jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
