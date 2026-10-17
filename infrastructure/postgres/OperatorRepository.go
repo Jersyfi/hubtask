@@ -47,6 +47,27 @@ func (OperatorRepository) Holds(ctx context.Context, accountID shared.ID) (bool,
 	return held, nil
 }
 
+// RegisteredServiceAccount answers whether the register holds the account's own row as a service
+// account's; the empty register's owner and a registered person are not.
+func (OperatorRepository) RegisteredServiceAccount(ctx context.Context, accountID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return false, err
+	}
+
+	registered, err := queries.IsRegisteredServiceAccount(ctx, account)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the operator register: %w", err))
+	}
+	return registered, nil
+}
+
 // Roster answers the register with names, and nothing to a caller the register does not name.
 func (OperatorRepository) Roster(ctx context.Context, caller shared.ID) ([]repository.Operator, error) {
 	queries, err := queriesFrom(ctx)

@@ -49,7 +49,7 @@ type ListTenants struct {
 func (h ListTenants) Execute(
 	ctx context.Context, actor appshared.ActorContext,
 ) ([]adminrepo.TenantRecord, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return nil, err
 	}
 
@@ -80,6 +80,7 @@ func (h ListTenants) Descriptor() usecase.Descriptor {
 			"stands, and an operator's opening of the password while it is in force. The one " +
 			"legitimate tenant enumerator, for the control plane alone.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		ReadOnly:   true,
 		Audit: usecase.AuditDeclaration{
 			Action: "tenant.listed", TargetType: tenantTarget, Severity: audit.SeverityInfo,
@@ -136,7 +137,7 @@ func (s LifecycleShift) shift(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 	from, to domain.TenantStatus, action audit.Action, severity audit.Severity, journal string,
 ) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return err
 	}
 	if tenantID.IsZero() {
@@ -203,7 +204,7 @@ type SuspendTenant struct{ LifecycleShift }
 func (h SuspendTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 ) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return err
 	}
 	if err := requireMulti(h.Tenancy); err != nil {
@@ -225,6 +226,7 @@ func (h SuspendTenant) Descriptor() usecase.Descriptor {
 		SideEffects: "Flips the tenant's lifecycle status; records the act in the tenant's " +
 			"audit trail and the instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 		},
@@ -273,6 +275,7 @@ func (h ResumeTenant) Descriptor() usecase.Descriptor {
 		SideEffects: "Flips the tenant's lifecycle status back; records the act in the " +
 			"tenant's audit trail and the instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 		},

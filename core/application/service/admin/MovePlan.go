@@ -60,7 +60,7 @@ type MoveTenantPlan struct {
 func (h MoveTenantPlan) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd MoveTenantPlanCommand,
 ) (MovedTenant, error) {
-	if err := h.Writer.authorize(ctx, actor); err != nil {
+	if err := h.Writer.authorize(ctx, actor, platformScopes...); err != nil {
 		return MovedTenant{}, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -185,6 +185,7 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 			"keeps an operator's exception. Multi mode only.",
 		SideEffects: "Writes the workspace's plan, its trail and the instance journal.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{Name: "plan", Kind: usecase.KindString,
