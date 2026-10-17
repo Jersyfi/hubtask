@@ -60,3 +60,41 @@ RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_
 -- name: RemovePasskey :execrows
 -- Only the account's own; it signs and proves nothing from the moment this commits.
 DELETE FROM webauthn_credential WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id');
+
+-- name: InsertPasskeySignInChallenge :exec
+-- A sign-in's challenge names nobody yet (migration 0168).
+INSERT INTO auth_pending (id, tenant_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('token_hash'), 'PASSKEY_SIGN_IN',
+  sqlc.narg('user_agent'), sqlc.narg('ip_class'), sqlc.arg('created_at'), sqlc.arg('expires_at')
+);
+
+-- name: ConsumePasskeySignInChallenge :execrows
+-- One statement, so two completions of one challenge let exactly one through.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE token_hash = sqlc.arg('token_hash') AND purpose = 'PASSKEY_SIGN_IN'
+  AND consumed_at IS NULL AND expires_at > sqlc.arg('now');
+
+-- name: FindPasskeyHolder :one
+-- The credential a browser named and everything the session will need of its holder, in one round
+-- trip - the password door's read, keyed on the credential instead of an identifier.
+SELECT w.id, w.tenant_id, w.account_id, w.credential_id, w.public_key, w.algorithm, w.sign_count,
+       w.user_handle, w.backup_eligible, w.backed_up, w.transports, w.name, w.created_at,
+       w.last_used_at, w.rp_id,
+       a.kind, a.email, a.sign_in_name, a.display_name, a.status,
+       a.locale AS account_locale, a.time_zone AS account_time_zone, a.start_password_at,
+       n.default_locale, n.default_time_zone, n.slug AS tenant_slug, n.status::text AS tenant_status
+FROM webauthn_credential w
+JOIN account a ON a.tenant_id = w.tenant_id AND a.id = w.account_id
+JOIN tenant n ON n.id = w.tenant_id
+WHERE w.credential_id = sqlc.arg('credential_id') AND a.deleted_at IS NULL;
+
+-- name: MarkPasskeyUsed :execrows
+-- The counter only goes up: a counter not above a non-zero stored one is refused here, in the
+-- statement, so two sign-ins with one credential cannot both pass a comparison; a synchronised
+-- passkey's zero passes and never lowers the stored value (identity.md §23.3).
+UPDATE webauthn_credential
+SET sign_count = GREATEST(sign_count, sqlc.arg('sign_count')::bigint),
+    last_used_at = sqlc.arg('used_at'), backed_up = sqlc.arg('backed_up')
+WHERE id = sqlc.arg('id')
+  AND (sqlc.arg('sign_count')::bigint = 0 OR sign_count = 0 OR sqlc.arg('sign_count')::bigint > sign_count);

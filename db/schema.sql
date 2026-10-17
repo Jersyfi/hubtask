@@ -505,15 +505,20 @@ CREATE TABLE auth_pending (
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
     CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS',
-                       'PASSKEY_REGISTER')),
+                       'PASSKEY_REGISTER', 'PASSKEY_SIGN_IN')),
   CONSTRAINT auth_pending_address_purpose
     CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
            AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL),
-  CONSTRAINT auth_pending_arrival_whole CHECK ((account_id IS NULL) = (arrival_email IS NOT NULL)),
+  -- No account exactly where a TERMS arrival or a passkey sign-in's challenge stands (migration 0168).
+  CONSTRAINT auth_pending_arrival_whole
+    CHECK (CASE WHEN purpose = 'PASSKEY_SIGN_IN'
+                THEN account_id IS NULL AND arrival_email IS NULL
+                ELSE (account_id IS NULL) = (arrival_email IS NOT NULL) END),
   CONSTRAINT auth_pending_arrival_terms
-    CHECK (account_id IS NOT NULL OR (purpose = 'TERMS' AND link_provider_id IS NOT NULL)),
+    CHECK (account_id IS NOT NULL OR purpose = 'PASSKEY_SIGN_IN'
+           OR (purpose = 'TERMS' AND link_provider_id IS NOT NULL)),
   CONSTRAINT auth_pending_passkey_whole
     CHECK (CASE WHEN purpose = 'PASSKEY_REGISTER'
                 THEN session_id IS NOT NULL AND user_handle IS NOT NULL AND octet_length(user_handle) = 32

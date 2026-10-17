@@ -476,7 +476,7 @@ SELECT p.id, p.purpose, p.user_agent, p.ip_class,
        n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM auth_pending p
 JOIN tenant n ON n.id = p.tenant_id
-WHERE p.token_hash = $1 AND p.account_id IS NULL
+WHERE p.token_hash = $1 AND p.account_id IS NULL AND p.purpose = 'TERMS'
 `
 
 type FindArrivalPendingByHashRow struct {
@@ -501,8 +501,8 @@ type FindArrivalPendingByHashRow struct {
 }
 
 // A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
-// and the workspace, nothing to join an account from. Read only by the agreement, so no other step
-// ever meets a credential without an account.
+// and the workspace, nothing to join an account from. Read only by the agreement, and only under its
+// purpose: a passkey sign-in's challenge has no account either (migration 0168).
 func (q *Queries) FindArrivalPendingByHash(ctx context.Context, tokenHash []byte) (FindArrivalPendingByHashRow, error) {
 	row := q.db.QueryRow(ctx, findArrivalPendingByHash, tokenHash)
 	var i FindArrivalPendingByHashRow

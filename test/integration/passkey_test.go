@@ -470,3 +470,136 @@ func TestAPasskeyIsRenamedOnlyByItsOwnAccountInItsWorkspace(t *testing.T) {
 		return nil
 	})
 }
+
+// A passkey sign-in's challenge names nobody (migration 0168): it is stored without an account,
+// spent once, only in time and only in its workspace, and the agreement's read of account-less rows
+// never takes it.
+func TestAPasskeySignInChallengeNamesNobodyAndIsSpentOnce(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	hasher := security.NewPendingTokenHasher(secret.New(installationSecret))
+	repo := postgres.NewPasskeySignInRepository(hasher)
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Now().UTC().Truncate(time.Second)
+
+	token, err := identity.NewPasskeySignInToken(people.tenant, bytes.Repeat([]byte{0x05}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		return repo.IssueChallenge(ctx, identity.PendingCredential{
+			ID: freshID(t), TenantID: people.tenant, Purpose: identity.PendingPasskeySignIn,
+			UserAgent: "e2e", IPClass: "203.0.113.0/24",
+			CreatedAt: at, ExpiresAt: at.Add(identity.PendingLifetime),
+		}, token)
+	})
+	spend := func(tenant shared.ID, when time.Time) bool {
+		var spent bool
+		inTenant(t, uow, tenant, func(ctx context.Context) error {
+			var err error
+			spent, err = repo.SpendChallenge(ctx, token, when)
+			return err
+		})
+		return spent
+	}
+	if spend(people.other, at.Add(time.Second)) {
+		t.Error("another workspace spent the challenge")
+	}
+	if spend(people.tenant, at.Add(identity.PendingLifetime)) {
+		t.Error("a challenge was spent after its five minutes")
+	}
+
+	// The agreement's read of a row without an account does not find it, whatever token is shown.
+	mfa, _ := mfaStores(ctx, t)
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		if _, err := mfa.FindArrivalByToken(ctx, token); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the agreement read a passkey challenge: %v", err)
+		}
+		return nil
+	})
+
+	if !spend(people.tenant, at.Add(time.Second)) {
+		t.Fatal("its workspace could not spend it")
+	}
+	if spend(people.tenant, at.Add(2*time.Second)) {
+		t.Error("a challenge was spent twice")
+	}
+}
+
+// The credential a browser names is read with its holder in its own workspace only, and its counter
+// only goes up.
+func TestAPasskeysHolderIsReadInItsWorkspaceAndItsCounterOnlyRises(t *testing.T) {
+	ctx := context.Background()
+	people := seedPasskeyPeople(ctx, t)
+	repo := postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	credential := aPasskey(t, people.ada, 0x51, "iPhone", at)
+	credential.SignCount = 5
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		_, err := postgres.NewPasskeyRepository().Insert(ctx, credential)
+		return err
+	})
+	drawn := at.Add(-time.Hour)
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE account SET start_password_at = $1 WHERE id = $2`,
+		drawn, people.ada.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+		holder, err := repo.HolderOf(ctx, credential.CredentialID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if holder.Account.ID != people.ada || holder.Account.Email != "ada@example.org" ||
+			holder.TenantStatus != identity.TenantActive || !holder.StartPasswordAt.Equal(drawn) ||
+			holder.Credential.ID != credential.ID || holder.Credential.TenantID != people.tenant ||
+			holder.Credential.SignCount != 5 || !bytes.Equal(holder.Credential.PublicKey, credential.PublicKey) {
+			t.Errorf("the holder read back as %+v", holder)
+		}
+		return nil
+	})
+	// Gate SG-3: next door does not find our credential by its identifier.
+	inTenant(t, uow, people.other, func(ctx context.Context) error {
+		if _, err := repo.HolderOf(ctx, credential.CredentialID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("next door found our passkey: %v", err)
+		}
+		return nil
+	})
+
+	mark := func(count uint32) bool {
+		var marked bool
+		inTenant(t, uow, people.tenant, func(ctx context.Context) error {
+			var err error
+			marked, err = repo.MarkUsed(ctx, credential.ID, count, true, at.Add(time.Minute))
+			return err
+		})
+		return marked
+	}
+	stored := func() (int64, *time.Time) {
+		var count int64
+		var used *time.Time
+		if err := adminPool(ctx, t).QueryRow(ctx, `SELECT sign_count, last_used_at FROM webauthn_credential WHERE id = $1`,
+			credential.ID.String()).Scan(&count, &used); err != nil {
+			t.Fatal(err)
+		}
+		return count, used
+	}
+	if !mark(6) {
+		t.Fatal("a rising counter was refused")
+	}
+	if count, used := stored(); count != 6 || used == nil {
+		t.Errorf("stored %d, %v", count, used)
+	}
+	for _, count := range []uint32{6, 5, 1} {
+		if mark(count) {
+			t.Errorf("counter %d passed above a stored 6", count)
+		}
+	}
+	if !mark(0) {
+		t.Error("a synchronised passkey's zero was refused")
+	}
+	if count, _ := stored(); count != 6 {
+		t.Errorf("a zero lowered the stored counter to %d", count)
+	}
+}

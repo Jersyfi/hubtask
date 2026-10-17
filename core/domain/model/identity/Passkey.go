@@ -131,3 +131,16 @@ type PasskeyChallenge struct {
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 }
+
+// PasskeySignInTokenPrefix marks a passkey sign-in's challenge, a token of its own kind for the
+// registration challenge's reason: public, so held to a prefix no other door parses.
+const PasskeySignInTokenPrefix = "hbt_pks_" //nolint:gosec // G101: a public format marker, not a credential
+
+// PendingPasskeySignIn is a passkey sign-in's challenge (identity.md §23.4): no account, five
+// minutes, single use.
+const PendingPasskeySignIn PendingPurpose = "PASSKEY_SIGN_IN"
+
+// NewPasskeySignInToken is a sign-in's challenge as the token its row is found by.
+func NewPasskeySignInToken(tenantID shared.ID, challenge []byte) (Token, error) {
+	return newPrefixed(PasskeySignInTokenPrefix, tenantID, challenge)
+}
