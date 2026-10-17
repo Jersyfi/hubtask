@@ -97,6 +97,10 @@ func (u *UnitOfWork) WithinSnapshot(
 		return shared.ErrInternal.WithDetail("postgres.snapshot_in_transaction")
 	}
 
+	// An outermost transaction as run's is: what has to wait for its end waits for it here too.
+	ctx, held := persistence.HoldAfterwards(ctx)
+	defer held.Run(ctx)
+
 	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel:   pgx.RepeatableRead,
 		AccessMode: pgx.ReadOnly,
@@ -161,6 +165,12 @@ func (u *UnitOfWork) run(
 	if existing, ok := txFromContext(ctx); ok {
 		return u.joinExisting(ctx, existing, scope, fn)
 	}
+
+	// The outermost transaction holds the work that has to wait for its end (persistence.After) and
+	// runs it once the transaction has ended - deferred before the rollback below, so it runs after
+	// it, on a context that carries no transaction.
+	ctx, held := persistence.HoldAfterwards(ctx)
+	defer held.Run(ctx)
 
 	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: access})
 	if err != nil {
