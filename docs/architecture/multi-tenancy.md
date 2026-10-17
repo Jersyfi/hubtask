@@ -369,8 +369,8 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order, finding, and the control plane's events with their feed; the credential, the events that start
-inside a workspace, the subscriptions and the use are not built yet. Plans exist so that a provider's own
+order, finding, and the events with their feed; the credential, the subscriptions and the use are not
+built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
 `NG-billing`). Hubtask never asks the platform anything, and single mode offers none of this.
@@ -397,7 +397,8 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
 * **Events.** Installation subscriptions sign, retry and dead-letter as a workspace's do (UC-INT-01),
   but are never switched off for being unreachable: the operator is told and the dead letters stay
   re-deliverable. Every event carries the workspace's id, reference, status, plan, version and
-  moment, never content; "a limit reached" is sent once per crossing. The same events are read
+  moment, never content; "a limit reached" is sent once per crossing - again only after a create of
+  that kind was admitted, or at a changed limit - and "the AI budget spent" once a day. The same events are read
   forward from a cursor (`GET /admin/events`), numbered in commit order (a number is drawn under an
   installation-wide lock held until the transaction ends), so a platform that was down misses
   nothing.
