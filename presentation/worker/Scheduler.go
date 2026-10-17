@@ -35,6 +35,9 @@ type SchedulerSignals interface {
 	// WebhookRetryBacklog is the deliveries waiting out their backoff
 	// (observability-reliability.md §4).
 	WebhookRetryBacklog(ctx context.Context, waiting int64)
+	// PlatformDeadLetters is the installation's deliveries to a purchase platform waiting to be
+	// redelivered - alert A-21's number (UC-INS-14).
+	PlatformDeadLetters(ctx context.Context, waiting int64)
 	// JobsPurged counts the finished jobs the leader removed, by terminal state - never a kind's
 	// payload or a tenant (rule 10).
 	JobsPurged(ctx context.Context, state string, count int64)
@@ -62,6 +65,12 @@ const finishedJobBatch = 10_000
 
 // finishedJobStates are the states the purge reports, so that each has a series from its first run.
 var finishedJobStates = []string{"SUCCEEDED", "FAILED", "DEAD_LETTER", "CANCELLED"}
+
+// PlatformDeadLetters answers how many deliveries to a purchase platform wait to be redelivered,
+// read from the installation's own table under the system scope.
+type PlatformDeadLetters interface {
+	DeadLetters(ctx context.Context) (int64, error)
+}
 
 // RetryBacklog answers how many jobs of one kind wait for a future moment. One series reads it
 // today: a webhook retry is exactly one scheduled job - one attempt, one row - so the queue is
@@ -108,6 +117,9 @@ type Scheduler struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	Signals    SchedulerSignals
+	// PlatformDeliveries counts the dead letters waiting for a purchase platform. Nil samples
+	// nothing: an installation without the feed has none.
+	PlatformDeliveries PlatformDeadLetters
 	// Kinds are the job kinds this installation knows. They are published at zero when the queue
 	// holds none of them, because a gauge that has never been written has no series - and an
 	// alert on a backlog that never appears is an alert that reads "no data" and is believed
@@ -242,6 +254,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 
 	s.sampleQueueDepth(ctx)
 	s.sampleRetryBacklog(ctx)
+	s.samplePlatformDeadLetters(ctx)
 	s.fireInstanceBackups(ctx)
 	s.sampleBackupFreshness(ctx)
 	s.ensureAuditPartitions(ctx)
@@ -651,6 +664,31 @@ func (s Scheduler) sampleRetryBacklog(ctx context.Context) {
 		return
 	}
 	s.Signals.WebhookRetryBacklog(ctx, int64(waiting))
+}
+
+// samplePlatformDeadLetters publishes the dead letters waiting for a purchase platform. Sampled
+// rather than counted when they happen: the gauge has to say how many wait now, after a
+// redelivery and after a restart alike, for A-21 to resolve when they are gone and not before.
+func (s Scheduler) samplePlatformDeadLetters(ctx context.Context) {
+	if s.Signals == nil || s.PlatformDeliveries == nil {
+		return
+	}
+	sampleCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+
+	var waiting int64
+	err := s.UnitOfWork.WithinReadOnly(sampleCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		var err error
+		waiting, err = s.PlatformDeliveries.DeadLetters(txCtx)
+		return err
+	})
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.WarnContext(ctx, "sampling the platform's dead letters failed", slog.String("error", shared.AsError(err).Code))
+		}
+		return
+	}
+	s.Signals.PlatformDeadLetters(ctx, waiting)
 }
 
 // release gives leadership up on the way out.
