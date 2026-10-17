@@ -58,6 +58,9 @@ type ValueDeclaration struct {
 	Minimum *int
 	Maximum *int
 	May     WorkspaceMay
+	// OneOf is, for a list of choices, the options at least one of which it must hold: the ways in
+	// keep the password or a provider, whatever else they list.
+	OneOf []string
 }
 
 func bounds(minimum int, maximum *int) (*int, *int) { return &minimum, maximum }
@@ -101,7 +104,8 @@ func DeclarationOfSwitch(name PolicySwitch) (ValueDeclaration, bool) {
 		}, true
 	case SwitchMethods:
 		return ValueDeclaration{
-			Kind: KindChoices, May: MayTighten, Options: []string{MethodDirect, MethodOidc},
+			Kind: KindChoices, May: MayTighten, Options: []string{MethodDirect, MethodOidc, MethodPasskey},
+			OneOf: []string{MethodDirect, MethodOidc},
 		}, true
 	}
 	return ValueDeclaration{}, false

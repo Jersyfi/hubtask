@@ -273,6 +273,9 @@ type GetSignInRules struct {
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
 	// mode there is one workspace and no subdomain to read.
 	Multi bool
+	// Party is the workspace's relying party for passkeys. Nil offers no passkey: the card would
+	// draw a button whose ceremony no browser can finish.
+	Party *PasskeyParty
 }
 
 // now is the moment the offer is read at.
@@ -309,6 +312,17 @@ func (h GetSignInRules) Execute(
 		// leads to a flow with no provider behind it is a button that answers an error.
 		if method == domain.MethodOidc && len(providers) == 0 {
 			continue
+		}
+		// A passkey only where a ceremony can finish: a workspace this host names, a relying party,
+		// and the page at its very host - a browser refuses any other (P-05).
+		if method == domain.MethodPasskey {
+			at, err := h.passkeysServedAt(ctx, tenantID, cmd.Host)
+			if err != nil {
+				return SignInRules{}, err
+			}
+			if !at {
+				continue
+			}
 		}
 		methods = append(methods, method)
 	}
@@ -558,4 +572,18 @@ func (h GetSignInRules) invoke(
 		return nil, err
 	}
 	return rulesOutput(rules), nil
+}
+
+// passkeysServedAt answers whether a passkey ceremony can finish at this host for this workspace.
+func (h GetSignInRules) passkeysServedAt(ctx context.Context, tenantID shared.ID, host string) (bool, error) {
+	if h.Party == nil || tenantID.IsZero() {
+		return false, nil
+	}
+	var served bool
+	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		party, ok, err := h.Party.of(ctx)
+		served = ok && party.servesAt(host)
+		return err
+	})
+	return served, err
 }

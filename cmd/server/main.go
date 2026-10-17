@@ -1621,6 +1621,12 @@ func run() error {
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			// Whether the card asks for a sign-in name too (ADR-0074 §3).
 			Managed: postgres.NewAccountRepository(),
+			// Where a passkey ceremony can finish (identity.md §23.3).
+			Party: &identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,

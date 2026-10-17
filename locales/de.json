@@ -1643,6 +1643,7 @@
   "app.instance.choice.ai.min_jurisdiction.SELF_HOSTED": "Auf ihrer eigenen Maschine",
   "app.instance.choice.ai.person_opt_out.OFFERED": "Ja – nur ein Arbeitsbereich kann die KI für alle zur Arbeit machen",
   "app.instance.choice.sign_in.methods.OIDC": "Anmeldeanbieter",
+  "app.instance.choice.sign_in.methods.PASSKEY": "Passkeys",
   "app.instance.choice.localisation.week_start.MONDAY": "Montag",
   "app.instance.choice.localisation.week_start.SATURDAY": "Samstag",
   "app.instance.choice.localisation.week_start.SUNDAY": "Sonntag",

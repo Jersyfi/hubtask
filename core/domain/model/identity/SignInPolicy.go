@@ -113,10 +113,24 @@ func RequirementForAdminFlag(flag bool, inForce MfaRequirement) (MfaRequirement,
 // fingerprint - three flows, one high-severity alert, and nothing sensitive anywhere in them.
 // Direct is what distinguishes it: this installation checks the credential itself rather than
 // sending the person to a provider. Do not rename it back.
+//
+// `MethodPasskey` is signing in with a passkey alone (identity.md §23.4). It is never a way in for
+// the last-way-in guards: nobody registers a first passkey before signing in some other way, so a
+// list holding neither `PASSWORD` nor `OIDC` is no list a workspace can be entered by.
 const (
-	MethodDirect = "PASSWORD"
-	MethodOidc   = "OIDC"
+	MethodDirect  = "PASSWORD"
+	MethodOidc    = "OIDC"
+	MethodPasskey = "PASSKEY"
 )
+
+// methodOrder is the contract's order of the ways in.
+var methodOrder = []string{MethodDirect, MethodOidc, MethodPasskey}
+
+// KeepsAWayIn reports whether a list of methods holds one a person can first arrive by: the
+// password or a provider. A passkey alone is not one.
+func KeepsAWayIn(methods []string) bool {
+	return slices.Contains(methods, MethodDirect) || slices.Contains(methods, MethodOidc)
+}
 
 // PasswordPolicy is the thirteen switches about the string itself.
 //
@@ -202,7 +216,7 @@ func DefaultSignInPolicy() SignInPolicy {
 			ContextWords:    true,
 		},
 		MfaRequiredFor:  MfaForNobody,
-		Methods:         []string{MethodDirect, MethodOidc},
+		Methods:         []string{MethodDirect, MethodOidc, MethodPasskey},
 		Sessions:        SessionPolicy{MaxDays: CeilingSessionMaxDays},
 		ManagedAccounts: true,
 		PrivateHubs:     true,
@@ -631,20 +645,17 @@ func withinBounds(name PolicySwitch, proposed SignInPolicy) error {
 }
 
 // boundedMethods keeps the list to the ways in that exist, in the contract's order, without
-// duplicates - and never empty, because a workspace nobody can sign in to is a support call and
-// not a policy.
+// duplicates - and never without a way a person can first arrive by, because a workspace nobody can
+// sign in to is a support call and not a policy: such a list reads as the product's default.
 func boundedMethods(methods []string) []string {
-	kept := make([]string, 0, 2)
-	for _, method := range []string{MethodDirect, MethodOidc} {
-		for _, offered := range methods {
-			if offered == method {
-				kept = append(kept, method)
-				break
-			}
+	kept := make([]string, 0, len(methodOrder))
+	for _, method := range methodOrder {
+		if slices.Contains(methods, method) {
+			kept = append(kept, method)
 		}
 	}
-	if len(kept) == 0 {
-		return []string{MethodDirect, MethodOidc}
+	if !KeepsAWayIn(kept) {
+		return DefaultSignInPolicy().Methods
 	}
 	return kept
 }

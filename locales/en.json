@@ -2289,6 +2289,7 @@
   "app.instance.choice.ai.min_jurisdiction.SELF_HOSTED": "On their own machine",
   "app.instance.choice.ai.person_opt_out.OFFERED": "Yes - only a workspace can make AI part of everybody's work",
   "app.instance.choice.sign_in.methods.OIDC": "Sign-in providers",
+  "app.instance.choice.sign_in.methods.PASSKEY": "Passkeys",
   "app.instance.choice.localisation.week_start.MONDAY": "Monday",
   "app.instance.choice.localisation.week_start.SATURDAY": "Saturday",
   "app.instance.choice.localisation.week_start.SUNDAY": "Sunday",

@@ -133,3 +133,31 @@ func TestAnUnchangedLockedMethodsIsNotJudgedAsTheLastWayIn(t *testing.T) {
 		t.Errorf("changing the locked methods was answered with %q, want auth.policy_locked", detail)
 	}
 }
+
+// identity.md §23.4: a passkey never counts as the last way in - nobody registers a first one before
+// signing in some other way.
+func TestPasskeysAloneAreNoWayIn(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	fixture.writer.Providers = newProviderStore(tenant)
+	onlyPasskeys := []string{domain.MethodPasskey}
+	_, err := UpdateWorkspace{Writer: fixture.writer}.Execute(t.Context(), workspaceActor(),
+		UpdateWorkspaceCommand{
+			SignIn:      WorkspacePolicyChange{Policy: domain.PolicyPatch{Methods: &onlyPasskeys}},
+			StepUpToken: "hbt_stp_x",
+		})
+	refusedAsLastWayIn(t, err, "leaving passkeys as the only way in")
+	if len(fixture.store.updates) != 0 {
+		t.Error("the workspace was written despite the refusal")
+	}
+
+	// Beside the password, passkeys may be switched on and off.
+	for _, methods := range [][]string{{domain.MethodDirect, domain.MethodPasskey}, {domain.MethodDirect}} {
+		if _, err := (UpdateWorkspace{Writer: fixture.writer}).Execute(t.Context(), workspaceActor(),
+			UpdateWorkspaceCommand{
+				SignIn:      WorkspacePolicyChange{Policy: domain.PolicyPatch{Methods: &methods}},
+				StepUpToken: "hbt_stp_x",
+			}); err != nil {
+			t.Errorf("switching to %v was refused: %v", methods, err)
+		}
+	}
+}
