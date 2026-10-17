@@ -3296,6 +3296,12 @@ func run() error {
 		Rules: postgres.NewAutomationRuleRepository(cursors),
 	}
 
+	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
+	// without a tenant, seeded below when a worker starts.
+	platformSweep := adminservice.SweepPlatformEvents{
+		Events: postgres.NewPlatformEventRepository(), Jobs: jobs, UnitOfWork: backgroundWork,
+		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -3340,6 +3346,7 @@ func run() error {
 		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
 		queueport.KindBackupRun:        backupRun,
@@ -3516,6 +3523,15 @@ func run() error {
 			SchemaBehind: schemaBehind,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
+
+		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
+		// pass, not the start: the next worker to start seeds it again.
+		seeding, cancelSeeding := context.WithTimeout(ctx, 10*time.Second)
+		if err := platformSweep.Seed(seeding); err != nil {
+			slog.WarnContext(ctx, "the platform events' sweep could not be seeded",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		cancelSeeding()
 	}
 
 	if cfg.HasRole(envport.RoleScheduler) {

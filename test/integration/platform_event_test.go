@@ -222,3 +222,32 @@ func TestTheReferenceIsForgottenOnlyInItsOwnWorkspace(t *testing.T) {
 		}
 	}
 }
+
+// The sweep takes what is past the window and leaves what is inside it.
+func TestTheSweepTakesOnlyExpiredInstallationEvents(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	recorder := platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{}))
+	workspace := seedWorkspace(ctx, t, "swept")
+	start := lastPlatformNumber(ctx, t)
+	now := time.Now()
+
+	for _, at := range []time.Time{now.Add(-31 * 24 * time.Hour), now.Add(-29 * 24 * time.Hour)} {
+		if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+			return recorder.Record(ctx, event.WorkspaceSuspended, event.Actor{Kind: shared.ActorSystem}, at, nil)
+		}); err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+	}
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := postgres.NewPlatformEventRepository().Sweep(ctx, now.Add(-30*24*time.Hour), 1000)
+		return err
+	}); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	kept := platformEventsOf(ctx, t, uow, start, workspace)
+	if len(kept) != 1 || kept[0].Envelope.OccurredAt.Before(now.Add(-30*24*time.Hour)) {
+		t.Errorf("after the sweep the feed holds %+v", kept)
+	}
+}
