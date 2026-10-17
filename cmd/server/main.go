@@ -2311,7 +2311,7 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Tenancy: cfg.Tenancy,
+			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back
 		// on through the automation package, which owns how a schedule's next moment is found.
@@ -2321,6 +2321,7 @@ func run() error {
 				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
 			},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Platform: platformEvents,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -3391,6 +3392,7 @@ func run() error {
 				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
 				Holds:      postgres.NewLifecycleRepository(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				Platform: platformEvents,
 			},
 		},
 		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value

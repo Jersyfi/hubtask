@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -182,6 +183,71 @@ func TestASuspensionAndAResumptionAreTold(t *testing.T) {
 	}
 	if state := stateOf(t, log.events[1]); state["status"] != "ACTIVE" || state["version"] != int64(5) {
 		t.Errorf("resumed with %v", state)
+	}
+}
+
+func TestADeletionRequestedAndCancelledIsTold(t *testing.T) {
+	f := newDeletionFixture(domain.TenantActive)
+	f.tenants.record.Version = 2
+	recorder, log := recorderOn(f.tenants)
+	f.handler.Platform = recorder
+
+	scheduled, err := f.handler.Execute(t.Context(), operator(), deletionCommand())
+	if err != nil {
+		t.Fatalf("requesting: %v", err)
+	}
+	requested := onlyEvent(t, log, event.WorkspaceDeletionRequested)
+	if state := stateOf(t, requested); state["status"] != "PENDING_DELETION" || state["version"] != int64(3) {
+		t.Errorf("requested with %v", state)
+	}
+	if requested.Payload["purge_after"] != scheduled.PurgeAfter.Format(time.RFC3339) {
+		t.Errorf("purge after %v, want %s", requested.Payload["purge_after"], scheduled.PurgeAfter)
+	}
+	carriesNoName(t, requested, "acme", "Acme GmbH")
+
+	cancel := newCancelFixture(domain.TenantActive)
+	cancel.tenants.record = f.tenants.record
+	cancelRecorder, cancelLog := recorderOn(cancel.tenants)
+	cancel.handler.Platform = cancelRecorder
+	if _, err := cancel.cancel(t, operator()); err != nil {
+		t.Fatalf("cancelling: %v", err)
+	}
+	cancelled := onlyEvent(t, cancelLog, event.WorkspaceDeletionCancelled)
+	if state := stateOf(t, cancelled); state["status"] != "ACTIVE" || state["version"] != int64(4) {
+		t.Errorf("cancelled with %v", state)
+	}
+
+	// Nothing to call off: nothing is told.
+	if _, err := cancel.cancel(t, operator()); err != nil {
+		t.Fatal(err)
+	}
+	if len(cancelLog.events) != 1 {
+		t.Errorf("a cancel without a deletion wrote %d events", len(cancelLog.events)-1)
+	}
+}
+
+// The purge tells the platform last, with the workspace's id alone: DELETED, the version one past
+// the last, no reference - which leaves the workspace's kept events in the same transaction.
+func TestThePurgeIsTold(t *testing.T) {
+	f := newHardDeleteFixture(domain.TenantPendingDeletion, now.Add(-time.Hour))
+	f.tenants.record.Version, f.tenants.record.ExternalReference = 6, "cus_4711"
+	recorder, log := recorderOn(f.tenants)
+	f.handler.Platform = recorder
+
+	if _, err := f.handler.Execute(t.Context(), lifecycleTenant, purgeJobID); err != nil {
+		t.Fatalf("deleting: %v", err)
+	}
+	deleted := onlyEvent(t, log, event.WorkspaceDeleted)
+	state := stateOf(t, deleted)
+	if state["status"] != event.WorkspaceDeletedStatus || state["version"] != int64(7) ||
+		state["external_reference"] != nil || state["id"] != lifecycleTenant.String() {
+		t.Errorf("deleted with %v", state)
+	}
+	if log.forgotten != 1 {
+		t.Errorf("the reference was removed from the kept events %d times", log.forgotten)
+	}
+	if deleted.Actor.Kind != shared.ActorSystem {
+		t.Errorf("told as %+v", deleted.Actor)
 	}
 }
 

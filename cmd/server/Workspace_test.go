@@ -136,8 +136,8 @@ func TestTheWorkspaceCommand(t *testing.T) {
 func TestTheMachineRecovererIsWiredWhole(t *testing.T) {
 	r := machineRecoverer(postgres.NewUnitOfWork(nil), secret.New("0123456789abcdef0123456789abcdef"), envport.TenancyMulti)
 	resume, cancel := r.Resume.LifecycleShift, r.Cancel
-	if !resume.Platform.On() {
-		t.Error("a resume from the machine tells the platform nothing")
+	if !resume.Platform.On() || !cancel.Platform.On() {
+		t.Error("a resume or a cancel from the machine tells the platform nothing")
 	}
 	if r.Tenants == nil || r.UnitOfWork == nil ||
 		resume.Tenants == nil || resume.Journal == nil || resume.Audit == nil || resume.UnitOfWork == nil ||

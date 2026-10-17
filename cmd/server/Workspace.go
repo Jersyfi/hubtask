@@ -85,7 +85,7 @@ func machineRecoverer(
 				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(),
 				Jobs: postgres.NewQueue(ids, clockadapter.System{}),
 			},
-			Clock: clockadapter.System{}, IDs: ids,
+			Clock: clockadapter.System{}, IDs: ids, Platform: told,
 		},
 	}
 }
