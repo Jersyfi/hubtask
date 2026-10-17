@@ -321,6 +321,8 @@
   "admin.multi_mode_required": "This installation runs in single mode: its one workspace is the installation. Workspaces are created, suspended and deleted only in multi mode.",
   "admin.subscription_not_found": "There is no such subscription of the installation.",
   "admin.subscription_paused": "This subscription is paused. Resume it before redelivering its events.",
+  "admin.subscription_incomplete": "This installation could not create that subscription.",
+  "admin.subscription_state_invalid": "A subscription is either active or paused.",
   "access.tenant_suspended": "This workspace is suspended. Its data remains; ask the operator.",
   "access.tenant_pending_deletion": "This workspace is being deleted. Access is closed while the grace period runs.",
   "config.step_up_window_invalid": "HUBTASK_STEP_UP_WINDOW has to be a positive duration, such as 5m.",

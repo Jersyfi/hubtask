@@ -16,6 +16,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -276,4 +277,37 @@ type Purge interface {
 	// cancel can no longer land. False means the workspace is not pending or its deadline lies
 	// ahead - a cancel came first, and nothing may be removed.
 	MarkStarted(ctx context.Context, now time.Time) (bool, error)
+}
+
+// PlatformSecret is a subscription's signing secret as it is stored: sealed under the installation's
+// key, never in clear.
+type PlatformSecret struct {
+	Ciphertext []byte
+	KeyID      string
+}
+
+// StoredPlatformSubscription is a subscription with its sealed secret, for the one reader that
+// opens it - the delivery.
+type StoredPlatformSubscription struct {
+	Subscription integration.PlatformSubscription
+	Secret       PlatformSecret
+}
+
+// PlatformSubscriptions are the installation's subscriptions for a purchase platform
+// (multi-tenancy.md §4.3). They belong to no tenant and are read and written under the
+// installation's or the system's scope.
+type PlatformSubscriptions interface {
+	Insert(ctx context.Context, subscription integration.PlatformSubscription, secret PlatformSecret) error
+	// List answers every subscription, oldest first, with its dead letters counted.
+	List(ctx context.Context) ([]integration.PlatformSubscription, error)
+	// Find answers one with its sealed secret; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (StoredPlatformSubscription, error)
+	// Update writes the target and the state, guarded on the version read.
+	Update(ctx context.Context, subscription integration.PlatformSubscription, expectedVersion int, at time.Time) (bool, error)
+	Rotate(ctx context.Context, id shared.ID, secret PlatformSecret, at time.Time) (bool, error)
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+	// Active answers the subscriptions an event is sent to.
+	Active(ctx context.Context) ([]shared.ID, error)
+	// Outcome records the last attempt for the screen: the moment of an arrival, or a failure's code.
+	Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error
 }
