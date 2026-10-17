@@ -188,3 +188,37 @@ func TestAnEventIsQueuedForTheActiveSubscriptionsInItsTransaction(t *testing.T) 
 	}
 	_, _ = adminPool(ctx, t).Exec(ctx, `DELETE FROM job WHERE kind = 'platform.deliver' AND payload->>'delivery_id' = $1`, queued[0].ID.String())
 }
+
+// An attempt is recorded only against the attempt before it: a repeated job writes nothing.
+func TestAPlatformDeliveryAttemptIsRecordedOnce(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	deliveries := postgres.NewPlatformDeliveryRepository()
+	sub := newPlatformSubscription(ctx, t, uow)
+	queued, err := integration.NewPlatformDelivery(freshID(t), sub.ID, freshID(t), string(event.WorkspaceCreated), time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	missed := queued.Missed(503, "webhooks.target_unavailable", time.Now().Add(time.Minute), time.Now())
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		if fresh, err := deliveries.Insert(ctx, queued); err != nil || !fresh {
+			t.Errorf("queuing: %v, %v", fresh, err)
+		}
+		if again, err := deliveries.Insert(ctx, queued); err != nil || again {
+			t.Errorf("queuing the same event twice: %v, %v", again, err)
+		}
+		if written, err := deliveries.Record(ctx, missed); err != nil || !written {
+			t.Errorf("the first attempt: %v, %v", written, err)
+		}
+		if written, err := deliveries.Record(ctx, missed); err != nil || written {
+			t.Errorf("the same attempt again: %v, %v", written, err)
+		}
+		read, err := deliveries.Find(ctx, queued.ID)
+		if err == nil && (read.Status != integration.DeliveryFailed || read.Attempt != 1 || read.ErrorCode != "webhooks.target_unavailable") {
+			t.Errorf("read %+v", read)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

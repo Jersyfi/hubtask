@@ -69,6 +69,13 @@ func (d PlatformDelivery) Missed(status int, code string, next, now time.Time) P
 
 // Expired is a delivery whose event was swept before it arrived: nothing can be sent any more.
 func (d PlatformDelivery) Expired(now time.Time) PlatformDelivery {
-	d.Status, d.ErrorCode, d.NextAttemptAt, d.UpdatedAt = DeliveryDeadLetter, "webhooks.event_expired", time.Time{}, now.UTC()
+	return d.Withheld("webhooks.event_expired", now)
+}
+
+// Withheld is an attempt that was due and not made - the event swept, the subscription paused - and
+// stops as a dead letter at once. It counts as an attempt, so the record of it is guarded like any.
+func (d PlatformDelivery) Withheld(code string, now time.Time) PlatformDelivery {
+	d.Attempt++
+	d.Status, d.ResponseStatus, d.ErrorCode, d.NextAttemptAt, d.UpdatedAt = DeliveryDeadLetter, 0, code, time.Time{}, now.UTC()
 	return d
 }
