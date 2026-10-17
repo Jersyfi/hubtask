@@ -44,6 +44,8 @@ var privilegedUseCases = map[string]string{
 	"CreateInstanceBackupTarget":               "a storage credential every workspace's export may be written with (backup-restore.md §2)",
 	"DeleteInstanceBackupTarget":               "removes where the operator's exports go (backup-restore.md §2)",
 	"CreatePlatformSubscription":               "sends every workspace's reference and state to an address outside the installation (multi-tenancy.md §4.3)",
+	"UpdatePlatformSubscription":               "may send every workspace's reference and state to another address (multi-tenancy.md §4.3)",
+	"RotatePlatformSubscriptionSecret":         "issues the secret a platform trusts the installation's events by (multi-tenancy.md §4.3)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {
