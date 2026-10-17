@@ -35,6 +35,10 @@ func (s *quotaStoreFake) InstanceOverrides(context.Context) (quotarepo.Overrides
 
 func (s *quotaStoreFake) InstanceLocks(context.Context) (map[string]bool, error) { return nil, nil }
 
+func (s *quotaStoreFake) PlanLimits(context.Context) (quotarepo.PlanLimits, error) {
+	return quotarepo.PlanLimits{}, nil
+}
+
 func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error) {
 	return s.overrides, nil
 }

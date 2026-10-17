@@ -41,10 +41,10 @@ func TestTheResolutionLaysOverridesOverTheModesColumn(t *testing.T) {
 		t.Errorf("the plan-bound rows default bounded: %+v", multi)
 	}
 
-	resolved := Resolve(repository.Overrides{
+	resolved := Resolve(Levels{Exception: repository.Overrides{
 		Items:          ceiling(1_000),
 		WebhookTargets: ceiling(Unlimited),
-	}, repository.Overrides{}, env.TenancyMulti)
+	}}, env.TenancyMulti)
 	if resolved.Items != 1_000 {
 		t.Errorf("the override lost: %d", resolved.Items)
 	}
@@ -90,10 +90,16 @@ type storeFake struct {
 	instance repository.Overrides
 	// locks are the installation's locked quotas, by name.
 	locks map[string]bool
+	// plan is the workspace's plan's level, empty for a workspace on no plan.
+	plan repository.PlanLimits
 }
 
 func (s *storeFake) InstanceLocks(context.Context) (map[string]bool, error) {
 	return s.locks, nil
+}
+
+func (s *storeFake) PlanLimits(context.Context) (repository.PlanLimits, error) {
+	return s.plan, nil
 }
 
 func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
@@ -528,7 +534,7 @@ func TestEachSourceHasItsOwnBudget(t *testing.T) {
 		}
 	}
 	// And no installation value reaches it.
-	installation := Resolve(repository.Overrides{}, repository.Overrides{AiOwnTokensPerDay: &own}, env.TenancyMulti)
+	installation := Resolve(Levels{Instance: repository.Overrides{AiOwnTokensPerDay: &own}}, env.TenancyMulti)
 	if installation.AiOwnTokensPerDay != Unlimited {
 		t.Errorf("the installation bounded an own model: %d", installation.AiOwnTokensPerDay)
 	}
@@ -542,7 +548,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 	product := Defaults(env.TenancyMulti)
 
 	// Nothing set anywhere: the product's table, untouched.
-	if bare := Resolve(repository.Overrides{}, repository.Overrides{}, env.TenancyMulti); bare != product {
+	if bare := Resolve(Levels{}, env.TenancyMulti); bare != product {
 		t.Errorf("an empty resolution moved the product's defaults: %+v", bare)
 	}
 
@@ -551,7 +557,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 		ExportJobs:     ceiling(9),
 		AiTokensPerDay: ceiling(50_000),
 	}
-	inherited := Resolve(repository.Overrides{}, installation, env.TenancyMulti)
+	inherited := Resolve(Levels{Instance: installation}, env.TenancyMulti)
 	if inherited.ExportJobs != 9 || inherited.AiTokensPerDay != 50_000 {
 		t.Errorf("the installation's defaults did not reach a workspace that set nothing: %+v", inherited)
 	}
@@ -561,7 +567,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 
 	// And the workspace's own is still the last word - which is the half that would be lost by
 	// applying the two in the other order.
-	own := Resolve(repository.Overrides{ExportJobs: ceiling(1)}, installation, env.TenancyMulti)
+	own := Resolve(Levels{Exception: repository.Overrides{ExportJobs: ceiling(1)}, Instance: installation}, env.TenancyMulti)
 	if own.ExportJobs != 1 {
 		t.Errorf("a workspace's own exception lost to the installation's default: %d", own.ExportJobs)
 	}
@@ -571,7 +577,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 
 	// A configured unlimited at the installation is a decision, not an absence: it has to beat a
 	// bounded product default, which is the case a `!= 0` test would get wrong.
-	unbounded := Resolve(repository.Overrides{}, repository.Overrides{ExportJobs: ceiling(Unlimited)}, env.TenancyMulti)
+	unbounded := Resolve(Levels{Instance: repository.Overrides{ExportJobs: ceiling(Unlimited)}}, env.TenancyMulti)
 	if unbounded.ExportJobs != Unlimited {
 		t.Errorf("an installation's configured unlimited lost to the default: %d", unbounded.ExportJobs)
 	}
@@ -638,5 +644,76 @@ func TestASpentAiBudgetRenewsAtTheWorkspacesNextMidnight(t *testing.T) {
 				t.Errorf("renews %s, want %s", renews.UTC(), c.renew)
 			}
 		})
+	}
+}
+
+// UC-INS-10 check 1, UC-INS-13 check 2 (multi-tenancy.md §4.2): product -> installation -> plan ->
+// the operator's exception, and each standing says which level set it and which locked it.
+func TestAPlanSitsBetweenTheInstallationAndTheException(t *testing.T) {
+	product := Defaults(env.TenancyMulti)
+	cases := []struct {
+		name       string
+		levels     Levels
+		quota      string
+		wantLimit  int64
+		wantSource string
+		wantLock   string
+	}{
+		{"the plan's limit, lower than the installation's",
+			Levels{Instance: repository.Overrides{Items: ceiling(5_000)}, Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(1_000)}}},
+			Items, 1_000, SourcePlan, ""},
+		{"the plan's limit, higher than the installation's open one",
+			Levels{Instance: repository.Overrides{Items: ceiling(1_000)}, Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(9_000)}}},
+			Items, 9_000, SourcePlan, ""},
+		{"the plan's limit under the installation's lock",
+			Levels{Instance: repository.Overrides{Items: ceiling(1_000)}, InstanceLocks: map[string]bool{Items: true},
+				Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(9_000)}, Locks: map[string]bool{Items: true}}},
+			Items, 1_000, SourceInstance, LockInstance},
+		{"the plan's lock",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(2_000)}, Locks: map[string]bool{Items: true}}},
+			Items, 2_000, SourcePlan, LockPlan},
+		{"the plan's lock without a value",
+			Levels{Instance: repository.Overrides{ExportJobs: ceiling(3)}, Plan: repository.PlanLimits{Locks: map[string]bool{ExportJobs: true}}},
+			ExportJobs, 3, SourceInstance, LockPlan},
+		{"the plan's lock without a value or the installation's",
+			Levels{Plan: repository.PlanLimits{Locks: map[string]bool{ExportJobs: true}}},
+			ExportJobs, product.ExportJobs, SourceDefault, LockPlan},
+		{"the operator's exception under the plan's lock",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(2_000)}, Locks: map[string]bool{Items: true}},
+				Exception: repository.Overrides{Items: ceiling(8_000)}},
+			Items, 8_000, SourceException, LockPlan},
+		{"the workspace's own AI budget, which no plan reaches",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{AiOwnTokensPerDay: ceiling(10)}},
+				Exception: repository.Overrides{AiOwnTokensPerDay: ceiling(500)}},
+			AiOwnTokensPerDay, 500, SourceWorkspace, ""},
+		{"the own AI budget a plan alone names",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{AiOwnTokensPerDay: ceiling(10)}, Locks: map[string]bool{AiOwnTokensPerDay: true}}},
+			AiOwnTokensPerDay, Unlimited, SourceDefault, ""},
+		{"no plan", Levels{}, Items, product.Items, SourceDefault, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			limits := Resolve(c.levels, env.TenancyMulti)
+			if got := limits.Of(c.quota); got != c.wantLimit {
+				t.Errorf("limit %d, want %d", got, c.wantLimit)
+			}
+			if got := c.levels.SourceOf(c.quota); got != c.wantSource {
+				t.Errorf("source %q, want %q", got, c.wantSource)
+			}
+			if got := c.levels.LockOf(c.quota); got != c.wantLock {
+				t.Errorf("lock %q, want %q", got, c.wantLock)
+			}
+		})
+	}
+}
+
+// UC-INS-13 check 4: a plan lowered below what the workspace holds refuses the next creation past it
+// and removes nothing.
+func TestAPlansLowerLimitRefusesTheNextCreation(t *testing.T) {
+	store := &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(3)}}}
+	guard := Guard{Store: store, Usage: &usageFake{items: 3}, Tenancy: env.TenancyMulti}
+	err := guard.Items(t.Context(), "acme", 1)
+	if got := shared.AsError(err); got == nil || got.DetailCode != "capacity.items" || got.Params["limit"] != "3" {
+		t.Fatalf("a creation past the plan's limit answered %v, want capacity.items at 3", err)
 	}
 }
