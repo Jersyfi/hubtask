@@ -3369,7 +3369,8 @@ func run() error {
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.
 	platformSweep := adminservice.SweepPlatformEvents{
-		Events: postgres.NewPlatformEventRepository(), Jobs: jobs, UnitOfWork: backgroundWork,
+		Events: postgres.NewPlatformEventRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
+		Jobs: jobs, UnitOfWork: backgroundWork,
 		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 	}
 	handlers := map[queueport.Kind]queueport.Handler{

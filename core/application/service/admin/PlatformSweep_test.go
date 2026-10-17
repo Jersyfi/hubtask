@@ -64,3 +64,23 @@ func TestTheSweepIsSeededAsAnInstallationJobUnderItsDedupeKey(t *testing.T) {
 		t.Errorf("single mode seeded a sweep: %v", err)
 	}
 }
+
+type sweptDeliveries struct {
+	deliveryStore
+	expired int
+}
+
+func (d *sweptDeliveries) Sweep(_ context.Context, _ time.Time, batch int) (int, error) {
+	removed := min(d.expired, batch)
+	d.expired -= removed
+	return removed, nil
+}
+
+func TestTheSweepTakesTheDeliveriesToo(t *testing.T) {
+	deliveries := &sweptDeliveries{expired: platformSweepBatch + 3}
+	sweep := SweepPlatformEvents{Events: &sweptLog{}, Deliveries: deliveries, Clock: clock.Fixed(now), Tenancy: env.TenancyMulti}
+	removed, err := sweep.Run(t.Context())
+	if err != nil || removed != platformSweepBatch+3 || deliveries.expired != 0 {
+		t.Errorf("removed %d, %d left, %v", removed, deliveries.expired, err)
+	}
+}

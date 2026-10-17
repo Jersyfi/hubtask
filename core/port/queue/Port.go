@@ -389,7 +389,7 @@ const (
 	KindSearchReindex Kind = "search.reindex"
 
 	// KindPlatformSweep removes what the installation keeps for a purchase platform past its 30
-	// days (UC-INS-14): its events. One installation job, without a tenant, seeded when a worker
+	// days (UC-INS-14): its events and their deliveries. One installation job, without a tenant, seeded when a worker
 	// starts and repeating; the dedupe key keeps it one however many workers start.
 	KindPlatformSweep Kind = "platform.sweep"
 

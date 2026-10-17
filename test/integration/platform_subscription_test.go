@@ -265,3 +265,38 @@ func TestTwoRedeliveriesAtOnceQueueEachDeadLetterOnce(t *testing.T) {
 		t.Errorf("two redeliveries queued %d dead letters in all, want %d", total, dead)
 	}
 }
+
+// The sweep takes settled deliveries untouched past the cutoff, and leaves a pending one, whose job
+// still owes it an attempt.
+func TestTheSweepTakesOnlySettledOldDeliveries(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	deliveries := postgres.NewPlatformDeliveryRepository()
+	sub := newPlatformSubscription(ctx, t, uow)
+	old := time.Now().Add(-31 * 24 * time.Hour)
+	settled, _ := integration.NewPlatformDelivery(freshID(t), sub.ID, freshID(t), string(event.WorkspaceCreated), old)
+	pending, _ := integration.NewPlatformDelivery(freshID(t), sub.ID, freshID(t), string(event.WorkspaceCreated), old)
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		for _, d := range []integration.PlatformDelivery{settled, pending} {
+			if _, err := deliveries.Insert(ctx, d); err != nil {
+				return err
+			}
+		}
+		if _, err := deliveries.Record(ctx, settled.Arrived(204, old)); err != nil {
+			return err
+		}
+		_, err := deliveries.Sweep(ctx, time.Now().Add(-30*24*time.Hour), 1000)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		if _, err := deliveries.Find(ctx, settled.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the old settled delivery answered %v", err)
+		}
+		_, err := deliveries.Find(ctx, pending.ID)
+		return err
+	}); err != nil {
+		t.Errorf("the pending delivery: %v", err)
+	}
+}
