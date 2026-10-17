@@ -13,6 +13,10 @@ package passkey
 // wrong RP ID hash and a truncated key, and an attacker would learn from it.
 const CodeRegistrationInvalid = "auth.passkey_registration_invalid"
 
+// CodeSignInFailed is the sign-in's one refusal (identity.md §4.3), which a refused assertion answers
+// as a wrong password does.
+const CodeSignInFailed = "auth.sign_in_failed"
+
 // RelyingParty is the workspace as a ceremony must name it: the RP ID (its host) and the one origin
 // a page of it is served from.
 type RelyingParty struct {
@@ -50,6 +54,34 @@ type Credential struct {
 	Transports []string
 }
 
+// Assertion is what a browser's `navigator.credentials.get()` answered, with the credential it names
+// as the server holds it and what the server expects of the ceremony.
+type Assertion struct {
+	ClientDataJSON    []byte
+	AuthenticatorData []byte
+	Signature         []byte
+	// RawID is the credential's identifier as the browser reported it.
+	RawID []byte
+	// Challenge is the one the server issued, which the client data must carry.
+	Challenge    []byte
+	RelyingParty RelyingParty
+	// The credential as stored: its identifier, its COSE key and algorithm, and whether it was
+	// eligible for backup when it was made - which a later ceremony may not change.
+	CredentialID   []byte
+	PublicKey      []byte
+	Algorithm      int64
+	BackupEligible bool
+}
+
+// Asserted is what a verified assertion reports. Whether user verification was required, and what
+// the counter means, is the caller's to decide: one door asks for the person verified, another only
+// for the key present (identity.md §23.1).
+type Asserted struct {
+	UserVerified bool
+	BackedUp     bool
+	SignCount    uint32
+}
+
 // Verifier checks ceremonies.
 type Verifier interface {
 	// ChallengeOf reads the challenge the client data carries, checking nothing but its shape: the
@@ -60,4 +92,9 @@ type Verifier interface {
 	// VerifyRegistration checks a registration ceremony (WebAuthn Level 3 §7.1) and answers the
 	// credential, or a validation error with CodeRegistrationInvalid.
 	VerifyRegistration(registration Registration) (Credential, error)
+
+	// VerifyAssertion checks an authentication ceremony (WebAuthn Level 3 §7.2) and reports its flags
+	// and counter, or answers CodeSignInFailed, the reason as its
+	// cause.
+	VerifyAssertion(assertion Assertion) (Asserted, error)
 }

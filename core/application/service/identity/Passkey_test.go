@@ -125,6 +125,18 @@ func (s *challengeStore) Consume(
 type verifierFake struct {
 	refuse bool
 	asked  []passkey.Registration
+	// asserted is what an assertion reports; assertions the assertions it was asked about.
+	asserted   passkey.Asserted
+	refuseSign bool
+	assertions []passkey.Assertion
+}
+
+func (v *verifierFake) VerifyAssertion(a passkey.Assertion) (passkey.Asserted, error) {
+	v.assertions = append(v.assertions, a)
+	if v.refuseSign {
+		return passkey.Asserted{}, shared.ErrUnauthenticated.WithDetail(passkey.CodeSignInFailed)
+	}
+	return v.asserted, nil
 }
 
 func (v *verifierFake) ChallengeOf(clientDataJSON []byte) ([]byte, error) {
