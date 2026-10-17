@@ -677,6 +677,136 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 	return i, err
 }
 
+const findWorkItems = `-- name: FindWorkItems :many
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.id = ANY($1::uuid[])
+`
+
+type FindWorkItemsRow struct {
+	ID                    pgtype.UUID
+	TenantID              pgtype.UUID
+	CollectionID          pgtype.UUID
+	Type                  ItemType
+	ParentID              pgtype.UUID
+	Path                  string
+	Depth                 int32
+	Title                 string
+	Notes                 *string
+	IsCompleted           bool
+	CompletedAt           pgtype.Timestamptz
+	CompletedBy           pgtype.UUID
+	BucketID              pgtype.UUID
+	OrderKey              string
+	AssigneeID            pgtype.UUID
+	StartAt               pgtype.Timestamptz
+	DueAt                 pgtype.Timestamptz
+	DueDateOnly           bool
+	DueTimeZone           *string
+	CoverKind             *string
+	CoverColorToken       *string
+	CoverMediaID          pgtype.UUID
+	CustomFields          []byte
+	ContentLanguage       *string
+	CalendarUid           *string
+	RecurrenceRuleID      pgtype.UUID
+	RecurrenceSourceID    pgtype.UUID
+	OriginJumbleID        pgtype.UUID
+	RetentionPendingUntil pgtype.Timestamptz
+	RetentionRuleID       pgtype.UUID
+	RetentionAction       *string
+	RetentionBlockedBy    *string
+	ArchivedAt            pgtype.Timestamptz
+	DeletedAt             pgtype.Timestamptz
+	TrashBatchID          pgtype.UUID
+	CreatedBy             pgtype.UUID
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+	Version               int32
+}
+
+// FindWorkItem for many entries in one statement: the retention sweep reads a page's entries at
+// once when a rule's condition names `item`, rather than one statement per candidate. The same
+// columns and the same hiding of a deleted definition's values, so a condition sees what Find
+// would have shown it. An identifier of another tenant is simply absent (row level security).
+func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindWorkItemsRow, error) {
+	rows, err := q.db.Query(ctx, findWorkItems, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FindWorkItemsRow{}
+	for rows.Next() {
+		var i FindWorkItemsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Type,
+			&i.ParentID,
+			&i.Path,
+			&i.Depth,
+			&i.Title,
+			&i.Notes,
+			&i.IsCompleted,
+			&i.CompletedAt,
+			&i.CompletedBy,
+			&i.BucketID,
+			&i.OrderKey,
+			&i.AssigneeID,
+			&i.StartAt,
+			&i.DueAt,
+			&i.DueDateOnly,
+			&i.DueTimeZone,
+			&i.CoverKind,
+			&i.CoverColorToken,
+			&i.CoverMediaID,
+			&i.CustomFields,
+			&i.ContentLanguage,
+			&i.CalendarUid,
+			&i.RecurrenceRuleID,
+			&i.RecurrenceSourceID,
+			&i.OriginJumbleID,
+			&i.RetentionPendingUntil,
+			&i.RetentionRuleID,
+			&i.RetentionAction,
+			&i.RetentionBlockedBy,
+			&i.ArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const hubsOpenedFor = `-- name: HubsOpenedFor :many
 SELECT DISTINCT hub_id
 FROM private_hub_access

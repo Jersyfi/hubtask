@@ -111,23 +111,31 @@ type markingStore struct {
 }
 
 func (s *markingStore) Due(
-	_ context.Context, _ domain.Anchor, _ time.Time, skip, batch int,
+	_ context.Context, _ domain.Anchor, _ time.Time, after repository.Position, batch int,
 ) ([]repository.Candidate, error) {
-	return candidatePage(s.due, skip, batch), nil
+	return candidatePage(s.due, after, batch), nil
 }
 
 func (s *markingStore) DueInChain(
-	_ context.Context, _ domain.Anchor, _ shared.ID, _ time.Time, skip, batch int,
+	_ context.Context, _ domain.Anchor, _ shared.ID, _ time.Time, after repository.Position, batch int,
 ) ([]repository.Candidate, error) {
-	return candidatePage(s.inChain, skip, batch), nil
+	return candidatePage(s.inChain, after, batch), nil
 }
 
-// candidatePage is OFFSET skip LIMIT batch over a fixed order, as the statements read it.
-func candidatePage(rows []repository.Candidate, skip, batch int) []repository.Candidate {
-	if skip >= len(rows) {
-		return nil
+// candidatePage is a keyset page over a fixed order, as the statements read it: the rows after the
+// one the position names, or from the start. A position naming no row here is past the end.
+func candidatePage(rows []repository.Candidate, after repository.Position, batch int) []repository.Candidate {
+	start := 0
+	if !after.IsStart() {
+		start = len(rows)
+		for i, row := range rows {
+			if row.ID == after.ID {
+				start = i + 1
+				break
+			}
+		}
 	}
-	rows = rows[skip:]
+	rows = rows[start:]
 	if batch > 0 && batch < len(rows) {
 		return rows[:batch]
 	}
@@ -148,8 +156,10 @@ func (s *markingStore) Block(
 	return len(ids), nil
 }
 
-func (s *markingStore) MarkedDue(_ context.Context, _ time.Time, skip, batch int) ([]repository.Candidate, error) {
-	return candidatePage(s.dueMarked, skip, batch), nil
+func (s *markingStore) MarkedDue(
+	_ context.Context, _ time.Time, after repository.Position, batch int,
+) ([]repository.Candidate, error) {
+	return candidatePage(s.dueMarked, after, batch), nil
 }
 
 func (s *markingStore) Marking(_ context.Context, id shared.ID) (repository.Candidate, error) {

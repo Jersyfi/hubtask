@@ -413,6 +413,18 @@ type DueAnnouncement struct {
 	Due          work.DueDate
 }
 
+// ItemBatch reads many entries in one statement.
+//
+// Its own interface rather than a method on Items: one reader needs it - the retention sweep, which
+// judges a page of candidates against a condition naming `item` (data-retention.md §5) - and every
+// double of Items would otherwise carry a method nothing it serves calls.
+type ItemBatch interface {
+	// FindMany answers the entries of this tenant among ids, as Find reports each - trashed and
+	// archived ones included - in no particular order. An identifier that names nothing here,
+	// another tenant's included, is absent from the answer rather than an error.
+	FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error)
+}
+
 type Items interface {
 	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
 	// archived items come back as they are stored: whether one may take children is the domain's

@@ -2203,6 +2203,33 @@ CREATE TABLE retention_run (
 );
 CREATE INDEX retention_run_idx ON retention_run (tenant_id, data_kind, started_at DESC);
 
+-- The key a tenant-scoped reference to a rule points at (ADR-0024, migration 0172).
+CREATE UNIQUE INDEX retention_rule_tenant_id_uq ON retention_rule (tenant_id, id);
+
+-- Where each read of the rule sweep stopped, so the next pass continues there (data-retention.md §5,
+-- migration 0173): phase one of a kind, a chain's second stage by its rule, phase two. A position
+-- in the candidates' order and nothing else (rule 10); not in an archive.
+CREATE TABLE retention_cursor (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  reader     text NOT NULL CHECK (reader IN ('ANNOUNCE','CHAIN','ACT')),
+  data_kind  text,
+  rule_id    uuid,
+  after_at   timestamptz NOT NULL,
+  after_id   uuid NOT NULL,
+  CONSTRAINT retention_cursor_reader_shape CHECK (
+    (reader = 'ANNOUNCE' AND data_kind IS NOT NULL AND rule_id IS NULL)
+    OR (reader = 'CHAIN' AND data_kind IS NULL AND rule_id IS NOT NULL)
+    OR (reader = 'ACT' AND data_kind IS NULL AND rule_id IS NULL)
+  ),
+  -- On the workspace and the rule together, so no row can name another workspace's rule (ADR-0024;
+  -- the key is 0172's index).
+  CONSTRAINT retention_cursor_rule_fkey FOREIGN KEY (tenant_id, rule_id)
+    REFERENCES retention_rule (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX retention_cursor_reader_uq
+  ON retention_cursor (tenant_id, reader, data_kind, rule_id) NULLS NOT DISTINCT;
+CREATE INDEX retention_cursor_rule_idx ON retention_cursor (tenant_id, rule_id) WHERE rule_id IS NOT NULL;
+
 CREATE TABLE legal_hold (
   id           uuid PRIMARY KEY,
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -2503,7 +2530,7 @@ BEGIN
     'ai_objection_notice',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
-    'retention_rule',
+    'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
     'import_run'
   ]

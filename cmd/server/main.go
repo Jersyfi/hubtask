@@ -3166,7 +3166,7 @@ func run() error {
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
-				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
+				Holds:   lifecycleStore, Items: items, Entries: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
 				// The advance warning of data-retention.md §6 (R-1), through the notification path:
 				// the preference is honoured, the record is deduplicated, and the send is a job.
 				Warnings: notification.RecordRetentionWarning{
@@ -3180,6 +3180,9 @@ func run() error {
 				},
 				Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 				Batch: cfg.Retention.BatchSize,
+				// Where each read stopped, so a long read-past continues on the next pass rather
+				// than starting over inside the job's deadline (data-retention.md §5).
+				Cursors: postgres.NewRetentionCursorRepository(),
 			},
 		},
 		Interval:     cfg.Retention.Interval,

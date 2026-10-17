@@ -145,6 +145,8 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 			Marking: postgres.NewRetentionMarkingRepository(),
 			Holds:   store,
 			Items:   postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
+			Entries: postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
+			Cursors: postgres.NewRetentionCursorRepository(),
 			Purger:  purger,
 			Changes: postgres.NewChangeLog(),
 			// The expression engine, so that a conditioned rule is evaluated here as it is in
