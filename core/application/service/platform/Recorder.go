@@ -61,6 +61,12 @@ func (r Recorder) RecordOnce(ctx context.Context, eventType event.Type, actor ev
 	return r.write(ctx, eventType, StateOf(record), actor, at, extra, key)
 }
 
+// OwnersChanged writes `owner_changed` about the transaction's workspace: who the owners are is the
+// workspace's, and the event names none of them.
+func (r Recorder) OwnersChanged(ctx context.Context, actor event.Actor, at time.Time) error {
+	return r.Record(ctx, event.WorkspaceOwnerChanged, actor, at, nil)
+}
+
 // RecordDeleted writes the last event about a workspace its purge is removing, and removes the
 // platform's reference from the workspace's kept events: the reference leaves with the workspace
 // (multi-tenancy.md §4.3). The state is the last one read with the version one higher, so a
