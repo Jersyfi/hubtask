@@ -19,7 +19,7 @@
  * the screen shows them - the second factor's reasoning (`mfa.svelte.ts`).
  */
 
-import { TransportError, type PasskeyList, type PasskeyRegistered, type PasskeyRegistrationOptions, type ResourceState } from '@hubtask/sync-engine';
+import { TransportError, type PasskeyEnrolled, type PasskeyList, type PasskeyRegistered, type PasskeyRegistrationOptions, type ResourceState } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { stepUp } from './stepup.svelte.ts';
@@ -30,6 +30,9 @@ import { renderProblem, type RenderedProblem } from '../problem.ts';
 const PATH = '/accounts/me/passkeys';
 const START = '/accounts/me/passkeys:start';
 const COMPLETE = '/accounts/me/passkeys:complete';
+/** The setup during sign-in, with the ENROLL step's credential instead of a session (identity.md §23.2). */
+const ENROLL_OPTIONS = '/auth/mfa/passkey:enroll-options';
+const ENROLL = '/auth/mfa/passkey:enroll';
 /** What a passkey's write makes stale: the account and its passkeys, both under this prefix. */
 const ACCOUNT = '/accounts/me';
 
@@ -110,6 +113,47 @@ class Passkeys {
     } catch (cause) {
       this.#failure = cause instanceof TransportError ? renderProblem(cause, messages) : ownCode('app.something_went_wrong', true);
       return 'refused';
+    } finally {
+      this.#working = false;
+    }
+  }
+
+  /**
+   * Sets one up during sign-in: the options with the step's credential, the device, the key kept.
+   * The answer carries the codes where the account held none, and the pair or the step still owed -
+   * all handed back, because the codes are shown before the session opens.
+   */
+  async enroll(
+    pendingToken: string,
+    name: string,
+    create: (options: CredentialCreationOptions) => Promise<Credential | null>,
+  ): Promise<{ readonly end: Added; readonly answer?: PasskeyEnrolled }> {
+    this.#working = true;
+    this.#failure = undefined;
+    try {
+      const options = await engine.mutate<PasskeyRegistrationOptions>(
+        'POST', ENROLL_OPTIONS, { pending_token: pendingToken }, { timeoutMs: TIMEOUT_MS, invalidates: [] },
+      );
+      let created: Credential | null;
+      try {
+        created = await create({ publicKey: creationOptionsOf(options) });
+      } catch (cause) {
+        const end = ceremonyEndOf(cause);
+        if (end === 'cancelled') return { end: 'cancelled' };
+        this.#failure = ownCode(end === 'held' ? 'app.passkeys.already_held' : 'app.passkeys.device_failed');
+        return { end: 'refused' };
+      }
+      if (created === null) return { end: 'cancelled' };
+      const answer = await engine.mutate<PasskeyEnrolled>(
+        'POST',
+        ENROLL,
+        { pending_token: pendingToken, ...registrationOf(created as unknown as CreatedCredential, name) },
+        { timeoutMs: TIMEOUT_MS, invalidates: [] },
+      );
+      return { end: 'added', answer };
+    } catch (cause) {
+      this.#failure = cause instanceof TransportError ? renderProblem(cause, messages) : ownCode('app.something_went_wrong', true);
+      return { end: 'refused' };
     } finally {
       this.#working = false;
     }
