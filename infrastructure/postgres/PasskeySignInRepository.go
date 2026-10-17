@@ -15,7 +15,7 @@ import (
 )
 
 // PasskeySignInRepository keeps a passkey sign-in's challenge where the pending credentials live,
-// hashed with their pepper, and reads and marks the credential a browser names (migration 0168).
+// hashed with their pepper, and reads and marks the credential a browser names (migration 0174).
 type PasskeySignInRepository struct {
 	pendingHasher security.PendingTokenHasher
 }

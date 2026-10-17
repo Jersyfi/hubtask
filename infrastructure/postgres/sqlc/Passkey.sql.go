@@ -268,7 +268,7 @@ type InsertPasskeySignInChallengeParams struct {
 	ExpiresAt pgtype.Timestamptz
 }
 
-// A sign-in's challenge names nobody yet (migration 0168).
+// A sign-in's challenge names nobody yet (migration 0174).
 func (q *Queries) InsertPasskeySignInChallenge(ctx context.Context, arg InsertPasskeySignInChallengeParams) error {
 	_, err := q.db.Exec(ctx, insertPasskeySignInChallenge,
 		arg.ID,

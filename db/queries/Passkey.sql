@@ -62,7 +62,7 @@ RETURNING id, tenant_id, account_id, credential_id, public_key, algorithm, sign_
 DELETE FROM webauthn_credential WHERE id = sqlc.arg('id') AND account_id = sqlc.arg('account_id');
 
 -- name: InsertPasskeySignInChallenge :exec
--- A sign-in's challenge names nobody yet (migration 0168).
+-- A sign-in's challenge names nobody yet (migration 0174).
 INSERT INTO auth_pending (id, tenant_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
 VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('token_hash'), 'PASSKEY_SIGN_IN',

@@ -471,7 +471,7 @@ func TestAPasskeyIsRenamedOnlyByItsOwnAccountInItsWorkspace(t *testing.T) {
 	})
 }
 
-// A passkey sign-in's challenge names nobody (migration 0168): it is stored without an account,
+// A passkey sign-in's challenge names nobody (migration 0174): it is stored without an account,
 // spent once, only in time and only in its workspace, and the agreement's read of account-less rows
 // never takes it.
 func TestAPasskeySignInChallengeNamesNobodyAndIsSpentOnce(t *testing.T) {

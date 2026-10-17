@@ -502,7 +502,7 @@ type FindArrivalPendingByHashRow struct {
 
 // A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
 // and the workspace, nothing to join an account from. Read only by the agreement, and only under its
-// purpose: a passkey sign-in's challenge has no account either (migration 0168).
+// purpose: a passkey sign-in's challenge has no account either (migration 0174).
 func (q *Queries) FindArrivalPendingByHash(ctx context.Context, tokenHash []byte) (FindArrivalPendingByHashRow, error) {
 	row := q.db.QueryRow(ctx, findArrivalPendingByHash, tokenHash)
 	var i FindArrivalPendingByHashRow

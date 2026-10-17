@@ -511,7 +511,7 @@ CREATE TABLE auth_pending (
            AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
   CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL),
-  -- No account exactly where a TERMS arrival or a passkey sign-in's challenge stands (migration 0168).
+  -- No account exactly where a TERMS arrival or a passkey sign-in's challenge stands (migration 0174).
   CONSTRAINT auth_pending_arrival_whole
     CHECK (CASE WHEN purpose = 'PASSKEY_SIGN_IN'
                 THEN account_id IS NULL AND arrival_email IS NULL

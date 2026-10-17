@@ -15,10 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/test/dbtest"
 )
 
-// beforeThePasskeyMethod is the last version without migration 0169.
-const beforeThePasskeyMethod = 168
+// beforeThePasskeyMethod is the last version without migration 0175.
+const beforeThePasskeyMethod = 174
 
-// Migration 0169 puts PASSKEY into every stored list of sign-in methods that holds PASSWORD - a
+// Migration 0175 puts PASSKEY into every stored list of sign-in methods that holds PASSWORD - a
 // workspace's, the installation's and a plan's - and leaves a list without the password, and a
 // level that stores none, alone (milestone PK, Decision 7). Run as the owner, neither superuser nor
 // BYPASSRLS, so the forced row security on `tenant` applies to it.
