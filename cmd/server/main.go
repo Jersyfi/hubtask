@@ -1527,6 +1527,14 @@ func run() error {
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
+	// The installation's subscriptions for a purchase platform (UC-INS-14): the instance writer for
+	// the register and the journal, the envelope for the secret, the step-up for a new address -
+	// copied from the session writer once it has been taught the rule.
+	platformWriter := adminservice.PlatformWriter{
+		Instance: instanceWriter, Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
+		StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Tenancy: cfg.Tenancy,
+	}
 	useCases, err := usecase.NewRegistry(
 		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
@@ -2294,6 +2302,9 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlatformSubscriptions{Writer: platformWriter}.Descriptor(),
+		adminservice.CreatePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.ReadPlatformSubscription{Writer: platformWriter}.Descriptor(),
 		adminservice.ListPlatformEvents{
 			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
 			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),
