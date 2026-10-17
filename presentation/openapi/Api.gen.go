@@ -8905,7 +8905,13 @@ type RetentionPolicy struct {
 
 	// Justification Mandatory when the upper bound is exceeded
 	Justification *string `json:"justification,omitempty"`
-	Notify        *struct {
+
+	// LastFailure Present while the rule's condition could not be evaluated on an entry in the last pass that reached it: the rule then announced and removed nothing in that pass, and the workspace's other rules went on. Gone once a pass evaluates the condition without failing. `code` is the message code of what failed, `at` when.
+	LastFailure *struct {
+		At   time.Time `json:"at"`
+		Code string    `json:"code"`
+	} `json:"last_failure,omitempty"`
+	Notify *struct {
 		BeforeDays *int                               `json:"before_days,omitempty"`
 		Recipients *[]RetentionPolicyNotifyRecipients `json:"recipients,omitempty"`
 	} `json:"notify,omitempty"`

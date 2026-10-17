@@ -202,6 +202,16 @@ type Policies interface {
 	Find(ctx context.Context, kind domain.DataKind) (domain.Policy, error)
 }
 
+// RuleFailures is what a pass leaves on the rules it judged (data-retention.md §2): the failure of
+// one it set aside, and the end of the failure of one it evaluated cleanly.
+type RuleFailures interface {
+	// RecordFailure sets the rule's last failure.
+	RecordFailure(ctx context.Context, ruleID shared.ID, failure domain.RuleFailure) error
+
+	// ClearFailures takes the last failure off the rules named; one without a failure is left.
+	ClearFailures(ctx context.Context, ruleIDs []shared.ID) error
+}
+
 // Rules stores the rule model of data-retention.md §2.
 //
 // Beside Policies rather than replacing it for one release: the old table's key allows one period

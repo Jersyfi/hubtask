@@ -2572,6 +2572,7 @@ class RetentionPolicy(TypedDict, total=False):
     enabled: bool
     export_target_id: str | None
     in_force: bool
+    last_failure: dict[str, Any] | None
 
 class RetentionPolicyUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone. The kind and the scope are not among them: a rule that changed either would be a different rule under an old identifier."""

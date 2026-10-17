@@ -110,7 +110,21 @@ type Rule struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Version        int
+	// LastFailure is why the last pass that reached the rule set it aside, and zero when it
+	// evaluated cleanly or was never set aside (data-retention.md §2). Written by the pass, never
+	// by a person.
+	LastFailure RuleFailure
 }
+
+// RuleFailure is a condition that could not be evaluated: its code and when. Never the condition's
+// text or an entry's value (rule 10).
+type RuleFailure struct {
+	Code string
+	At   time.Time
+}
+
+// IsZero reports no failure.
+func (f RuleFailure) IsZero() bool { return f.Code == "" }
 
 // Chained reports a rule with a second stage.
 func (r Rule) Chained() bool { return r.ThenAction != "" }
