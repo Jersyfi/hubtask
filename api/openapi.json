@@ -5364,7 +5364,7 @@
         ],
         "operationId": "listTenants",
         "summary": "The installation's workspaces",
-        "description": "The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. \"Nothing enumerates tenants\" remains the rule for jobs; this is not a job.\n",
+        "description": "The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. \"Nothing enumerates tenants\" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "200": {
             "description": "The workspaces",
@@ -5390,7 +5390,7 @@
         ],
         "operationId": "provisionTenant",
         "summary": "Provision a workspace",
-        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.\n",
+        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -5435,7 +5435,7 @@
         ],
         "operationId": "readTenant",
         "summary": "One workspace",
-        "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.\n",
+        "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "200": {
             "description": "The workspace",
@@ -5465,7 +5465,7 @@
         ],
         "operationId": "updateTenant",
         "summary": "Set or clear the platform's reference on a workspace",
-        "description": "The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.\n",
+        "description": "The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -5512,7 +5512,7 @@
         ],
         "operationId": "queryTenants",
         "summary": "Find workspaces",
-        "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.\n",
+        "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -5552,7 +5552,7 @@
         ],
         "operationId": "suspendTenant",
         "summary": "Suspend a workspace",
-        "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.\n",
+        "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "204": {
             "description": "Suspended"
@@ -5575,7 +5575,7 @@
         ],
         "operationId": "resumeTenant",
         "summary": "Reactivate a workspace",
-        "description": "One write. The next request of the tenant's people works again.",
+        "description": "One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "204": {
             "description": "Active again"
@@ -5624,7 +5624,7 @@
         ],
         "operationId": "requestTenantDeletion",
         "summary": "Request a workspace's deletion",
-        "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.\n",
+        "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -6238,7 +6238,7 @@
         ],
         "operationId": "moveTenantPlan",
         "summary": "Put a workspace on another plan",
-        "description": "Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.\n",
+        "description": "Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6797,7 +6797,7 @@
         ],
         "operationId": "updateTenantQuotas",
         "summary": "Set a workspace's quotas",
-        "description": "The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and \"who moved the wall\" is a question with an answer.\n",
+        "description": "The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and \"who moved the wall\" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
