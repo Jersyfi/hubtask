@@ -536,6 +536,13 @@ export type InstanceOverview = components['schemas']['InstanceOverview'];
 export type InstallationSetUp = components['schemas']['InstallationSetUp'];
 export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
 export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
+/**
+ * The installation's subscriptions for a purchase platform (UC-INS-14): an address its events are
+ * pushed to, with the dead letters waiting. The secret is answered once, at creation and rotation.
+ */
+export type PlatformSubscription = components['schemas']['PlatformSubscription'];
+export type PlatformSubscriptionSecret = components['schemas']['PlatformSubscriptionSecret'];
+export type PlatformDelivery = components['schemas']['PlatformDelivery'];
 /** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
 export type AdminTenant = components['schemas']['AdminTenant'];
 /** The installation's own switches, each with where its lock came from. */

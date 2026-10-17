@@ -255,6 +255,7 @@ async function views() {
     ['instance-providers', await load('InstanceProvidersView'), { onnavigate: noop }],
     ['instance-ai', await load('InstanceAiView'), { onnavigate: noop }],
     ['instance-targets', await load('InstanceTargetsView'), { onnavigate: noop }],
+    ['instance-platform', await load('InstancePlatformView'), { onnavigate: noop }],
     ['instance-encryption', await load('InstanceEncryptionView'), { onnavigate: noop }],
     ['instance-operators', await load('InstanceOperatorsView'), { onnavigate: noop }],
     ['instance-journal', await load('InstanceJournalView'), { onnavigate: noop }],
