@@ -170,7 +170,7 @@ func check(ctx context.Context, base, body string, plan bool) error {
 	release()
 	release = func() {}
 
-	line, err := checkDescription(ctx, body, filepath.Join(logs, "description.md"), filepath.Join(logs, "zz-description.log"))
+	line, err := checkDescription(ctx, base, body, filepath.Join(logs, "description.md"), filepath.Join(logs, "zz-description.log"))
 	report = append(report, line)
 	if err != nil {
 		return err
@@ -256,7 +256,7 @@ func runStep(ctx context.Context, s step, logPath string) (string, error) {
 // checkDescription runs the template check against the pull request's description: the job CI
 // runs on every pull request that is ready, and the one a session forgets because it lives on
 // GitHub rather than in the tree.
-func checkDescription(ctx context.Context, body, fetched, logPath string) (string, error) {
+func checkDescription(ctx context.Context, base, body, fetched, logPath string) (string, error) {
 	if body == "" {
 		lookupCtx, cancel := context.WithTimeout(ctx, gitTimeout)
 		defer cancel()
@@ -280,7 +280,13 @@ func checkDescription(ctx context.Context, body, fetched, logPath string) (strin
 			}
 		}
 	}
-	return runStep(ctx, step{name: "the description (gate-pr)", command: "make gate-pr BASE=origin/main BODY=" + strconv.Quote(body)}, logPath)
+	return runStep(ctx, descriptionStep(base, body), logPath)
+}
+
+// descriptionStep is the description's check against the base every gate compares with: a pull
+// request stacked on another branch has that branch's commits beneath its own.
+func descriptionStep(base, body string) step {
+	return step{name: "the description (gate-pr)", command: "make gate-pr BASE=" + strconv.Quote(base) + " BODY=" + strconv.Quote(body)}
 }
 
 func dockerAnswers(ctx context.Context) bool {
