@@ -17813,8 +17813,26 @@
           "locked": {
             "type": "boolean",
             "description": "True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.\n"
+          },
+          "source": {
+            "$ref": "#/components/schemas/QuotaSource"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock",
+            "description": "Which level locked this ceiling - the installation, or the workspace's plan - or null. The operator's exception for one workspace still decides under either.\n"
           }
         }
+      },
+      "QuotaSource": {
+        "type": "string",
+        "enum": [
+          "DEFAULT",
+          "INSTANCE",
+          "PLAN",
+          "EXCEPTION",
+          "WORKSPACE"
+        ],
+        "description": "Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.\n"
       },
       "TenantQuotas": {
         "type": "object",

@@ -13,7 +13,7 @@ import (
 // workspace's screen can say who set it.
 func TestAQuotaStandingAnswersTheInstallationsLock(t *testing.T) {
 	answered := quotaStandingsResponse(usecase.Output{"data": []usecase.Output{
-		{"quota": "items", "limit": int64(1000), "configured": false, "locked": true},
+		{"quota": "items", "limit": int64(1000), "configured": false, "locked": true, "source": "INSTANCE", "lock": "INSTANCE"},
 		{"quota": "media_bytes", "limit": int64(0), "configured": true, "locked": false},
 	}})
 	if len(answered) != 2 {
@@ -24,5 +24,19 @@ func TestAQuotaStandingAnswersTheInstallationsLock(t *testing.T) {
 	}
 	if answered[1].Locked != nil && *answered[1].Locked {
 		t.Error("an open ceiling answers locked")
+	}
+}
+
+// UC-INS-10 check 1: every standing says which level set it and which locked it.
+func TestAQuotaStandingSaysWhoSetAndLockedIt(t *testing.T) {
+	answered := quotaStandingsResponse(usecase.Output{"data": []usecase.Output{
+		{"quota": "items", "limit": int64(1000), "source": "PLAN", "lock": "PLAN"},
+		{"quota": "export_jobs", "limit": int64(2), "source": "DEFAULT", "lock": nil},
+	}})
+	if answered[0].Source == nil || *answered[0].Source != "PLAN" || answered[0].Lock == nil || *answered[0].Lock != "PLAN" {
+		t.Errorf("the plan's ceiling answers %+v", answered[0])
+	}
+	if answered[1].Source == nil || *answered[1].Source != "DEFAULT" || answered[1].Lock != nil {
+		t.Errorf("the default answers %+v", answered[1])
 	}
 }

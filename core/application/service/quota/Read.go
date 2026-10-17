@@ -176,6 +176,11 @@ func StandingOutputs(standings []Standing) []usecase.Output {
 			"ratio":      nil,
 			"configured": standing.Configured,
 			"locked":     standing.Locked,
+			"source":     standing.Source,
+			"lock":       nil,
+		}
+		if standing.Lock != "" {
+			row["lock"] = standing.Lock
 		}
 		if standing.Used != nil {
 			row["used"] = *standing.Used

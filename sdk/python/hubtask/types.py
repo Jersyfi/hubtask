@@ -1069,6 +1069,10 @@ class QuotaStanding(TypedDict, total=False):
     ratio: float | None
     configured: bool
     locked: bool
+    source: "QuotaSource"
+    lock: "PolicyLock"
+
+QuotaSource = Literal["DEFAULT", "INSTANCE", "PLAN", "EXCEPTION", "WORKSPACE"]
 
 class TenantQuotas(TypedDict, total=False):
     """Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing."""
