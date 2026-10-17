@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-02, P-05, P-11, P-13]
-state: specified
+state: partial
 tasks: [PK-03, PK-04]
-checked_by: []
+checked_by: [core/application/service/identity/PasskeySignIn_test.go, core/application/service/identity/SignInRules_test.go, core/application/service/identity/LastWayIn_test.go, core/domain/model/identity/SignInPolicy_test.go, infrastructure/webauthn/Assertion_test.go, test/integration/passkey_test.go, test/integration/passkey_method_migration_test.go, apps/webapp/e2e/passkeysignin.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, docs/evidence/PK-03-2026-10-17.md]
 ---
 
 # Sign in with a passkey
@@ -64,12 +64,7 @@ confirms with her passkey.
 
 ## Today
 
-* Check 1: not met — the address field asks for passkeys, but nothing answers; tracked in PK-03.
-* Check 2: not met — no passkey opens a session; PK-03.
-* Check 3: not met — PK-03.
-* Check 4: not met — PK-03.
 * Check 5: not met — no security key serves as the second factor; PK-04.
 * Check 6: not met — the step-up knows password, code, recovery code and provider only; PK-04.
-* Check 7: not met — PK-03.
-* Check 8: not met — the rules know the password and providers only; PK-03.
-* Check 9: not met — PK-03, PK-04.
+* Check 8: not met in full — switched off, passkeys open nothing; that keys still serve as the factor is PK-04.
+* Check 9: not met in full — the passkey button and the wait meet it; the security-key choice is PK-04.

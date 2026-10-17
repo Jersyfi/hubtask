@@ -42,8 +42,8 @@ the installation is the same person and set nothing.
    value and cannot be changed.
 5. Choices looser than the installation allows are not offered (a select does not list "Nobody"
    when the installation requires administrators).
-6. *Ways to sign in* lists the password and every provider (the workspace's own and those the
-   installation offers) with one switch each; the last remaining way cannot be turned off.
+6. *Ways to sign in* lists the password, passkeys and every provider (the workspace's own and those
+   the installation offers) with one switch each; the last remaining way cannot be turned off.
 7. All eighteen rules of [ADR-0068](../../adr/ADR-0068-sign-in-policy-and-the-password-lifetime.md)
    that a workspace may set have a control, including *earliest change after* and the ways to sign in.
 8. A refusal is shown at the rule it concerns; a failure to read the rules shows a sentence and a

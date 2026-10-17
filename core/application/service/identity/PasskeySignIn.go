@@ -23,7 +23,7 @@ import (
 // Signing in with a passkey alone (identity.md §23.4, UC-ID-21): the device offers the passkeys it
 // holds for this workspace, the person confirms with a fingerprint, a face or the device's PIN, and
 // the verified assertion is the whole proof - no password and no second factor, also where the
-// workspace requires one (#1521's decision, §23.1). The card asks for the options when the address
+// workspace requires one (identity.md §23.1, the owner's decision). The card asks for the options when the address
 // field gains focus or the button is pressed; the verifier checks the ceremony, the core decides.
 
 const (

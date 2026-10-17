@@ -56,6 +56,4 @@ tells her that a way into her account was removed.
 
 ## Today
 
-* Check 1: not met in full — the last use is written once a passkey signs in or proves; PK-03, PK-04.
-* Check 4: not met in full — a removed passkey is gone at once; that it then fails to sign is PK-03.
 * Check 8: not met — the setup during sign-in offers the authenticator app only; PK-04.

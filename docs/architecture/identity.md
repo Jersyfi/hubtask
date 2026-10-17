@@ -60,8 +60,8 @@ The header may confirm a tenant, never overrule one; token and host contradictin
 
 ### 4.1 The ways in
 
-A workspace's rule names its **methods**: `PASSWORD` and `OIDC` (each switched-on provider is one
-way in), switched in that list and nowhere else (§10.6). Which methods resolve, and when the
+A workspace's rule names its **methods**: `PASSWORD`, `OIDC` (each switched-on provider is one
+way in) and `PASSKEY` (§23.4, never the last way in), switched in that list and nowhere else (§10.6). Which methods resolve, and when the
 password opens anyway, is §17.
 
 | Rule | Detail |
@@ -905,11 +905,11 @@ role given while the last member leaves is seen.
 `webauthn_credential` table, the verifier in `infrastructure/webauthn`, `ListOwnPasskeys`,
 `StartPasskeyRegistration` and `CompletePasskeyRegistration`; renaming and removing one
 (`RenameOwnPasskey`, `RemoveOwnPasskey`), and a key counted as the second factor where the profile,
-turning the app off and the recovery codes ask (§8, §9, `SecondFactor`). **Not yet:** signing in,
-the second-factor step, the step-up and the setup with one. Until they are, the sign-in's step,
-§16.1's methods, replacing the app and a provider's kept factor read the app alone - a person whom
-the rule covers and who holds only a key is led into setting up the app, never let in with the
-password alone.
+turning the app off and the recovery codes ask (§8, §9, `SecondFactor`); signing in with a passkey
+alone (§23.4: `StartPasskeySignIn`, `CompletePasskeySignIn`, the `PASSKEY` method). **Not yet:** the
+second-factor step, the step-up and the setup with one. Until they are, the sign-in's step, §16.1's
+methods, replacing the app and a provider's kept factor read the app alone - a person whom the rule
+covers and who holds only a key is led into setting up the app, never let in with the password alone.
 
 ### 23.1 One credential, two strengths
 
@@ -945,7 +945,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
 | Discoverable | Registration asks for a resident key (`preferred`) and user verification (`preferred`); the user handle is an opaque random value per account, never the address. |
-| The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero. |
+| The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero, which passes and never lowers the stored value - a deliberate departure from WebAuthn Level 3 §7.2 step 22, written in one statement so two sign-ins with one credential cannot both pass. |
 
 ### 23.4 Ways in and the steps
 
@@ -957,8 +957,23 @@ A credential that once answered with UV and later without is held to the ceremon
 * The migration that adds it puts `PASSKEY` into every stored method list that holds `PASSWORD`, and
   into the product's default; a workspace that switched the password off chose its ways in and
   switches passkeys on itself. Under an installation lock the workspace follows the lock (§18).
-* A passkey sign-in fails with the one refusal of §4.3 and counts in the attempt ledger; a
-  cancelled prompt is the client's and sends nothing.
+* **Signing in with a passkey** is `POST /auth/sessions:passkey-options` - offered only where
+  `PASSKEY` is on, a relying party exists and the request arrived at its very host, answering a
+  five-minute challenge that names nobody (an `auth_pending` row of purpose `PASSKEY_SIGN_IN`, no
+  account) and `userVerification: required` - then `POST /auth/sessions:passkey` with the ceremony's
+  answer. The device's verification of the person is required at this door; the verified assertion is
+  the whole proof: no `TOTP` or `ENROLL` step, also under `mfa_required_for`. A start password still
+  owes its `PASSWORD_CHANGE` (§13), `TERMS` stays last, the session says `PASSKEY` and is bounded as
+  every session is. The card asks the device when the address field gains focus (the field offers
+  this workspace's passkeys) or *Sign in with a passkey* is pressed; `GET /auth/sign-in-rules` names
+  `PASSKEY` only where a ceremony can finish (P-05).
+* A passkey sign-in fails with the one refusal of §4.3 - an unknown, removed or another address's
+  passkey, an account that cannot act, a device that did not verify the person, a signature or
+  counter that does not hold - and counts on the network's subject only: nobody typed an identifier,
+  and a subject per account would let anyone holding a credential's identifier lock its owner out. A
+  suspended workspace keeps its sentence, as at the password door. A challenge that ran out is refused
+  apart (`auth.passkey_challenge_stale`), uncounted, and the card asks again; a cancelled prompt is
+  the client's and sends nothing.
 * The second-factor step and the reset's kept factor (ADR-0078) accept a security key or passkey
   beside the code and a recovery code.
 * The step-up gains `PASSKEY` after `TOTP` in §16.1's order.
