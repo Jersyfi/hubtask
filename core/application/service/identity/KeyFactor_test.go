@@ -84,8 +84,15 @@ func newKeyFactorFixture(t *testing.T, requirement domain.MfaRequirement) *keyFa
 	t.Helper()
 	session := mfaFixture(now)
 	session.withAccount("bert@example.org", "correct horse battery")
-	session.writer.Entropy = &steppingEntropy{}
 	session.writer.Rule = ruleFake{requirement: requirement}
+	f := attachKeys(session)
+	f.register(t)
+	return f
+}
+
+// attachKeys gives the writer Bert's key and everything asking for one needs.
+func attachKeys(session *sessionFixture) *keyFactorFixture {
+	session.writer.Entropy = &steppingEntropy{}
 	f := &keyFactorFixture{
 		session: session, keys: &passkeyStore{}, proofs: &proofStore{}, holders: newSignInsStore(),
 		verifier: &verifierFake{asserted: passkey.Asserted{UserVerified: false, SignCount: 8}},
@@ -101,16 +108,16 @@ func newKeyFactorFixture(t *testing.T, requirement domain.MfaRequirement) *keyFa
 	stranger := f.bert
 	stranger.ID, stranger.AccountID, stranger.CredentialID = "01936f2a-7c1e-7000-8000-0000000057a0", "01936f2a-7c1e-7000-8000-0000000057a1", strangeKey
 	f.holders.holders[string(strangeKey)] = repository.PasskeyHolder{Credential: stranger}
-	f.session.writer.KeyProofs = &KeyProofs{
-		Passkeys: f.keys, Proofs: f.proofs, Holders: f.holders, Verifier: f.verifier,
-		Party: PasskeyParty{
-			Workspaces: &workspaceStore{row: domain.Workspace{
-				Tenant: domain.Tenant{ID: tenant, Slug: "acme", DisplayName: "Acme"}, Version: 1,
-			}},
-			Installation: PasskeyInstallation{Host: installationHost, Scheme: "https", Multi: true},
-		},
+	party := PasskeyParty{
+		Workspaces: &workspaceStore{row: domain.Workspace{
+			Tenant: domain.Tenant{ID: tenant, Slug: "acme", DisplayName: "Acme"}, Version: 1,
+		}},
+		Installation: PasskeyInstallation{Host: installationHost, Scheme: "https", Multi: true},
 	}
-	f.register(t)
+	session.writer.KeyProofs = &KeyProofs{
+		Passkeys: f.keys, Proofs: f.proofs, Holders: f.holders, Verifier: f.verifier, Party: party,
+	}
+	session.writer.Keys = PasskeyKeys{Passkeys: f.keys, Party: party}
 	return f
 }
 

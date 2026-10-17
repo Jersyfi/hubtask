@@ -1676,6 +1676,7 @@ func run() error {
 		identity.ConfirmAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.StartProviderStepUp{Writer: sessionWriter}.Descriptor(),
+		identity.StartPasskeyStepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
 		identity.ReadOauthClient{Writer: oauthWriter}.Descriptor(),
