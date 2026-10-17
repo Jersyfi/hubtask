@@ -693,6 +693,12 @@ class InstanceJournalPage(TypedDict, total=False):
     data: Required[list["InstanceJournalEntry"]]
     page: Required["PageInfo"]
 
+class PlatformEventPage(TypedDict, total=False):
+    data: Required[list["PlatformEvent"]]
+    page: Required["PageInfo"]
+
+PlatformEvent = dict[str, Any]
+
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""
     elevated_until: Required[str]

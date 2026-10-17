@@ -5,9 +5,9 @@ context: admin
 actors: [PE-platform, PE-operator]
 deployments: [D5, D6, D7]
 serves: [P-08, P-11, P-15]
-state: specified
+state: partial
 tasks: [PL-07, PL-08]
-checked_by: []
+checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go]
 ---
 
 # Tell the purchase platform what happened, without it asking
@@ -53,11 +53,10 @@ platform reads the use per workspace and metric for the period.
 
 ## Today
 
-* Check 1: not met — there are no installation-level webhook subscriptions.
-* Check 2: not met — none of the events in the goal is delivered to the installation.
-* Check 3: not met — there are no installation events whose content could be checked.
-* Check 4: not met — use cannot be read at all, and people and storage are not recorded.
-* Check 5: not met — there are no installation subscriptions or deliveries to see or retry.
-* Check 6: not met — there is no installation event feed, and a subscription would be switched off after three dead letters.
-* Check 7: not met — there are no installation subscriptions or usage read for `hubctl` or the file to reach.
-* Check 8: not met — use is always recorded, never offered, and goes with the workspace.
+* Check 1: not met — there are no installation-level webhook subscriptions (PL-07).
+* Check 2: not met — an owner changed, a limit reached, the AI budget spent and an export finished are not written yet, and no event is delivered (PL-07).
+* Check 4: not met — use cannot be read at all, and people and storage are not recorded (PL-08).
+* Check 5: not met — there are no installation subscriptions or deliveries to see or retry (PL-07).
+* Check 6: not met — there are no installation subscriptions to keep on, tell the operator about or redeliver from (PL-07).
+* Check 7: not met — there are no installation subscriptions or usage read for `hubctl` or the file to reach (PL-07, PL-08).
+* Check 8: not met — use is always recorded, never offered, and goes with the workspace (PL-08).

@@ -10,8 +10,10 @@ import (
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -72,10 +74,12 @@ type RequestTenantDeletion struct {
 	Automations adminrepo.Automations
 	// Holds are the workspace's legal holds in force: the request is refused while any stands
 	// (data-protection.md §5).
-	Holds      lifecyclerepo.LegalHolds
-	Jobs       JobQueue
-	StepUp     stepup.Verifier
-	Audit      audit.Sink
+	Holds  lifecyclerepo.LegalHolds
+	Jobs   JobQueue
+	StepUp stepup.Verifier
+	Audit  audit.Sink
+	// Platform tells a purchase platform the deletion was requested (UC-INS-14).
+	Platform   platform.Recorder
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -197,6 +201,13 @@ func (h RequestTenantDeletion) Execute(
 				"automations_disabled": disabled,
 			},
 		}); err != nil {
+			return err
+		}
+
+		if err := h.Platform.Record(ctx, event.WorkspaceDeletionRequested,
+			event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now,
+			map[string]any{"purge_after": purgeAfter.Format(time.RFC3339)},
+		); err != nil {
 			return err
 		}
 

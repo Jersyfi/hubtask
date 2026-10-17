@@ -21,6 +21,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -141,6 +142,8 @@ type ProvisionTenant struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	// Platform tells a purchase platform the workspace exists (UC-INS-14).
+	Platform platform.Recorder
 	// Renderer names the seeded structure in the workspace's own locale: the names are content
 	// once created, so they are written in the language the workspace declared, not in a code
 	// (i18n-l10n.md §2, rule 8 - the backend renders here because creation is the boundary).
@@ -285,7 +288,7 @@ func (h ProvisionTenant) Execute(
 		); err != nil {
 			return err
 		}
-		return h.Journal.Record(ctx, adminrepo.InstanceEvent{
+		if err := h.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: h.IDs.NewID(), OccurredAt: now, Action: journalProvisioned,
 			TenantID: tenant.ID, TenantSlug: tenant.Slug, ActorLabel: actor.AccountName,
 			Details: map[string]any{
@@ -293,7 +296,10 @@ func (h ProvisionTenant) Execute(
 				"default_hub_id":   hubID.String(),
 				"plan":             cmd.Plan,
 			},
-		})
+		}); err != nil {
+			return err
+		}
+		return h.Platform.Record(ctx, event.WorkspaceCreated, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, nil)
 	})
 	if err != nil {
 		return ProvisionedTenant{}, err

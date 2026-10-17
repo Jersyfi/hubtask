@@ -5036,6 +5036,41 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/events:
+    get:
+      tags: [admin]
+      operationId: listPlatformEvents
+      summary: The installation's events, read forward
+      description: >
+        What a provider's purchase platform learns about the workspaces - created, moved to another
+        plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a
+        limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The
+        same events the installation's subscriptions are sent, so a platform that was down reads
+        what it missed from the cursor it last kept and misses nothing.
+
+        Each event carries the workspace's id, the platform's reference, its status, its plan and a
+        version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and
+        states only, never anybody's content.
+
+        The events are numbered in the order their changes committed, so a page never skips one
+        that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor`
+        is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a
+        cursor older than that is answered `410` with `admin.events_cursor_expired`, since what
+        followed it is no longer all there. Single mode offers none of this
+        (`admin.multi_mode_required`).
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: One page, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEventPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/ai-providers:
     get:
       tags: [admin]
@@ -12010,6 +12045,28 @@ components:
           type: array
           items: { $ref: "#/components/schemas/InstanceJournalEntry" }
         page: { $ref: "#/components/schemas/PageInfo" }
+
+    PlatformEventPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvent" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    PlatformEvent:
+      type: object
+      description: >
+        One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent,
+        unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform
+        deduplicates on it either way; `tenantid` is the workspace the event is about, and `data`
+        carries its state as the schema of the event's `type` describes.
+
+        Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the
+        event schemas and the CloudEvents specification, and a second list of its properties here
+        would drift.
+      additionalProperties: true
 
     SessionElevation:
       type: object
