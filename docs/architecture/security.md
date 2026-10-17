@@ -297,7 +297,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-8 | Fuzz tests for the parsers that take untrusted input — the query DSL, CEL input, signature verification, the intake parser — each target in its own nightly job (`nightly.yml:fuzz`, the targets found by `make fuzz-targets`); a crash fails the nightly, keeps the crashing input as an artefact and files a `finding`. Each has a target: the query DSL compiler (`FuzzCompile`), a rule's CEL condition (`FuzzCompileCondition`), the outbound webhook signature (`FuzzVerifySignature`), and the intake's two doors - the mail parser (`FuzzParseMail`) and the inbound credential a webhook delivery presents (`FuzzParseInboundToken`) |
 | SG-9 | A container scan with no critical findings; the image verified as non-root and read-only |
 | SG-10 | An SBOM produced and the image signed (release pipeline only) |
-| SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope |
+| SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope; the purchase platform's narrow scope admitting exactly its verbs, and the deletion's step-up waived for nobody but a registered service account (T-26) |
 | SG-12 | The upload matrix test (SVG, HTML, polyglot files, the wrong content type) |
 | SG-13 | Every writing use case declares its audit obligation, and every auditable action is in the `AuditableAction` registry ([audit.md](./audit.md) §7) |
 
