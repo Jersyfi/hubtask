@@ -67,7 +67,7 @@ func TestTheTermsVersionResolvesWithItsLink(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			resolved, locks := EffectiveLegal(tc.instance, tc.workspace)
+			resolved, locks := EffectiveLegal(tc.instance, LegalLayer{}, tc.workspace)
 			terms := resolved.Terms()
 			if terms.URL != tc.wantURL || terms.Version != tc.wantVer || terms.SetBy != tc.wantBy {
 				t.Errorf("terms = %+v, want (%q, %q, %q)", terms, tc.wantURL, tc.wantVer, tc.wantBy)
@@ -78,8 +78,8 @@ func TestTheTermsVersionResolvesWithItsLink(t *testing.T) {
 			if (locks[LinkTermsVersion] == LockInstance) != tc.wantVersionLocked {
 				t.Errorf("the version's lock = %q", locks[LinkTermsVersion])
 			}
-			if got := LegalSourceOf(LinkTermsVersion, tc.instance, tc.workspace); got !=
-				LegalSourceOf(LinkTerms, tc.instance, tc.workspace) {
+			if got := LegalSourceOf(LinkTermsVersion, tc.instance, LegalLayer{}, tc.workspace); got !=
+				LegalSourceOf(LinkTerms, tc.instance, LegalLayer{}, tc.workspace) {
 				t.Errorf("the version's source %q is not the link's", got)
 			}
 		})

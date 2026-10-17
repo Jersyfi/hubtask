@@ -5,6 +5,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
@@ -117,14 +118,14 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 		}
 		outcome.add(marked)
 
-		chained, err := s.announceChains(ctx, rules, holds, kind, now)
+		chained, err := s.announceChains(ctx, rules, holds, kind, now, outcome.SetAside)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.add(chained)
 	}
 
-	acted, err := s.act(ctx, actor, holds, now)
+	acted, err := s.act(ctx, actor, holds, now, outcome.SetAside)
 	if err != nil {
 		return outcome, err
 	}
@@ -188,10 +189,23 @@ func (s Sweeper) announce(
 				// keeping it, its period simply has not run out - and not matched either.
 				continue
 			}
+			if _, aside := outcome.SetAside[rule.ID]; aside {
+				continue
+			}
 			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs, entries)
 			if err != nil {
-				return Outcome{}, err
+				code, rulesFault := conditionFailure(err)
+				if !rulesFault {
+					return Outcome{}, err
+				}
+				// The rule is set aside for this pass: what it collected so far is dropped, so it
+				// announces nothing, and every other rule goes on (data-retention.md §2).
+				outcome.setAside(rule.ID, domain.RuleFailure{Code: code, At: now})
+				markable -= len(byRule[rule.ID])
+				delete(byRule, rule.ID)
+				continue
 			}
+			outcome.judged(rule.ID)
 			if !matches {
 				// Not a block and not a hold: the rule simply does not apply to this entry, and it
 				// is not matched, for the same reason as the cutoff case above.
@@ -227,6 +241,9 @@ func (s Sweeper) announce(
 	}
 
 	for _, ruleID := range order {
+		if _, aside := outcome.SetAside[ruleID]; aside {
+			continue
+		}
 		rule := ruleByID(applicable, ruleID)
 		group := byRule[ruleID]
 		ids := make([]shared.ID, 0, len(group))
@@ -329,12 +346,16 @@ func (s Sweeper) warn(
 // chain, and a rule acting on it would be acting outside what it matched.
 func (s Sweeper) announceChains(
 	ctx context.Context, rules []domain.Rule, holds domain.Holds,
-	kind domain.Kind, now time.Time,
+	kind domain.Kind, now time.Time, setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
 
 	for _, rule := range rulesFor(rules, kind.Name) {
 		if !rule.Chained() {
+			continue
+		}
+		if _, aside := setAside[rule.ID]; aside {
+			// A rule set aside announces nothing in this pass, its second stage included.
 			continue
 		}
 		anchor, ok := rule.StageAnchor(kind, true)
@@ -396,6 +417,7 @@ func (s Sweeper) announceChains(
 // act is phase two: what the grace period has run out on.
 func (s Sweeper) act(
 	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
+	setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
 	byAction := map[domain.Action][]repository.Candidate{}
@@ -432,6 +454,11 @@ func (s Sweeper) act(
 				break
 			}
 			outcome.Read++
+			if _, aside := setAside[candidate.Rule]; aside {
+				// Marked by a rule this pass set aside: its entries are neither announced nor
+				// removed until it evaluates again (data-retention.md §2). The marking stands.
+				continue
+			}
 			if candidate.Action == domain.ActionNotifyOnly {
 				// An announcement acts on nothing. The marking stands so the object keeps saying
 				// what the rule would do, and `:retain` is how somebody takes it off.
@@ -593,10 +620,10 @@ func (s Sweeper) remove(
 // That is the whole point of the port's lazy activation: `item` is a query, and a pass over a
 // thousand candidates must not make a thousand of them for rules that never ask.
 //
-// A condition that cannot be evaluated stops the pass rather than defaulting either way. Defaulting
-// to true would delete what the condition was written to protect; defaulting to false would quietly
-// retain everything and look like a working rule. Neither is an answer, so the failure is reported
-// and the run's own error handling decides.
+// A condition that cannot be evaluated does not default either way. Defaulting to true would delete
+// what the condition was written to protect; defaulting to false would quietly retain everything
+// and look like a working rule. The error goes back, and the caller sets the rule aside for the pass
+// where it is the condition's own (conditionFailure).
 func (s Sweeper) matchesCondition(
 	ctx context.Context, rule domain.Rule, candidate repository.Candidate, now time.Time,
 	programs map[shared.ID]expression.Program, entries *pageEntries,
@@ -763,8 +790,55 @@ func ruleByID(rules []domain.Rule, id shared.ID) domain.Rule {
 	return domain.Rule{}
 }
 
+// conditionFailure answers whether an error from a condition is the condition's own - it does not
+// compile in this build, or it failed on this entry's values - and its code. Those set the rule
+// aside. Anything else - the database unreadable while resolving `item`, an engine not wired - is
+// nobody's rule, and fails the pass as before, to be tried again.
+func conditionFailure(err error) (string, bool) {
+	var coded *shared.Error
+	if !errors.Is(err, shared.ErrValidation) || !errors.As(err, &coded) || coded.DetailCode == "" {
+		return "", false
+	}
+	return coded.DetailCode, true
+}
+
+// setAside records that a rule is set aside for this pass, the first failure being the one shown.
+func (o *Outcome) setAside(ruleID shared.ID, failure domain.RuleFailure) {
+	if o.SetAside == nil {
+		o.SetAside = map[shared.ID]domain.RuleFailure{}
+	}
+	if _, already := o.SetAside[ruleID]; !already {
+		o.SetAside[ruleID] = failure
+	}
+}
+
+// judged records that a rule's condition held or not on a candidate without failing.
+func (o *Outcome) judged(ruleID shared.ID) {
+	if o.Judged == nil {
+		o.Judged = map[shared.ID]bool{}
+	}
+	o.Judged[ruleID] = true
+}
+
+// Clean is the rules the pass judged and did not set aside.
+func (o Outcome) Clean() []shared.ID {
+	clean := make([]shared.ID, 0, len(o.Judged))
+	for ruleID := range o.Judged {
+		if _, aside := o.SetAside[ruleID]; !aside {
+			clean = append(clean, ruleID)
+		}
+	}
+	return clean
+}
+
 // add folds one phase's outcome into the pass's.
 func (o *Outcome) add(other Outcome) {
+	for ruleID, failure := range other.SetAside {
+		o.setAside(ruleID, failure)
+	}
+	for ruleID := range other.Judged {
+		o.judged(ruleID)
+	}
 	o.Matched += other.Matched
 	o.Held += other.Held
 	o.Read += other.Read

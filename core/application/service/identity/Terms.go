@@ -42,7 +42,7 @@ const TermsAgreedAction audit.Action = "auth.terms_agreed"
 const methodTerms = "TERMS"
 
 // TermsReader answers the terms of use in force for a workspace: the link and version resolved
-// workspace -> installation, and who set them. The zero value is "no terms".
+// workspace -> plan -> installation, and who set them. The zero value is "no terms".
 type TermsReader interface {
 	TermsInForce(ctx context.Context, tenantID shared.ID) (domain.TermsInForce, error)
 }

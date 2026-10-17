@@ -27,7 +27,7 @@ func TestTheLegalLinksResolveAndLock(t *testing.T) {
 		PrivacyURL: "https://acme.example/privacy",
 	}}
 
-	resolved, locks := EffectiveLegal(instance, workspace)
+	resolved, locks := EffectiveLegal(instance, LegalLayer{}, workspace)
 
 	if resolved.Of(LinkImprint) != "https://acme.example/imprint" {
 		t.Errorf("the open link resolved to %q", resolved.Of(LinkImprint))
@@ -48,7 +48,7 @@ func TestTheLegalLinksResolveAndLock(t *testing.T) {
 
 // A private installation owes nobody an imprint: with nothing set anywhere, there is no line.
 func TestAnInstallationThatSetNothingShowsNothing(t *testing.T) {
-	resolved, locks := EffectiveLegal(LegalLayer{}, LegalLayer{})
+	resolved, locks := EffectiveLegal(LegalLayer{}, LegalLayer{}, LegalLayer{})
 
 	if !resolved.IsEmpty() {
 		t.Errorf("something was invented: %+v", resolved)
@@ -131,8 +131,43 @@ func TestALinkSaysWhichLevelSetIt(t *testing.T) {
 		LinkTerms:         SourceInstance,  // locked to "no link"
 		LinkAccessibility: SourceDefault,   // nobody set one
 	} {
-		if got := LegalSourceOf(name, instance, workspace); got != want {
+		if got := LegalSourceOf(name, instance, LegalLayer{}, workspace); got != want {
 			t.Errorf("%s comes from %q, want %q", name, got, want)
 		}
+	}
+}
+
+// The plan sits between (#1531's decision, identity.md §18): it sets and locks links where the
+// installation leaves them open, a workspace replaces an open plan link, and a plan's terms are the
+// provider's to be asked about.
+func TestAPlansLegalLinksSitBetween(t *testing.T) {
+	instance := LegalLayer{
+		Links: LegalLinks{ImprintURL: "https://provider.example/imprint", TermsURL: "https://provider.example/terms"},
+		Locks: map[LegalLink]bool{LinkImprint: true},
+	}
+	plan := LegalLayer{
+		Links: LegalLinks{ImprintURL: "https://plan.example/imprint", TermsURL: "https://provider.example/b2b-terms",
+			TermsVersion: "2026-10", PrivacyURL: "https://provider.example/b2b-privacy"},
+		Locks: map[LegalLink]bool{LinkTerms: true},
+	}
+	workspace := LegalLayer{Links: LegalLinks{TermsURL: "https://acme.example/terms", PrivacyURL: "https://acme.example/privacy"}}
+
+	links, locks := EffectiveLegal(instance, plan, workspace)
+	if links.ImprintURL != "https://provider.example/imprint" || locks[LinkImprint] != LockInstance {
+		t.Errorf("the installation's lock: %q, %q", links.ImprintURL, locks[LinkImprint])
+	}
+	if links.TermsURL != "https://provider.example/b2b-terms" || links.TermsVersion != "2026-10" ||
+		locks[LinkTerms] != LockPlan || locks[LinkTermsVersion] != LockPlan || links.TermsSetBy != TermsByInstallation {
+		t.Errorf("the plan's terms: %+v, %v", links, locks)
+	}
+	if links.PrivacyURL != "https://acme.example/privacy" {
+		t.Errorf("the workspace's own privacy notice: %q", links.PrivacyURL)
+	}
+	if got := LegalSourceOf(LinkTerms, instance, plan, workspace); got != SourcePlan {
+		t.Errorf("the terms come from %q", got)
+	}
+	open, _ := EffectiveLegal(instance, plan, LegalLayer{})
+	if open.PrivacyURL != "https://provider.example/b2b-privacy" {
+		t.Errorf("an open plan link without the workspace's own: %q", open.PrivacyURL)
 	}
 }

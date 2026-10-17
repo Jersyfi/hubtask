@@ -295,6 +295,9 @@ func signInPolicyResponse(out usecase.Output) *openapi.SignInPolicy {
 		managed := flag(out, "managed_accounts")
 		answer.ManagedAccounts = &managed
 	}
+	if plan := out.String("plan"); plan != "" {
+		answer.Plan = &plan
+	}
 	if _, held := out["private_hubs"].(usecase.Output); held {
 		allowed := flag(out, "private_hubs")
 		answer.PrivateHubs = &allowed

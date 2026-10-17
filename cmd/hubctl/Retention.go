@@ -325,6 +325,14 @@ func retentionRetain(ctx context.Context, cli *CLI, args []string) error {
 	return cli.Emit(item, itemTable([]openapi.WorkItem{item}))
 }
 
+// failingOf is a rule set aside by the last pass that reached it: the code and when, or nothing.
+func failingOf(policy openapi.RetentionPolicy) string {
+	if policy.LastFailure == nil {
+		return ""
+	}
+	return policy.LastFailure.Code + " since " + policy.LastFailure.At.Local().Format("2006-01-02 15:04")
+}
+
 func policyTable(policies []openapi.RetentionPolicy) Table {
 	rows := make([][]string, 0, len(policies))
 	for _, policy := range policies {
@@ -337,10 +345,11 @@ func policyTable(policies []openapi.RetentionPolicy) Table {
 			then(policy),
 			yesNo(policy.Enabled),
 			yesNo(policy.InForce),
+			failingOf(policy),
 		})
 	}
 	return Table{
-		Columns: []string{"id", "data kind", "scope", "days", "action", "then", "enabled", "in force"},
+		Columns: []string{"id", "data kind", "scope", "days", "action", "then", "enabled", "in force", "failing"},
 		Rows:    rows,
 	}
 }

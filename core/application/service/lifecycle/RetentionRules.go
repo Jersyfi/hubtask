@@ -750,6 +750,11 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	if !rule.ExportTargetID.IsZero() {
 		out["export_target_id"] = rule.ExportTargetID.String()
 	}
+	if !rule.LastFailure.IsZero() {
+		out["last_failure"] = map[string]any{
+			"code": rule.LastFailure.Code, "at": rule.LastFailure.At.UTC().Format(time.RFC3339Nano),
+		}
+	}
 	return out
 }
 

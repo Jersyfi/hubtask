@@ -99,8 +99,8 @@ func TestALockWithoutAValuePinsTheDefault(t *testing.T) {
 	}
 }
 
-// The plan's layer is a parameter with no writer yet (ADR-0070 §3). It resolves between the two, so
-// that filling it needs no migration through the sign-in path.
+// The plan's layer resolves between the two (multi-tenancy.md §4.2): it tightens what the
+// installation left open and may lock it, with its own origin.
 func TestThePlansLayerSitsBetweenTheTwo(t *testing.T) {
 	instance := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}}
 	plan := PolicyLayer{
@@ -114,8 +114,62 @@ func TestThePlansLayerSitsBetweenTheTwo(t *testing.T) {
 	if resolved.Policy.Password.MinLength != 15 {
 		t.Errorf("minimum length %d, want the plan's 15", resolved.Policy.Password.MinLength)
 	}
-	if resolved.LockOf(SwitchMinLength) != LockPlan {
-		t.Errorf("lock origin %q, want PLAN", resolved.LockOf(SwitchMinLength))
+	if resolved.LockOf(SwitchMinLength) != LockPlan || resolved.SourceOf(SwitchMinLength) != SourcePlan {
+		t.Errorf("lock %q, source %q, want PLAN for both", resolved.LockOf(SwitchMinLength), resolved.SourceOf(SwitchMinLength))
+	}
+}
+
+// An installation lock binds the plan as it binds the workspace, and a plan only tightens what the
+// installation left open: a plan's value stored before the installation locked or tightened is
+// ignored, not honoured (P-07). A workspace still tightens under an open plan value.
+func TestAPlanStaysUnderTheInstallation(t *testing.T) {
+	cases := []struct {
+		name       string
+		instance   PolicyLayer
+		plan       PolicyLayer
+		workspace  PolicyLayer
+		wantLength int
+		wantLock   LockOrigin
+		wantSource PolicySource
+	}{
+		{
+			name: "under the installation's lock",
+			instance: PolicyLayer{Patch: PolicyPatch{MinLength: intOf(14)},
+				Locks: map[PolicySwitch]bool{SwitchMinLength: true}},
+			plan:       PolicyLayer{Patch: PolicyPatch{MinLength: intOf(20)}, Locks: map[PolicySwitch]bool{SwitchMinLength: true}},
+			wantLength: 14, wantLock: LockInstance, wantSource: SourceInstance,
+		},
+		{
+			name:       "looser than the installation",
+			instance:   PolicyLayer{Patch: PolicyPatch{MinLength: intOf(16)}},
+			plan:       PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}},
+			wantLength: 16, wantLock: LockNone, wantSource: SourceInstance,
+		},
+		{
+			name:       "the workspace tightens an open plan value",
+			instance:   PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}},
+			plan:       PolicyLayer{Patch: PolicyPatch{MinLength: intOf(14)}},
+			workspace:  PolicyLayer{Patch: PolicyPatch{MinLength: intOf(18)}},
+			wantLength: 18, wantLock: LockNone, wantSource: SourceWorkspace,
+		},
+		{
+			name:       "the workspace cannot loosen past the plan",
+			instance:   PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12)}},
+			plan:       PolicyLayer{Patch: PolicyPatch{MinLength: intOf(14)}},
+			workspace:  PolicyLayer{Patch: PolicyPatch{MinLength: intOf(13)}},
+			wantLength: 14, wantLock: LockNone, wantSource: SourcePlan,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			resolved := Effective(c.instance, c.plan, c.workspace)
+			if resolved.Policy.Password.MinLength != c.wantLength || resolved.LockOf(SwitchMinLength) != c.wantLock ||
+				resolved.SourceOf(SwitchMinLength) != c.wantSource {
+				t.Errorf("length %d, lock %q, source %q; want %d, %q, %q",
+					resolved.Policy.Password.MinLength, resolved.LockOf(SwitchMinLength), resolved.SourceOf(SwitchMinLength),
+					c.wantLength, c.wantLock, c.wantSource)
+			}
+		})
 	}
 }
 
@@ -301,6 +355,34 @@ func TestALockedSwitchSentBackUnchangedIsNotARefusal(t *testing.T) {
 // a workspace's setting was a one-way ratchet: somebody who raised the minimum length to twenty
 // could not put it back to nineteen, because nineteen is below what they themselves had just typed -
 // so a mistyped switch was permanent and the only way back was the control plane.
+// UC-ID-16 check 7, UC-ID-20 check 8: a plan switches private hubs and managed accounts off for
+// its workspaces; off is the stricter value, so a workspace cannot turn either back on, locked or
+// not, and a lock says it is the plan's.
+func TestAPlanSwitchesPrivateHubsAndManagedAccountsOff(t *testing.T) {
+	for _, locked := range []bool{false, true} {
+		plan := PolicyLayer{
+			Patch: PolicyPatch{PrivateHubs: boolOf(false), ManagedAccounts: boolOf(false)},
+			Locks: map[PolicySwitch]bool{SwitchPrivateHubs: locked, SwitchManagedAccounts: locked},
+		}
+		workspace := PolicyLayer{Patch: PolicyPatch{PrivateHubs: boolOf(true), ManagedAccounts: boolOf(true)}}
+		resolved := Effective(PolicyLayer{}, plan, workspace)
+		if resolved.Policy.PrivateHubs || resolved.Policy.ManagedAccounts {
+			t.Errorf("locked %v: the workspace turned back on what its plan switched off: private hubs %v, managed %v",
+				locked, resolved.Policy.PrivateHubs, resolved.Policy.ManagedAccounts)
+		}
+		for _, name := range []PolicySwitch{SwitchPrivateHubs, SwitchManagedAccounts} {
+			wantLock := LockNone
+			if locked {
+				wantLock = LockPlan
+			}
+			if resolved.LockOf(name) != wantLock || resolved.SourceOf(name) != SourcePlan {
+				t.Errorf("locked %v: %s reads lock %q, source %q; want %q, plan", locked, name,
+					resolved.LockOf(name), resolved.SourceOf(name), wantLock)
+			}
+		}
+	}
+}
+
 func TestAWorkspaceMayRelaxItsOwnTighteningDownToTheLevelAbove(t *testing.T) {
 	instance := PolicyLayer{Patch: PolicyPatch{MinLength: intOf(12), SessionMaxDays: intOf(30)}}
 	// The workspace has already gone past it, in both directions the switches run.

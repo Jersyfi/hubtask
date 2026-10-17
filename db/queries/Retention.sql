@@ -30,7 +30,8 @@ INSERT INTO retention_rule (
 -- whose tenant is zero.
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 ORDER BY data_kind,
          CASE scope_kind WHEN 'COLLECTION' THEN 1 WHEN 'HUB' THEN 2 ELSE 3 END,
@@ -39,7 +40,8 @@ ORDER BY data_kind,
 -- name: FindRetentionRule :one
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 WHERE id = sqlc.arg('id');
 
@@ -308,6 +310,22 @@ UPDATE work_item SET
   updated_at              = sqlc.arg('now')::timestamptz,
   version                 = version + 1
 WHERE retention_rule_id = sqlc.arg('rule_id');
+
+-- name: RecordRuleFailure :execrows
+-- A pass set the rule aside: its condition could not be evaluated on a candidate. The code and the
+-- moment (data-retention.md §2). Written in a transaction of its own beside the pass, so that it
+-- outlives the pass's rollback; it touches the rule's row only, which the pass reads and never
+-- locks.
+UPDATE retention_rule
+SET last_failure_code = sqlc.arg('code'), last_failure_at = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
+
+-- name: ClearRuleFailures :execrows
+-- The rules a pass evaluated cleanly stop showing a failure.
+UPDATE retention_rule
+SET last_failure_code = NULL, last_failure_at = NULL
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND tenant_id = current_tenant_id()
+  AND last_failure_code IS NOT NULL;
 
 -- Where a read of the rule sweep stopped (data-retention.md §5). A reader is named by its phase and,
 -- for phase one, its kind, or for a chain, its rule; the other column stays NULL, and `IS NOT

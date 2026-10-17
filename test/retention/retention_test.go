@@ -138,6 +138,8 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		Clock:     clock.Fixed(at),
 		IDs:       ids,
 		Rules:     postgres.NewRetentionRuleRepository(),
+		// A rule set aside shows why, written beside the pass, as the server wires it.
+		RuleFailures: postgres.NewRetentionRuleRepository(), Independent: s.uow.(persistence.Independent),
 		Sweeper: lifecycle.Sweeper{
 			Rules:   postgres.NewRetentionRuleRepository(),
 			Marking: postgres.NewRetentionMarkingRepository(),

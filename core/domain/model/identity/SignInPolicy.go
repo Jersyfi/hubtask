@@ -482,9 +482,8 @@ func (e EffectivePolicy) ProvidersLockedIn() bool {
 
 // Effective resolves the three levels above the product's default into one rule.
 //
-// The plan's layer is a parameter with no writer yet, deliberately (ADR-0070 §3): a resolver that
-// grew the parameter later would grow it through the sign-in path, the setting screen and the
-// check route at once.
+// The plan's layer sits between the two (multi-tenancy.md §4.2): it tightens what the installation
+// left open and may lock it.
 //
 // A level may only tighten what the level above decided, and a locked switch is not the level
 // below's to touch at all. Both are enforced here rather than at the edge, because the edge is
@@ -499,19 +498,22 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 		origin LockOrigin
 		source PolicySource
 	}{{instance, LockInstance, SourceInstance}, {plan, LockPlan, SourcePlan}, {workspace, LockNone, SourceWorkspace}} {
+		// Every level below the installation is held by what is above it: the plan as the
+		// workspace is (multi-tenancy.md §4.2).
+		below := level.origin != LockInstance
 		for _, name := range level.layer.Patch.Decided() {
-			if locks[name] != LockNone && level.origin == LockNone {
-				// A locked switch: the workspace's value is ignored rather than refused here.
+			if locks[name] != LockNone && below {
+				// A locked switch: the lower level's value is ignored rather than refused here.
 				// Refusing is the writer's job, where there is a field to name; resolving has to
 				// answer something for a row that was written before the lock landed.
 				continue
 			}
-			if level.origin == LockNone && !tightens(name, resolved, level.layer.Patch) {
-				// The workspace's row is *older* than the level above it, and the level above has
-				// since moved past it. Ignoring it here is what makes "a workspace only ever
-				// tightens" true over time rather than only at the moment of the write: an
-				// operator who raises the minimum to sixteen has raised it for the workspace that
-				// stored fourteen last year too.
+			if below && !tightens(name, resolved, level.layer.Patch) {
+				// The row is *older* than the level above it, and the level above has since moved
+				// past it. Ignoring it here is what makes "a lower level only ever tightens" true
+				// over time rather than only at the moment of the write: an operator who raises the
+				// minimum to sixteen has raised it for the plan and the workspace that stored
+				// fourteen last year too.
 				continue
 			}
 			resolved = applySwitch(resolved, name, level.layer.Patch)
@@ -521,7 +523,9 @@ func Effective(instance, plan, workspace PolicyLayer) EffectivePolicy {
 			continue
 		}
 		for name, locked := range level.layer.Locks {
-			if locked {
+			// A lock keeps the origin of the level that placed it first: a plan cannot claim a
+			// switch the installation already fixed.
+			if locked && locks[name] == LockNone {
 				locks[name] = level.origin
 			}
 		}

@@ -11276,7 +11276,7 @@ components:
     SignInPolicyNumber:
       type: object
       description: >
-        One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+        One numeric switch, at the levels that decide it. Zero is off for every one of them.
       required: [value, installation, lock, source, installation_source]
       properties:
         value: { type: integer, description: What is in force in this workspace. }
@@ -11287,7 +11287,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInPolicyFlag:
       type: object
@@ -11299,7 +11299,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInPolicyText:
       type: object
@@ -11311,7 +11311,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInMethod:
       type: string
@@ -11332,7 +11332,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     PolicySource:
       type: string
@@ -11354,8 +11354,8 @@ components:
     SignInPolicy:
       type: object
       description: >
-        The workspace's sign-in rule, every switch at the three levels that decide it: what is in
-        force here, what the level above set, and whether a lock is on it.
+        The workspace's sign-in rule, every switch at the levels that decide it: what is in force
+        here, what the level above set, and whether a lock is on it.
 
         **A locked switch is answered, not withheld.** A setting that simply is not there is a
         setting somebody opens a support ticket about; one shown with its value, its reason and a
@@ -11369,6 +11369,11 @@ components:
         methods: { $ref: "#/components/schemas/SignInPolicyMethods" }
         session: { $ref: "#/components/schemas/SessionPolicySettings" }
         legal: { $ref: "#/components/schemas/LegalPolicySettings" }
+        plan:
+          type: [string, "null"]
+          description: >
+            The name of the plan the workspace is on, as its provider named it, null for none - what
+            "Set by your plan" refers to.
         managed_accounts:
           $ref: "#/components/schemas/SignInPolicyFlag"
           description: >
@@ -17464,6 +17469,18 @@ components:
             (`container_id`). Absent from a listing that named no container: with nothing to be in
             force *in*, the question has no answer. The narrower rule wins, and a rule switched off
             in a collection lets the wider one through rather than stopping it.
+        last_failure:
+          type: [object, "null"]
+          readOnly: true
+          description: >
+            Present while the rule's condition could not be evaluated on an entry in the last pass
+            that reached it: the rule then announced and removed nothing in that pass, and the
+            workspace's other rules went on. Gone once a pass evaluates the condition without
+            failing. `code` is the message code of what failed, `at` when.
+          required: [code, at]
+          properties:
+            code: { type: string }
+            at: { type: string, format: date-time }
 
     RetentionPolicyUpdate:
       type: object

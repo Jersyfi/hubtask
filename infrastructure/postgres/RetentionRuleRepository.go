@@ -298,6 +298,9 @@ func ruleFrom(row sqlc.RetentionRule) (domain.Rule, error) {
 		Justification: stringFrom(row.Justification), Enabled: row.Enabled,
 		ExportTargetID: exportTarget, CreatedBy: createdBy,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
+		LastFailure: domain.RuleFailure{
+			Code: stringFrom(row.LastFailureCode), At: timeFrom(row.LastFailureAt),
+		},
 		Version: int(row.Version),
 	}, nil
 }
