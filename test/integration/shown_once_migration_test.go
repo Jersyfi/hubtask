@@ -35,7 +35,8 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 	// Every route the code marks today is one the migration empties - except the routes marked after
 	// it, which did not exist then and so have no kept bodies for it to empty.
 	markedLater := map[string]bool{
-		"POST /api/v1/auth/sessions:passkey": true,
+		"POST /api/v1/auth/sessions:passkey":   true,
+		"POST /api/v1/auth/mfa/passkey:enroll": true,
 	}
 	for route := range rest.ShownOnceRoutes {
 		if markedLater[route] {

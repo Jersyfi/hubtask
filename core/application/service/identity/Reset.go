@@ -505,6 +505,8 @@ type ResetPasswordCommand struct {
 	RemoteAddr string
 	// TenantHeader may confirm the token's tenant, never overrule it.
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // ResetPassword spends the link and sets the password.
@@ -627,7 +629,7 @@ func (h ResetPassword) answer(
 	session := h.Writer.Session
 
 	challenge, verdict, err := session.challengeFor(ctx, scope, account, SignInCommand{
-		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr, Host: cmd.Host,
 		// The password was just set and judged in full, so the change step must not fire again on
 		// the very password the rule accepted. The empty candidate is what says so: nothing to
 		// judge, and the verdict's other answers - the factor and the bounds - are what is wanted.
@@ -695,6 +697,7 @@ func (h ResetPassword) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it.",
 			},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: PasswordChangedAction, TargetType: accountTargetForPassword,
@@ -716,6 +719,7 @@ func (h ResetPassword) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

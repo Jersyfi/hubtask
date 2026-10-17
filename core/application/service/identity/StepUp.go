@@ -36,6 +36,8 @@ type StepUpCommand struct {
 	RecoveryCode      secret.Secret
 	State             secret.Secret
 	AuthorizationCode string
+	// Key is a passkey or security key's answer to StartPasskeyStepUp's options.
+	Key KeyAnswer
 }
 
 // methodsGiven counts the proofs a command carries. One is a step-up; none is nothing to check, and
@@ -45,6 +47,7 @@ func (cmd StepUpCommand) methodsGiven() int {
 	given := 0
 	for _, present := range []bool{
 		!cmd.Password.IsEmpty(), cmd.Code != "", !cmd.RecoveryCode.IsEmpty(), cmd.presentedProviderProof(),
+		cmd.Key.given(),
 	} {
 		if present {
 			given++
@@ -93,7 +96,7 @@ func (h StepUp) Execute(
 	if cmd.presentedProviderProof() {
 		err = w.proveAtProvider(ctx, actor, session, cmd)
 	} else {
-		method, err = h.prove(ctx, actor, cmd)
+		method, err = h.prove(ctx, actor, session.ID, cmd)
 	}
 	if err != nil {
 		return StepUpGrant{}, err
@@ -158,7 +161,7 @@ func (h StepUp) Execute(
 // check runs: locked first, the decoy where nothing can verify, failures on the account's own
 // subject.
 func (h StepUp) prove(
-	ctx context.Context, actor appshared.ActorContext, cmd StepUpCommand,
+	ctx context.Context, actor appshared.ActorContext, sessionID shared.ID, cmd StepUpCommand,
 ) (domain.StepUpMethod, error) {
 	w := h.Writer
 	subject := stepUpSubject(actor.AccountID)
@@ -183,6 +186,21 @@ func (h StepUp) prove(
 				return countedRefusal(subject, err)
 			}
 			method = domain.StepUpTotp
+			return nil
+		}
+
+		if cmd.Key.given() {
+			// Only an answer to this session's own challenge: one issued to another session, or to
+			// the sign-in's step, proves nothing here.
+			err := w.proveWithKey(ctx, actor.TenantID, domain.PendingPasskeyStepUp, actor.AccountID, sessionID, cmd.Key)
+			if errors.Is(err, errKeyRefused) {
+				w.failure(ctx, FailureMfa)
+				return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid").WithCause(err))
+			}
+			if err != nil {
+				return err
+			}
+			method = domain.StepUpPasskey
 			return nil
 		}
 
@@ -265,6 +283,8 @@ func methodAuditLabel(method domain.StepUpMethod) string {
 		return "RECOVERY"
 	case domain.StepUpProvider:
 		return "PROVIDER"
+	case domain.StepUpPasskey:
+		return "PASSKEY"
 	default:
 		return "PASSWORD"
 	}
@@ -341,18 +361,31 @@ func (v StepUpVerifier) Methods(
 			if err != nil && !errors.Is(err, shared.ErrNotFound) {
 				return err
 			}
-			if err == nil && !enrollment.ConfirmedAt.IsZero() {
+			armed := err == nil && !enrollment.ConfirmedAt.IsZero()
+			if armed {
 				methods = append(methods, stepupport.MethodTotp)
-				// A recovery code where one is left: offering a method nobody can answer is a
-				// prompt that leads nowhere.
-				if w.Recovery != nil {
-					left, err := w.Recovery.Remaining(ctx, accountID)
-					if err != nil {
-						return err
-					}
-					if left > 0 {
-						methods = append(methods, stepupport.MethodRecovery)
-					}
+			}
+			// A key of the workspace's relying party. The host the prompt runs at is not known
+			// here: the options call refuses another, and the prompt offers the other ways.
+			keys := 0
+			if w.KeyProofs != nil && w.Keys != nil {
+				keys, err = w.Keys.CurrentKeys(ctx, accountID)
+				if err != nil {
+					return err
+				}
+				if keys > 0 {
+					methods = append(methods, stepupport.MethodPasskey)
+				}
+			}
+			// A recovery code where a factor is held and one is left: offering a method nobody can
+			// answer is a prompt that leads nowhere.
+			if (armed || keys > 0) && w.Recovery != nil {
+				left, err := w.Recovery.Remaining(ctx, accountID)
+				if err != nil {
+					return err
+				}
+				if left > 0 {
+					methods = append(methods, stepupport.MethodRecovery)
 				}
 			}
 			// The provider last: a fresh sign-in there, where the account is connected to one that
@@ -379,7 +412,8 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 		Summary: "Proves the caller afresh for one privileged action, with " +
 			"exactly one method the account holds: the password, the TOTP code where a " +
 			"factor is armed, a recovery code, which the step-up consumes, or the state and code a " +
-			"provider sent the browser back with after StartProviderStepUp. The proof lands on the current " +
+			"provider sent the browser back with after StartProviderStepUp, or a passkey or security key's " +
+			"answer to StartPasskeyStepUp's options. The proof lands on the current " +
 			"session, is valid for a short window, and is consumed by the one action it is " +
 			"presented to - a second privileged action needs a second proof.",
 		SideEffects: "Records the proof on the session, writes an audit entry naming the method, " +
@@ -405,6 +439,7 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 				Name: "authorization_code", Kind: usecase.KindString,
 				Description: "PROVIDER: the code the provider issued, presented together with the state.",
 			},
+			keyAnswerFields[0], keyAnswerFields[1], keyAnswerFields[2], keyAnswerFields[3],
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: StepUpAction, TargetType: sessionTarget,
@@ -420,12 +455,17 @@ func (h StepUp) Descriptor() usecase.Descriptor {
 func (h StepUp) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	key, ok := keyAnswerOf(in)
+	if !ok {
+		return nil, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+	}
 	grant, err := h.Execute(ctx, actor, StepUpCommand{
 		Password:          secret.New(in.String("password")),
 		Code:              in.String("code"),
 		RecoveryCode:      secret.New(in.String("recovery_code")),
 		State:             secret.New(in.String("state")),
 		AuthorizationCode: in.String("authorization_code"),
+		Key:               key,
 	})
 	if err != nil {
 		return nil, err

@@ -577,6 +577,7 @@ func (c *RestController) CompleteOidcSignIn(w http.ResponseWriter, r *http.Reque
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"host":          r.Host,
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

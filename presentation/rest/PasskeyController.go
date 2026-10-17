@@ -252,3 +252,90 @@ func (c *RestController) CompletePasskeySignIn(w http.ResponseWriter, r *http.Re
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
 }
+
+const (
+	startPasskeyEnrollmentUseCase    = "StartPasskeyEnrollment"
+	completePasskeyEnrollmentUseCase = "CompletePasskeyEnrollment"
+)
+
+// StartPasskeyEnrollment answers POST /auth/mfa/passkey:enroll-options. Public, for ConfirmTotp's
+// reason: the ENROLL credential in the body is what authenticates the call.
+func (c *RestController) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyEnrollmentStart
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startPasskeyEnrollmentUseCase, actorOf(r), usecase.Input{
+		"pending_token": body.PendingToken, "host": r.Host,
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	var answer openapi.PasskeyRegistrationOptions
+	encoded, err := json.Marshal(out)
+	if err == nil {
+		err = json.Unmarshal(encoded, &answer)
+	}
+	if err != nil {
+		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// CompletePasskeyEnrollment answers POST /auth/mfa/passkey:enroll: the key kept, and the sign-in's
+// pair or the step it still owes.
+func (c *RestController) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyEnrollment
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{
+		"pending_token": body.PendingToken, "name": body.Name, "raw_id": body.RawId,
+		"client_data_json": body.ClientDataJson, "attestation_object": body.AttestationObject,
+	}
+	if body.Transports != nil {
+		transports := make([]any, 0, len(*body.Transports))
+		for _, transport := range *body.Transports {
+			transports = append(transports, string(transport))
+		}
+		in["transports"] = transports
+	}
+	out, err := c.UseCases.Invoke(r.Context(), completePasskeyEnrollmentUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	passkey, _ := out["passkey"].(usecase.Output)
+	answer := openapi.PasskeyEnrolled{Passkey: passkeyResponse(passkey)}
+	if codes, ok := out["recovery_codes"].([]any); ok && len(codes) > 0 {
+		listed := make([]string, 0, len(codes))
+		for _, code := range codes {
+			text, _ := code.(string)
+			listed = append(listed, text)
+		}
+		answer.RecoveryCodes = &listed
+	}
+	if tokens, ok := out["tokens"].(usecase.Output); ok {
+		pair := sessionTokensResponse(tokens)
+		answer.Tokens = &pair
+	}
+	if challenge, ok := out["challenge"].(usecase.Output); ok {
+		owed := mfaChallengeResponse(challenge)
+		answer.Challenge = &owed
+	}
+	writeJSON(w, r, http.StatusCreated, answer)
+}

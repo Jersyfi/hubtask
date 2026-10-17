@@ -9,7 +9,7 @@
  * Nothing here judges a ceremony. The server's verifier does; this only carries bytes across.
  */
 
-import type { Passkey, PasskeyAssertion, PasskeyList, PasskeyRegistration, PasskeyRegistrationOptions, PasskeySignInOptions } from '@hubtask/sync-engine';
+import type { Passkey, PasskeyAssertion, PasskeyAssertionOptions, PasskeyList, PasskeyRegistration, PasskeyRegistrationOptions, PasskeySignInOptions } from '@hubtask/sync-engine';
 
 /** base64url without padding, as WebAuthn's JSON form writes every binary value. */
 export function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
@@ -215,4 +215,41 @@ export async function canOfferInField(browser: ConditionalBrowser): Promise<bool
   } catch {
     return false;
   }
+}
+
+/**
+ * The options for a key's ceremony where the account is known - the step after the password, or a
+ * fresh proof - as `navigator.credentials.get()` takes them: its own credentials, presence enough.
+ */
+export function keyRequestOptionsOf(options: PasskeyAssertionOptions, signal?: AbortSignal): CredentialRequestOptions {
+  const given = options.public_key;
+  return {
+    mediation: 'optional',
+    ...(signal ? { signal } : {}),
+    publicKey: {
+      rpId: given.rpId,
+      challenge: fromBase64Url(given.challenge),
+      timeout: given.timeout,
+      userVerification: given.userVerification,
+      allowCredentials: given.allowCredentials.map((held) => ({
+        type: held.type,
+        id: fromBase64Url(held.id),
+        ...(held.transports ? { transports: held.transports as AuthenticatorTransport[] } : {}),
+      })),
+    },
+  };
+}
+
+/** A key's answer where the account is known: no handle, because nobody is looked up by it. */
+export interface KeyAnswer {
+  readonly raw_id: string;
+  readonly client_data_json: string;
+  readonly authenticator_data: string;
+  readonly signature: string;
+}
+
+/** The ceremony's answer, as `POST /auth/sessions:verify` and `POST /auth/step-up` take it. */
+export function keyAnswerOf(credential: AssertedCredential): KeyAnswer {
+  const { user_handle: _handle, ...answer } = assertionOf(credential);
+  return answer;
 }
