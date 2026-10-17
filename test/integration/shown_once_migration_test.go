@@ -33,8 +33,16 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 		{"POST /api/v1/items", `{"id":"i","title":"kept"}`, false},
 	}
 	// Every route the code marks today is one the migration empties - the table may grow after it,
-	// but on the day it was written the two were the same.
+	// but on the day it was written the two were the same. A route that came later never had a body
+	// stored before its marking, so the migration owes it nothing.
+	later := map[string]bool{
+		"POST /api/v1/admin/subscriptions":                                true,
+		"POST /api/v1/admin/subscriptions/{subscriptionId}:rotate-secret": true,
+	}
 	for route := range rest.ShownOnceRoutes {
+		if later[route] {
+			continue
+		}
 		rows = append(rows, struct {
 			endpoint, body string
 			emptied        bool
