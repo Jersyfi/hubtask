@@ -200,7 +200,7 @@
     <p class="failure" role="alert">{listingFailure.message}</p>
   {:else if listing.state.status === 'loading' || listing.state.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={2} /></div>
-  {:else if open.length === 0 && !isPending(asking)}
+  {:else if open.length === 0 && !isPending(asking) && !note}
     <p class="note">{t('app.suggestions.none')}</p>
   {/if}
 
