@@ -70,6 +70,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 | `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
 | `platform_event` | The installation's events for a purchase platform (§4.3): read across every workspace by the control plane, and the `deleted` event outlives its workspace | Identifiers and states only; written beside a control-plane change in its transaction; read only by `GET /admin/events`, behind `admin:tenants` and the register; the reference nulled at the purge, every row swept after 30 days |
+| `platform_subscription`, `platform_delivery` | The installation's subscriptions for a purchase platform and their deliveries (§4.3); no tenant column | Reached only by the control plane's use cases behind `admin:tenants` and the register, and by the installation's delivery jobs; the secret sealed; deliveries swept after 30 days |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:

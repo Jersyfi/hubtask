@@ -2949,6 +2949,43 @@ CREATE INDEX platform_event_occurred_idx ON platform_event (occurred_at);
 GRANT SELECT, INSERT, DELETE ON platform_event TO hubtask_app;
 GRANT UPDATE (payload) ON platform_event TO hubtask_app;
 GRANT USAGE ON SEQUENCE platform_event_number TO hubtask_app;
+
+-- The installation's subscriptions for a purchase platform and their deliveries, one row per event
+-- and subscription across its attempts; never switched off for being unreachable. No tenant column:
+-- they are the installation's. See db/migrations/0182_platform_subscription.sql.
+CREATE TABLE platform_subscription (
+  id               uuid PRIMARY KEY,
+  target_url       text NOT NULL CHECK (char_length(target_url) BETWEEN 1 AND 2000),
+  secret_enc       bytea NOT NULL,
+  secret_key_id    text NOT NULL,
+  state            text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE', 'PAUSED')),
+  last_error       text,
+  last_delivery_at timestamptz,
+  from_file        boolean NOT NULL DEFAULT false,
+  created_at       timestamptz NOT NULL,
+  created_by       uuid,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1
+);
+CREATE TABLE platform_delivery (
+  id              uuid PRIMARY KEY,
+  subscription_id uuid NOT NULL REFERENCES platform_subscription (id) ON DELETE CASCADE,
+  event_id        uuid NOT NULL,
+  event_type      text NOT NULL,
+  attempt         integer NOT NULL DEFAULT 0,
+  status          text NOT NULL DEFAULT 'PENDING'
+    CHECK (status IN ('PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER')),
+  response_status integer,
+  error_code      text,
+  next_attempt_at timestamptz,
+  created_at      timestamptz NOT NULL,
+  updated_at      timestamptz NOT NULL,
+  CONSTRAINT platform_delivery_event_key UNIQUE (subscription_id, event_id)
+);
+CREATE INDEX platform_delivery_status_idx ON platform_delivery (subscription_id, status);
+CREATE INDEX platform_delivery_updated_idx ON platform_delivery (updated_at);
+GRANT SELECT, INSERT, UPDATE, DELETE ON platform_subscription TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON platform_delivery TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE ON plan TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON plan_setting TO hubtask_app;
