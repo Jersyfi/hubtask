@@ -1381,7 +1381,8 @@ func (pending) StartProviderConnect(
 // CompleteProviderConnect is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-// Signing in with a passkey (identity.md §23.4).
+// Signing in with a passkey (identity.md §23.4). Both are overridden by RestController, for the
+// reason given at CreateContainer.
 func (pending) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

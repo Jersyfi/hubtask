@@ -102,6 +102,9 @@ func actionOf(method string) audit.Action {
 	if method == domain.SignedInWithOidc {
 		return OidcSignedInAction
 	}
+	if method == domain.SignedInWithPasskey {
+		return PasskeySignedInAction
+	}
 	return SignedInAction
 }
 

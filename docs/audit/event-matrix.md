@@ -101,6 +101,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.passkey_registration_started` | StartPasskeyRegistration | `account` | INFO | Every time |
 | `auth.passkey_removed` | RemoveOwnPasskey | `account` | NOTICE | Every time |
 | `auth.passkey_renamed` | RenameOwnPasskey | `account` | INFO | Every time |
+| `auth.passkey_sign_in_started` | StartPasskeySignIn | `workspace` | INFO | Every time |
+| `auth.passkey_signed_in` | CompletePasskeySignIn | `session` | NOTICE | Every time |
 | `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |

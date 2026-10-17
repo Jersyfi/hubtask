@@ -157,6 +157,8 @@ const (
 	SignedInWithOidc             = "OIDC"
 	SignedInWithInvitation       = "INVITATION"
 	SignedInWithReset            = "RESET"
+	// SignedInWithPasskey is a passkey with the person verified on the device, alone (§23.4).
+	SignedInWithPasskey = "PASSKEY"
 )
 
 // NewSessionInput is what opening a session needs.

@@ -156,6 +156,7 @@
   "auth.passkey_registration_invalid": "Die Antwort deines Geräts konnte nicht angenommen werden, deshalb wurde nichts hinzugefügt. Versuche es noch einmal oder mit einem anderen Gerät.",
   "auth.passkey_name_invalid": "Gib ihm einen Namen mit 1 bis {max} Zeichen, ohne Zeilenumbrüche.",
   "auth.passkey_person_only": "Passkeys gehören Personen: Ein Dienstkonto, eine Automatisierung oder ein Agent meldet sich mit einem Token an.",
+  "auth.passkey_not_offered": "Dieser Arbeitsbereich bietet die Anmeldung mit einem Passkey nicht an. Melde dich anders an.",
   "auth.passkey_challenge_stale": "Dieser Versuch, einen Passkey hinzuzufügen, ist abgelaufen - er hat länger als fünf Minuten gedauert, oder er wurde anderswo neu begonnen. Beginne noch einmal.",
   "auth.passkey_already_registered": "Dieses Gerät hat bereits einen Passkey für dein Konto hier.",
   "auth.passkey_not_found": "Dieser Passkey ist nicht mehr in deinem Konto. Vielleicht wurde er in einem anderen Fenster entfernt.",

@@ -289,7 +289,10 @@ func isAuthRoute(r *http.Request) bool {
 		APIBasePath + "/auth/address:confirm",
 		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
-		APIBasePath + "/auth/oidc:callback":
+		APIBasePath + "/auth/oidc:callback",
+		// A passkey sign-in: an anonymous challenge row, and a guess at a signature.
+		APIBasePath + "/auth/sessions:passkey-options",
+		APIBasePath + "/auth/sessions:passkey":
 		return true
 	}
 	return false
