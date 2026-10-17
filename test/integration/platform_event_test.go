@@ -251,3 +251,38 @@ func TestTheSweepTakesOnlyExpiredInstallationEvents(t *testing.T) {
 		t.Errorf("after the sweep the feed holds %+v", kept)
 	}
 }
+
+// Work held for after the transaction runs once the refused transaction has ended, in a transaction
+// of its own that commits although the first rolled back - the shape a limit reached is told in.
+func TestWorkHeldForAfterwardsOutlivesTheRefusal(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	recorder := platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{}))
+	workspace := seedWorkspace(ctx, t, "refused")
+	start := lastPlatformNumber(ctx, t)
+
+	ran, ranInside := false, false
+	refused := errors.New("refused")
+	err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+		persistence.After(ctx, func(ctx context.Context) {
+			ran = true
+			if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+				return recorder.Record(ctx, event.WorkspaceLimitReached, event.Actor{Kind: shared.ActorSystem},
+					time.Now(), map[string]any{"quota": "items", "limit": int64(1)})
+			}); err != nil {
+				t.Errorf("the held work's own transaction: %v", err)
+			}
+		})
+		ranInside = ran
+		return refused
+	})
+	if !errors.Is(err, refused) {
+		t.Fatalf("answered %v", err)
+	}
+	if ranInside {
+		t.Error("the held work ran inside the refused transaction")
+	}
+	if events := platformEventsOf(ctx, t, uow, start, workspace); len(events) != 1 {
+		t.Errorf("after the refusal the feed holds %d events of the workspace, want 1", len(events))
+	}
+}
