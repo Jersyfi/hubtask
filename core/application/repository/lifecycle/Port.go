@@ -289,16 +289,17 @@ type Marking interface {
 	// no byte of a request becomes SQL text (rule 9), so the adapter holds one statement per
 	// anchor and refuses one it has none for.
 	//
-	// skip is how many rows of the order - oldest anchor first - to pass over: an entry a hold, a
-	// condition or a narrower rule keeps stays in this set, and a caller that could act on little of
-	// a page reads the next one in the same transaction.
-	Due(ctx context.Context, anchor domain.Anchor, cutoff time.Time, skip, batch int) ([]Candidate, error)
+	// after is where to continue in the order - oldest anchor first, then identifier - and the zero
+	// Position the start: an entry a hold, a condition or a narrower rule keeps stays in this set, so
+	// a caller that could act on little of a page reads on from the last row it judged, in this pass
+	// or a later one (Cursors). A candidate's position is its AnchoredAt and its ID.
+	Due(ctx context.Context, anchor domain.Anchor, cutoff time.Time, after Position, batch int) ([]Candidate, error)
 
 	// DueInChain is the same question for a chain's second stage, restricted to the entries the
 	// rule's own first stage acted on. An entry somebody archived by hand is not part of anybody's
 	// chain, and a rule that swept it up would be acting outside what it matched.
 	DueInChain(
-		ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, skip, batch int,
+		ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, after Position, batch int,
 	) ([]Candidate, error)
 
 	// Mark writes what is coming, when, and under which rule. Answers how many it marked, which is
@@ -319,9 +320,10 @@ type Marking interface {
 		action domain.Action, reason string,
 	) (int, error)
 
-	// MarkedDue answers the entries whose grace period has run out, oldest first; skip as Due
-	// reads it, for a marked entry a hold or a retained descendant keeps.
-	MarkedDue(ctx context.Context, now time.Time, skip, batch int) ([]Candidate, error)
+	// MarkedDue answers the entries whose grace period has run out, oldest first; after as Due
+	// reads it, for a marked entry a hold or a retained descendant keeps. A candidate's AnchoredAt is
+	// its due moment here.
+	MarkedDue(ctx context.Context, now time.Time, after Position, batch int) ([]Candidate, error)
 
 	// Marking answers one entry's marking, or ErrNotFound for an entry that has none.
 	Marking(ctx context.Context, id shared.ID) (Candidate, error)
@@ -427,11 +429,19 @@ type Reader struct {
 }
 
 // Position is a place in a read's order - the anchor's moment, then the entry's identifier - and
-// nothing about the entry beyond that (rule 10).
+// nothing about the entry beyond that (rule 10). The zero Position is the start.
 type Position struct {
 	At time.Time
 	ID shared.ID
 }
+
+// PositionOf is the place a candidate holds in the order it was read in.
+func PositionOf(candidate Candidate) Position {
+	return Position{At: candidate.AnchoredAt, ID: candidate.ID}
+}
+
+// IsStart reports whether the position is the start of the order.
+func (p Position) IsStart() bool { return p.ID.IsZero() }
 
 // Cursors keeps where each read of the rule sweep stopped, so the next pass continues there rather
 // than at the first page (data-retention.md §5). Written in the pass's own transaction: a pass that

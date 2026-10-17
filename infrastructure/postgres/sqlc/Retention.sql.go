@@ -658,15 +658,18 @@ WHERE w.archived_at IS NOT NULL
   -- ` + "`" + `retention_rule_id` + "`" + ` survives the act for: an entry somebody archived by hand is not part of
   -- anybody's chain, and a rule that swept it up would be a rule acting outside what it matched.
   AND (NOT $2::boolean OR w.retention_rule_id = $3::uuid)
+  AND ($4::timestamptz IS NULL
+       OR (w.archived_at, w.id) > ($4::timestamptz, $5::uuid))
 ORDER BY w.archived_at, w.id
-LIMIT $5::int OFFSET $4::int
+LIMIT $6::int
 `
 
 type RetentionCandidatesByArchivedAtParams struct {
 	Cutoff   pgtype.Timestamptz
 	OwnChain bool
 	RuleID   pgtype.UUID
-	Skip     int32
+	AfterAt  pgtype.Timestamptz
+	AfterID  pgtype.UUID
 	Batch    int32
 }
 
@@ -685,7 +688,8 @@ func (q *Queries) RetentionCandidatesByArchivedAt(ctx context.Context, arg Reten
 		arg.Cutoff,
 		arg.OwnChain,
 		arg.RuleID,
-		arg.Skip,
+		arg.AfterAt,
+		arg.AfterID,
 		arg.Batch,
 	)
 	if err != nil {
@@ -725,14 +729,17 @@ WHERE w.completed_at IS NOT NULL
   AND w.deleted_at IS NULL
   AND w.archived_at IS NULL
   AND w.retention_pending_until IS NULL
+  AND ($2::timestamptz IS NULL
+       OR (w.completed_at, w.id) > ($2::timestamptz, $3::uuid))
 ORDER BY w.completed_at, w.id
-LIMIT $3::int OFFSET $2::int
+LIMIT $4::int
 `
 
 type RetentionCandidatesByCompletedAtParams struct {
-	Cutoff pgtype.Timestamptz
-	Skip   int32
-	Batch  int32
+	Cutoff  pgtype.Timestamptz
+	AfterAt pgtype.Timestamptz
+	AfterID pgtype.UUID
+	Batch   int32
 }
 
 type RetentionCandidatesByCompletedAtRow struct {
@@ -751,11 +758,19 @@ type RetentionCandidatesByCompletedAtRow struct {
 // business, and a row in the trash is the trash's. The hub is joined in because the scope of a rule
 // can be a hub and an entry three levels down does not know which hub it is under.
 //
-// `skip` pages past rows the caller read and could not act on - a legal hold, a condition, a
-// narrower rule's period - which stay in this set and would otherwise fill every batch ahead of a
-// due row. The order ends in the identifier, so a page boundary is stable within the pass.
+// `after_at` and `after_id` continue the read after a row the caller already judged (keyset, both
+// NULL for the start): rows the caller could not act on - a legal hold, a condition, a narrower
+// rule's period - stay in this set and would otherwise fill every batch ahead of a due row. The
+// order ends in the identifier, so a position names one place; and unlike an offset, a page costs a
+// page however far into the rows it starts, and a position kept across passes stays where it was
+// when rows before it are marked or removed (data-retention.md §5).
 func (q *Queries) RetentionCandidatesByCompletedAt(ctx context.Context, arg RetentionCandidatesByCompletedAtParams) ([]RetentionCandidatesByCompletedAtRow, error) {
-	rows, err := q.db.Query(ctx, retentionCandidatesByCompletedAt, arg.Cutoff, arg.Skip, arg.Batch)
+	rows, err := q.db.Query(ctx, retentionCandidatesByCompletedAt,
+		arg.Cutoff,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -791,15 +806,18 @@ WHERE w.deleted_at IS NOT NULL
   AND w.deleted_at < $1::timestamptz
   AND w.retention_pending_until IS NULL
   AND (NOT $2::boolean OR w.retention_rule_id = $3::uuid)
+  AND ($4::timestamptz IS NULL
+       OR (w.deleted_at, w.id) > ($4::timestamptz, $5::uuid))
 ORDER BY w.deleted_at, w.id
-LIMIT $5::int OFFSET $4::int
+LIMIT $6::int
 `
 
 type RetentionCandidatesByDeletedAtParams struct {
 	Cutoff   pgtype.Timestamptz
 	OwnChain bool
 	RuleID   pgtype.UUID
-	Skip     int32
+	AfterAt  pgtype.Timestamptz
+	AfterID  pgtype.UUID
 	Batch    int32
 }
 
@@ -820,7 +838,8 @@ func (q *Queries) RetentionCandidatesByDeletedAt(ctx context.Context, arg Retent
 		arg.Cutoff,
 		arg.OwnChain,
 		arg.RuleID,
-		arg.Skip,
+		arg.AfterAt,
+		arg.AfterID,
 		arg.Batch,
 	)
 	if err != nil {
@@ -856,14 +875,18 @@ FROM work_item w
 JOIN container c ON c.id = w.collection_id
 WHERE w.retention_pending_until IS NOT NULL
   AND w.retention_pending_until <= $1::timestamptz
+  AND ($2::timestamptz IS NULL
+       OR (w.retention_pending_until, w.id)
+          > ($2::timestamptz, $3::uuid))
 ORDER BY w.retention_pending_until, w.id
-LIMIT $3::int OFFSET $2::int
+LIMIT $4::int
 `
 
 type RetentionMarkedItemsDueParams struct {
-	Now   pgtype.Timestamptz
-	Skip  int32
-	Batch int32
+	Now     pgtype.Timestamptz
+	AfterAt pgtype.Timestamptz
+	AfterID pgtype.UUID
+	Batch   int32
 }
 
 type RetentionMarkedItemsDueRow struct {
@@ -879,9 +902,15 @@ type RetentionMarkedItemsDueRow struct {
 }
 
 // Phase two: what the grace period has run out on.
-// `skip` pages past marked rows a hold or a retained descendant keeps, as the candidates above do.
+// `after_at` and `after_id` continue past marked rows a hold or a retained descendant keeps, as the
+// candidates above do.
 func (q *Queries) RetentionMarkedItemsDue(ctx context.Context, arg RetentionMarkedItemsDueParams) ([]RetentionMarkedItemsDueRow, error) {
-	rows, err := q.db.Query(ctx, retentionMarkedItemsDue, arg.Now, arg.Skip, arg.Batch)
+	rows, err := q.db.Query(ctx, retentionMarkedItemsDue,
+		arg.Now,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}

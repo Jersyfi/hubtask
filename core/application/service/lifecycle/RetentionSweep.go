@@ -166,8 +166,8 @@ func (s Sweeper) announce(
 	// condition or a narrower rule's period keeps stays in the set the read answers, oldest first,
 	// so a batch-full of them read alone would hide every due entry behind it on every pass. Nothing
 	// read here leaves the set before the marking below, so the pages stay where they were.
-	for skip := 0; ; {
-		candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, skip, s.batch())
+	for after := (repository.Position{}); ; {
+		candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, after, s.batch())
 		if err != nil {
 			return Outcome{}, err
 		}
@@ -237,7 +237,7 @@ func (s Sweeper) announce(
 		if markable >= s.batch() || lastPage(s.batch(), candidates) {
 			break
 		}
-		skip += len(candidates)
+		after = repository.PositionOf(candidates[len(candidates)-1])
 	}
 
 	for _, ruleID := range order {
@@ -368,9 +368,9 @@ func (s Sweeper) announceChains(
 		// Read past held entries as announce does, and for its reason: they stay in the set.
 		var ids []shared.ID
 		var kept []repository.Candidate
-		for skip := 0; ; {
+		for after := (repository.Position{}); ; {
 			candidates, err := s.Marking.DueInChain(
-				ctx, anchor, rule.ID, rule.ThenCutoff(now), skip, s.batch())
+				ctx, anchor, rule.ID, rule.ThenCutoff(now), after, s.batch())
 			if err != nil {
 				return outcome, err
 			}
@@ -395,7 +395,7 @@ func (s Sweeper) announceChains(
 			if len(ids) >= s.batch() || lastPage(s.batch(), candidates) {
 				break
 			}
-			skip += len(candidates)
+			after = repository.PositionOf(candidates[len(candidates)-1])
 		}
 		if len(ids) == 0 {
 			continue
@@ -426,8 +426,8 @@ func (s Sweeper) act(
 	// Page by page, as phase one reads: an announcement, a held entry and a parent waiting for its
 	// child all keep their marking and stay first in the read, so a batch-full of them read alone
 	// would hide every due entry behind it. Nothing leaves the set before the acts below.
-	for skip := 0; ; {
-		due, err := s.Marking.MarkedDue(ctx, now, skip, s.batch())
+	for after := (repository.Position{}); ; {
+		due, err := s.Marking.MarkedDue(ctx, now, after, s.batch())
 		if err != nil {
 			return outcome, err
 		}
@@ -485,7 +485,7 @@ func (s Sweeper) act(
 		if acting >= s.batch() || lastPage(s.batch(), due) {
 			break
 		}
-		skip += len(due)
+		after = repository.PositionOf(due[len(due)-1])
 	}
 
 	for _, action := range []domain.Action{
