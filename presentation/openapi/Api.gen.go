@@ -3027,6 +3027,33 @@ func (e QueryFieldKind) Valid() bool {
 	}
 }
 
+// Defines values for QuotaSource.
+const (
+	QuotaSourceDEFAULT   QuotaSource = "DEFAULT"
+	QuotaSourceEXCEPTION QuotaSource = "EXCEPTION"
+	QuotaSourceINSTANCE  QuotaSource = "INSTANCE"
+	QuotaSourcePLAN      QuotaSource = "PLAN"
+	QuotaSourceWORKSPACE QuotaSource = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the QuotaSource enum.
+func (e QuotaSource) Valid() bool {
+	switch e {
+	case QuotaSourceDEFAULT:
+		return true
+	case QuotaSourceEXCEPTION:
+		return true
+	case QuotaSourceINSTANCE:
+		return true
+	case QuotaSourcePLAN:
+		return true
+	case QuotaSourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for QuotaStandingQuota.
 const (
 	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
@@ -8710,6 +8737,9 @@ type QueryField struct {
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
 
+// QuotaSource Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.
+type QuotaSource string
+
 // QuotaStanding defines model for QuotaStanding.
 type QuotaStanding struct {
 	// Configured True when the workspace carries its own ceiling rather than the mode's default.
@@ -8717,6 +8747,9 @@ type QuotaStanding struct {
 
 	// Limit The resolved ceiling. 0 means unlimited.
 	Limit int64 `json:"limit"`
+
+	// Lock Which level locked this ceiling - the installation, or the workspace's plan - or null. The operator's exception for one workspace still decides under either.
+	Lock *PolicyLock `json:"lock,omitempty"`
 
 	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
 	Locked *bool `json:"locked,omitempty"`
@@ -8726,6 +8759,9 @@ type QuotaStanding struct {
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
 	Ratio *float32 `json:"ratio,omitempty"`
+
+	// Source Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.
+	Source *QuotaSource `json:"source,omitempty"`
 
 	// Used The live count, where one exists; null where the limit is enforced elsewhere (the request rate lives in the limiter's own headers).
 	Used *int64 `json:"used,omitempty"`
