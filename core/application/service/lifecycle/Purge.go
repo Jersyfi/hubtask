@@ -91,6 +91,9 @@ type Outcome struct {
 	// is over.
 	SetAside map[shared.ID]domain.RuleFailure
 	Judged   map[shared.ID]bool
+	// Unfinished is true when a read of the rule sweep stopped at its budget: the rows past its place
+	// are still unread in this cycle, so the job comes straight back (RunRetention.Exhausted).
+	Unfinished bool
 }
 
 // blocked records a refusal.

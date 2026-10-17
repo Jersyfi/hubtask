@@ -159,8 +159,17 @@ Evaluated in this order; the first that applies wins:
 * **A pass reads past what it cannot act on.** An object a legal hold keeps, one a rule's condition
   excludes, one a narrower rule keeps longer, an announcement, a parent waiting for a retained child:
   each stays where the next read finds it, oldest first. Each phase therefore reads on, page by page
-  in its one transaction, until it holds a batch it can act on or the objects end; it acts on at
-  most one batch. The trash's own pass does the same for a hold and the offline window.
+  in its one transaction, until it holds a batch it can act on, the objects end, or it has judged
+  its **read budget** (ten batches, 10,000 objects by default); it acts on at most one batch. The
+  rule sweep's reads - phase one per kind, a chain's second stage per rule, phase two - each keep
+  their place (`retention_cursor`: a moment and an identifier, no content), so the next pass
+  continues where the last stopped and comes back after the short wait while a read stopped at its
+  budget. Every due object is reached within ceil(N / budget) passes, N being what lies ahead of it;
+  a read that reaches the end forgets its place, and the next cycle starts at the beginning after
+  the interval. A page's entries are read in one statement when a condition names `item`. The
+  bound: the deadline (`HUBTASK_JOB_TIMEOUT`, 60 s) has to hold every read's budget of one pass -
+  see the measurement below. The trash's own pass reads past a hold and the offline window too, in
+  one pass and without a place: it judges no condition, about 800,000 rows per deadline.
 * **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
   its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
   suggestions) and machine records (sessions, devices, sync log) — §3 says which.

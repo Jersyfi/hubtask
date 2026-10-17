@@ -3171,6 +3171,9 @@ func run() error {
 				},
 				Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 				Batch: cfg.Retention.BatchSize,
+				// Where each read stopped, so a long read-past continues on the next pass rather
+				// than starting over inside the job's deadline (data-retention.md §5).
+				Cursors: postgres.NewRetentionCursorRepository(),
 			},
 		},
 		Interval:     cfg.Retention.Interval,
