@@ -30,11 +30,14 @@ const (
 	platformSweepMargin = 24 * time.Hour
 )
 
-// SweepPlatformEvents removes the installation's events past their 30 days (data-catalog.md). An
-// installation job: it runs under the system scope, which reaches the policy-free table and no
-// workspace's rows.
+// SweepPlatformEvents removes the installation's events and their deliveries past their 30 days
+// (data-catalog.md). An installation job: it runs under the system scope, which reaches the
+// policy-free tables and no workspace's rows.
 type SweepPlatformEvents struct {
-	Events     adminrepo.PlatformEvents
+	Events adminrepo.PlatformEvents
+	// Deliveries are swept on the same clock: a settled delivery untouched for 30 days, its dead
+	// letter included, which can no longer be redelivered once its event is gone. Nil sweeps none.
+	Deliveries adminrepo.PlatformDeliveries
 	Jobs       JobQueue
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -61,6 +64,19 @@ func (h SweepPlatformEvents) Run(ctx context.Context) (int, error) {
 	total := 0
 	for range platformSweepRounds {
 		removed, err := h.Events.Sweep(ctx, cutoff, platformSweepBatch)
+		if err != nil {
+			return total, err
+		}
+		total += removed
+		if removed < platformSweepBatch {
+			break
+		}
+	}
+	if h.Deliveries == nil {
+		return total, nil
+	}
+	for range platformSweepRounds {
+		removed, err := h.Deliveries.Sweep(ctx, cutoff, platformSweepBatch)
 		if err != nil {
 			return total, err
 		}
