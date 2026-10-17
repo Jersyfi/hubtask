@@ -311,3 +311,24 @@ type PlatformSubscriptions interface {
 	// Outcome records the last attempt for the screen: the moment of an arrival, or a failure's code.
 	Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error
 }
+
+// PlatformDeliveries are the deliveries of the installation's subscriptions: one per event and
+// subscription, across its attempts.
+type PlatformDeliveries interface {
+	// Insert queues a delivery, and reports whether it was new: a repeated fan-out writes nothing.
+	Insert(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Find answers one; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (integration.PlatformDelivery, error)
+	// Page answers a subscription's deliveries newest first, before `before` when it is set, of
+	// one status when it is set.
+	Page(ctx context.Context, subscriptionID shared.ID, status string, before shared.ID, size int) ([]integration.PlatformDelivery, error)
+	// Record writes one attempt's outcome, only while the delivery is still at the attempt before:
+	// a repeated job writes nothing, and the answer says so.
+	Record(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Requeue returns up to `batch` of a subscription's dead letters to pending, and answers which.
+	Requeue(ctx context.Context, subscriptionID shared.ID, at time.Time, batch int) ([]shared.ID, error)
+	// DeadLetters counts the installation's dead letters waiting.
+	DeadLetters(ctx context.Context) (int64, error)
+	// Sweep removes up to `batch` settled deliveries untouched since `cutoff`, and answers how many.
+	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
+}
