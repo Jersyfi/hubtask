@@ -311,6 +311,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
+| `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
 | `instance.provider_configured` | ConfigureInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_read` | ListInstanceIdentityProviders | `identity_provider` | INFO | When refused |
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |

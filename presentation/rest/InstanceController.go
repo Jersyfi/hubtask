@@ -25,6 +25,7 @@ const (
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
 	readInstanceOverviewUseCase  = "ReadInstanceOverview"
 	listInstanceJournalUseCase   = "ListInstanceJournal"
+	listPlatformEventsUseCase    = "ListPlatformEvents"
 	listOperatorsUseCase         = "ListOperators"
 	addOperatorUseCase           = "AddOperator"
 	removeOperatorUseCase        = "RemoveOperator"
@@ -302,6 +303,31 @@ func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Req
 		AccountsTotal:             censusCount(out["accounts_total"]),
 		WorkspacesServiceOnly:     censusCount(out["workspaces_service_only"]),
 	})
+}
+
+// ListPlatformEvents answers GET /admin/events: the installation's events, as the use case renders
+// them, passed through unchanged.
+func (c *RestController) ListPlatformEvents(
+	w http.ResponseWriter, r *http.Request, params openapi.ListPlatformEventsParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	in := usecase.Input{}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+	out, err := c.UseCases.Invoke(r.Context(), listPlatformEventsUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
 }
 
 // ListInstanceJournal answers GET /admin/journal.

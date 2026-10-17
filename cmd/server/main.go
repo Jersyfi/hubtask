@@ -2269,6 +2269,11 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlatformEvents{
+			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
+			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),
+			Rendering: cloudEventRendering{source: cfg.BaseURL}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListPlans{Writer: planWriter}.Descriptor(),

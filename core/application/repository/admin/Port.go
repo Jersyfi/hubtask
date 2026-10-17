@@ -169,6 +169,14 @@ type PlatformEvent struct {
 	Envelope event.Envelope
 }
 
+// PlatformPosition is where a reader of the installation's events stands: after the event numbered
+// Number, having read up to the moment At. The moment is what decides whether events after the
+// position may already have been swept.
+type PlatformPosition struct {
+	Number int64
+	At     time.Time
+}
+
 // PlatformEvents are the installation's events for a purchase platform (multi-tenancy.md §4.3).
 // Like the journal they belong to no tenant and carry no policy: written beside a workspace's
 // change, in that workspace's transaction, and read under the installation's scope.
