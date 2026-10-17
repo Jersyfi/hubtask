@@ -99,6 +99,11 @@ var rlsExceptions = map[string]string{
 		"every plan invisible to everybody; it holds configuration and never a person's data, the " +
 		"control plane's use cases are what write it, and without a DELETE grant a short name is " +
 		"never reused",
+	"platform_event": "the installation's events for a purchase platform (multi-tenancy.md " +
+		"§4.3, migration 0180): read by the control plane under the installation's scope across " +
+		"every workspace, and the deleted event outlives its workspace, so a policy comparing " +
+		"current_tenant_id() would make the feed impossible; identifiers and states only, " +
+		"never a person's content",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
 		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
 		"person's data, written only by the control plane's use cases",

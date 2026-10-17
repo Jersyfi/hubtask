@@ -69,6 +69,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_setup_code` | The first start's one-time setup code ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); it exists before any workspace does | No grant to the application role; reached only through the issuing and claiming `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 | `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
+| `platform_event` | The installation's events for a purchase platform (§4.3): read across every workspace by the control plane, and the `deleted` event outlives its workspace | Identifiers and states only; written beside a control-plane change in its transaction; read only by `GET /admin/events`, behind `admin:tenants` and the register; the reference nulled at the purge, every row swept after 30 days |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
