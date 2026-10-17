@@ -65,6 +65,15 @@ func TestAReferenceNamesOneWorkspace(t *testing.T) {
 	if err := set(first); err != nil {
 		t.Fatalf("setting the first: %v", err)
 	}
+	if err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: first}, func(ctx context.Context) error {
+		record, err := tenants.Find(ctx)
+		if err == nil && record.ExternalReference != reference {
+			t.Errorf("the control plane's own read answers the reference %q", record.ExternalReference)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("reading the first: %v", err)
+	}
 	err := set(second)
 	var refusal *shared.Error
 	if !errors.As(err, &refusal) || refusal.DetailCode != "admin.reference_taken" {
