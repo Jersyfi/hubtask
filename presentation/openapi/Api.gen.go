@@ -4227,6 +4227,27 @@ func (e TermsInForceSetBy) Valid() bool {
 	}
 }
 
+// Defines values for TrashEntryHeldBy.
+const (
+	TrashEntryHeldByLegalHold   TrashEntryHeldBy = "legal_hold"
+	TrashEntryHeldByLessThannil TrashEntryHeldBy = "<nil>"
+	TrashEntryHeldByRestriction TrashEntryHeldBy = "restriction"
+)
+
+// Valid indicates whether the value is a known member of the TrashEntryHeldBy enum.
+func (e TrashEntryHeldBy) Valid() bool {
+	switch e {
+	case TrashEntryHeldByLegalHold:
+		return true
+	case TrashEntryHeldByLessThannil:
+		return true
+	case TrashEntryHeldByRestriction:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TrashEntryKind.
 const (
 	TrashEntryKindCONTAINER TrashEntryKind = "CONTAINER"
@@ -10163,8 +10184,11 @@ type TrashEntry struct {
 	// DeletedBy Who put it there. Null for anything deleted before the columns existed: those rows were never asked who, and answering from the audit trail would be taking a fact out of a source behind a permission most members do not hold - which is the whole reason this field is on the projection rather than left to a client to join.
 	DeletedBy *Actor `json:"deleted_by"`
 
-	// Held Whether a legal hold keeps this deletion: a hold names the workspace, its hub or collection, the entry or one above or below it in the same deletion, or a person whose own data is in it. While it stands the automatic removal does not take the deletion, so `purge_after` is not when it goes - it goes at the first run after the hold is lifted and the moment has passed. Which hold, and why, is the legal holds' to say.
+	// Held Whether a legal hold or a restriction of processing keeps this deletion: a hold names the workspace, its hub or collection, the entry or one above or below it in the same deletion, or a person whose own data is in it; a restriction is on a person whose own data is in it. While it stands the automatic removal does not take the deletion, so `purge_after` is not when it goes - it goes at the first run after it ends and the moment has passed. `held_by` says which; which hold, and why, is the legal holds' to say. Deleting it for good or emptying the trash is a person's own act, and a restriction does not stop it.
 	Held bool `json:"held"`
+
+	// HeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
+	HeldBy *TrashEntryHeldBy `json:"held_by,omitempty"`
 
 	// HubId The hub it sits under. Null for a hub, which is its own level. Required and nullable rather than optional, like the two below it: this list mixes containers and entries by design, so a field that appeared only for some rows would be one a client could not read unconditionally.
 	HubId *openapi_types.UUID `json:"hub_id"`
@@ -10176,7 +10200,7 @@ type TrashEntry struct {
 	// ParentId Where it would go back to - the hub of a collection, the entry above an entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
 
-	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold keeps it: the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
+	// PurgeAfter The earliest moment the automatic removal takes it, unless a legal hold or a restriction of processing keeps it (`held`): the workspace's trash period from `deleted_at`, and never sooner than the longest a device may stay offline, so that every device has learnt of the deletion first. The removal runs on its own schedule, so it goes at the first run after this moment. Deleting it for good or emptying the trash takes it at once.
 	PurgeAfter time.Time `json:"purge_after"`
 
 	// Subtype HUB or COLLECTION for a container, TASK, WORK_PACKAGE or ACTIVITY for an entry.
@@ -10191,6 +10215,9 @@ type TrashEntry struct {
 	// Version The row's version, so a restore can be sent with the version it was read at.
 	Version int `json:"version"`
 }
+
+// TrashEntryHeldBy What keeps the deletion while `held` is true - a legal hold before a restriction where both apply - and null while it is not held.
+type TrashEntryHeldBy string
 
 // TrashEntryKind Which of the two endpoints restores it.
 type TrashEntryKind string
