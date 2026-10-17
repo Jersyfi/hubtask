@@ -1387,6 +1387,13 @@ func (pending) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) { notA
 
 func (pending) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// A passkey or security key as the second factor and the fresh proof (identity.md §23).
+func (pending) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // The passkeys of the caller's own account (identity.md §23).
 
 // ListOwnPasskeys is overridden by RestController, for the reason given at CreateContainer.

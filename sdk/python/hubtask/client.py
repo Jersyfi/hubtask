@@ -611,6 +611,18 @@ class Client:
         """Prove yourself again, for the irreversible"""
         return self._call("POST", "/auth/step-up", {}, None, {}, body, "json", "application/json", "json")
 
+    def start_passkey_step_up(self) -> "PasskeyAssertionOptions":
+        """The options for a fresh proof with a passkey or security key"""
+        return self._call("POST", "/auth/step-up:passkey-options", {}, None, {}, None, "none", None, "json")
+
+    def start_passkey_enrollment(self, body: "PasskeyEnrollmentStart") -> "PasskeyRegistrationOptions":
+        """Begin setting up a passkey or security key during sign-in"""
+        return self._call("POST", "/auth/mfa/passkey:enroll-options", {}, None, {}, body, "json", "application/json", "json")
+
+    def complete_passkey_enrollment(self, body: "PasskeyEnrollment") -> "PasskeyEnrolled":
+        """Finish setting up a passkey or security key during sign-in"""
+        return self._call("POST", "/auth/mfa/passkey:enroll", {}, None, {}, body, "json", "application/json", "json")
+
     def start_provider_step_up(self) -> "ProviderStepUpAuthorization":
         """Begin a step-up at the provider this account is connected to"""
         return self._call("POST", "/auth/step-up:provider", {}, None, {}, None, "none", None, "json")
