@@ -11,6 +11,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -387,7 +388,8 @@ func (h ListWebhookDeliveries) invoke(
 // Descriptor is the catalogue entry.
 func (h ReplayWebhookDelivery) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReplayWebhookDeliveryName,
+		Name:        ReplayWebhookDeliveryName,
+		Entitlement: entitlement.Webhooks,
 		Summary: "Sends a dead-lettered delivery again, after whatever made it fail has been " +
 			"fixed. The event identifier is the one it always had, so a subscriber that " +
 			"deduplicates on X-Hubtask-Event-Id sees the repeat for what it is; the attempt " +

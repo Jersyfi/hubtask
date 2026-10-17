@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -305,7 +306,8 @@ func (p *planner) answer(ctx context.Context, expr string) (bool, string) {
 // Descriptor is the catalogue entry.
 func (h TestRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TestRuleName,
+		Name:        TestRuleName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Dry-runs a rule against a sample event: which conditions matched, and which " +
 			"actions would run - both arms of every branch, which is more than a real run's log " +
 			"shows. Tests a stored rule by identifier or a definition that was never saved, " +

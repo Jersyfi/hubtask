@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
@@ -146,6 +147,11 @@ type Capabilities struct {
 	// anonymous caller. Caller-scoped like WorkspacePermissions and for its reason: a client offers a
 	// hub of one's own to somebody without STRUCTURE only where the server would create it.
 	PrivateHubOffered *bool
+	// NotIncluded is what the caller's workspace's plan leaves out, nil for an anonymous caller and
+	// a set - empty included - for everybody signed in (multi-tenancy.md §4.2). Caller-scoped like
+	// WorkspacePermissions: a client draws "Not included in your plan" in place of the controls the
+	// gate would refuse.
+	NotIncluded entitlement.LeftOut
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -224,6 +230,12 @@ type PrivateHubsRule interface {
 	PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error)
 }
 
+// PlanEntitlements answers what the actor's workspace's plan leaves out, in a read of its own
+// (admin.EntitlementGate.LeftOut) - the same answer the registry's gate refuses by.
+type PlanEntitlements interface {
+	LeftOut(ctx context.Context, actor appshared.ActorContext) (entitlement.LeftOut, error)
+}
+
 // PeopleCount answers how many people can act in the workspace: a workspace of one has nobody to
 // keep a hub from, so nothing offers one there.
 type PeopleCount interface {
@@ -298,6 +310,12 @@ type GetCapabilities struct {
 	Actions         []string
 	ActionFields    map[string][]usecase.Field
 	ActionSummaries map[string]string
+	// ActionEntitlements is the feature each action kind's use case uses, where it uses one: an
+	// action a plan leaves out is not offered to a rule editor there.
+	ActionEntitlements map[string]entitlement.Feature
+	// Entitlements reads what the caller's plan leaves out. Optional: a build without it answers
+	// every feature included.
+	Entitlements PlanEntitlements
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -415,6 +433,19 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		workspacePermissions = held
 	}
 
+	// What the caller's plan leaves out, outside every transaction above for the register's reason,
+	// and the actions it would refuse with it.
+	var notIncluded entitlement.LeftOut
+	actions := g.Actions
+	if actor.IsAuthenticated() {
+		leftOut, err := g.leftOut(ctx, actor)
+		if err != nil {
+			return Capabilities{}, err
+		}
+		notIncluded = append(entitlement.LeftOut{}, leftOut...)
+		actions = g.offeredActions(leftOut)
+	}
+
 	var privateHubOffered *bool
 	if actor.IsAuthenticated() {
 		offered, err := g.privateHubOffered(ctx, actor)
@@ -457,7 +488,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		AutoAssignStrategies:      work.AutoAssignStrategies(),
 		EventTypes:                event.Types(),
 		AutomationTriggers:        automation.TriggerKinds(),
-		AutomationActions:         g.Actions,
+		AutomationActions:         actions,
 		AutomationActionFields:    g.ActionFields,
 		AutomationActionSummaries: g.ActionSummaries,
 		RetentionDataKinds:        lifecycle.Catalogue(),
@@ -561,7 +592,31 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		InstanceReachable:    instanceReachable,
 		WorkspacePermissions: workspacePermissions,
 		PrivateHubOffered:    privateHubOffered,
+		NotIncluded:          notIncluded,
 	}, nil
+}
+
+func (g GetCapabilities) leftOut(ctx context.Context, actor appshared.ActorContext) (entitlement.LeftOut, error) {
+	if g.Entitlements == nil {
+		return nil, nil
+	}
+	return g.Entitlements.LeftOut(ctx, actor)
+}
+
+// offeredActions is every action kind whose feature the plan includes: the editor offers no action
+// a run would only skip (P-05).
+func (g GetCapabilities) offeredActions(leftOut entitlement.LeftOut) []string {
+	if len(leftOut) == 0 {
+		return g.Actions
+	}
+	offered := make([]string, 0, len(g.Actions))
+	for _, kind := range g.Actions {
+		if feature, uses := g.ActionEntitlements[kind]; uses && !leftOut.Includes(feature) {
+			continue
+		}
+		offered = append(offered, kind)
+	}
+	return offered
 }
 
 // privateHubOffered is the condition creating a private hub without STRUCTURE applies - somebody

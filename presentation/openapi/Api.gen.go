@@ -5798,6 +5798,10 @@ type Capabilities struct {
 	Legal  *LegalLinks             `json:"legal,omitempty"`
 	Limits *map[string]interface{} `json:"limits,omitempty"`
 
+	// NotIncluded The features the caller's workspace's plan leaves out, in the order of `PlanFeature`; empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like `workspace_permissions`: absent for an anonymous caller.
+	// A feature that is left out rests: automation rules run nowhere, webhooks deliver nothing, the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays readable, and it works again from the moment the plan includes it. Creating, changing, switching on, running or sending is refused with `403 plan.not_included`, the feature as its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws "Not included in your plan" in place of the refused controls. `automation_actions` already leaves out the actions of a feature named here.
+	NotIncluded *[]PlanFeature `json:"not_included,omitempty"`
+
 	// NotificationCategories The categories a person can be told about, and the rows a notification-preference form has. A closed set in a check constraint rather than an enum in this document, so that a client reads it here instead of compiling it in; `INVITATION` is in the list and is the one no preference switches off.
 	NotificationCategories *[]string `json:"notification_categories,omitempty"`
 

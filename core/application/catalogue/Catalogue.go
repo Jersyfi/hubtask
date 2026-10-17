@@ -41,6 +41,7 @@ import (
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 )
 
 // Descriptors is every use case, in the order the composition root registers them.
@@ -403,6 +404,19 @@ func AutomationActions() []string {
 	}
 	slices.Sort(actions)
 	return actions
+}
+
+// ActionEntitlements is, for every action kind whose use case uses a feature a plan may leave out,
+// that feature (usecase.Descriptor.Entitlement): what the manifest leaves out of the actions it
+// offers where the plan leaves the feature out.
+func ActionEntitlements() map[string]entitlement.Feature {
+	uses := map[string]entitlement.Feature{}
+	for _, descriptor := range Descriptors() {
+		if descriptor.Entitlement != "" {
+			uses[descriptor.AutomationAction()] = descriptor.Entitlement
+		}
+	}
+	return uses
 }
 
 // AutomationActionFields is, for every action kind AutomationActions names, the fields the use

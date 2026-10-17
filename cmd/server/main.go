@@ -560,6 +560,7 @@ func run() error {
 	// a ciphertext lifted out of
 	// one subscription and dropped into another no longer opens.
 	webhookWriter := integrationservice.Writer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
@@ -1503,8 +1504,10 @@ func run() error {
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
+	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
+	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
 	useCases, err := usecase.NewRegistry(
-		observer.Registry(),
+		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
@@ -2416,7 +2419,8 @@ func run() error {
 		// that one rule's run - and every question it asks is asked inwards of the controller
 		// (automation.md §1.1).
 		controller.InboundRuns = automationservice.StartInboundRun{
-			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
+			Entitlements: postgres.NewPlanRepository(),
+			Inbound:      automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
 		// The jumble's public door: a delivery on the tenant's address becomes an entry.
@@ -2542,6 +2546,9 @@ func run() error {
 			Actions:         catalogue.AutomationActions(),
 			ActionFields:    catalogue.AutomationActionFields(),
 			ActionSummaries: catalogue.AutomationActionSummaries(),
+			// What the caller's plan leaves out, read as the registry's gate reads it.
+			ActionEntitlements: catalogue.ActionEntitlements(),
+			Entitlements:       entitlementGate,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
@@ -2812,7 +2819,8 @@ func run() error {
 	// subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
 	automationRuns := postgres.NewAutomationRunRepository(cursors)
 	matchRules := automationservice.MatchRules{
-		Rules: automationRuns, Containers: containers, Jobs: jobs,
+		Entitlements: postgres.NewPlanRepository(),
+		Rules:        automationRuns, Containers: containers, Jobs: jobs,
 		Conditions: celexpression.New(),
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
@@ -2860,6 +2868,7 @@ func run() error {
 	}
 
 	webhookFanOut := integrationservice.FanOut{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
@@ -3200,6 +3209,7 @@ func run() error {
 	// backup target is, so a private range or the cloud metadata address is refused unless the
 	// installation has deliberately released private networks (rule 6, T-07).
 	webhookDelivery := webhook.Deliverer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Events:        postgres.NewOutbox(jobs),
@@ -3248,23 +3258,24 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
-			Reach:      authorizer,
-			Quota:      quotaGuard,
-			Rules:      postgres.NewAutomationRuleRepository(cursors),
-			Runs:       automationRuns,
-			Failures:   automationRuns,
-			Events:     outbox,
-			Source:     outbox,
-			Dispatcher: dispatchActions{catalogue: ruleCatalogue},
-			Scopes:     actionScopes{catalogue: ruleCatalogue},
-			Conditions: celexpression.New(),
-			Entries:    items,
-			Containers: containers,
-			Labels:     itemLabels,
-			Members:    itemMembers,
-			Jumble:     postgres.NewJumbleRepository(cursors),
-			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
-			Signals:    metrics,
+			Entitlements: postgres.NewPlanRepository(),
+			Reach:        authorizer,
+			Quota:        quotaGuard,
+			Rules:        postgres.NewAutomationRuleRepository(cursors),
+			Runs:         automationRuns,
+			Failures:     automationRuns,
+			Events:       outbox,
+			Source:       outbox,
+			Dispatcher:   dispatchActions{catalogue: ruleCatalogue},
+			Scopes:       actionScopes{catalogue: ruleCatalogue},
+			Conditions:   celexpression.New(),
+			Entries:      items,
+			Containers:   containers,
+			Labels:       itemLabels,
+			Members:      itemMembers,
+			Jumble:       postgres.NewJumbleRepository(cursors),
+			Guard:        runClaims{store: postgres.NewIdempotencyStore()},
+			Signals:      metrics,
 			// No run acts as or about a person whose processing is restricted (Art. 18).
 			Restrictions: privacyStore,
 			Owners: notification.RecordRuleDisabled{
@@ -3336,9 +3347,10 @@ func run() error {
 		},
 		queueport.KindAutomationSchedule: worker.AutomationScheduling{
 			Pass: automationservice.SchedulePass{
-				Schedules:   postgres.NewAutomationRuleRepository(cursors),
-				Occurrences: postgres.NewAutomationRuleRepository(cursors),
-				Jobs:        jobs, Expander: recurrenceadapter.New(),
+				Entitlements: postgres.NewPlanRepository(),
+				Schedules:    postgres.NewAutomationRuleRepository(cursors),
+				Occurrences:  postgres.NewAutomationRuleRepository(cursors),
+				Jobs:         jobs, Expander: recurrenceadapter.New(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 			Fallback: cfg.Retention.Interval,

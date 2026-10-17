@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -223,6 +224,7 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 		workspacePlan = identity.WorkspacePlan{
 			Name: onPlan.Name, DisplayName: onPlan.DisplayName,
 			Policy: onPlan.Values.Policy, Legal: onPlan.Values.Legal,
+			LeftOut: entitlement.Ordered(onPlan.Values.LeftOut),
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -51,6 +52,11 @@ type SchedulePass struct {
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Entitlements is what the workspace's plan leaves out. Where it leaves out the rules, each due
+	// moment is moved on and nothing fires: included again, a rule fires from its next moment and
+	// never for one it missed (multi-tenancy.md §4.2) - which no job could arrange, because none
+	// runs when a plan changes. Nil includes every feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // PassResult is what one round did, and when the next is owed.
@@ -78,12 +84,16 @@ func (p SchedulePass) Run(ctx context.Context, scope persistence.Scope) (PassRes
 	var result PassResult
 
 	err := p.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		resting, err := rulesRest(ctx, p.Entitlements)
+		if err != nil {
+			return err
+		}
 		due, err := p.Schedules.Due(ctx, now, scheduleBatch)
 		if err != nil {
 			return err
 		}
 		for _, rule := range due {
-			started, err := p.fire(ctx, rule, scope.TenantID, now)
+			started, err := p.fire(ctx, rule, scope.TenantID, now, resting)
 			if err != nil {
 				return err
 			}
@@ -92,7 +102,7 @@ func (p SchedulePass) Run(ctx context.Context, scope persistence.Scope) (PassRes
 			}
 		}
 
-		occurrences, err := p.occurrences(ctx, now, scope.TenantID)
+		occurrences, err := p.occurrences(ctx, now, scope.TenantID, resting)
 		if err != nil {
 			return err
 		}
@@ -134,8 +144,11 @@ func (p SchedulePass) nextDue(ctx context.Context) (time.Time, error) {
 // The claim removes the rows in the same statement that reads them: the row *is* the debt, and once
 // the run is queued the tenant no longer owes it. Both commit inside the runner's transaction, so a
 // process that dies halfway leaves the debt and no job rather than the other way round.
+//
+// Resting, the claim still removes what is due and nothing is queued: an occurrence that fell while
+// the plan left the rules out is a missed one.
 func (p SchedulePass) occurrences(
-	ctx context.Context, now time.Time, tenantID shared.ID,
+	ctx context.Context, now time.Time, tenantID shared.ID, resting bool,
 ) (int, error) {
 	if p.Occurrences == nil {
 		return 0, nil
@@ -146,6 +159,9 @@ func (p SchedulePass) occurrences(
 		return 0, err
 	}
 
+	if resting {
+		return 0, nil
+	}
 	started := 0
 	for _, occurrence := range due {
 		runID := p.IDs.NewID()
@@ -183,8 +199,10 @@ func (p SchedulePass) occurrences(
 // failing the pass. It was readable when it was written - the write refuses one that is not - so
 // this is a rule whose library changed under it, and one tenant's unreadable rule must not stop
 // every other rule in the same tenant from firing.
+//
+// Resting, the rule is moved on from now and nothing is queued.
 func (p SchedulePass) fire(
-	ctx context.Context, rule domain.Rule, tenantID shared.ID, now time.Time,
+	ctx context.Context, rule domain.Rule, tenantID shared.ID, now time.Time, resting bool,
 ) (bool, error) {
 	occurrence := rule.NextRunAt
 
@@ -209,6 +227,9 @@ func (p SchedulePass) fire(
 	if err != nil {
 		// Unreadable: advanced to nothing above, and no run queued. The rule stays visible and
 		// editable, which is the state its author can act on.
+		return false, nil
+	}
+	if resting {
 		return false, nil
 	}
 

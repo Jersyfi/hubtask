@@ -63,7 +63,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { workspaceRefusal } from '../lib/data/capability.svelte.ts';
+  import { includedHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -289,6 +289,8 @@
     return untrack(() => signInRules.read());
   });
   const fallback = $derived(signInRules.rules?.password_fallback === true);
+  /** Whether the plan leaves the workspace's own sign-in providers out. */
+  const ownResting = $derived(includedHere('OWN_SIGN_IN_PROVIDERS') === false);
   // The installation operator's opening of the password (ADR-0078 §3), while it stands. It is the
   // fallback too, as the sign-in card sees it - but a different sentence: a person opened it, for a
   // reason and until a moment, rather than this workspace's settings leaving no way in.
@@ -565,6 +567,23 @@
                              this workspace has, so no switch - a sentence saying so. -->
                         <span class="name">{one.display_name}</span>
                         <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+                      {:else if one.scope === 'workspace' && ownResting && one.enabled}
+                        <!-- The plan leaves the workspace's own providers out: this one signs nobody
+                             in and is not switched on here (multi-tenancy.md §4.2). Switching it off
+                             stays, so that it stays off when the plan includes it again; nothing
+                             else is offered. -->
+                        <Switch
+                          label={one.display_name}
+                          hint={t('app.plan.provider_resting_hint')}
+                          checked
+                          onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
+                          disabledReason={offerRefusal ?? (switching === one.id ? t('app.signin_settings.switching') : undefined)}
+                        />
+                        {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+                      {:else if one.scope === 'workspace' && ownResting}
+                        <!-- Resting and off: a sentence, no switch - switching it on is refused. -->
+                        <span class="name">{one.display_name}</span>
+                        <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
                       {:else}
                         {@const mandated = one.installation_lock === 'TURNS_ON'}
                         {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}

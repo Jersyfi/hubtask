@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -207,6 +208,10 @@ type StartInboundRun struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Entitlements is what the workspace's plan leaves out: where it leaves out the rules, the
+	// address answers as a switched-off rule's does (multi-tenancy.md §4.2). Nil includes every
+	// feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // InboundDelivery is one arrival: the credential, and the body it carried.
@@ -223,7 +228,7 @@ type InboundDelivery struct {
 // Every refusal is the same one. An unknown address, a rotated one, a rule that has been deleted, a
 // rule that is switched off and a rule whose trigger is no longer an inbound webhook all answer not
 // found, with the same body: distinguishing them would answer questions for whoever is trying
-// tokens (T-21).
+// tokens (T-21). A rule whose workspace's plan leaves the rules out answers the same.
 func (h StartInboundRun) Execute(
 	ctx context.Context, delivery InboundDelivery,
 ) (TriggerRuleResult, error) {
@@ -250,6 +255,11 @@ func (h StartInboundRun) Execute(
 			return err
 		}
 		if !found.Enabled || found.Trigger.Kind != domain.TriggerInboundWebhook {
+			return inboundGone()
+		}
+		if resting, err := rulesRest(ctx, h.Entitlements); err != nil {
+			return err
+		} else if resting {
 			return inboundGone()
 		}
 		rule = found

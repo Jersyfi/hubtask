@@ -16,6 +16,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/plan"
@@ -33,7 +34,10 @@ type PlanRepository struct{}
 // NewPlanRepository answers the repository.
 func NewPlanRepository() PlanRepository { return PlanRepository{} }
 
-var _ repository.Plans = PlanRepository{}
+var (
+	_ repository.Plans        = PlanRepository{}
+	_ repository.Entitlements = PlanRepository{}
+)
 
 const entitlementArea = "entitlement"
 
@@ -252,13 +256,12 @@ func withSettings(ctx context.Context, queries *sqlc.Queries, plans []plan.Plan,
 		if err != nil {
 			return err
 		}
-		if name, isFeature := strings.CutPrefix(row.Key, entitlementArea+"."); isFeature {
-			var included bool
-			if err := json.Unmarshal(row.Value, &included); err != nil {
-				return malformedSetting(row.Key, err)
+		if feature, isFeature, err := leftOutBy(row.Key, row.Value); isFeature {
+			if err != nil {
+				return err
 			}
-			if !included {
-				leftOut[planID] = append(leftOut[planID], plan.Feature(strings.ToUpper(name)))
+			if feature != "" {
+				leftOut[planID] = append(leftOut[planID], feature)
 			}
 			continue
 		}
@@ -285,20 +288,26 @@ func withSettings(ctx context.Context, queries *sqlc.Queries, plans []plan.Plan,
 	return nil
 }
 
+// leftOutBy reads one plan row as a feature: whether the row is one, and the feature where it
+// leaves it out. A feature's row holds whether it is included.
+func leftOutBy(key string, value []byte) (plan.Feature, bool, error) {
+	name, isFeature := strings.CutPrefix(key, entitlementArea+".")
+	if !isFeature {
+		return "", false, nil
+	}
+	var included bool
+	if err := json.Unmarshal(value, &included); err != nil {
+		return "", true, malformedSetting(key, err)
+	}
+	if included {
+		return "", true, nil
+	}
+	return plan.Feature(strings.ToUpper(name)), true, nil
+}
+
 // orderedFeatures puts the features in the domain's order, so that two reads of one plan answer
 // the same list.
-func orderedFeatures(features []plan.Feature) []plan.Feature {
-	ordered := make([]plan.Feature, 0, len(features))
-	for _, feature := range plan.Features() {
-		for _, held := range features {
-			if held == feature {
-				ordered = append(ordered, feature)
-				break
-			}
-		}
-	}
-	return ordered
-}
+func orderedFeatures(features []plan.Feature) []plan.Feature { return entitlement.Ordered(features) }
 
 func emptyLevel() *identityrepo.InstanceLevel {
 	return &identityrepo.InstanceLevel{
@@ -338,6 +347,30 @@ func actorOf(by shared.ID) (pgtype.UUID, error) {
 		return pgtype.UUID{}, nil
 	}
 	return uuidOf(by)
+}
+
+// LeftOut answers what the transaction's own workspace's plan leaves out, empty where it is on
+// none (admin.Entitlements).
+func (PlanRepository) LeftOut(ctx context.Context) (entitlement.LeftOut, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.LeftOutOfWorkspace(ctx)
+	if err != nil {
+		return nil, queryFailed("reading what the workspace's plan leaves out", err)
+	}
+	held := make([]plan.Feature, 0, len(rows))
+	for _, row := range rows {
+		feature, _, err := leftOutBy(row.Key, row.Value)
+		if err != nil {
+			return nil, err
+		}
+		if feature != "" {
+			held = append(held, feature)
+		}
+	}
+	return entitlement.Ordered(held), nil
 }
 
 // OfWorkspace answers the transaction's own workspace's plan, and false where it is on none.

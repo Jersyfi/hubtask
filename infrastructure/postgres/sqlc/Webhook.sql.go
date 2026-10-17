@@ -90,10 +90,17 @@ func (q *Queries) DeleteWebhookSubscription(ctx context.Context, id pgtype.UUID)
 const findPendingDeliveryOfPush = `-- name: FindPendingDeliveryOfPush :one
 SELECT id, tenant_id, subscription_id, event_id, attempt, status, response_status, error_code,
        next_attempt_at, created_at, push_id, subject, event_type
-FROM webhook_delivery
+FROM webhook_delivery AS pending
 WHERE subscription_id = $1 AND push_id = $2
   AND subject = $3 AND event_type = $4
   AND status = 'PENDING'
+  AND EXISTS (
+    SELECT 1 FROM job AS living
+    WHERE living.kind = 'webhook.deliver'
+      AND living.state IN ('PENDING', 'RUNNING')
+      AND living.tenant_id = pending.tenant_id
+      AND living.payload->>'delivery_id' = pending.id::text
+  )
 ORDER BY id DESC
 LIMIT 1
 FOR UPDATE
@@ -107,8 +114,10 @@ type FindPendingDeliveryOfPushParams struct {
 }
 
 // The delivery of one push the fan-out collapses onto (offline-sync.md §8): the same
-// subscription, push, subject and type, still pending. FOR UPDATE, because two events of the push
-// dispatched in one round both ask, and both must land on the one row.
+// subscription, push, subject and type, still pending, and still owed a job - a pending row whose
+// job ended without sending (webhooks a plan left out, multi-tenancy.md §4.2) is sent by nothing,
+// and an event folded onto it would be lost. FOR UPDATE, because two events of the push dispatched
+// in one round both ask, and both must land on the one row.
 func (q *Queries) FindPendingDeliveryOfPush(ctx context.Context, arg FindPendingDeliveryOfPushParams) (WebhookDelivery, error) {
 	row := q.db.QueryRow(ctx, findPendingDeliveryOfPush,
 		arg.SubscriptionID,

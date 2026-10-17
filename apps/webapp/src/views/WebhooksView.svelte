@@ -43,7 +43,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -210,6 +211,12 @@
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /**
+   * Where the plan leaves webhooks out they rest: nothing is delivered, nothing is added, resumed
+   * or replayed - pausing, a new secret and unsubscribing stay (multi-tenancy.md §4.2, P-05).
+   */
+  const webhooksIncluded = $derived(includedHere('WEBHOOKS') === true);
+  const resting = $derived(includedHere('WEBHOOKS') === false);
 </script>
 
 <Stack gap="300">
@@ -228,6 +235,10 @@
 
     <Stack gap="300">
     <p class="quiet">{t('app.webhooks.intro')}</p>
+
+    {#if resting}
+      <NotInPlan body={t('app.plan.webhooks_body', { count: webhooks.all.length })} />
+    {/if}
 
     {#if secret}
       <!-- The only time this value exists anywhere but the server's sealed copy. The
@@ -328,7 +339,7 @@
                 >
                   {t('app.webhooks.pause')}
                 </Button>
-              {:else}
+              {:else if webhooksIncluded}
                 <Button
                   size="sm"
                   tone="primary"
@@ -493,7 +504,7 @@
                               })}
                             </span>
                           {/if}
-                          {#if delivery.status === 'DEAD_LETTER' && mayAutomate}
+                          {#if delivery.status === 'DEAD_LETTER' && mayAutomate && webhooksIncluded}
                             <Stack gap="025">
                               <!-- Said before the button: the replay carries the same event id, so
                                    a subscriber that deduplicates recognises the repeat. That is
@@ -550,6 +561,7 @@
       {/each}
     {/if}
 
+    {#if !resting}
     <WorkspaceGate permission="AUTOMATION">
       <form class="panel" onsubmit={subscribe}>
         <Stack gap="150">
@@ -612,6 +624,7 @@
         </Stack>
       </form>
     </WorkspaceGate>
+    {/if}
     </Stack>
 </Stack>
 

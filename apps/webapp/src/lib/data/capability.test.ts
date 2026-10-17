@@ -24,6 +24,7 @@ import {
   itemPermitted,
   permissionVerdict,
   hubCreation,
+  includedByPlan,
   reachesAdministration,
   rootTypes,
   typesWith,
@@ -359,4 +360,13 @@ test('a shared hub is created with STRUCTURE, a private one of one\'s own where 
   assert.equal(hubCreation(answering(['READ'])), 'none');
   assert.equal(hubCreation({} as Capabilities), undefined);
   assert.equal(hubCreation(undefined), undefined);
+});
+
+test('a feature the plan leaves out is not included; the rest are, and nothing is known unread', () => {
+  const onPlan = { not_included: ['WEBHOOKS'] } as unknown as Capabilities;
+  assert.equal(includedByPlan(onPlan, 'WEBHOOKS'), false);
+  assert.equal(includedByPlan(onPlan, 'AUTOMATION_RULES'), true);
+  // A server that answers no `not_included` knows no plans: everything is included.
+  assert.equal(includedByPlan({} as Capabilities, 'OWN_SIGN_IN_PROVIDERS'), true);
+  assert.equal(includedByPlan(undefined, 'WEBHOOKS'), undefined);
 });

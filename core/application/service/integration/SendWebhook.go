@@ -11,6 +11,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -149,7 +150,8 @@ func (w Writer) recordSend(
 // every action is (automation.md §1.3).
 func (h SendWebhook) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: SendWebhookName,
+		Name:        SendWebhookName,
+		Entitlement: entitlement.Webhooks,
 		Summary: "Delivers one event to one named subscription, through the same pipeline every " +
 			"delivery takes: the same delivery table, signature, retry ladder and dead letter. " +
 			"The subscription's event-type filter is not consulted - naming it is the point - " +

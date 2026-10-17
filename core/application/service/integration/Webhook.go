@@ -18,11 +18,13 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -101,6 +103,10 @@ type Writer struct {
 	Compiler expression.Compiler
 	// Containers answers whether a scope's hub or collection is this workspace's, and which it is.
 	Containers condition.Containers
+	// Entitlements is what the workspace's plan leaves out: where it leaves out webhooks, a
+	// subscription may be paused and nothing else changed (multi-tenancy.md §4.2). Creating one,
+	// sending and replaying are refused on the registry. Nil includes every feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // MintedSubscription is what a creation or a rotation answers: the subscription as it will be
@@ -281,6 +287,24 @@ type UpdateWebhookSubscriptionCommand struct {
 	ExpectedVersion int
 }
 
+// mayChangeResting refuses, where the plan leaves webhooks out, every change but pausing: a resting
+// subscription is kept and may be held, never pointed elsewhere or resumed (multi-tenancy.md §4.2).
+func (w Writer) mayChangeResting(ctx context.Context, cmd UpdateWebhookSubscriptionCommand) error {
+	if w.Entitlements == nil {
+		return nil
+	}
+	pausing := cmd.State != nil && *cmd.State == string(domain.SubscriptionPaused) &&
+		cmd.TargetURL == nil && cmd.EventTypes == nil && cmd.Filter == nil && cmd.Scope == nil
+	if pausing {
+		return nil
+	}
+	leftOut, err := w.Entitlements.LeftOut(ctx)
+	if err != nil {
+		return err
+	}
+	return leftOut.Require(entitlement.Webhooks)
+}
+
 // UpdateWebhookSubscription changes a subscription.
 type UpdateWebhookSubscription struct{ Writer Writer }
 
@@ -314,6 +338,10 @@ func (h UpdateWebhookSubscription) Execute(
 	err := w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		stored, err := w.Subscriptions.Find(ctx, cmd.ID)
 		if err != nil {
+			return err
+		}
+
+		if err := w.mayChangeResting(ctx, cmd); err != nil {
 			return err
 		}
 
@@ -558,7 +586,8 @@ func encodeSecret(material []byte) string {
 // Descriptor is the catalogue entry.
 func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateWebhookSubscriptionName,
+		Name:        CreateWebhookSubscriptionName,
+		Entitlement: entitlement.Webhooks,
 		Summary: "Subscribes an external system to this workspace's event stream and answers " +
 			"the signing secret, once. What arrives at the target is the CloudEvent, identical " +
 			"to the one used internally. The target is an egress channel and is treated as one: " +
