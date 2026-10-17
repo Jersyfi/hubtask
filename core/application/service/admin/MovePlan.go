@@ -18,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/plan"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -47,6 +48,16 @@ type MovedTenant struct {
 	Tenant          adminrepo.TenantRecord
 	FeaturesResting []plan.Feature
 	ExceptionsKept  []string
+	// LimitsExceeded is every counted capacity the workspace now holds more of than its limit
+	// allows: nothing is removed, the next creation is refused (P-03).
+	LimitsExceeded []LimitExceeded
+}
+
+// LimitExceeded is one capacity over its resolved limit, the operator's exception included.
+type LimitExceeded struct {
+	Quota string
+	Limit int64
+	Used  int64
 }
 
 // MoveTenantPlan moves a workspace between plans. Nothing is copied into the workspace and nothing
@@ -55,7 +66,9 @@ type MoveTenantPlan struct {
 	Writer  PlanWriter
 	Tenants adminrepo.Tenants
 	Quotas  quotarepo.Store
-	Audit   audit.Sink
+	// Usage counts what the workspace holds, for the limits it is now over. Nil answers none.
+	Usage quotarepo.Usage
+	Audit audit.Sink
 	// Platform tells a purchase platform the workspace moved (UC-INS-14).
 	Platform platform.Recorder
 }
@@ -132,16 +145,52 @@ func (h MoveTenantPlan) Execute(
 			}
 		}
 
-		overrides, err := h.Quotas.Overrides(ctx)
+		levels, err := quotaservice.ReadLevels(ctx, h.Quotas)
+		if err != nil {
+			return err
+		}
+		exceeded, err := h.exceeded(ctx, levels)
 		if err != nil {
 			return err
 		}
 		moved = MovedTenant{
-			Tenant: record, FeaturesResting: target.Values.LeftOut, ExceptionsKept: exceptionsOf(overrides),
+			Tenant: record, FeaturesResting: target.Values.LeftOut, ExceptionsKept: exceptionsOf(levels.Exception),
+			LimitsExceeded: exceeded,
 		}
 		return nil
 	})
 	return moved, err
+}
+
+// exceeded answers the counted capacities above the limit in force after the move. Rates and day
+// budgets pass with the hour or the day, and running exports end; at the limit is not over it.
+func (h MoveTenantPlan) exceeded(ctx context.Context, levels quotaservice.Levels) ([]LimitExceeded, error) {
+	exceeded := []LimitExceeded{}
+	if h.Usage == nil {
+		return exceeded, nil
+	}
+	limits := quotaservice.Resolve(levels, env.TenancyMulti)
+	for _, counted := range []struct {
+		quota string
+		count func(context.Context) (int64, error)
+	}{
+		{quotaservice.Items, h.Usage.Items},
+		{quotaservice.MediaBytes, h.Usage.MediaBytes},
+		{quotaservice.WebhookTargets, h.Usage.WebhookTargets},
+	} {
+		limit := limits.Of(counted.quota)
+		if limit == quotaservice.Unlimited {
+			continue
+		}
+		used, err := counted.count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if used > limit {
+			exceeded = append(exceeded, LimitExceeded{Quota: counted.quota, Limit: limit, Used: used})
+		}
+	}
+	return exceeded, nil
 }
 
 // record writes the move into the workspace's own trail and the instance journal: the plans by
@@ -229,9 +278,13 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 			for _, feature := range moved.FeaturesResting {
 				resting = append(resting, string(feature))
 			}
+			exceeded := make([]usecase.Output, 0, len(moved.LimitsExceeded))
+			for _, over := range moved.LimitsExceeded {
+				exceeded = append(exceeded, usecase.Output{"quota": over.Quota, "limit": over.Limit, "used": over.Used})
+			}
 			return usecase.Output{
 				"tenant": adminTenantOutput(moved.Tenant), "features_resting": resting,
-				"exceptions_kept": moved.ExceptionsKept,
+				"exceptions_kept": moved.ExceptionsKept, "limits_exceeded": exceeded,
 			}, nil
 		}),
 	}

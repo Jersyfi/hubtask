@@ -13241,6 +13241,21 @@ components:
             The limits for which the workspace keeps an operator's exception: an exception stays
             the last word, so a platform that sold an add-on sets it again where it should change.
           items: { type: string }
+        limits_exceeded:
+          type: array
+          description: >
+            Each counted limit the workspace now holds more of than its plan, the installation or
+            an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed;
+            the next creation past the limit is refused.
+          items: { $ref: "#/components/schemas/LimitExceeded" }
+
+    LimitExceeded:
+      type: object
+      required: [quota, limit, used]
+      properties:
+        quota: { type: string }
+        limit: { type: integer, format: int64, description: The limit in force. }
+        used: { type: integer, format: int64, description: What the workspace holds. }
 
     TenantUpdate:
       type: object

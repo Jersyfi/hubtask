@@ -92,7 +92,8 @@ func TestAPlanKeyIsSetWithTheVersionRead(t *testing.T) {
 func TestAWorkspaceIsMovedFromTheTerminal(t *testing.T) {
 	stub := serveJSON(t, http.StatusOK, `{"tenant": {"id": "0192f000-0000-7000-8000-0000000000e1",
 	  "slug": "maria", "display_name": "Maria", "status": "ACTIVE", "created_at": "2026-10-01T08:00:00Z",
-	  "plan": "family", "version": 5}, "features_resting": ["WEBHOOKS"], "exceptions_kept": ["items"]}`)
+	  "plan": "family", "version": 5}, "features_resting": ["WEBHOOKS"], "exceptions_kept": ["items"],
+	  "limits_exceeded": [{"quota": "items", "limit": 1000, "used": 4210}]}`)
 	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "move-plan",
 		"0192f000-0000-7000-8000-0000000000e1", "--plan", "family", "--expected-version", "4")
 	if code != exitOK {
@@ -101,7 +102,7 @@ func TestAWorkspaceIsMovedFromTheTerminal(t *testing.T) {
 	if !strings.HasSuffix(stub.request.URL.Path, ":move-plan") || !strings.Contains(stub.body, `"expected_version":4`) {
 		t.Errorf("called %s with %s", stub.request.URL.Path, stub.body)
 	}
-	if !strings.Contains(out, "family") || !strings.Contains(out, "items") {
+	if !strings.Contains(out, "family") || !strings.Contains(out, "items 4210/1000") {
 		t.Errorf("printed %q", out)
 	}
 }

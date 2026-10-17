@@ -1015,6 +1015,12 @@ class TenantPlanMoved(TypedDict, total=False):
     tenant: Required["AdminTenant"]
     features_resting: Required[list["PlanFeature"]]
     exceptions_kept: Required[list[str]]
+    limits_exceeded: list["LimitExceeded"]
+
+class LimitExceeded(TypedDict, total=False):
+    quota: Required[str]
+    limit: Required[int]
+    used: Required[int]
 
 class TenantUpdate(TypedDict, total=False):
     external_reference: Required[str | None]
