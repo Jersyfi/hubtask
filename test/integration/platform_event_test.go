@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -374,5 +375,29 @@ func TestTwoMeteringsAtOnceTellTheAiBudgetSpentOnce(t *testing.T) {
 	if len(events) != 1 || events[0].Envelope.Type != event.WorkspaceAiBudgetSpent ||
 		events[0].Envelope.Payload["day"] != "2026-10-17" {
 		t.Errorf("two meterings told %+v", events)
+	}
+}
+
+// The export's event is written from the worker, outside any transaction the job had, and a job run
+// twice writes it once.
+func TestAnExportFinishedIsToldOnceAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	told := adminservice.TellExportFinished{
+		Platform: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})), UnitOfWork: uow,
+		Clock: clockadapter.System{},
+	}
+	workspace := seedWorkspace(ctx, t, "exported")
+	start := lastPlatformNumber(ctx, t)
+	export := freshID(t)
+
+	for range 2 {
+		if err := told.Finished(ctx, workspace, export); err != nil {
+			t.Fatalf("telling: %v", err)
+		}
+	}
+	events := platformEventsOf(ctx, t, uow, start, workspace)
+	if len(events) != 1 || events[0].Envelope.Payload["export_id"] != export.String() {
+		t.Errorf("a job run twice told %+v", events)
 	}
 }

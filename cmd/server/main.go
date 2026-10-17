@@ -3403,6 +3403,9 @@ func run() error {
 				Clock:         clockadapter.System{},
 				SchemaVersion: schemaVersion(), ProductVersion: version,
 			},
+			Told: adminservice.TellExportFinished{
+				Platform: platformEvents, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
 		},
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
