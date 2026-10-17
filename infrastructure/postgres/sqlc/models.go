@@ -1271,6 +1271,13 @@ type PrivateHubAccess struct {
 	EndsAt   pgtype.Timestamptz
 }
 
+type QuotaReached struct {
+	TenantID  pgtype.UUID
+	Quota     string
+	Period    string
+	ReachedAt pgtype.Timestamptz
+}
+
 type RecurrenceRule struct {
 	ID                 pgtype.UUID
 	TenantID           pgtype.UUID

@@ -113,3 +113,14 @@ type Meter interface {
 	// carries** - the caller decides whose day it is - creating the row on first use.
 	Add(ctx context.Context, metric string, at time.Time, amount int64) error
 }
+
+// Reached keeps the marks that make "a limit reached" and "the AI budget spent" told once per
+// crossing (UC-INS-14 check 2): one mark per quota, at one period - the limit's value for a
+// capacity quota, the day for an AI budget.
+type Reached interface {
+	// Mark marks the quota at the period and forgets its other periods, and reports whether this
+	// call set the mark - false when it stood already, also when another transaction set it at once.
+	Mark(ctx context.Context, quota, period string, at time.Time) (bool, error)
+	// Clear removes the quota's mark. It reads first, so a create that finds none writes nothing.
+	Clear(ctx context.Context, quota string) error
+}
