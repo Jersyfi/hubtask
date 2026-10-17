@@ -11,6 +11,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -306,6 +307,10 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		"recovery_code":      optionalStringField(body.RecoveryCode),
 		"state":              optionalStringField(body.State),
 		"authorization_code": optionalStringField(body.AuthorizationCode),
+		"raw_id":             optionalStringField(body.RawId),
+		"client_data_json":   optionalStringField(body.ClientDataJson),
+		"authenticator_data": optionalStringField(body.AuthenticatorData),
+		"signature":          optionalStringField(body.Signature),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -317,6 +322,32 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:   timeValue(out["expires_at"]),
 		Method:      openapi.StepUpGrantMethod(out.String("method")),
 	})
+}
+
+const startPasskeyStepUpUseCase = "StartPasskeyStepUp"
+
+// StartPasskeyStepUp answers POST /auth/step-up:passkey-options.
+func (c *RestController) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startPasskeyStepUpUseCase, actorOf(r), usecase.Input{"host": r.Host})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	var answer openapi.PasskeyAssertionOptions
+	encoded, err := json.Marshal(out)
+	if err == nil {
+		err = json.Unmarshal(encoded, &answer)
+	}
+	if err != nil {
+		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, answer)
 }
 
 const startProviderStepUpUseCase = "StartProviderStepUp"
