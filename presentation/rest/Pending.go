@@ -1178,6 +1178,45 @@ func (pending) ListPlatformEvents(
 	notAvailable(w, r)
 }
 
+// The installation's subscriptions for a purchase platform (UC-INS-14).
+func (pending) ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreatePlatformSubscriptionParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdatePlatformSubscriptionParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPlatformDeliveries(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListPlatformDeliveriesParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RedeliverPlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RotatePlatformSubscriptionSecret(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RotatePlatformSubscriptionSecretParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) ListInstanceJournal(
 	w http.ResponseWriter, r *http.Request, _ openapi.ListInstanceJournalParams,
 ) {

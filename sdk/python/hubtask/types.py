@@ -693,6 +693,56 @@ class InstanceJournalPage(TypedDict, total=False):
     data: Required[list["InstanceJournalEntry"]]
     page: Required["PageInfo"]
 
+class PlatformSubscription(TypedDict, total=False):
+    """One address the installation's events are pushed to. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed."""
+    id: Required[str]
+    target_url: Required[str]
+    state: Required[Literal["ACTIVE", "PAUSED"]]
+    dead_letters: Required[int]
+    last_delivery_at: str | None
+    last_error: str | None
+    from_file: Required[bool]
+    created_at: Required[str]
+    version: Required[int]
+
+class PlatformSubscriptionCreate(TypedDict, total=False):
+    target_url: Required[str]
+
+class PlatformSubscriptionUpdate(TypedDict, total=False):
+    """Every field optional; an omitted one is left alone."""
+    target_url: str | None
+    state: Literal["ACTIVE", "PAUSED"] | None
+
+class PlatformSubscriptionSecret(TypedDict, total=False):
+    id: Required[str]
+    target_url: Required[str]
+    state: Required[Literal["ACTIVE", "PAUSED"]]
+    dead_letters: Required[int]
+    last_delivery_at: str | None
+    last_error: str | None
+    from_file: Required[bool]
+    created_at: Required[str]
+    version: Required[int]
+    secret: Required[str]
+
+class PlatformDelivery(TypedDict, total=False):
+    """One event sent to one subscription, across its attempts."""
+    id: Required[str]
+    subscription_id: Required[str]
+    event_id: Required[str]
+    event_type: Required[str]
+    attempt: Required[int]
+    status: Required[Literal["PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER"]]
+    response_status: int | None
+    error_code: str | None
+    next_attempt_at: str | None
+    created_at: Required[str]
+    updated_at: str
+
+class PlatformDeliveryPage(TypedDict, total=False):
+    data: Required[list["PlatformDelivery"]]
+    page: Required["PageInfo"]
+
 class PlatformEventPage(TypedDict, total=False):
     data: Required[list["PlatformEvent"]]
     page: Required["PageInfo"]

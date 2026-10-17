@@ -2889,6 +2889,87 @@ func (e PlanFeature) Valid() bool {
 	}
 }
 
+// Defines values for PlatformDeliveryStatus.
+const (
+	PlatformDeliveryStatusDEADLETTER PlatformDeliveryStatus = "DEAD_LETTER"
+	PlatformDeliveryStatusFAILED     PlatformDeliveryStatus = "FAILED"
+	PlatformDeliveryStatusPENDING    PlatformDeliveryStatus = "PENDING"
+	PlatformDeliveryStatusSUCCEEDED  PlatformDeliveryStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformDeliveryStatus enum.
+func (e PlatformDeliveryStatus) Valid() bool {
+	switch e {
+	case PlatformDeliveryStatusDEADLETTER:
+		return true
+	case PlatformDeliveryStatusFAILED:
+		return true
+	case PlatformDeliveryStatusPENDING:
+		return true
+	case PlatformDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionState.
+const (
+	PlatformSubscriptionStateACTIVE PlatformSubscriptionState = "ACTIVE"
+	PlatformSubscriptionStatePAUSED PlatformSubscriptionState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionState enum.
+func (e PlatformSubscriptionState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionStateACTIVE:
+		return true
+	case PlatformSubscriptionStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionSecretState.
+const (
+	PlatformSubscriptionSecretStateACTIVE PlatformSubscriptionSecretState = "ACTIVE"
+	PlatformSubscriptionSecretStatePAUSED PlatformSubscriptionSecretState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionSecretState enum.
+func (e PlatformSubscriptionSecretState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionSecretStateACTIVE:
+		return true
+	case PlatformSubscriptionSecretStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionUpdateState.
+const (
+	PlatformSubscriptionUpdateStateACTIVE      PlatformSubscriptionUpdateState = "ACTIVE"
+	PlatformSubscriptionUpdateStateLessThannil PlatformSubscriptionUpdateState = "<nil>"
+	PlatformSubscriptionUpdateStatePAUSED      PlatformSubscriptionUpdateState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionUpdateState enum.
+func (e PlatformSubscriptionUpdateState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionUpdateStateACTIVE:
+		return true
+	case PlatformSubscriptionUpdateStateLessThannil:
+		return true
+	case PlatformSubscriptionUpdateStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -4488,6 +4569,30 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPlatformDeliveriesParamsStatus.
+const (
+	ListPlatformDeliveriesParamsStatusDEADLETTER ListPlatformDeliveriesParamsStatus = "DEAD_LETTER"
+	ListPlatformDeliveriesParamsStatusFAILED     ListPlatformDeliveriesParamsStatus = "FAILED"
+	ListPlatformDeliveriesParamsStatusPENDING    ListPlatformDeliveriesParamsStatus = "PENDING"
+	ListPlatformDeliveriesParamsStatusSUCCEEDED  ListPlatformDeliveriesParamsStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ListPlatformDeliveriesParamsStatus enum.
+func (e ListPlatformDeliveriesParamsStatus) Valid() bool {
+	switch e {
+	case ListPlatformDeliveriesParamsStatusDEADLETTER:
+		return true
+	case ListPlatformDeliveriesParamsStatusFAILED:
+		return true
+	case ListPlatformDeliveriesParamsStatusPENDING:
+		return true
+	case ListPlatformDeliveriesParamsStatusSUCCEEDED:
 		return true
 	default:
 		return false
@@ -8503,6 +8608,35 @@ type PlanCreate struct {
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlatformDelivery One event sent to one subscription, across its attempts.
+type PlatformDelivery struct {
+	// Attempt How many attempts were made, a redelivery's counting on.
+	Attempt   int       `json:"attempt"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode A message code, never the target's response body.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event, as `X-Hubtask-Event-Id` carries it.
+	EventId        openapi_types.UUID     `json:"event_id"`
+	EventType      string                 `json:"event_type"`
+	Id             openapi_types.UUID     `json:"id"`
+	NextAttemptAt  *time.Time             `json:"next_attempt_at,omitempty"`
+	ResponseStatus *int                   `json:"response_status,omitempty"`
+	Status         PlatformDeliveryStatus `json:"status"`
+	SubscriptionId openapi_types.UUID     `json:"subscription_id"`
+	UpdatedAt      *time.Time             `json:"updated_at,omitempty"`
+}
+
+// PlatformDeliveryStatus defines model for PlatformDelivery.Status.
+type PlatformDeliveryStatus string
+
+// PlatformDeliveryPage defines model for PlatformDeliveryPage.
+type PlatformDeliveryPage struct {
+	Data []PlatformDelivery `json:"data"`
+	Page PageInfo           `json:"page"`
+}
+
 // PlatformEvent One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent, unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform deduplicates on it either way; `tenantid` is the workspace the event is about, and `data` carries its state as the schema of the event's `type` describes.
 // Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the event schemas and the CloudEvents specification, and a second list of its properties here would drift.
 type PlatformEvent map[string]interface{}
@@ -8512,6 +8646,79 @@ type PlatformEventPage struct {
 	Data []PlatformEvent `json:"data"`
 	Page PageInfo        `json:"page"`
 }
+
+// PlatformSubscription One address the installation's events are pushed to. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
+type PlatformSubscription struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DeadLetters The deliveries that ended without arriving and wait to be redelivered.
+	DeadLetters int `json:"dead_letters"`
+
+	// FromFile Decided by an enforcing instance file: changed there, and refused here. A subscription a seeding file wrote is the operator's.
+	FromFile bool               `json:"from_file"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// LastDeliveryAt When an event last arrived; null before the first.
+	LastDeliveryAt *time.Time `json:"last_delivery_at,omitempty"`
+
+	// LastError A message code for the last failed attempt, never the target's own words.
+	LastError *string `json:"last_error,omitempty"`
+
+	// State Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+	State PlatformSubscriptionState `json:"state"`
+
+	// TargetUrl Where each event is POSTed, through the guarded client.
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// PlatformSubscriptionState Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+type PlatformSubscriptionState string
+
+// PlatformSubscriptionCreate defines model for PlatformSubscriptionCreate.
+type PlatformSubscriptionCreate struct {
+	TargetUrl string `json:"target_url"`
+}
+
+// PlatformSubscriptionSecret defines model for PlatformSubscriptionSecret.
+type PlatformSubscriptionSecret struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DeadLetters The deliveries that ended without arriving and wait to be redelivered.
+	DeadLetters int `json:"dead_letters"`
+
+	// FromFile Decided by an enforcing instance file: changed there, and refused here. A subscription a seeding file wrote is the operator's.
+	FromFile bool               `json:"from_file"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// LastDeliveryAt When an event last arrived; null before the first.
+	LastDeliveryAt *time.Time `json:"last_delivery_at,omitempty"`
+
+	// LastError A message code for the last failed attempt, never the target's own words.
+	LastError *string `json:"last_error,omitempty"`
+
+	// Secret The signing secret, in clear, for the only time.
+	Secret string `json:"secret"`
+
+	// State Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+	State PlatformSubscriptionSecretState `json:"state"`
+
+	// TargetUrl Where each event is POSTed, through the guarded client.
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// PlatformSubscriptionSecretState Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+type PlatformSubscriptionSecretState string
+
+// PlatformSubscriptionUpdate Every field optional; an omitted one is left alone.
+type PlatformSubscriptionUpdate struct {
+	State     *PlatformSubscriptionUpdateState `json:"state,omitempty"`
+	TargetUrl *string                          `json:"target_url,omitempty"`
+}
+
+// PlatformSubscriptionUpdateState defines model for PlatformSubscriptionUpdate.State.
+type PlatformSubscriptionUpdateState string
 
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
@@ -10978,6 +11185,43 @@ type ChangePlanParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CreatePlatformSubscriptionParams defines parameters for CreatePlatformSubscription.
+type CreatePlatformSubscriptionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// UpdatePlatformSubscriptionParams defines parameters for UpdatePlatformSubscription.
+type UpdatePlatformSubscriptionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ListPlatformDeliveriesParams defines parameters for ListPlatformDeliveries.
+type ListPlatformDeliveriesParams struct {
+	Cursor *Cursor                             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize                           `form:"size,omitempty" json:"size,omitempty"`
+	Status *ListPlatformDeliveriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListPlatformDeliveriesParamsStatus defines parameters for ListPlatformDeliveries.
+type ListPlatformDeliveriesParamsStatus string
+
+// RotatePlatformSubscriptionSecretParams defines parameters for RotatePlatformSubscriptionSecret.
+type RotatePlatformSubscriptionSecretParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -12074,6 +12318,12 @@ type ChangePlanJSONRequestBody = PlanChange
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
+// CreatePlatformSubscriptionJSONRequestBody defines body for CreatePlatformSubscription for application/json ContentType.
+type CreatePlatformSubscriptionJSONRequestBody = PlatformSubscriptionCreate
+
+// UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody defines body for UpdatePlatformSubscription for application/merge-patch+json ContentType.
+type UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody = PlatformSubscriptionUpdate
+
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
 
@@ -12616,6 +12866,30 @@ type ServerInterface interface {
 	// WriteInstanceSettings Replace the installation's level
 	// (PUT /admin/settings)
 	WriteInstanceSettings(w http.ResponseWriter, r *http.Request)
+	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
+	// (GET /admin/subscriptions)
+	ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request)
+	// CreatePlatformSubscription Subscribe a purchase platform to the installation's events
+	// (POST /admin/subscriptions)
+	CreatePlatformSubscription(w http.ResponseWriter, r *http.Request, params CreatePlatformSubscriptionParams)
+	// DeletePlatformSubscription Unsubscribe
+	// (DELETE /admin/subscriptions/{subscriptionId})
+	DeletePlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID)
+	// ReadPlatformSubscription One subscription of the installation
+	// (GET /admin/subscriptions/{subscriptionId})
+	ReadPlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID)
+	// UpdatePlatformSubscription Change a subscription's target, or pause and resume it
+	// (PATCH /admin/subscriptions/{subscriptionId})
+	UpdatePlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID, params UpdatePlatformSubscriptionParams)
+	// ListPlatformDeliveries What was sent to the subscription, and what became of it
+	// (GET /admin/subscriptions/{subscriptionId}/deliveries)
+	ListPlatformDeliveries(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID, params ListPlatformDeliveriesParams)
+	// RedeliverPlatformSubscription Send the subscription's dead letters again
+	// (POST /admin/subscriptions/{subscriptionId}:redeliver)
+	RedeliverPlatformSubscription(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID)
+	// RotatePlatformSubscriptionSecret Issue a new signing secret
+	// (POST /admin/subscriptions/{subscriptionId}:rotate-secret)
+	RotatePlatformSubscriptionSecret(w http.ResponseWriter, r *http.Request, subscriptionId openapi_types.UUID, params RotatePlatformSubscriptionSecretParams)
 	// ListTenants The installation's workspaces
 	// (GET /admin/tenants)
 	ListTenants(w http.ResponseWriter, r *http.Request)
@@ -14901,6 +15175,364 @@ func (siw *ServerInterfaceWrapper) WriteInstanceSettings(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.WriteInstanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlatformSubscriptions operation middleware
+func (siw *ServerInterfaceWrapper) ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlatformSubscriptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePlatformSubscription operation middleware
+func (siw *ServerInterfaceWrapper) CreatePlatformSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreatePlatformSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePlatformSubscription(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePlatformSubscription operation middleware
+func (siw *ServerInterfaceWrapper) DeletePlatformSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePlatformSubscription(w, r, subscriptionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPlatformSubscription operation middleware
+func (siw *ServerInterfaceWrapper) ReadPlatformSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPlatformSubscription(w, r, subscriptionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePlatformSubscription operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePlatformSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdatePlatformSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePlatformSubscription(w, r, subscriptionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlatformDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ListPlatformDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPlatformDeliveriesParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "status", r.URL.Query(), &params.Status, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "status"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlatformDeliveries(w, r, subscriptionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedeliverPlatformSubscription operation middleware
+func (siw *ServerInterfaceWrapper) RedeliverPlatformSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedeliverPlatformSubscription(w, r, subscriptionId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotatePlatformSubscriptionSecret operation middleware
+func (siw *ServerInterfaceWrapper) RotatePlatformSubscriptionSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "subscriptionId" -------------
+	var subscriptionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "subscriptionId", r.PathValue("subscriptionId"), &subscriptionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "subscriptionId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotatePlatformSubscriptionSecretParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotatePlatformSubscriptionSecret(w, r, subscriptionId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -25295,6 +25927,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/events", wrapper.ListPlatformEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions", wrapper.ListPlatformSubscriptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions", wrapper.CreatePlatformSubscription)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}", wrapper.DeletePlatformSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}", wrapper.ReadPlatformSubscription)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}", wrapper.UpdatePlatformSubscription)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:rotate-secret", wrapper.RotatePlatformSubscriptionSecret)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}/deliveries", wrapper.ListPlatformDeliveries)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:redeliver", wrapper.RedeliverPlatformSubscription)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.RemoveInstanceAiProvider)
