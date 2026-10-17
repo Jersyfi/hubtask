@@ -85,6 +85,12 @@ type Descriptor struct {
 	// TokenScope is the scope a credential needs (api-guidelines.md §7). Empty for an operation
 	// that needs none.
 	TokenScope string
+	// AlsoScope is a narrower scope that admits this operation as well, empty for none. It exists
+	// for the control plane's one subset, `admin:provisioning` (api-guidelines.md §7): a purchase
+	// platform reaches the verbs it needs without the rest of the installation. Declared here
+	// rather than listed beside the catalogue, so that the scope names exactly the operations that
+	// check it.
+	AlsoScope string
 	// ReadOnly and Destructive become the MCP annotations `readOnlyHint` and `destructiveHint`,
 	// so that an agent client can ask for confirmation before the dangerous ones (ai-first.md).
 	ReadOnly    bool
