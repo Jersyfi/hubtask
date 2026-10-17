@@ -998,6 +998,10 @@ func run() error {
 	quotaGuard := quotaservice.Guard{
 		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+		Crossings: platformservice.Crossings{
+			Marks: postgres.NewQuotaReachedRepository(), Recorder: platformEvents,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		},
 	}
 
 	duplicate := work.DuplicateWorkItem{

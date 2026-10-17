@@ -8,6 +8,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -32,6 +33,18 @@ type Guard struct {
 	Meter   repository.Meter
 	Signals Signals
 	Tenancy env.TenancyMode
+	// Crossings tells a purchase platform a limit was reached, once per crossing (UC-INS-14).
+	// Nil tells nobody.
+	Crossings Crossings
+}
+
+// Crossings is told which creates a capacity quota admitted and which it refused - the platform
+// package's, which marks a crossing once and writes its event.
+type Crossings interface {
+	// Admitted runs in the create's transaction: the workspace is below the limit.
+	Admitted(ctx context.Context, quota string) error
+	// Refused must not write in the refused transaction, which rolls back with the refusal.
+	Refused(ctx context.Context, workspace shared.ID, quota string, limit int64)
 }
 
 // limits resolves the transaction's tenant's table.
@@ -65,7 +78,13 @@ func (g Guard) check(
 		g.Signals.QuotaUsage(ctx, quota, tenant, Ratio(limit, used))
 	}
 	if used+adding > limit {
+		if g.Crossings != nil {
+			g.Crossings.Refused(ctx, shared.ID(tenant), quota, limit)
+		}
 		return Exceeded(quota, limit, used)
+	}
+	if g.Crossings != nil {
+		return g.Crossings.Admitted(ctx, quota)
 	}
 	return nil
 }
