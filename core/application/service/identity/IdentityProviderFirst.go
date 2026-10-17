@@ -73,9 +73,13 @@ func (w IdentityProviderWriter) firstOwn(ctx context.Context) (domain.IdentityPr
 	if err != nil {
 		return domain.IdentityProvider{}, err
 	}
+	here, err := readWaysHere(ctx, w.Workspaces, w.Instance)
+	if err != nil {
+		return domain.IdentityProvider{}, err
+	}
 	for _, candidate := range inForce {
 		if !candidate.Installation() {
-			candidate.OfferedHere = candidate.Enabled
+			candidate.OfferedHere = candidate.Enabled && offeredHere(candidate, here, w.Session.Clock.Now())
 			return candidate, nil
 		}
 	}
