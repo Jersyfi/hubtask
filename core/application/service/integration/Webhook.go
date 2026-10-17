@@ -23,6 +23,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -558,7 +559,8 @@ func encodeSecret(material []byte) string {
 // Descriptor is the catalogue entry.
 func (h CreateWebhookSubscription) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateWebhookSubscriptionName,
+		Name:        CreateWebhookSubscriptionName,
+		Entitlement: entitlement.Webhooks,
 		Summary: "Subscribes an external system to this workspace's event stream and answers " +
 			"the signing secret, once. What arrives at the target is the CloudEvent, identical " +
 			"to the one used internally. The target is an egress channel and is treated as one: " +

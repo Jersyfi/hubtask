@@ -9,6 +9,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -159,7 +160,8 @@ func (h ReadIdentityProvider) invoke(
 
 func (h ConfigureFirstIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ConfigureFirstIdentityProviderName,
+		Name:        ConfigureFirstIdentityProviderName,
+		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Sets the workspace's first identity provider whole, creating it where the " +
 			"workspace has none — the singular surface, kept. The same rules the collection " +
 			"applies: discovery before anything is stored, the mark held to its issuer, and a " +

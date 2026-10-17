@@ -1503,8 +1503,10 @@ func run() error {
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
+	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
+	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
 	useCases, err := usecase.NewRegistry(
-		observer.Registry(),
+		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
