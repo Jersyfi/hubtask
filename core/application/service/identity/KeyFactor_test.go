@@ -410,3 +410,21 @@ func TestAResetOfAnAccountWithAKeyAnswersTheKeysStep(t *testing.T) {
 		t.Fatalf("the reset answered %+v, want the key's step", result)
 	}
 }
+
+// Check 8's other half: with `PASSKEY` switched off as a way in, a passkey alone opens nothing, and
+// the same account's key still completes the step after the password - the switch is about ways in,
+// not about factors (identity.md §23.4).
+func TestSwitchedOffPasskeysStillServeAsTheFactor(t *testing.T) {
+	signIn := newPasskeySignInFixture(t)
+	signIn.writer.Resolver = methodsResolver{methods: []string{domain.MethodDirect}}
+	signIn.register(t)
+	if _, err := signIn.options(t, "acme.hubtask.example"); err == nil || !strings.Contains(err.Error(), codeNotOffered) {
+		t.Fatalf("switched off, the passkey door answered %v", err)
+	}
+
+	f := newKeyFactorFixture(t, domain.MfaForNobody)
+	step := f.step(t)
+	if _, err := f.answer(t, step.String("pending_token"), challengeOf(step), bertsKey); err != nil {
+		t.Errorf("the key as the factor: %v", err)
+	}
+}
