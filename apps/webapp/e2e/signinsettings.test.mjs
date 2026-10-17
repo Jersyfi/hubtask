@@ -355,14 +355,19 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const rows = (await list.getByRole('listitem').allTextContents()).map((row) => row.replace(/\s+/g, ' ').trim());
-  assert.equal(rows.length, 3, rows.join(' | '));
+  assert.equal(rows.length, 4, rows.join(' | '));
   assert.match(rows[0], /Password/);
+  // Passkeys, below the password: never a way in on their own, and here not offered above
+  // (identity.md §23.4) - so held, with the reason.
+  assert.match(rows[1], /Passkeys/);
+  assert.equal(await list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input').isDisabled(), true,
+    'passkeys could be switched on where the installation does not offer them');
   assert.equal(await list.getByRole('switch').count() + await list.locator('input[type="checkbox"]').count() > 0, true);
 
   // The password is off and one provider is on: that provider is the last way in.
   const own = list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).locator('input');
   assert.equal(await own.isDisabled(), true, 'the last way in can be switched off');
-  assert.match(rows[1], /only way in/i, rows[1]);
+  assert.match(rows[2], /only way in/i, rows[2]);
 
   // Taking the installation's provider is the one verb, from this list.
   await list.getByRole('listitem').filter({ hasText: 'The platform' }).locator('input').check();
@@ -787,4 +792,40 @@ test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', as
   assert.match(said, /on in every workspace on your plan while the plan locks the ways to sign in/, said);
   assert.match(said, /Set by your plan/, said);
   assert.doesNotMatch(said, /Set by the installation/, said);
+});
+
+// UC-ID-21 check 8: passkeys switched on and off from the list, and switching the password keeps
+// them as they are.
+test('chromium: passkeys switch on and off beside the password, which keeps them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const patches = [];
+  const offered = policy();
+  offered.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC', 'PASSKEY']);
+  const { page, close } = await open(browser, (route, path) => {
+    const request = route.request();
+    if (path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: offered } });
+    }
+    if (path === '/tenant' && request.method() === 'PATCH') {
+      const methods = request.postDataJSON().sign_in_policy?.methods;
+      patches.push(methods);
+      offered.methods = rule(methods, ['PASSWORD', 'OIDC', 'PASSKEY'], { source: 'WORKSPACE' });
+      return route.fulfill({ json: { ...WORKSPACE, version: WORKSPACE.version + patches.length, sign_in_policy: offered } });
+    }
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    }
+    return undefined;
+  });
+  t.after(close);
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+  const passkeys = list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input');
+  assert.equal(await passkeys.isDisabled(), false);
+  await passkeys.check();
+  await page.waitForFunction(() => true);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.deepEqual(patches[0], ['PASSWORD', 'OIDC', 'PASSKEY']);
 });

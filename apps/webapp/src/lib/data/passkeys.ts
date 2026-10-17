@@ -9,7 +9,7 @@
  * Nothing here judges a ceremony. The server's verifier does; this only carries bytes across.
  */
 
-import type { Passkey, PasskeyList, PasskeyRegistration, PasskeyRegistrationOptions } from '@hubtask/sync-engine';
+import type { Passkey, PasskeyAssertion, PasskeyList, PasskeyRegistration, PasskeyRegistrationOptions, PasskeySignInOptions } from '@hubtask/sync-engine';
 
 /** base64url without padding, as WebAuthn's JSON form writes every binary value. */
 export function toBase64Url(bytes: ArrayBuffer | Uint8Array): string {
@@ -155,4 +155,64 @@ export function removalOf(passkey: Pick<Passkey, 'rp_id'>, list: PasskeyList): R
   if (list.can_remove) return { offered: true };
   if (isStale(passkey, list) && reason !== 'auth.step_up_no_method') return { offered: true };
   return { offered: false, reason: reason ?? 'auth.mfa_required_by_tenant' };
+}
+
+/**
+ * The server's sign-in options, as `navigator.credentials.get()` takes them: in the address field's
+ * offer (`conditional`) or asked directly (`optional`, the button).
+ */
+export function requestOptionsOf(
+  options: PasskeySignInOptions,
+  mediation: 'conditional' | 'optional',
+  signal?: AbortSignal,
+): CredentialRequestOptions {
+  const given = options.public_key;
+  return {
+    mediation,
+    ...(signal ? { signal } : {}),
+    publicKey: {
+      rpId: given.rpId,
+      challenge: fromBase64Url(given.challenge),
+      timeout: given.timeout,
+      userVerification: given.userVerification,
+    },
+  };
+}
+
+/** What the shape of an assertion holds that this module reads. */
+export interface AssertedCredential {
+  readonly rawId: ArrayBuffer;
+  readonly response: {
+    readonly clientDataJSON: ArrayBuffer;
+    readonly authenticatorData: ArrayBuffer;
+    readonly signature: ArrayBuffer;
+    readonly userHandle: ArrayBuffer | null;
+  };
+}
+
+/** The ceremony's answer, as `POST /auth/sessions:passkey` takes it. */
+export function assertionOf(credential: AssertedCredential): PasskeyAssertion {
+  return {
+    raw_id: toBase64Url(credential.rawId),
+    client_data_json: toBase64Url(credential.response.clientDataJSON),
+    authenticator_data: toBase64Url(credential.response.authenticatorData),
+    signature: toBase64Url(credential.response.signature),
+    user_handle: credential.response.userHandle ? toBase64Url(credential.response.userHandle) : '',
+  };
+}
+
+/** What a browser offers for the address field's passkeys. */
+export interface ConditionalBrowser {
+  readonly PublicKeyCredential?: { isConditionalMediationAvailable?: () => Promise<boolean> };
+}
+
+/** Whether the address field can offer this workspace's passkeys (conditional mediation). */
+export async function canOfferInField(browser: ConditionalBrowser): Promise<boolean> {
+  const check = browser.PublicKeyCredential?.isConditionalMediationAvailable;
+  if (typeof check !== 'function') return false;
+  try {
+    return await check.call(browser.PublicKeyCredential);
+  } catch {
+    return false;
+  }
 }

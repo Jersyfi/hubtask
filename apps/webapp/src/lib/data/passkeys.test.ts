@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 import type { PasskeyList, PasskeyRegistrationOptions } from '@hubtask/sync-engine';
 
 import {
+  assertionOf,
   canCreatePasskeys,
+  canOfferInField,
   ceremonyEndOf,
   creationOptionsOf,
   fromBase64Url,
@@ -19,6 +21,7 @@ import {
   nameFits,
   registrationOf,
   removalOf,
+  requestOptionsOf,
   suggestedName,
   toBase64Url,
 } from './passkeys.ts';
@@ -145,4 +148,39 @@ test('Remove is offered exactly where the server would let it pass, and the reas
   assert.deepEqual(removalOf(stale, lastRequired), { offered: true }, 'a stale key is no factor and always goes');
   const noProof: PasskeyList = { ...list, can_remove: false, cannot_remove_reason: 'auth.step_up_no_method' };
   assert.deepEqual(removalOf(stale, noProof), { offered: false, reason: 'auth.step_up_no_method' });
+});
+
+test('the sign-in options become the browser’s, in the field or asked directly', async () => {
+  const signal = new AbortController().signal;
+  const given = {
+    expires_at: '2099-01-01T00:05:00Z',
+    public_key: { rpId: 'acme.hubtask.example', challenge: 'KioqKg', timeout: 300000, userVerification: 'required' as const },
+  };
+  const field = requestOptionsOf(given, 'conditional', signal);
+  assert.equal(field.mediation, 'conditional');
+  assert.equal(field.signal, signal);
+  assert.equal(field.publicKey?.rpId, 'acme.hubtask.example');
+  assert.equal(field.publicKey?.userVerification, 'required');
+  assert.deepEqual([...new Uint8Array(field.publicKey?.challenge as ArrayBuffer)], [42, 42, 42, 42]);
+  assert.equal('allowCredentials' in (field.publicKey ?? {}), false, 'a discoverable sign-in names nobody');
+  const button = requestOptionsOf(given, 'optional');
+  assert.equal(button.mediation, 'optional');
+  assert.equal('signal' in button, false);
+
+  assert.deepEqual(
+    assertionOf({
+      rawId: new Uint8Array([1, 2]).buffer,
+      response: {
+        clientDataJSON: new Uint8Array([123, 125]).buffer,
+        authenticatorData: new Uint8Array([9]).buffer,
+        signature: new Uint8Array([48]).buffer,
+        userHandle: new Uint8Array([51, 51]).buffer,
+      },
+    }),
+    { raw_id: 'AQI', client_data_json: 'e30', authenticator_data: 'CQ', signature: 'MA', user_handle: 'MzM' },
+  );
+
+  assert.equal(await canOfferInField({}), false);
+  assert.equal(await canOfferInField({ PublicKeyCredential: { isConditionalMediationAvailable: async () => true } }), true);
+  assert.equal(await canOfferInField({ PublicKeyCredential: { isConditionalMediationAvailable: async () => { throw new Error('no'); } } }), false);
 });
