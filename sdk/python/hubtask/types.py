@@ -480,7 +480,7 @@ class WorkspaceHost(TypedDict, total=False):
     created_at: Required[str]
 
 class SignInPolicyNumber(TypedDict, total=False):
-    """One numeric switch, at the three levels that decide it. Zero is off for every one of them."""
+    """One numeric switch, at the levels that decide it. Zero is off for every one of them."""
     value: Required[int]
     installation: Required[int]
     lock: Required["PolicyLock"]
@@ -515,12 +515,13 @@ PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
 PolicyLock = Literal["INSTANCE", "PLAN"] | None
 
 class SignInPolicy(TypedDict, total=False):
-    """The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
+    """The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
     password: Required["PasswordPolicySettings"]
     mfa_required_for: Required["SignInPolicyText"]
     methods: Required["SignInPolicyMethods"]
     session: Required["SessionPolicySettings"]
     legal: Required["LegalPolicySettings"]
+    plan: str | None
     managed_accounts: "SignInPolicyFlag"
     private_hubs: "SignInPolicyFlag"
     rotation_from: Required[str | None]

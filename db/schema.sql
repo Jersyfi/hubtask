@@ -3227,13 +3227,15 @@ GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 -- their own switches - a number, never which, and only outside a workspace. The column and the
 -- function above stay for one release. Since 0133 an invite-only offer the installation's lock on the
 -- ways in turns on (identity.md §18) counts every live workspace, whatever their own switches say.
+-- Since 0167 a plan's lock does the same for every live workspace on that plan, where the
+-- installation does not lock the ways in itself (multi-tenancy.md §4.2).
 CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
-  SELECT count(*)::integer FROM tenant
+  SELECT count(*)::integer FROM tenant t
   WHERE current_tenant_id() IS NULL
-    AND deleted_at IS NULL
+    AND t.deleted_at IS NULL
     AND (
-      coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+      coalesce(t.settings -> 'offered_providers', '[]'::jsonb) ? provider::text
       OR EXISTS (
         SELECT 1 FROM identity_provider p
         JOIN instance_setting s ON s.key = 'sign_in.methods'
@@ -3245,6 +3247,21 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
           AND s.lock_origin <> 'OPEN'
           AND jsonb_typeof(s.value) = 'array'
           AND (s.value ? 'OIDC' OR NOT s.value ?| ARRAY['PASSWORD', 'OIDC'])
+      )
+      OR EXISTS (
+        SELECT 1 FROM identity_provider p
+        JOIN plan_setting ps ON ps.plan_id = t.plan_id AND ps.key = 'sign_in.methods'
+        WHERE p.id = provider
+          AND p.tenant_id IS NULL
+          AND p.provisioning = 'INVITED_ONLY'
+          AND p.enabled
+          AND (p.withdraw_at IS NULL OR p.withdraw_at > now())
+          AND ps.locked
+          AND jsonb_typeof(ps.value) = 'array'
+          AND (ps.value ? 'OIDC' OR NOT ps.value ?| ARRAY['PASSWORD', 'OIDC'])
+          AND NOT EXISTS (
+            SELECT 1 FROM instance_setting s WHERE s.key = 'sign_in.methods' AND s.lock_origin <> 'OPEN'
+          )
       )
     )
 $$;

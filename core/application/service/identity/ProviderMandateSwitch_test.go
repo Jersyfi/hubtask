@@ -116,3 +116,27 @@ func TestAProviderBesideAMandatedOneMaySwitchOff(t *testing.T) {
 			f.workspaces.row.Settings.Offers(byDomain))
 	}
 }
+
+// identity.md §18: under a plan's lock on the ways in the same row is mandated, and the refusal
+// names the plan, not the installation.
+func TestThePlansMandateRefusesNamingThePlan(t *testing.T) {
+	f, registry, invited, _ := lockedOfferFixture(t)
+	instance, _ := f.writer.Instance.(*instanceSettings)
+	instance.level.Policy = domain.PolicyLayer{Locks: map[domain.PolicySwitch]bool{}}
+	f.workspaces.row.Plan = domain.WorkspacePlan{Name: "family", DisplayName: "Family", Policy: domain.PolicyLayer{
+		Patch: domain.PolicyPatch{Methods: providersAlone()},
+		Locks: map[domain.PolicySwitch]bool{domain.SwitchMethods: true},
+	}}
+
+	_, err := registry.Invoke(t.Context(), OfferIdentityProviderName, providerActor(),
+		usecase.Input{"id": invited.String(), "offered": false})
+	if detailOf(err) != "identity_provider.mandated" {
+		t.Fatalf("switching off the provider the plan mandates answered %v, want identity_provider.mandated", err)
+	}
+	if origin := shared.AsError(err).Params["origin"]; origin != string(domain.LockPlan) {
+		t.Errorf("the refusal names origin %q, want PLAN", origin)
+	}
+	if len(f.workspaces.updates) != 0 {
+		t.Error("the refused switch wrote the workspace")
+	}
+}

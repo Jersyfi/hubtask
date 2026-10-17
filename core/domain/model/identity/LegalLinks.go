@@ -117,33 +117,40 @@ type LegalLayer struct {
 	Locks map[LegalLink]bool
 }
 
-// EffectiveLegal resolves workspace -> instance -> nothing.
+// EffectiveLegal resolves workspace -> plan -> instance -> nothing (identity.md §18).
 //
-// A locked link is the instance's whatever the workspace holds, for Effective's reason: resolving
-// has to answer something for a row written before the lock landed, and refusing is the writer's
-// job where there is a field to name.
-func EffectiveLegal(instance, workspace LegalLayer) (LegalLinks, map[LegalLink]LockOrigin) {
+// A locked link is the level's that locked it, whatever the levels below hold, for Effective's
+// reason: resolving has to answer something for a row written before the lock landed, and refusing
+// is the writer's job where there is a field to name. An installation lock binds the plan as it
+// binds the workspace.
+func EffectiveLegal(instance, plan, workspace LegalLayer) (LegalLinks, map[LegalLink]LockOrigin) {
 	resolved := LegalLinks{}
 	locks := map[LegalLink]LockOrigin{}
 
 	for _, name := range LegalLinkNames() {
-		if instance.Locks[name] {
+		switch {
+		case instance.Locks[name]:
 			locks[name] = LockInstance
 			resolved = resolved.With(name, instance.Links.Of(name))
-			continue
+		case plan.Locks[name]:
+			locks[name] = LockPlan
+			resolved = resolved.With(name, plan.Links.Of(name))
+		case workspace.Links.Of(name) != "":
+			resolved = resolved.With(name, workspace.Links.Of(name))
+		case plan.Links.Of(name) != "":
+			resolved = resolved.With(name, plan.Links.Of(name))
+		default:
+			resolved = resolved.With(name, instance.Links.Of(name))
 		}
-		if value := workspace.Links.Of(name); value != "" {
-			resolved = resolved.With(name, value)
-			continue
-		}
-		resolved = resolved.With(name, instance.Links.Of(name))
 	}
 
 	// The version is the terms link's, from wherever the link came from, and under its lock.
-	source := LegalSourceOf(LinkTerms, instance, workspace)
+	source := LegalSourceOf(LinkTerms, instance, plan, workspace)
 	switch source {
 	case SourceInstance:
 		resolved.TermsVersion = instance.Links.TermsVersion
+	case SourcePlan:
+		resolved.TermsVersion = plan.Links.TermsVersion
 	case SourceWorkspace:
 		resolved.TermsVersion = workspace.Links.TermsVersion
 	}
@@ -153,15 +160,15 @@ func EffectiveLegal(instance, workspace LegalLayer) (LegalLinks, map[LegalLink]L
 	} else {
 		resolved.TermsSetBy = termsSetByOf(source)
 	}
-	if instance.Locks[LinkTerms] {
-		locks[LinkTermsVersion] = LockInstance
+	if origin := locks[LinkTerms]; origin != LockNone {
+		locks[LinkTermsVersion] = origin
 	}
 	return resolved, locks
 }
 
 // LegalSourceOf answers which level a link in force came from, EffectiveLegal's order (P-06). A
-// lock is the installation's decision even where it pinned "no link".
-func LegalSourceOf(name LegalLink, instance, workspace LegalLayer) PolicySource {
+// lock is its level's decision even where it pinned "no link".
+func LegalSourceOf(name LegalLink, instance, plan, workspace LegalLayer) PolicySource {
 	if name == LinkTermsVersion {
 		// The version has no source of its own: it is the terms link's.
 		name = LinkTerms
@@ -169,8 +176,12 @@ func LegalSourceOf(name LegalLink, instance, workspace LegalLayer) PolicySource 
 	switch {
 	case instance.Locks[name]:
 		return SourceInstance
+	case plan.Locks[name]:
+		return SourcePlan
 	case workspace.Links.Of(name) != "":
 		return SourceWorkspace
+	case plan.Links.Of(name) != "":
+		return SourcePlan
 	case instance.Links.Of(name) != "":
 		return SourceInstance
 	}

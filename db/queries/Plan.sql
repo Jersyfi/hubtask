@@ -70,3 +70,11 @@ FOR SHARE;
 -- Whether any plan was ever created, removed ones included: what a seeding file asks, so that a
 -- plan an operator removed after the seed is not written again at the next start.
 SELECT EXISTS (SELECT 1 FROM plan)::boolean AS ever;
+
+-- name: PlanOfWorkspace :one
+-- The transaction's own workspace's plan, read in that workspace's scope: `tenant_self` admits its
+-- own row, and `plan` carries no policy (multi-tenancy.md §4.2).
+SELECT p.id, p.name, p.display_name, p.version, p.created_at, p.updated_at
+FROM tenant t
+JOIN plan p ON p.id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;
