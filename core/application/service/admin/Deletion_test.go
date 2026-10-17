@@ -10,7 +10,9 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -204,5 +206,138 @@ func TestTheDeletionDemandsTheAdminScope(t *testing.T) {
 
 	if _, err := f.handler.Execute(t.Context(), actor, deletionCommand()); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("answer %v, want forbidden", err)
+	}
+}
+
+// platformRegister answers the register's service-account rows; an empty-register owner, or a
+// registered person, is not among them.
+type platformRegister struct {
+	rows   map[shared.ID]bool
+	broken bool
+	asked  int
+}
+
+func (r *platformRegister) RegisteredServiceAccount(_ context.Context, accountID shared.ID) (bool, error) {
+	r.asked++
+	if r.broken {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed")
+	}
+	return r.rows[accountID], nil
+}
+
+const platformID = shared.ID("018f2a1b-0000-7000-8000-0000000000c7")
+
+// platform is a purchase platform's service account, its token carrying the narrow scope.
+func platform() appshared.ActorContext {
+	return appshared.ActorContext{
+		Kind: appshared.ActorServiceAccount, TenantID: operatorHome, AccountID: platformID,
+		AccountName: "Shop", Scopes: []string{provisioningScope},
+	}
+}
+
+func platformCommand() RequestTenantDeletionCommand {
+	cmd := deletionCommand()
+	cmd.StepUpToken = ""
+	return cmd
+}
+
+// UC-INS-08 check 7: a service account the register names requests the deletion with the typed name
+// and no step-up, and the request is the same §5 phase a person's is - the 30 days, the automations
+// off, the final backups, the trail and the journal with the platform as the actor.
+func TestARegisteredPlatformRequestsADeletionWithoutAStepUp(t *testing.T) {
+	f := newDeletionFixture(domain.TenantActive)
+	f.handler.Register = &platformRegister{rows: map[shared.ID]bool{platformID: true}}
+
+	scheduled, err := f.handler.Execute(t.Context(), platform(), platformCommand())
+	if err != nil {
+		t.Fatalf("the platform's request was refused: %v", err)
+	}
+	if want := now.Add(DeletionGrace).UTC(); !scheduled.PurgeAfter.Equal(want) {
+		t.Errorf("purge after %v, want the 30-day grace %v", scheduled.PurgeAfter, want)
+	}
+	if f.stepUp.consumed != 0 {
+		t.Error("a proof was consumed for the platform")
+	}
+	if f.automations.calls != 1 || len(f.jobs.requests) != 2 {
+		t.Errorf("automations disabled %d times, %d jobs", f.automations.calls, len(f.jobs.requests))
+	}
+	if len(f.audit.entries) != 1 || f.audit.entries[0].ActorID != platformID ||
+		f.audit.entries[0].ActorKind != appshared.ActorServiceAccount {
+		t.Errorf("the trail holds %+v", f.audit.entries)
+	}
+	if len(f.journal.entries) != 1 || f.journal.entries[0].ActorLabel != "Shop" {
+		t.Errorf("the journal holds %+v", f.journal.entries)
+	}
+}
+
+// Everybody else still proves themselves: a person in the register, an agent, a service account the
+// register does not name by its own row (the empty register's owner among them), and any service
+// account where the deletion is wired without a register. An unreadable register refuses.
+func TestTheStepUpIsWaivedForNobodyElse(t *testing.T) {
+	agent := platform()
+	agent.Kind = appshared.ActorAIAgent
+	agent.Scopes = append(agent.Scopes, "agent:destructive")
+	person := operator()
+	person.AccountID = platformID
+
+	cases := []struct {
+		name     string
+		actor    appshared.ActorContext
+		register *platformRegister
+		want     string
+	}{
+		{"a registered person", person, &platformRegister{rows: map[shared.ID]bool{platformID: true}}, stepup.CodeRequired},
+		{"an agent", agent, &platformRegister{rows: map[shared.ID]bool{platformID: true}}, stepup.CodeRequired},
+		{"a service account the register does not name", platform(), &platformRegister{}, stepup.CodeRequired},
+		{"no register wired", platform(), nil, stepup.CodeRequired},
+		{"the register unreadable", platform(), &platformRegister{broken: true}, "postgres.query_failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newDeletionFixture(domain.TenantActive)
+			if tc.register != nil {
+				f.handler.Register = tc.register
+			}
+			_, err := f.handler.Execute(t.Context(), tc.actor, platformCommand())
+			if shared.AsError(err) == nil || shared.AsError(err).DetailCode != tc.want {
+				t.Fatalf("answered %v, want %s", err, tc.want)
+			}
+			if len(f.tenants.deletions) != 0 || len(f.jobs.requests) != 0 || len(f.audit.entries) != 0 {
+				t.Error("something was written without a proof")
+			}
+		})
+	}
+}
+
+// The platform's request keeps every guard but the proof: the typed name, the legal hold, a request
+// already standing.
+func TestThePlatformsRequestKeepsTheNameAndTheHold(t *testing.T) {
+	register := &platformRegister{rows: map[shared.ID]bool{platformID: true}}
+
+	f := newDeletionFixture(domain.TenantActive)
+	f.handler.Register = register
+	cmd := platformCommand()
+	cmd.Confirmation = "acme"
+	if _, err := f.handler.Execute(t.Context(), platform(), cmd); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "admin.deletion_confirmation_required" {
+		t.Errorf("a mistyped name answered %v", err)
+	}
+
+	f = newDeletionFixture(domain.TenantActive)
+	f.handler.Register = register
+	f.handler.Holds = &holdsDouble{inForce: anItemHold()}
+	if _, err := f.handler.Execute(t.Context(), platform(), platformCommand()); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != lifecycle.CodeLegalHold {
+		t.Errorf("a workspace under a hold answered %v", err)
+	}
+	if len(f.tenants.deletions) != 0 {
+		t.Error("a held workspace was moved")
+	}
+
+	f = newDeletionFixture(domain.TenantPendingDeletion)
+	f.handler.Register = register
+	if _, err := f.handler.Execute(t.Context(), platform(), platformCommand()); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "admin.tenant_leaving" {
+		t.Errorf("a second request answered %v", err)
 	}
 }

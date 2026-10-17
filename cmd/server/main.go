@@ -2301,7 +2301,9 @@ func run() error {
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
-			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			// A purchase platform's service account in the register sends the typed name alone.
+			Register: postgres.NewOperatorRepository(),
+			Audit:    auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Tenancy: cfg.Tenancy,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back
