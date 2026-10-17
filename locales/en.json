@@ -324,6 +324,7 @@
   "admin.subscription_paused": "This subscription is paused. Resume it before redelivering its events.",
   "admin.subscription_incomplete": "This installation could not create that subscription.",
   "admin.subscription_state_invalid": "A subscription is either active or paused.",
+  "admin.subscription_version_moved": "Somebody changed this subscription meanwhile. Read it again and repeat your change.",
   "access.tenant_suspended": "This workspace is suspended. Its data remains; ask the operator.",
   "access.tenant_pending_deletion": "This workspace is being deleted. Access is closed while the grace period runs.",
   "config.step_up_window_invalid": "HUBTASK_STEP_UP_WINDOW has to be a positive duration, such as 5m.",

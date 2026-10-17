@@ -308,3 +308,232 @@ func (h CreatePlatformSubscription) Descriptor() usecase.Descriptor {
 		}),
 	}
 }
+
+const (
+	UpdatePlatformSubscriptionName       = "UpdatePlatformSubscription"
+	DeletePlatformSubscriptionName       = "DeletePlatformSubscription"
+	RotatePlatformSubscriptionSecretName = "RotatePlatformSubscriptionSecret"
+
+	platformSubscriptionChangedAction audit.Action = "instance.platform_subscription_changed"
+	platformSubscriptionRemovedAction audit.Action = "instance.platform_subscription_removed"
+	platformSubscriptionRotatedAction audit.Action = "instance.platform_subscription_rotated"
+)
+
+// UpdatePlatformSubscription changes a subscription's target or pauses and resumes it. A new
+// target demands a fresh step-up; pausing and resuming do not - they send less, or what was sent
+// before.
+type UpdatePlatformSubscription struct{ Writer PlatformWriter }
+
+// UpdatePlatformSubscriptionCommand is the change. Empty fields are left alone.
+type UpdatePlatformSubscriptionCommand struct {
+	ID              shared.ID
+	TargetURL       string
+	State           string
+	ExpectedVersion int
+	StepUpToken     string
+}
+
+// Execute changes it, guarded on the version read or the one the caller names.
+func (h UpdatePlatformSubscription) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd UpdatePlatformSubscriptionCommand,
+) (integration.PlatformSubscription, error) {
+	w := h.Writer
+	if err := w.writable(ctx, actor); err != nil {
+		return integration.PlatformSubscription{}, err
+	}
+	stored, err := w.find(ctx, cmd.ID)
+	if err != nil {
+		return integration.PlatformSubscription{}, err
+	}
+	// Before the step-up: a proof spent on a change that is then refused as stale would be burnt.
+	expected := stored.Subscription.Version
+	if cmd.ExpectedVersion != 0 && cmd.ExpectedVersion != expected {
+		return integration.PlatformSubscription{}, shared.ErrVersionConflict.WithDetail("admin.subscription_version_moved")
+	}
+	changed := stored.Subscription
+	if cmd.TargetURL != "" && cmd.TargetURL != changed.TargetURL {
+		if changed, err = changed.Retargeted(cmd.TargetURL); err != nil {
+			return integration.PlatformSubscription{}, err
+		}
+		if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+			return integration.PlatformSubscription{}, err
+		}
+	}
+	if cmd.State != "" {
+		if changed, err = changed.InState(integration.PlatformState(cmd.State)); err != nil {
+			return integration.PlatformSubscription{}, err
+		}
+	}
+	if changed == stored.Subscription {
+		return changed, nil
+	}
+	err = w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		written, err := w.Subscriptions.Update(ctx, changed, expected, w.Instance.Clock.Now())
+		if err != nil {
+			return err
+		}
+		if !written {
+			return shared.ErrVersionConflict.WithDetail("admin.subscription_version_moved")
+		}
+		changed.Version = expected + 1
+		return w.journal(ctx, actor, platformSubscriptionChangedAction, changed.ID, map[string]any{
+			"state": string(changed.State), "target_changed": changed.TargetURL != stored.Subscription.TargetURL,
+		})
+	})
+	if err != nil {
+		return integration.PlatformSubscription{}, err
+	}
+	return changed, nil
+}
+
+// DeletePlatformSubscription unsubscribes; the deliveries go with it, the events stay readable.
+type DeletePlatformSubscription struct{ Writer PlatformWriter }
+
+// Execute removes it.
+func (h DeletePlatformSubscription) Execute(ctx context.Context, actor appshared.ActorContext, id shared.ID) error {
+	w := h.Writer
+	if err := w.writable(ctx, actor); err != nil {
+		return err
+	}
+	return w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		removed, err := w.Subscriptions.Delete(ctx, id)
+		if err != nil {
+			return err
+		}
+		if !removed {
+			return shared.ErrNotFound.WithDetail("admin.subscription_not_found")
+		}
+		return w.journal(ctx, actor, platformSubscriptionRemovedAction, id, nil)
+	})
+}
+
+// RotatePlatformSubscriptionSecret issues a new signing secret, answered once; deliveries are
+// signed with it from this moment.
+type RotatePlatformSubscriptionSecret struct{ Writer PlatformWriter }
+
+// Execute rotates it, the step-up first.
+func (h RotatePlatformSubscriptionSecret) Execute(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, stepUpToken string,
+) (MintedPlatformSubscription, error) {
+	w := h.Writer
+	if err := w.writable(ctx, actor); err != nil {
+		return MintedPlatformSubscription{}, err
+	}
+	stored, err := w.find(ctx, id)
+	if err != nil {
+		return MintedPlatformSubscription{}, err
+	}
+	if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, stepUpToken); err != nil {
+		return MintedPlatformSubscription{}, err
+	}
+	signing, sealed, err := w.mint(ctx, id)
+	if err != nil {
+		return MintedPlatformSubscription{}, err
+	}
+	err = w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		rotated, err := w.Subscriptions.Rotate(ctx, id, sealed, w.Instance.Clock.Now())
+		if err != nil {
+			return err
+		}
+		if !rotated {
+			return shared.ErrNotFound.WithDetail("admin.subscription_not_found")
+		}
+		return w.journal(ctx, actor, platformSubscriptionRotatedAction, id, nil)
+	})
+	if err != nil {
+		return MintedPlatformSubscription{}, err
+	}
+	stored.Subscription.Version++
+	return MintedPlatformSubscription{Subscription: stored.Subscription, Secret: signing}, nil
+}
+
+func (h UpdatePlatformSubscription) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: UpdatePlatformSubscriptionName,
+		Summary: "Changes a subscription of the installation: its target, which demands a fresh " +
+			"step-up, or its state - paused, it is sent nothing, and the platform reads what it " +
+			"missed from the event feed. Never switched off for being unreachable.",
+		SideEffects: "Writes the subscription and one journal entry.",
+		TokenScope:  adminTenantsScope,
+		StepUp:      platformStepUp,
+		Input: []usecase.Field{
+			platformSubscriptionIDField,
+			{Name: "target_url", Kind: usecase.KindString, Description: "A new target."},
+			{Name: "state", Kind: usecase.KindString, Description: "ACTIVE or PAUSED."},
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read (If-Match)."},
+			platformStepUpField,
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: platformSubscriptionChangedAction, TargetType: platformSubscriptionTarget,
+			Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: platformActivityExempt,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("subscription_id")
+			if err != nil {
+				return nil, err
+			}
+			changed, err := h.Execute(ctx, actor, UpdatePlatformSubscriptionCommand{
+				ID: id, TargetURL: in.String("target_url"), State: in.String("state"),
+				ExpectedVersion: in.Int("expected_version"), StepUpToken: in.String("step_up_token"),
+			})
+			if err != nil {
+				return nil, err
+			}
+			return PlatformSubscriptionOutput(changed), nil
+		}),
+	}
+}
+
+func (h DeletePlatformSubscription) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        DeletePlatformSubscriptionName,
+		Summary:     "Unsubscribes a purchase platform: the subscription goes with its deliveries; the events stay readable.",
+		SideEffects: "Removes the subscription and its deliveries, and writes one journal entry.",
+		TokenScope:  adminTenantsScope,
+		Destructive: true,
+		Input:       []usecase.Field{platformSubscriptionIDField},
+		Audit: usecase.AuditDeclaration{
+			Action: platformSubscriptionRemovedAction, TargetType: platformSubscriptionTarget,
+			Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: platformActivityExempt,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("subscription_id")
+			if err != nil {
+				return nil, err
+			}
+			return usecase.Output{}, h.Execute(ctx, actor, id)
+		}),
+	}
+}
+
+func (h RotatePlatformSubscriptionSecret) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: RotatePlatformSubscriptionSecretName,
+		Summary: "Issues a new signing secret for a subscription of the installation, answered " +
+			"once; deliveries are signed with it from this moment. Demands a fresh step-up.",
+		SideEffects: "Seals and stores the new secret, and writes one journal entry.",
+		TokenScope:  adminTenantsScope,
+		StepUp:      platformStepUp,
+		Input:       []usecase.Field{platformSubscriptionIDField, platformStepUpField},
+		Audit: usecase.AuditDeclaration{
+			Action: platformSubscriptionRotatedAction, TargetType: platformSubscriptionTarget,
+			Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: platformActivityExempt,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("subscription_id")
+			if err != nil {
+				return nil, err
+			}
+			minted, err := h.Execute(ctx, actor, id, in.String("step_up_token"))
+			if err != nil {
+				return nil, err
+			}
+			out := PlatformSubscriptionOutput(minted.Subscription)
+			out["secret"] = minted.Secret.Reveal()
+			return out, nil
+		}),
+	}
+}

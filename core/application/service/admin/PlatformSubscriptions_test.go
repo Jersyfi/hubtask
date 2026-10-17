@@ -230,3 +230,95 @@ func TestAnUnknownSubscriptionIsNotFound(t *testing.T) {
 		t.Errorf("answered %v", err)
 	}
 }
+
+func changeDescriptors() []func(PlatformWriter) usecase.Descriptor {
+	return []func(PlatformWriter) usecase.Descriptor{
+		func(w PlatformWriter) usecase.Descriptor { return UpdatePlatformSubscription{w}.Descriptor() },
+		func(w PlatformWriter) usecase.Descriptor { return DeletePlatformSubscription{w}.Descriptor() },
+		func(w PlatformWriter) usecase.Descriptor { return RotatePlatformSubscriptionSecret{w}.Descriptor() },
+	}
+}
+
+// Pausing and resuming need no proof; a new target does, and a stale version is refused.
+func TestASubscriptionIsPausedRetargetedAndGuardedOnItsVersion(t *testing.T) {
+	f := newPlatformFixture(t, env.TenancyMulti, changeDescriptors()...)
+	id := subscribe(t, f).String("id")
+
+	paused, err := f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "state": "PAUSED", "expected_version": 1,
+	})
+	if err != nil || paused.String("state") != "PAUSED" || paused.Int("version") != 2 {
+		t.Fatalf("pausing: %v, %v", paused, err)
+	}
+	_, err = f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "state": "ACTIVE", "expected_version": 1,
+	})
+	if refusalCode(err) != "admin.subscription_version_moved" || !errors.Is(err, shared.ErrVersionConflict) {
+		t.Errorf("a stale version answered %v", err)
+	}
+	proof := f.writer.StepUp.(*stepUpFake)
+	spent := proof.consumed
+	_, err = f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "target_url": "https://elsewhere.example/hook", "expected_version": 1,
+		"step_up_token": "hbt_sup_proof",
+	})
+	if refusalCode(err) != "admin.subscription_version_moved" || proof.consumed != spent {
+		t.Errorf("a stale retarget answered %v and spent %d proofs", err, proof.consumed-spent)
+	}
+	_, err = f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "target_url": "https://elsewhere.example/hook",
+	})
+	if refusalCode(err) != "auth.step_up_required" {
+		t.Errorf("a new target without a proof answered %v", err)
+	}
+	moved, err := f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "target_url": "https://elsewhere.example/hook", "step_up_token": "hbt_sup_proof",
+	})
+	if err != nil || moved.String("target_url") != "https://elsewhere.example/hook" {
+		t.Errorf("retargeting: %v, %v", moved, err)
+	}
+	_, err = f.registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, operator(), usecase.Input{
+		"subscription_id": id, "state": "DISABLED",
+	})
+	if refusalCode(err) != "admin.subscription_state_invalid" {
+		t.Errorf("switching a subscription off answered %v", err)
+	}
+}
+
+func TestASubscriptionsSecretIsRotatedOnceShownAndItIsRemoved(t *testing.T) {
+	f := newPlatformFixture(t, env.TenancyMulti, changeDescriptors()...)
+	created := subscribe(t, f)
+	id := shared.ID(created.String("id"))
+
+	if _, err := f.registry.Invoke(t.Context(), RotatePlatformSubscriptionSecretName, operator(),
+		usecase.Input{"subscription_id": id.String()}); refusalCode(err) != "auth.step_up_required" {
+		t.Errorf("a rotation without a proof answered %v", err)
+	}
+	rotated, err := f.registry.Invoke(t.Context(), RotatePlatformSubscriptionSecretName, operator(),
+		usecase.Input{"subscription_id": id.String(), "step_up_token": "hbt_sup_proof"})
+	if err != nil || rotated.String("secret") == "" {
+		t.Fatalf("rotating: %v, %v", rotated, err)
+	}
+	if !strings.Contains(string(f.store.rows[id].Secret.Ciphertext), rotated.String("secret")) {
+		t.Error("the stored secret is not the rotated one")
+	}
+
+	if _, err := f.registry.Invoke(t.Context(), DeletePlatformSubscriptionName, operator(),
+		usecase.Input{"subscription_id": id.String()}); err != nil {
+		t.Fatalf("removing: %v", err)
+	}
+	if len(f.store.rows) != 0 {
+		t.Error("the subscription is still there")
+	}
+	if _, err := f.registry.Invoke(t.Context(), DeletePlatformSubscriptionName, operator(),
+		usecase.Input{"subscription_id": id.String()}); refusalCode(err) != "admin.subscription_not_found" {
+		t.Errorf("removing it again answered %v", err)
+	}
+	actions := map[string]bool{}
+	for _, entry := range f.journal.entries {
+		actions[entry.Action] = true
+	}
+	if !actions[string(platformSubscriptionRotatedAction)] || !actions[string(platformSubscriptionRemovedAction)] {
+		t.Errorf("journal %v", actions)
+	}
+}

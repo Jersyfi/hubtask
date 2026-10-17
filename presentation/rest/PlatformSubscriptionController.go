@@ -61,3 +61,66 @@ func (c *RestController) ReadPlatformSubscription(
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, out)
 }
+
+const (
+	updatePlatformSubscriptionUseCase       = "UpdatePlatformSubscription"
+	deletePlatformSubscriptionUseCase       = "DeletePlatformSubscription"
+	rotatePlatformSubscriptionSecretUseCase = "RotatePlatformSubscriptionSecret"
+)
+
+// UpdatePlatformSubscription answers PATCH /admin/subscriptions/{subscriptionId}: a merge patch,
+// If-Match as the version, the step-up in its header.
+func (c *RestController) UpdatePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, subscriptionID openapi_types.UUID,
+	params openapi.UpdatePlatformSubscriptionParams,
+) {
+	var body openapi.PlatformSubscriptionUpdate
+	if err := decodeFrom(r.Body, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	in := usecase.Input{
+		"subscription_id": subscriptionID.String(), "step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	}
+	if body.TargetUrl != nil {
+		in["target_url"] = *body.TargetUrl
+	}
+	if body.State != nil {
+		in["state"] = string(*body.State)
+	}
+	if params.IfMatch != nil {
+		if version, ok := versionFromIfMatch((*string)(params.IfMatch)); ok {
+			in["expected_version"] = version
+		}
+	}
+	out, ok := c.read(w, r, updatePlatformSubscriptionUseCase, in)
+	if !ok {
+		return
+	}
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, out)
+}
+
+// DeletePlatformSubscription answers DELETE /admin/subscriptions/{subscriptionId}.
+func (c *RestController) DeletePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, subscriptionID openapi_types.UUID,
+) {
+	if _, ok := c.read(w, r, deletePlatformSubscriptionUseCase, usecase.Input{"subscription_id": subscriptionID.String()}); !ok {
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RotatePlatformSubscriptionSecret answers POST /admin/subscriptions/{subscriptionId}:rotate-secret.
+func (c *RestController) RotatePlatformSubscriptionSecret(
+	w http.ResponseWriter, r *http.Request, subscriptionID openapi_types.UUID,
+	params openapi.RotatePlatformSubscriptionSecretParams,
+) {
+	out, ok := c.read(w, r, rotatePlatformSubscriptionSecretUseCase, usecase.Input{
+		"subscription_id": subscriptionID.String(), "step_up_token": stepUpHeaderField(params.XHubtaskStepUp),
+	})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
+}

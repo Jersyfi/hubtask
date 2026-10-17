@@ -372,6 +372,7 @@
   "admin.subscription_paused": "Dieses Abo ist pausiert. Setze es fort, bevor du seine Ereignisse erneut zustellst.",
   "admin.subscription_incomplete": "Diese Installation konnte das Abo nicht anlegen.",
   "admin.subscription_state_invalid": "Ein Abo ist entweder aktiv oder pausiert.",
+  "admin.subscription_version_moved": "Jemand hat dieses Abo inzwischen geändert. Lies es neu und wiederhole deine Änderung.",
   "admin.tenant_incomplete": "Der Workspace konnte nicht zusammengesetzt werden.",
   "admin.slug_invalid": "Ein Workspace-Slug hat 3-40 Zeichen aus Kleinbuchstaben, Ziffern und Bindestrichen und beginnt mit einem Buchstaben oder einer Ziffer.",
   "admin.display_name_invalid": "Ein Workspace-Name hat 1-200 Zeichen auf einer Zeile.",

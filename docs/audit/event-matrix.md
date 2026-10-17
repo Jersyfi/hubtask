@@ -314,9 +314,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
 | `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
+| `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |
 | `instance.platform_subscription_created` | CreatePlatformSubscription | `platform_subscription` | WARNING | Every time |
 | `instance.platform_subscription_read` | ListPlatformSubscriptions | `platform_subscription` | INFO | When refused |
 | `instance.platform_subscription_read` | ReadPlatformSubscription | `platform_subscription` | INFO | When refused |
+| `instance.platform_subscription_removed` | DeletePlatformSubscription | `platform_subscription` | WARNING | Every time |
+| `instance.platform_subscription_rotated` | RotatePlatformSubscriptionSecret | `platform_subscription` | WARNING | Every time |
 | `instance.provider_configured` | ConfigureInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_read` | ListInstanceIdentityProviders | `identity_provider` | INFO | When refused |
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
