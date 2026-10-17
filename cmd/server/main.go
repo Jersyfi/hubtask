@@ -560,6 +560,7 @@ func run() error {
 	// a ciphertext lifted out of
 	// one subscription and dropped into another no longer opens.
 	webhookWriter := integrationservice.Writer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
@@ -2867,6 +2868,7 @@ func run() error {
 	}
 
 	webhookFanOut := integrationservice.FanOut{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
@@ -3207,6 +3209,7 @@ func run() error {
 	// backup target is, so a private range or the cloud metadata address is refused unless the
 	// installation has deliberately released private networks (rule 6, T-07).
 	webhookDelivery := webhook.Deliverer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Events:        postgres.NewOutbox(jobs),
