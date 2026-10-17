@@ -222,3 +222,46 @@ func TestAPlatformDeliveryAttemptIsRecordedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Two redeliveries at once return each dead letter to pending once: the status in the statement
+// decides, and the second finds nothing left.
+func TestTwoRedeliveriesAtOnceQueueEachDeadLetterOnce(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	deliveries := postgres.NewPlatformDeliveryRepository()
+	sub := newPlatformSubscription(ctx, t, uow)
+	const dead = 5
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		for range dead {
+			queued, err := integration.NewPlatformDelivery(freshID(t), sub.ID, freshID(t), string(event.WorkspaceCreated), time.Now())
+			if err != nil {
+				return err
+			}
+			if _, err := deliveries.Insert(ctx, queued); err != nil {
+				return err
+			}
+			if _, err := deliveries.Record(ctx, queued.Withheld("webhooks.target_unavailable", time.Now())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	counts := make(chan int, 2)
+	for range 2 {
+		go func() {
+			var n int
+			_ = uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+				ids, err := deliveries.Requeue(ctx, sub.ID, time.Now(), 100)
+				n = len(ids)
+				return err
+			})
+			counts <- n
+		}()
+	}
+	if total := <-counts + <-counts; total != dead {
+		t.Errorf("two redeliveries queued %d dead letters in all, want %d", total, dead)
+	}
+}

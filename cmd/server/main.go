@@ -2293,6 +2293,12 @@ func run() error {
 		adminservice.UpdatePlatformSubscription{Writer: platformWriter}.Descriptor(),
 		adminservice.DeletePlatformSubscription{Writer: platformWriter}.Descriptor(),
 		adminservice.RotatePlatformSubscriptionSecret{Writer: platformWriter}.Descriptor(),
+		adminservice.ListPlatformDeliveries{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Cursors: cursors,
+		}.Descriptor(),
+		adminservice.RedeliverPlatformSubscription{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Jobs: jobs,
+		}.Descriptor(),
 		adminservice.ListPlatformEvents{
 			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
 			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),

@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/crypto"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/port/stepup"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
@@ -534,6 +535,229 @@ func (h RotatePlatformSubscriptionSecret) Descriptor() usecase.Descriptor {
 			out := PlatformSubscriptionOutput(minted.Subscription)
 			out["secret"] = minted.Secret.Reveal()
 			return out, nil
+		}),
+	}
+}
+
+const (
+	ListPlatformDeliveriesName        = "ListPlatformDeliveries"
+	RedeliverPlatformSubscriptionName = "RedeliverPlatformSubscription"
+
+	platformSubscriptionRedeliveredAction audit.Action = "instance.platform_subscription_redelivered"
+	platformDeliveriesReadAction          audit.Action = "instance.platform_deliveries_read"
+
+	// redeliverBatch bounds one statement and one transaction; redeliverRounds one call, so a
+	// backlog of thousands is queued in bounded steps rather than in one transaction.
+	redeliverBatch  = 100
+	redeliverRounds = 100
+)
+
+// DeliveryCursors turn the last delivery of a page into an opaque cursor and back.
+type DeliveryCursors interface {
+	EncodeID(id shared.ID) string
+	DecodeID(cursor string) (shared.ID, error)
+}
+
+// PlatformJobs is where a redelivered dead letter's attempt is asked for.
+type PlatformJobs interface {
+	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
+}
+
+// ListPlatformDeliveries answers what was sent to a subscription and what became of it, newest
+// first, a page at a time (UC-INS-14 check 5).
+type ListPlatformDeliveries struct {
+	Writer     PlatformWriter
+	Deliveries adminrepo.PlatformDeliveries
+	Cursors    DeliveryCursors
+}
+
+// PlatformDeliveriesPage is one page.
+type PlatformDeliveriesPage struct {
+	Deliveries []integration.PlatformDelivery
+	Next       shared.ID
+	More       bool
+}
+
+// Execute reads one page.
+func (h ListPlatformDeliveries) Execute(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, status, cursor string, size int,
+) (PlatformDeliveriesPage, error) {
+	if err := h.Writer.authorize(ctx, actor); err != nil {
+		return PlatformDeliveriesPage{}, err
+	}
+	var before shared.ID
+	if cursor != "" {
+		decoded, err := h.Cursors.DecodeID(cursor)
+		if err != nil {
+			return PlatformDeliveriesPage{}, err
+		}
+		before = decoded
+	}
+	limit := platformEventsPageSize(size)
+	var page PlatformDeliveriesPage
+	err := h.Writer.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		if _, err := h.Writer.Subscriptions.Find(ctx, id); err != nil {
+			return err
+		}
+		read, err := h.Deliveries.Page(ctx, id, status, before, limit+1)
+		if err != nil {
+			return err
+		}
+		if page.More = len(read) > limit; page.More {
+			read = read[:limit]
+		}
+		page.Deliveries = read
+		if page.More {
+			page.Next = read[len(read)-1].ID
+		}
+		return nil
+	})
+	return page, err
+}
+
+// RedeliverPlatformSubscription queues every dead letter of a subscription again, with the event
+// identifier it always had and its attempts counting on (UC-INS-14 checks 5 and 6).
+type RedeliverPlatformSubscription struct {
+	Writer     PlatformWriter
+	Deliveries adminrepo.PlatformDeliveries
+	Jobs       PlatformJobs
+}
+
+// Execute queues them in bounded batches, each in a transaction of its own; a dead letter another
+// redelivery took meanwhile is queued by that one alone.
+func (h RedeliverPlatformSubscription) Execute(ctx context.Context, actor appshared.ActorContext, id shared.ID) (int, error) {
+	w := h.Writer
+	if err := w.authorize(ctx, actor); err != nil {
+		return 0, err
+	}
+	stored, err := w.find(ctx, id)
+	if err != nil {
+		return 0, err
+	}
+	if stored.Subscription.State == integration.PlatformPaused {
+		return 0, shared.ErrConflict.WithDetail("admin.subscription_paused")
+	}
+	queued := 0
+	for range redeliverRounds {
+		var batch []shared.ID
+		err := w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+			now := w.Instance.Clock.Now()
+			requeued, err := h.Deliveries.Requeue(ctx, id, now, redeliverBatch)
+			if err != nil {
+				return err
+			}
+			for _, delivery := range requeued {
+				if _, err := h.Jobs.Enqueue(ctx, queue.Request{
+					Kind: queue.KindPlatformDeliver, RunAt: now.UTC(),
+					Payload: map[string]any{"delivery_id": delivery.String()},
+				}); err != nil {
+					return err
+				}
+			}
+			batch = requeued
+			if len(requeued) == 0 {
+				return nil
+			}
+			// Journalled with its batch, so what was queued is recorded however a later batch ends.
+			return w.journal(ctx, actor, platformSubscriptionRedeliveredAction, id, map[string]any{"queued": len(requeued)})
+		})
+		if err != nil {
+			return queued, err
+		}
+		queued += len(batch)
+		if len(batch) < redeliverBatch {
+			break
+		}
+	}
+	return queued, nil
+}
+
+// PlatformDeliveryOutput is the contract's PlatformDelivery.
+func PlatformDeliveryOutput(d integration.PlatformDelivery) usecase.Output {
+	out := usecase.Output{
+		"id": d.ID.String(), "subscription_id": d.SubscriptionID.String(), "event_id": d.EventID.String(),
+		"event_type": d.EventType, "attempt": d.Attempt, "status": string(d.Status),
+		"response_status": nil, "error_code": nil, "next_attempt_at": nil,
+		"created_at": d.CreatedAt, "updated_at": d.UpdatedAt,
+	}
+	if d.ResponseStatus != 0 {
+		out["response_status"] = d.ResponseStatus
+	}
+	if d.ErrorCode != "" {
+		out["error_code"] = d.ErrorCode
+	}
+	if !d.NextAttemptAt.IsZero() {
+		out["next_attempt_at"] = d.NextAttemptAt
+	}
+	return out
+}
+
+func (h ListPlatformDeliveries) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: ListPlatformDeliveriesName,
+		Summary: "What was sent to a subscription of the installation and what became of it, newest " +
+			"first: one row per event with its attempts, status, the answer the target gave and the " +
+			"next attempt. DEAD_LETTER is what a redelivery acts on.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  adminTenantsScope,
+		ReadOnly:    true,
+		Input: []usecase.Field{
+			platformSubscriptionIDField,
+			{Name: "status", Kind: usecase.KindString, Description: "PENDING, SUCCEEDED, FAILED or DEAD_LETTER."},
+			{Name: "cursor", Kind: usecase.KindString, Description: "Where the last page ended."},
+			{Name: "limit", Kind: usecase.KindInt, Description: "How many at most: fifty by default, two hundred at most."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: platformDeliveriesReadAction, TargetType: platformSubscriptionTarget,
+			Severity: audit.SeverityInfo, Required: false,
+		},
+		Activity: platformActivityExempt,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("subscription_id")
+			if err != nil {
+				return nil, err
+			}
+			page, err := h.Execute(ctx, actor, id, in.String("status"), in.String("cursor"), in.Int("limit"))
+			if err != nil {
+				return nil, err
+			}
+			rows := make([]usecase.Output, 0, len(page.Deliveries))
+			for _, d := range page.Deliveries {
+				rows = append(rows, PlatformDeliveryOutput(d))
+			}
+			var next any
+			if page.More {
+				next = h.Cursors.EncodeID(page.Next)
+			}
+			return usecase.Output{"data": rows, "page": map[string]any{"next_cursor": next, "has_more": page.More}}, nil
+		}),
+	}
+}
+
+func (h RedeliverPlatformSubscription) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: RedeliverPlatformSubscriptionName,
+		Summary: "Queues every dead letter of a subscription of the installation again, with the " +
+			"event identifier it always had, its attempts counting on. Refused while the " +
+			"subscription is paused.",
+		SideEffects: "Returns the dead letters to pending, queues their attempts, and writes one journal entry.",
+		TokenScope:  adminTenantsScope,
+		Input:       []usecase.Field{platformSubscriptionIDField},
+		Audit: usecase.AuditDeclaration{
+			Action: platformSubscriptionRedeliveredAction, TargetType: platformSubscriptionTarget,
+			Severity: audit.SeverityNotice, Required: true,
+		},
+		Activity: platformActivityExempt,
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("subscription_id")
+			if err != nil {
+				return nil, err
+			}
+			queued, err := h.Execute(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			return usecase.Output{"queued": queued}, nil
 		}),
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 )
 
 // subscriptionStore is the installation's subscriptions as the table keeps them.
@@ -320,5 +321,110 @@ func TestASubscriptionsSecretIsRotatedOnceShownAndItIsRemoved(t *testing.T) {
 	}
 	if !actions[string(platformSubscriptionRotatedAction)] || !actions[string(platformSubscriptionRemovedAction)] {
 		t.Errorf("journal %v", actions)
+	}
+}
+
+// deliveryStore is a subscription's deliveries as the table keeps them.
+type deliveryStore struct {
+	adminrepo.PlatformDeliveries
+	rows []integration.PlatformDelivery
+}
+
+func (d *deliveryStore) Page(_ context.Context, sub shared.ID, status string, before shared.ID, size int) ([]integration.PlatformDelivery, error) {
+	var page []integration.PlatformDelivery
+	for i := len(d.rows) - 1; i >= 0; i-- {
+		row := d.rows[i]
+		if row.SubscriptionID != sub || (status != "" && string(row.Status) != status) || (!before.IsZero() && row.ID >= before) {
+			continue
+		}
+		if len(page) < size {
+			page = append(page, row)
+		}
+	}
+	return page, nil
+}
+
+func (d *deliveryStore) Requeue(_ context.Context, sub shared.ID, _ time.Time, batch int) ([]shared.ID, error) {
+	var ids []shared.ID
+	for i, row := range d.rows {
+		if row.SubscriptionID == sub && row.Status == integration.DeliveryDeadLetter && len(ids) < batch {
+			d.rows[i].Status = integration.DeliveryPending
+			ids = append(ids, row.ID)
+		}
+	}
+	return ids, nil
+}
+
+type idCursors struct{}
+
+func (idCursors) EncodeID(id shared.ID) string { return "c:" + id.String() }
+func (idCursors) DecodeID(cursor string) (shared.ID, error) {
+	return shared.ID(strings.TrimPrefix(cursor, "c:")), nil
+}
+
+func deliveriesOf(sub shared.ID, statuses ...integration.DeliveryStatus) *deliveryStore {
+	store := &deliveryStore{}
+	for i, status := range statuses {
+		store.rows = append(store.rows, integration.PlatformDelivery{
+			ID: shared.ID("0192f000-0000-7000-8000-0000000001" + string(rune('a'+i)) + "0"), SubscriptionID: sub,
+			EventID: "e", EventType: "t", Attempt: 8, Status: status,
+		})
+	}
+	return store
+}
+
+// A subscription's deliveries read page by page, newest first, and its dead letters queued again -
+// each once, as installation jobs - while it is active; paused, the redelivery is refused.
+func TestASubscriptionsDeliveriesAreReadAndItsDeadLettersRedelivered(t *testing.T) {
+	jobs := &jobsFake{}
+	sub := shared.ID("0192f000-0000-7000-8000-0000000000b1")
+	deliveries := deliveriesOf(sub, integration.DeliveryDeadLetter, integration.DeliverySucceeded, integration.DeliveryDeadLetter)
+	f := newPlatformFixture(t, env.TenancyMulti, append(changeDescriptors(),
+		func(w PlatformWriter) usecase.Descriptor {
+			return ListPlatformDeliveries{Writer: w, Deliveries: deliveries, Cursors: idCursors{}}.Descriptor()
+		},
+		func(w PlatformWriter) usecase.Descriptor {
+			return RedeliverPlatformSubscription{Writer: w, Deliveries: deliveries, Jobs: jobs}.Descriptor()
+		})...)
+	created, _ := integration.NewPlatformSubscription(sub, "https://shop.example", false, "", time.Now())
+	if err := f.store.Insert(t.Context(), created, adminrepo.PlatformSecret{}); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := f.registry.Invoke(t.Context(), ListPlatformDeliveriesName, operator(), usecase.Input{"subscription_id": sub.String(), "limit": 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := first["data"].([]usecase.Output)
+	page, _ := first["page"].(map[string]any)
+	if len(rows) != 2 || page["has_more"] != true || page["next_cursor"] == nil {
+		t.Fatalf("first page %v %v", rows, page)
+	}
+	second, err := f.registry.Invoke(t.Context(), ListPlatformDeliveriesName, operator(), usecase.Input{
+		"subscription_id": sub.String(), "limit": 2, "cursor": page["next_cursor"],
+	})
+	if rest, _ := second["data"].([]usecase.Output); err != nil || len(rest) != 1 {
+		t.Errorf("second page %v, %v", second, err)
+	}
+
+	out, err := f.registry.Invoke(t.Context(), RedeliverPlatformSubscriptionName, operator(), usecase.Input{"subscription_id": sub.String()})
+	if err != nil || out.Int("queued") != 2 || len(jobs.requests) != 2 {
+		t.Fatalf("redelivered %v (%v), %d jobs", out, err, len(jobs.requests))
+	}
+	for _, request := range jobs.requests {
+		if request.Kind != queue.KindPlatformDeliver || !request.TenantID.IsZero() {
+			t.Errorf("asked %+v", request)
+		}
+	}
+	again, _ := f.registry.Invoke(t.Context(), RedeliverPlatformSubscriptionName, operator(), usecase.Input{"subscription_id": sub.String()})
+	if again.Int("queued") != 0 {
+		t.Errorf("a second redelivery queued %v", again)
+	}
+
+	paused, _ := created.InState(integration.PlatformPaused)
+	f.store.rows[sub] = adminrepo.StoredPlatformSubscription{Subscription: paused}
+	_, err = f.registry.Invoke(t.Context(), RedeliverPlatformSubscriptionName, operator(), usecase.Input{"subscription_id": sub.String()})
+	if refusalCode(err) != "admin.subscription_paused" || !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("redelivering a paused subscription answered %v", err)
 	}
 }

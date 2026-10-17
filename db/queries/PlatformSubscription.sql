@@ -12,7 +12,8 @@ VALUES
 SELECT s.id, s.target_url, s.secret_enc, s.secret_key_id, s.state, s.last_error, s.last_delivery_at,
        s.from_file, s.created_at, s.version,
        (SELECT count(*) FROM platform_delivery d
-         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER')::bigint AS dead_letters
+         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER'
+           AND d.error_code IS DISTINCT FROM 'webhooks.event_expired')::bigint AS dead_letters
 FROM platform_subscription s
 ORDER BY s.created_at, s.id;
 
@@ -20,7 +21,8 @@ ORDER BY s.created_at, s.id;
 SELECT s.id, s.target_url, s.secret_enc, s.secret_key_id, s.state, s.last_error, s.last_delivery_at,
        s.from_file, s.created_at, s.version,
        (SELECT count(*) FROM platform_delivery d
-         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER')::bigint AS dead_letters
+         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER'
+           AND d.error_code IS DISTINCT FROM 'webhooks.event_expired')::bigint AS dead_letters
 FROM platform_subscription s
 WHERE s.id = sqlc.arg(id);
 
@@ -80,13 +82,17 @@ SET attempt = sqlc.arg(attempt), status = sqlc.arg(status), response_status = sq
 WHERE id = sqlc.arg(id) AND attempt = sqlc.arg(attempt) - 1 AND status IN ('PENDING', 'FAILED');
 
 -- name: RequeueDeadPlatformDeliveries :many
--- A batch of the subscription's dead letters back to pending. The status in the statement makes
--- two redeliveries at once queue each dead letter once.
+-- A batch of the subscription's dead letters back to pending, each at the start of a fresh round of
+-- attempts: the count is raised to the round's boundary, so a round a pause or an expiry cut short
+-- does not shorten the next. The status in the statement makes two redeliveries at once queue each
+-- dead letter once. A dead letter whose event was swept is not one: nothing can be sent for it.
 UPDATE platform_delivery
-SET status = 'PENDING', next_attempt_at = NULL, updated_at = sqlc.arg(now)
+SET status = 'PENDING', next_attempt_at = NULL, updated_at = sqlc.arg(now),
+    attempt = ((attempt + sqlc.arg(round)::int - 1) / sqlc.arg(round)::int) * sqlc.arg(round)::int
 WHERE id IN (
   SELECT dead.id FROM platform_delivery AS dead
   WHERE dead.subscription_id = sqlc.arg(subscription_id) AND dead.status = 'DEAD_LETTER'
+    AND dead.error_code IS DISTINCT FROM 'webhooks.event_expired'
   ORDER BY dead.id
   LIMIT sqlc.arg(batch)
   FOR UPDATE SKIP LOCKED
@@ -95,7 +101,10 @@ AND status = 'DEAD_LETTER'
 RETURNING id;
 
 -- name: CountPlatformDeadLetters :one
-SELECT count(*)::bigint FROM platform_delivery WHERE status = 'DEAD_LETTER';
+-- The dead letters that can be redelivered: one whose event was swept is not counted, so A-21
+-- resolves when the rest are redelivered.
+SELECT count(*)::bigint FROM platform_delivery
+WHERE status = 'DEAD_LETTER' AND error_code IS DISTINCT FROM 'webhooks.event_expired';
 
 -- name: DeleteExpiredPlatformDeliveries :execrows
 DELETE FROM platform_delivery

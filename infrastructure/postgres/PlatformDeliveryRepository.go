@@ -153,7 +153,8 @@ func (PlatformDeliveryRepository) Requeue(ctx context.Context, subscriptionID sh
 		return nil, err
 	}
 	rows, err := queries.RequeueDeadPlatformDeliveries(ctx, sqlc.RequeueDeadPlatformDeliveriesParams{
-		Now: momentOf(now), SubscriptionID: sub, Batch: int32(batch), //nolint:gosec // bounded by the use case
+		Now: momentOf(now), Round: integration.MaxDeliveryAttempts, SubscriptionID: sub,
+		Batch: int32(batch), //nolint:gosec // bounded by the use case
 	})
 	if err != nil {
 		return nil, deliveryFailed("requeuing", err)
