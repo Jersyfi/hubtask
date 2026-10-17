@@ -1001,7 +1001,7 @@ func run() error {
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
 		Crossings: platformservice.Crossings{
 			Marks: postgres.NewQuotaReachedRepository(), Recorder: platformEvents,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
 		},
 	}
 

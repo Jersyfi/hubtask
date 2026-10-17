@@ -343,3 +343,36 @@ func TestALimitReachedIsToldOncePerCrossingAgainstTheDatabase(t *testing.T) {
 		t.Errorf("told %+v", events[0].Envelope)
 	}
 }
+
+// Two meterings that see the day's budget spent at once tell it once: the day's mark is one row.
+func TestTwoMeteringsAtOnceTellTheAiBudgetSpentOnce(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	crossings := platform.Crossings{
+		Marks: postgres.NewQuotaReachedRepository(), Recorder: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})),
+		UnitOfWork: uow, Scopes: uow, Clock: clockadapter.System{},
+	}
+	workspace := seedWorkspace(ctx, t, "spent")
+	start := lastPlatformNumber(ctx, t)
+	day := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+
+	done := make(chan error, 2)
+	for range 2 {
+		go func() {
+			done <- uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+				crossings.Spent(ctx, "ai_tokens_per_day", day, time.Now())
+				return nil
+			})
+		}()
+	}
+	for range 2 {
+		if err := <-done; err != nil {
+			t.Fatalf("metering: %v", err)
+		}
+	}
+	events := platformEventsOf(ctx, t, uow, start, workspace)
+	if len(events) != 1 || events[0].Envelope.Type != event.WorkspaceAiBudgetSpent ||
+		events[0].Envelope.Payload["day"] != "2026-10-17" {
+		t.Errorf("two meterings told %+v", events)
+	}
+}

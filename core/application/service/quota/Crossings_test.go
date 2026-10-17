@@ -6,12 +6,14 @@ package quota
 import (
 	"context"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 type crossingsFake struct {
+	spent    []string
 	admitted []string
 	refused  []string
 	limits   []int64
@@ -22,6 +24,12 @@ func (c *crossingsFake) Admitted(_ context.Context, quota string) error {
 	c.admitted = append(c.admitted, quota)
 	return nil
 }
+
+func (c *crossingsFake) Spent(_ context.Context, budget string, day, _ time.Time) {
+	c.spent = append(c.spent, budget+"@"+day.Format(time.DateOnly))
+}
+
+func (c *crossingsFake) On() bool { return true }
 
 func (c *crossingsFake) Refused(_ context.Context, workspace shared.ID, quota string, limit int64) {
 	c.refused, c.limits, c.who = append(c.refused, quota), append(c.limits, limit), append(c.who, workspace)
@@ -62,5 +70,38 @@ func TestTheGuardTellsWhatItAdmittedAndRefused(t *testing.T) {
 	}
 	if len(crossings.admitted)+len(crossings.refused) != before {
 		t.Error("an unlimited quota told the crossings something")
+	}
+}
+
+// The metering tells the crossings when the day's total, its own call included, reaches the budget -
+// not before, and not for an unlimited one.
+func TestTheMeteringTellsWhenTheAiBudgetIsSpent(t *testing.T) {
+	store := &storeFake{overrides: repository.Overrides{AiTokensPerDay: ceiling(1000)}}
+	usage := &usageFake{metered: 999}
+	crossings := &crossingsFake{}
+	guard := guardWith(store, usage, &signalsFake{})
+	guard.Crossings = crossings
+	at := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+
+	if err := guard.MeterAi(t.Context(), false, at, 20); err != nil {
+		t.Fatal(err)
+	}
+	if len(crossings.spent) != 0 {
+		t.Fatalf("told the budget spent below it: %v", crossings.spent)
+	}
+	usage.metered = 1000
+	if err := guard.MeterAi(t.Context(), false, at, 20); err != nil {
+		t.Fatal(err)
+	}
+	if len(crossings.spent) != 1 || crossings.spent[0] != AiTokensPerDay+"@2026-10-17" {
+		t.Errorf("told %v", crossings.spent)
+	}
+
+	store.overrides = repository.Overrides{}
+	if err := guard.MeterAi(t.Context(), false, at, 20); err != nil {
+		t.Fatal(err)
+	}
+	if len(crossings.spent) != 1 {
+		t.Errorf("an unlimited budget was told spent: %v", crossings.spent)
 	}
 }

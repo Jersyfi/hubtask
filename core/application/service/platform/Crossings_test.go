@@ -40,10 +40,18 @@ func (j *joining) WithinReadOnly(ctx context.Context, scope persistence.Scope, f
 	return j.Within(ctx, scope, fn)
 }
 
+// scopeOf answers the metering's scope, as the postgres unit of work does.
+type scopeOf struct{ scope persistence.Scope }
+
+func (s scopeOf) ScopeFromContext(context.Context) (persistence.Scope, bool) { return s.scope, true }
+
 func crossings() (Crossings, *log, *joining) {
 	rec, l := recorder(row{record: maria})
 	uow := &joining{}
-	return Crossings{Marks: &marks{held: map[string]string{}}, Recorder: rec, UnitOfWork: uow, Clock: clock.Fixed(at)}, l, uow
+	return Crossings{
+		Marks: &marks{held: map[string]string{}}, Recorder: rec, UnitOfWork: uow,
+		Scopes: scopeOf{persistence.Scope{TenantID: workspace}}, Clock: clock.Fixed(at),
+	}, l, uow
 }
 
 // Refused twice at the wall, then admitted once it is below it again, then refused: two crossings,
@@ -83,12 +91,33 @@ func TestALimitReachedIsToldOncePerCrossing(t *testing.T) {
 	}
 }
 
+func TestTheAiBudgetSpentIsToldOnceADay(t *testing.T) {
+	c, l, uow := crossings()
+	today := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+	ctx, held := persistence.HoldAfterwards(t.Context())
+	c.Spent(ctx, "ai_tokens_per_day", today, at)
+	if len(l.events) != 0 {
+		t.Fatal("the budget was told inside the metering's transaction")
+	}
+	held.Run(ctx)
+	c.Spent(t.Context(), "ai_tokens_per_day", today, at)
+	c.Spent(t.Context(), "ai_tokens_per_day", today.AddDate(0, 0, 1), at)
+	if uow.scopes[0] != (persistence.Scope{TenantID: workspace}) {
+		t.Errorf("told under %+v", uow.scopes[0])
+	}
+	if len(l.events) != 2 || l.events[0].Payload["day"] != "2026-10-17" || l.events[1].Payload["day"] != "2026-10-18" ||
+		l.events[0].Type != event.WorkspaceAiBudgetSpent {
+		t.Errorf("told %v", l.events)
+	}
+}
+
 func TestNoCrossingIsToldWithoutTheFeed(t *testing.T) {
 	c := Crossings{Marks: &marks{held: map[string]string{}}, Clock: clock.Fixed(at)}
 	c.Refused(t.Context(), workspace, "items", 1)
 	if err := c.Admitted(t.Context(), "items"); err != nil {
 		t.Fatal(err)
 	}
+	c.Spent(t.Context(), "ai_tokens_per_day", at, at)
 	if len(c.Marks.(*marks).held) != 0 {
 		t.Error("a build without the feed marked a limit")
 	}
