@@ -462,7 +462,10 @@ CREATE TABLE auth_pending (
   -- the password mails to connect its provider (migration 0117), ADDRESS is the link that
   -- confirms a managed account's new address (migration 0131), and TERMS is the step a
   -- sign-in ends in while the account has not agreed to the terms of use in force (migration 0140),
-  -- and PASSKEY_REGISTER is a passkey registration's challenge (migration 0161).
+  -- PASSKEY_REGISTER is a passkey registration's challenge (migration 0161), PASSKEY_SIGN_IN a
+  -- passkey sign-in's (migration 0168), and PASSKEY_FACTOR, PASSKEY_ENROLL and PASSKEY_STEP_UP the
+  -- challenges of a key as the second factor, its setup during sign-in and a fresh proof
+  -- (migration 0176).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -505,7 +508,8 @@ CREATE TABLE auth_pending (
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
     CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS',
-                       'PASSKEY_REGISTER', 'PASSKEY_SIGN_IN')),
+                       'PASSKEY_REGISTER', 'PASSKEY_SIGN_IN', 'PASSKEY_FACTOR', 'PASSKEY_ENROLL',
+                       'PASSKEY_STEP_UP')),
   CONSTRAINT auth_pending_address_purpose
     CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
            AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
@@ -520,9 +524,9 @@ CREATE TABLE auth_pending (
     CHECK (account_id IS NOT NULL OR purpose = 'PASSKEY_SIGN_IN'
            OR (purpose = 'TERMS' AND link_provider_id IS NOT NULL)),
   CONSTRAINT auth_pending_passkey_whole
-    CHECK (CASE WHEN purpose = 'PASSKEY_REGISTER'
-                THEN session_id IS NOT NULL AND user_handle IS NOT NULL AND octet_length(user_handle) = 32
-                ELSE session_id IS NULL AND user_handle IS NULL END)
+    CHECK ((session_id IS NOT NULL) = (purpose IN ('PASSKEY_REGISTER', 'PASSKEY_STEP_UP'))
+           AND (user_handle IS NOT NULL) = (purpose IN ('PASSKEY_REGISTER', 'PASSKEY_ENROLL'))
+           AND (user_handle IS NULL OR octet_length(user_handle) = 32))
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
 -- What a sign-in flow's key to its CONNECT link points at (migration 0117).

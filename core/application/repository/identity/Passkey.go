@@ -55,6 +55,21 @@ type PasskeyChallenges interface {
 	) (identity.PasskeyChallenge, bool, error)
 }
 
+// PasskeyProofs is the challenges a known account answers with one of its own credentials, each in
+// auth_pending under its own purpose (identity.md §23.3, migration 0176).
+type PasskeyProofs interface {
+	// Issue writes the challenge.
+	Issue(ctx context.Context, challenge identity.PasskeyProofChallenge, presented identity.Token) error
+
+	// Spend spends the challenge in one statement - only under its purpose, for its account and,
+	// for a fresh proof, its session, unspent and in time - and answers it; false where nothing
+	// matched, which is every stale, foreign or unknown challenge alike.
+	Spend(
+		ctx context.Context, purpose identity.PendingPurpose, presented identity.Token,
+		accountID, sessionID shared.ID, now time.Time,
+	) (identity.PasskeyProofChallenge, bool, error)
+}
+
 // PasskeyHolder is a credential a browser named, with its holder as a sign-in needs them.
 type PasskeyHolder struct {
 	Credential   identity.PasskeyCredential

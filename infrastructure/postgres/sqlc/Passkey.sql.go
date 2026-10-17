@@ -55,6 +55,51 @@ func (q *Queries) ConsumePasskeyChallenge(ctx context.Context, arg ConsumePasske
 	return i, err
 }
 
+const consumePasskeyProofChallenge = `-- name: ConsumePasskeyProofChallenge :one
+UPDATE auth_pending SET consumed_at = $1
+WHERE token_hash = $2 AND purpose = $3
+  AND purpose IN ('PASSKEY_FACTOR', 'PASSKEY_ENROLL', 'PASSKEY_STEP_UP')
+  AND account_id = $4
+  AND session_id IS NOT DISTINCT FROM $5
+  AND consumed_at IS NULL AND expires_at > $1
+RETURNING id, user_handle, created_at, expires_at
+`
+
+type ConsumePasskeyProofChallengeParams struct {
+	Now       pgtype.Timestamptz
+	TokenHash []byte
+	Purpose   string
+	AccountID pgtype.UUID
+	SessionID pgtype.UUID
+}
+
+type ConsumePasskeyProofChallengeRow struct {
+	ID         pgtype.UUID
+	UserHandle []byte
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+}
+
+// One statement, so two answers to one challenge let exactly one through; only under its purpose,
+// for its account and - a fresh proof's - its session.
+func (q *Queries) ConsumePasskeyProofChallenge(ctx context.Context, arg ConsumePasskeyProofChallengeParams) (ConsumePasskeyProofChallengeRow, error) {
+	row := q.db.QueryRow(ctx, consumePasskeyProofChallenge,
+		arg.Now,
+		arg.TokenHash,
+		arg.Purpose,
+		arg.AccountID,
+		arg.SessionID,
+	)
+	var i ConsumePasskeyProofChallengeRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserHandle,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const consumePasskeySignInChallenge = `-- name: ConsumePasskeySignInChallenge :execrows
 UPDATE auth_pending SET consumed_at = $1
 WHERE token_hash = $2 AND purpose = 'PASSKEY_SIGN_IN'
@@ -243,6 +288,43 @@ func (q *Queries) InsertPasskeyChallenge(ctx context.Context, arg InsertPasskeyC
 		arg.ID,
 		arg.AccountID,
 		arg.TokenHash,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+		arg.SessionID,
+		arg.UserHandle,
+	)
+	return err
+}
+
+const insertPasskeyProofChallenge = `-- name: InsertPasskeyProofChallenge :exec
+INSERT INTO auth_pending (id, tenant_id, account_id, token_hash, purpose, created_at, expires_at,
+                          session_id, user_handle)
+VALUES (
+  $1, current_tenant_id(), $2, $3,
+  $4, $5, $6,
+  $7, $8
+)
+`
+
+type InsertPasskeyProofChallengeParams struct {
+	ID         pgtype.UUID
+	AccountID  pgtype.UUID
+	TokenHash  []byte
+	Purpose    string
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	SessionID  pgtype.UUID
+	UserHandle []byte
+}
+
+// A challenge a known account answers: the second factor's, a setup's or a fresh proof's
+// (migration 0176). The check constraints hold the session and the handle to their purposes.
+func (q *Queries) InsertPasskeyProofChallenge(ctx context.Context, arg InsertPasskeyProofChallengeParams) error {
+	_, err := q.db.Exec(ctx, insertPasskeyProofChallenge,
+		arg.ID,
+		arg.AccountID,
+		arg.TokenHash,
+		arg.Purpose,
 		arg.CreatedAt,
 		arg.ExpiresAt,
 		arg.SessionID,
