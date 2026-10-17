@@ -167,9 +167,12 @@ Evaluated in this order; the first that applies wins:
   budget. Every due object is reached within ceil(N / budget) passes, N being what lies ahead of it;
   a read that reaches the end forgets its place, and the next cycle starts at the beginning after
   the interval. A page's entries are read in one statement when a condition names `item`. The
-  bound: the deadline (`HUBTASK_JOB_TIMEOUT`, 60 s) has to hold every read's budget of one pass -
-  see the measurement below. The trash's own pass reads past a hold and the offline window too, in
-  one pass and without a place: it judges no condition, about 800,000 rows per deadline.
+  bound: the deadline (`HUBTASK_JOB_TIMEOUT`, 60 s) has to hold every read's budget of one pass.
+  Measured with 100,000 objects ahead of the due one, a read's budget takes 0.6–1.0 s, both for
+  objects held and for objects a condition naming `item` excludes. A page's cost still grows with
+  the workspace (11–15 ms per 1,000 objects at 10,000, 64–104 ms at 100,000), because no index
+  serves the read's order yet. The trash's own pass reads past a hold and the offline window too,
+  in one pass and without a place: it judges no condition, about 800,000 rows per deadline.
 * **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
   its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
   suggestions) and machine records (sessions, devices, sync log) — §3 says which.
