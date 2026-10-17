@@ -1833,6 +1833,7 @@
   "app.sessions.method_PASSWORD": "Passwort",
   "app.sessions.method_PASSWORD_TOTP": "Passwort und zweitem Faktor",
   "app.sessions.method_PASSWORD_RECOVERY": "Wiederherstellungscode",
+  "app.sessions.method_PASSWORD_PASSKEY": "Passwort und Sicherheitsschlüssel",
   "app.sessions.method_OIDC": "Einem Anmeldeanbieter",
   "app.sessions.method_INVITATION": "Einladung",
   "app.sessions.method_RESET": "Zurückgesetztem Passwort",
