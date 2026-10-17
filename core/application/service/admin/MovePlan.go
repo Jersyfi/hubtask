@@ -10,9 +10,11 @@ import (
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	quotarepo "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/plan"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -54,6 +56,8 @@ type MoveTenantPlan struct {
 	Tenants adminrepo.Tenants
 	Quotas  quotarepo.Store
 	Audit   audit.Sink
+	// Platform tells a purchase platform the workspace moved (UC-INS-14).
+	Platform platform.Recorder
 }
 
 // Execute moves it.
@@ -113,7 +117,17 @@ func (h MoveTenantPlan) Execute(
 			if err := h.record(ctx, actor, record, cmd.Plan, now); err != nil {
 				return err
 			}
+			previous := record.PlanName
 			if record, err = h.Tenants.Find(ctx); err != nil {
+				return err
+			}
+			var from any
+			if previous != "" {
+				from = previous
+			}
+			if err := h.Platform.Record(ctx, event.WorkspacePlanChanged,
+				event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, map[string]any{"previous_plan": from},
+			); err != nil {
 				return err
 			}
 		}

@@ -219,12 +219,13 @@ single mode showing nothing; a keyboard and screen-reader walk; the preview show
 **Use cases:** UC-INS-14 (1, 2, 3, 5, 6, 7)
 
 The contract: installation subscriptions (`/admin/subscriptions`) and `GET /admin/events` with a
-cursor and `410` past its window. The events of UC-INS-14's goal written in the transaction of the
-change — created, moved to another plan, suspended, resumed, deletion requested and done, an owner
-changed, a limit reached (once per crossing), the AI budget spent, an export finished — each with
-the workspace's id, reference, status, plan, version and moment, never content; ordered by a
-commit-ordered sequence, as the outbox is. Delivery reuses the workspace webhooks' signing, retries
-and dead letters, without switching a subscription off: the operator is told (an alert) and dead
+cursor and `410` past its window. The events of UC-INS-14's goal — created, moved to another plan,
+suspended, resumed, deletion requested and done, an owner changed, a limit reached (once per
+crossing), the AI budget spent, an export finished — each with the workspace's id, reference,
+status, plan, version and moment, never content; written in the transaction of the change, except
+a limit reached (after the refused transaction ends) and an export finished (when the worker has
+written it); numbered in commit order (multi-tenancy.md §4.3). Delivery reuses the workspace
+webhooks' signing, retries and dead letters, without switching a subscription off: the operator is told (an alert) and dead
 letters stay re-deliverable from the screen. `hubctl admin subscription` and the instance file.
 Single mode: `admin.multi_mode_required`, and no screen.
 

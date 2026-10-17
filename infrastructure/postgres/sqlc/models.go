@@ -1234,6 +1234,18 @@ type PlanSetting struct {
 	Locked bool
 }
 
+type PlatformEvent struct {
+	Number     int64
+	ID         pgtype.UUID
+	EventType  string
+	TenantID   pgtype.UUID
+	OccurredAt pgtype.Timestamptz
+	ActorType  string
+	ActorID    pgtype.UUID
+	Payload    []byte
+	DedupeKey  *string
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -1257,6 +1269,13 @@ type PrivateHubAccess struct {
 	Reason   string
 	OpenedAt pgtype.Timestamptz
 	EndsAt   pgtype.Timestamptz
+}
+
+type QuotaReached struct {
+	TenantID  pgtype.UUID
+	Quota     string
+	Period    string
+	ReachedAt pgtype.Timestamptz
 }
 
 type RecurrenceRule struct {

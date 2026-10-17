@@ -683,6 +683,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"idempotency_key": "a replay guard for requests that were over before the archive was written",
 	"sync_op_log":     "the same, for the sync push - a 30-day window, not data",
 	"usage_record":    "the operator's billing ledger rather than the tenant's data",
+	"quota_reached":   "the mark that a crossing was told to the installation's platform, about the live system rather than the tenant's data",
 	// The cursor and the markers of the live system. Restoring them would hand devices numbers
 	// that no longer mean anything.
 	"change_log": "the offline cursor; its sequence numbers belong to the database that issued them",

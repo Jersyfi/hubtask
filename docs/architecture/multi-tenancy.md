@@ -69,6 +69,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_setup_code` | The first start's one-time setup code ([UC-INS-01](../usecases/admin/UC-INS-01-start-a-fresh-installation.md)); it exists before any workspace does | No grant to the application role; reached only through the issuing and claiming `SECURITY DEFINER` functions |
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 | `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
+| `platform_event` | The installation's events for a purchase platform (§4.3): read across every workspace by the control plane, and the `deleted` event outlives its workspace | Identifiers and states only; written beside a control-plane change in its transaction; read only by `GET /admin/events`, behind `admin:tenants` and the register; the reference nulled at the purge, every row swept after 30 days |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
@@ -372,7 +373,8 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order and finding; the credential, the events and the use are not built yet. Plans exist so that a provider's own
+order, finding, and the events with their feed; the credential, the subscriptions and the use are not
+built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
 `NG-billing`). Hubtask never asks the platform anything, and single mode offers none of this.
@@ -385,11 +387,11 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   platform maps its products to. A workspace may carry the platform's own reference
   (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,
   removed at the purge).
-* **Changing state, in order.** A workspace has a version that grows with every change the control
-  plane makes. A move or a lifecycle call may name the version it last saw and is refused with
-  `version_conflict` when it is stale; repeated under its idempotency key it acts once. Its answer
-  names the limits the workspace is now over, the entitlements that rest and the exceptions that
-  stay.
+* **Changing state, in order.** A workspace has a version that grows with every change to its row —
+  the control plane's and a workspace administrator's alike. A move or a lifecycle call may name
+  the version it last saw and is refused with `version_conflict` when it is stale; repeated under
+  its idempotency key it acts once. Its answer names the limits the workspace is now over, the
+  entitlements that rest and the exceptions that stay.
 * **Finding.** One workspace is read by its id (`GET /admin/tenants/{id}`, the version as its tag);
   `POST /admin/tenants:query` finds workspaces by short name, reference, plan or state, a page at a
   time - a `POST`, because a reference in a query string would reach access logs. A taken reference
@@ -399,9 +401,11 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
 * **Events.** Installation subscriptions sign, retry and dead-letter as a workspace's do (UC-INT-01),
   but are never switched off for being unreachable: the operator is told and the dead letters stay
   re-deliverable. Every event carries the workspace's id, reference, status, plan, version and
-  moment, never content; "a limit reached" is sent once per crossing. The same events are read
-  forward from a cursor (`GET /admin/events`) by a commit-ordered sequence, so a platform that was
-  down misses nothing.
+  moment, never content; "a limit reached" is sent once per crossing - again only after a create of
+  that kind was admitted, or at a changed limit - and "the AI budget spent" once a day. The same events are read
+  forward from a cursor (`GET /admin/events`), numbered in commit order (a number is drawn under an
+  installation-wide lock held until the transaction ends), so a platform that was down misses
+  nothing.
 * **Use.** Recorded per workspace, metric and day; people, storage and entries as the day's highest
   count, written where the count changes (no job visits workspaces), the rest as sums. Every metric
   names its day (UTC, or the workspace's zone for the AI budget) and the read says up to which day it

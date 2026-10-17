@@ -335,6 +335,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ListOperators{}.Descriptor(),
 		adminservice.ReadInstanceOverview{}.Descriptor(),
 		adminservice.ListInstanceJournal{}.Descriptor(),
+		adminservice.ListPlatformEvents{}.Descriptor(),
 		adminservice.AddOperator{}.Descriptor(),
 		adminservice.RemoveOperator{}.Descriptor(),
 		adminservice.ListPlans{}.Descriptor(),

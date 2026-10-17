@@ -51,6 +51,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
@@ -982,6 +983,13 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The installation's events for a purchase platform (UC-INS-14): one value, built before every
+	// service that tells the platform something, so no copy of it misses a field.
+	platformEvents := platformservice.Recorder{
+		Events: postgres.NewPlatformEventRepository(), Workspaces: postgres.NewAdminTenantRepository(),
+		IDs: ids, Tenancy: cfg.Tenancy,
+	}
+
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
 	// it points at. It is a value rather than a literal in the registry because the
@@ -991,6 +999,10 @@ func run() error {
 	quotaGuard := quotaservice.Guard{
 		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+		Crossings: platformservice.Crossings{
+			Marks: postgres.NewQuotaReachedRepository(), Recorder: platformEvents,
+			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
+		},
 	}
 
 	duplicate := work.DuplicateWorkItem{
@@ -1489,6 +1501,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Platform: platformEvents,
 		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
@@ -1532,7 +1545,7 @@ func run() error {
 			Grant: identity.GrantMembership{
 				Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
 				Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -1575,13 +1588,15 @@ func run() error {
 				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
 				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
 			Owners:     grants,
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1592,12 +1607,12 @@ func run() error {
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
-			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
@@ -2263,6 +2278,11 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlatformEvents{
+			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
+			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),
+			Rendering: cloudEventRendering{source: cfg.BaseURL}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.ListPlans{Writer: planWriter}.Descriptor(),
@@ -2278,7 +2298,7 @@ func run() error {
 		}.Descriptor(),
 		adminservice.MoveTenantPlan{
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
-			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
+			Quotas: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
 		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
@@ -2292,11 +2312,12 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Tenancy: cfg.Tenancy,
+			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Platform: platformEvents,
 		}}.Descriptor(),
 		adminservice.RequestTenantDeletion{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
@@ -2304,7 +2325,7 @@ func run() error {
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
 			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Tenancy: cfg.Tenancy,
+			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back
 		// on through the automation package, which owns how a schedule's next moment is found.
@@ -2314,6 +2335,7 @@ func run() error {
 				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
 			},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Platform: platformEvents,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -3291,6 +3313,12 @@ func run() error {
 		Rules: postgres.NewAutomationRuleRepository(cursors),
 	}
 
+	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
+	// without a tenant, seeded below when a worker starts.
+	platformSweep := adminservice.SweepPlatformEvents{
+		Events: postgres.NewPlatformEventRepository(), Jobs: jobs, UnitOfWork: backgroundWork,
+		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -3335,6 +3363,7 @@ func run() error {
 		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
 		queueport.KindBackupRun:        backupRun,
@@ -3386,6 +3415,9 @@ func run() error {
 				Clock:         clockadapter.System{},
 				SchemaVersion: schemaVersion(), ProductVersion: version,
 			},
+			Told: adminservice.TellExportFinished{
+				Platform: platformEvents, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
 		},
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
@@ -3393,6 +3425,7 @@ func run() error {
 				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
 				Holds:      postgres.NewLifecycleRepository(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				Platform: platformEvents,
 			},
 		},
 		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value
@@ -3511,6 +3544,15 @@ func run() error {
 			SchemaBehind: schemaBehind,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
+
+		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
+		// pass, not the start: the next worker to start seeds it again.
+		seeding, cancelSeeding := context.WithTimeout(ctx, 10*time.Second)
+		if err := platformSweep.Seed(seeding); err != nil {
+			slog.WarnContext(ctx, "the platform events' sweep could not be seeded",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		cancelSeeding()
 	}
 
 	if cfg.HasRole(envport.RoleScheduler) {

@@ -974,6 +974,11 @@ export class HubtaskClient {
     return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The installation's events, read forward */
+  listPlatformEvents(options: CallOptions & { readonly query?: NonNullable<operations["listPlatformEvents"]['parameters']['query']> } = {}): Promise<operations["listPlatformEvents"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/events", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The AI models this installation offers every workspace */
   listInstanceAiProviders(options: CallOptions = {}): Promise<operations["listInstanceAiProviders"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/ai-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

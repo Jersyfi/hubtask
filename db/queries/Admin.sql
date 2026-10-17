@@ -41,7 +41,8 @@ SELECT t.id, t.slug, t.display_name, t.status, t.default_locale, t.default_time_
        t.created_at, t.purge_after, t.version,
        t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
        t.status_before_deletion, t.purge_started_at,
-       coalesce(p.name, '')::text AS plan_name
+       coalesce(p.name, '')::text AS plan_name,
+       coalesce(t.external_reference, '')::text AS external_reference
 FROM tenant t
 LEFT JOIN plan p ON p.id = t.plan_id
 WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;
