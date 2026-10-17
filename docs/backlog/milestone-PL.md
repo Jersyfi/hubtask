@@ -227,7 +227,9 @@ a limit reached (after the refused transaction ends) and an export finished (whe
 written it); numbered in commit order (multi-tenancy.md §4.3). Delivery reuses the workspace
 webhooks' signing, retries and dead letters, without switching a subscription off: the operator is told (an alert) and dead
 letters stay re-deliverable from the screen. `hubctl admin subscription` and the instance file.
-Single mode: `admin.multi_mode_required`, and no screen.
+Single mode: `admin.multi_mode_required`, and no screen. The feed and the subscriptions admit
+`admin:provisioning` beside `admin:tenants` (PL-10, UC-INS-06 check 6), and the security gate's list
+of the platform's verbs names them.
 
 **Acceptance:** an application test per event that it is written once with the right state and
 version; a test that "limit reached" is sent once per crossing; an integration test that the feed
@@ -250,7 +252,9 @@ that changes the count (no job visits workspaces); the existing sums kept. `GET 
 only while the operator switches metering on, off by default, and answering `admin.metering_off`
 otherwise. At the purge the counts move to an installation-level ledger keyed by the bare id; a
 sweep removes counts older than 13 months, inside and outside workspaces. `hubctl admin usage`; the
-switch in the instance file. The data catalogue and data-protection.md say what is built.
+switch in the instance file. The data catalogue and data-protection.md say what is built. The read
+admits `admin:provisioning` beside `admin:tenants` (PL-10, UC-INS-06 check 6), and the security
+gate's list of the platform's verbs names it.
 
 **Acceptance:** application tests of the highest-value counts under several changes a day and none
 at all (carried forward by the reader); a read test across a day boundary in UTC and in a
