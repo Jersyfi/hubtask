@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { MANIFEST, stub } from './fixture.mjs';
+import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -108,4 +108,42 @@ test('chromium: a single installation is told where a limit changes without the 
   const many = (await multi.page.locator('main').textContent()) ?? '';
   await multi.close();
   assert.match(many, /the operator of this installation/, many);
+});
+
+// UC-INS-10 check 1, UC-INS-13 check 3: on a plan, *Limits* names it and every row says who set it -
+// the plan, its lock, the installation, or the operator's exception.
+test('chromium: a workspace on a plan names it, and each limit says who set it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: 'multi' } });
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: { plan: 'Family' } } });
+    if (path === '/quotas') {
+      return route.fulfill({ json: [
+        { quota: 'items', limit: 5000, used: 4210, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
+        { quota: 'export_jobs', limit: 3, used: 0, configured: false, locked: false, source: 'PLAN', lock: null },
+        { quota: 'media_bytes', limit: 20000000000, used: 0, configured: true, locked: false, source: 'EXCEPTION', lock: null },
+        { quota: 'webhook_targets', limit: 10, used: 1, configured: false, locked: true, source: 'INSTANCE', lock: 'INSTANCE' },
+      ] });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/quotas`);
+  const row = (name) => page.getByRole('row').filter({ hasText: name });
+  await row('Entries').waitFor({ timeout: 15_000 });
+
+  assert.equal((await page.getByTestId('limits-plan').textContent())?.trim(), 'Plan: Family');
+  assert.match(await row('Entries').textContent() ?? '', /Set by your plan/);
+  assert.match(await row('Export jobs').textContent() ?? '', /Your plan/);
+  assert.match(await row('Webhook').textContent() ?? '', /Set by the installation/);
+  const storage = await page.getByRole('row').filter({ hasText: /storage/i }).textContent() ?? '';
+  assert.match(storage, /operator's exception for this workspace/, storage);
 });
