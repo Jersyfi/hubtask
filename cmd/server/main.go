@@ -2544,6 +2544,9 @@ func run() error {
 			Actions:         catalogue.AutomationActions(),
 			ActionFields:    catalogue.AutomationActionFields(),
 			ActionSummaries: catalogue.AutomationActionSummaries(),
+			// What the caller's plan leaves out, read as the registry's gate reads it.
+			ActionEntitlements: catalogue.ActionEntitlements(),
+			Entitlements:       entitlementGate,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and

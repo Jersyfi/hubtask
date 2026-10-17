@@ -10,6 +10,8 @@ import (
 	"slices"
 	"testing"
 
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -66,6 +68,19 @@ func TestAWorkspaceReadsWhatItsOwnPlanLeavesOut(t *testing.T) {
 	for name, other := range map[string]shared.ID{"on a plan leaving out nothing": onBusiness, "on no plan": onNone} {
 		if byReader, byWorkspace := read(other); len(byReader) != 0 || len(byWorkspace) != 0 {
 			t.Errorf("a workspace %s read %v and %v", name, byReader, byWorkspace)
+		}
+	}
+
+	// The read the registry's gate and the capabilities answer by, in the actor's own workspace.
+	gate := adminservice.EntitlementGate{Plans: plans, UnitOfWork: uow}
+	for workspace, expected := range map[shared.ID]entitlement.LeftOut{onPrivate: want, onBusiness: nil, onNone: nil} {
+		actor := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: workspace, AccountID: freshID(t)}
+		got, err := gate.LeftOut(ctx, actor)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(got, expected) {
+			t.Errorf("the gate read %v in %s, want %v", got, workspace, expected)
 		}
 	}
 }

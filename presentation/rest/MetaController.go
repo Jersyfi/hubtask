@@ -306,6 +306,17 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		workspacePermissions = &held
 	}
 
+	// What the caller's plan leaves out: absent for an anonymous caller, a list for everybody
+	// signed in, as the permissions beside it.
+	var notIncluded *[]openapi.PlanFeature
+	if source.NotIncluded != nil {
+		left := make([]openapi.PlanFeature, 0, len(source.NotIncluded))
+		for _, feature := range source.NotIncluded {
+			left = append(left, openapi.PlanFeature(feature))
+		}
+		notIncluded = &left
+	}
+
 	return openapi.Capabilities{
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
@@ -330,6 +341,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		Instance:               &instance,
 		WorkspacePermissions:   workspacePermissions,
 		PrivateHubOffered:      source.PrivateHubOffered,
+		NotIncluded:            notIncluded,
 		Deprecations:           deprecationManifest(),
 	}
 }

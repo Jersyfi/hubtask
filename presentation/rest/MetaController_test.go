@@ -15,6 +15,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	catalogueusecase "github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -546,6 +547,42 @@ func TestTheManifestPublishesWhatTheCallerHoldsOnTheWorkspace(t *testing.T) {
 			}
 			if test.want != nil && !slices.Equal(*body.WorkspacePermissions, test.want) {
 				t.Errorf("workspace_permissions %v, want %v", *body.WorkspacePermissions, test.want)
+			}
+		})
+	}
+}
+
+// What the caller's plan leaves out reaches the response as a list - empty included - and is
+// absent for an anonymous caller.
+func TestTheManifestPublishesWhatThePlanLeavesOut(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		given entitlement.LeftOut
+		want  []string
+	}{
+		{"a plan leaving out two", entitlement.LeftOut{entitlement.AutomationRules, entitlement.Webhooks}, []string{"AUTOMATION_RULES", "WEBHOOKS"}},
+		{"nothing left out", entitlement.LeftOut{}, []string{}},
+		{"anonymous", nil, nil},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			answer := manifest()
+			answer.NotIncluded = test.given
+
+			response := serveCapabilities(t, &capabilities{result: answer})
+			if response.Code != http.StatusOK {
+				t.Fatalf("status %d, body %s", response.Code, response.Body.String())
+			}
+			var body struct {
+				NotIncluded *[]string `json:"not_included"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatalf("the manifest is not JSON: %v", err)
+			}
+			if (body.NotIncluded == nil) != (test.want == nil) {
+				t.Fatalf("not_included %v, want %v", body.NotIncluded, test.want)
+			}
+			if test.want != nil && !slices.Equal(*body.NotIncluded, test.want) {
+				t.Errorf("not_included %v, want %v", *body.NotIncluded, test.want)
 			}
 		})
 	}
