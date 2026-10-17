@@ -16,29 +16,24 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// Feature is one of the closed set a plan may leave out (multi-tenancy.md §4.2). The set is closed on
-// purpose: export, deletion, access requests, language, time zone, accessibility and every door
-// are no entry of it, so no plan can switch them off (UC-INS-13 check 5).
-type Feature string
+// Feature is one of the closed set a plan may leave out (multi-tenancy.md §4.2), held in its own
+// package so that a workspace can carry the set its plan leaves out (UC-INS-13 check 5).
+type Feature = entitlement.Feature
 
 const (
-	FeatureAutomationRules    Feature = "AUTOMATION_RULES"
-	FeatureWebhooks           Feature = "WEBHOOKS"
-	FeatureOwnSignInProviders Feature = "OWN_SIGN_IN_PROVIDERS"
+	FeatureAutomationRules    = entitlement.AutomationRules
+	FeatureWebhooks           = entitlement.Webhooks
+	FeatureOwnSignInProviders = entitlement.OwnSignInProviders
 )
 
-var features = []Feature{FeatureAutomationRules, FeatureWebhooks, FeatureOwnSignInProviders}
-
 // Features is the closed set, in the order a screen draws it.
-func Features() []Feature { return slices.Clone(features) }
-
-// Valid reports whether the feature is one a plan can leave out.
-func (f Feature) Valid() bool { return slices.Contains(features, f) }
+func Features() []Feature { return entitlement.Features() }
 
 // Values is what a plan decides: the four areas of the installation's level a plan may reach, each
 // with its locks, and the features it leaves out. No localisation: a plan sets limits, locks and
