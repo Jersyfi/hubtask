@@ -43,6 +43,9 @@ const (
 	ProvisionTenantName = "ProvisionTenant"
 	tenantTarget        = "tenant"
 	adminTenantsScope   = "admin:tenants"
+	// provisioningScope is the purchase platform's subset of adminTenantsScope (api-guidelines.md
+	// §7, UC-INS-06 check 6): the verbs that declare it as their AlsoScope admit it, nothing else.
+	provisioningScope = "admin:provisioning"
 
 	// TenantProvisionedAction is the audit code, written into the new tenant's own trail: its
 	// members are entitled to see how their workspace began (audit.md §6).
@@ -177,7 +180,7 @@ type ProvisionTenant struct {
 func (h ProvisionTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ProvisionTenantCommand,
 ) (ProvisionedTenant, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return ProvisionedTenant{}, err
 	}
 	if h.Tenancy != env.TenancyMulti {
@@ -541,6 +544,7 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 			"events, records the provisioning in the new tenant's audit trail and in the " +
 			"instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{
 				Name: "slug", Kind: usecase.KindString, Required: true,
@@ -734,3 +738,7 @@ func unknownPlan(name string) error {
 		WithParams(map[string]string{"plan": name}).
 		WithFields(shared.FieldError{Path: "/plan", Code: "admin.plan_unknown"})
 }
+
+// platformScopes are what an operation open to a purchase platform accepts: the control plane's
+// whole scope and the platform's subset of it.
+var platformScopes = []string{adminTenantsScope, provisioningScope}

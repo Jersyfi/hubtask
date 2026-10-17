@@ -2277,7 +2277,8 @@ func run() error {
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
 			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
 		}.Descriptor(),
-		// The control plane. Its credential is a PAT carrying admin:tenants - never a
+		// The control plane. Its credential is a PAT carrying admin:tenants, or for a purchase
+		// platform the subset admin:provisioning on the verbs that declare it - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.

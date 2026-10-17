@@ -3065,6 +3065,7 @@
   "app.consent.withdraw_later": "Du kannst das jederzeit in deinem Profil zurückziehen. Die App hört bei ihrer nächsten Anfrage auf zu funktionieren.",
   "app.consent.scope.accounts_read": "Sehen, wer in diesem Arbeitsbereich ist und wie die Leute heißen",
   "app.consent.scope.accounts_write": "Leute einladen und ihre Angaben ändern",
+  "app.consent.scope.admin_provisioning": "Arbeitsbereiche dieser Installation anlegen, finden, verschieben, pausieren und beenden",
   "app.consent.scope.admin_tenants": "Jeden Arbeitsbereich dieser Installation verwalten",
   "app.consent.scope.agent_destructive": "Aktionen ausführen, die sich nicht rückgängig machen lassen",
   "app.consent.scope.ai_manage": "Ändern, wie dieser Arbeitsbereich KI nutzt",

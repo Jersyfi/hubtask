@@ -4243,6 +4243,7 @@
   "app.consent.withdraw_later": "You can withdraw this at any time under your profile. The app stops working on its next request.",
   "app.consent.scope.accounts_read": "See who is in this workspace and what they are called",
   "app.consent.scope.accounts_write": "Invite people and change their details",
+  "app.consent.scope.admin_provisioning": "Provision, find, move, suspend and end workspaces on this installation",
   "app.consent.scope.admin_tenants": "Administer every workspace on this installation",
   "app.consent.scope.agent_destructive": "Carry out actions that cannot be undone",
   "app.consent.scope.ai_manage": "Change how this workspace uses AI",
