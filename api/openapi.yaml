@@ -18277,6 +18277,21 @@ components:
             including somebody whose roles sit only on hubs, collections or entries and who cannot
             read `GET /tenant`. Whoever holds `STRUCTURE` on the workspace creates shared hubs
             whatever this says.
+        not_included:
+          type: array
+          items: { $ref: "#/components/schemas/PlanFeature" }
+          description: >
+            The features the caller's workspace's plan leaves out, in the order of `PlanFeature`;
+            empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like
+            `workspace_permissions`: absent for an anonymous caller.
+
+            A feature that is left out rests: automation rules run nowhere, webhooks deliver nothing,
+            the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays
+            readable, and it works again from the moment the plan includes it. Creating, changing,
+            switching on, running or sending is refused with `403 plan.not_included`, the feature as
+            its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws
+            "Not included in your plan" in place of the refused controls. `automation_actions`
+            already leaves out the actions of a feature named here.
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }

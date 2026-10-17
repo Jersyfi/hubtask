@@ -2778,6 +2778,7 @@ class Capabilities(TypedDict, total=False):
     instance: "InstanceReach"
     workspace_permissions: list[Literal["READ", "WRITE_ITEMS", "STRUCTURE", "MANAGE_MEMBERS", "AUTOMATION", "DELETE_CONTAINER", "READ_CONFIGURATION", "AUDIT_READ"]]
     private_hub_offered: bool
+    not_included: list["PlanFeature"]
     deprecations: list["DeprecatedField"]
 
 class DeprecatedField(TypedDict, total=False):
