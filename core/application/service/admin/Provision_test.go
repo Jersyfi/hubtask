@@ -84,6 +84,14 @@ func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
 
 func (s *tenantsStore) Insert(_ context.Context, record adminrepo.TenantRecord) error {
 	s.inserted = append(s.inserted, record)
+	// The row a provisioning reads back in its own transaction, as the table would answer it.
+	if s.record.ID.IsZero() {
+		version := s.record.Version
+		s.record = record
+		if s.record.Version == 0 {
+			s.record.Version = max(version, 1)
+		}
+	}
 	return nil
 }
 

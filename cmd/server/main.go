@@ -51,6 +51,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
@@ -981,6 +982,13 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The installation's events for a purchase platform (UC-INS-14): one value, built before every
+	// service that tells the platform something, so no copy of it misses a field.
+	platformEvents := platformservice.Recorder{
+		Events: postgres.NewPlatformEventRepository(), Workspaces: postgres.NewAdminTenantRepository(),
+		IDs: ids, Tenancy: cfg.Tenancy,
+	}
+
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
 	// it points at. It is a value rather than a literal in the registry because the
@@ -1488,6 +1496,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Platform: platformEvents,
 		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
@@ -2275,7 +2284,7 @@ func run() error {
 		}.Descriptor(),
 		adminservice.MoveTenantPlan{
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
-			Quotas: postgres.NewQuotaRepository(), Audit: auditSink,
+			Quotas: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
 		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator

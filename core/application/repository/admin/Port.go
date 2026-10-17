@@ -14,6 +14,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -159,6 +160,34 @@ type Journal interface {
 	// Page walks the journal backwards from `cursor`, empty for the first page. The entries and
 	// whether there is another page behind them.
 	Page(ctx context.Context, cursor string, size int) ([]InstanceEvent, PageInfo, error)
+}
+
+// PlatformEvent is one installation event as it is kept: the envelope and its number, which is
+// the feed's order.
+type PlatformEvent struct {
+	Number   int64
+	Envelope event.Envelope
+}
+
+// PlatformEvents are the installation's events for a purchase platform (multi-tenancy.md §4.3).
+// Like the journal they belong to no tenant and carry no policy: written beside a workspace's
+// change, in that workspace's transaction, and read under the installation's scope.
+type PlatformEvents interface {
+	// Append writes the event in the running transaction, numbered after every event whose
+	// transaction committed before this one does: it takes the installation's numbering lock,
+	// held until the transaction ends. A non-empty dedupe key writes the event once however often
+	// it is appended, and Append reports whether this call wrote it.
+	Append(ctx context.Context, envelope event.Envelope, dedupeKey string) (bool, error)
+
+	// After reads up to `limit` events numbered after `after`, in their order.
+	After(ctx context.Context, after int64, limit int) ([]PlatformEvent, error)
+
+	// ForgetReference removes the platform's reference from the kept events of the transaction's
+	// own workspace, as its purge removes it from the workspace.
+	ForgetReference(ctx context.Context) error
+
+	// Sweep removes up to `batch` events that occurred before `cutoff`, and answers how many.
+	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
 
 // PageInfo is the walk's state, as every other listing in this product reports it.
