@@ -168,3 +168,44 @@ func TestPlansAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
 		t.Errorf("a plan without a name answered %v", err)
 	}
 }
+
+// A subscription names its target and the file its secret is in - never the secret itself; a file
+// without the key leaves the subscriptions to the other doors.
+func TestPlatformSubscriptionsAreReadWithTheirSecretFromItsOwnFile(t *testing.T) {
+	dir := t.TempDir()
+	secretPath := filepath.Join(dir, "platform.secret")
+	if err := os.WriteFile(secretPath, []byte("  the-platform-secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "instance.json")
+	document := `{"platform_subscriptions": [{"target_url": "https://shop.example/hubtask", "secret_file": "` + secretPath + `"}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body, _, err := Read(path)
+	if err != nil {
+		t.Fatalf("a file with subscriptions answered %v", err)
+	}
+	subscriptions, present, err := PlatformSubscriptions(body, os.ReadFile, path)
+	if err != nil || !present || len(subscriptions) != 1 ||
+		subscriptions[0].TargetURL != "https://shop.example/hubtask" || subscriptions[0].Secret != "the-platform-secret" {
+		t.Fatalf("read %+v (present %t, %v)", subscriptions, present, err)
+	}
+	if _, present, _ := PlatformSubscriptions(map[string]any{}, os.ReadFile, path); present {
+		t.Error("a file without subscriptions answered them present")
+	}
+	for name, entry := range map[string]map[string]any{
+		"no secret file": {"target_url": "https://shop.example"},
+		"no target":      {"secret_file": secretPath},
+	} {
+		if _, _, err := PlatformSubscriptions(map[string]any{"platform_subscriptions": []any{entry}}, os.ReadFile, path); !errors.Is(err, shared.ErrValidation) {
+			t.Errorf("%s answered %v", name, err)
+		}
+	}
+	missing := map[string]any{"platform_subscriptions": []any{map[string]any{
+		"target_url": "https://shop.example", "secret_file": filepath.Join(dir, "absent"),
+	}}}
+	if _, _, err := PlatformSubscriptions(missing, os.ReadFile, path); err == nil {
+		t.Error("a secret file that is not there was read")
+	}
+}

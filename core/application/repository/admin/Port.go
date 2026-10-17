@@ -310,6 +310,8 @@ type PlatformSubscriptions interface {
 	Active(ctx context.Context) ([]shared.ID, error)
 	// Outcome records the last attempt for the screen: the moment of an arrival, or a failure's code.
 	Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error
+	// MarkFromFile records that an enforcing instance file decides the subscription.
+	MarkFromFile(ctx context.Context, id shared.ID) error
 }
 
 // PlatformDeliveries are the deliveries of the installation's subscriptions: one per event and

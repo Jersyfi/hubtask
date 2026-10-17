@@ -6,6 +6,7 @@ package admin
 import (
 	"context"
 	"encoding/base64"
+	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -760,4 +761,136 @@ func (h RedeliverPlatformSubscription) Descriptor() usecase.Descriptor {
 			return usecase.Output{"queued": queued}, nil
 		}),
 	}
+}
+
+// FileSubscription is a subscription the instance file declares, its secret read from the file it
+// names.
+type FileSubscription struct {
+	TargetURL string
+	Secret    secret.Secret
+}
+
+// PlatformFileOutcome is what applying the file did.
+type PlatformFileOutcome struct {
+	Skipped bool
+	// Seeded is false where `seed` found subscriptions standing and left them as they are.
+	Seeded                          bool
+	Created, Rotated, Kept, Removed int
+}
+
+// fileActor is how the journal names the instance file as the actor of what it writes.
+const fileActor = "instance file"
+
+// ApplyFile writes the file's subscriptions, as the file.
+//
+// `seed` writes them once, where no subscription stands yet, and leaves them the operator's from
+// then on - a later start that put the file's secret back would undo a rotation the platform was
+// already given. `enforce` makes the file the whole set at every start: a target it names is kept
+// and marked as the file's, its secret rotated only where the file's differs, so a restart writes
+// nothing; every other subscription goes. Single mode keeps none. Every subscription the file
+// creates, rotates or removes is journalled.
+func (w PlatformWriter) ApplyFile(ctx context.Context, declared []FileSubscription, enforce bool) (PlatformFileOutcome, error) {
+	if w.Tenancy != env.TenancyMulti {
+		return PlatformFileOutcome{Skipped: true}, nil
+	}
+	var outcome PlatformFileOutcome
+	err := w.Instance.UnitOfWork.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		existing, err := w.Subscriptions.List(ctx)
+		if err != nil {
+			return err
+		}
+		if !enforce && len(existing) > 0 {
+			return nil
+		}
+		outcome.Seeded = true
+		byTarget := map[string]integration.PlatformSubscription{}
+		for _, s := range existing {
+			byTarget[s.TargetURL] = s
+		}
+		named := map[string]bool{}
+		now := w.Instance.Clock.Now()
+		for _, file := range declared {
+			subscription, err := integration.NewPlatformSubscription(w.Instance.IDs.NewID(), file.TargetURL, enforce, "", now)
+			if err != nil {
+				return err
+			}
+			named[subscription.TargetURL] = true
+			if standing, ok := byTarget[subscription.TargetURL]; ok {
+				rotated, err := w.keepFromFile(ctx, standing, file.Secret, now)
+				if err != nil {
+					return err
+				}
+				if rotated {
+					outcome.Rotated++
+				} else {
+					outcome.Kept++
+				}
+				continue
+			}
+			sealed, err := w.seal(ctx, subscription.ID, file.Secret)
+			if err != nil {
+				return err
+			}
+			if err := w.Subscriptions.Insert(ctx, subscription, sealed); err != nil {
+				return err
+			}
+			if err := w.fileJournal(ctx, platformSubscriptionCreatedAction, subscription.ID, now); err != nil {
+				return err
+			}
+			outcome.Created++
+		}
+		if !enforce {
+			return nil
+		}
+		for _, s := range existing {
+			if named[s.TargetURL] {
+				continue
+			}
+			if _, err := w.Subscriptions.Delete(ctx, s.ID); err != nil {
+				return err
+			}
+			if err := w.fileJournal(ctx, platformSubscriptionRemovedAction, s.ID, now); err != nil {
+				return err
+			}
+			outcome.Removed++
+		}
+		return nil
+	})
+	return outcome, err
+}
+
+// keepFromFile marks a standing subscription as the enforcing file's and rotates its secret where
+// the file's differs from the one sealed, and answers whether it rotated.
+func (w PlatformWriter) keepFromFile(
+	ctx context.Context, standing integration.PlatformSubscription, signing secret.Secret, now time.Time,
+) (bool, error) {
+	if !standing.FromFile {
+		if err := w.Subscriptions.MarkFromFile(ctx, standing.ID); err != nil {
+			return false, err
+		}
+	}
+	stored, err := w.Subscriptions.Find(ctx, standing.ID)
+	if err != nil {
+		return false, err
+	}
+	current, err := w.Encryptor.Open(ctx, crypto.Sealed{KeyID: stored.Secret.KeyID, Ciphertext: stored.Secret.Ciphertext},
+		crypto.Purpose(integration.PlatformSecretPurposeFor(standing.ID)))
+	if err == nil && current.Reveal() == signing.Reveal() {
+		return false, nil
+	}
+	sealed, err := w.seal(ctx, standing.ID, signing)
+	if err != nil {
+		return false, err
+	}
+	if _, err := w.Subscriptions.Rotate(ctx, standing.ID, sealed, now); err != nil {
+		return false, err
+	}
+	return true, w.fileJournal(ctx, platformSubscriptionRotatedAction, standing.ID, now)
+}
+
+func (w PlatformWriter) fileJournal(ctx context.Context, action audit.Action, id shared.ID, at time.Time) error {
+	return w.Instance.Journal.Record(ctx, adminrepo.InstanceEvent{
+		ID: w.Instance.IDs.NewID(), OccurredAt: at, Action: string(action), ActorLabel: fileActor,
+		Details: map[string]any{"subscription_id": id.String()},
+	})
 }

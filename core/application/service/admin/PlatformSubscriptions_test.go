@@ -15,8 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	cryptoport "github.com/Jersyfi/hubtask/core/port/crypto"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/queue"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 )
 
 // subscriptionStore is the installation's subscriptions as the table keeps them.
@@ -92,9 +94,23 @@ func (s *subscriptionStore) Active(context.Context) ([]shared.ID, error) {
 	return active, nil
 }
 
+func (s *subscriptionStore) MarkFromFile(_ context.Context, id shared.ID) error {
+	stored := s.rows[id]
+	stored.Subscription.FromFile = true
+	s.rows[id] = stored
+	return nil
+}
+
 func (s *subscriptionStore) Outcome(_ context.Context, id shared.ID, _ time.Time, lastError string) error {
 	s.outcome[id] = lastError
 	return nil
+}
+
+// roundTrip opens what it sealed, as the envelope does.
+type roundTrip struct{ *plainEnvelope }
+
+func (e roundTrip) Open(_ context.Context, sealed cryptoport.Sealed, _ cryptoport.Purpose) (secret.Secret, error) {
+	return secret.New(strings.TrimPrefix(string(sealed.Ciphertext), "sealed:")), nil
 }
 
 type platformFixture struct {
@@ -110,7 +126,7 @@ func newPlatformFixture(t *testing.T, tenancy env.TenancyMode, descriptors ...fu
 	instance, _, journal := newInstanceWriter(newRegister())
 	f := platformFixture{store: newSubscriptionStore(), journal: journal, envelope: &plainEnvelope{}}
 	f.writer = PlatformWriter{
-		Instance: instance, Subscriptions: f.store, Encryptor: f.envelope,
+		Instance: instance, Subscriptions: f.store, Encryptor: roundTrip{f.envelope},
 		Entropy: clock.FixedEntropy{}, StepUp: &stepUpFake{expect: "hbt_sup_proof"}, Tenancy: tenancy,
 	}
 	list := []usecase.Descriptor{
@@ -426,5 +442,63 @@ func TestASubscriptionsDeliveriesAreReadAndItsDeadLettersRedelivered(t *testing.
 	_, err = f.registry.Invoke(t.Context(), RedeliverPlatformSubscriptionName, operator(), usecase.Input{"subscription_id": sub.String()})
 	if refusalCode(err) != "admin.subscription_paused" || !errors.Is(err, shared.ErrConflict) {
 		t.Errorf("redelivering a paused subscription answered %v", err)
+	}
+}
+
+// Seeding writes the file's subscriptions once, where none stands, and leaves them the operator's;
+// enforcing makes the file the whole set at every start, marks what it keeps as the file's, and
+// rotates a secret only where the file's differs - a restart writes nothing.
+func TestTheInstanceFileDecidesTheSubscriptions(t *testing.T) {
+	file := []FileSubscription{
+		{TargetURL: "https://shop.example/hubtask", Secret: secret.New("from-the-file")},
+		{TargetURL: "https://billing.example/hook", Secret: secret.New("another")},
+	}
+
+	seeding := newPlatformFixture(t, env.TenancyMulti)
+	seeded, err := seeding.writer.ApplyFile(t.Context(), file, false)
+	if err != nil || !seeded.Seeded || seeded.Created != 2 {
+		t.Fatalf("seeding an empty installation: %+v, %v", seeded, err)
+	}
+	for _, stored := range seeding.store.rows {
+		if stored.Subscription.FromFile {
+			t.Error("a seeded subscription is not the operator's")
+		}
+	}
+	again, err := seeding.writer.ApplyFile(t.Context(), file[:1], false)
+	if err != nil || again.Seeded || len(seeding.store.rows) != 2 {
+		t.Errorf("seeding again wrote %+v, %v", again, err)
+	}
+
+	f := newPlatformFixture(t, env.TenancyMulti)
+	byHand := subscribe(t, f)
+	handID := shared.ID(byHand.String("id"))
+	enforced, err := f.writer.ApplyFile(t.Context(), file, true)
+	if err != nil || enforced.Created != 1 || enforced.Rotated != 1 {
+		t.Fatalf("enforcing: %+v, %v", enforced, err)
+	}
+	if kept := f.store.rows[handID]; !kept.Subscription.FromFile || !strings.Contains(string(kept.Secret.Ciphertext), "from-the-file") {
+		t.Errorf("the kept subscription: %+v", kept)
+	}
+	restarted, err := f.writer.ApplyFile(t.Context(), file, true)
+	if err != nil || restarted.Rotated != 0 || restarted.Kept != 2 || restarted.Created != 0 {
+		t.Errorf("a restart wrote %+v, %v", restarted, err)
+	}
+	narrowed, err := f.writer.ApplyFile(t.Context(), file[1:], true)
+	if err != nil || narrowed.Removed != 1 || len(f.store.rows) != 1 {
+		t.Fatalf("narrowing: %+v, %v (%d left)", narrowed, err, len(f.store.rows))
+	}
+	removed := false
+	for _, entry := range f.journal.entries {
+		if entry.Action == string(platformSubscriptionRemovedAction) && entry.ActorLabel == fileActor {
+			removed = true
+		}
+	}
+	if !removed {
+		t.Error("the file's removal is not journalled")
+	}
+
+	single := newPlatformFixture(t, env.TenancySingle)
+	if out, err := single.writer.ApplyFile(t.Context(), file, true); err != nil || !out.Skipped || len(single.store.rows) != 0 {
+		t.Errorf("single mode applied %+v, %v", out, err)
 	}
 }

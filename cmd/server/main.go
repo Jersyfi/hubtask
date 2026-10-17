@@ -1527,6 +1527,9 @@ func run() error {
 		Instance: instanceWriter, Subscriptions: postgres.NewPlatformSubscriptionRepository(),
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
 		StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Tenancy: cfg.Tenancy,
+		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
+		// one that names none leaves them to the API and the screen.
+		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
 	}
 	useCases, err := usecase.NewRegistry(
 		observer.Registry(),
@@ -3644,6 +3647,7 @@ func run() error {
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
+		platform:   platformWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -4330,7 +4334,10 @@ type applyingInstanceFile struct {
 	ai adminservice.InstanceAiWriter
 	// plans writes the plans the file names, as the file: it passes every check the API's writes
 	// pass, and is the one writer of plans while the file enforces.
-	plans      adminservice.PlanWriter
+	plans adminservice.PlanWriter
+	// platform writes the subscriptions for a purchase platform the file names, their secrets read
+	// from the files it names.
+	platform   adminservice.PlatformWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4421,7 +4428,55 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	}
 	// The plans after the level: a plan is checked against the installation's values, so the
 	// file's own values have to be in place first.
-	return applyPlans(ctx, applying, document)
+	if err := applyPlans(ctx, applying, document); err != nil {
+		return err
+	}
+	return applyPlatformSubscriptions(ctx, applying, document)
+}
+
+// applyPlatformSubscriptions writes the subscriptions for a purchase platform the file names
+// (UC-INS-14 check 7): in `seed` the file adds, in `enforce` its set is the whole set.
+func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	declared, present, err := instancefile.PlatformSubscriptions(document, os.ReadFile, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	file := make([]adminservice.FileSubscription, 0, len(declared))
+	for _, d := range declared {
+		file = append(file, adminservice.FileSubscription{TargetURL: d.TargetURL, Secret: secretvalue.New(d.Secret)})
+	}
+	outcome, err := applying.platform.ApplyFile(ctx, file, applying.mode == instancefile.ModeEnforce)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names platform subscriptions, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	if !outcome.Seeded {
+		slog.Info("the platform subscriptions stand already: the seeding file leaves them as they are",
+			"source", applying.path)
+		return nil
+	}
+	slog.Info("the platform subscriptions were written from the file", "source", applying.path,
+		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
+		"kept", outcome.Kept, "removed", outcome.Removed)
+	return nil
+}
+
+// fileNamesPlatformSubscriptions reports whether the instance file names the subscriptions. An
+// unreadable file answers no here; reading it at the start is what refuses it.
+func fileNamesPlatformSubscriptions(path string) bool {
+	if path == "" {
+		return false
+	}
+	document, found, err := instancefile.Read(path)
+	if err != nil || !found {
+		return false
+	}
+	_, present := document["platform_subscriptions"]
+	return present
 }
 
 // applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
