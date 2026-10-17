@@ -286,3 +286,60 @@ func TestWorkHeldForAfterwardsOutlivesTheRefusal(t *testing.T) {
 		t.Errorf("after the refusal the feed holds %d events of the workspace, want 1", len(events))
 	}
 }
+
+// A create refused at a limit, through the guard's crossings against the database: the mark and the
+// event outlive the refused transaction, a second refusal tells nothing, an admitted create clears
+// the mark, and the next refusal is the next crossing - all within the one workspace (UC-INS-14
+// check 2).
+func TestALimitReachedIsToldOncePerCrossingAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	crossings := platform.Crossings{
+		Marks: postgres.NewQuotaReachedRepository(), Recorder: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})),
+		UnitOfWork: uow, Clock: clockadapter.System{},
+	}
+	reached, other := seedWorkspace(ctx, t, "reached"), seedWorkspace(ctx, t, "other")
+	start := lastPlatformNumber(ctx, t)
+	refused := errors.New("capacity.items")
+
+	refuse := func(workspace shared.ID) {
+		t.Helper()
+		err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+			crossings.Refused(ctx, workspace, "items", 10)
+			return refused
+		})
+		if !errors.Is(err, refused) {
+			t.Fatalf("the refusal answered %v", err)
+		}
+	}
+	admit := func(workspace shared.ID) {
+		t.Helper()
+		if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+			return crossings.Admitted(ctx, "items")
+		}); err != nil {
+			t.Fatalf("admitting: %v", err)
+		}
+	}
+	told := func() int { return len(platformEventsOf(ctx, t, uow, start, reached)) }
+
+	refuse(reached)
+	refuse(reached)
+	if told() != 1 {
+		t.Fatalf("two refusals at one crossing told %d events", told())
+	}
+	// Another workspace's admitted create clears nothing of this one's.
+	admit(other)
+	refuse(reached)
+	if told() != 1 {
+		t.Fatalf("another workspace's create cleared this one's mark: %d events", told())
+	}
+	admit(reached)
+	refuse(reached)
+	if told() != 2 {
+		t.Errorf("a second crossing told %d events in all, want 2", told())
+	}
+	events := platformEventsOf(ctx, t, uow, start, reached)
+	if events[0].Envelope.Type != event.WorkspaceLimitReached || events[0].Envelope.Payload["quota"] != "items" {
+		t.Errorf("told %+v", events[0].Envelope)
+	}
+}
