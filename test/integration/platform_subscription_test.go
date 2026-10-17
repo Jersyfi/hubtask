@@ -12,9 +12,12 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -113,4 +116,75 @@ func TestAnInstallationSubscriptionIsKept(t *testing.T) {
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("a removed subscription answered %v", err)
 	}
+}
+
+// An event's deliveries and their jobs commit with the event, for the active subscriptions only; a
+// change that rolls back leaves none, and the jobs carry no tenant, so a workspace's purge leaves
+// them.
+func TestAnEventIsQueuedForTheActiveSubscriptionsInItsTransaction(t *testing.T) {
+	ctx := context.Background()
+	pool := appPool(ctx, t)
+	uow := postgres.NewUnitOfWork(pool)
+	ids := clockadapter.NewUUIDv7(clockadapter.System{})
+	active, paused := newPlatformSubscription(ctx, t, uow), newPlatformSubscription(ctx, t, uow)
+	resting, _ := paused.InState(integration.PlatformPaused)
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		_, err := postgres.NewPlatformSubscriptionRepository().Update(ctx, resting, 1, time.Now())
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	recorder := platformRecorder(ids)
+	recorder.Fanout = platform.Fanout{
+		Subscriptions: postgres.NewPlatformSubscriptionRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
+		Jobs: postgres.NewQueue(ids, clockadapter.System{}), IDs: ids, Clock: clockadapter.System{},
+	}
+	workspace := seedWorkspace(ctx, t, "fanned")
+
+	deliveries := func(sub shared.ID) []integration.PlatformDelivery {
+		t.Helper()
+		var page []integration.PlatformDelivery
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			read, err := postgres.NewPlatformDeliveryRepository().Page(ctx, sub, "", "", 50)
+			page = read
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return page
+	}
+
+	refused := errors.New("refused")
+	_ = uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+		if err := recorder.Record(ctx, event.WorkspaceSuspended, event.Actor{Kind: shared.ActorSystem}, time.Now(), nil); err != nil {
+			t.Fatal(err)
+		}
+		return refused
+	})
+	if len(deliveries(active.ID)) != 0 {
+		t.Fatal("a rolled-back change left a delivery")
+	}
+	if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+		return recorder.Record(ctx, event.WorkspaceSuspended, event.Actor{Kind: shared.ActorSystem}, time.Now(), nil)
+	}); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	queued := deliveries(active.ID)
+	if len(queued) != 1 || queued[0].Status != integration.DeliveryPending || queued[0].EventType != string(event.WorkspaceSuspended) {
+		t.Fatalf("the active subscription holds %+v", queued)
+	}
+	if len(deliveries(paused.ID)) != 0 {
+		t.Error("a paused subscription was queued a delivery")
+	}
+
+	var tenant *string
+	if err := adminPool(ctx, t).QueryRow(ctx, `
+		SELECT tenant_id::text FROM job WHERE kind = 'platform.deliver' AND payload->>'delivery_id' = $1`,
+		queued[0].ID.String()).Scan(&tenant); err != nil {
+		t.Fatalf("the delivery's job: %v", err)
+	}
+	if tenant != nil {
+		t.Errorf("the delivery's job belongs to workspace %s", *tenant)
+	}
+	_, _ = adminPool(ctx, t).Exec(ctx, `DELETE FROM job WHERE kind = 'platform.deliver' AND payload->>'delivery_id' = $1`, queued[0].ID.String())
 }

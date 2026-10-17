@@ -987,6 +987,10 @@ func run() error {
 	platformEvents := platformservice.Recorder{
 		Events: postgres.NewPlatformEventRepository(), Workspaces: postgres.NewAdminTenantRepository(),
 		IDs: ids, Tenancy: cfg.Tenancy,
+		Fanout: platformservice.Fanout{
+			Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+			Deliveries:    postgres.NewPlatformDeliveryRepository(), Jobs: jobs, IDs: ids, Clock: clockadapter.System{},
+		},
 	}
 
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,

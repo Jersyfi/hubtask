@@ -70,6 +70,11 @@ func machineRecoverer(
 	tenants := postgres.NewAdminTenantRepository()
 	told := platformservice.Recorder{
 		Events: postgres.NewPlatformEventRepository(), Workspaces: tenants, IDs: ids, Tenancy: tenancy,
+		Fanout: platformservice.Fanout{
+			Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+			Deliveries:    postgres.NewPlatformDeliveryRepository(),
+			Jobs:          postgres.NewQueue(ids, clockadapter.System{}), IDs: ids, Clock: clockadapter.System{},
+		},
 	}
 	journal := postgres.NewInstanceJournal(security.NewCursorCodec(secretKey))
 	sink := postgres.NewAuditSink(ids).Keyed(security.NewAuditFingerprinter(secretKey))
