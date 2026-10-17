@@ -1114,7 +1114,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore, Plans: postgres.NewPlanRepository(),
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.

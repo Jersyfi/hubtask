@@ -11030,6 +11030,9 @@ components:
           $ref: "#/components/schemas/AiSources"
         installation_sources:
           $ref: "#/components/schemas/AiSources"
+          description: >
+            What the levels above the workspace allow - the installation and the workspace's plan
+            together - which is what the workspace may narrow.
         narrowing:
           $ref: "#/components/schemas/AiSources"
         sources_origin:
