@@ -381,11 +381,11 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   platform maps its products to. A workspace may carry the platform's own reference
   (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,
   removed at the purge).
-* **Changing state, in order.** A workspace has a version that grows with every change the control
-  plane makes. A move or a lifecycle call may name the version it last saw and is refused with
-  `version_conflict` when it is stale; repeated under its idempotency key it acts once. Its answer
-  names the limits the workspace is now over, the entitlements that rest and the exceptions that
-  stay.
+* **Changing state, in order.** A workspace has a version that grows with every change to its row —
+  the control plane's and a workspace administrator's alike. A move or a lifecycle call may name
+  the version it last saw and is refused with `version_conflict` when it is stale; repeated under
+  its idempotency key it acts once. Its answer names the limits the workspace is now over, the
+  entitlements that rest and the exceptions that stay.
 * **Finding.** One workspace is read by its id (`GET /admin/tenants/{id}`, the version as its tag);
   `POST /admin/tenants:query` finds workspaces by short name, reference, plan or state, a page at a
   time - a `POST`, because a reference in a query string would reach access logs. A taken reference
@@ -396,8 +396,9 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   but are never switched off for being unreachable: the operator is told and the dead letters stay
   re-deliverable. Every event carries the workspace's id, reference, status, plan, version and
   moment, never content; "a limit reached" is sent once per crossing. The same events are read
-  forward from a cursor (`GET /admin/events`) by a commit-ordered sequence, so a platform that was
-  down misses nothing.
+  forward from a cursor (`GET /admin/events`), numbered in commit order (a number is drawn under an
+  installation-wide lock held until the transaction ends), so a platform that was down misses
+  nothing.
 * **Use.** Recorded per workspace, metric and day; people, storage and entries as the day's highest
   count, written where the count changes (no job visits workspaces), the rest as sums. Every metric
   names its day (UTC, or the workspace's zone for the AI budget) and the read says up to which day it
