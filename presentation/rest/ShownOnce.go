@@ -20,6 +20,7 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":              true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":      true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":       true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:passkey":      true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":         true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:agree-terms":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:set-password": true,

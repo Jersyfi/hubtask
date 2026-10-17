@@ -2829,6 +2829,21 @@ func (e PasskeyListCannotRemoveReason) Valid() bool {
 	}
 }
 
+// Defines values for PasskeySignInOptionsPublicKeyUserVerification.
+const (
+	Required PasskeySignInOptionsPublicKeyUserVerification = "required"
+)
+
+// Valid indicates whether the value is a known member of the PasskeySignInOptionsPublicKeyUserVerification enum.
+func (e PasskeySignInOptionsPublicKeyUserVerification) Valid() bool {
+	switch e {
+	case Required:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PasskeyTransport.
 const (
 	Ble       PasskeyTransport = "ble"
@@ -3788,6 +3803,7 @@ const (
 	SessionSignedInWithINVITATION       SessionSignedInWith = "INVITATION"
 	SessionSignedInWithLessThannil      SessionSignedInWith = "<nil>"
 	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
+	SessionSignedInWithPASSKEY          SessionSignedInWith = "PASSKEY"
 	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
 	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
 	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
@@ -3802,6 +3818,8 @@ func (e SessionSignedInWith) Valid() bool {
 	case SessionSignedInWithLessThannil:
 		return true
 	case SessionSignedInWithOIDC:
+		return true
+	case SessionSignedInWithPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORD:
 		return true
@@ -3834,6 +3852,7 @@ func (e SessionTokensTokenType) Valid() bool {
 // Defines values for SignInMethod.
 const (
 	SignInMethodOIDC     SignInMethod = "OIDC"
+	SignInMethodPASSKEY  SignInMethod = "PASSKEY"
 	SignInMethodPASSWORD SignInMethod = "PASSWORD"
 )
 
@@ -3841,6 +3860,8 @@ const (
 func (e SignInMethod) Valid() bool {
 	switch e {
 	case SignInMethodOIDC:
+		return true
+	case SignInMethodPASSKEY:
 		return true
 	case SignInMethodPASSWORD:
 		return true
@@ -8073,6 +8094,24 @@ type Passkey struct {
 	RpId *string `json:"rp_id"`
 }
 
+// PasskeyAssertion What `navigator.credentials.get()` answered, base64url without padding.
+type PasskeyAssertion struct {
+	// AuthenticatorData The response's `authenticatorData`.
+	AuthenticatorData string `json:"authenticator_data"`
+
+	// ClientDataJson The response's `clientDataJSON`.
+	ClientDataJson string `json:"client_data_json"`
+
+	// RawId The credential's `rawId`.
+	RawId string `json:"raw_id"`
+
+	// Signature The response's `signature`.
+	Signature string `json:"signature"`
+
+	// UserHandle The response's `userHandle`, which a passkey signing in without an identifier always gives.
+	UserHandle string `json:"user_handle"`
+}
+
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
 type PasskeyCreationOptions struct {
 	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
@@ -8203,6 +8242,26 @@ type PasskeyRename struct {
 	// Name What the person calls it, 1 to 64 characters.
 	Name string `json:"name"`
 }
+
+// PasskeySignInOptions The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding.
+type PasskeySignInOptions struct {
+	// ExpiresAt When the challenge stops being accepted.
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey struct {
+		// Challenge Thirty-two random bytes
+		Challenge string `json:"challenge"`
+
+		// RpId The workspace's host.
+		RpId string `json:"rpId"`
+
+		// Timeout Milliseconds.
+		Timeout          int                                           `json:"timeout"`
+		UserVerification PasskeySignInOptionsPublicKeyUserVerification `json:"userVerification"`
+	} `json:"public_key"`
+}
+
+// PasskeySignInOptionsPublicKeyUserVerification defines model for PasskeySignInOptions.PublicKey.UserVerification.
+type PasskeySignInOptionsPublicKeyUserVerification string
 
 // PasskeyTransport defines model for PasskeyTransport.
 type PasskeyTransport string
@@ -12054,6 +12113,9 @@ type AgreeToTermsJSONRequestBody = TermsAgreement
 // CompleteLinkJSONRequestBody defines body for CompleteLink for application/json ContentType.
 type CompleteLinkJSONRequestBody = LinkCompletion
 
+// CompletePasskeySignInJSONRequestBody defines body for CompletePasskeySignIn for application/json ContentType.
+type CompletePasskeySignInJSONRequestBody = PasskeyAssertion
+
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
 
@@ -14126,6 +14188,58 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
 	CompleteLink(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeySignInWithBody Sign in with a passkey and receive the pair
+	//
+	// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+	// this workspace issued within five minutes and not yet used; otherwise
+	// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+	// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+	// device that did not verify the person, a signature or counter that does not hold - is the one
+	// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+	//
+	// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+	// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+	// replacing a start password Hubtask drew, or agreeing to the terms of use.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+	CompletePasskeySignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeySignIn Sign in with a passkey and receive the pair
+	//
+	// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+	// this workspace issued within five minutes and not yet used; otherwise
+	// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+	// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+	// device that did not verify the person, a signature or counter that does not hold - is the one
+	// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+	//
+	// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+	// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+	// replacing a start password Hubtask drew, or agreeing to the terms of use.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+	CompletePasskeySignIn(ctx context.Context, body CompletePasskeySignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeySignIn Begin a sign-in with a passkey
+	//
+	// The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+	// request's host names, with no identifier: the relying party, a single-use challenge that
+	// lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+	// when the person was verified on the device. No credential is named; the device offers the
+	// ones it holds for this workspace.
+	//
+	// Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+	// with `auth.passkey_unavailable` where the installation has no public address or the request
+	// did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+	// workspace answers at it.
+	//
+	// Corresponds with POST /auth/sessions:passkey-options (the `StartPasskeySignIn` operationId).
+	StartPasskeySignIn(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RefreshSessionWithBody Exchange a refresh token for the next pair
 	//
@@ -20271,6 +20385,88 @@ func (c *Client) CompleteLinkWithBody(ctx context.Context, contentType string, b
 // Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
 func (c *Client) CompleteLink(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCompleteLinkRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeySignInWithBody Sign in with a passkey and receive the pair
+//
+// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+// this workspace issued within five minutes and not yet used; otherwise
+// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+// device that did not verify the person, a signature or counter that does not hold - is the one
+// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+//
+// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+// replacing a start password Hubtask drew, or agreeing to the terms of use.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+func (c *Client) CompletePasskeySignInWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeySignInRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeySignIn Sign in with a passkey and receive the pair
+//
+// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+// this workspace issued within five minutes and not yet used; otherwise
+// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+// device that did not verify the person, a signature or counter that does not hold - is the one
+// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+//
+// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+// replacing a start password Hubtask drew, or agreeing to the terms of use.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+func (c *Client) CompletePasskeySignIn(ctx context.Context, body CompletePasskeySignInJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeySignInRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeySignIn Begin a sign-in with a passkey
+//
+// The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+// request's host names, with no identifier: the relying party, a single-use challenge that
+// lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+// when the person was verified on the device. No credential is named; the device offers the
+// ones it holds for this workspace.
+//
+// Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+// with `auth.passkey_unavailable` where the installation has no public address or the request
+// did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+// workspace answers at it.
+//
+// Corresponds with POST /auth/sessions:passkey-options (the `StartPasskeySignIn` operationId).
+func (c *Client) StartPasskeySignIn(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeySignInRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -30674,6 +30870,73 @@ func NewCompleteLinkRequestWithBody(server string, contentType string, body io.R
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCompletePasskeySignInRequest calls the generic CompletePasskeySignIn builder with application/json body
+func NewCompletePasskeySignInRequest(server string, body CompletePasskeySignInJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompletePasskeySignInRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompletePasskeySignInRequestWithBody constructs an http.Request for the CompletePasskeySignIn method, with any body, and a specified content type
+func NewCompletePasskeySignInRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:passkey")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeySignInRequest constructs an http.Request for the StartPasskeySignIn method
+func NewStartPasskeySignInRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/sessions:passkey-options")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -43839,6 +44102,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/sessions:link (the `CompleteLink` operationId).
 	CompleteLinkWithResponse(ctx context.Context, body CompleteLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteLinkResult, error)
 
+	// CompletePasskeySignInWithBodyWithResponse Sign in with a passkey and receive the pair
+	//
+	// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+	// this workspace issued within five minutes and not yet used; otherwise
+	// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+	// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+	// device that did not verify the person, a signature or counter that does not hold - is the one
+	// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+	//
+	// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+	// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+	// replacing a start password Hubtask drew, or agreeing to the terms of use.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+	CompletePasskeySignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeySignInResult, error)
+
+	// CompletePasskeySignInWithResponse Sign in with a passkey and receive the pair
+	//
+	// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+	// this workspace issued within five minutes and not yet used; otherwise
+	// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+	// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+	// device that did not verify the person, a signature or counter that does not hold - is the one
+	// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+	//
+	// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+	// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+	// replacing a start password Hubtask drew, or agreeing to the terms of use.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+	CompletePasskeySignInWithResponse(ctx context.Context, body CompletePasskeySignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeySignInResult, error)
+
+	// StartPasskeySignInWithResponse Begin a sign-in with a passkey
+	//
+	// The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+	// request's host names, with no identifier: the relying party, a single-use challenge that
+	// lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+	// when the person was verified on the device. No credential is named; the device offers the
+	// ones it holds for this workspace.
+	//
+	// Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+	// with `auth.passkey_unavailable` where the installation has no public address or the request
+	// did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+	// workspace answers at it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/sessions:passkey-options (the `StartPasskeySignIn` operationId).
+	StartPasskeySignInWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeySignInResult, error)
+
 	// RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 	//
 	// Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
@@ -51896,6 +52213,109 @@ func (r CompleteLinkResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CompleteLinkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompletePasskeySignInResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *SessionTokens
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MfaChallenge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompletePasskeySignInResult) GetJSON201() *SessionTokens {
+	return r.JSON201
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r CompletePasskeySignInResult) GetJSON202() *MfaChallenge {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompletePasskeySignInResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompletePasskeySignInResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompletePasskeySignInResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompletePasskeySignInResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompletePasskeySignInResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeySignInResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeySignInOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeySignInResult) GetJSON200() *PasskeySignInOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeySignInResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeySignInResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeySignInResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeySignInResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeySignInResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -65987,6 +66407,78 @@ func (c *ClientWithResponses) CompleteLinkWithResponse(ctx context.Context, body
 	return ParseCompleteLinkResult(rsp)
 }
 
+// CompletePasskeySignInWithBodyWithResponse Sign in with a passkey and receive the pair
+//
+// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+// this workspace issued within five minutes and not yet used; otherwise
+// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+// device that did not verify the person, a signature or counter that does not hold - is the one
+// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+//
+// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+// replacing a start password Hubtask drew, or agreeing to the terms of use.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+func (c *ClientWithResponses) CompletePasskeySignInWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeySignInResult, error) {
+	rsp, err := c.CompletePasskeySignInWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeySignInResult(rsp)
+}
+
+// CompletePasskeySignInWithResponse Sign in with a passkey and receive the pair
+//
+// What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+// this workspace issued within five minutes and not yet used; otherwise
+// `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+// unknown or removed passkey, one made at another address, an account that cannot sign in, a
+// device that did not verify the person, a signature or counter that does not hold - is the one
+// answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+//
+// A verified passkey is the whole proof: no second factor is asked, also where the workspace
+// requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+// replacing a start password Hubtask drew, or agreeing to the terms of use.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:passkey (the `CompletePasskeySignIn` operationId).
+func (c *ClientWithResponses) CompletePasskeySignInWithResponse(ctx context.Context, body CompletePasskeySignInJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeySignInResult, error) {
+	rsp, err := c.CompletePasskeySignIn(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeySignInResult(rsp)
+}
+
+// StartPasskeySignInWithResponse Begin a sign-in with a passkey
+//
+// The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+// request's host names, with no identifier: the relying party, a single-use challenge that
+// lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+// when the person was verified on the device. No credential is named; the device offers the
+// ones it holds for this workspace.
+//
+// Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+// with `auth.passkey_unavailable` where the installation has no public address or the request
+// did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+// workspace answers at it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/sessions:passkey-options (the `StartPasskeySignIn` operationId).
+func (c *ClientWithResponses) StartPasskeySignInWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeySignInResult, error) {
+	rsp, err := c.StartPasskeySignIn(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeySignInResult(rsp)
+}
+
 // RefreshSessionWithBodyWithResponse Exchange a refresh token for the next pair
 //
 // Rotation, not renewal: the presented refresh token is retired in the same moment the new pair is minted, and presenting it again afterwards is treated as theft - two holders of one token - so the whole family is invalidated, the sign-in that opened it is over everywhere, and the reuse raises its own metric reason and an alert.
@@ -74521,6 +75013,79 @@ func ParseCompleteLinkResult(rsp *http.Response) (*CompleteLinkResult, error) {
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompletePasskeySignInResult parses an HTTP response from a CompletePasskeySignInWithResponse call
+func ParseCompletePasskeySignInResult(rsp *http.Response) (*CompletePasskeySignInResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompletePasskeySignInResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest SessionTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MfaChallenge
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeySignInResult parses an HTTP response from a StartPasskeySignInWithResponse call
+func ParseStartPasskeySignInResult(rsp *http.Response) (*StartPasskeySignInResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeySignInResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeySignInOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

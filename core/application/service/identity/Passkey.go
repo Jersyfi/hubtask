@@ -91,6 +91,9 @@ type relyingParty struct {
 	Name string
 }
 
+// Party is the writer's relying party, derived as the factor rules derive it.
+func (w PasskeyWriter) Party() PasskeyParty { return w.party() }
+
 // party is the writer's relying party, derived as the factor rules derive it.
 func (w PasskeyWriter) party() PasskeyParty {
 	return PasskeyParty{

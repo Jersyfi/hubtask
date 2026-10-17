@@ -33,6 +33,8 @@
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
+  import { passkeySignIn } from '../lib/data/passkeysignin.svelte.ts';
+  import { canCreatePasskeys } from '../lib/data/passkeys.ts';
   import { phaseOf, remaining } from '../lib/signin/expiry.ts';
   import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
   import { passwordFormOf } from '../lib/signin/passwordForm.ts';
@@ -176,6 +178,24 @@
     // `replace`: Back should return to the sign-in screen, which is where somebody who changed
     // their mind at the provider wants to be.
     if (url) location.assign(url);
+  }
+
+  // A passkey where the server names one (it does so only at this workspace's very host) and the
+  // browser can ask a device at all (UC-ID-21 check 1, P-05).
+  const offersPasskey = $derived(signInRules.hasPasskey && canCreatePasskeys(globalThis as never));
+  let passkeyButton = $state<HTMLElement | undefined>(undefined);
+
+  const getCredential = (options: CredentialRequestOptions) => navigator.credentials.get(options);
+
+  /** The address field offers this workspace's passkeys once it has focus, where the browser can. */
+  function offerInField(): void {
+    if (offersPasskey) void passkeySignIn.armField(getCredential);
+  }
+
+  async function signInWithPasskey(): Promise<void> {
+    const ended = await passkeySignIn.ask(getCredential);
+    // A prompt the person closed says nothing and leaves them where they were (P-11).
+    if (ended === 'cancelled') passkeyButton?.querySelector('button')?.focus();
   }
 
   async function submit(event: SubmitEvent): Promise<void> {
@@ -480,6 +500,10 @@
           {@render passwordForm()}
         {/if}
 
+        {#if offersPasskey}
+          {@render passkeyWay()}
+        {/if}
+
         <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
              cannot be, the card offers nothing it cannot back - a generic button there was a way in the
              server might refuse, and an "or" with nothing after it. -->
@@ -528,6 +552,23 @@
   </SignInCard>
 {/if}
 
+{#snippet passkeyWay()}
+  <!-- Under the password form, or the first way where the password is off. The wait for the device
+       is said once, in a region mounted empty (UC-ID-21 check 9). -->
+  <div class="passkey" bind:this={passkeyButton}>
+    <Button
+      tone="secondary"
+      isFull
+      isBusy={passkeySignIn.isWaiting}
+      busyLabel={t('app.sign_in.passkey_waiting')}
+      onclick={() => void signInWithPasskey()}
+    >
+      {t('app.sign_in.passkey')}
+    </Button>
+    <p class="waiting" role="status">{passkeySignIn.isWaiting ? t('app.sign_in.passkey_waiting_said') : ''}</p>
+  </div>
+{/snippet}
+
 {#snippet passwordForm()}
   <form onsubmit={submit}>
     <Stack gap="200">
@@ -544,6 +585,7 @@
         bind:value={email}
         type={namesAccepted ? 'text' : 'email'}
         autocomplete="username webauthn"
+        onfocus={offerInField}
         autocapitalize="none"
         spellcheck={false}
         isRequired
@@ -671,4 +713,6 @@
     height: var(--bw-hairline);
     background: var(--border-subtle);
   }
+  .passkey { display: grid; gap: var(--sp-050); }
+  .waiting { margin: 0; color: var(--text-secondary); }
 </style>

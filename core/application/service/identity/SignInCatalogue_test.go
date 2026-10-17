@@ -209,7 +209,7 @@ func TestTheWorkspacePolicyProjectionSaysAllThreeThings(t *testing.T) {
 		t.Errorf("a rotation nobody asked for reads %v", out["rotation_from"])
 	}
 	methods, _ := out["methods"].(usecase.Output)
-	if values, _ := methods["value"].([]any); len(values) != 2 {
+	if values, _ := methods["value"].([]any); len(values) != 3 {
 		t.Errorf("the methods read %v", methods)
 	}
 }

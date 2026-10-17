@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"strings"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -144,4 +145,14 @@ func secondFactorOf(
 		factor.Keys = count
 	}
 	return factor, begun, nil
+}
+
+// servesAt reports whether a request that arrived at host - the Host header, a port perhaps beside
+// it - is at the relying party's very host. A browser runs a ceremony only for the host it is on.
+func (p relyingParty) servesAt(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if at := strings.LastIndex(host, ":"); at >= 0 && !strings.Contains(host[at:], "]") {
+		host = host[:at]
+	}
+	return p.ID != "" && strings.TrimSuffix(host, ".") == p.ID
 }

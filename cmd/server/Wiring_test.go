@@ -293,7 +293,8 @@ func TestEveryStepUpVerifierIsTakenAfterTheRule(t *testing.T) {
 			return true
 		}
 		selector, ok := literal.Type.(*ast.SelectorExpr)
-		if !ok || (selector.Sel.Name != "StepUpVerifier" && selector.Sel.Name != "PasskeyWriter") {
+		if !ok || (selector.Sel.Name != "StepUpVerifier" && selector.Sel.Name != "PasskeyWriter" &&
+			selector.Sel.Name != "PasskeySignInWriter") {
 			return true
 		}
 		found++

@@ -395,6 +395,11 @@ func valueOfKind(area, name string, declaration identity.ValueDeclaration, raw a
 			}
 			words = append(words, word)
 		}
+		if len(declaration.OneOf) > 0 && !slices.ContainsFunc(words, func(word string) bool {
+			return slices.Contains(declaration.OneOf, word)
+		}) {
+			return nil, false, refused
+		}
 		return words, true, nil
 	case identity.KindLink, identity.KindText, identity.KindLocale, identity.KindTimeZone:
 		word, isWord := raw.(string)

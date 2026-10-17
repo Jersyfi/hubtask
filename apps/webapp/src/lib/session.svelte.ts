@@ -29,7 +29,7 @@
  * every entry screen draws as though no type carried anything.
  */
 
-import { TransportError, type InstallationSetUp } from '@hubtask/sync-engine';
+import { TransportError, type InstallationSetUp, type PasskeyAssertion } from '@hubtask/sync-engine';
 
 import { manifest } from './data/capabilities.svelte.ts';
 import { instance } from './data/instance.svelte.ts';
@@ -52,6 +52,8 @@ const SET_PASSWORD = '/auth/sessions:set-password';
 const LINK = '/auth/sessions:link';
 /** The step a sign-in ends in while the terms of use in force are not agreed (UC-ID-19). */
 const AGREE_TERMS = '/auth/sessions:agree-terms';
+/** A passkey sign-in's finish (identity.md §23.4). */
+const PASSKEY_SIGN_IN = '/auth/sessions:passkey';
 
 /**
  * The terms of use a person is asked to agree to: where they are kept, their version where they
@@ -360,6 +362,26 @@ class Session {
     return this.#open(() =>
       engine.mutate<SessionTokens | SecondFactorAnswer>('POST', SESSIONS, { identifier, password }),
     );
+  }
+
+  /**
+   * Signs in with what a passkey ceremony answered (identity.md §23.4). Nobody typed a name, so the
+   * identity line of a step still owed takes the one the server names. A challenge that ran out is
+   * not a refusal anybody should read: `'stale'` lets the caller ask for new options quietly.
+   */
+  async signInWithPasskey(assertion: PasskeyAssertion): Promise<'signed-in' | 'owed' | 'stale' | 'refused'> {
+    this.#email = '';
+    let stale = false;
+    const opened = await this.#open(
+      () => engine.mutate<SessionTokens | SecondFactorAnswer>('POST', PASSKEY_SIGN_IN, assertion),
+      { onRefusal: (error) => { stale = error.detailCode === 'auth.passkey_challenge_stale'; } },
+    );
+    if (opened) return 'signed-in';
+    if (stale) {
+      this.#problem = undefined;
+      return 'stale';
+    }
+    return this.#owed ? 'owed' : 'refused';
   }
 
   /**

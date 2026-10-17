@@ -294,6 +294,9 @@
   // reason and until a moment, rather than this workspace's settings leaving no way in.
   const opening = $derived(signInPolicy.opening);
   const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
+  // Passkeys are a way in beside the others and never the last one (identity.md §23.4), so they do
+  // not count in `waysOn`.
+  const passkeyOn = $derived(policy?.methods.value.includes('PASSKEY') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
   /** The last refusal of a provider's switch, with the row it belongs to. */
@@ -324,6 +327,31 @@
     const methods = [
       ...(on ? ['PASSWORD'] : []),
       ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
+      // Kept as it is: switching the password must not switch passkeys off with it.
+      ...(passkeyOn ? ['PASSKEY'] : []),
+    ];
+    await signInPolicy.save({ methods });
+    switching = undefined;
+  }
+
+  /** Why passkeys cannot be switched here, where they cannot. */
+  function passkeyFixed(): string | undefined {
+    if (!policy) return undefined;
+    const locked = lockedBecause(policy.methods.lock);
+    if (locked) return locked;
+    if (!passkeyOn && !policy.methods.installation.includes('PASSKEY')) return t('app.signin_settings.not_offered_above');
+    return undefined;
+  }
+
+  /** Signing in with a passkey alone on or off, through the rule's `methods`. */
+  async function setPasskey(on: boolean): Promise<void> {
+    if (!policy) return;
+    switching = 'passkey';
+    wayFailure = undefined;
+    const methods = [
+      ...(passwordOn ? ['PASSWORD'] : []),
+      ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
+      ...(on ? ['PASSKEY'] : []),
     ];
     await signInPolicy.save({ methods });
     switching = undefined;
@@ -556,6 +584,16 @@
                     {/if}
                     {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
                     {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+                  </li>
+                  <li class="way" data-rule>
+                    <Switch
+                      label={t('app.signin_settings.way_passkey')}
+                      hint={t('app.signin_settings.way_passkey_hint')}
+                      checked={passkeyOn}
+                      onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
+                      disabledReason={switching === 'passkey' ? t('app.signin_settings.switching') : passkeyFixed()}
+                    />
+                    {@render origin(originOf(policy.methods, (value) => (value.includes('PASSKEY') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
                   </li>
                   {#each providers as one (one.id)}
                     <li class="way" data-rule>

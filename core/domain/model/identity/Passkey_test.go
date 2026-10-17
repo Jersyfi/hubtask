@@ -92,6 +92,13 @@ func TestAPasskeyChallengeIsATokenNoOtherDoorReads(t *testing.T) {
 			t.Errorf("%s's parser read a passkey challenge", name)
 		}
 	}
+	signIn, err := NewPasskeySignInToken(shared.ID("01936f2a-7c1e-7000-8000-000000000001"), challenge)
+	if err != nil || signIn.Secret() == token.Secret() || !strings.HasPrefix(signIn.Secret(), PasskeySignInTokenPrefix) {
+		t.Errorf("a sign-in's challenge %q is not a token of its own kind (%v)", signIn.Secret(), err)
+	}
+	if _, err := ParsePendingToken(signIn.Secret()); err == nil {
+		t.Error("a pending sign-in's parser read a passkey sign-in's challenge")
+	}
 	if _, err := NewPasskeyChallengeToken(shared.ID("01936f2a-7c1e-7000-8000-000000000001"), challenge[:16]); err == nil {
 		t.Error("a short challenge made a token")
 	}
