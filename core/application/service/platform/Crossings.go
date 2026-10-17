@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
+	"time"
 
 	quotarepo "github.com/Jersyfi/hubtask/core/application/repository/quota"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -22,10 +23,16 @@ type Crossings struct {
 	Marks      quotarepo.Reached
 	Recorder   Recorder
 	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
+	// Scopes names the workspace a metering's transaction runs for, which the budget's event is
+	// written for once that transaction has ended.
+	Scopes persistence.ScopeSource
+	Clock  clock.Clock
 }
 
-func (c Crossings) on() bool { return c.Marks != nil && c.Recorder.On() }
+// On reports whether anybody listens: a caller may skip what it would read only to tell.
+func (c Crossings) On() bool { return c.Marks != nil && c.Recorder.On() }
+
+func (c Crossings) on() bool { return c.On() }
 
 // Admitted is told a create of the quota was let through: the workspace is below the limit again,
 // so the next refusal is the next crossing. In the create's own transaction.
@@ -58,6 +65,35 @@ func (c Crossings) Refused(ctx context.Context, workspace shared.ID, quota strin
 			// the next refusal tries again, since no mark was set.
 			slog.WarnContext(ctx, "a limit reached could not be told to the platform",
 				slog.String("quota", quota), slog.String("error", err.Error()))
+		}
+	})
+}
+
+// Spent is told the workspace's day of `budget` has been spent by the metering in progress. The
+// mark and the event are written once the metering's transaction has ended, in one of their own: an
+// answered AI call stays metered whatever becomes of telling it, and the day's mark makes it once,
+// also when two meterings cross it at once.
+func (c Crossings) Spent(ctx context.Context, budget string, day, at time.Time) {
+	if !c.on() || c.Scopes == nil {
+		return
+	}
+	scope, ok := c.Scopes.ScopeFromContext(ctx)
+	if !ok || scope.TenantID.IsZero() {
+		return
+	}
+	period := day.Format(time.DateOnly)
+	persistence.After(ctx, func(ctx context.Context) {
+		err := c.UnitOfWork.Within(ctx, persistence.Scope{TenantID: scope.TenantID}, func(ctx context.Context) error {
+			marked, err := c.Marks.Mark(ctx, budget, period, at)
+			if err != nil || !marked {
+				return err
+			}
+			return c.Recorder.Record(ctx, event.WorkspaceAiBudgetSpent, event.Actor{Kind: shared.ActorSystem}, at,
+				map[string]any{"budget": budget, "day": period})
+		})
+		if err != nil {
+			slog.WarnContext(ctx, "an AI budget spent could not be told to the platform",
+				slog.String("budget", budget), slog.String("error", err.Error()))
 		}
 	})
 }
