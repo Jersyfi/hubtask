@@ -91,7 +91,7 @@ type RequestTenantDeletion struct {
 func (h RequestTenantDeletion) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd RequestTenantDeletionCommand,
 ) (DeletionScheduled, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return DeletionScheduled{}, err
 	}
 	// Before the typed name and the proof, so that the refusal burns neither.
@@ -273,6 +273,7 @@ func (h RequestTenantDeletion) Descriptor() usecase.Descriptor {
 			"seeds the grace job and the final backup wake, and records the act in the tenant's " +
 			"trail and the instance journal.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Destructive: true,
 		StepUp:      "always - it is the request that ends a workspace",
 		Input: []usecase.Field{
