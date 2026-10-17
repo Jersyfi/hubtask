@@ -304,9 +304,11 @@ never rows — the boundary is a database policy, not a role.
 ## 4.2 Plans
 
 **Decided for milestone PL** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md); the
-owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace and
-provisioning on a plan. Not built yet: the resolution, the entitlements, the people limit and the
-account link - until they merge, §4 and §4.1 describe what a workspace meets.
+owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
+provisioning on a plan, finding a workspace by the platform's reference, and the sign-in rule and
+legal links resolved through the plan ([identity.md](./identity.md) §18). Not built yet: the limits
+and AI through the plan, the entitlements, the people limit and the account link - until they
+merge, §4 and §4.1 describe what a workspace meets there.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's

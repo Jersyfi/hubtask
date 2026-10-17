@@ -339,3 +339,27 @@ func actorOf(by shared.ID) (pgtype.UUID, error) {
 	}
 	return uuidOf(by)
 }
+
+// OfWorkspace answers the transaction's own workspace's plan, and false where it is on none.
+func (PlanRepository) OfWorkspace(ctx context.Context) (plan.Plan, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return plan.Plan{}, false, err
+	}
+	row, err := queries.PlanOfWorkspace(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return plan.Plan{}, false, nil
+	}
+	if err != nil {
+		return plan.Plan{}, false, queryFailed("reading the workspace's plan", err)
+	}
+	held, err := planOf(row.ID, row.Name, row.DisplayName, row.Version, row.CreatedAt, row.UpdatedAt)
+	if err != nil {
+		return plan.Plan{}, false, err
+	}
+	plans := []plan.Plan{held}
+	if err := withSettings(ctx, queries, plans, []pgtype.UUID{row.ID}); err != nil {
+		return plan.Plan{}, false, err
+	}
+	return plans[0], true, nil
+}

@@ -229,6 +229,25 @@ test('chromium: an installation lock shows the switch with who set it, and offer
   assert.deepEqual(failures, []);
 });
 
+// UC-ID-16 check 7: a plan that switches private hubs off says it is the plan, not the installation.
+test('chromium: a plan lock shows the switch with your plan as who set it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: withSwitch({ value: false, installation: false, lock: 'PLAN', source: 'PLAN', installation_source: 'PLAN' }) }));
+
+  await page.goto(`${served.origin}/administration/private-hubs`);
+  const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
+  await toggle.waitFor({ timeout: 10_000 });
+  assert.equal(await toggle.isChecked(), false);
+  assert.equal(await toggle.isDisabled(), true);
+  const said = await page.textContent('[data-private-hubs-allowed]');
+  assert.ok(said.includes('Set by your plan.'), said);
+  assert.ok(!said.includes('installation'), said);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: the owner opens a private hub in an emergency - the reason, then the hub', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

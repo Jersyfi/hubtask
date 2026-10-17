@@ -158,6 +158,38 @@ func (q *Queries) ListPlans(ctx context.Context) ([]ListPlansRow, error) {
 	return items, nil
 }
 
+const planOfWorkspace = `-- name: PlanOfWorkspace :one
+SELECT p.id, p.name, p.display_name, p.version, p.created_at, p.updated_at
+FROM tenant t
+JOIN plan p ON p.id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL
+`
+
+type PlanOfWorkspaceRow struct {
+	ID          pgtype.UUID
+	Name        string
+	DisplayName string
+	Version     int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+// The transaction's own workspace's plan, read in that workspace's scope: `tenant_self` admits its
+// own row, and `plan` carries no policy (multi-tenancy.md §4.2).
+func (q *Queries) PlanOfWorkspace(ctx context.Context) (PlanOfWorkspaceRow, error) {
+	row := q.db.QueryRow(ctx, planOfWorkspace)
+	var i PlanOfWorkspaceRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.DisplayName,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const planSettings = `-- name: PlanSettings :many
 SELECT plan_id, key, value, locked
 FROM plan_setting
