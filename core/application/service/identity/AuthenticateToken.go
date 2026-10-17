@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -221,7 +222,10 @@ func (a AuthenticateToken) executeSession(
 		// own session carries every declared scope, because it is the person.
 		scopes := a.SessionScopes
 		if credential.Session.Scopes != nil {
-			scopes = credential.Session.Scopes
+			// Cut to what a consent may hand out: a grant stored before the consent refused the
+			// control plane would otherwise carry it unbounded, since the register bounds tokens.
+			scopes = slices.DeleteFunc(slices.Clone(credential.Session.Scopes),
+				func(scope string) bool { return !Consentable(scope) })
 		} else {
 			scopes = a.elevatedScopes(ctx, credential.Session, now, scopes)
 		}
