@@ -343,6 +343,9 @@ func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 		if configured, _ := row["configured"].(bool); configured {
 			standing.Configured = &configured
 		}
+		if locked, _ := row["locked"].(bool); locked {
+			standing.Locked = &locked
+		}
 		if used, held := row["used"].(int64); held {
 			standing.Used = &used
 		}
