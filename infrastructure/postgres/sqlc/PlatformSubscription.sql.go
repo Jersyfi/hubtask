@@ -36,9 +36,12 @@ func (q *Queries) ActivePlatformSubscriptionIDs(ctx context.Context) ([]pgtype.U
 }
 
 const countPlatformDeadLetters = `-- name: CountPlatformDeadLetters :one
-SELECT count(*)::bigint FROM platform_delivery WHERE status = 'DEAD_LETTER'
+SELECT count(*)::bigint FROM platform_delivery
+WHERE status = 'DEAD_LETTER' AND error_code IS DISTINCT FROM 'webhooks.event_expired'
 `
 
+// The dead letters that can be redelivered: one whose event was swept is not counted, so A-21
+// resolves when the rest are redelivered.
 func (q *Queries) CountPlatformDeadLetters(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countPlatformDeadLetters)
 	var column_1 int64
@@ -110,7 +113,8 @@ const findPlatformSubscription = `-- name: FindPlatformSubscription :one
 SELECT s.id, s.target_url, s.secret_enc, s.secret_key_id, s.state, s.last_error, s.last_delivery_at,
        s.from_file, s.created_at, s.version,
        (SELECT count(*) FROM platform_delivery d
-         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER')::bigint AS dead_letters
+         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER'
+           AND d.error_code IS DISTINCT FROM 'webhooks.event_expired')::bigint AS dead_letters
 FROM platform_subscription s
 WHERE s.id = $1
 `
@@ -216,7 +220,8 @@ const listPlatformSubscriptions = `-- name: ListPlatformSubscriptions :many
 SELECT s.id, s.target_url, s.secret_enc, s.secret_key_id, s.state, s.last_error, s.last_delivery_at,
        s.from_file, s.created_at, s.version,
        (SELECT count(*) FROM platform_delivery d
-         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER')::bigint AS dead_letters
+         WHERE d.subscription_id = s.id AND d.status = 'DEAD_LETTER'
+           AND d.error_code IS DISTINCT FROM 'webhooks.event_expired')::bigint AS dead_letters
 FROM platform_subscription s
 ORDER BY s.created_at, s.id
 `
@@ -377,12 +382,14 @@ func (q *Queries) RecordPlatformSubscriptionOutcome(ctx context.Context, arg Rec
 
 const requeueDeadPlatformDeliveries = `-- name: RequeueDeadPlatformDeliveries :many
 UPDATE platform_delivery
-SET status = 'PENDING', next_attempt_at = NULL, updated_at = $1
+SET status = 'PENDING', next_attempt_at = NULL, updated_at = $1,
+    attempt = ((attempt + $2::int - 1) / $2::int) * $2::int
 WHERE id IN (
   SELECT dead.id FROM platform_delivery AS dead
-  WHERE dead.subscription_id = $2 AND dead.status = 'DEAD_LETTER'
+  WHERE dead.subscription_id = $3 AND dead.status = 'DEAD_LETTER'
+    AND dead.error_code IS DISTINCT FROM 'webhooks.event_expired'
   ORDER BY dead.id
-  LIMIT $3
+  LIMIT $4
   FOR UPDATE SKIP LOCKED
 )
 AND status = 'DEAD_LETTER'
@@ -391,14 +398,22 @@ RETURNING id
 
 type RequeueDeadPlatformDeliveriesParams struct {
 	Now            pgtype.Timestamptz
+	Round          int32
 	SubscriptionID pgtype.UUID
 	Batch          int32
 }
 
-// A batch of the subscription's dead letters back to pending. The status in the statement makes
-// two redeliveries at once queue each dead letter once.
+// A batch of the subscription's dead letters back to pending, each at the start of a fresh round of
+// attempts: the count is raised to the round's boundary, so a round a pause or an expiry cut short
+// does not shorten the next. The status in the statement makes two redeliveries at once queue each
+// dead letter once. A dead letter whose event was swept is not one: nothing can be sent for it.
 func (q *Queries) RequeueDeadPlatformDeliveries(ctx context.Context, arg RequeueDeadPlatformDeliveriesParams) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, requeueDeadPlatformDeliveries, arg.Now, arg.SubscriptionID, arg.Batch)
+	rows, err := q.db.Query(ctx, requeueDeadPlatformDeliveries,
+		arg.Now,
+		arg.Round,
+		arg.SubscriptionID,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}

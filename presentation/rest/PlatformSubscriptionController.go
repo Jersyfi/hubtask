@@ -124,3 +124,41 @@ func (c *RestController) RotatePlatformSubscriptionSecret(
 	}
 	writeJSON(w, r, http.StatusOK, out)
 }
+
+const (
+	listPlatformDeliveriesUseCase        = "ListPlatformDeliveries"
+	redeliverPlatformSubscriptionUseCase = "RedeliverPlatformSubscription"
+)
+
+// ListPlatformDeliveries answers GET /admin/subscriptions/{subscriptionId}/deliveries.
+func (c *RestController) ListPlatformDeliveries(
+	w http.ResponseWriter, r *http.Request, subscriptionID openapi_types.UUID,
+	params openapi.ListPlatformDeliveriesParams,
+) {
+	in := usecase.Input{"subscription_id": subscriptionID.String()}
+	if params.Status != nil {
+		in["status"] = string(*params.Status)
+	}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+	out, ok := c.read(w, r, listPlatformDeliveriesUseCase, in)
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
+}
+
+// RedeliverPlatformSubscription answers POST /admin/subscriptions/{subscriptionId}:redeliver.
+func (c *RestController) RedeliverPlatformSubscription(
+	w http.ResponseWriter, r *http.Request, subscriptionID openapi_types.UUID,
+) {
+	out, ok := c.read(w, r, redeliverPlatformSubscriptionUseCase, usecase.Input{"subscription_id": subscriptionID.String()})
+	if !ok {
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, out)
+}
