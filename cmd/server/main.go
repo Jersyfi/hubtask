@@ -511,6 +511,19 @@ func run() error {
 				Domains:      domains,
 			},
 		},
+		// A key is asked for at the factor's step, the step-up and the setup during sign-in, where it
+		// can sign (identity.md §23.2). In the literal, for the same reason.
+		KeyProofs: &identity.KeyProofs{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+			Proofs:   postgres.NewPasskeyProofRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Holders:  postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Verifier: webauthn.Verifier{},
+		},
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
 		StepUpWindow: cfg.StepUpWindow,
 		Encryptor:    encryptor,

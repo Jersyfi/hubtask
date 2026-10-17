@@ -34,6 +34,8 @@ type CompleteLinkCommand struct {
 	Password     secret.Secret
 	// TenantHeader may confirm the token's tenant, never overrule it.
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // CompleteLink is the step ADR-0071's addendum (E2) adds: a provider vouched for an address whose
@@ -148,18 +150,14 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 			return err
 		}
 
-		// An armed second factor is the rest of the account's proof. The link travels on into
+		// A second factor held here is the rest of the account's proof. The link travels on into
 		// the TOTP credential, and the second factor's step connects it.
-		armed := false
-		if s.Enrollments != nil {
-			enrollment, err := s.Enrollments.Find(ctx, account.ID)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		held, err := s.factorHeldAt(ctx, account.ID, cmd.Host)
+		if err != nil {
+			return err
 		}
-		if armed {
-			next, err := w.handOnToTheFactor(ctx, scope, account, credential, now)
+		if held.any() {
+			next, err := w.handOnToTheFactor(ctx, scope, account, credential, held, now)
 			if err != nil {
 				return err
 			}
@@ -189,7 +187,7 @@ func (h CompleteLink) Execute(ctx context.Context, cmd CompleteLinkCommand) (Sig
 // handOnToTheFactor mints the TOTP credential that carries the link on to the second factor's step.
 func (w OidcWriter) handOnToTheFactor(
 	ctx context.Context, scope persistence.Scope, account domain.Account,
-	from domain.PendingCredential, now time.Time,
+	from domain.PendingCredential, held heldFactor, now time.Time,
 ) (SignInChallenge, error) {
 	s := w.Session
 	material, err := s.Entropy.Bytes(domain.TokenSecretBytes)
@@ -216,11 +214,19 @@ func (w OidcWriter) handOnToTheFactor(
 		return SignInChallenge{}, err
 	}
 	s.stepOwed(ctx, next.Purpose)
-	return SignInChallenge{
+	challenge := SignInChallenge{
 		Token:     secret.New(presented.Secret()),
 		ExpiresAt: next.ExpiresAt,
-		Methods:   []string{methodTotp, methodRecovery},
-	}, nil
+		Methods:   factorMethods(held),
+	}
+	if len(held.Keys) > 0 {
+		challenge.KeyOptions, err = s.issueKeyChallenge(
+			ctx, scope.TenantID, domain.PendingPasskeyFactor, account.ID, "", held)
+		if err != nil {
+			return SignInChallenge{}, err
+		}
+	}
+	return challenge, nil
 }
 
 // Connect writes the link once the account's own proof is complete, in the caller's transaction,
@@ -283,6 +289,7 @@ func (h CompleteLink) Descriptor() usecase.Descriptor {
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it."},
+			hostField,
 		},
 		// Required: the link is recorded whichever way the step ends - here, or where the second
 		// factor's step completes it.
@@ -304,6 +311,7 @@ func (h CompleteLink) invoke(
 		PendingToken: secret.New(in.String("pending_token")),
 		Password:     secret.New(in.String("password")),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

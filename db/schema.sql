@@ -330,7 +330,7 @@ CREATE TABLE session (
   -- what every row means again an hour later.
   elevated_until  timestamptz,
   -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
-  -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
+  -- PASSWORD_RECOVERY, PASSWORD_PASSKEY, OIDC, INVITATION, RESET, PASSKEY. Answered in the
   -- session list, so that a person reading their own sessions can tell them apart. NULL is a
   -- session opened before the column existed.
   signed_in_with text,
