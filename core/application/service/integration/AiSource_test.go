@@ -30,6 +30,7 @@ var (
 
 type sourceWorld struct {
 	level     identityrepo.InstanceLevel
+	plan      domain.AiLayer
 	workspace identity.Workspace
 	offered   []domain.AiProvider
 	choice    *domain.AiChoice
@@ -37,6 +38,8 @@ type sourceWorld struct {
 }
 
 func (w *sourceWorld) Read(context.Context) (identityrepo.InstanceLevel, error) { return w.level, nil }
+
+func (w *sourceWorld) PlanAi(context.Context) (domain.AiLayer, error) { return w.plan, nil }
 func (w *sourceWorld) Write(context.Context, identityrepo.InstanceLevel, shared.ID, time.Time) error {
 	return nil
 }
@@ -121,7 +124,7 @@ func sourceRegistry(t *testing.T, world *sourceWorld) *usecase.Registry {
 	writer := AiSourceWriter{
 		Rules: AiRules{
 			Instance: world, Workspaces: sourceWorkspaces{world},
-			Offered: sourceOffered{world}, Choices: sourceChoices{world},
+			Offered: sourceOffered{world}, Choices: sourceChoices{world}, Plans: world,
 		},
 		Authorizer: providerAllow{}, Audit: store, UnitOfWork: providerDirect{},
 		Clock: providerClock{}, Reindex: sourceReseeder{world},

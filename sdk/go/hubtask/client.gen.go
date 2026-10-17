@@ -4987,7 +4987,7 @@ type AiProviderKind string
 
 // AiSource defines model for AiSource.
 type AiSource struct {
-	// InstallationSources Which sources a workspace may use: none, only a model the installation offers, only its own (the default), or either.
+	// InstallationSources What the levels above the workspace allow - the installation and the workspace's plan together - which is what the workspace may narrow.
 	InstallationSources AiSources `json:"installation_sources"`
 
 	// KeepingOutCount How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.
