@@ -223,7 +223,10 @@ by design. Its evidence, and that of every control-plane act, lives in **`instan
 per act (`tenant.provisioned`, `tenant.suspended`, `tenant.resumed`, `tenant.deletion_requested`,
 `tenant.deletion_cancelled`, `tenant.hard_deleted`, `tenant.password_opened`, `tenant.password_closed`,
 `tenant.plan_changed`, `tenant.reference_changed`, `plan.created`, `plan.changed`, `plan.removed`,
-`instance.session_elevated`).
+`instance.session_elevated`, and a purchase platform's subscription created, changed, rotated,
+removed and redelivered - `instance.platform_subscription_*`, by its id, never its address or
+secret). The installation's events for that platform (`platform_event`, multi-tenancy.md §4.3) are
+no audit: they tell the platform what happened, and are swept after 30 days.
 A row carries identifiers, the slug, a plan's short name - never its display name - the acting
 operator's label,
 moments and counts (for a hard delete: rows, media objects and bytes, outbox events, queued jobs and
