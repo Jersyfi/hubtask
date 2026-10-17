@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -259,11 +260,24 @@ func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
 		plan = *moved.Tenant.Plan
 	}
 	return cli.Emit(moved, Table{
-		Columns: []string{"workspace", "plan", "features resting", "exceptions kept"},
+		Columns: []string{"workspace", "plan", "features resting", "exceptions kept", "limits exceeded"},
 		Rows: [][]string{{
 			moved.Tenant.Slug, plan, leftOutOf(&moved.FeaturesResting), strings.Join(moved.ExceptionsKept, ","),
+			exceededOf(moved.LimitsExceeded),
 		}},
 	})
+}
+
+// exceededOf says each limit the workspace is now over as "quota used/limit".
+func exceededOf(exceeded *[]openapi.LimitExceeded) string {
+	if exceeded == nil {
+		return ""
+	}
+	said := make([]string, 0, len(*exceeded))
+	for _, over := range *exceeded {
+		said = append(said, fmt.Sprintf("%s %d/%d", over.Quota, over.Used, over.Limit))
+	}
+	return strings.Join(said, ",")
 }
 
 func planPath(name string) string { return adminPlansPath + "/" + url.PathEscape(name) }

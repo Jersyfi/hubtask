@@ -117,6 +117,7 @@ func TestAWorkspaceMoveReachesItsUseCase(t *testing.T) {
 		},
 		"features_resting": []any{"WEBHOOKS"},
 		"exceptions_kept":  []string{"items"},
+		"limits_exceeded":  []usecase.Output{{"quota": "items", "limit": int64(1000), "used": int64(4210)}},
 	}}
 	recorder := callPlans(t, registry, http.MethodPost,
 		"/admin/tenants/0192f000-0000-7000-8000-0000000000e1:move-plan",
@@ -135,6 +136,10 @@ func TestAWorkspaceMoveReachesItsUseCase(t *testing.T) {
 	tenant, _ := answer["tenant"].(map[string]any)
 	if tenant["plan"] != "family" || tenant["version"] != float64(5) || answer["exceptions_kept"].([]any)[0] != "items" {
 		t.Errorf("answered %s", recorder.Body)
+	}
+	exceeded, _ := answer["limits_exceeded"].([]any)
+	if len(exceeded) != 1 || exceeded[0].(map[string]any)["used"] != float64(4210) {
+		t.Errorf("the limits exceeded answered %v", answer["limits_exceeded"])
 	}
 }
 

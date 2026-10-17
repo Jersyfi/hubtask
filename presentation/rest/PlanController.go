@@ -206,7 +206,19 @@ func (c *RestController) MoveTenantPlan(
 		Tenant:          adminTenantResponse(tenant),
 		FeaturesResting: featuresOf(out["features_resting"]),
 		ExceptionsKept:  stringsOf(out["exceptions_kept"]),
+		LimitsExceeded:  limitsExceededOf(out["limits_exceeded"]),
 	})
+}
+
+func limitsExceededOf(value any) *[]openapi.LimitExceeded {
+	exceeded := []openapi.LimitExceeded{}
+	listed, _ := value.([]usecase.Output)
+	for _, over := range listed {
+		limit, _ := over["limit"].(int64)
+		used, _ := over["used"].(int64)
+		exceeded = append(exceeded, openapi.LimitExceeded{Quota: over.String("quota"), Limit: limit, Used: used})
+	}
+	return &exceeded
 }
 
 func featuresOf(value any) []openapi.PlanFeature {

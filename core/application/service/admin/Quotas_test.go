@@ -20,6 +20,7 @@ import (
 )
 
 type quotaStoreFake struct {
+	plan      quotarepo.PlanLimits
 	instance  quotarepo.Overrides
 	overrides quotarepo.Overrides
 	versions  []int
@@ -36,7 +37,7 @@ func (s *quotaStoreFake) InstanceOverrides(context.Context) (quotarepo.Overrides
 func (s *quotaStoreFake) InstanceLocks(context.Context) (map[string]bool, error) { return nil, nil }
 
 func (s *quotaStoreFake) PlanLimits(context.Context) (quotarepo.PlanLimits, error) {
-	return quotarepo.PlanLimits{}, nil
+	return s.plan, nil
 }
 
 func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error) {

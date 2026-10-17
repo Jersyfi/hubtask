@@ -7569,6 +7569,16 @@ type LegalPolicySettings struct {
 	TermsVersion SignInPolicyText `json:"terms_version"`
 }
 
+// LimitExceeded defines model for LimitExceeded.
+type LimitExceeded struct {
+	// Limit The limit in force.
+	Limit int64  `json:"limit"`
+	Quota string `json:"quota"`
+
+	// Used What the workspace holds.
+	Used int64 `json:"used"`
+}
+
 // LinkCompletion defines model for LinkCompletion.
 type LinkCompletion struct {
 	// Password The password of the account the provider's address matched.
@@ -10062,7 +10072,10 @@ type TenantPlanMoved struct {
 
 	// FeaturesResting The features the workspace's plan now leaves out.
 	FeaturesResting []PlanFeature `json:"features_resting"`
-	Tenant          AdminTenant   `json:"tenant"`
+
+	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.
+	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
+	Tenant         AdminTenant      `json:"tenant"`
 }
 
 // TenantProvision defines model for TenantProvision.
