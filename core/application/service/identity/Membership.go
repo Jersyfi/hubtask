@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -65,6 +66,23 @@ type GrantMembership struct {
 	// Notices tells the person given the role (UC-NOT-01 check 9) - the notification service's
 	// RecordRoleGranted - inside the grant's transaction. Nil tells nobody.
 	Notices RoleNotices
+	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
+	// nobody.
+	Platform OwnerChanges
+}
+
+// OwnerChanges tells a purchase platform that the set of the workspace's owners changed, in the
+// change's transaction - the platform package's recorder, which names no account.
+type OwnerChanges interface {
+	OwnersChanged(ctx context.Context, actor event.Actor, at time.Time) error
+}
+
+// ownersChanged tells it, where anybody listens.
+func ownersChanged(ctx context.Context, platform OwnerChanges, actor appshared.ActorContext, at time.Time) error {
+	if platform == nil {
+		return nil
+	}
+	return platform.OwnersChanged(ctx, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, at)
 }
 
 // RoleNotices writes the record that tells a person about a role they were given, in the caller's
@@ -159,7 +177,31 @@ func (h GrantMembership) record(
 	if err != nil || !created {
 		return held, created, err
 	}
-	return held, true, h.recordAudit(ctx, held, actor)
+	if err := h.recordAudit(ctx, held, actor); err != nil {
+		return held, true, err
+	}
+	// Here rather than in Execute, so that a managed account placed as the workspace's owner is
+	// told as well: its creation records its grant through this.
+	if holdsWorkspaceOwner([]domain.Grant{held}) {
+		changes, err := h.groupHasMembers(ctx, held)
+		if err != nil || !changes {
+			return held, true, err
+		}
+		if err := ownersChanged(ctx, h.Platform, actor, h.Clock.Now()); err != nil {
+			return held, true, err
+		}
+	}
+	return held, true, nil
+}
+
+// groupHasMembers is whether a grant changes anybody's roles: an account's always does, a group's
+// only once somebody is in it.
+func (h GrantMembership) groupHasMembers(ctx context.Context, grant domain.Grant) (bool, error) {
+	if grant.GroupID.IsZero() {
+		return true, nil
+	}
+	members, err := h.Groups.Members(ctx, grant.GroupID)
+	return len(members) > 0, err
 }
 
 func (h GrantMembership) subjectExists(ctx context.Context, grant domain.Grant) error {
@@ -419,6 +461,9 @@ type RevokeMembership struct {
 	// Owners keeps the workspace's last owner (domain-model.md §3.2). Asked only for an OWNER grant
 	// on the workspace; nil refuses that revocation rather than letting it pass unguarded.
 	Owners repository.Owners
+	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
+	// nobody.
+	Platform OwnerChanges
 }
 
 // LastMember is the work context's answer to a membership that ended: a private hub nobody is left
@@ -519,6 +564,12 @@ func (h RevokeMembership) Execute(
 		if err := h.recordAudit(ctx, grant, actor); err != nil {
 			return err
 		}
+		// A group's grant changes nobody's role while the group is empty.
+		if holdsWorkspaceOwner([]domain.Grant{grant}) && (!grant.AccountID.IsZero() || lostAnybody(loss)) {
+			if err := ownersChanged(ctx, h.Platform, actor, h.Clock.Now()); err != nil {
+				return err
+			}
+		}
 		// After the audit entry, so the trail reads the revocation before the deletion it caused.
 		// A group's grant cannot be the last member's: no group holds a role in a private hub.
 		if h.LastMember == nil || grant.Scope.Type == domain.ScopeTenant || grant.AccountID.IsZero() {
@@ -592,4 +643,13 @@ func (h RevokeMembership) invoke(
 		return nil, err
 	}
 	return usecase.Output{}, nil
+}
+
+func lostAnybody(losses ...access.Loss) bool {
+	for _, loss := range losses {
+		if len(loss.Accounts) > 0 {
+			return true
+		}
+	}
+	return false
 }
