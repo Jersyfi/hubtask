@@ -606,6 +606,92 @@ func TestTheEntryIsReadOnlyWhenTheConditionNamesIt(t *testing.T) {
 	}
 }
 
+// entryBatch is the one-statement read of a page's entries, counting its calls.
+type entryBatch struct {
+	store *itemStore
+	calls int
+	asked []shared.ID
+}
+
+func (b *entryBatch) FindMany(_ context.Context, ids []shared.ID) ([]work.WorkItem, error) {
+	b.calls++
+	b.asked = append(b.asked, ids...)
+	var found []work.WorkItem
+	for _, id := range ids {
+		if item, ok := b.store.stored[id]; ok {
+			found = append(found, item)
+		}
+	}
+	return found, nil
+}
+
+// countedItems is the single-entry read, counting its calls.
+type countedItems struct {
+	*itemStore
+	finds int
+}
+
+func (c *countedItems) Find(ctx context.Context, id shared.ID) (work.WorkItem, error) {
+	c.finds++
+	return c.itemStore.Find(ctx, id)
+}
+
+// A page of candidates against a condition naming `item` costs one read of the page, not one per
+// candidate: that read was most of what a long read-past cost.
+func TestAPageOfCandidatesIsReadInOneStatement(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "item.completed_at != null" })
+
+	var due []repository.Candidate
+	engine := newConditions()
+	for i := range 5 {
+		id := shared.MustParseID("0192f000-0000-7000-8000-00000000020" + string(rune('0'+i)))
+		h.items.stored[id] = work.WorkItem{ID: id, Type: work.ItemTask}
+		due = append(due, candidate(id, now.AddDate(0, 0, -400)))
+		engine.answer[id] = i%2 == 0
+	}
+	h.marking.due = due
+
+	batch := &entryBatch{store: h.items}
+	single := &countedItems{itemStore: h.items}
+	sweeper := h.sweeper()
+	sweeper.Conditions = engine
+	sweeper.Entries = batch
+	sweeper.Items = single
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+
+	if batch.calls != 1 || len(batch.asked) != 5 {
+		t.Errorf("%d batch reads for %d entries, want one for five", batch.calls, len(batch.asked))
+	}
+	if single.finds != 0 {
+		t.Errorf("%d single reads beside the batch", single.finds)
+	}
+	// The answer is the same as entry by entry: the three the condition matches are announced.
+	if len(h.marking.marked) != 3 {
+		t.Errorf("announced %d entries, want the three the condition matches", len(h.marking.marked))
+	}
+}
+
+// A page whose condition names only the clock reads no entry at all, batch or not.
+func TestAPageIsNotReadForAConditionThatDoesNotNameTheEntry(t *testing.T) {
+	h := newSweepHarness()
+	h.ruleIn(t, func(in *domain.NewRuleInput) { in.Condition = "now.getHours() < 23" })
+	h.marking.due = []repository.Candidate{candidate(taskID, now.AddDate(0, 0, -400))}
+
+	batch := &entryBatch{store: h.items}
+	sweeper := h.sweeper()
+	sweeper.Conditions = newConditions()
+	sweeper.Entries = batch
+	if _, err := sweeper.Pass(context.Background(), actor()); err != nil {
+		t.Fatalf("sweeping: %v", err)
+	}
+	if batch.calls != 0 {
+		t.Errorf("the page was read %d times for a condition that names only the clock", batch.calls)
+	}
+}
+
 // Neither direction is an answer. Defaulting to true would delete what the condition was written to
 // protect; defaulting to false would quietly retain everything and look like a working rule.
 func TestAConditionThatCannotBeCompiledStopsThePass(t *testing.T) {

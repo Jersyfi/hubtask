@@ -58,6 +58,10 @@ type Sweeper struct {
 	Marking repository.Marking
 	Holds   repository.LegalHolds
 	Items   workrepo.Items
+	// Entries reads a page's entries in one statement, the first time a condition on that page
+	// asks for `item`. Optional: without it every candidate is read on its own through Items, which
+	// is what a page of a thousand candidates costs a thousand statements for (data-retention.md §5).
+	Entries workrepo.ItemBatch
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
 	Purger Purger
@@ -171,6 +175,7 @@ func (s Sweeper) announce(
 			return Outcome{}, err
 		}
 		blocks := pageBlocks{}
+		entries := &pageEntries{batch: s.Entries, ids: candidateIDs(candidates)}
 
 		for _, candidate := range candidates {
 			if markable >= s.batch() {
@@ -183,7 +188,7 @@ func (s Sweeper) announce(
 				// keeping it, its period simply has not run out - and not matched either.
 				continue
 			}
-			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
+			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs, entries)
 			if err != nil {
 				return Outcome{}, err
 			}
@@ -594,7 +599,7 @@ func (s Sweeper) remove(
 // and the run's own error handling decides.
 func (s Sweeper) matchesCondition(
 	ctx context.Context, rule domain.Rule, candidate repository.Candidate, now time.Time,
-	programs map[shared.ID]expression.Program,
+	programs map[shared.ID]expression.Program, entries *pageEntries,
 ) (bool, error) {
 	if rule.Condition == "" {
 		return true, nil
@@ -617,7 +622,9 @@ func (s Sweeper) matchesCondition(
 		programs[rule.ID] = program
 	}
 
-	out, err := program.Evaluate(ctx, &candidateValues{sweeper: s, candidate: candidate, now: now})
+	out, err := program.Evaluate(ctx, &candidateValues{
+		sweeper: s, candidate: candidate, now: now, entries: entries,
+	})
 	if err != nil {
 		return false, err
 	}
@@ -630,6 +637,7 @@ type candidateValues struct {
 	sweeper   Sweeper
 	candidate repository.Candidate
 	now       time.Time
+	entries   *pageEntries
 }
 
 func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, error) {
@@ -639,9 +647,16 @@ func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, 
 		// sees one moment (automation.md §1.2).
 		return v.now, true, nil
 	case condition.VarItem:
-		item, err := v.sweeper.Items.Find(ctx, v.candidate.ID)
+		item, found, err := v.entries.find(ctx, v.candidate.ID)
 		if err != nil {
 			return nil, false, err
+		}
+		if !found {
+			// No batch reader, or the entry left the page's answer: one read, and its not-found
+			// is the answer it always was.
+			if item, err = v.sweeper.Items.Find(ctx, v.candidate.ID); err != nil {
+				return nil, false, err
+			}
 		}
 		return condition.ItemDocument(item), true, nil
 	case condition.VarTenant:
@@ -652,6 +667,32 @@ func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, 
 	default:
 		return nil, false, nil
 	}
+}
+
+// pageEntries is one page's entries, read in one statement the first time a condition asks for one,
+// and never for a page whose conditions do not name `item`.
+type pageEntries struct {
+	batch  workrepo.ItemBatch
+	ids    []shared.ID
+	loaded map[shared.ID]work.WorkItem
+}
+
+func (p *pageEntries) find(ctx context.Context, id shared.ID) (work.WorkItem, bool, error) {
+	if p == nil || p.batch == nil {
+		return work.WorkItem{}, false, nil
+	}
+	if p.loaded == nil {
+		items, err := p.batch.FindMany(ctx, p.ids)
+		if err != nil {
+			return work.WorkItem{}, false, err
+		}
+		p.loaded = make(map[shared.ID]work.WorkItem, len(items))
+		for _, item := range items {
+			p.loaded[item.ID] = item
+		}
+	}
+	item, found := p.loaded[id]
+	return item, found, nil
 }
 
 // Until then nothing sets it, which is the honest state rather than a silent gap.
