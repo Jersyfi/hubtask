@@ -12,6 +12,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	envport "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -133,8 +134,11 @@ func TestTheWorkspaceCommand(t *testing.T) {
 // The machine's two use cases are wired whole: a cancel without its automation switch refuses
 // (admin.automations_not_wired), and one without its trail or journal could not record the act.
 func TestTheMachineRecovererIsWiredWhole(t *testing.T) {
-	r := machineRecoverer(postgres.NewUnitOfWork(nil), secret.New("0123456789abcdef0123456789abcdef"))
+	r := machineRecoverer(postgres.NewUnitOfWork(nil), secret.New("0123456789abcdef0123456789abcdef"), envport.TenancyMulti)
 	resume, cancel := r.Resume.LifecycleShift, r.Cancel
+	if !resume.Platform.On() {
+		t.Error("a resume from the machine tells the platform nothing")
+	}
 	if r.Tenants == nil || r.UnitOfWork == nil ||
 		resume.Tenants == nil || resume.Journal == nil || resume.Audit == nil || resume.UnitOfWork == nil ||
 		resume.Clock == nil || resume.IDs == nil ||

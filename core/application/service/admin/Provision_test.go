@@ -158,6 +158,11 @@ func (s *tenantsStore) SetStatus(
 	_ context.Context, from, to domain.TenantStatus, _ time.Time,
 ) (bool, error) {
 	s.moved = append(s.moved, string(from)+"->"+string(to))
+	if s.moveOK {
+		// As the statement does: the row moves and its version with it.
+		s.record.Status = to
+		s.record.Version++
+	}
 	return s.moveOK, nil
 }
 

@@ -8,8 +8,10 @@ import (
 	"errors"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -115,6 +117,8 @@ type LifecycleShift struct {
 	IDs        clock.IDGenerator
 	// Tenancy is read by the suspension alone: in single mode it is refused (requireMulti).
 	Tenancy env.TenancyMode
+	// Platform tells a purchase platform the workspace was suspended or is active again (UC-INS-14).
+	Platform platform.Recorder
 }
 
 // requireMulti refuses an act that would shut a single-mode installation's only workspace: that
@@ -188,10 +192,17 @@ func (s LifecycleShift) shift(
 		}); err != nil {
 			return err
 		}
-		return s.Journal.Record(ctx, adminrepo.InstanceEvent{
+		if err := s.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: s.IDs.NewID(), OccurredAt: now, Action: journal,
 			TenantID: tenantID, TenantSlug: record.Slug, ActorLabel: actor.AccountName,
-		})
+		}); err != nil {
+			return err
+		}
+		told := event.WorkspaceResumed
+		if to == domain.TenantSuspended {
+			told = event.WorkspaceSuspended
+		}
+		return s.Platform.Record(ctx, told, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, nil)
 	})
 }
 

@@ -12,6 +12,7 @@ import (
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -144,6 +145,43 @@ func TestAWorkspaceMovedIsToldWithThePlanItLeft(t *testing.T) {
 	}
 	if len(log.events) != 1 {
 		t.Errorf("a move to the plan it is on wrote %d events", len(log.events)-1)
+	}
+}
+
+func TestASuspensionAndAResumptionAreTold(t *testing.T) {
+	f := newShiftFixture(domain.TenantActive)
+	f.tenants.record.Version = 3
+	recorder, log := recorderOn(f.tenants)
+	f.shift.Platform = recorder
+
+	if err := (SuspendTenant{f.shift}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
+		t.Fatalf("suspending: %v", err)
+	}
+	suspended := onlyEvent(t, log, event.WorkspaceSuspended)
+	if state := stateOf(t, suspended); state["status"] != "SUSPENDED" || state["version"] != int64(4) {
+		t.Errorf("suspended with %v", state)
+	}
+	if suspended.Actor.ID != operator().AccountID {
+		t.Errorf("told as %+v", suspended.Actor)
+	}
+	carriesNoName(t, suspended, "acme")
+
+	// Suspending again: the state already stands, and nothing is told.
+	if err := (SuspendTenant{f.shift}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
+		t.Fatal(err)
+	}
+	if len(log.events) != 1 {
+		t.Fatalf("a repeated suspension wrote %d events", len(log.events)-1)
+	}
+
+	if err := (ResumeTenant{f.shift}).Execute(t.Context(), operator(), lifecycleTenant); err != nil {
+		t.Fatalf("resuming: %v", err)
+	}
+	if len(log.events) != 2 || log.events[1].Type != event.WorkspaceResumed {
+		t.Fatalf("resuming wrote %v", log.events)
+	}
+	if state := stateOf(t, log.events[1]); state["status"] != "ACTIVE" || state["version"] != int64(5) {
+		t.Errorf("resumed with %v", state)
 	}
 }
 

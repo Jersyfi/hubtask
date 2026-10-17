@@ -11,6 +11,7 @@ import (
 
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
+	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	envport "github.com/Jersyfi/hubtask/core/port/environment"
@@ -56,22 +57,27 @@ func runWorkspaceCommand(args []string, stdout, stderr io.Writer) int {
 		if err != nil {
 			return nil, nil, err
 		}
-		return machineRecoverer(postgres.NewUnitOfWork(pool), cfg.SecretKey), pool.Close, nil
+		return machineRecoverer(postgres.NewUnitOfWork(pool), cfg.SecretKey, cfg.Tenancy), pool.Close, nil
 	})
 }
 
 // machineRecoverer wires the two use cases as the server wires them for the control plane, so the
 // machine's resume and cancel are the API's.
-func machineRecoverer(uow persistence.UnitOfWork, secretKey secret.Secret) adminservice.RecoverWorkspace {
+func machineRecoverer(
+	uow persistence.UnitOfWork, secretKey secret.Secret, tenancy envport.TenancyMode,
+) adminservice.RecoverWorkspace {
 	ids := clockadapter.NewUUIDv7(clockadapter.System{})
 	tenants := postgres.NewAdminTenantRepository()
+	told := platformservice.Recorder{
+		Events: postgres.NewPlatformEventRepository(), Workspaces: tenants, IDs: ids, Tenancy: tenancy,
+	}
 	journal := postgres.NewInstanceJournal(security.NewCursorCodec(secretKey))
 	sink := postgres.NewAuditSink(ids).Keyed(security.NewAuditFingerprinter(secretKey))
 	return adminservice.RecoverWorkspace{
 		Tenants: tenants, UnitOfWork: uow,
 		Resume: adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: tenants, Journal: journal, Audit: sink, UnitOfWork: uow,
-			Clock: clockadapter.System{}, IDs: ids,
+			Clock: clockadapter.System{}, IDs: ids, Platform: told,
 		}},
 		Cancel: adminservice.CancelTenantDeletion{
 			Tenants: tenants, Journal: journal, Audit: sink, UnitOfWork: uow,
