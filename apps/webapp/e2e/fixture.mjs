@@ -224,6 +224,19 @@ export const CONSENT_REGISTER = { data: [{ account_id: '01a0e2e0-0000-7000-8000-
  * any more, and a key the ring no longer holds that a sign-in provider's secret and two webhook
  * secrets still name - the census by kind, never by workspace.
  */
+/** A purchase platform's subscription that could not be reached: four events wait (UC-INS-14). */
+export const PLATFORM_SUBSCRIPTIONS = [{
+  id: '01a0e2e0-0000-7000-8000-0000000007a1',
+  target_url: 'https://shop.anbieter.example/hubtask',
+  state: 'ACTIVE',
+  dead_letters: 4,
+  last_delivery_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+  last_error: 'webhooks.target_unavailable',
+  from_file: false,
+  created_at: '2026-10-16T08:00:00Z',
+  version: 1,
+}];
+
 export const ENCRYPTION_STATUS = {
   active_key_id: 'k2',
   keys: [
@@ -328,6 +341,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
+  if (path.endsWith('/api/v1/admin/subscriptions') && request.method() === 'GET') return route.fulfill({ json: PLATFORM_SUBSCRIPTIONS });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {
