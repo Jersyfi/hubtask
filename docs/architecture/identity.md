@@ -648,7 +648,8 @@ somebody with no way in either refuses (§4.1's last-way-in guard) or a way stay
 The password opens **whenever the resolved methods leave no way in that works** — the password is
 not among them and no provider is a way in now — **whatever the cause**: an ended offer, an
 installation default or lock, a lifted rescue lock, a restore or import, two administrators
-switching off the last two ways at once.
+switching off the last two ways at once, a plan that leaves the workspace's own providers out
+([multi-tenancy.md](./multi-tenancy.md) §4.2).
 
 * It opens for **every** account holding a password, under the workspace's password and factor
   rules; one without a password is mailed a link to set one (§7).

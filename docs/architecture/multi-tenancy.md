@@ -305,10 +305,10 @@ never rows — the boundary is a database policy, not a role.
 
 **Decided for milestone PL** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md); the
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
-provisioning on a plan, finding a workspace by the platform's reference, and the sign-in rule and
-legal links resolved through the plan ([identity.md](./identity.md) §18). Not built yet: the limits
-and AI through the plan, the entitlements, the people limit and the account link - until they
-merge, §4 and §4.1 describe what a workspace meets there.
+provisioning on a plan, finding a workspace by the platform's reference, the sign-in rule and
+legal links resolved through the plan ([identity.md](./identity.md) §18), and what a plan leaves
+out. Not built yet: the limits and AI through the plan, the people limit and the account link -
+until they merge, §4 and §4.1 describe what a workspace meets there.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
@@ -344,7 +344,11 @@ otherwise:
 | The workspace's own sign-in providers | they sign nobody in; connections and sealed secrets stay; offered providers are untouched; where no way in is left the password opens ([identity.md](./identity.md) §17.1) | they sign people in again |
 
 A screen shows "Not included in your plan" where the person would otherwise have met the control
-(P-05). No entry of the set reaches export, deletion, access requests, language, time zone,
+(P-05); `/meta/capabilities` answers the set as `not_included` to everybody signed in to the
+workspace. An operation that creates, changes, switches on, runs or sends a feature declares it, and
+the use case registry refuses it with `403 plan.not_included` through every door - switching off,
+pausing, a new secret and removing stay. A rule's action that a plan leaves out is skipped, not
+failed (automation.md §2.0). No entry of the set reaches export, deletion, access requests, language, time zone,
 accessibility, or a door — REST, MCP, `hubctl`, tokens, the calendar feed (P-08).
 
 **Downgrade.** A plan with a lower limit refuses the next creation past it and removes nothing

@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-15]
 state: partial
 tasks: [PL-01, PL-02, PL-03, PL-04, PL-05, PL-06, PL-09, PL-11]
-checked_by: [core/domain/model/plan/Plan_test.go, core/application/service/admin/Plans_test.go, core/application/service/admin/MovePlan_test.go, core/application/service/admin/PlanFile_test.go, test/integration/plan_test.go, test/integration/managed_doors_test.go, presentation/rest/PlanController_test.go, cmd/hubctl/AdminPlan_test.go, infrastructure/instancefile/File_test.go, core/application/service/admin/Reference_test.go, test/integration/tenant_reference_test.go, cmd/hubctl/AdminTenantFind_test.go, core/domain/model/identity/SignInPolicy_test.go, core/domain/model/identity/LegalLinks_test.go, core/application/service/identity/PlanLevel_test.go, test/integration/plan_resolution_test.go, apps/webapp/e2e/signinsettings.test.mjs]
+checked_by: [core/domain/model/plan/Plan_test.go, core/application/service/admin/Plans_test.go, core/application/service/admin/MovePlan_test.go, core/application/service/admin/PlanFile_test.go, test/integration/plan_test.go, test/integration/managed_doors_test.go, presentation/rest/PlanController_test.go, cmd/hubctl/AdminPlan_test.go, infrastructure/instancefile/File_test.go, core/application/service/admin/Reference_test.go, test/integration/tenant_reference_test.go, cmd/hubctl/AdminTenantFind_test.go, core/domain/model/identity/SignInPolicy_test.go, core/domain/model/identity/LegalLinks_test.go, core/application/service/identity/PlanLevel_test.go, test/integration/plan_resolution_test.go, apps/webapp/e2e/signinsettings.test.mjs, core/domain/model/entitlement/Entitlement_test.go, core/application/catalogue/Catalogue_test.go, core/application/service/admin/Entitlements_test.go, core/application/service/automation/PlanRests_test.go, core/application/service/integration/PlanRests_test.go, infrastructure/webhook/PlanRests_test.go, core/application/service/identity/OwnProviders_test.go, core/application/service/meta/NotIncluded_test.go, test/integration/entitlement_test.go, apps/webapp/e2e/entitlements.test.mjs]
 ---
 
 # Put workspaces on plans with their own limits, features and locks
@@ -79,9 +79,8 @@ upgrading.
 ## Today
 
 * Check 2: not met — a plan's limits and AI settings do not reach a workspace yet (PL-03).
-* Check 3: not met — no screen says "Not included in your plan" yet (PL-05); the limits do not say "Set by your plan" yet (PL-03).
-* Check 4: not met — a smaller plan's limits and left-out features change nothing yet (PL-03, PL-04, PL-05).
-* Check 5: not met — the set of features a plan may leave out is closed, and leaving one out does nothing yet.
+* Check 3: not met — the limits do not say "Set by your plan" yet (PL-03).
+* Check 4: not met — a smaller plan's limits change nothing yet (PL-03, PL-04).
 * Check 7: not met — plans are reached through the API, `hubctl` and the instance file, not yet on the installation's screens.
 * Check 8: not met — the API and `hubctl` provision on a plan; the installation's *New workspace* screen does not yet offer one.
 * Check 11: not met — there is no account link.
