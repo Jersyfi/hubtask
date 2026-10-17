@@ -225,7 +225,7 @@ func TestAPassUnderWayFindsItsJobTakenFromItAndWritesNothing(t *testing.T) {
 	}
 
 	err := systemWrite(ctx, t, func(ctx context.Context) error {
-		return jobQueue(t).Complete(ctx, mine)
+		return jobQueue(t).Complete(ctx, mine, "")
 	})
 	if err == nil {
 		t.Fatal("the pass completed a job that had been cancelled under it")
@@ -287,5 +287,67 @@ func TestARefusedJobIsReadBackWithItsRefusalAndOnlyByItsTenant(t *testing.T) {
 
 	if _, err := findJob(ctx, t, tenantB, id); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("tenant B read tenant A's refused job: %v", err)
+	}
+}
+
+// claimOne enqueues one job for tenant A and claims it, answering the claimed job.
+func claimOne(ctx context.Context, t *testing.T) (shared.ID, queue.Job) {
+	t.Helper()
+	id := enqueueFor(ctx, t, tenantA, freshName(t))
+	for _, job := range claim(ctx, t, queueClock.Now(), time.Minute, 20) {
+		if job.ID == id {
+			return id, job
+		}
+	}
+	t.Fatal("the job was not claimed")
+	return id, queue.Job{}
+}
+
+// A job that succeeded with an outcome is read back with it - a code its handler answered, which is
+// how a person who asked the AI learns that nothing was proposed - and only by its own tenant.
+func TestACompletedJobIsReadBackWithItsOutcomeAndOnlyByItsTenant(t *testing.T) {
+	ctx := context.Background()
+	id, mine := claimOne(ctx, t)
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Complete(ctx, mine, "ai.nothing_to_change")
+	}); err != nil {
+		t.Fatalf("completing the job: %v", err)
+	}
+
+	job, err := findJob(ctx, t, tenantA, id)
+	if err != nil {
+		t.Fatalf("reading the job: %v", err)
+	}
+	if job.State != domain.StateSucceeded || job.Outcome != "ai.nothing_to_change" || job.ErrorCode != "" {
+		t.Fatalf("read back %+v", job)
+	}
+
+	if _, err := findJob(ctx, t, tenantB, id); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("tenant B read tenant A's job: %v", err)
+	}
+}
+
+// A job completed without an outcome stores none: the column stays NULL rather than holding a value
+// a client would read as something said.
+func TestAJobCompletedWithoutAnOutcomeStoresNone(t *testing.T) {
+	ctx := context.Background()
+	id, mine := claimOne(ctx, t)
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Complete(ctx, mine, "")
+	}); err != nil {
+		t.Fatalf("completing the job: %v", err)
+	}
+
+	var stored *string
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT outcome FROM job WHERE id = $1`, id.String()).Scan(&stored); err != nil {
+		t.Fatalf("reading the row: %v", err)
+	}
+	if stored != nil {
+		t.Fatalf("the row holds outcome %q, want NULL", *stored)
+	}
+	job, err := findJob(ctx, t, tenantA, id)
+	if err != nil || job.Outcome != "" {
+		t.Fatalf("read back %+v, %v", job, err)
 	}
 }

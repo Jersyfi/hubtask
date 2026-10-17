@@ -105,8 +105,12 @@ type Job struct {
 	// ErrorParams are the parameters of a refusal the job ended with - a spent AI budget's
 	// `reason` and `renews_at` - for the sentence ErrorCode names. Empty for any other failure.
 	ErrorParams map[string]string
-	CreatedAt   time.Time
-	FinishedAt  time.Time
+	// Outcome is how a job that succeeded ended, as a message code, where its kind says more than
+	// that it finished - a question to the workspace's AI answers whether it proposed something.
+	// Empty for every other job.
+	Outcome    string
+	CreatedAt  time.Time
+	FinishedAt time.Time
 }
 
 // IsTerminal reports whether the job is over.

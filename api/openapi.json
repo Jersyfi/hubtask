@@ -7775,7 +7775,7 @@
         ],
         "operationId": "aiClassify",
         "summary": "Ask AI to propose labels for this entry",
-        "description": "Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied.\n",
+        "description": "Asks the workspace's AI provider to propose labels for one entry - what the automation action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be applied. The answer may only choose - from the labels the entry's collection uses, the columns of its board, and the collection's closed custom fields for the entry's type - so an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from` (422) rather than queued.\n",
         "requestBody": {
           "required": false,
           "content": {
@@ -26273,6 +26273,10 @@
               "type": "string"
             },
             "description": "The parameters the sentence of `error_code` reads, where the job ended with a refusal that has some - an AI budget spent since the job was accepted carries `reason` (`budget_spent`) and `renews_at`, exactly as the same refusal does on a request. Absent otherwise.\n"
+          },
+          "outcome_code": {
+            "type": "string",
+            "description": "How a `SUCCEEDED` job ended, as a message code, where its kind says more than that it finished - never a message and never free text. A question to the workspace's AI answers `ai.proposed` (the suggestion stands under `GET /suggestions`), `ai.nothing_to_change` (the model found nothing to propose), `ai.nothing_to_work_with` (nothing was left to describe when the job ran), or `ai.kept_out` / `ai.processing_restricted` (the person who asked keeps their content out since asking). Absent on every other job; a client treats a code it does not know as \"finished\".\n"
           },
           "created_at": {
             "type": "string",

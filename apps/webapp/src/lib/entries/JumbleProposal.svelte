@@ -21,7 +21,7 @@
   import type { JumbleEntry } from '../data/jumble.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
-  import { shapeOf } from '../data/suggestions.ts';
+  import { isPending, noteOf, shapeOf } from '../data/suggestions.ts';
   import { formatDateTime, formatDue } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -49,23 +49,20 @@
   );
   const asking = $derived(suggestions.askingOf(entry.id));
 
+  const note = $derived(noteOf(asking));
+
   // A proposal arriving is a job finishing that nobody focused (4.1.3): said once, at the moment
-  // the strip shows it - and a wait that ended empty is said the same way, since the note it
-  // leaves is as silent as the proposal would have been.
+  // the strip shows it - and every other change of an ask (slow, ended with a note, refused) is
+  // said the same way, since the note it leaves is as silent as the proposal would have been.
   let announcedFor = $state<string | undefined>(undefined);
   $effect(() => {
     const now = asking;
-    if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
-    announcedFor = now.askedAt;
-    announcer.say(
-      now.outcome === 'refused' && now.refusal
-        ? renderRefusal(now.refusal, messages)
-        : now.outcome === 'arrived'
-          ? t('app.suggestions.arrived_announced')
-          : now.outcome === 'gave_up'
-            ? t('app.suggestions.gave_up')
-            : t('app.suggestions.nothing_near'),
-    );
+    if (!now || now.outcome === 'following') return;
+    const key = `${now.askedAt} ${now.outcome}`;
+    if (announcedFor === key) return;
+    announcedFor = key;
+    const said = now.outcome === 'arrived' ? t('app.suggestions.arrived_announced') : note ? renderRefusal(note, messages) : undefined;
+    if (said) announcer.say(said);
   });
   const listingFailure = $derived(
     listing.state.status === 'failed' ? renderProblem(listing.state.error, messages) : undefined,
@@ -134,12 +131,11 @@
 </script>
 
 <div class="proposal" data-ai>
-  {#if asking?.outcome === 'following'}
+  {#if isPending(asking)}
     <AISuggestion heading={t('app.jumble.suggested')} state="pending" pendingLabel={t('app.suggestions.pending')} />
-  {:else if asking?.outcome === 'gave_up'}
-    <p class="note">{t('app.suggestions.gave_up')}</p>
-  {:else if asking?.outcome === 'refused' && asking.refusal}
-    <p class="note">{renderRefusal(asking.refusal, messages)}</p>
+  {/if}
+  {#if note}
+    <p class="note" data-note={note.code}>{renderRefusal(note, messages)}</p>
   {/if}
 
   {#if listingFailure}
