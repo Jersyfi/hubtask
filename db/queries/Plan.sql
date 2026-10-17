@@ -78,3 +78,11 @@ SELECT p.id, p.name, p.display_name, p.version, p.created_at, p.updated_at
 FROM tenant t
 JOIN plan p ON p.id = t.plan_id
 WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;
+
+-- name: LeftOutOfWorkspace :many
+-- What the transaction's own workspace's plan leaves out, in one statement: the engine, the fan-out
+-- and the registry ask it for every run, event and write of the three features.
+SELECT ps.key, ps.value
+FROM tenant t
+JOIN plan_setting ps ON ps.plan_id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL AND ps.key LIKE 'entitlement.%';

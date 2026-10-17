@@ -113,6 +113,40 @@ func (q *Queries) InsertPlan(ctx context.Context, arg InsertPlanParams) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const leftOutOfWorkspace = `-- name: LeftOutOfWorkspace :many
+SELECT ps.key, ps.value
+FROM tenant t
+JOIN plan_setting ps ON ps.plan_id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL AND ps.key LIKE 'entitlement.%'
+`
+
+type LeftOutOfWorkspaceRow struct {
+	Key   string
+	Value []byte
+}
+
+// What the transaction's own workspace's plan leaves out, in one statement: the engine, the fan-out
+// and the registry ask it for every run, event and write of the three features.
+func (q *Queries) LeftOutOfWorkspace(ctx context.Context) ([]LeftOutOfWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, leftOutOfWorkspace)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LeftOutOfWorkspaceRow{}
+	for rows.Next() {
+		var i LeftOutOfWorkspaceRow
+		if err := rows.Scan(&i.Key, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPlans = `-- name: ListPlans :many
 SELECT id, name, display_name, version, created_at, updated_at
 FROM plan
