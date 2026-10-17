@@ -1791,6 +1791,8 @@ func run() error {
 		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
 		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
+		identity.CompletePasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
 		identity.CompletePasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
 		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
