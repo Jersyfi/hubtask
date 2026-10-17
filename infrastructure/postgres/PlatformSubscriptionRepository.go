@@ -190,6 +190,22 @@ func (PlatformSubscriptionRepository) Active(ctx context.Context) ([]shared.ID, 
 	return ids, nil
 }
 
+// MarkFromFile records that an enforcing file decides the subscription.
+func (PlatformSubscriptionRepository) MarkFromFile(ctx context.Context, id shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	if err := queries.MarkPlatformSubscriptionFromFile(ctx, key); err != nil {
+		return subscriptionFailed("marking", err)
+	}
+	return nil
+}
+
 // Outcome records the last attempt for the screen.
 func (PlatformSubscriptionRepository) Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error {
 	queries, err := queriesFrom(ctx)

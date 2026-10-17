@@ -42,6 +42,9 @@ SET secret_enc = sqlc.arg(secret_enc), secret_key_id = sqlc.arg(secret_key_id), 
     version = version + 1
 WHERE id = sqlc.arg(id);
 
+-- name: MarkPlatformSubscriptionFromFile :exec
+UPDATE platform_subscription SET from_file = true WHERE id = sqlc.arg(id);
+
 -- name: DeletePlatformSubscription :execrows
 DELETE FROM platform_subscription WHERE id = sqlc.arg(id);
 

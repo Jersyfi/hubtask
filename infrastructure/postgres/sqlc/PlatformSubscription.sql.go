@@ -272,6 +272,15 @@ func (q *Queries) ListPlatformSubscriptions(ctx context.Context) ([]ListPlatform
 	return items, nil
 }
 
+const markPlatformSubscriptionFromFile = `-- name: MarkPlatformSubscriptionFromFile :exec
+UPDATE platform_subscription SET from_file = true WHERE id = $1
+`
+
+func (q *Queries) MarkPlatformSubscriptionFromFile(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, markPlatformSubscriptionFromFile, id)
+	return err
+}
+
 const platformDeliveries = `-- name: PlatformDeliveries :many
 SELECT id, subscription_id, event_id, event_type, attempt, status, response_status, error_code,
        next_attempt_at, created_at, updated_at
