@@ -77,8 +77,12 @@ type AccessTokenWriter struct {
 }
 
 // adminScopes are the scopes whose minting is a privileged action (identity.md §16.3): the control
-// plane's. A set here rather than a naming convention, so a future scope joins it deliberately.
-var adminScopes = map[string]bool{"admin:tenants": true}
+// plane's, and its subset for a purchase platform. A set here rather than a naming convention, so a
+// future scope joins it deliberately - and the register bounds every member of it alike.
+var adminScopes = map[string]bool{operatorScope: true, "admin:provisioning": true}
+
+// operatorScope is the whole of the control plane, the one scope a raised session gains.
+const operatorScope = "admin:tenants"
 
 // requireOperator refuses a mint by somebody the register does not name.
 //
