@@ -369,7 +369,8 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order and finding; the credential, the events and the use are not built yet. Plans exist so that a provider's own
+order, finding, and the control plane's events with their feed; the credential, the events that start
+inside a workspace, the subscriptions and the use are not built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
 `NG-billing`). Hubtask never asks the platform anything, and single mode offers none of this.
