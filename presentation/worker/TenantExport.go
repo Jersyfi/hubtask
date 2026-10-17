@@ -20,6 +20,8 @@ import (
 // archivist opens its own snapshot transaction for the read and nothing else.
 type TenantExport struct {
 	Archivist admin.TenantExportArchivist
+	// Told tells a purchase platform the export is written (UC-INS-14).
+	Told admin.TellExportFinished
 }
 
 var (
@@ -45,6 +47,12 @@ func (h TenantExport) Run(ctx context.Context, job queue.Job) (queue.Result, err
 
 	manifest, err := h.Archivist.Write(ctx, request)
 	if err != nil {
+		return queue.Result{}, err
+	}
+	// A failure here retries the job, archive and all: the retry writes the same archive over itself
+	// (its id is the export's), and the event, keyed by the export, is told once. Re-streaming an
+	// archive is the price of a platform that is never left untold.
+	if err := h.Told.Finished(ctx, job.TenantID, request.ExportID); err != nil {
 		return queue.Result{}, err
 	}
 
