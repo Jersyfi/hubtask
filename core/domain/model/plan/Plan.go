@@ -105,7 +105,7 @@ func (v Values) FitsUnder(above Above) error {
 	if err := v.legalFits(above.Legal); err != nil {
 		return err
 	}
-	for name := range v.Quotas.Limits {
+	for _, name := range quotaNames(v.Quotas) {
 		if above.Quotas.Locked(name) {
 			return underLock("quotas", name)
 		}
@@ -179,6 +179,22 @@ func (v Values) aiFits(above integration.AiLayer) error {
 		return underLock("ai", string(integration.AiSwitchPersonOptOut))
 	}
 	return nil
+}
+
+// quotaNames is every quota a plan sets or locks, in a stable order so that a refusal names the same
+// one each time: a lock is the plan's write as much as a value is.
+func quotaNames(quotas identity.QuotaDefaults) []string {
+	names := make([]string, 0, len(quotas.Limits)+len(quotas.Locks))
+	for name := range quotas.Limits {
+		names = append(names, name)
+	}
+	for name, locked := range quotas.Locks {
+		if _, set := quotas.Limits[name]; locked && !set {
+			names = append(names, name)
+		}
+	}
+	slices.Sort(names)
+	return names
 }
 
 func underLock(area, name string) error {

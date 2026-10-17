@@ -101,6 +101,16 @@ func TestAPlanFitsUnderTheInstallation(t *testing.T) {
 			want: "admin.plan_under_installation_lock",
 		},
 		{
+			name: "a quota's lock without a value, which the installation locks",
+			values: Values{Quotas: identity.QuotaDefaults{
+				Limits: map[string]int64{}, Locks: map[string]bool{"export_jobs": true},
+			}},
+			above: Above{Quotas: identity.QuotaDefaults{
+				Limits: map[string]int64{"export_jobs": 2}, Locks: map[string]bool{"export_jobs": true},
+			}},
+			want: "admin.plan_under_installation_lock",
+		},
+		{
 			name:   "a link the installation locks",
 			values: Values{Legal: identity.LegalLayer{Links: identity.LegalLinks{}.With(identity.LinkTerms, "https://b2b.example/terms")}},
 			above: Above{Legal: identity.LegalLayer{

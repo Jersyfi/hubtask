@@ -45,6 +45,10 @@ type Standing struct {
 	// Locked is true where the installation locked this ceiling: the workspace's screen says
 	// "set by the installation" there rather than "the installation's default" (UC-INS-09 check 5).
 	Locked bool
+	// Source is the level that set the value in force, and Lock the one that locked it, or "" -
+	// what the screen says beside each row (UC-INS-10 check 1).
+	Source string
+	Lock   string
 }
 
 // Ratio answers used/limit for the metric and the response, nil while either half is missing.
@@ -101,19 +105,12 @@ func Standings(
 	ctx context.Context, store repository.Store, usage repository.Usage,
 	mode env.TenancyMode, now time.Time,
 ) ([]Standing, error) {
-	overrides, err := store.Overrides(ctx)
+	levels, err := ReadLevels(ctx, store)
 	if err != nil {
 		return nil, err
 	}
-	instance, err := store.InstanceOverrides(ctx)
-	if err != nil {
-		return nil, err
-	}
-	locks, err := store.InstanceLocks(ctx)
-	if err != nil {
-		return nil, err
-	}
-	limits := Resolve(overrides, instance, mode)
+	overrides, locks := levels.Exception, levels.InstanceLocks
+	limits := Resolve(levels, mode)
 	zone, err := store.TimeZone(ctx)
 	if err != nil {
 		return nil, err
@@ -154,6 +151,7 @@ func Standings(
 		standing := Standing{
 			Quota: name, Limit: limits.Of(name), Configured: configured[name],
 			Locked: locks[name] && !configured[name],
+			Source: levels.SourceOf(name), Lock: levels.LockOf(name),
 		}
 		if counter := counters[name]; counter != nil {
 			used, err := counter(ctx)
