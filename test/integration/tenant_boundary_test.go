@@ -104,6 +104,11 @@ var rlsExceptions = map[string]string{
 		"every workspace, and the deleted event outlives its workspace, so a policy comparing " +
 		"current_tenant_id() would make the feed impossible; identifiers and states only, " +
 		"never a person's content",
+	"platform_subscription": "the installation's subscriptions for a purchase platform " +
+		"(multi-tenancy.md §4.3, migration 0182): no tenant column - they belong to the " +
+		"installation, and only the control plane's use cases and its delivery jobs reach them",
+	"platform_delivery": "the deliveries of the installation's subscriptions (migration 0182): no " +
+		"tenant column, reached with their subscription",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
 		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
 		"person's data, written only by the control plane's use cases",

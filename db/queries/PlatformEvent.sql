@@ -46,3 +46,7 @@ WHERE number IN (
   ORDER BY expired.number
   LIMIT sqlc.arg(batch)
 );
+
+-- name: FindPlatformEvent :one
+SELECT number, id, event_type, tenant_id, occurred_at, actor_type, actor_id, payload
+FROM platform_event WHERE id = sqlc.arg(id);

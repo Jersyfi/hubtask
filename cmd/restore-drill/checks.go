@@ -151,6 +151,10 @@ var rlsExceptions = map[string]string{
 		"it holds configuration rather than a person's data",
 	"platform_event": "the installation's events for a purchase platform (multi-tenancy.md §4.3): " +
 		"read across every workspace by the control plane, and they outlive the workspaces they name",
+	"platform_subscription": "the installation's subscriptions for a purchase platform (multi-tenancy.md §4.3): " +
+		"no tenant column, reached only by the control plane and its delivery jobs",
+	"platform_delivery": "the deliveries of the installation's subscriptions: no tenant column, " +
+		"reached with their subscription",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2): read with its plan, configuration " +
 		"rather than a person's data",
 }

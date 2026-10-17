@@ -34,6 +34,38 @@ func (q *Queries) DeleteExpiredPlatformEvents(ctx context.Context, arg DeleteExp
 	return result.RowsAffected(), nil
 }
 
+const findPlatformEvent = `-- name: FindPlatformEvent :one
+SELECT number, id, event_type, tenant_id, occurred_at, actor_type, actor_id, payload
+FROM platform_event WHERE id = $1
+`
+
+type FindPlatformEventRow struct {
+	Number     int64
+	ID         pgtype.UUID
+	EventType  string
+	TenantID   pgtype.UUID
+	OccurredAt pgtype.Timestamptz
+	ActorType  string
+	ActorID    pgtype.UUID
+	Payload    []byte
+}
+
+func (q *Queries) FindPlatformEvent(ctx context.Context, id pgtype.UUID) (FindPlatformEventRow, error) {
+	row := q.db.QueryRow(ctx, findPlatformEvent, id)
+	var i FindPlatformEventRow
+	err := row.Scan(
+		&i.Number,
+		&i.ID,
+		&i.EventType,
+		&i.TenantID,
+		&i.OccurredAt,
+		&i.ActorType,
+		&i.ActorID,
+		&i.Payload,
+	)
+	return i, err
+}
+
 const forgetPlatformEventReference = `-- name: ForgetPlatformEventReference :execrows
 UPDATE platform_event
 SET payload = jsonb_set(payload, '{workspace,external_reference}', 'null'::jsonb)
