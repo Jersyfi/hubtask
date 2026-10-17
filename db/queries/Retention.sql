@@ -308,3 +308,32 @@ UPDATE work_item SET
   updated_at              = sqlc.arg('now')::timestamptz,
   version                 = version + 1
 WHERE retention_rule_id = sqlc.arg('rule_id');
+
+-- Where a read of the rule sweep stopped (data-retention.md §5). A reader is named by its phase and,
+-- for phase one, its kind, or for a chain, its rule; the other column stays NULL, and `IS NOT
+-- DISTINCT FROM` matches the NULL the unique index treats as one value.
+
+-- name: FindRetentionCursor :one
+SELECT after_at, after_id
+FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = sqlc.arg('reader')
+  AND data_kind IS NOT DISTINCT FROM sqlc.narg('data_kind')::text
+  AND rule_id IS NOT DISTINCT FROM sqlc.narg('rule_id')::uuid;
+
+-- name: SetRetentionCursor :exec
+-- One row per reader; a second pass at the same place overwrites rather than fails. One retention job
+-- runs per tenant at a time, so there is no second writer in practice.
+INSERT INTO retention_cursor (tenant_id, reader, data_kind, rule_id, after_at, after_id)
+VALUES (current_tenant_id(), sqlc.arg('reader'), sqlc.narg('data_kind')::text,
+        sqlc.narg('rule_id')::uuid, sqlc.arg('after_at'), sqlc.arg('after_id'))
+ON CONFLICT (tenant_id, reader, data_kind, rule_id) DO UPDATE
+  SET after_at = EXCLUDED.after_at, after_id = EXCLUDED.after_id;
+
+-- name: ClearRetentionCursor :exec
+-- The read reached the end of its rows: the next pass starts at the beginning.
+DELETE FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = sqlc.arg('reader')
+  AND data_kind IS NOT DISTINCT FROM sqlc.narg('data_kind')::text
+  AND rule_id IS NOT DISTINCT FROM sqlc.narg('rule_id')::uuid;

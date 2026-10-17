@@ -395,3 +395,42 @@ type DeletedTemplate struct {
 	ScopeID shared.ID
 	HubID   shared.ID
 }
+
+// ReaderPhase is which of the rule sweep's reads a cursor belongs to.
+type ReaderPhase string
+
+const (
+	// ReaderAnnounce is phase one of one data kind.
+	ReaderAnnounce ReaderPhase = "ANNOUNCE"
+	// ReaderChain is a chain's second stage, one per rule.
+	ReaderChain ReaderPhase = "CHAIN"
+	// ReaderAct is phase two, across kinds.
+	ReaderAct ReaderPhase = "ACT"
+)
+
+// Reader names one read of the rule sweep that keeps its place across passes: phase one by its
+// kind, a chain by its rule, phase two by itself. The field its phase does not use stays empty.
+type Reader struct {
+	Phase    ReaderPhase
+	DataKind domain.DataKind
+	RuleID   shared.ID
+}
+
+// Position is a place in a read's order - the anchor's moment, then the entry's identifier - and
+// nothing about the entry beyond that (rule 10).
+type Position struct {
+	At time.Time
+	ID shared.ID
+}
+
+// Cursors keeps where each read of the rule sweep stopped, so the next pass continues there rather
+// than at the first page (data-retention.md §5). Written in the pass's own transaction: a pass that
+// rolls back leaves the place it started from, which is right, because its work rolled back too.
+type Cursors interface {
+	// Find answers the reader's place, and false when it has none - it starts at the beginning.
+	Find(ctx context.Context, reader Reader) (Position, bool, error)
+	// Set records the reader's place, replacing the one it had.
+	Set(ctx context.Context, reader Reader, at Position) error
+	// Clear forgets the reader's place: it reached the end of its rows.
+	Clear(ctx context.Context, reader Reader) error
+}

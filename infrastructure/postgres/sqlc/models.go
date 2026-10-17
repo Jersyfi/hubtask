@@ -1319,6 +1319,15 @@ type RestoreRun struct {
 	Progress           []byte
 }
 
+type RetentionCursor struct {
+	TenantID pgtype.UUID
+	Reader   string
+	DataKind *string
+	RuleID   pgtype.UUID
+	AfterAt  pgtype.Timestamptz
+	AfterID  pgtype.UUID
+}
+
 type RetentionPolicy struct {
 	TenantID      pgtype.UUID
 	DataKind      string

@@ -701,12 +701,13 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.
-	"backup_target":   "an egress channel and a sealed credential; a restore must not silently recreate one",
-	"backup_schedule": "the backup system's own bookkeeping",
-	"backup_run":      "the backup system's own bookkeeping",
-	"restore_run":     "the backup system's own bookkeeping",
-	"import_run":      "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
-	"retention_run":   "the retention engine's own bookkeeping",
+	"backup_target":    "an egress channel and a sealed credential; a restore must not silently recreate one",
+	"backup_schedule":  "the backup system's own bookkeeping",
+	"backup_run":       "the backup system's own bookkeeping",
+	"restore_run":      "the backup system's own bookkeeping",
+	"import_run":       "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
+	"retention_run":    "the retention engine's own bookkeeping",
+	"retention_cursor": "the retention engine's place in its reads; a restore starts again from the beginning",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
 	// silently recreate one". A rule carried back without it would either refuse the insert or,

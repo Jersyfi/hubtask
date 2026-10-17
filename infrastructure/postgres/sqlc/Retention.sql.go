@@ -134,6 +134,26 @@ func (q *Queries) ClearItemRetention(ctx context.Context, arg ClearItemRetention
 	return result.RowsAffected(), nil
 }
 
+const clearRetentionCursor = `-- name: ClearRetentionCursor :exec
+DELETE FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = $1
+  AND data_kind IS NOT DISTINCT FROM $2::text
+  AND rule_id IS NOT DISTINCT FROM $3::uuid
+`
+
+type ClearRetentionCursorParams struct {
+	Reader   string
+	DataKind *string
+	RuleID   pgtype.UUID
+}
+
+// The read reached the end of its rows: the next pass starts at the beginning.
+func (q *Queries) ClearRetentionCursor(ctx context.Context, arg ClearRetentionCursorParams) error {
+	_, err := q.db.Exec(ctx, clearRetentionCursor, arg.Reader, arg.DataKind, arg.RuleID)
+	return err
+}
+
 const clearRetentionMarksOfRule = `-- name: ClearRetentionMarksOfRule :execrows
 UPDATE work_item SET
   retention_pending_until = NULL,
@@ -354,6 +374,37 @@ func (q *Queries) FindItemRetention(ctx context.Context, id pgtype.UUID) (FindIt
 		&i.RetentionAction,
 		&i.RetentionBlockedBy,
 	)
+	return i, err
+}
+
+const findRetentionCursor = `-- name: FindRetentionCursor :one
+
+SELECT after_at, after_id
+FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = $1
+  AND data_kind IS NOT DISTINCT FROM $2::text
+  AND rule_id IS NOT DISTINCT FROM $3::uuid
+`
+
+type FindRetentionCursorParams struct {
+	Reader   string
+	DataKind *string
+	RuleID   pgtype.UUID
+}
+
+type FindRetentionCursorRow struct {
+	AfterAt pgtype.Timestamptz
+	AfterID pgtype.UUID
+}
+
+// Where a read of the rule sweep stopped (data-retention.md §5). A reader is named by its phase and,
+// for phase one, its kind, or for a chain, its rule; the other column stays NULL, and `IS NOT
+// DISTINCT FROM` matches the NULL the unique index treats as one value.
+func (q *Queries) FindRetentionCursor(ctx context.Context, arg FindRetentionCursorParams) (FindRetentionCursorRow, error) {
+	row := q.db.QueryRow(ctx, findRetentionCursor, arg.Reader, arg.DataKind, arg.RuleID)
+	var i FindRetentionCursorRow
+	err := row.Scan(&i.AfterAt, &i.AfterID)
 	return i, err
 }
 
@@ -811,6 +862,35 @@ func (q *Queries) RetentionMarkedItemsDue(ctx context.Context, arg RetentionMark
 		return nil, err
 	}
 	return items, nil
+}
+
+const setRetentionCursor = `-- name: SetRetentionCursor :exec
+INSERT INTO retention_cursor (tenant_id, reader, data_kind, rule_id, after_at, after_id)
+VALUES (current_tenant_id(), $1, $2::text,
+        $3::uuid, $4, $5)
+ON CONFLICT (tenant_id, reader, data_kind, rule_id) DO UPDATE
+  SET after_at = EXCLUDED.after_at, after_id = EXCLUDED.after_id
+`
+
+type SetRetentionCursorParams struct {
+	Reader   string
+	DataKind *string
+	RuleID   pgtype.UUID
+	AfterAt  pgtype.Timestamptz
+	AfterID  pgtype.UUID
+}
+
+// One row per reader; a second pass at the same place overwrites rather than fails. One retention job
+// runs per tenant at a time, so there is no second writer in practice.
+func (q *Queries) SetRetentionCursor(ctx context.Context, arg SetRetentionCursorParams) error {
+	_, err := q.db.Exec(ctx, setRetentionCursor,
+		arg.Reader,
+		arg.DataKind,
+		arg.RuleID,
+		arg.AfterAt,
+		arg.AfterID,
+	)
+	return err
 }
 
 const trashItemsForRetention = `-- name: TrashItemsForRetention :execrows
