@@ -21,6 +21,7 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
+const SHOW_DETAIL = 'What happened';
 const SERVICE_ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000001901', display_name: 'Automation', kind: 'SERVICE' };
 
 const rule = (id, name, enabled) => ({
@@ -66,7 +67,7 @@ async function onPlan(browser, notIncluded, extra = () => undefined) {
     if (path.startsWith('/automation/rules/')) return route.fulfill({ json: RULES.find((each) => path.endsWith(each.id)) ?? RULES[0] });
     if (path === '/automation/runs') return route.fulfill({ json: { ...PAGE, data: [FAILED_RUN] } });
     if (path === `/automation/runs/${FAILED_RUN.id}`) return route.fulfill({ json: FAILED_RUN });
-    const answered = await extra(route, request, path);
+    const answered = extra(route, request, path);
     if (answered !== undefined) return answered;
     return stub(route);
   });
@@ -104,6 +105,11 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   await page.getByText('there is nothing to try or replay', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('button', { name: 'Try it' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Run it for real now' }).count(), 0);
+  // A failed run, opened: what it did is readable, and nothing finishes it.
+  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
+  await page.getByRole('button', { name: 'Hide the detail' }).waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(300);
+  assert.equal(await page.getByRole('button', { name: 'Finish this run' }).count(), 0, 'a replay is offered');
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbedSoFar().filter((read) => read.includes('automation')), []);
@@ -119,5 +125,104 @@ test('chromium: included, the rules screen offers what it always did', async (t)
   await page.getByRole('button', { name: 'Write a rule' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('Not included in your plan', { exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Switch it on' }).count(), 1);
+
+  // The same failed run, opened where the rules are included, can be finished.
+  await page.goto(`${served.origin}/administration/runs`);
+  await page.getByRole('button', { name: SHOW_DETAIL }).first().click();
+  await page.getByRole('button', { name: 'Finish this run' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+const subscription = (id, state) => ({
+  id, target_url: `https://shop.example/hooks/${id.slice(-2)}`, event_types: ['de.hubtask.work.item.created.v1'],
+  state, failure_count: 0, created_at: '2026-10-01T08:00:00Z', version: 1,
+});
+const DEAD = {
+  id: '01a0e2e0-0000-7000-8000-000000001933', subscription_id: '01a0e2e0-0000-7000-8000-000000001931',
+  event_id: '01a0e2e0-0000-7000-8000-0000000019e1', attempt: 8, status: 'DEAD_LETTER', response_status: 503,
+  error_code: 'webhooks.target_refused', created_at: '2026-10-02T08:00:00Z',
+};
+const SUBSCRIPTIONS = [
+  subscription('01a0e2e0-0000-7000-8000-000000001931', 'ACTIVE'),
+  subscription('01a0e2e0-0000-7000-8000-000000001932', 'PAUSED'),
+];
+
+test('chromium: webhooks a plan leaves out rest with their secrets; pausing and unsubscribing stay', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await onPlan(browser, ['WEBHOOKS'], (route, _request, path) => {
+    if (path === '/integrations/webhooks') return route.fulfill({ json: SUBSCRIPTIONS });
+    if (path === `/integrations/webhooks/${SUBSCRIPTIONS[0].id}/deliveries`) {
+      return route.fulfill({ json: { data: [DEAD], page: { next_cursor: null, has_more: false } } });
+    }
+    return undefined;
+  });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/administration/webhooks`);
+  await page.getByText('2 subscriptions rest with their secrets; nothing is delivered.', { exact: false }).waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
+  assert.equal(await page.getByText('Subscribe a system').count(), 0, 'a new subscription is offered');
+  assert.equal(await page.getByRole('button', { name: 'Switch it back on' }).count(), 0, 'resuming is offered');
+  assert.equal(await page.getByRole('button', { name: 'Pause it' }).count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Unsubscribe' }).count(), 2);
+  // A dead letter is readable, and not sent again.
+  await page.getByRole('button', { name: 'What was delivered' }).first().click();
+  await page.getByText('503', { exact: false }).first().waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('button', { name: 'Send it again' }).count(), 0, 'a replay is offered');
+  assert.deepEqual(failures, []);
+});
+
+const OWN = {
+  id: '01a0e2e0-0000-7000-8000-000000001941', scope: 'workspace', issuer: 'https://login.firma.example', client_id: 'hubtask',
+  display_name: 'Company login', kind: 'GENERIC', provisioning: 'INVITED_ONLY', position: 0, enabled: true, offered_here: false,
+  allowed_email_domains: [], allowed_directories: [], created_at: '2026-09-01T08:00:00Z', version: 1,
+};
+
+const OWN_OFF = { ...OWN, id: '01a0e2e0-0000-7000-8000-000000001942', display_name: 'Lab login', enabled: false };
+
+const setting = (value) => ({ value, installation: value, lock: null, source: 'DEFAULT', installation_source: 'DEFAULT' });
+const POLICY = {
+  password: Object.fromEntries(['min_length', 'min_lowercase', 'min_uppercase', 'min_digits', 'min_symbols', 'min_classes', 'max_repeat', 'max_age_days', 'history_count', 'min_age_hours']
+    .map((name) => [name, setting(name === 'min_length' ? 12 : 0)])
+    .concat([['common_passwords', setting(true)], ['context_words', setting(true)], ['breach_check', setting(false)]])),
+  mfa_required_for: setting('NOBODY'),
+  methods: setting(['PASSWORD', 'OIDC']),
+  session: { max_days: setting(30), idle_minutes: setting(0) },
+  legal: { imprint_url: setting(''), privacy_url: setting(''), terms_url: setting(''), accessibility_url: setting(''), terms_version: setting('') },
+  rotation_from: null,
+};
+const TENANT = {
+  id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en',
+  default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, sign_in_policy: POLICY,
+};
+
+test('chromium: the workspace\'s own providers a plan leaves out sign nobody in, and nothing switches them on', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await onPlan(browser, ['OWN_SIGN_IN_PROVIDERS'], (route, _request, path) => {
+    if (path === '/identity-providers') return route.fulfill({ json: [OWN, OWN_OFF] });
+    if (path === '/tenant') return route.fulfill({ json: TENANT });
+    return undefined;
+  });
+  t.after(() => context.close());
+
+  // Configuring: the notice, the row resting, no new provider and no change; removing stays.
+  await page.goto(`${served.origin}/administration/identity-provider`);
+  await page.getByText('2 of this workspace\'s own providers sign nobody in; their connections stay.', { exact: false }).waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
+  assert.equal(await page.getByRole('button', { name: 'Add a provider' }).count(), 0, 'a new provider is offered');
+  assert.equal(await page.getByRole('button', { name: 'Change' }).count(), 0, 'changing a resting provider is offered');
+  assert.equal(await page.getByRole('button', { name: 'Remove' }).count(), 2);
+
+  // The ways in: a resting provider that is on keeps only the way to switch it off; one that is
+  // off says so in place of its switch.
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByText('Lab login', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByLabel('Lab login').count(), 0, 'a resting provider that is off has a switch');
+  assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
+  const on = page.getByLabel('Company login');
+  assert.equal(await on.isChecked(), true);
+  assert.ok(await page.getByText('Switched off here, it stays off when your plan includes it again.', { exact: false }).isVisible());
   assert.deepEqual(failures, []);
 });
