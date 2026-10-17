@@ -2614,6 +2614,7 @@ func (e MembershipScope) Valid() bool {
 const (
 	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
 	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
+	MfaChallengeMethodsPASSKEY        MfaChallengeMethods = "PASSKEY"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
 	MfaChallengeMethodsTERMS          MfaChallengeMethods = "TERMS"
@@ -2626,6 +2627,8 @@ func (e MfaChallengeMethods) Valid() bool {
 	case MfaChallengeMethodsENROLL:
 		return true
 	case MfaChallengeMethodsLINK:
+		return true
+	case MfaChallengeMethodsPASSKEY:
 		return true
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
@@ -2682,6 +2685,21 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyAssertionOptionsPublicKeyUserVerification.
+const (
+	PasskeyAssertionOptionsPublicKeyUserVerificationPreferred PasskeyAssertionOptionsPublicKeyUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyAssertionOptionsPublicKeyUserVerification enum.
+func (e PasskeyAssertionOptionsPublicKeyUserVerification) Valid() bool {
+	switch e {
+	case PasskeyAssertionOptionsPublicKeyUserVerificationPreferred:
 		return true
 	default:
 		return false
@@ -3799,6 +3817,7 @@ const (
 	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
 	SessionSignedInWithPASSKEY          SessionSignedInWith = "PASSKEY"
 	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDPASSKEY  SessionSignedInWith = "PASSWORD_PASSKEY"
 	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
 	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
 	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
@@ -3816,6 +3835,8 @@ func (e SessionSignedInWith) Valid() bool {
 	case SessionSignedInWithPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORDRECOVERY:
 		return true
@@ -3938,6 +3959,7 @@ func (e SortTermNulls) Valid() bool {
 
 // Defines values for StepUpGrantMethod.
 const (
+	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
 	StepUpGrantMethodPROVIDER StepUpGrantMethod = "PROVIDER"
 	StepUpGrantMethodRECOVERY StepUpGrantMethod = "RECOVERY"
@@ -3947,6 +3969,8 @@ const (
 // Valid indicates whether the value is a known member of the StepUpGrantMethod enum.
 func (e StepUpGrantMethod) Valid() bool {
 	switch e {
+	case StepUpGrantMethodPASSKEY:
+		return true
 	case StepUpGrantMethodPASSWORD:
 		return true
 	case StepUpGrantMethodPROVIDER:
@@ -7732,8 +7756,14 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an account holding a second factor, each where it can be given; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasskeyOptions Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of the step's own. Presence on the device suffices here; the password came first.
+	PasskeyOptions *PasskeyAssertionOptions `json:"passkey_options,omitempty"`
+
+	// PasskeySetup With `ENROLL`: whether a passkey or a security key can be set up here instead of the authenticator app - only where the page runs at the workspace's own address.
+	PasskeySetup *bool `json:"passkey_setup,omitempty"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
 	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
@@ -8110,6 +8140,27 @@ type PasskeyAssertion struct {
 	UserHandle string `json:"user_handle"`
 }
 
+// PasskeyAssertionOptions The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form.
+type PasskeyAssertionOptions struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey struct {
+		AllowCredentials []PasskeyDescriptor `json:"allowCredentials"`
+
+		// Challenge Thirty-two random bytes
+		Challenge string `json:"challenge"`
+
+		// RpId The workspace's host.
+		RpId string `json:"rpId"`
+
+		// Timeout Milliseconds.
+		Timeout          int                                              `json:"timeout"`
+		UserVerification PasskeyAssertionOptionsPublicKeyUserVerification `json:"userVerification"`
+	} `json:"public_key"`
+}
+
+// PasskeyAssertionOptionsPublicKeyUserVerification defines model for PasskeyAssertionOptions.PublicKey.UserVerification.
+type PasskeyAssertionOptionsPublicKeyUserVerification string
+
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
 type PasskeyCreationOptions struct {
 	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
@@ -8172,6 +8223,39 @@ type PasskeyDescriptor struct {
 
 // PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
 type PasskeyDescriptorType string
+
+// PasskeyEnrolled A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed.
+type PasskeyEnrolled struct {
+	// Challenge The `PASSWORD_CHANGE` step, where the password must still be changed.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+
+	// Tokens The pair, where nothing else is owed.
+	Tokens *SessionTokens `json:"tokens,omitempty"`
+}
+
+// PasskeyEnrollment The `ENROLL` step's credential, what the ceremony answered, and the name.
+type PasskeyEnrollment struct {
+	AttestationObject string `json:"attestation_object"`
+	ClientDataJson    string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name         string              `json:"name"`
+	PendingToken string              `json:"pending_token"`
+	RawId        string              `json:"raw_id"`
+	Transports   *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyEnrollmentStart defines model for PasskeyEnrollmentStart.
+type PasskeyEnrollmentStart struct {
+	// PendingToken The `ENROLL` step's credential.
+	PendingToken string `json:"pending_token"`
+}
 
 // PasskeyList defines model for PasskeyList.
 type PasskeyList struct {
@@ -9471,12 +9555,24 @@ type SignIn struct {
 
 // SignInCompletion defines model for SignInCompletion.
 type SignInCompletion struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+
 	// Code The authenticator's current code.
 	Code         *string `json:"code,omitempty"`
 	PendingToken string  `json:"pending_token"`
 
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
+
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 }
 
 // SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
@@ -9690,15 +9786,27 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
 	// AuthorizationCode The code the provider issued. Presented together with `state`.
 	AuthorizationCode *string `json:"authorization_code,omitempty"`
-	Code              *string `json:"code,omitempty"`
-	Password          *string `json:"password,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+	Code           *string `json:"code,omitempty"`
+	Password       *string `json:"password,omitempty"`
+
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
 
 	// RecoveryCode One of the account's recovery codes. Consumed, as at sign-in.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 
 	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
 	State *string `json:"state,omitempty"`
@@ -12085,6 +12193,12 @@ type InspectInvitationJSONRequestBody = InvitationInspection
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// CompletePasskeyEnrollmentJSONRequestBody defines body for CompletePasskeyEnrollment for application/json ContentType.
+type CompletePasskeyEnrollmentJSONRequestBody = PasskeyEnrollment
+
+// StartPasskeyEnrollmentJSONRequestBody defines body for StartPasskeyEnrollment for application/json ContentType.
+type StartPasskeyEnrollmentJSONRequestBody = PasskeyEnrollmentStart
+
 // ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
 type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
 
@@ -12657,6 +12771,12 @@ type ServerInterface interface {
 	// RedeemInvitation Redeem an invitation and set the first password
 	// (POST /auth/invitations:redeem)
 	RedeemInvitation(w http.ResponseWriter, r *http.Request)
+	// CompletePasskeyEnrollment Finish setting up a passkey or security key during sign-in
+	// (POST /auth/mfa/passkey:enroll)
+	CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request)
+	// StartPasskeyEnrollment Begin setting up a passkey or security key during sign-in
+	// (POST /auth/mfa/passkey:enroll-options)
+	StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request)
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	// (POST /auth/mfa/recovery:regenerate)
 	RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request, params RegenerateRecoveryCodesParams)
@@ -12744,6 +12864,9 @@ type ServerInterface interface {
 	// StepUp Prove yourself again, for the irreversible
 	// (POST /auth/step-up)
 	StepUp(w http.ResponseWriter, r *http.Request)
+	// StartPasskeyStepUp The options for a fresh proof with a passkey or security key
+	// (POST /auth/step-up:passkey-options)
+	StartPasskeyStepUp(w http.ResponseWriter, r *http.Request)
 	// StartProviderStepUp Begin a step-up at the provider this account is connected to
 	// (POST /auth/step-up:provider)
 	StartProviderStepUp(w http.ResponseWriter, r *http.Request)
@@ -15718,6 +15841,34 @@ func (siw *ServerInterfaceWrapper) RedeemInvitation(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// CompletePasskeyEnrollment operation middleware
+func (siw *ServerInterfaceWrapper) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompletePasskeyEnrollment(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPasskeyEnrollment operation middleware
+func (siw *ServerInterfaceWrapper) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPasskeyEnrollment(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RegenerateRecoveryCodes operation middleware
 func (siw *ServerInterfaceWrapper) RegenerateRecoveryCodes(w http.ResponseWriter, r *http.Request) {
 
@@ -16316,6 +16467,20 @@ func (siw *ServerInterfaceWrapper) StepUp(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StepUp(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPasskeyStepUp operation middleware
+func (siw *ServerInterfaceWrapper) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPasskeyStepUp(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -25199,6 +25364,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:enroll", wrapper.EnrollTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:confirm", wrapper.ConfirmTotp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up", wrapper.StepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up:passkey-options", wrapper.StartPasskeyStepUp)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/passkey:enroll-options", wrapper.StartPasskeyEnrollment)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/passkey:enroll", wrapper.CompletePasskeyEnrollment)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/step-up:provider", wrapper.StartProviderStepUp)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp:replace", wrapper.StartAuthenticatorReplacement)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/mfa/totp/replacement:confirm", wrapper.ConfirmAuthenticatorReplacement)

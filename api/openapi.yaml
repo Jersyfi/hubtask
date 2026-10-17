@@ -3890,6 +3890,80 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/step-up:passkey-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeyStepUp
+      summary: The options for a fresh proof with a passkey or security key
+      description: |
+        The options for `navigator.credentials.get()` that prove the caller afresh at
+        `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+        session and account, five minutes, single use. Presence on the device suffices. Refused with
+        `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+        the workspace's own host, and with `auth.step_up_session_required` for a token.
+      responses:
+        "200":
+          description: The options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyAssertionOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/passkey:enroll-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeyEnrollment
+      security: []
+      summary: Begin setting up a passkey or security key during sign-in
+      description: |
+        For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+        options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+        credential is the proof. Only where the request arrived at the workspace's own host
+        (`auth.passkey_unavailable` otherwise).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyEnrollmentStart"
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistrationOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/passkey:enroll:
+    post:
+      tags: [auth]
+      operationId: completePasskeyEnrollment
+      security: []
+      summary: Finish setting up a passkey or security key during sign-in
+      description: |
+        The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+        recovery codes are shown once where the account held none, and - the second factor proved -
+        the sign-in completes: the pair, or the step still owed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyEnrollment"
+      responses:
+        "201":
+          description: Set up, and signed in or the next step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyEnrolled"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/step-up:provider:
     post:
       tags: [auth]
@@ -10536,7 +10610,7 @@ components:
           description: Whether this session is the one answering the call.
         signed_in_with:
           type: [string, "null"]
-          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, OIDC, INVITATION, RESET, PASSKEY, null]
+          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, PASSWORD_PASSKEY, OIDC, INVITATION, RESET, PASSKEY, null]
           description: >
             How this session was opened. Null for one opened before this was
             recorded, which is not "unknown method" so much as "before this existed" - a client
@@ -12611,9 +12685,10 @@ components:
         expires_at: { type: string, format: date-time }
         methods:
           type: array
-          items: { type: string, enum: [TOTP, RECOVERY, ENROLL, PASSWORD_CHANGE, LINK, TERMS] }
+          items: { type: string, enum: [TOTP, RECOVERY, PASSKEY, ENROLL, PASSWORD_CHANGE, LINK, TERMS] }
           description: >
-            `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the
+            `TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an
+            account holding a second factor, each where it can be given; `ENROLL` alone for somebody the
             workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password
             that was right and no longer meets the rule; `LINK` alone for a provider
             arrival that met an account with a password, completed at `/auth/sessions:link`;
@@ -12621,6 +12696,17 @@ components:
             of use in force, completed at `/auth/sessions:agree-terms`.
             Each is a step the pending credential can complete and nothing
             else.
+        passkey_options:
+          $ref: "#/components/schemas/PasskeyAssertionOptions"
+          description: >
+            Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this
+            step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of
+            the step's own. Presence on the device suffices here; the password came first.
+        passkey_setup:
+          type: boolean
+          description: >
+            With `ENROLL`: whether a passkey or a security key can be set up here instead of the
+            authenticator app - only where the page runs at the workspace's own address.
         password_rules:
           $ref: "#/components/schemas/PasswordRules"
           description: >
@@ -12704,6 +12790,13 @@ components:
         recovery_code:
           type: [string, "null"]
           description: One of the ten shown at enrolment. It works exactly once.
+        raw_id:
+          type: [string, "null"]
+          maxLength: 1400
+          description: A passkey or security key's answer, with the three fields below - its `rawId`.
+        client_data_json: { type: [string, "null"], maxLength: 5600, description: The answer's `clientDataJSON`. }
+        authenticator_data: { type: [string, "null"], maxLength: 87400, description: The answer's `authenticatorData`. }
+        signature: { type: [string, "null"], maxLength: 1400, description: The answer's `signature`. }
 
     TotpEnrollmentStart:
       type: object
@@ -13537,7 +13630,8 @@ components:
       type: object
       description: >
         Exactly one method: the password; the authenticator's current code; a recovery
-        code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
+        code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`;
+        or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
         back with after `POST /auth/step-up:provider`. Each proves the person holding the session is
         still the person who opened it.
       properties:
@@ -13555,6 +13649,13 @@ components:
           type: [string, "null"]
           maxLength: 4096
           description: The code the provider issued. Presented together with `state`.
+        raw_id:
+          type: [string, "null"]
+          maxLength: 1400
+          description: A passkey or security key's answer, with the three fields below - its `rawId`.
+        client_data_json: { type: [string, "null"], maxLength: 5600, description: The answer's `clientDataJSON`. }
+        authenticator_data: { type: [string, "null"], maxLength: 87400, description: The answer's `authenticatorData`. }
+        signature: { type: [string, "null"], maxLength: 1400, description: The answer's `signature`. }
 
     ConnectedIdentity:
       type: object
@@ -13687,6 +13788,53 @@ components:
           maxLength: 88
           description: The response's `userHandle`, which a passkey signing in without an identifier always gives.
 
+    PasskeyAssertionOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is
+        the second factor or the fresh proof, in the WebAuthn JSON form.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          type: object
+          required: [rpId, challenge, timeout, userVerification, allowCredentials]
+          properties:
+            rpId: { type: string, description: The workspace's host. }
+            challenge: { type: string, description: Thirty-two random bytes, base64url. }
+            timeout: { type: integer, description: Milliseconds. }
+            userVerification: { type: string, enum: [preferred] }
+            allowCredentials:
+              type: array
+              items:
+                $ref: "#/components/schemas/PasskeyDescriptor"
+        expires_at:
+          type: string
+          format: date-time
+
+    PasskeyEnrollmentStart:
+      type: object
+      required: [pending_token]
+      properties:
+        pending_token:
+          type: string
+          description: The `ENROLL` step's credential.
+
+    PasskeyEnrollment:
+      type: object
+      description: The `ENROLL` step's credential, what the ceremony answered, and the name.
+      required: [pending_token, name, raw_id, client_data_json, attestation_object]
+      properties:
+        pending_token: { type: string }
+        name: { type: string, maxLength: 64, description: What the person calls it. }
+        raw_id: { type: string, maxLength: 1400 }
+        client_data_json: { type: string, maxLength: 5600 }
+        attestation_object: { type: string, maxLength: 87400 }
+        transports:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+
     PasskeyRegistrationOptions:
       type: object
       description: >
@@ -13799,6 +13947,34 @@ components:
             Present only where the account held no unused recovery code: ten single-use codes,
             shown this once and stored only as hashes.
 
+    PasskeyEnrolled:
+      type: object
+      description: >
+        A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or
+        the `PASSWORD_CHANGE` step still owed.
+      required: [passkey]
+      properties:
+        passkey:
+          $ref: "#/components/schemas/Passkey"
+        recovery_codes:
+          type: array
+          items: { type: string }
+          minItems: 10
+          maxItems: 10
+          description: >
+            Present only where the account held no unused recovery code: ten single-use codes,
+            shown this once and stored only as hashes.
+        tokens:
+          anyOf:
+            - $ref: "#/components/schemas/SessionTokens"
+            - type: "null"
+          description: The pair, where nothing else is owed.
+        challenge:
+          anyOf:
+            - $ref: "#/components/schemas/MfaChallenge"
+            - type: "null"
+          description: The `PASSWORD_CHANGE` step, where the password must still be changed.
+
     ProviderConnectStart:
       type: object
       required: [provider_id]
@@ -13869,7 +14045,7 @@ components:
         expires_at: { type: string, format: date-time }
         method:
           type: string
-          enum: [PASSWORD, TOTP, RECOVERY, PROVIDER]
+          enum: [PASSWORD, TOTP, PASSKEY, RECOVERY, PROVIDER]
           description: What proved it - recorded in the audit trail, never the credential.
 
     MfaDisable:
