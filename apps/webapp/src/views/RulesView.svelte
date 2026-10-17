@@ -34,7 +34,8 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { rules, type Rule } from '../lib/data/rules.svelte.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -130,6 +131,12 @@
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /**
+   * Whether the workspace's plan includes the rules. Left out, they rest: no new rule and no
+   * switching one on, while switching one off stays (multi-tenancy.md §4.2).
+   */
+  const rulesIncluded = $derived(includedHere('AUTOMATION_RULES') === true);
+  const resting = $derived(includedHere('AUTOMATION_RULES') === false);
 </script>
 
 <div class="screen">
@@ -138,10 +145,13 @@
       title={t('app.rules.title')}
       subtitle={t('app.rules.intro')}
       isTitleInBar={viewport.isCompact}
-      primary={mayAutomate ? { label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') } : undefined}
+      primary={mayAutomate && rulesIncluded ? { label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') } : undefined}
     >
       {#snippet notices()}
         <WorkspaceRefusal permission="AUTOMATION" />
+        {#if resting}
+          <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rules_body', { count: rules.isComplete ? rules.all.length : 0 })} />
+        {/if}
         {#if failure}
           <Banner tone="danger" title={failure.message}>
             {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
@@ -177,10 +187,10 @@
               actions={{ label: t('app.rules.actions'), value: String(rule.actions.length) }}
               runAs={{ label: t('app.rules.runs_as'), value: runnerName(rule.run_as) }}
               lastRun={{ label: t('app.rules.last_run'), value: lastRunWords(rule) }}
-              isEnabled={rule.enabled}
-              stateLabel={rule.enabled ? t('app.rules.on') : t('app.rules.off')}
+              isEnabled={rule.enabled && !resting}
+              stateLabel={resting ? t('app.plan.resting') : rule.enabled ? t('app.rules.on') : t('app.rules.off')}
               failureLabel={rule.failure_count > 0 ? t('app.rules.failing', { count: String(rule.failure_count) }) : undefined}
-              healthLabel={t(`app.flow.health_${health}`)}
+              healthLabel={resting ? undefined : t(`app.flow.health_${health}`)}
               healthTone={HEALTH_TONE[health]}
               findingLabel={first ? t('app.flow.finding_at', { where: whereOf(first.path), finding: findingWords(words, first) }) : undefined}
               isBroken={health === 'broken'}
@@ -192,7 +202,7 @@
                   onclick={() => void attempt(() => rules.disable(rule.id), t('app.rules.disabled_announced'))}>
                   {t('app.rules.disable')}
                 </Button>
-              {:else}
+              {:else if rulesIncluded}
                 <Button size="sm" tone="primary" isBusy={isWorking} busyLabel={t('app.rules.working')}
                   onclick={() => void attempt(() => rules.enable(rule.id), t('app.rules.enabled_announced'))}>
                   {t('app.rules.enable')}

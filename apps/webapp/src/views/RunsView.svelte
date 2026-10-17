@@ -27,7 +27,8 @@
   import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -184,6 +185,8 @@
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /** Where the plan leaves the rules out, nothing is tried, started or replayed; the runs stay readable. */
+  const resting = $derived(includedHere('AUTOMATION_RULES') === false);
 </script>
 
 <div class="screen">
@@ -201,6 +204,9 @@
     <Stack gap="150">
       <h2 class="section">{t('app.runs.try_title')}</h2>
       <p class="quiet small">{t('app.runs.try_hint')}</p>
+      {#if resting}
+      <NotInPlan body={t('app.plan.runs_body')} />
+      {:else}
       <WorkspaceGate permission="AUTOMATION">
       <Select
         label={t('app.runs.which_rule')}
@@ -226,6 +232,7 @@
         </div>
       {/if}
       </WorkspaceGate>
+      {/if}
 
       {#if tested}
         <div class="result">
@@ -402,13 +409,13 @@
                   {/each}
                 </ul>
 
-                {#if detail.status === 'FAILED'}
+                {#if detail.status === 'FAILED' && !resting}
                   <!-- Said before the button: a replay finishes this run, it does not start a new
                        one, and what already succeeded is not done twice. -->
                   <Banner tone="info">
                     {t('app.runs.replay_note', { count: String(alreadyDone(detail).length) })}
                   </Banner>
-                  {#if mayAutomate}
+                  {#if mayAutomate && !resting}
                   <div>
                     <Button
                       tone="primary"

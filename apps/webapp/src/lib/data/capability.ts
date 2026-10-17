@@ -310,3 +310,18 @@ export function hubCreation(manifest: Capabilities | undefined): 'shared' | 'pri
   if (structure) return 'shared';
   return manifest?.private_hub_offered === true ? 'private' : 'none';
 }
+
+/** A feature a workspace's plan may leave out (`PlanFeature` in the contract). */
+export type PlanFeature = 'AUTOMATION_RULES' | 'WEBHOOKS' | 'OWN_SIGN_IN_PROVIDERS';
+
+/**
+ * Whether the reader's workspace's plan includes the feature: `false` where `not_included` names
+ * it, `true` where the manifest answered without naming it - a server that knows no plans included
+ * - and `undefined` while the manifest is unread, when nothing is offered either. What a plan
+ * leaves out rests: the screen says "Not included in your plan" in place of the controls the
+ * server would refuse (multi-tenancy.md §4.2, P-05), and reading stays.
+ */
+export function includedByPlan(manifest: Capabilities | undefined, feature: PlanFeature): boolean | undefined {
+  if (!manifest) return undefined;
+  return !(manifest.not_included ?? []).includes(feature);
+}
