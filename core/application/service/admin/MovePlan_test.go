@@ -10,6 +10,7 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	quotarepo "github.com/Jersyfi/hubtask/core/application/repository/quota"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -37,6 +38,7 @@ type moveFixture struct {
 	tenants  *tenantsStore
 	audit    *auditSink
 	quotas   *quotaStoreFake
+	usage    *usageCounts
 	registry *usecase.Registry
 }
 
@@ -56,14 +58,15 @@ func newMoveFixture(t *testing.T) moveFixture {
 	items := int64(20000)
 	quotas := &quotaStoreFake{}
 	quotas.overrides.Items = &items
+	usage := &usageCounts{items: 4210, media: 10}
 	sink := &auditSink{}
 	registry, err := usecase.NewRegistry(nil, MoveTenantPlan{
-		Writer: plans.writer, Tenants: tenants, Quotas: quotas, Audit: sink,
+		Writer: plans.writer, Tenants: tenants, Quotas: quotas, Usage: usage, Audit: sink,
 	}.Descriptor())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return moveFixture{plans: plans, tenants: tenants, audit: sink, quotas: quotas, registry: registry}
+	return moveFixture{plans: plans, tenants: tenants, audit: sink, quotas: quotas, usage: usage, registry: registry}
 }
 
 func moveTo(plan string, version ...int) usecase.Input {
@@ -99,6 +102,38 @@ func TestAWorkspaceMovesToAPlan(t *testing.T) {
 	last := f.plans.journal.entries[len(f.plans.journal.entries)-1]
 	if last.Action != "tenant.plan_changed" || last.Details["plan_to"] != "family" || last.TenantSlug != "maria" {
 		t.Errorf("journal %+v", last)
+	}
+}
+
+// usageCounts is what the workspace holds.
+type usageCounts struct{ items, media, webhooks int64 }
+
+func (u *usageCounts) Items(context.Context) (int64, error)          { return u.items, nil }
+func (u *usageCounts) MediaBytes(context.Context) (int64, error)     { return u.media, nil }
+func (u *usageCounts) WebhookTargets(context.Context) (int64, error) { return u.webhooks, nil }
+func (u *usageCounts) LiveExports(context.Context) (int64, error)    { return 0, nil }
+func (u *usageCounts) AutomationRunsSince(context.Context, time.Time) (int64, error) {
+	return 0, nil
+}
+func (u *usageCounts) MeteredSince(context.Context, string, time.Time) (int64, error) { return 0, nil }
+
+// UC-INS-13 check 4: the move answers each counted limit the workspace now holds more of than its
+// new plan allows - at the limit is not over it, and an unlimited one never is.
+func TestAMoveAnswersTheLimitsTheWorkspaceIsNowOver(t *testing.T) {
+	f := newMoveFixture(t)
+	f.quotas.overrides.Items = nil
+	itemsLimit, webhooks := int64(1000), int64(3)
+	f.quotas.plan = quotarepo.PlanLimits{Overrides: quotarepo.Overrides{Items: &itemsLimit, WebhookTargets: &webhooks}}
+	f.usage.webhooks = 3
+
+	out, err := f.registry.Invoke(t.Context(), MoveTenantPlanName, operator(), moveTo("family", 4))
+	if err != nil {
+		t.Fatalf("moving: %v", err)
+	}
+	exceeded, _ := out["limits_exceeded"].([]usecase.Output)
+	if len(exceeded) != 1 || exceeded[0]["quota"] != "items" || exceeded[0]["limit"] != int64(1000) ||
+		exceeded[0]["used"] != int64(4210) {
+		t.Errorf("the limits exceeded read %v, want items alone at 4210 of 1000", exceeded)
 	}
 }
 

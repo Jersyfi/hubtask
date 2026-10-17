@@ -22,10 +22,11 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { quotas } from '../lib/data/quotas.svelte.ts';
+  import { quotas, type Standing } from '../lib/data/quotas.svelte.ts';
+  import { signInPolicy } from '../lib/data/signinpolicy.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -34,6 +35,10 @@
   import { sorting } from '../lib/sorting.svelte.ts';
 
   $effect(() => untrack(() => quotas.open()));
+  // The plan's name rides on the workspace read the sign-in rule already answers (UC-INS-10
+  // check 1): read here for the note beside the heading, never for a limit.
+  $effect(() => untrack(() => signInPolicy.open()));
+  const plan = $derived(signInPolicy.policy?.plan ?? undefined);
 
   const reading = $derived(quotas.state);
   const refusal = $derived(
@@ -76,6 +81,23 @@
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
+  /**
+   * Who set a limit, in words (UC-INS-10 check 1): a lock says who locked it unless the operator's
+   * exception decides anyway; otherwise the level that set the value in force. A server that
+   * answers no source is read as before.
+   */
+  function setBy(standing: Standing): string {
+    if (standing.source === undefined) {
+      if (standing.configured) return t('app.quotas.workspace');
+      return standing.locked ? t('app.quotas.locked_installation') : t('app.quotas.installation');
+    }
+    if (standing.source === 'EXCEPTION') return t('app.quotas.exception');
+    if (standing.source === 'WORKSPACE') return t('app.quotas.workspace');
+    if (standing.lock === 'INSTANCE') return t('app.quotas.locked_installation');
+    if (standing.lock === 'PLAN') return t('app.quotas.locked_plan');
+    return standing.source === 'PLAN' ? t('app.quotas.plan') : t('app.quotas.installation');
+  }
+
   /** A number as the limit counts it: attachment storage in bytes is said as a size. */
   const amount = (quota: string, value: number) =>
     quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value);
@@ -99,7 +121,15 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet notices()}
+      {#if plan}
+        <!-- The plan the workspace is on, so "Set by your plan" refers to something a person can
+             name to their provider. A note, not an offer. -->
+        <p class="plan" data-testid="limits-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: plan })}</Badge></p>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
     <Stack gap="300">
     <!-- A single installation says neither "installation" nor "operator" (deployments.md D1); its
@@ -157,7 +187,7 @@
               {/if}
             </td>
             <td>
-              {standing.configured ? t('app.quotas.workspace') : standing.locked ? t('app.quotas.locked_installation') : t('app.quotas.installation')}
+              {setBy(standing)}
             </td>
           </tr>
         {/each}
@@ -169,6 +199,7 @@
 </Stack>
 
 <style>
+  .plan { margin: 0; }
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure

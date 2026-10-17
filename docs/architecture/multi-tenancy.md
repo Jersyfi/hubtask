@@ -220,16 +220,20 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
 
 ## 4. Quotas, fairness, limits
 
-Configured per tenant in `tenant.settings.quotas`, written by the operator through
-`PATCH /admin/tenants/{id}/quotas`, read by the workspace through `GET /quotas`, enforced in the
-application layer and middleware. A capacity quota refuses as `422 capacity.<quota>` naming the
+A limit resolves `product → installation → plan → the operator's exception` (§4.2): the mode's
+default below, the installation's default and lock, the workspace's plan where the installation
+does not lock the limit, and the operator's exception per tenant in `tenant.settings.quotas`, written
+through `PATCH /admin/tenants/{id}/quotas` and the last word. The workspace reads each limit through
+`GET /quotas` with the level that set it (`source`) and the one that locked it (`lock`). Enforced
+in the application layer and middleware; the per-token rate is resolved the same way in the
+authentication query that already runs. A capacity quota refuses as `422 capacity.<quota>` naming the
 ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is alert A-18.
 
 | Limit | Default (multi) | Default (single/self-hosted) |
 |---|---|---|
 | API requests/min per token | 600 | 6,000 |
-| Items per tenant | Plan-bound | Unlimited |
-| Media storage | Plan-bound | Disk space |
+| Items per tenant | Unlimited unless a plan or the operator sets it | Unlimited |
+| Media storage | Unlimited unless a plan or the operator sets it | Disk space |
 | Automation runs/hour | 1,000 | 100,000 |
 | Webhook targets | 50 | Unlimited |
 | Bulk operations per request | 500 | 500 |
@@ -246,7 +250,7 @@ A zone changed mid-day takes effect from the next call. A workspace over a budge
 answers from that source and keeps working** (`ai.unavailable` with `reason` `budget_spent` and
 `renews_at`, the next midnight in its zone). `ai_tokens_per_day` limits the
 models the installation **offers**, with the installation's default and the operator's exception per
-workspace; a workspace's own model only by its optional `ai_own_tokens_per_day`, off by default,
+workspace and per plan; a workspace's own model only by its optional `ai_own_tokens_per_day`, off by default,
 which the workspace's administrator sets (`PUT /ai-budget`) and no installation value reaches
 ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md) §4). It is stored beside the quotas key
 in `tenant.settings`, not in it, because the operator's quota write replaces that key whole.
@@ -306,9 +310,9 @@ never rows — the boundary is a database policy, not a role.
 **Decided for milestone PL** ([ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md); the
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
 provisioning on a plan, finding a workspace by the platform's reference, and the sign-in rule and
-legal links resolved through the plan ([identity.md](./identity.md) §18). Not built yet: the limits
-and AI through the plan, the entitlements, the people limit and the account link - until they
-merge, §4 and §4.1 describe what a workspace meets there.
+legal links resolved through the plan ([identity.md](./identity.md) §18), the limits (§4) and the
+AI rule. Not built yet: the entitlements, the people limit and the account link - until they merge,
+§4 and §4.1 describe what a workspace meets there.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's

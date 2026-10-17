@@ -14485,7 +14485,8 @@
             "$ref": "#/components/schemas/AiSources"
           },
           "installation_sources": {
-            "$ref": "#/components/schemas/AiSources"
+            "$ref": "#/components/schemas/AiSources",
+            "description": "What the levels above the workspace allow - the installation and the workspace's plan together - which is what the workspace may narrow.\n"
           },
           "narrowing": {
             "$ref": "#/components/schemas/AiSources"
@@ -17565,6 +17566,36 @@
             "items": {
               "type": "string"
             }
+          },
+          "limits_exceeded": {
+            "type": "array",
+            "description": "Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.\n",
+            "items": {
+              "$ref": "#/components/schemas/LimitExceeded"
+            }
+          }
+        }
+      },
+      "LimitExceeded": {
+        "type": "object",
+        "required": [
+          "quota",
+          "limit",
+          "used"
+        ],
+        "properties": {
+          "quota": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The limit in force."
+          },
+          "used": {
+            "type": "integer",
+            "format": "int64",
+            "description": "What the workspace holds."
           }
         }
       },
@@ -17813,8 +17844,26 @@
           "locked": {
             "type": "boolean",
             "description": "True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.\n"
+          },
+          "source": {
+            "$ref": "#/components/schemas/QuotaSource"
+          },
+          "lock": {
+            "$ref": "#/components/schemas/PolicyLock",
+            "description": "Which level locked this ceiling - the installation, or the workspace's plan - or null. The operator's exception for one workspace still decides under either.\n"
           }
         }
+      },
+      "QuotaSource": {
+        "type": "string",
+        "enum": [
+          "DEFAULT",
+          "INSTANCE",
+          "PLAN",
+          "EXCEPTION",
+          "WORKSPACE"
+        ],
+        "description": "Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.\n"
       },
       "TenantQuotas": {
         "type": "object",

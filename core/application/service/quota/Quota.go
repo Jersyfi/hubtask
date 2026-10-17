@@ -11,6 +11,7 @@
 package quota
 
 import (
+	"context"
 	"strconv"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
@@ -88,9 +89,8 @@ type Limits struct {
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
-// enforcement exists everywhere, the numbers differ, one code path (§1). "Plan-bound" rows
-// default to unlimited in both modes: there is no plan system, so a bound is the operator's own
-// write.
+// enforcement exists everywhere, the numbers differ, one code path (§1). "Plan-bound" rows default
+// to unlimited in both modes: a bound is a plan's or the operator's own write.
 func Defaults(mode env.TenancyMode) Limits {
 	if mode == env.TenancyMulti {
 		return Limits{
@@ -122,44 +122,156 @@ func Defaults(mode env.TenancyMode) Limits {
 	}
 }
 
-// Resolve lays the workspace's overrides over the installation's, and those over the mode's
-// defaults.
-//
-// Three levels, in the order §6.7 names once and for all: `Effective(product, instance, plan,
-// workspace)` with `plan = nil` until there are plans. The product's default is the mode's table
-// above, the installation's is what an operator set on the instance level, and the workspace's is
-// the exception somebody wrote for one of them.
-//
-// `instance` is a value, not a pointer to a level: a caller with nothing to say passes the zero
-// `Limits{}` and `Overrides{}`, and neither changes anything — which is what "with plan = nil"
-// will mean when the fourth level arrives.
-func Resolve(overrides repository.Overrides, instance repository.Overrides, mode env.TenancyMode) Limits {
+// The levels a limit resolves through and the words a standing says it with: which level set the
+// value in force, and which locked it.
+const (
+	SourceDefault   = "DEFAULT"
+	SourceInstance  = "INSTANCE"
+	SourcePlan      = "PLAN"
+	SourceException = "EXCEPTION"
+	// SourceWorkspace is the workspace's own AI budget, the one ceiling a workspace sets itself.
+	SourceWorkspace = "WORKSPACE"
+
+	LockInstance = "INSTANCE"
+	LockPlan     = "PLAN"
+)
+
+// Levels is everything a workspace's limits resolve from (multi-tenancy.md §4.2): the installation's
+// defaults and locks, the workspace's plan's, and the operator's exception for this one workspace,
+// which also holds the workspace's own AI budget.
+type Levels struct {
+	Instance      repository.Overrides
+	InstanceLocks map[string]bool
+	Plan          repository.PlanLimits
+	Exception     repository.Overrides
+}
+
+// ReadLevels reads the levels in the caller's transaction, under the workspace's scope.
+func ReadLevels(ctx context.Context, store repository.Store) (Levels, error) {
+	var levels Levels
+	var err error
+	if levels.Exception, err = store.Overrides(ctx); err != nil {
+		return Levels{}, err
+	}
+	if levels.Instance, err = store.InstanceOverrides(ctx); err != nil {
+		return Levels{}, err
+	}
+	if levels.InstanceLocks, err = store.InstanceLocks(ctx); err != nil {
+		return Levels{}, err
+	}
+	if levels.Plan, err = store.PlanLimits(ctx); err != nil {
+		return Levels{}, err
+	}
+	return levels, nil
+}
+
+// planApplies reports whether the plan's value for a quota is read: never under the installation's
+// lock, which binds the plan as it binds every workspace.
+func (l Levels) planApplies(name string) bool {
+	return !l.InstanceLocks[name] && valueOf(l.Plan.Overrides, name) != nil
+}
+
+// SourceOf answers which level set the value in force.
+func (l Levels) SourceOf(name string) string {
+	switch {
+	case valueOf(l.Exception, name) != nil:
+		if name == AiOwnTokensPerDay {
+			return SourceWorkspace
+		}
+		return SourceException
+	case name == AiOwnTokensPerDay:
+		return SourceDefault
+	case l.planApplies(name):
+		return SourcePlan
+	case valueOf(l.Instance, name) != nil:
+		return SourceInstance
+	default:
+		return SourceDefault
+	}
+}
+
+// LockOf answers which level locked a quota, or "" - the installation's lock first, which binds the
+// plan's. The operator's exception still decides under either: a lock says what a workspace may not
+// ask for, not what the operator may not grant.
+func (l Levels) LockOf(name string) string {
+	switch {
+	case name == AiOwnTokensPerDay:
+		return ""
+	case l.InstanceLocks[name]:
+		return LockInstance
+	case l.Plan.Locks[name]:
+		return LockPlan
+	default:
+		return ""
+	}
+}
+
+// Resolve answers the limits in force: the mode's table, the installation's defaults, the plan's
+// where the installation does not lock them, and the operator's exception as the last word. The own
+// model's budget is the workspace's alone: no product default, installation or plan reaches it.
+func Resolve(levels Levels, mode env.TenancyMode) Limits {
 	limits := Defaults(mode)
-	apply := func(target *int64, override *int64) {
-		if override != nil {
-			*target = *override
+	for _, name := range OperatorNames() {
+		if value := valueOf(levels.Instance, name); value != nil {
+			limits.set(name, *value)
+		}
+		if levels.planApplies(name) {
+			limits.set(name, *valueOf(levels.Plan.Overrides, name))
+		}
+		if value := valueOf(levels.Exception, name); value != nil {
+			limits.set(name, *value)
 		}
 	}
-	// The installation first, so a workspace's own exception is still the last word.
-	apply(&limits.APIRequestsPerMinute, instance.APIRequestsPerMinute)
-	apply(&limits.Items, instance.Items)
-	apply(&limits.MediaBytes, instance.MediaBytes)
-	apply(&limits.AutomationRunsPerHour, instance.AutomationRunsPerHour)
-	apply(&limits.WebhookTargets, instance.WebhookTargets)
-	apply(&limits.ExportJobs, instance.ExportJobs)
-	apply(&limits.AiTokensPerDay, instance.AiTokensPerDay)
-
-	apply(&limits.APIRequestsPerMinute, overrides.APIRequestsPerMinute)
-	apply(&limits.Items, overrides.Items)
-	apply(&limits.MediaBytes, overrides.MediaBytes)
-	apply(&limits.AutomationRunsPerHour, overrides.AutomationRunsPerHour)
-	apply(&limits.WebhookTargets, overrides.WebhookTargets)
-	apply(&limits.ExportJobs, overrides.ExportJobs)
-	apply(&limits.AiTokensPerDay, overrides.AiTokensPerDay)
-	// The own model's budget is the workspace's alone: no product default and no installation
-	// value reaches it, whatever an instance level holds.
-	apply(&limits.AiOwnTokensPerDay, overrides.AiOwnTokensPerDay)
+	if value := levels.Exception.AiOwnTokensPerDay; value != nil {
+		limits.AiOwnTokensPerDay = *value
+	}
 	return limits
+}
+
+// valueOf answers one quota's value at a level, nil where the level set none.
+func valueOf(overrides repository.Overrides, name string) *int64 {
+	switch name {
+	case APIRequestsPerMinute:
+		return overrides.APIRequestsPerMinute
+	case Items:
+		return overrides.Items
+	case MediaBytes:
+		return overrides.MediaBytes
+	case AutomationRunsPerHour:
+		return overrides.AutomationRunsPerHour
+	case WebhookTargets:
+		return overrides.WebhookTargets
+	case ExportJobs:
+		return overrides.ExportJobs
+	case AiTokensPerDay:
+		return overrides.AiTokensPerDay
+	case AiOwnTokensPerDay:
+		return overrides.AiOwnTokensPerDay
+	default:
+		return nil
+	}
+}
+
+// set writes one quota's ceiling by name.
+func (l *Limits) set(name string, value int64) {
+	switch name {
+	case APIRequestsPerMinute:
+		l.APIRequestsPerMinute = value
+	case Items:
+		l.Items = value
+	case MediaBytes:
+		l.MediaBytes = value
+	case AutomationRunsPerHour:
+		l.AutomationRunsPerHour = value
+	case WebhookTargets:
+		l.WebhookTargets = value
+	case ExportJobs:
+		l.ExportJobs = value
+	case AiTokensPerDay:
+		l.AiTokensPerDay = value
+	case AiOwnTokensPerDay:
+		l.AiOwnTokensPerDay = value
+	}
 }
 
 // Of answers one quota's ceiling by name.
