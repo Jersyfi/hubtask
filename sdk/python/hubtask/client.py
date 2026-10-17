@@ -551,6 +551,14 @@ class Client:
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def start_passkey_sign_in(self) -> "PasskeySignInOptions":
+        """Begin a sign-in with a passkey"""
+        return self._call("POST", "/auth/sessions:passkey-options", {}, None, {}, None, "none", None, "json")
+
+    def complete_passkey_sign_in(self, body: "PasskeyAssertion") -> "SessionTokens":
+        """Sign in with a passkey and receive the pair"""
+        return self._call("POST", "/auth/sessions:passkey", {}, None, {}, body, "json", "application/json", "json")
+
     def complete_link(self, body: "LinkCompletion") -> "SessionTokens":
         """Prove the account before a provider is connected to it"""
         return self._call("POST", "/auth/sessions:link", {}, None, {}, body, "json", "application/json", "json")

@@ -682,6 +682,18 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Begin a sign-in with a passkey
+   * Public: sent without a bearer where the client holds none. */
+  startPasskeySignIn(options: CallOptions = {}): Promise<operations["startPasskeySignIn"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:passkey-options", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Sign in with a passkey and receive the pair
+   * Public: sent without a bearer where the client holds none. */
+  completePasskeySignIn(body: NonNullable<operations["completePasskeySignIn"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeySignIn"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:passkey", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Prove the account before a provider is connected to it
    * Public: sent without a bearer where the client holds none. */
   completeLink(body: NonNullable<operations["completeLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeLink"]['responses'][201]['content']["application/json"]> {

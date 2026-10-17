@@ -2823,6 +2823,21 @@ func (e PasskeyListCannotRemoveReason) Valid() bool {
 	}
 }
 
+// Defines values for PasskeySignInOptionsPublicKeyUserVerification.
+const (
+	Required PasskeySignInOptionsPublicKeyUserVerification = "required"
+)
+
+// Valid indicates whether the value is a known member of the PasskeySignInOptionsPublicKeyUserVerification enum.
+func (e PasskeySignInOptionsPublicKeyUserVerification) Valid() bool {
+	switch e {
+	case Required:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PasskeyTransport.
 const (
 	Ble       PasskeyTransport = "ble"
@@ -3782,6 +3797,7 @@ const (
 	SessionSignedInWithINVITATION       SessionSignedInWith = "INVITATION"
 	SessionSignedInWithLessThannil      SessionSignedInWith = "<nil>"
 	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
+	SessionSignedInWithPASSKEY          SessionSignedInWith = "PASSKEY"
 	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
 	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
 	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
@@ -3796,6 +3812,8 @@ func (e SessionSignedInWith) Valid() bool {
 	case SessionSignedInWithLessThannil:
 		return true
 	case SessionSignedInWithOIDC:
+		return true
+	case SessionSignedInWithPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORD:
 		return true
@@ -3828,6 +3846,7 @@ func (e SessionTokensTokenType) Valid() bool {
 // Defines values for SignInMethod.
 const (
 	SignInMethodOIDC     SignInMethod = "OIDC"
+	SignInMethodPASSKEY  SignInMethod = "PASSKEY"
 	SignInMethodPASSWORD SignInMethod = "PASSWORD"
 )
 
@@ -3835,6 +3854,8 @@ const (
 func (e SignInMethod) Valid() bool {
 	switch e {
 	case SignInMethodOIDC:
+		return true
+	case SignInMethodPASSKEY:
 		return true
 	case SignInMethodPASSWORD:
 		return true
@@ -8067,6 +8088,24 @@ type Passkey struct {
 	RpId *string `json:"rp_id"`
 }
 
+// PasskeyAssertion What `navigator.credentials.get()` answered, base64url without padding.
+type PasskeyAssertion struct {
+	// AuthenticatorData The response's `authenticatorData`.
+	AuthenticatorData string `json:"authenticator_data"`
+
+	// ClientDataJson The response's `clientDataJSON`.
+	ClientDataJson string `json:"client_data_json"`
+
+	// RawId The credential's `rawId`.
+	RawId string `json:"raw_id"`
+
+	// Signature The response's `signature`.
+	Signature string `json:"signature"`
+
+	// UserHandle The response's `userHandle`, which a passkey signing in without an identifier always gives.
+	UserHandle string `json:"user_handle"`
+}
+
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
 type PasskeyCreationOptions struct {
 	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
@@ -8197,6 +8236,26 @@ type PasskeyRename struct {
 	// Name What the person calls it, 1 to 64 characters.
 	Name string `json:"name"`
 }
+
+// PasskeySignInOptions The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding.
+type PasskeySignInOptions struct {
+	// ExpiresAt When the challenge stops being accepted.
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey struct {
+		// Challenge Thirty-two random bytes
+		Challenge string `json:"challenge"`
+
+		// RpId The workspace's host.
+		RpId string `json:"rpId"`
+
+		// Timeout Milliseconds.
+		Timeout          int                                           `json:"timeout"`
+		UserVerification PasskeySignInOptionsPublicKeyUserVerification `json:"userVerification"`
+	} `json:"public_key"`
+}
+
+// PasskeySignInOptionsPublicKeyUserVerification defines model for PasskeySignInOptions.PublicKey.UserVerification.
+type PasskeySignInOptionsPublicKeyUserVerification string
 
 // PasskeyTransport defines model for PasskeyTransport.
 type PasskeyTransport string
@@ -12048,6 +12107,9 @@ type AgreeToTermsJSONRequestBody = TermsAgreement
 // CompleteLinkJSONRequestBody defines body for CompleteLink for application/json ContentType.
 type CompleteLinkJSONRequestBody = LinkCompletion
 
+// CompletePasskeySignInJSONRequestBody defines body for CompletePasskeySignIn for application/json ContentType.
+type CompletePasskeySignInJSONRequestBody = PasskeyAssertion
+
 // RefreshSessionJSONRequestBody defines body for RefreshSession for application/json ContentType.
 type RefreshSessionJSONRequestBody = SessionRefresh
 
@@ -12635,6 +12697,12 @@ type ServerInterface interface {
 	// CompleteLink Prove the account before a provider is connected to it
 	// (POST /auth/sessions:link)
 	CompleteLink(w http.ResponseWriter, r *http.Request)
+	// CompletePasskeySignIn Sign in with a passkey and receive the pair
+	// (POST /auth/sessions:passkey)
+	CompletePasskeySignIn(w http.ResponseWriter, r *http.Request)
+	// StartPasskeySignIn Begin a sign-in with a passkey
+	// (POST /auth/sessions:passkey-options)
+	StartPasskeySignIn(w http.ResponseWriter, r *http.Request)
 	// RefreshSession Exchange a refresh token for the next pair
 	// (POST /auth/sessions:refresh)
 	RefreshSession(w http.ResponseWriter, r *http.Request)
@@ -16067,6 +16135,34 @@ func (siw *ServerInterfaceWrapper) CompleteLink(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteLink(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompletePasskeySignIn operation middleware
+func (siw *ServerInterfaceWrapper) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompletePasskeySignIn(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartPasskeySignIn operation middleware
+func (siw *ServerInterfaceWrapper) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartPasskeySignIn(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -25019,6 +25115,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/invitations:inspect", wrapper.InspectInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/installation:set-up", wrapper.SetUpInstallation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:verify", wrapper.CompleteSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:passkey-options", wrapper.StartPasskeySignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:passkey", wrapper.CompletePasskeySignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:link", wrapper.CompleteLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/sessions:agree-terms", wrapper.AgreeToTerms)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
