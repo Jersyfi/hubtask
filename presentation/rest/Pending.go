@@ -1391,6 +1391,8 @@ func (pending) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) { n
 // StartPasskeyStepUp is overridden by RestController, for the reason given at CreateContainer.
 func (pending) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// StartPasskeyEnrollment and CompletePasskeyEnrollment are overridden by RestController, for the
+// reason given at CreateContainer.
 func (pending) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
