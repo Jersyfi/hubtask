@@ -3268,6 +3268,16 @@ func run() error {
 		}.Delay,
 		Signals: metrics,
 	}
+	// The installation's deliveries to a purchase platform (UC-INS-14): the same signature, client
+	// and ladder, and no switching off.
+	platformDelivery := webhook.PlatformDeliverer{
+		Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Deliveries:    postgres.NewPlatformDeliveryRepository(),
+		Events:        postgres.NewPlatformEventRepository(),
+		Encryptor:     encryptor, Signer: security.NewWebhookSigner(), Client: outboundClient,
+		UnitOfWork: backgroundWork, Jobs: jobs, Clock: clockadapter.System{}, Source: cfg.BaseURL,
+		NextAttempt: webhookDelivery.NextAttempt,
+	}
 
 	// The outbound call: an HTTP_REQUEST action's HTTP, detached from every transaction and
 	// through the guarded client, with the sealed header secret opened for the length of one call.
@@ -3371,6 +3381,7 @@ func run() error {
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
 		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:  platformDelivery,
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
 		queueport.KindBackupRun:        backupRun,
