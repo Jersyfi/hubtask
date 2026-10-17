@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // UC-ID-12 check 4, UC-ID-16 check 7 (multi-tenancy.md §4.2): a workspace's plan is the level
@@ -181,5 +182,97 @@ func TestTheWorkspacePolicyProjectionNamesThePlan(t *testing.T) {
 	}
 	if plan := signInPolicyOutput(resolved)["plan"]; plan != nil {
 		t.Errorf("a workspace on no plan names %v", plan)
+	}
+}
+
+// UC-ID-12 check 4: a workspace's write is held to its plan as to the installation - a value looser
+// than the plan's is refused, and a switch the plan locks is refused naming the plan.
+func TestAWorkspacesWriteIsHeldToItsPlan(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	registry := workspaceRegistry(t, fixture)
+	fixture.store.row.Plan = onPlan(domain.PolicyLayer{
+		Patch: domain.PolicyPatch{MinLength: intOf(16), ManagedAccounts: boolOf(false), PrivateHubs: boolOf(false)},
+		Locks: map[domain.PolicySwitch]bool{domain.SwitchMinDigits: true},
+	}, domain.LegalLayer{})
+
+	write := func(change map[string]any) error {
+		_, err := registry.Invoke(t.Context(), UpdateWorkspaceName, workspaceActor(),
+			usecase.Input{"sign_in_policy": change, "step_up_token": "hbt_stp_x"})
+		return err
+	}
+	for name, change := range map[string]map[string]any{
+		"a length below the plan's":     {"min_length": 12},
+		"managed accounts the plan off": {"managed_accounts": true},
+		"private hubs the plan off":     {"private_hubs": true},
+	} {
+		if detail := detailOf(write(change)); detail != "auth.policy_loosens" {
+			t.Errorf("%s answered %q, want auth.policy_loosens", name, detail)
+		}
+	}
+	err := write(map[string]any{"min_digits": 2})
+	if detailOf(err) != "auth.policy_locked" || shared.AsError(err).Params["origin"] != string(domain.LockPlan) {
+		t.Errorf("a switch the plan locks answered %v, want auth.policy_locked naming PLAN", err)
+	}
+	if len(fixture.store.updates) != 0 {
+		t.Errorf("%d writes from refused changes", len(fixture.store.updates))
+	}
+	if err := write(map[string]any{"min_length": 20}); err != nil {
+		t.Errorf("tightening below the plan was refused: %v", err)
+	}
+}
+
+// UC-ID-20 check 8: a plan that switches managed accounts off refuses the next one.
+func TestAPlanThatSwitchesManagedAccountsOffRefusesTheNext(t *testing.T) {
+	f := newManagedFixture(t)
+	f.policy.store.row.Plan = onPlan(domain.PolicyLayer{
+		Patch: domain.PolicyPatch{ManagedAccounts: boolOf(false)},
+	}, domain.LegalLayer{})
+
+	_, err := f.create(t, admin(), lenaInput())
+	if got := detailOf(err); got != "accounts.managed_accounts_off" {
+		t.Fatalf("answered %q (%v), want accounts.managed_accounts_off", got, err)
+	}
+	if len(f.accounts.inserted) != 0 {
+		t.Error("something was written")
+	}
+}
+
+// UC-ID-16 check 7: a plan that switches private hubs off withdraws the offer of a private hub.
+func TestAPlanThatSwitchesPrivateHubsOffWithdrawsTheOffer(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	fixture.store.row.Plan = onPlan(domain.PolicyLayer{
+		Patch: domain.PolicyPatch{PrivateHubs: boolOf(false)},
+	}, domain.LegalLayer{})
+	resolved, err := fixture.writer.Resolver.Resolve(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("resolving: %v", err)
+	}
+	if privateHubsAllowed(&resolved) {
+		t.Error("private hubs are offered under a plan that switched them off")
+	}
+}
+
+// UC-INS-13 check 4: moving a workspace to a plan with other terms puts other terms in force, which
+// is what asks everybody once more; the provider's terms answer as the installation's do.
+func TestAMoveToAPlanWithOtherTermsPutsThemInForce(t *testing.T) {
+	fixture := newWorkspacePolicyFixture(now)
+	terms := func(url string) domain.WorkspacePlan {
+		return onPlan(domain.PolicyLayer{}, domain.LegalLayer{Links: domain.LegalLinks{TermsURL: url}})
+	}
+	fixture.store.row.Plan = terms("https://provider.example/family-terms")
+	before, err := fixture.writer.Resolver.TermsInForce(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("reading the terms: %v", err)
+	}
+	fixture.store.row.Plan = terms("https://provider.example/business-terms")
+	after, err := fixture.writer.Resolver.TermsInForce(t.Context(), tenant)
+	if err != nil {
+		t.Fatalf("reading the terms: %v", err)
+	}
+	if before.URL != "https://provider.example/family-terms" || after.URL != "https://provider.example/business-terms" {
+		t.Errorf("the terms in force read %q, then %q", before.URL, after.URL)
+	}
+	if after.SetBy != domain.TermsByInstallation {
+		t.Errorf("a plan's terms answer set by %q, want the installation's", after.SetBy)
 	}
 }
