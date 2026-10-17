@@ -101,7 +101,7 @@ func attachKeys(session *sessionFixture) *keyFactorFixture {
 		ID: "01936f2a-7c1e-7000-8000-00000000be47", TenantID: tenant, AccountID: account,
 		CredentialID: bertsKey, PublicKey: []byte{0xa5}, Algorithm: -7, SignCount: 7,
 		UserHandle: bytes.Repeat([]byte{0x44}, domain.PasskeyUserHandleBytes),
-		Transports: []string{"usb"}, Name: "YubiKey", RPID: workspaceHost,
+		Transports: []string{"usb"}, Name: "Desk key", RPID: workspaceHost,
 	}
 	f.keys.held = append(f.keys.held, f.bert)
 	f.holders.holders[string(bertsKey)] = repository.PasskeyHolder{Credential: f.bert}

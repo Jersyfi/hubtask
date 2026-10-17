@@ -58,7 +58,7 @@ func (f *enrollmentFixture) options(t *testing.T, pending, host string) (usecase
 func (f *enrollmentFixture) complete(t *testing.T, pending, challenge string) (usecase.Output, error) {
 	t.Helper()
 	return f.enrolled.Invoke(t.Context(), CompletePasskeyEnrollmentName, appshared.ActorContext{}, usecase.Input{
-		"pending_token": pending, "name": "YubiKey",
+		"pending_token": pending, "name": "Desk key",
 		"raw_id": base64.RawURLEncoding.EncodeToString(bertsKey), "client_data_json": challenge,
 		"attestation_object": "AQ", "transports": []any{"usb"},
 	})
