@@ -8406,6 +8406,16 @@ type PlanCreate struct {
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlatformEvent One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent, unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform deduplicates on it either way; `tenantid` is the workspace the event is about, and `data` carries its state as the schema of the event's `type` describes.
+// Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the event schemas and the CloudEvents specification, and a second list of its properties here would drift.
+type PlatformEvent map[string]interface{}
+
+// PlatformEventPage defines model for PlatformEventPage.
+type PlatformEventPage struct {
+	Data []PlatformEvent `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
 
@@ -10805,6 +10815,12 @@ type DeleteInstanceBackupTargetParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListPlatformEventsParams defines parameters for ListPlatformEvents.
+type ListPlatformEventsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
 type CreateInstanceIdentityProviderParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -13040,6 +13056,15 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPlatformEvents The installation's events, read forward
+	//
+	// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
+	// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
+	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
+	ListPlatformEvents(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListInstanceIdentityProviders The providers this installation offers every workspace
 	//
@@ -18065,6 +18090,25 @@ func (c *Client) ReadEncryptionStatus(ctx context.Context, reqEditors ...Request
 // Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewResealSecretsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPlatformEvents The installation's events, read forward
+//
+// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
+// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
+// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
+func (c *Client) ListPlatformEvents(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPlatformEventsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -27619,6 +27663,72 @@ func NewResealSecretsRequest(server string) (*http.Request, error) {
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListPlatformEventsRequest constructs an http.Request for the ListPlatformEvents method
+func NewListPlatformEventsRequest(server string, params *ListPlatformEventsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/events")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -42697,6 +42807,17 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/encryption:reseal (the `ResealSecrets` operationId).
 	ResealSecretsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ResealSecretsResult, error)
 
+	// ListPlatformEventsWithResponse The installation's events, read forward
+	//
+	// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
+	// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
+	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
+	ListPlatformEventsWithResponse(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*ListPlatformEventsResult, error)
+
 	// ListInstanceIdentityProvidersWithResponse The providers this installation offers every workspace
 	//
 	// Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both.
@@ -48482,6 +48603,54 @@ func (r ResealSecretsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ResealSecretsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPlatformEventsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlatformEventPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPlatformEventsResult) GetJSON200() *PlatformEventPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPlatformEventsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPlatformEventsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPlatformEventsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPlatformEventsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPlatformEventsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -64173,6 +64342,23 @@ func (c *ClientWithResponses) ResealSecretsWithResponse(ctx context.Context, req
 	return ParseResealSecretsResult(rsp)
 }
 
+// ListPlatformEventsWithResponse The installation's events, read forward
+//
+// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
+// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
+// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
+func (c *ClientWithResponses) ListPlatformEventsWithResponse(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*ListPlatformEventsResult, error) {
+	rsp, err := c.ListPlatformEvents(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPlatformEventsResult(rsp)
+}
+
 // ListInstanceIdentityProvidersWithResponse The providers this installation offers every workspace
 //
 // Every workspace on this installation reads these and draws their buttons; none may change them, which is the row-level policy and not a check in a handler. Behind `admin:tenants` **and** the operator register, both.
@@ -72119,6 +72305,39 @@ func ParseResealSecretsResult(rsp *http.Response) (*ResealSecretsResult, error) 
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPlatformEventsResult parses an HTTP response from a ListPlatformEventsWithResponse call
+func ParseListPlatformEventsResult(rsp *http.Response) (*ListPlatformEventsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPlatformEventsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformEventPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

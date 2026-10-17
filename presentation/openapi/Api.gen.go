@@ -8400,6 +8400,16 @@ type PlanCreate struct {
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlatformEvent One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent, unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform deduplicates on it either way; `tenantid` is the workspace the event is about, and `data` carries its state as the schema of the event's `type` describes.
+// Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the event schemas and the CloudEvents specification, and a second list of its properties here would drift.
+type PlatformEvent map[string]interface{}
+
+// PlatformEventPage defines model for PlatformEventPage.
+type PlatformEventPage struct {
+	Data []PlatformEvent `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
 
@@ -10799,6 +10809,12 @@ type DeleteInstanceBackupTargetParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListPlatformEventsParams defines parameters for ListPlatformEvents.
+type ListPlatformEventsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // CreateInstanceIdentityProviderParams defines parameters for CreateInstanceIdentityProvider.
 type CreateInstanceIdentityProviderParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -12425,6 +12441,9 @@ type ServerInterface interface {
 	// ResealSecrets Re-seal what older keys still hold
 	// (POST /admin/encryption:reseal)
 	ResealSecrets(w http.ResponseWriter, r *http.Request)
+	// ListPlatformEvents The installation's events, read forward
+	// (GET /admin/events)
+	ListPlatformEvents(w http.ResponseWriter, r *http.Request, params ListPlatformEventsParams)
 	// ListInstanceIdentityProviders The providers this installation offers every workspace
 	// (GET /admin/identity-providers)
 	ListInstanceIdentityProviders(w http.ResponseWriter, r *http.Request)
@@ -14158,6 +14177,52 @@ func (siw *ServerInterfaceWrapper) ResealSecrets(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ResealSecrets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPlatformEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListPlatformEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPlatformEventsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPlatformEvents(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -25075,6 +25140,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/operators/{accountId}", wrapper.RemoveOperator)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/overview", wrapper.ReadInstanceOverview)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/journal", wrapper.ListInstanceJournal)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/events", wrapper.ListPlatformEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.RemoveInstanceAiProvider)

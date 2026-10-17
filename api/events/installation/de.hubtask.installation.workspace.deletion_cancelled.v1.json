@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://docs.hubtask.dev/events/installation/de.hubtask.installation.workspace.deletion_cancelled.v1.json",
+  "title": "de.hubtask.installation.workspace.deletion_cancelled.v1",
+  "description": "A requested deletion was cancelled; the workspace returns to the status it had. An installation event: it is pushed to the installation's subscriptions and read from `GET /admin/events`, never offered to a workspace. Identifiers and states only, never content. The wire format is a CloudEvent 1.0 in structured JSON; `tenantid` is the workspace the event is about. Fields may be added; removing or reinterpreting one requires a .v2 delivered alongside .v1 for at least two minor releases.",
+  "type": "object",
+  "required": [
+    "specversion",
+    "id",
+    "source",
+    "type",
+    "subject",
+    "time",
+    "datacontenttype",
+    "tenantid",
+    "actortype",
+    "causationdepth",
+    "correlationid",
+    "data"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "specversion": {
+      "type": "string",
+      "enum": [
+        "1.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUIDv7. Stable across delivery attempts, so a consumer deduplicates on it (at-least-once delivery)."
+    },
+    "source": {
+      "type": "string",
+      "description": "The installation."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "de.hubtask.installation.workspace.deletion_cancelled.v1"
+      ]
+    },
+    "subject": {
+      "type": "string",
+      "description": "`workspace/<id>` - the workspace the event is about."
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "receivedat": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the server learned of the event. The same instant as `time` for an event raised online; for a change a device made offline and pushed later, `time` is the device's bounded moment and this is the push's. A rule with a time condition evaluates this one."
+    },
+    "datacontenttype": {
+      "type": "string",
+      "enum": [
+        "application/json"
+      ]
+    },
+    "tenantid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The workspace the event is about."
+    },
+    "actortype": {
+      "type": "string",
+      "enum": [
+        "USER",
+        "SERVICE_ACCOUNT",
+        "AUTOMATION",
+        "AI_AGENT",
+        "SYSTEM"
+      ]
+    },
+    "actorid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Absent when the system itself acts. No label: an event leaves the installation, and a name is personal data a subscriber does not need in order to react."
+    },
+    "onbehalfof": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The principal an automation rule or an agent runs as."
+    },
+    "correlationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Everything that came out of one original action carries the same value. A root event is its own correlation."
+    },
+    "causationid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The event that caused this one. Absent for an action a person took."
+    },
+    "pushid": {
+      "type": "string",
+      "format": "uuid",
+      "description": "The push a device brought the change in with, and absent for a change made online. Deliveries of one push about one subject and of one type are collapsed to one, with the last event's payload."
+    },
+    "causationdepth": {
+      "type": "integer",
+      "description": "Distance from the original action. The rule engine stops at 5 and marks the run ABORTED_LOOP."
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "workspace"
+      ],
+      "properties": {
+        "workspace": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "id",
+            "external_reference",
+            "status",
+            "plan",
+            "version"
+          ],
+          "description": "The workspace's whole current state, on every installation event. A receiver keeps the event with the highest version and needs no ordering.",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "The workspace. The platform knows it from provisioning; the one identifier left once the workspace is gone."
+            },
+            "external_reference": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The platform's own reference, as it set it. Null when none is set, and removed from every kept event at the purge."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "SUSPENDED",
+                "PENDING_DELETION",
+                "DELETED"
+              ],
+              "description": "DELETED only on the deleted event: the workspace is gone."
+            },
+            "plan": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "The plan's short name, which never changes; null without a plan."
+            },
+            "version": {
+              "type": "integer",
+              "description": "The workspace's version, which only grows. An event that changes nothing on the workspace carries the version as it stands."
+            }
+          }
+        }
+      }
+    }
+  }
+}

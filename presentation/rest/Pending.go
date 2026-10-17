@@ -1172,6 +1172,12 @@ func (pending) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) ListPlatformEvents(
+	w http.ResponseWriter, r *http.Request, _ openapi.ListPlatformEventsParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) ListInstanceJournal(
 	w http.ResponseWriter, r *http.Request, _ openapi.ListInstanceJournalParams,
 ) {
