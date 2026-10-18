@@ -104,6 +104,10 @@ var rlsExceptions = map[string]string{
 		"every workspace, and the deleted event outlives its workspace, so a policy comparing " +
 		"current_tenant_id() would make the feed impossible; identifiers and states only, " +
 		"never a person's content",
+	"usage_archive": "a purged workspace's daily counts (multi-tenancy.md §4.3, migration 0183): " +
+		"kept for 13 months after the workspace's row is gone, so a policy comparing " +
+		"current_tenant_id() would make them unreachable under every honest scope; counts only, " +
+		"no name and no reference, written by the purge and read by the control plane through admin_usage()",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
 		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
 		"person's data, written only by the control plane's use cases",

@@ -70,6 +70,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 | `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
 | `platform_event` | The installation's events for a purchase platform (§4.3): read across every workspace by the control plane, and the `deleted` event outlives its workspace | Identifiers and states only; written beside a control-plane change in its transaction; read only by `GET /admin/events`, behind `admin:tenants` and the register; the reference nulled at the purge, every row swept after 30 days |
+| `usage_archive` | A purged workspace's daily counts (§4.3), kept for 13 months after its row is gone, keyed by the bare id | Counts only, no name and no reference; written by the purge in its own transaction; read only by `admin_usage()`; swept by `sweep_usage()` |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
@@ -84,6 +85,8 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
 | `remove_plan(plan, at, actor)` | `REMOVED`, `IN_USE` or `NOT_FOUND` — never a row | Removing a plan, refused while a workspace is on it (§4.2) |
+| `admin_usage(from, to, metric, tenant, after, size)` | One page of workspaces' daily counts, live and purged — numbers, no names | The control plane's use read while metering is on (§4.3) |
+| `sweep_usage(before)` | Deletes every count older than the day it is given, inside workspaces and in `usage_archive` | The scheduler's leader, daily (§4.3) |
 
 **The doors' owner reads across tenants by policy.** `FORCE` binds the owner too, so a door owned
 by a role that is neither superuser nor `BYPASSRLS` — the database an operator brings (§2.1.1) —
