@@ -1846,7 +1846,6 @@
   "app.instance.later_badge": "Später",
   "app.instance.later_retention": "Voreingestellte Aufbewahrungsregeln mit Schloss, und wie lange der Audit-Trail bleibt.",
   "app.instance.later_backup": "Sicherungsziele, die die Installation anbietet, und ob ein Arbeitsbereich eigene nennen darf.",
-  "app.instance.later_plans": "Tarife: welche Grenzen und Funktionen jeder öffnet – die Ebene zwischen dieser und einem Arbeitsbereich.",
   "app.instance.action.tenant_provisioned": "Arbeitsbereich angelegt",
   "app.instance.action.tenant_suspended": "Arbeitsbereich stillgelegt",
   "app.instance.action.tenant_resumed": "Arbeitsbereich wieder aktiviert",
