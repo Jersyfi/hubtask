@@ -1008,6 +1008,11 @@ export class HubtaskClient {
     return this.call("GET", "/admin/events", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The use per workspace, metric and day, for billing */
+  readUsage(options: CallOptions & { readonly query?: NonNullable<operations["readUsage"]['parameters']['query']> } = {}): Promise<operations["readUsage"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/usage", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The AI models this installation offers every workspace */
   listInstanceAiProviders(options: CallOptions = {}): Promise<operations["listInstanceAiProviders"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/ai-providers", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

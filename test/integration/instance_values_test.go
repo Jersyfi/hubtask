@@ -106,3 +106,41 @@ func TestAnInstanceValueIsStoredAsItsKind(t *testing.T) {
 		t.Error("an entry sent without a value was decided")
 	}
 }
+
+// UC-INS-14 check 8: the metering switch is stored, read back, and off unless written on.
+func TestTheMeteringSwitchIsStoredOffByDefault(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	instance := postgres.NewInstanceSettingRepository()
+	read := func() identityrepo.InstanceLevel {
+		var level identityrepo.InstanceLevel
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			var err error
+			level, err = instance.Read(ctx)
+			return err
+		}); err != nil {
+			t.Fatalf("reading the level: %v", err)
+		}
+		return level
+	}
+	write := func(level identityrepo.InstanceLevel) {
+		inSystem(ctx, t, uow, func(ctx context.Context) error {
+			return instance.Write(ctx, level, "", time.Now().UTC())
+		})
+	}
+	before := read()
+	t.Cleanup(func() { write(before) })
+
+	off := before
+	off.Metering = false
+	write(off)
+	if read().Metering {
+		t.Error("metering reads on where nobody switched it on")
+	}
+	on := before
+	on.Metering = true
+	write(on)
+	if !read().Metering {
+		t.Error("metering switched on reads off")
+	}
+}

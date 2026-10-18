@@ -6608,6 +6608,74 @@
         }
       }
     },
+    "/admin/usage": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "readUsage",
+        "summary": "The use per workspace, metric and day, for billing",
+        "description": "Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.\nOffered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).\n",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "metric",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UsageMetricName"
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of workspaces' use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsagePage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/admin/ai-providers": {
       "get": {
         "tags": [
@@ -16181,6 +16249,115 @@
           }
         }
       },
+      "UsageMetricName": {
+        "type": "string",
+        "description": "A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.\n"
+      },
+      "UsageMetric": {
+        "type": "object",
+        "required": [
+          "name",
+          "aggregate",
+          "day"
+        ],
+        "properties": {
+          "name": {
+            "$ref": "#/components/schemas/UsageMetricName"
+          },
+          "aggregate": {
+            "type": "string",
+            "enum": [
+              "HIGHEST",
+              "SUM"
+            ],
+            "description": "The day's highest count, or the day's sum."
+          },
+          "day": {
+            "type": "string",
+            "enum": [
+              "UTC",
+              "WORKSPACE"
+            ],
+            "description": "Which day a value counts by - UTC, or the workspace's own zone."
+          }
+        }
+      },
+      "UsageDay": {
+        "type": "object",
+        "required": [
+          "day",
+          "value"
+        ],
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "value": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "WorkspaceUsage": {
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "purged",
+          "metrics"
+        ],
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purged": {
+            "type": "boolean",
+            "description": "True for a workspace purged within the last 13 months, answered by its bare id."
+          },
+          "metrics": {
+            "type": "object",
+            "description": "Every day of the range, per metric by its name.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/UsageDay"
+              }
+            }
+          }
+        }
+      },
+      "UsagePage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page",
+          "metrics",
+          "final_through"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkspaceUsage"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsageMetric"
+            }
+          },
+          "final_through": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day that has ended in every zone; no value up to it changes any more."
+          }
+        }
+      },
       "PlatformEventPage": {
         "type": "object",
         "required": [
@@ -16439,6 +16616,10 @@
           "blocklist_file": {
             "type": "string",
             "description": "The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.\n"
+          },
+          "metering": {
+            "type": "boolean",
+            "description": "Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.\n"
           },
           "source": {
             "type": "string",

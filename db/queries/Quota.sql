@@ -54,10 +54,7 @@ SELECT count(*) FROM webhook_subscription;
 -- The people limit's count (multi-tenancy.md §4.2): active, restricted and managed accounts and the
 -- invitations still open. A service account is no person, and an invitation whose link ran out has
 -- freed its place until it is renewed.
-SELECT count(*) FROM account
-WHERE kind = 'USER' AND deleted_at IS NULL
-  AND (status IN ('ACTIVE', 'RESTRICTED')
-       OR (status = 'INVITED' AND (redemption_expires_at IS NULL OR redemption_expires_at > now())));
+SELECT count_people()::bigint;
 
 -- name: InvitationIsOpen :one
 -- Whether the people count holds this invitation: the same condition CountTenantPeople reads.

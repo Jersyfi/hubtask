@@ -254,6 +254,9 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	if before.BlocklistFile != after.BlocklistFile {
 		moved = append(moved, "blocklist_file")
 	}
+	if before.Metering != after.Metering {
+		moved = append(moved, "metering")
+	}
 	return moved
 }
 
@@ -538,6 +541,11 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Description: "The path to the operator's own list of refused passwords, read " +
 					"offline. Instance-only: the file is on the operator's disk, so there is " +
 					"nothing for a workspace to point at.",
+			},
+			{
+				Name: "metering", Kind: usecase.KindBool,
+				Description: "Whether the use per workspace and day is offered for billing " +
+					"(GET /admin/usage). Off by default; the counts are recorded either way.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

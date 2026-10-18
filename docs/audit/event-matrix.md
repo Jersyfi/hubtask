@@ -326,6 +326,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
+| `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 
 ## Jumble
 
