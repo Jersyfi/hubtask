@@ -84,7 +84,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
   // does not belong to this area however convenient it would be. The list is written out so that
   // adding one is a decision somebody made against that sentence rather than a file that appeared.
   //
-  // Ten, among them the five the control plane would otherwise have only at a terminal — the
+  // Eleven, among them the plans (multi-tenancy.md §4.2) and the five the control plane would otherwise have only at a terminal — the
   // providers and the AI models it offers every workspace (ADR-0072 §1), its own backup targets
   // (multi-tenancy.md §5), the subscriptions of a purchase platform (§4.3), and the keyring's census
   // — here by the parity rule (ADR-0070 §5). None reads into a workspace: four are the
@@ -96,6 +96,7 @@ test('the instance area is exactly the screens ADR-0070 §5 names', () => {
     'instance-encryption',
     'instance-journal',
     'instance-operators',
+    'instance-plans',
     'instance-platform',
     'instance-providers',
     'instance-settings',

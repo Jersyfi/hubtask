@@ -36,6 +36,7 @@ import ContainerView from './views/ContainerView.svelte';
   import InstanceAiView from './views/InstanceAiView.svelte';
   import InstanceTargetsView from './views/InstanceTargetsView.svelte';
   import InstancePlatformView from './views/InstancePlatformView.svelte';
+  import InstancePlansView from './views/InstancePlansView.svelte';
   import InstanceSettingsView from './views/InstanceSettingsView.svelte';
   import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
   import ProfileView from './views/ProfileView.svelte';
@@ -280,6 +281,8 @@ import ContainerView from './views/ContainerView.svelte';
     <InstanceOverviewView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-workspaces'}
     <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-plans'}
+    <InstancePlansView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-settings'}
     <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-providers'}
