@@ -6,12 +6,13 @@ verifier of Hubtask's own with no new dependency, and without a way in that is w
 account's own proof. Milestone SI shaped the contract for it (`methods` a list, `signed_in_with` a
 closed set, recovery codes on the account); the table for several credentials is PK's.
 
-The rules are drafted in [identity.md](../architecture/identity.md) §23 and the reasoning in
-[ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md). Every task names its use cases; a task
+The rules are drafted in [identity.md](../../architecture/identity.md) §23 and the reasoning in
+[ADR-0085](../../adr/ADR-0085-passkeys-verified-in-house.md). Every task names its use cases; a task
 is done when the named checks hold, with the evidence in the pull request.
 
 **Delivers:** UC-ID-03 (5), UC-ID-21 (1–9), UC-ID-22 (1–8)
 **Released:** 2026-10-15
+**Closed:** 2026-10-18
 
 ## Decisions
 
