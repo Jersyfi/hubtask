@@ -117,6 +117,23 @@
     return String(entry.value);
   }
 
+  /**
+   * What an empty exception falls back to for this workspace: its plan's value where the plan sets
+   * one the installation does not lock, the installation's own otherwise. The same reading as the
+   * server's `quota.Levels.planApplies` (multi-tenancy.md §4.2) - kept beside it, since a
+   * placeholder that names another number than the one in force would be the dialog lying.
+   */
+  function fallbackOf(name: string, tenant: AdminTenant | undefined): { value: string; plan?: string } | undefined {
+    const settings = instance.settings.status === 'ready' ? instance.settings.data : undefined;
+    const plan = tenant?.plan ? plans.named(tenant.plan) : undefined;
+    const planned = plan?.quotas?.[name];
+    if (planned?.set && planned.value !== undefined && planned.value !== null && settings?.quotas?.[name]?.locked !== true) {
+      return { value: String(planned.value), plan: plan?.display_name };
+    }
+    const own = instanceDefault(name);
+    return own === undefined ? undefined : { value: own };
+  }
+
   // The operator's own workspace, to mark its row: the one whose suspension or deletion ends the
   // session this screen runs in.
   $effect(() => untrack(() => own.open()));
@@ -647,14 +664,17 @@
   <Stack gap="150">
     <p class="prose">{t('app.instance.quotas_intro')}</p>
     {#each QUOTAS as name (name)}
-      <!-- The placeholder is the installation's own ceiling where it set one, so an empty field
-           shows the number it falls back to rather than only saying that it falls back. -->
+      <!-- The placeholder is the number an empty field falls back to - the plan's or the
+           installation's - rather than only saying that it falls back. -->
+      {@const fallback = fallbackOf(name, acting?.tenant)}
       <Input
         label={t(`app.instance.quota.${name}`)}
-        hint={instanceDefault(name) !== undefined
-          ? t('app.instance.quota_default', { value: instanceDefault(name) ?? '' })
-          : t('app.instance.quota_product_default')}
-        placeholder={instanceDefault(name)}
+        hint={fallback === undefined
+          ? t('app.instance.quota_product_default')
+          : fallback.plan !== undefined
+            ? t('app.instance.quota_plan_default', { plan: fallback.plan, value: fallback.value })
+            : t('app.instance.quota_default', { value: fallback.value })}
+        placeholder={fallback?.value}
         value={quotas[name] === undefined ? '' : String(quotas[name])}
         oninput={(event) => readQuota(name, (event.currentTarget as HTMLInputElement).value)}
         type="number"

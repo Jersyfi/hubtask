@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// *Installation → Plans* (UC-INS-13 checks 7 and 8): the list with the workspaces on each plan and
-// what each leaves out, the workspaces on none, creating a plan, editing one - the same groups as
-// *Defaults*, a confirmation naming how many workspaces it reaches, and the notice where somebody
-// saved first - and in single mode nothing of it. Against the stubbed API; Chromium only.
+// *Installation → Plans* (UC-INS-13 checks 7 and 8, UC-INS-10 check 2): the list with the workspaces
+// on each plan and what each leaves out, the workspaces on none, creating a plan, editing one - the
+// same groups as *Defaults*, a confirmation naming how many workspaces it reaches, and the notice
+// where somebody saved first - and in single mode nothing of it; on *Workspaces*, each one's plan,
+// moving it through the dry run's confirmation, the plan a new one starts on, and an exception's
+// placeholder under a plan. Against the stubbed API; Chromium only.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -403,4 +405,26 @@ test('chromium: where the installation has one plan, a new workspace starts on i
   await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
   await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
   assert.equal(await page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).inputValue(), 'family');
+});
+
+test('chromium: under a plan, an empty exception shows the plan\'s value where the installation does not lock it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openInstance(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const row = page.getByRole('row').filter({ hasText: 'Familie Berger' });
+  await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
+  await row.getByRole('button', { name: 'Limits', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Limits for Familie Berger' });
+  const people = dialog.getByRole('spinbutton', { name: 'People' });
+  assert.equal(await people.getAttribute('placeholder'), '6', 'the plan sets people');
+  assert.match(await dialog.getByText('Empty uses the limit of the plan Family: 6.').innerText(), /Family/);
+  assert.equal(await dialog.getByRole('spinbutton', { name: 'Requests per minute' }).getAttribute('placeholder'), '600', 'the installation locks the rate; the plan\'s 1200 is not in force');
+  assert.equal(await dialog.getByRole('spinbutton', { name: 'Entries' }).getAttribute('placeholder'), '20000', 'the plan sets no entries');
+
+  await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+  await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Limits', exact: true }).click();
+  assert.equal(await page.getByRole('dialog', { name: 'Limits for Kanzlei Roth' }).getByRole('spinbutton', { name: 'People' }).getAttribute('placeholder'), null, 'without a plan, the installation sets no people');
 });
