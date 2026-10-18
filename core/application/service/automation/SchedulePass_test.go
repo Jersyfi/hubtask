@@ -74,7 +74,7 @@ type passQueue struct{ jobs }
 
 func (p *passQueue) Claim(context.Context, queue.Lease) ([]queue.Job, error) { return nil, nil }
 func (p *passQueue) Hold(context.Context, queue.Job) error                   { return nil }
-func (p *passQueue) Complete(context.Context, queue.Job) error               { return nil }
+func (p *passQueue) Complete(context.Context, queue.Job, string) error       { return nil }
 func (p *passQueue) Repeat(context.Context, queue.Job, time.Time) error      { return nil }
 func (p *passQueue) Fail(context.Context, queue.Failure) error               { return nil }
 func (p *passQueue) Depth(context.Context) ([]queue.Depth, error)            { return nil, nil }

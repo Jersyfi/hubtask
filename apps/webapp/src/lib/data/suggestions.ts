@@ -17,7 +17,7 @@
 
 import type { Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
 
-import { pollDelay } from './jobs.ts';
+import { pollDelay, worthRetrying } from './jobs.ts';
 
 /**
  * The six operations of an entry (`ai-first.md` §2, every row but translation and templates).
@@ -65,6 +65,7 @@ export function offersFor(
   features: Readonly<Record<string, unknown>> | undefined,
   item: Pick<WorkItem, 'archived_at'>,
   hasComments: boolean,
+  choices: boolean | 'reading' = true,
 ): readonly Offer[] {
   if (features?.ai_suggestions !== true) return [];
   const frozen = item.archived_at ? 'app.entries.archived' : undefined;
@@ -78,8 +79,40 @@ export function offersFor(
     if (operation === 'summarize-thread' && !hasComments) {
       return { operation, disabledCode: 'app.suggestions.no_comments' };
     }
+    if (operation === 'classify' && !frozen && choices !== true) {
+      // The server refuses a classification with nothing to choose from (`ai.nothing_to_choose_from`),
+      // reading the same three lists; until they are read, nothing is offered as possible.
+      return { operation, disabledCode: choices === 'reading' ? 'app.suggestions.choices_reading' : 'app.suggestions.no_choices' };
+    }
     return { operation, disabledCode: frozen };
   });
+}
+
+/** The custom field kinds a classification may choose a value for - the closed ones. */
+const CLOSED_KINDS: ReadonlySet<string> = new Set(['SELECT', 'MULTI_SELECT', 'BOOL']);
+
+/** One of the three lists a classification chooses from, as the client holds it. */
+type Held<T> = { readonly status: string; readonly data?: readonly T[] } | undefined;
+
+/**
+ * Whether a classification of this entry has anything to choose from: a label its collection uses,
+ * a column of the board it sits on directly, or a closed custom field for its type - the three sets
+ * the server reads before it queues one (`Asking.workable`). `reading` while a list is still
+ * being read; a list that failed to read is no reason to withhold the question, so the server's
+ * answer decides it then.
+ */
+export function hasChoices(
+  item: Pick<WorkItem, 'type'> & { readonly parent_id?: string | null },
+  labels: Held<unknown>,
+  buckets: Held<unknown>,
+  fields: Held<{ readonly kind: string; readonly applies_to?: readonly string[] }>,
+): boolean | 'reading' {
+  const lists = [labels, item.parent_id ? { status: 'ready', data: [] } : buckets, fields];
+  if (lists.some((list) => list?.status === 'failed')) return true;
+  if ((labels?.data ?? []).length > 0) return true;
+  if (!item.parent_id && (buckets?.data ?? []).length > 0) return true;
+  if ((fields?.data ?? []).some((field) => CLOSED_KINDS.has(field.kind) && (field.applies_to ?? []).includes(item.type))) return true;
+  return lists.every((list) => list?.status === 'ready') ? false : 'reading';
 }
 
 /**
@@ -363,6 +396,23 @@ export function arrivedSince(suggestions: readonly Pick<Suggestion, 'created_at'
   );
 }
 
+/**
+ * Sends an ask while its pending state stands, and withdraws that state when the ask is refused.
+ *
+ * The state is put first so the strip says *Suggesting…* the moment the person asks; a refusal of
+ * the ask itself - AI unavailable, nothing to work with, a timeout - ends it at once, and the caller
+ * says the refusal. Without the withdrawal the pending card would stand until the screen was left.
+ */
+export async function whilePending<T>(begin: () => void, withdraw: () => void, send: () => Promise<T>): Promise<T> {
+  begin();
+  try {
+    return await send();
+  } catch (error) {
+    withdraw();
+    throw error;
+  }
+}
+
 /** What a suggestion is about, as the listing filters it. */
 export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER';
 
@@ -370,42 +420,73 @@ export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER';
 export const suggestionsPath = (targetId: string, target: Target = 'WORK_ITEM') =>
   `/suggestions?target_type=${target}&target_id=${targetId}`;
 
-/** How many times the listing is re-read after an ask before the strip stops waiting. */
+/**
+ * How many reads of the follow add up to about a minute (`pollDelay`: 0.5 s growing to the 15 s
+ * ceiling, about 65 s in all). After them the strip says the AI takes longer than usual, and keeps
+ * following.
+ */
 export const FOLLOW_ATTEMPTS = 10;
 
 /** What a reader of the listing looks like - the one method of the engine the follow needs. */
 export interface ListingReader {
   refresh<T>(request: { readonly path: string; readonly timeoutMs?: number }): Promise<
-    { readonly status: 'ready'; readonly data: T } | { readonly status: string }
+    { readonly status: 'ready'; readonly data: T } | { readonly status: string; readonly error?: unknown }
   >;
+}
+
+/** A message code and its parameters, as `renderRefusal` renders one. */
+export interface Said {
+  readonly code: string;
+  readonly params?: Readonly<Record<string, string>>;
 }
 
 /** A job that ended with a refusal: the code and parameters its sentence is rendered from. */
 export interface Refused {
-  readonly refused: { readonly code: string; readonly params?: Readonly<Record<string, string>> };
+  readonly refused: Said;
+}
+
+/** A job that ended without a proposal, and the code that says why - or nothing to say (a cancelled job, an outcome this version does not know). */
+export interface Ended {
+  readonly ended: Said | undefined;
 }
 
 /** What a follow came to. */
-export type FollowOutcome = 'arrived' | 'gave_up' | 'left' | Refused;
+export type FollowOutcome = 'arrived' | 'left' | Refused | Ended;
+
+/**
+ * The outcomes of a finished question that are said as a calm note rather than as a proposal: the
+ * job's `outcome_code` (`ai-first.md` §2). `ai.proposed` is the one that is not - the proposal is.
+ */
+const NOTED_OUTCOMES: ReadonlySet<string> = new Set([
+  'ai.nothing_to_change',
+  'ai.nothing_to_work_with',
+  'ai.kept_out',
+  'ai.processing_restricted',
+]);
 
 /** The part of `GET /jobs/{id}` a follow reads. */
 interface JobRead {
   readonly status?: string;
   readonly error_code?: string | null;
   readonly error_params?: Readonly<Record<string, string>> | null;
+  readonly outcome_code?: string | null;
 }
 
 /**
- * Re-reads the listing on the job watcher's schedule until a proposal made after `askedAt`
- * stands in it, the job the ask queued says it ended refused, or the schedule runs out.
+ * Follows an ask until it ends: the job it queued reaches its end, or - where there is no job to
+ * read - a proposal made after `askedAt` stands in the listing.
  *
- * An ask answers `202` with the job that will put the question, and the change stream carries no
- * suggestion record, so the answer arrives in the listing - and a refusal the job meets on the way
- * (the workspace's AI budget spent since, AI switched off) arrives on the job and nowhere else. The
- * job is read beside the listing each round; a job read that is refused, still running, or absent
- * (`jobId` empty, an older server) leaves the follow to the listing alone. `wait` is injected so
- * that a test runs the schedule without the clock; `isLive` lets a screen that was left stop the
- * follow between two reads.
+ * An ask answers `202` with the job that will put the question, and the job says how it ended: a
+ * refusal met on the way (`FAILED`, `error_code`), or how the question came out (`SUCCEEDED`,
+ * `outcome_code`). A proposal is then read from the listing, which the strip shows; any other
+ * outcome is a note. Where the job cannot be read - no `job_id`, or a reader refused it - the
+ * listing alone is followed, as before the job said anything.
+ *
+ * There is no ceiling: every job ends (its deadline, its retries, the dead letter), and a person who
+ * asked is owed the answer. After `FOLLOW_ATTEMPTS` reads, about a minute, `onSlow` is called once
+ * so the strip can say so honestly. `wait` is injected - the store's pauses while the page is hidden
+ * (`waitWhileVisible`), a test's does not wait at all - and `isLive` stops the follow of a screen
+ * that was left between two reads.
  */
 export async function followArrival(
   reader: ListingReader,
@@ -415,36 +496,162 @@ export async function followArrival(
   isLive: () => boolean = () => true,
   target: Target = 'WORK_ITEM',
   jobId?: string,
+  onSlow?: () => void,
 ): Promise<FollowOutcome> {
-  for (let attempt = 0; attempt < FOLLOW_ATTEMPTS; attempt++) {
+  let jobReadable = Boolean(jobId);
+  for (let attempt = 0; ; attempt++) {
+    if (attempt === FOLLOW_ATTEMPTS) onSlow?.();
     await wait(pollDelay(attempt));
     if (!isLive()) return 'left';
-    const read = await reader.refresh<SuggestionPage>({ path: suggestionsPath(targetId, target), timeoutMs: FOLLOW_READ_TIMEOUT_MS });
-    if (!isLive()) return 'left';
-    if (read.status === 'ready' && arrivedSince((read as { data: SuggestionPage }).data.items ?? [], askedAt)) {
-      return 'arrived';
-    }
-    if (jobId) {
-      const refusal = await refusalOf(reader, jobId);
+
+    if (jobId && jobReadable) {
+      const job = await jobOf(reader, jobId);
       if (!isLive()) return 'left';
-      if (refusal) return refusal;
+      if (job === 'unreadable') {
+        jobReadable = false;
+      } else {
+        if (job && isEnd(job.status)) return endOf(reader, targetId, askedAt, target, job);
+        continue;
+      }
     }
+
+    if (await hasArrived(reader, targetId, askedAt, target)) return isLive() ? 'arrived' : 'left';
+    if (!isLive()) return 'left';
   }
-  return 'gave_up';
 }
 
-/** The refusal a job ended with, or nothing - for a job still going, one that answered, or a read that failed. */
-async function refusalOf(reader: ListingReader, jobId: string): Promise<Refused | undefined> {
+const isEnd = (status: string | undefined) => status === 'SUCCEEDED' || status === 'FAILED' || status === 'CANCELLED';
+
+/** How a job that ended is said: the refusal, the note, or the proposal the listing now shows. */
+async function endOf(
+  reader: ListingReader,
+  targetId: string,
+  askedAt: string,
+  target: Target,
+  job: JobRead,
+): Promise<Exclude<FollowOutcome, 'left'>> {
+  if (job.status === 'FAILED') {
+    return job.error_code
+      ? { refused: { code: job.error_code, params: job.error_params ?? undefined } }
+      : { refused: { code: 'app.something_went_wrong' } };
+  }
+  if (job.status === 'CANCELLED') return { ended: undefined };
+
+  const outcome = job.outcome_code ?? undefined;
+  if (outcome && NOTED_OUTCOMES.has(outcome)) return { ended: { code: outcome } };
+  // A proposal - or a job that said nothing, from a worker of the release before this one: the
+  // listing is read once, so the strip shows what stands.
+  const arrived = await hasArrived(reader, targetId, askedAt, target);
+  if (arrived || outcome === 'ai.proposed') return 'arrived';
+  return outcome ? { ended: undefined } : { ended: { code: 'ai.nothing_to_change' } };
+}
+
+/** Whether the listing shows a proposal made after the ask. A read that failed shows nothing. */
+async function hasArrived(reader: ListingReader, targetId: string, askedAt: string, target: Target): Promise<boolean> {
+  try {
+    const read = await reader.refresh<SuggestionPage>({ path: suggestionsPath(targetId, target), timeoutMs: FOLLOW_READ_TIMEOUT_MS });
+    return read.status === 'ready' && arrivedSince((read as { data: SuggestionPage }).data.items ?? [], askedAt);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The job as it stands; nothing for a read that failed and is worth repeating (a timeout, a dead
+ * network); `unreadable` where the server will not tell this reader about the job (`403`, `404`),
+ * which asking again every round would not change.
+ */
+async function jobOf(reader: ListingReader, jobId: string): Promise<JobRead | 'unreadable' | undefined> {
   try {
     const read = await reader.refresh<JobRead>({ path: `/jobs/${jobId}`, timeoutMs: FOLLOW_READ_TIMEOUT_MS });
-    if (read.status !== 'ready') return undefined;
-    const job = (read as { data: JobRead }).data;
-    if (job.status !== 'FAILED' || !job.error_code) return undefined;
-    return { refused: { code: job.error_code, params: job.error_params ?? undefined } };
-  } catch {
+    if (read.status === 'ready') return (read as { data: JobRead }).data;
+    if (read.status === 'failed' && 'error' in read && !worthRetrying(read.error)) return 'unreadable';
     return undefined;
+  } catch (error) {
+    return worthRetrying(error) ? undefined : 'unreadable';
   }
 }
 
-/** How long one re-read of the listing may take. */
+/** How long one read of the follow may take. */
 const FOLLOW_READ_TIMEOUT_MS = 10_000;
+
+/** The part of `document` a paused wait reads. */
+export interface Page {
+  readonly visibilityState: string;
+  addEventListener(type: 'visibilitychange', listener: () => void): void;
+  removeEventListener(type: 'visibilitychange', listener: () => void): void;
+}
+
+/**
+ * A wait of `ms` that does not end while the page is hidden: it ends once the page is shown again.
+ *
+ * A follow has no ceiling, so a tab left open overnight would otherwise read the job every 15 s
+ * for nothing; paused, it reads once more when the person looks again. `page` is `document` in the
+ * browser and nothing where there is none, which waits plainly.
+ */
+export function waitWhileVisible(
+  page: Page | undefined,
+  timer: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+): (ms: number) => Promise<void> {
+  return async (ms) => {
+    await timer(ms);
+    if (!page || page.visibilityState !== 'hidden') return;
+    await new Promise<void>((resolve) => {
+      const shown = () => {
+        if (page.visibilityState === 'hidden') return;
+        page.removeEventListener('visibilitychange', shown);
+        resolve();
+      };
+      page.addEventListener('visibilitychange', shown);
+    });
+  };
+}
+
+/** How an ask stands, as the strip records it: following (and slow), or how it ended. */
+export type AskingOutcome = 'following' | 'slow' | 'arrived' | 'ended' | 'nothing_near' | 'refused';
+
+/** The part of an ask's state the strips read to say it. */
+export interface AskingState {
+  readonly outcome: AskingOutcome;
+  /** With `refused`: the refusal the job ended with. */
+  readonly refusal?: Said;
+  /** With `ended`: why it ended without a proposal, or nothing to say. */
+  readonly note?: Said;
+}
+
+/** What a strip says about an ask, and whether it is a refusal or a calm note. */
+export interface AskingNote extends Said {
+  readonly tone: 'note' | 'refusal';
+}
+
+/** Whether the ask is still being followed: the pending card stands, and asking again waits. */
+export function isPending(asking: AskingState | undefined): boolean {
+  return asking?.outcome === 'following' || asking?.outcome === 'slow';
+}
+
+/**
+ * The one reading of an ask's state for the four screens that ask (an entry, a jumble card, a
+ * collection, a template draft): what to say, or nothing - a proposal says itself, and a pending
+ * ask says *Suggesting…* on its card until about a minute has gone by.
+ */
+export function noteOf(asking: AskingState | undefined): AskingNote | undefined {
+  switch (asking?.outcome) {
+    case 'slow':
+      return { code: 'app.suggestions.slow', tone: 'note' };
+    case 'refused':
+      return asking.refusal ? { ...asking.refusal, tone: 'refusal' } : undefined;
+    case 'ended':
+      return asking.note ? { ...asking.note, tone: 'note' } : undefined;
+    case 'nothing_near':
+      return { code: 'app.suggestions.nothing_near', tone: 'note' };
+    default:
+      return undefined;
+  }
+}
+
+/** What an ask that ended records, from what its follow came to. */
+export function endedAs(outcome: Exclude<FollowOutcome, 'left'>): AskingState {
+  if (outcome === 'arrived') return { outcome: 'arrived' };
+  if ('refused' in outcome) return { outcome: 'refused', refusal: outcome.refused };
+  return { outcome: 'ended', note: outcome.ended };
+}

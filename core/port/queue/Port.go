@@ -470,6 +470,11 @@ type Result struct {
 	// code and parameters, without a retry and without counting a dead letter: asking again
 	// would meet the same answer, and nobody has to repair anything.
 	Refusal *Refusal
+	// Outcome is how a job that succeeded ended, where its kind says more than that it finished: a
+	// message code a caller polling the job reads (`ai.proposed`, `ai.nothing_to_change`, ...).
+	// Stored on the job row, which has no row level security, so a code and nothing else (rule 10).
+	// Empty where the kind has nothing to say.
+	Outcome string
 }
 
 // Refusal is the code and the parameters of a refusal, as a client renders any other: a message
@@ -624,9 +629,10 @@ type Queue interface {
 	// lose by missing a pull-forward.
 	Hold(ctx context.Context, job Job) error
 
-	// Complete finishes a job for good. Called in the same transaction as the handler's effect,
-	// and refused when the job's lease no longer holds.
-	Complete(ctx context.Context, job Job) error
+	// Complete finishes a job for good, with the outcome its handler answered (Result.Outcome,
+	// empty for none). Called in the same transaction as the handler's effect, and refused when the
+	// job's lease no longer holds.
+	Complete(ctx context.Context, job Job, outcome string) error
 
 	// Repeat returns a job to the queue for another round at runAt, with its attempt count
 	// cleared: a poller's next round is not a retry of the last one.

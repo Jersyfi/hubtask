@@ -94,12 +94,15 @@ SELECT id FROM job
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease')
 FOR UPDATE;
 
+-- The outcome is the handler's message code, or NULL where its kind has none to say (rule 10: a
+-- code, never content).
 -- name: CompleteJob :execrows
 UPDATE job SET
   state        = 'SUCCEEDED',
   finished_at  = sqlc.arg('now'),
   locked_until = NULL,
-  last_error   = NULL
+  last_error   = NULL,
+  outcome      = sqlc.narg('outcome')
 WHERE id = sqlc.arg('id') AND state = 'RUNNING' AND locked_until = sqlc.arg('lease');
 
 -- A poller's next round rather than a retry: the attempts start again from zero, because the round
@@ -168,7 +171,7 @@ WHERE kind = sqlc.arg('kind') AND state = 'PENDING' AND run_at > sqlc.arg('now')
 -- dedupe key. Selecting them and dropping them later is how one of them eventually reaches a
 -- response by accident.
 -- name: FindJob :one
-SELECT id, tenant_id, state, last_error, last_error_params, created_at, finished_at, progress
+SELECT id, tenant_id, state, last_error, last_error_params, outcome, created_at, finished_at, progress
 FROM job
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
 

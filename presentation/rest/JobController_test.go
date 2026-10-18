@@ -167,6 +167,31 @@ func TestARefusedJobCarriesItsRefusalsParameters(t *testing.T) {
 	}
 }
 
+// A job that succeeded says how it ended where its kind does, as a code: an AI question that
+// proposed nothing is told from one still on its way. Every other job carries no outcome at all.
+func TestASucceededJobCarriesItsOutcomeAndNoOtherDoes(t *testing.T) {
+	for _, outcome := range []string{"ai.nothing_to_change", ""} {
+		out := usecase.Output{
+			"job_id": jobUUID, "status": "SUCCEEDED",
+			"created_at": time.Date(2026, 8, 26, 8, 0, 0, 0, time.UTC),
+		}
+		if outcome != "" {
+			out["outcome_code"] = outcome
+		}
+
+		recorder := callJob(t, &catalogue{out: out}, http.MethodGet, "/jobs/"+jobUUID)
+
+		var body map[string]any
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			t.Fatalf("the answer is not JSON: %v", err)
+		}
+		got, present := body["outcome_code"]
+		if outcome == "" && present || outcome != "" && got != outcome {
+			t.Errorf("outcome %q answered %+v", outcome, body)
+		}
+	}
+}
+
 func TestCancellingAJobAnswersTheJobItNowIs(t *testing.T) {
 	registry := &catalogue{out: usecase.Output{
 		"job_id":      jobUUID,

@@ -1030,6 +1030,7 @@ type Job struct {
 	FinishedAt      pgtype.Timestamptz
 	Progress        *float32
 	LastErrorParams []byte
+	Outcome         *string
 }
 
 type JumbleEntry struct {

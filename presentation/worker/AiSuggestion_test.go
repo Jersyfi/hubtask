@@ -10,6 +10,8 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
@@ -75,5 +77,61 @@ func TestABudgetSpentAfterTheAskingEndsTheJobRefused(t *testing.T) {
 		result.Refusal.Params["reason"] != aiprovider.ReasonBudgetSpent ||
 		result.Refusal.Params["renews_at"] != renews.Format(time.RFC3339) {
 		t.Errorf("the refusal is %+v", result.Refusal)
+	}
+}
+
+// answering is a provider that answers every question with the same words.
+type answering struct{ text string }
+
+func (a answering) For(context.Context, appshared.ActorContext) (aiprovider.Provider, error) {
+	return answeringProvider(a), nil
+}
+
+type answeringProvider struct{ text string }
+
+func (answeringProvider) Capabilities() aiprovider.ProviderCapabilities {
+	return aiprovider.ProviderCapabilities{Kind: "stub", Completion: true}
+}
+
+func (p answeringProvider) Complete(
+	context.Context, aiprovider.CompletionRequest,
+) (aiprovider.CompletionResult, error) {
+	return aiprovider.CompletionResult{Text: p.text}, nil
+}
+
+func (answeringProvider) Embed(context.Context, []string) (aiprovider.EmbeddingResult, error) {
+	return aiprovider.EmbeddingResult{}, nil
+}
+
+// someMaterial is an entry with words in it.
+type someMaterial struct{}
+
+func (someMaterial) Material(
+	context.Context, appshared.ActorContext, domain.TargetType, shared.ID, string,
+) (suggestion.Material, error) {
+	return suggestion.Material{Content: "Title: deck thursday"}, nil
+}
+
+// A question that ran and proposed nothing is not a job that ends silently: its outcome is the
+// job's, so the person who asked reads that nothing was proposed instead of waiting for it.
+func TestAQuestionThatProposedNothingEndsWithThatOutcome(t *testing.T) {
+	handler := AiSuggestion{Produce: suggestion.Produce{
+		Providers: answering{text: "I cannot help with that."}, Prompts: anyPrompt{},
+		Sources: someMaterial{}, UnitOfWork: &unitOfWork{},
+	}}
+
+	result, err := handler.Run(t.Context(), queue.Job{
+		ID: jobID, TenantID: tenantID, Kind: queue.KindAiSuggest,
+		Payload: map[string]any{
+			"target_type": "WORK_ITEM", "target_id": "0192f000-0000-7000-8000-0000000000e1",
+			"asked_by": "0192f000-0000-7000-8000-0000000000d1", "kind": "FIELDS",
+			"prompt": "summarize",
+		},
+	})
+	if err != nil {
+		t.Fatalf("the job failed: %v", err)
+	}
+	if result.Outcome != suggestion.OutcomeNothingToChange || result.Refusal != nil {
+		t.Errorf("the job ended with %+v", result)
 	}
 }

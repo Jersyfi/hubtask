@@ -2736,6 +2736,7 @@ class Job(TypedDict, total=False):
     result_url: Required[str | None]
     error_code: Required[str | None]
     error_params: dict[str, Any]
+    outcome_code: str
     created_at: Required[str]
     finished_at: Required[str | None]
 
