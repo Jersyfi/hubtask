@@ -29,7 +29,7 @@ type AdvanceInstanceLevelVersionParams struct {
 	Expected  *int64
 }
 
-// The level's version, moved by one - only from `expected`, when one is named (migration 0162).
+// The level's version, moved by one - only from `expected`, when one is named (migration 0184).
 //
 // The guard is this statement and not a read before it: the conflicting row is locked, so a second
 // save made on the same version waits for the first and then compares against what the first
