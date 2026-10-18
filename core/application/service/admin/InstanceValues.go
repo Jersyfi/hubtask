@@ -95,6 +95,7 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	if level.BlocklistFile != "" {
 		out["blocklist_file"] = level.BlocklistFile
 	}
+	out["metering"] = level.Metering
 	return out
 }
 
@@ -339,6 +340,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 	}
 
 	level.BlocklistFile = in.String("blocklist_file")
+	level.Metering = in.Bool("metering")
 	return level, nil
 }
 

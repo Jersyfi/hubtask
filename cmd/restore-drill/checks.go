@@ -155,6 +155,8 @@ var rlsExceptions = map[string]string{
 		"no tenant column, reached only by the control plane and its delivery jobs",
 	"platform_delivery": "the deliveries of the installation's subscriptions: no tenant column, " +
 		"reached with their subscription",
+	"usage_archive": "a purged workspace's daily counts (multi-tenancy.md §4.3): kept after the " +
+		"workspace's row is gone, counts only, no name and no reference",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2): read with its plan, configuration " +
 		"rather than a person's data",
 }

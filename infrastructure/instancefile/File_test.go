@@ -91,7 +91,8 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	  "localisation": {"locale": {"value": "de"}},
 	  "quotas": {"export_jobs": {"value": 9}},
 	  "ai": {"sources": {"value": "OFFERED", "locked": true}},
-	  "blocklist_file": "/etc/hubtask/passwords.txt"
+	  "blocklist_file": "/etc/hubtask/passwords.txt",
+	  "metering": true
 	}`
 	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
 		t.Fatalf("writing the fixture: %v", err)
@@ -101,7 +102,7 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	if err != nil || !found {
 		t.Fatalf("a well-formed file answered %v (found %v)", err, found)
 	}
-	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "blocklist_file"} {
+	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "blocklist_file", "metering"} {
 		if _, held := body[area]; !held {
 			t.Errorf("%s did not survive the read", area)
 		}

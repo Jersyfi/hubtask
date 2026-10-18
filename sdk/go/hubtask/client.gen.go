@@ -4407,6 +4407,42 @@ func (e TrashEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for UsageMetricAggregate.
+const (
+	HIGHEST UsageMetricAggregate = "HIGHEST"
+	SUM     UsageMetricAggregate = "SUM"
+)
+
+// Valid indicates whether the value is a known member of the UsageMetricAggregate enum.
+func (e UsageMetricAggregate) Valid() bool {
+	switch e {
+	case HIGHEST:
+		return true
+	case SUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UsageMetricDay.
+const (
+	UsageMetricDayUTC       UsageMetricDay = "UTC"
+	UsageMetricDayWORKSPACE UsageMetricDay = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the UsageMetricDay enum.
+func (e UsageMetricDay) Valid() bool {
+	switch e {
+	case UsageMetricDayUTC:
+		return true
+	case UsageMetricDayWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ViewExportFormat.
 const (
 	ViewExportFormatCSV  ViewExportFormat = "CSV"
@@ -7205,6 +7241,9 @@ type InstanceSettings struct {
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
 	// **A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler".
 	Localisation *map[string]InstanceSetting `json:"localisation,omitempty"`
+
+	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
+	Metering *bool `json:"metering,omitempty"`
 
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
@@ -10670,6 +10709,43 @@ type TriggerEventPage struct {
 	Page PageInfo       `json:"page"`
 }
 
+// UsageDay defines model for UsageDay.
+type UsageDay struct {
+	Day   openapi_types.Date `json:"day"`
+	Value int64              `json:"value"`
+}
+
+// UsageMetric defines model for UsageMetric.
+type UsageMetric struct {
+	// Aggregate The day's highest count, or the day's sum.
+	Aggregate UsageMetricAggregate `json:"aggregate"`
+
+	// Day Which day a value counts by - UTC, or the workspace's own zone.
+	Day UsageMetricDay `json:"day"`
+
+	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+	Name UsageMetricName `json:"name"`
+}
+
+// UsageMetricAggregate The day's highest count, or the day's sum.
+type UsageMetricAggregate string
+
+// UsageMetricDay Which day a value counts by - UTC, or the workspace's own zone.
+type UsageMetricDay string
+
+// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+type UsageMetricName = string
+
+// UsagePage defines model for UsagePage.
+type UsagePage struct {
+	Data []WorkspaceUsage `json:"data"`
+
+	// FinalThrough The last day that has ended in every zone; no value up to it changes any more.
+	FinalThrough openapi_types.Date `json:"final_through"`
+	Metrics      []UsageMetric      `json:"metrics"`
+	Page         PageInfo           `json:"page"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -11074,6 +11150,16 @@ type WorkspaceUpdate struct {
 	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
 
+// WorkspaceUsage defines model for WorkspaceUsage.
+type WorkspaceUsage struct {
+	// Metrics Every day of the range, per metric by its name.
+	Metrics map[string][]UsageDay `json:"metrics"`
+
+	// Purged True for a workspace purged within the last 13 months, answered by its bare id.
+	Purged      bool               `json:"purged"`
+	WorkspaceId openapi_types.UUID `json:"workspace_id"`
+}
+
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
@@ -11376,6 +11462,16 @@ type OpenTenantPasswordParams struct {
 type ReapplyErasuresParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReadUsageParams defines parameters for ReadUsage.
+type ReadUsageParams struct {
+	From      openapi_types.Date  `form:"from" json:"from"`
+	To        openapi_types.Date  `form:"to" json:"to"`
+	Metric    *UsageMetricName    `form:"metric,omitempty" json:"metric,omitempty"`
+	Workspace *openapi_types.UUID `form:"workspace,omitempty" json:"workspace,omitempty"`
+	Cursor    *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size      *PageSize           `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
@@ -14080,6 +14176,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
 	QueryTenants(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadUsage The use per workspace, metric and day, for billing
+	//
+	// Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.
+	// Offered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
+	ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
 	//
@@ -19926,6 +20030,24 @@ func (c *Client) QueryTenantsWithBody(ctx context.Context, contentType string, b
 // Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
 func (c *Client) QueryTenants(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewQueryTenantsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadUsage The use per workspace, metric and day, for billing
+//
+// Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.
+// Offered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
+func (c *Client) ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadUsageRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -30717,6 +30839,112 @@ func NewQueryTenantsRequestWithBody(server string, contentType string, body io.R
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadUsageRequest constructs an http.Request for the ReadUsage method
+func NewReadUsageRequest(server string, params *ReadUsageParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/usage")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "from", params.From, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "to", params.To, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.Metric != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "metric", *params.Metric, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Workspace != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "workspace", *params.Workspace, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -45030,6 +45258,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /admin/tenants:query (the `QueryTenants` operationId).
 	QueryTenantsWithResponse(ctx context.Context, body QueryTenantsJSONRequestBody, reqEditors ...RequestEditorFn) (*QueryTenantsResult, error)
 
+	// ReadUsageWithResponse The use per workspace, metric and day, for billing
+	//
+	// Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.
+	// Offered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
+	ReadUsageWithResponse(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*ReadUsageResult, error)
+
 	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 	//
 	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -51654,8 +51892,6 @@ type RedeliverPlatformSubscriptionResult struct {
 		// Queued How many dead letters were queued again.
 		Queued int `json:"queued"`
 	}
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON202 returns the response for an HTTP 202 `application/json` response
@@ -51664,11 +51900,6 @@ func (r RedeliverPlatformSubscriptionResult) GetJSON202() *struct {
 	Queued int `json:"queued"`
 } {
 	return r.JSON202
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r RedeliverPlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -52503,6 +52734,54 @@ func (r QueryTenantsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r QueryTenantsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadUsageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UsagePage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadUsageResult) GetJSON200() *UsagePage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadUsageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadUsageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadUsageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadUsageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadUsageResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -67775,6 +68054,22 @@ func (c *ClientWithResponses) QueryTenantsWithResponse(ctx context.Context, body
 	return ParseQueryTenantsResult(rsp)
 }
 
+// ReadUsageWithResponse The use per workspace, metric and day, for billing
+//
+// Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored bytes and people as the day's highest count, the AI budget's tokens and the automation runs as the day's sum. Each metric says how it is counted and by which day - UTC, or the workspace's own zone for the AI budget - and `final_through` is the last day that has ended in every zone, up to which nothing will change. A day with no change carries the day before forward. A workspace purged within the last 13 months is answered by its bare id as `purged`, with no name and no reference; counts older than 13 months are gone.
+// Offered only while the operator has switched metering on (`metering` on the installation level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
+func (c *ClientWithResponses) ReadUsageWithResponse(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*ReadUsageResult, error) {
+	rsp, err := c.ReadUsage(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadUsageResult(rsp)
+}
+
 // SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 //
 // How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -75981,13 +76276,6 @@ func ParseRedeliverPlatformSubscriptionResult(rsp *http.Response) (*RedeliverPla
 		}
 		response.JSON202 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
 	}
 
 	return response, nil
@@ -76551,6 +76839,39 @@ func ParseQueryTenantsResult(rsp *http.Response) (*QueryTenantsResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AdminTenantPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadUsageResult parses an HTTP response from a ReadUsageWithResponse call
+func ParseReadUsageResult(rsp *http.Response) (*ReadUsageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadUsageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UsagePage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

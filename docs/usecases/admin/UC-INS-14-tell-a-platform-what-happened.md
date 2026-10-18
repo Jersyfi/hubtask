@@ -5,9 +5,9 @@ context: admin
 actors: [PE-platform, PE-operator]
 deployments: [D5, D6, D7]
 serves: [P-08, P-11, P-15]
-state: partial
+state: verified
 tasks: [PL-07, PL-08]
-checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go, core/application/service/platform/Crossings_test.go, core/application/service/identity/OwnerChanges_test.go, core/application/service/quota/Crossings_test.go, core/application/service/admin/ExportFinished_test.go, test/integration/platform_event_test.go, core/application/service/admin/PlatformSubscriptions_test.go, infrastructure/webhook/PlatformDeliverer_test.go, test/integration/platform_subscription_test.go, presentation/worker/Scheduler_test.go, cmd/hubctl/AdminSubscription_test.go, cmd/hubctl/AdminEvents_test.go, infrastructure/instancefile/File_test.go, apps/webapp/e2e/instanceplatform.test.mjs]
+checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go, core/application/service/platform/Crossings_test.go, core/application/service/identity/OwnerChanges_test.go, core/application/service/quota/Crossings_test.go, core/application/service/admin/ExportFinished_test.go, test/integration/platform_event_test.go, core/application/service/admin/PlatformSubscriptions_test.go, infrastructure/webhook/PlatformDeliverer_test.go, test/integration/platform_subscription_test.go, presentation/worker/Scheduler_test.go, cmd/hubctl/AdminSubscription_test.go, cmd/hubctl/AdminEvents_test.go, infrastructure/instancefile/File_test.go, apps/webapp/e2e/instanceplatform.test.mjs, test/integration/usage_test.go, core/application/service/admin/Usage_test.go, cmd/hubctl/AdminUsage_test.go, presentation/worker/SchedulerPurge_test.go, test/integration/admin_test.go, test/integration/instance_values_test.go]
 ---
 
 # Tell the purchase platform what happened, without it asking
@@ -50,9 +50,3 @@ platform reads the use per workspace and metric for the period.
 
 * No invoice, no price, no dunning in Hubtask ([NG-billing](../../vision/non-goals.md)).
 * The platform decides what to do with the events; Hubtask never waits for an answer.
-
-## Today
-
-* Check 4: not met — use cannot be read at all, and people and storage are not recorded (PL-08).
-* Check 7: not met — `hubctl` and the file reach the subscriptions; the use is not readable (PL-08).
-* Check 8: not met — use is always recorded, never offered, and goes with the workspace (PL-08).

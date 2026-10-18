@@ -2338,6 +2338,7 @@ func run() error {
 		adminservice.RedeliverPlatformSubscription{
 			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Jobs: jobs,
 		}.Descriptor(),
+		adminservice.ReadUsage{Writer: instanceWriter, Ledger: postgres.NewUsageRepository(cursors), Tenancy: cfg.Tenancy}.Descriptor(),
 		adminservice.ListPlatformEvents{
 			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
 			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),
@@ -3652,6 +3653,9 @@ func run() error {
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
+			// The use counts' 13 months, inside workspaces and in the installation's ledger
+			// (multi-tenancy.md §4.3).
+			Usage: postgres.NewUsageRepository(cursors),
 			// The trail's months past their period, a partition at a time (audit.md §3).
 			AuditTrail:   postgres.NewAuditPartitionRepository(),
 			UnitOfWork:   backgroundWork,

@@ -99,7 +99,7 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" && name != aiModelsKey && name != plansKey && name != platformSubscriptionsKey {
+		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey && name != platformSubscriptionsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})

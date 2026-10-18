@@ -92,7 +92,9 @@ export function countOf(raw: string): number | string | undefined {
  * `PUT` replaces the level, so an undecided key is simply absent.
  */
 export function documentOf(draft: InstanceSettings): InstanceSettings {
-  const document: InstanceSettings = { blocklist_file: draft.blocklist_file };
+  // The installation-only values beside the areas travel as they were read: a `PUT` that left one
+  // out would switch it off.
+  const document: InstanceSettings = { blocklist_file: draft.blocklist_file, metering: draft.metering };
   for (const area of AREAS) {
     const entries: Record<string, InstanceSetting> = {};
     for (const [key, setting] of Object.entries(draft[area] ?? {})) {

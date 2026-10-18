@@ -4401,6 +4401,42 @@ func (e TrashEntryKind) Valid() bool {
 	}
 }
 
+// Defines values for UsageMetricAggregate.
+const (
+	HIGHEST UsageMetricAggregate = "HIGHEST"
+	SUM     UsageMetricAggregate = "SUM"
+)
+
+// Valid indicates whether the value is a known member of the UsageMetricAggregate enum.
+func (e UsageMetricAggregate) Valid() bool {
+	switch e {
+	case HIGHEST:
+		return true
+	case SUM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UsageMetricDay.
+const (
+	UsageMetricDayUTC       UsageMetricDay = "UTC"
+	UsageMetricDayWORKSPACE UsageMetricDay = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the UsageMetricDay enum.
+func (e UsageMetricDay) Valid() bool {
+	switch e {
+	case UsageMetricDayUTC:
+		return true
+	case UsageMetricDayWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ViewExportFormat.
 const (
 	ViewExportFormatCSV  ViewExportFormat = "CSV"
@@ -7199,6 +7235,9 @@ type InstanceSettings struct {
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
 	// **A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler".
 	Localisation *map[string]InstanceSetting `json:"localisation,omitempty"`
+
+	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
+	Metering *bool `json:"metering,omitempty"`
 
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
@@ -10664,6 +10703,43 @@ type TriggerEventPage struct {
 	Page PageInfo       `json:"page"`
 }
 
+// UsageDay defines model for UsageDay.
+type UsageDay struct {
+	Day   openapi_types.Date `json:"day"`
+	Value int64              `json:"value"`
+}
+
+// UsageMetric defines model for UsageMetric.
+type UsageMetric struct {
+	// Aggregate The day's highest count, or the day's sum.
+	Aggregate UsageMetricAggregate `json:"aggregate"`
+
+	// Day Which day a value counts by - UTC, or the workspace's own zone.
+	Day UsageMetricDay `json:"day"`
+
+	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+	Name UsageMetricName `json:"name"`
+}
+
+// UsageMetricAggregate The day's highest count, or the day's sum.
+type UsageMetricAggregate string
+
+// UsageMetricDay Which day a value counts by - UTC, or the workspace's own zone.
+type UsageMetricDay string
+
+// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+type UsageMetricName = string
+
+// UsagePage defines model for UsagePage.
+type UsagePage struct {
+	Data []WorkspaceUsage `json:"data"`
+
+	// FinalThrough The last day that has ended in every zone; no value up to it changes any more.
+	FinalThrough openapi_types.Date `json:"final_through"`
+	Metrics      []UsageMetric      `json:"metrics"`
+	Page         PageInfo           `json:"page"`
+}
+
 // ViewExport What to render and how. The view decides which rows; the format decides what they become.
 type ViewExport struct {
 	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
@@ -11068,6 +11144,16 @@ type WorkspaceUpdate struct {
 	SignInPolicy *SignInPolicyChange `json:"sign_in_policy,omitempty"`
 }
 
+// WorkspaceUsage defines model for WorkspaceUsage.
+type WorkspaceUsage struct {
+	// Metrics Every day of the range, per metric by its name.
+	Metrics map[string][]UsageDay `json:"metrics"`
+
+	// Purged True for a workspace purged within the last 13 months, answered by its bare id.
+	Purged      bool               `json:"purged"`
+	WorkspaceId openapi_types.UUID `json:"workspace_id"`
+}
+
 // AccountId defines model for AccountId.
 type AccountId = openapi_types.UUID
 
@@ -11370,6 +11456,16 @@ type OpenTenantPasswordParams struct {
 type ReapplyErasuresParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ReadUsageParams defines parameters for ReadUsage.
+type ReadUsageParams struct {
+	From      openapi_types.Date  `form:"from" json:"from"`
+	To        openapi_types.Date  `form:"to" json:"to"`
+	Metric    *UsageMetricName    `form:"metric,omitempty" json:"metric,omitempty"`
+	Workspace *openapi_types.UUID `form:"workspace,omitempty" json:"workspace,omitempty"`
+	Cursor    *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size      *PageSize           `form:"size,omitempty" json:"size,omitempty"`
 }
 
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
@@ -13058,6 +13154,9 @@ type ServerInterface interface {
 	// QueryTenants Find workspaces
 	// (POST /admin/tenants:query)
 	QueryTenants(w http.ResponseWriter, r *http.Request)
+	// ReadUsage The use per workspace, metric and day, for billing
+	// (GET /admin/usage)
+	ReadUsage(w http.ResponseWriter, r *http.Request, params ReadUsageParams)
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
@@ -16189,6 +16288,104 @@ func (siw *ServerInterfaceWrapper) QueryTenants(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.QueryTenants(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadUsage operation middleware
+func (siw *ServerInterfaceWrapper) ReadUsage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadUsageParams
+
+	// ------------- Required query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "metric" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "metric", r.URL.Query(), &params.Metric, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "metric"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "metric", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "workspace" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "workspace", r.URL.Query(), &params.Workspace, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "workspace"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadUsage(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -26109,6 +26306,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:rotate-secret", wrapper.RotatePlatformSubscriptionSecret)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}/deliveries", wrapper.ListPlatformDeliveries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/subscriptions/{subscriptionId}:redeliver", wrapper.RedeliverPlatformSubscription)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/usage", wrapper.ReadUsage)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/ai-providers", wrapper.ListInstanceAiProviders)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/ai-providers", wrapper.CreateInstanceAiProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/ai-providers/{providerId}", wrapper.RemoveInstanceAiProvider)

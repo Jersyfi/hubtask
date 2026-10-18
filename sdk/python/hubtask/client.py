@@ -831,6 +831,10 @@ class Client:
         """Send the subscription's dead letters again"""
         return self._call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
 
+    def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
+        """The use per workspace, metric and day, for billing"""
+        return self._call("GET", "/admin/usage", {}, query, {}, None, "none", None, "json")
+
     def list_instance_ai_providers(self) -> dict[str, Any]:
         """The AI models this installation offers every workspace"""
         return self._call("GET", "/admin/ai-providers", {}, None, {}, None, "none", None, "json")

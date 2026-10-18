@@ -349,6 +349,7 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.RotatePlatformSubscriptionSecret{}.Descriptor(),
 		adminservice.ListPlatformDeliveries{}.Descriptor(),
 		adminservice.RedeliverPlatformSubscription{}.Descriptor(),
+		adminservice.ReadUsage{}.Descriptor(),
 		adminservice.AddOperator{}.Descriptor(),
 		adminservice.RemoveOperator{}.Descriptor(),
 		adminservice.ListPlans{}.Descriptor(),

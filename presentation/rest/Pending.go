@@ -1491,3 +1491,8 @@ func (pending) DeleteInstanceBackupTarget(
 func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+
+// ReadUsage is the control plane's use read (multi-tenancy.md §4.3).
+func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadUsageParams) {
+	notAvailable(w, r)
+}

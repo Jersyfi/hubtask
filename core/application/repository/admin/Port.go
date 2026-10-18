@@ -258,6 +258,11 @@ type Purge interface {
 	// DeleteIdempotency clears the replay guards; no foreign key reaches them either.
 	DeleteIdempotency(ctx context.Context) (int, error)
 
+	// ArchiveUsage moves the workspace's daily counts to the installation's ledger, keyed by the
+	// bare id with no name and no reference, before the row goes and the cascade takes them
+	// (multi-tenancy.md §4.3). It reports how many counts moved.
+	ArchiveUsage(ctx context.Context) (int64, error)
+
 	// DeleteJobs removes the tenant's queue rows except the one running this purge - the job
 	// table has no policy, so the adapter writes the transaction's own tenant as an explicit
 	// predicate.

@@ -444,6 +444,29 @@ func (TenantPurge) DeleteOutbox(ctx context.Context, batch int) (int, error) {
 	return int(removed), nil
 }
 
+// ArchiveUsage moves the workspace's counts to the installation's ledger and closes them on the
+// purge day.
+func (TenantPurge) ArchiveUsage(ctx context.Context) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	moved, err := queries.ArchiveTenantUsage(ctx)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving the counts to the installation's ledger: %w", err))
+	}
+	// After the history moved, so that the purge day's own row, where there is one, keeps its
+	// highest and only its closing count goes to 0.
+	if _, err := queries.CloseArchivedUsage(ctx); err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("closing the archived counts: %w", err))
+	}
+	return moved, nil
+}
+
 // DeleteIdempotency clears the replay guards.
 func (TenantPurge) DeleteIdempotency(ctx context.Context) (int, error) {
 	queries, err := queriesFrom(ctx)

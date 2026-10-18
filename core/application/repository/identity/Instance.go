@@ -45,6 +45,9 @@ type InstanceLevel struct {
 	// so there is nothing for a workspace to point at (ADR-0068 §1, and the reason the thirteenth
 	// switch of the table is not on the settings screen).
 	BlocklistFile string
+	// Metering offers the use for billing to the control plane (multi-tenancy.md §4.3), off by
+	// default. Instance-only, no lock: the counts are recorded either way (Decision 18).
+	Metering bool
 	// Source says where the values came from, for the health report: "database" or the path of
 	// the file that is enforcing them (ADR-0070 §5).
 	Source string

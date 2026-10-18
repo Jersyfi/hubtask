@@ -1593,11 +1593,20 @@ type Tombstone struct {
 	PurgeAfter pgtype.Timestamptz
 }
 
+type UsageArchive struct {
+	TenantID pgtype.UUID
+	Period   pgtype.Date
+	Metric   string
+	Value    int64
+	Closing  *int64
+}
+
 type UsageRecord struct {
 	TenantID pgtype.UUID
 	Period   pgtype.Date
 	Metric   string
 	Value    int64
+	Closing  *int64
 }
 
 type WebauthnCredential struct {

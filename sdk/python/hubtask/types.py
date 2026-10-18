@@ -743,6 +743,28 @@ class PlatformDeliveryPage(TypedDict, total=False):
     data: Required[list["PlatformDelivery"]]
     page: Required["PageInfo"]
 
+UsageMetricName = str
+
+class UsageMetric(TypedDict, total=False):
+    name: Required["UsageMetricName"]
+    aggregate: Required[Literal["HIGHEST", "SUM"]]
+    day: Required[Literal["UTC", "WORKSPACE"]]
+
+class UsageDay(TypedDict, total=False):
+    day: Required[str]
+    value: Required[int]
+
+class WorkspaceUsage(TypedDict, total=False):
+    workspace_id: Required[str]
+    purged: Required[bool]
+    metrics: Required[dict[str, Any]]
+
+class UsagePage(TypedDict, total=False):
+    data: Required[list["WorkspaceUsage"]]
+    page: Required["PageInfo"]
+    metrics: Required[list["UsageMetric"]]
+    final_through: Required[str]
+
 class PlatformEventPage(TypedDict, total=False):
     data: Required[list["PlatformEvent"]]
     page: Required["PageInfo"]
@@ -800,6 +822,7 @@ class InstanceSettings(TypedDict, total=False):
     quotas: dict[str, Any]
     ai: dict[str, Any]
     blocklist_file: str
+    metering: bool
     source: str
     is_enforced_from_file: bool
 

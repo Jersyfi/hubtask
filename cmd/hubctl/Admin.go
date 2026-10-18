@@ -66,6 +66,12 @@ func adminGroup() group {
 				run:     adminSubscription,
 			},
 			{
+				name:    "usage",
+				usage:   "--from <day> --to <day> [--metric <name>] [--workspace <id>]",
+				summary: "the use per workspace, metric and day, while metering is on",
+				run:     adminUsage,
+			},
+			{
 				name:    "settings",
 				usage:   "show|set|clear …",
 				summary: "the values this installation decided for every workspace on it",

@@ -171,6 +171,11 @@ func (h HardDeleteTenant) Execute(
 		if _, err := h.Purge.DeleteIdempotency(ctx); err != nil {
 			return err
 		}
+		// Before the row goes: the cascade would take the counts, which outlive the workspace as
+		// bare numbers for 13 months (UC-INS-14 check 8).
+		if _, err := h.Purge.ArchiveUsage(ctx); err != nil {
+			return err
+		}
 		jobsRemoved, err := h.Purge.DeleteJobs(ctx, jobID)
 		if err != nil {
 			return err
