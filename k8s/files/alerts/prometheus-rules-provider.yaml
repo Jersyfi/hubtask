@@ -251,3 +251,23 @@ groups:
             cert-manager reports a certificate within two weeks of its end and renewal has not
             happened. Renewal is supposed to be automatic - it firing means the automation broke.
           runbook: RB-A17-certificate-expiry.md
+
+      # A-21. The installation's events wait to reach the purchase platform: deliveries ended as
+      # dead letters, and an installation subscription is never switched off for it - the
+      # operator is told here, and redelivers once the platform is reachable (UC-INS-14). The
+      # gauge is sampled by the scheduler leader, so it falls when the dead letters are
+      # redelivered or swept, and the alert with it; max() reads the one leader's series.
+      - alert: HubtaskPlatformDeadLetters
+        expr: max(hubtask_platform_dead_letters) > 0
+        for: 15m
+        labels:
+          severity: ticket
+          alert_id: A-21
+        annotations:
+          summary: "Events wait to be redelivered to the purchase platform"
+          description: >
+            Deliveries of the installation's events to a platform subscription ended without
+            arriving. The subscription stays on and the events wait; the platform can also read
+            them from GET /admin/events. Redeliver from the installation screen or hubctl once the
+            platform answers again.
+          runbook: RB-A21-platform-dead-letters.md

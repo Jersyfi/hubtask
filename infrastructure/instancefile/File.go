@@ -99,7 +99,7 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey {
+		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey && name != platformSubscriptionsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -211,4 +211,54 @@ func malformedPlans(source string) error {
 	return shared.ErrValidation.
 		WithDetail("config.instance_file_malformed").
 		WithParams(map[string]string{"source": source})
+}
+
+// platformSubscriptionsKey is the installation's subscriptions for a purchase platform
+// (UC-INS-14): rows of their own, like the offered models.
+const platformSubscriptionsKey = "platform_subscriptions"
+
+// PlatformSubscription is one subscription as the file names it. The secret is never in the file -
+// a secret in a configuration file is a secret in clear - but in the file SecretFile names.
+type PlatformSubscription struct {
+	TargetURL string
+	Secret    string
+}
+
+// PlatformSubscriptions reads the file's subscriptions, each secret from the file it names.
+// Present is false where the file says nothing about them, which is not an empty list: an
+// enforcing file with `"platform_subscriptions": []` removes every subscription.
+func PlatformSubscriptions(document map[string]any, readFile func(string) ([]byte, error), source string,
+) (subscriptions []PlatformSubscription, present bool, err error) {
+	raw, present := document[platformSubscriptionsKey]
+	if !present {
+		return nil, false, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, true, malformedPlans(source)
+	}
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, true, malformedPlans(source)
+		}
+		target, _ := fields["target_url"].(string)
+		secretFile, _ := fields["secret_file"].(string)
+		if target == "" || secretFile == "" {
+			return nil, true, malformedPlans(source)
+		}
+		secret, err := readFile(secretFile)
+		if err != nil {
+			return nil, true, shared.ErrUnavailable.
+				WithDetail("config.instance_file_unreadable").
+				WithParams(map[string]string{"source": secretFile}).
+				WithCause(fmt.Errorf("reading the secret of a platform subscription: %w", err))
+		}
+		value := strings.TrimSpace(string(secret))
+		if value == "" {
+			return nil, true, malformedPlans(source)
+		}
+		subscriptions = append(subscriptions, PlatformSubscription{TargetURL: target, Secret: value})
+	}
+	return subscriptions, true, nil
 }

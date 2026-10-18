@@ -1001,6 +1001,10 @@ func run() error {
 	platformEvents := platformservice.Recorder{
 		Events: postgres.NewPlatformEventRepository(), Workspaces: postgres.NewAdminTenantRepository(),
 		IDs: ids, Tenancy: cfg.Tenancy,
+		Fanout: platformservice.Fanout{
+			Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+			Deliveries:    postgres.NewPlatformDeliveryRepository(), Jobs: jobs, IDs: ids, Clock: clockadapter.System{},
+		},
 	}
 
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,
@@ -1541,6 +1545,17 @@ func run() error {
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
+	// The installation's subscriptions for a purchase platform (UC-INS-14): the instance writer for
+	// the register and the journal, the envelope for the secret, the step-up for a new address -
+	// copied from the session writer once it has been taught the rule.
+	platformWriter := adminservice.PlatformWriter{
+		Instance: instanceWriter, Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
+		StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Tenancy: cfg.Tenancy,
+		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
+		// one that names none leaves them to the API and the screen.
+		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
+	}
 	useCases, err := usecase.NewRegistry(
 		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
@@ -2311,6 +2326,18 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlatformSubscriptions{Writer: platformWriter}.Descriptor(),
+		adminservice.CreatePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.ReadPlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.UpdatePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.DeletePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.RotatePlatformSubscriptionSecret{Writer: platformWriter}.Descriptor(),
+		adminservice.ListPlatformDeliveries{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Cursors: cursors,
+		}.Descriptor(),
+		adminservice.RedeliverPlatformSubscription{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Jobs: jobs,
+		}.Descriptor(),
 		adminservice.ReadUsage{Writer: instanceWriter, Ledger: postgres.NewUsageRepository(cursors), Tenancy: cfg.Tenancy}.Descriptor(),
 		adminservice.ListPlatformEvents{
 			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
@@ -3300,6 +3327,16 @@ func run() error {
 		}.Delay,
 		Signals: metrics,
 	}
+	// The installation's deliveries to a purchase platform (UC-INS-14): the same signature, client
+	// and ladder, and no switching off.
+	platformDelivery := webhook.PlatformDeliverer{
+		Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Deliveries:    postgres.NewPlatformDeliveryRepository(),
+		Events:        postgres.NewPlatformEventRepository(),
+		Encryptor:     encryptor, Signer: security.NewWebhookSigner(), Client: outboundClient,
+		UnitOfWork: backgroundWork, Jobs: jobs, Clock: clockadapter.System{}, Source: cfg.BaseURL,
+		NextAttempt: webhookDelivery.NextAttempt, Signals: metrics,
+	}
 
 	// The outbound call: an HTTP_REQUEST action's HTTP, detached from every transaction and
 	// through the guarded client, with the sealed header secret opened for the length of one call.
@@ -3356,7 +3393,8 @@ func run() error {
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.
 	platformSweep := adminservice.SweepPlatformEvents{
-		Events: postgres.NewPlatformEventRepository(), Jobs: jobs, UnitOfWork: backgroundWork,
+		Events: postgres.NewPlatformEventRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
+		Jobs: jobs, UnitOfWork: backgroundWork,
 		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 	}
 	handlers := map[queueport.Kind]queueport.Handler{
@@ -3404,6 +3442,7 @@ func run() error {
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
 		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:  platformDelivery,
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
 		queueport.KindBackupRun:        backupRun,
@@ -3607,8 +3646,10 @@ func run() error {
 				return onBackground
 			}(),
 			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:      jobs,
-			Backlog:    jobs,
+			// Alert A-21's number: the dead letters waiting for a purchase platform (UC-INS-14).
+			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
+			Queue:              jobs,
+			Backlog:            jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
@@ -3661,6 +3702,7 @@ func run() error {
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
+		platform:   platformWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -4347,7 +4389,10 @@ type applyingInstanceFile struct {
 	ai adminservice.InstanceAiWriter
 	// plans writes the plans the file names, as the file: it passes every check the API's writes
 	// pass, and is the one writer of plans while the file enforces.
-	plans      adminservice.PlanWriter
+	plans adminservice.PlanWriter
+	// platform writes the subscriptions for a purchase platform the file names, their secrets read
+	// from the files it names.
+	platform   adminservice.PlatformWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4438,7 +4483,55 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	}
 	// The plans after the level: a plan is checked against the installation's values, so the
 	// file's own values have to be in place first.
-	return applyPlans(ctx, applying, document)
+	if err := applyPlans(ctx, applying, document); err != nil {
+		return err
+	}
+	return applyPlatformSubscriptions(ctx, applying, document)
+}
+
+// applyPlatformSubscriptions writes the subscriptions for a purchase platform the file names
+// (UC-INS-14 check 7): in `seed` the file adds, in `enforce` its set is the whole set.
+func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	declared, present, err := instancefile.PlatformSubscriptions(document, os.ReadFile, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	file := make([]adminservice.FileSubscription, 0, len(declared))
+	for _, d := range declared {
+		file = append(file, adminservice.FileSubscription{TargetURL: d.TargetURL, Secret: secretvalue.New(d.Secret)})
+	}
+	outcome, err := applying.platform.ApplyFile(ctx, file, applying.mode == instancefile.ModeEnforce)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names platform subscriptions, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	if !outcome.Seeded {
+		slog.Info("the platform subscriptions stand already: the seeding file leaves them as they are",
+			"source", applying.path)
+		return nil
+	}
+	slog.Info("the platform subscriptions were written from the file", "source", applying.path,
+		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
+		"kept", outcome.Kept, "removed", outcome.Removed)
+	return nil
+}
+
+// fileNamesPlatformSubscriptions reports whether the instance file names the subscriptions. An
+// unreadable file answers no here; reading it at the start is what refuses it.
+func fileNamesPlatformSubscriptions(path string) bool {
+	if path == "" {
+		return false
+	}
+	document, found, err := instancefile.Read(path)
+	if err != nil || !found {
+		return false
+	}
+	_, present := document["platform_subscriptions"]
+	return present
 }
 
 // applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.

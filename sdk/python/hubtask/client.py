@@ -799,6 +799,38 @@ class Client:
         """The installation's events, read forward"""
         return self._call("GET", "/admin/events", {}, query, {}, None, "none", None, "json")
 
+    def list_platform_subscriptions(self) -> dict[str, Any]:
+        """The installation's subscriptions for a purchase platform"""
+        return self._call("GET", "/admin/subscriptions", {}, None, {}, None, "none", None, "json")
+
+    def create_platform_subscription(self, body: "PlatformSubscriptionCreate", *, idempotency_key: str | None = None, step_up: str | None = None) -> "PlatformSubscriptionSecret":
+        """Subscribe a purchase platform to the installation's events"""
+        return self._call("POST", "/admin/subscriptions", {}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def read_platform_subscription(self, subscription_id: str) -> "PlatformSubscription":
+        """One subscription of the installation"""
+        return self._call("GET", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
+
+    def update_platform_subscription(self, subscription_id: str, body: "PlatformSubscriptionUpdate", *, if_match: str | None = None, step_up: str | None = None) -> "PlatformSubscription":
+        """Change a subscription's target, or pause and resume it"""
+        return self._call("PATCH", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_platform_subscription(self, subscription_id: str) -> None:
+        """Unsubscribe"""
+        return self._call("DELETE", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "void")
+
+    def rotate_platform_subscription_secret(self, subscription_id: str, *, idempotency_key: str | None = None, step_up: str | None = None) -> "PlatformSubscriptionSecret":
+        """Issue a new signing secret"""
+        return self._call("POST", "/admin/subscriptions/{subscriptionId}:rotate-secret", {"subscriptionId": subscription_id}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def list_platform_deliveries(self, subscription_id: str, *, query: dict[str, Any] | None = None) -> "PlatformDeliveryPage":
+        """What was sent to the subscription, and what became of it"""
+        return self._call("GET", "/admin/subscriptions/{subscriptionId}/deliveries", {"subscriptionId": subscription_id}, query, {}, None, "none", None, "json")
+
+    def redeliver_platform_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Send the subscription's dead letters again"""
+        return self._call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
+
     def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
         """The use per workspace, metric and day, for billing"""
         return self._call("GET", "/admin/usage", {}, query, {}, None, "none", None, "json")

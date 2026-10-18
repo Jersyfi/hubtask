@@ -6608,6 +6608,311 @@
         }
       }
     },
+    "/admin/subscriptions": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listPlatformSubscriptions",
+        "summary": "The installation's subscriptions for a purchase platform",
+        "description": "The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).\n",
+        "responses": {
+          "200": {
+            "description": "The subscriptions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformSubscription"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "createPlatformSubscription",
+        "summary": "Subscribe a purchase platform to the installation's events",
+        "description": "Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.\nThe signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSubscriptionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Subscribed, with the signing secret shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscriptionSecret"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/subscriptions/{subscriptionId}": {
+      "parameters": [
+        {
+          "name": "subscriptionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "readPlatformSubscription",
+        "summary": "One subscription of the installation",
+        "responses": {
+          "200": {
+            "description": "The subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscription"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "updatePlatformSubscription",
+        "summary": "Change a subscription's target, or pause and resume it",
+        "description": "An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformSubscriptionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The subscription",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscription"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "deletePlatformSubscription",
+        "summary": "Unsubscribe",
+        "description": "The subscription goes with its deliveries; the events stay readable.",
+        "responses": {
+          "204": {
+            "description": "Unsubscribed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/subscriptions/{subscriptionId}:rotate-secret": {
+      "parameters": [
+        {
+          "name": "subscriptionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "rotatePlatformSubscriptionSecret",
+        "summary": "Issue a new signing secret",
+        "description": "Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          },
+          {
+            "$ref": "#/components/parameters/StepUpToken"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rotated, with the new secret shown for the only time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSubscriptionSecret"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/subscriptions/{subscriptionId}/deliveries": {
+      "parameters": [
+        {
+          "name": "subscriptionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "listPlatformDeliveries",
+        "summary": "What was sent to the subscription, and what became of it",
+        "description": "One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "SUCCEEDED",
+                "FAILED",
+                "DEAD_LETTER"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The deliveries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformDeliveryPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/admin/subscriptions/{subscriptionId}:redeliver": {
+      "parameters": [
+        {
+          "name": "subscriptionId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "operationId": "redeliverPlatformSubscription",
+        "summary": "Send the subscription's dead letters again",
+        "description": "Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.\n",
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "queued"
+                  ],
+                  "properties": {
+                    "queued": {
+                      "type": "integer",
+                      "description": "How many dead letters were queued again."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/usage": {
       "get": {
         "tags": [
@@ -16242,6 +16547,215 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/InstanceJournalEntry"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "PlatformSubscription": {
+        "type": "object",
+        "description": "One address the installation's events are pushed to. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.\n",
+        "required": [
+          "id",
+          "target_url",
+          "state",
+          "dead_letters",
+          "created_at",
+          "version",
+          "from_file"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where each event is POSTed, through the guarded client."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "PAUSED"
+            ],
+            "description": "Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.\n"
+          },
+          "dead_letters": {
+            "type": "integer",
+            "description": "The deliveries that ended without arriving and wait to be redelivered."
+          },
+          "last_delivery_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When an event last arrived; null before the first."
+          },
+          "last_error": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A message code for the last failed attempt, never the target's own words."
+          },
+          "from_file": {
+            "type": "boolean",
+            "description": "Decided by an enforcing instance file: changed there, and refused here. A subscription a seeding file wrote is the operator's.\n"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "PlatformSubscriptionCreate": {
+        "type": "object",
+        "required": [
+          "target_url"
+        ],
+        "properties": {
+          "target_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 2000
+          }
+        }
+      },
+      "PlatformSubscriptionUpdate": {
+        "type": "object",
+        "description": "Every field optional; an omitted one is left alone.",
+        "properties": {
+          "target_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "maxLength": 2000
+          },
+          "state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "ACTIVE",
+              "PAUSED",
+              null
+            ]
+          }
+        }
+      },
+      "PlatformSubscriptionSecret": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PlatformSubscription"
+          },
+          {
+            "type": "object",
+            "required": [
+              "secret"
+            ],
+            "properties": {
+              "secret": {
+                "type": "string",
+                "description": "The signing secret, in clear, for the only time."
+              }
+            }
+          }
+        ]
+      },
+      "PlatformDelivery": {
+        "type": "object",
+        "description": "One event sent to one subscription, across its attempts.",
+        "required": [
+          "id",
+          "subscription_id",
+          "event_id",
+          "event_type",
+          "attempt",
+          "status",
+          "created_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subscription_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The event, as `X-Hubtask-Event-Id` carries it."
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "description": "How many attempts were made, a redelivery's counting on."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED",
+              "DEAD_LETTER"
+            ]
+          },
+          "response_status": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "A message code, never the target's response body."
+          },
+          "next_attempt_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlatformDeliveryPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlatformDelivery"
             }
           },
           "page": {

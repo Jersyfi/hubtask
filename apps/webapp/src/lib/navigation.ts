@@ -365,6 +365,7 @@ export const INSTANCE: readonly SectionGroup[] = [
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
       { id: 'targets', icon: 'cloud-upload', code: 'app.instance.targets', path: '/instance/backup-targets', routes: ['instance-targets'] },
+      { id: 'platform', icon: 'send', code: 'app.instance.platform', path: '/instance/platform', routes: ['instance-platform'] },
       { id: 'encryption', icon: 'lock', code: 'app.instance.encryption', path: '/instance/encryption', routes: ['instance-encryption'] },
     ],
   },
@@ -381,11 +382,14 @@ export const INSTANCE: readonly SectionGroup[] = [
 /**
  * The instance area's navigation as this installation draws it: without *AI* on a single-workspace
  * installation, where there is no model to offer anybody - the one workspace configures its own
- * (UC-AI-06 check 8).
+ * (UC-AI-06 check 8) - and without the events to a purchase platform, which single mode offers
+ * none of (UC-INS-14 check 7).
  */
+const MULTI_ONLY = new Set(['ai', 'platform']);
+
 export function instanceSection(options: { readonly isSingleWorkspace: boolean }): readonly SectionGroup[] {
   if (!options.isSingleWorkspace) return INSTANCE;
-  return INSTANCE.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'ai') }));
+  return INSTANCE.map((group) => ({ ...group, rows: group.rows.filter((row) => !MULTI_ONLY.has(row.id)) }));
 }
 
 /** Kept as the name the rest of the client uses for the trash's row. */

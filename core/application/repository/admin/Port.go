@@ -16,6 +16,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -281,4 +282,60 @@ type Purge interface {
 	// cancel can no longer land. False means the workspace is not pending or its deadline lies
 	// ahead - a cancel came first, and nothing may be removed.
 	MarkStarted(ctx context.Context, now time.Time) (bool, error)
+}
+
+// PlatformSecret is a subscription's signing secret as it is stored: sealed under the installation's
+// key, never in clear.
+type PlatformSecret struct {
+	Ciphertext []byte
+	KeyID      string
+}
+
+// StoredPlatformSubscription is a subscription with its sealed secret, for the one reader that
+// opens it - the delivery.
+type StoredPlatformSubscription struct {
+	Subscription integration.PlatformSubscription
+	Secret       PlatformSecret
+}
+
+// PlatformSubscriptions are the installation's subscriptions for a purchase platform
+// (multi-tenancy.md §4.3). They belong to no tenant and are read and written under the
+// installation's or the system's scope.
+type PlatformSubscriptions interface {
+	Insert(ctx context.Context, subscription integration.PlatformSubscription, secret PlatformSecret) error
+	// List answers every subscription, oldest first, with its dead letters counted.
+	List(ctx context.Context) ([]integration.PlatformSubscription, error)
+	// Find answers one with its sealed secret; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (StoredPlatformSubscription, error)
+	// Update writes the target and the state, guarded on the version read.
+	Update(ctx context.Context, subscription integration.PlatformSubscription, expectedVersion int, at time.Time) (bool, error)
+	Rotate(ctx context.Context, id shared.ID, secret PlatformSecret, at time.Time) (bool, error)
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+	// Active answers the subscriptions an event is sent to.
+	Active(ctx context.Context) ([]shared.ID, error)
+	// Outcome records the last attempt for the screen: the moment of an arrival, or a failure's code.
+	Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error
+	// MarkFromFile records that an enforcing instance file decides the subscription.
+	MarkFromFile(ctx context.Context, id shared.ID) error
+}
+
+// PlatformDeliveries are the deliveries of the installation's subscriptions: one per event and
+// subscription, across its attempts.
+type PlatformDeliveries interface {
+	// Insert queues a delivery, and reports whether it was new: a repeated fan-out writes nothing.
+	Insert(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Find answers one; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (integration.PlatformDelivery, error)
+	// Page answers a subscription's deliveries newest first, before `before` when it is set, of
+	// one status when it is set.
+	Page(ctx context.Context, subscriptionID shared.ID, status string, before shared.ID, size int) ([]integration.PlatformDelivery, error)
+	// Record writes one attempt's outcome, only while the delivery is still at the attempt before:
+	// a repeated job writes nothing, and the answer says so.
+	Record(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Requeue returns up to `batch` of a subscription's dead letters to pending, and answers which.
+	Requeue(ctx context.Context, subscriptionID shared.ID, at time.Time, batch int) ([]shared.ID, error)
+	// DeadLetters counts the installation's dead letters waiting.
+	DeadLetters(ctx context.Context) (int64, error)
+	// Sweep removes up to `batch` settled deliveries untouched since `cutoff`, and answers how many.
+	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }

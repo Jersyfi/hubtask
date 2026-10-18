@@ -30,6 +30,9 @@ type Recorder struct {
 	Workspaces Workspaces
 	IDs        clock.IDGenerator
 	Tenancy    env.TenancyMode
+	// Fanout queues each event for the installation's subscriptions. Its zero value queues
+	// nothing: the feed still holds every event.
+	Fanout Fanout
 }
 
 // On reports whether events are written at all.
@@ -93,7 +96,11 @@ func (r Recorder) write(ctx context.Context, eventType event.Type, state event.W
 	if err != nil {
 		return false, err
 	}
-	return r.Events.Append(ctx, envelope, key)
+	written, err := r.Events.Append(ctx, envelope, key)
+	if err != nil || !written {
+		return written, err
+	}
+	return true, r.Fanout.Queue(ctx, envelope)
 }
 
 // StateOf is what an event reports of a workspace's row.

@@ -60,6 +60,12 @@ func adminGroup() group {
 				run:     adminEvents,
 			},
 			{
+				name:    "subscription",
+				usage:   "ls|show|add|pause|resume|rm|rotate-secret|deliveries|redeliver …",
+				summary: "the addresses the installation's events are pushed to, for a purchase platform",
+				run:     adminSubscription,
+			},
+			{
 				name:    "usage",
 				usage:   "--from <day> --to <day> [--metric <name>] [--workspace <id>]",
 				summary: "the use per workspace, metric and day, while metering is on",

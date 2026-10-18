@@ -1235,6 +1235,20 @@ type PlanSetting struct {
 	Locked bool
 }
 
+type PlatformDelivery struct {
+	ID             pgtype.UUID
+	SubscriptionID pgtype.UUID
+	EventID        pgtype.UUID
+	EventType      string
+	Attempt        int32
+	Status         string
+	ResponseStatus *int32
+	ErrorCode      *string
+	NextAttemptAt  pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type PlatformEvent struct {
 	Number     int64
 	ID         pgtype.UUID
@@ -1245,6 +1259,21 @@ type PlatformEvent struct {
 	ActorID    pgtype.UUID
 	Payload    []byte
 	DedupeKey  *string
+}
+
+type PlatformSubscription struct {
+	ID             pgtype.UUID
+	TargetUrl      string
+	SecretEnc      []byte
+	SecretKeyID    string
+	State          string
+	LastError      *string
+	LastDeliveryAt pgtype.Timestamptz
+	FromFile       bool
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
 }
 
 type PrivacyIncident struct {

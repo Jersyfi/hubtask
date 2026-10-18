@@ -2913,6 +2913,87 @@ func (e PlanFeature) Valid() bool {
 	}
 }
 
+// Defines values for PlatformDeliveryStatus.
+const (
+	PlatformDeliveryStatusDEADLETTER PlatformDeliveryStatus = "DEAD_LETTER"
+	PlatformDeliveryStatusFAILED     PlatformDeliveryStatus = "FAILED"
+	PlatformDeliveryStatusPENDING    PlatformDeliveryStatus = "PENDING"
+	PlatformDeliveryStatusSUCCEEDED  PlatformDeliveryStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformDeliveryStatus enum.
+func (e PlatformDeliveryStatus) Valid() bool {
+	switch e {
+	case PlatformDeliveryStatusDEADLETTER:
+		return true
+	case PlatformDeliveryStatusFAILED:
+		return true
+	case PlatformDeliveryStatusPENDING:
+		return true
+	case PlatformDeliveryStatusSUCCEEDED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionState.
+const (
+	PlatformSubscriptionStateACTIVE PlatformSubscriptionState = "ACTIVE"
+	PlatformSubscriptionStatePAUSED PlatformSubscriptionState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionState enum.
+func (e PlatformSubscriptionState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionStateACTIVE:
+		return true
+	case PlatformSubscriptionStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionSecretState.
+const (
+	PlatformSubscriptionSecretStateACTIVE PlatformSubscriptionSecretState = "ACTIVE"
+	PlatformSubscriptionSecretStatePAUSED PlatformSubscriptionSecretState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionSecretState enum.
+func (e PlatformSubscriptionSecretState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionSecretStateACTIVE:
+		return true
+	case PlatformSubscriptionSecretStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PlatformSubscriptionUpdateState.
+const (
+	PlatformSubscriptionUpdateStateACTIVE      PlatformSubscriptionUpdateState = "ACTIVE"
+	PlatformSubscriptionUpdateStateLessThannil PlatformSubscriptionUpdateState = "<nil>"
+	PlatformSubscriptionUpdateStatePAUSED      PlatformSubscriptionUpdateState = "PAUSED"
+)
+
+// Valid indicates whether the value is a known member of the PlatformSubscriptionUpdateState enum.
+func (e PlatformSubscriptionUpdateState) Valid() bool {
+	switch e {
+	case PlatformSubscriptionUpdateStateACTIVE:
+		return true
+	case PlatformSubscriptionUpdateStateLessThannil:
+		return true
+	case PlatformSubscriptionUpdateStatePAUSED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PolicyLock.
 const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
@@ -4557,6 +4638,30 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPlatformDeliveriesParamsStatus.
+const (
+	ListPlatformDeliveriesParamsStatusDEADLETTER ListPlatformDeliveriesParamsStatus = "DEAD_LETTER"
+	ListPlatformDeliveriesParamsStatusFAILED     ListPlatformDeliveriesParamsStatus = "FAILED"
+	ListPlatformDeliveriesParamsStatusPENDING    ListPlatformDeliveriesParamsStatus = "PENDING"
+	ListPlatformDeliveriesParamsStatusSUCCEEDED  ListPlatformDeliveriesParamsStatus = "SUCCEEDED"
+)
+
+// Valid indicates whether the value is a known member of the ListPlatformDeliveriesParamsStatus enum.
+func (e ListPlatformDeliveriesParamsStatus) Valid() bool {
+	switch e {
+	case ListPlatformDeliveriesParamsStatusDEADLETTER:
+		return true
+	case ListPlatformDeliveriesParamsStatusFAILED:
+		return true
+	case ListPlatformDeliveriesParamsStatusPENDING:
+		return true
+	case ListPlatformDeliveriesParamsStatusSUCCEEDED:
 		return true
 	default:
 		return false
@@ -8635,6 +8740,35 @@ type PlanCreate struct {
 // PlanFeature defines model for PlanFeature.
 type PlanFeature string
 
+// PlatformDelivery One event sent to one subscription, across its attempts.
+type PlatformDelivery struct {
+	// Attempt How many attempts were made, a redelivery's counting on.
+	Attempt   int       `json:"attempt"`
+	CreatedAt time.Time `json:"created_at"`
+
+	// ErrorCode A message code, never the target's response body.
+	ErrorCode *string `json:"error_code,omitempty"`
+
+	// EventId The event, as `X-Hubtask-Event-Id` carries it.
+	EventId        openapi_types.UUID     `json:"event_id"`
+	EventType      string                 `json:"event_type"`
+	Id             openapi_types.UUID     `json:"id"`
+	NextAttemptAt  *time.Time             `json:"next_attempt_at,omitempty"`
+	ResponseStatus *int                   `json:"response_status,omitempty"`
+	Status         PlatformDeliveryStatus `json:"status"`
+	SubscriptionId openapi_types.UUID     `json:"subscription_id"`
+	UpdatedAt      *time.Time             `json:"updated_at,omitempty"`
+}
+
+// PlatformDeliveryStatus defines model for PlatformDelivery.Status.
+type PlatformDeliveryStatus string
+
+// PlatformDeliveryPage defines model for PlatformDeliveryPage.
+type PlatformDeliveryPage struct {
+	Data []PlatformDelivery `json:"data"`
+	Page PageInfo           `json:"page"`
+}
+
 // PlatformEvent One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent, unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform deduplicates on it either way; `tenantid` is the workspace the event is about, and `data` carries its state as the schema of the event's `type` describes.
 // Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the event schemas and the CloudEvents specification, and a second list of its properties here would drift.
 type PlatformEvent map[string]interface{}
@@ -8644,6 +8778,79 @@ type PlatformEventPage struct {
 	Data []PlatformEvent `json:"data"`
 	Page PageInfo        `json:"page"`
 }
+
+// PlatformSubscription One address the installation's events are pushed to. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed.
+type PlatformSubscription struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DeadLetters The deliveries that ended without arriving and wait to be redelivered.
+	DeadLetters int `json:"dead_letters"`
+
+	// FromFile Decided by an enforcing instance file: changed there, and refused here. A subscription a seeding file wrote is the operator's.
+	FromFile bool               `json:"from_file"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// LastDeliveryAt When an event last arrived; null before the first.
+	LastDeliveryAt *time.Time `json:"last_delivery_at,omitempty"`
+
+	// LastError A message code for the last failed attempt, never the target's own words.
+	LastError *string `json:"last_error,omitempty"`
+
+	// State Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+	State PlatformSubscriptionState `json:"state"`
+
+	// TargetUrl Where each event is POSTed, through the guarded client.
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// PlatformSubscriptionState Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+type PlatformSubscriptionState string
+
+// PlatformSubscriptionCreate defines model for PlatformSubscriptionCreate.
+type PlatformSubscriptionCreate struct {
+	TargetUrl string `json:"target_url"`
+}
+
+// PlatformSubscriptionSecret defines model for PlatformSubscriptionSecret.
+type PlatformSubscriptionSecret struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// DeadLetters The deliveries that ended without arriving and wait to be redelivered.
+	DeadLetters int `json:"dead_letters"`
+
+	// FromFile Decided by an enforcing instance file: changed there, and refused here. A subscription a seeding file wrote is the operator's.
+	FromFile bool               `json:"from_file"`
+	Id       openapi_types.UUID `json:"id"`
+
+	// LastDeliveryAt When an event last arrived; null before the first.
+	LastDeliveryAt *time.Time `json:"last_delivery_at,omitempty"`
+
+	// LastError A message code for the last failed attempt, never the target's own words.
+	LastError *string `json:"last_error,omitempty"`
+
+	// Secret The signing secret, in clear, for the only time.
+	Secret string `json:"secret"`
+
+	// State Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+	State PlatformSubscriptionSecretState `json:"state"`
+
+	// TargetUrl Where each event is POSTed, through the guarded client.
+	TargetUrl string `json:"target_url"`
+	Version   int    `json:"version"`
+}
+
+// PlatformSubscriptionSecretState Never switched off for being unreachable; a paused subscription is one the operator paused, and is sent nothing.
+type PlatformSubscriptionSecretState string
+
+// PlatformSubscriptionUpdate Every field optional; an omitted one is left alone.
+type PlatformSubscriptionUpdate struct {
+	State     *PlatformSubscriptionUpdateState `json:"state,omitempty"`
+	TargetUrl *string                          `json:"target_url,omitempty"`
+}
+
+// PlatformSubscriptionUpdateState defines model for PlatformSubscriptionUpdate.State.
+type PlatformSubscriptionUpdateState string
 
 // PolicyLock Where a lock came from, or null where there is none. The origin is answered rather than a bare boolean because "ask your administrator" and "ask your provider" are different sentences, and a screen told the wrong one sends somebody to the wrong person.
 type PolicyLock string
@@ -11184,6 +11391,43 @@ type ChangePlanParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CreatePlatformSubscriptionParams defines parameters for CreatePlatformSubscription.
+type CreatePlatformSubscriptionParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// UpdatePlatformSubscriptionParams defines parameters for UpdatePlatformSubscription.
+type UpdatePlatformSubscriptionParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// ListPlatformDeliveriesParams defines parameters for ListPlatformDeliveries.
+type ListPlatformDeliveriesParams struct {
+	Cursor *Cursor                             `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize                           `form:"size,omitempty" json:"size,omitempty"`
+	Status *ListPlatformDeliveriesParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListPlatformDeliveriesParamsStatus defines parameters for ListPlatformDeliveries.
+type ListPlatformDeliveriesParamsStatus string
+
+// RotatePlatformSubscriptionSecretParams defines parameters for RotatePlatformSubscriptionSecret.
+type RotatePlatformSubscriptionSecretParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ProvisionTenantParams defines parameters for ProvisionTenant.
 type ProvisionTenantParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -12289,6 +12533,12 @@ type ChangePlanJSONRequestBody = PlanChange
 
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
+
+// CreatePlatformSubscriptionJSONRequestBody defines body for CreatePlatformSubscription for application/json ContentType.
+type CreatePlatformSubscriptionJSONRequestBody = PlatformSubscriptionCreate
+
+// UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody defines body for UpdatePlatformSubscription for application/merge-patch+json ContentType.
+type UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody = PlatformSubscriptionUpdate
 
 // ProvisionTenantJSONRequestBody defines body for ProvisionTenant for application/json ContentType.
 type ProvisionTenantJSONRequestBody = TenantProvision
@@ -13624,6 +13874,84 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 	WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
+	//
+	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
+	ListPlatformSubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlatformSubscriptionWithBody Subscribe a purchase platform to the installation's events
+	//
+	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+	CreatePlatformSubscriptionWithBody(ctx context.Context, params *CreatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePlatformSubscription Subscribe a purchase platform to the installation's events
+	//
+	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+	CreatePlatformSubscription(ctx context.Context, params *CreatePlatformSubscriptionParams, body CreatePlatformSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePlatformSubscription Unsubscribe
+	//
+	// The subscription goes with its deliveries; the events stay readable.
+	//
+	// Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
+	DeletePlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPlatformSubscription One subscription of the installation
+	//
+	// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
+	ReadPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePlatformSubscriptionWithBody Change a subscription's target, or pause and resume it
+	//
+	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+	UpdatePlatformSubscriptionWithBody(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody Change a subscription's target, or pause and resume it
+	//
+	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+	UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, body UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPlatformDeliveries What was sent to the subscription, and what became of it
+	//
+	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+	//
+	// Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
+	ListPlatformDeliveries(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RedeliverPlatformSubscription Send the subscription's dead letters again
+	//
+	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+	//
+	// Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
+	RedeliverPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RotatePlatformSubscriptionSecret Issue a new signing secret
+	//
+	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+	//
+	// Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
+	RotatePlatformSubscriptionSecret(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTenants The installation's workspaces
 	//
@@ -19040,6 +19368,184 @@ func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, contentType 
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 func (c *Client) WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewWriteInstanceSettingsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
+//
+// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
+func (c *Client) ListPlatformSubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPlatformSubscriptionsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlatformSubscriptionWithBody Subscribe a purchase platform to the installation's events
+//
+// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+func (c *Client) CreatePlatformSubscriptionWithBody(ctx context.Context, params *CreatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlatformSubscriptionRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePlatformSubscription Subscribe a purchase platform to the installation's events
+//
+// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+func (c *Client) CreatePlatformSubscription(ctx context.Context, params *CreatePlatformSubscriptionParams, body CreatePlatformSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePlatformSubscriptionRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePlatformSubscription Unsubscribe
+//
+// The subscription goes with its deliveries; the events stay readable.
+//
+// Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
+func (c *Client) DeletePlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePlatformSubscriptionRequest(c.Server, subscriptionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPlatformSubscription One subscription of the installation
+//
+// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
+func (c *Client) ReadPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPlatformSubscriptionRequest(c.Server, subscriptionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePlatformSubscriptionWithBody Change a subscription's target, or pause and resume it
+//
+// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+func (c *Client) UpdatePlatformSubscriptionWithBody(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePlatformSubscriptionRequestWithBody(c.Server, subscriptionId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody Change a subscription's target, or pause and resume it
+//
+// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+func (c *Client) UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, body UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdatePlatformSubscriptionRequestWithApplicationMergePatchPlusJSONBody(c.Server, subscriptionId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPlatformDeliveries What was sent to the subscription, and what became of it
+//
+// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+//
+// Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
+func (c *Client) ListPlatformDeliveries(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPlatformDeliveriesRequest(c.Server, subscriptionId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RedeliverPlatformSubscription Send the subscription's dead letters again
+//
+// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+//
+// Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
+func (c *Client) RedeliverPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRedeliverPlatformSubscriptionRequest(c.Server, subscriptionId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RotatePlatformSubscriptionSecret Issue a new signing secret
+//
+// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+//
+// Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
+func (c *Client) RotatePlatformSubscriptionSecret(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRotatePlatformSubscriptionSecretRequest(c.Server, subscriptionId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -29177,6 +29683,419 @@ func NewWriteInstanceSettingsRequestWithBody(server string, contentType string, 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListPlatformSubscriptionsRequest constructs an http.Request for the ListPlatformSubscriptions method
+func NewListPlatformSubscriptionsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePlatformSubscriptionRequest calls the generic CreatePlatformSubscription builder with application/json body
+func NewCreatePlatformSubscriptionRequest(server string, params *CreatePlatformSubscriptionParams, body CreatePlatformSubscriptionJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePlatformSubscriptionRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCreatePlatformSubscriptionRequestWithBody constructs an http.Request for the CreatePlatformSubscription method, with any body, and a specified content type
+func NewCreatePlatformSubscriptionRequestWithBody(server string, params *CreatePlatformSubscriptionParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeletePlatformSubscriptionRequest constructs an http.Request for the DeletePlatformSubscription method
+func NewDeletePlatformSubscriptionRequest(server string, subscriptionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadPlatformSubscriptionRequest constructs an http.Request for the ReadPlatformSubscription method
+func NewReadPlatformSubscriptionRequest(server string, subscriptionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUpdatePlatformSubscriptionRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdatePlatformSubscription builder with application/merge-patch+json body
+func NewUpdatePlatformSubscriptionRequestWithApplicationMergePatchPlusJSONBody(server string, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, body UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdatePlatformSubscriptionRequestWithBody(server, subscriptionId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdatePlatformSubscriptionRequestWithBody constructs an http.Request for the UpdatePlatformSubscription method, with any body, and a specified content type
+func NewUpdatePlatformSubscriptionRequestWithBody(server string, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListPlatformDeliveriesRequest constructs an http.Request for the ListPlatformDeliveries method
+func NewListPlatformDeliveriesRequest(server string, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s/deliveries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRedeliverPlatformSubscriptionRequest constructs an http.Request for the RedeliverPlatformSubscription method
+func NewRedeliverPlatformSubscriptionRequest(server string, subscriptionId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s:redeliver", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRotatePlatformSubscriptionSecretRequest constructs an http.Request for the RotatePlatformSubscriptionSecret method
+func NewRotatePlatformSubscriptionSecretRequest(server string, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "subscriptionId", subscriptionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/subscriptions/%s:rotate-secret", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam1 string
+
+			headerParam1, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam1)
+		}
+
+	}
 
 	return req, nil
 }
@@ -44013,6 +44932,96 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
 	WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
 
+	// ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
+	//
+	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
+	ListPlatformSubscriptionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPlatformSubscriptionsResult, error)
+
+	// CreatePlatformSubscriptionWithBodyWithResponse Subscribe a purchase platform to the installation's events
+	//
+	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+	CreatePlatformSubscriptionWithBodyWithResponse(ctx context.Context, params *CreatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlatformSubscriptionResult, error)
+
+	// CreatePlatformSubscriptionWithResponse Subscribe a purchase platform to the installation's events
+	//
+	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+	CreatePlatformSubscriptionWithResponse(ctx context.Context, params *CreatePlatformSubscriptionParams, body CreatePlatformSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlatformSubscriptionResult, error)
+
+	// DeletePlatformSubscriptionWithResponse Unsubscribe
+	//
+	// The subscription goes with its deliveries; the events stay readable.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
+	DeletePlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePlatformSubscriptionResult, error)
+
+	// ReadPlatformSubscriptionWithResponse One subscription of the installation
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
+	ReadPlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadPlatformSubscriptionResult, error)
+
+	// UpdatePlatformSubscriptionWithBodyWithResponse Change a subscription's target, or pause and resume it
+	//
+	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+	UpdatePlatformSubscriptionWithBodyWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePlatformSubscriptionResult, error)
+
+	// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse Change a subscription's target, or pause and resume it
+	//
+	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+	UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, body UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePlatformSubscriptionResult, error)
+
+	// ListPlatformDeliveriesWithResponse What was sent to the subscription, and what became of it
+	//
+	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
+	ListPlatformDeliveriesWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*ListPlatformDeliveriesResult, error)
+
+	// RedeliverPlatformSubscriptionWithResponse Send the subscription's dead letters again
+	//
+	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
+	RedeliverPlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RedeliverPlatformSubscriptionResult, error)
+
+	// RotatePlatformSubscriptionSecretWithResponse Issue a new signing secret
+	//
+	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
+	RotatePlatformSubscriptionSecretWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*RotatePlatformSubscriptionSecretResult, error)
+
 	// ListTenantsWithResponse The installation's workspaces
 	//
 	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -50588,6 +51597,382 @@ func (r WriteInstanceSettingsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r WriteInstanceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPlatformSubscriptionsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]PlatformSubscription
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPlatformSubscriptionsResult) GetJSON200() *[]PlatformSubscription {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPlatformSubscriptionsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPlatformSubscriptionsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPlatformSubscriptionsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPlatformSubscriptionsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPlatformSubscriptionsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePlatformSubscriptionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PlatformSubscriptionSecret
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePlatformSubscriptionResult) GetJSON201() *PlatformSubscriptionSecret {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePlatformSubscriptionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePlatformSubscriptionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePlatformSubscriptionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePlatformSubscriptionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePlatformSubscriptionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePlatformSubscriptionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePlatformSubscriptionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePlatformSubscriptionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePlatformSubscriptionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPlatformSubscriptionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlatformSubscription
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPlatformSubscriptionResult) GetJSON200() *PlatformSubscription {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPlatformSubscriptionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPlatformSubscriptionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPlatformSubscriptionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPlatformSubscriptionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdatePlatformSubscriptionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlatformSubscription
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdatePlatformSubscriptionResult) GetJSON200() *PlatformSubscription {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdatePlatformSubscriptionResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdatePlatformSubscriptionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdatePlatformSubscriptionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdatePlatformSubscriptionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdatePlatformSubscriptionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPlatformDeliveriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlatformDeliveryPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPlatformDeliveriesResult) GetJSON200() *PlatformDeliveryPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPlatformDeliveriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPlatformDeliveriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPlatformDeliveriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPlatformDeliveriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPlatformDeliveriesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RedeliverPlatformSubscriptionResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *struct {
+		// Queued How many dead letters were queued again.
+		Queued int `json:"queued"`
+	}
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r RedeliverPlatformSubscriptionResult) GetJSON202() *struct {
+	// Queued How many dead letters were queued again.
+	Queued int `json:"queued"`
+} {
+	return r.JSON202
+}
+
+// GetBody returns the raw response body bytes
+func (r RedeliverPlatformSubscriptionResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RedeliverPlatformSubscriptionResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RedeliverPlatformSubscriptionResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RedeliverPlatformSubscriptionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RotatePlatformSubscriptionSecretResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PlatformSubscriptionSecret
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RotatePlatformSubscriptionSecretResult) GetJSON200() *PlatformSubscriptionSecret {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RotatePlatformSubscriptionSecretResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RotatePlatformSubscriptionSecretResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RotatePlatformSubscriptionSecretResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RotatePlatformSubscriptionSecretResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RotatePlatformSubscriptionSecretResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -66127,6 +67512,156 @@ func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Cont
 	return ParseWriteInstanceSettingsResult(rsp)
 }
 
+// ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
+//
+// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
+func (c *ClientWithResponses) ListPlatformSubscriptionsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPlatformSubscriptionsResult, error) {
+	rsp, err := c.ListPlatformSubscriptions(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPlatformSubscriptionsResult(rsp)
+}
+
+// CreatePlatformSubscriptionWithBodyWithResponse Subscribe a purchase platform to the installation's events
+//
+// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+func (c *ClientWithResponses) CreatePlatformSubscriptionWithBodyWithResponse(ctx context.Context, params *CreatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePlatformSubscriptionResult, error) {
+	rsp, err := c.CreatePlatformSubscriptionWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlatformSubscriptionResult(rsp)
+}
+
+// CreatePlatformSubscriptionWithResponse Subscribe a purchase platform to the installation's events
+//
+// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/subscriptions (the `CreatePlatformSubscription` operationId).
+func (c *ClientWithResponses) CreatePlatformSubscriptionWithResponse(ctx context.Context, params *CreatePlatformSubscriptionParams, body CreatePlatformSubscriptionJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePlatformSubscriptionResult, error) {
+	rsp, err := c.CreatePlatformSubscription(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePlatformSubscriptionResult(rsp)
+}
+
+// DeletePlatformSubscriptionWithResponse Unsubscribe
+//
+// The subscription goes with its deliveries; the events stay readable.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
+func (c *ClientWithResponses) DeletePlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePlatformSubscriptionResult, error) {
+	rsp, err := c.DeletePlatformSubscription(ctx, subscriptionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePlatformSubscriptionResult(rsp)
+}
+
+// ReadPlatformSubscriptionWithResponse One subscription of the installation
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
+func (c *ClientWithResponses) ReadPlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadPlatformSubscriptionResult, error) {
+	rsp, err := c.ReadPlatformSubscription(ctx, subscriptionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPlatformSubscriptionResult(rsp)
+}
+
+// UpdatePlatformSubscriptionWithBodyWithResponse Change a subscription's target, or pause and resume it
+//
+// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+func (c *ClientWithResponses) UpdatePlatformSubscriptionWithBodyWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdatePlatformSubscriptionResult, error) {
+	rsp, err := c.UpdatePlatformSubscriptionWithBody(ctx, subscriptionId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePlatformSubscriptionResult(rsp)
+}
+
+// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse Change a subscription's target, or pause and resume it
+//
+// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/subscriptions/{subscriptionId} (the `UpdatePlatformSubscription` operationId).
+func (c *ClientWithResponses) UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *UpdatePlatformSubscriptionParams, body UpdatePlatformSubscriptionApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdatePlatformSubscriptionResult, error) {
+	rsp, err := c.UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody(ctx, subscriptionId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdatePlatformSubscriptionResult(rsp)
+}
+
+// ListPlatformDeliveriesWithResponse What was sent to the subscription, and what became of it
+//
+// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
+func (c *ClientWithResponses) ListPlatformDeliveriesWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*ListPlatformDeliveriesResult, error) {
+	rsp, err := c.ListPlatformDeliveries(ctx, subscriptionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPlatformDeliveriesResult(rsp)
+}
+
+// RedeliverPlatformSubscriptionWithResponse Send the subscription's dead letters again
+//
+// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
+func (c *ClientWithResponses) RedeliverPlatformSubscriptionWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RedeliverPlatformSubscriptionResult, error) {
+	rsp, err := c.RedeliverPlatformSubscription(ctx, subscriptionId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRedeliverPlatformSubscriptionResult(rsp)
+}
+
+// RotatePlatformSubscriptionSecretWithResponse Issue a new signing secret
+//
+// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
+func (c *ClientWithResponses) RotatePlatformSubscriptionSecretWithResponse(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*RotatePlatformSubscriptionSecretResult, error) {
+	rsp, err := c.RotatePlatformSubscriptionSecret(ctx, subscriptionId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRotatePlatformSubscriptionSecretResult(rsp)
+}
+
 // ListTenantsWithResponse The installation's workspaces
 //
 // The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
@@ -74506,6 +76041,262 @@ func ParseWriteInstanceSettingsResult(rsp *http.Response) (*WriteInstanceSetting
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest InstanceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPlatformSubscriptionsResult parses an HTTP response from a ListPlatformSubscriptionsWithResponse call
+func ParseListPlatformSubscriptionsResult(rsp *http.Response) (*ListPlatformSubscriptionsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPlatformSubscriptionsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []PlatformSubscription
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePlatformSubscriptionResult parses an HTTP response from a CreatePlatformSubscriptionWithResponse call
+func ParseCreatePlatformSubscriptionResult(rsp *http.Response) (*CreatePlatformSubscriptionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePlatformSubscriptionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PlatformSubscriptionSecret
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePlatformSubscriptionResult parses an HTTP response from a DeletePlatformSubscriptionWithResponse call
+func ParseDeletePlatformSubscriptionResult(rsp *http.Response) (*DeletePlatformSubscriptionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePlatformSubscriptionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPlatformSubscriptionResult parses an HTTP response from a ReadPlatformSubscriptionWithResponse call
+func ParseReadPlatformSubscriptionResult(rsp *http.Response) (*ReadPlatformSubscriptionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPlatformSubscriptionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformSubscription
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdatePlatformSubscriptionResult parses an HTTP response from a UpdatePlatformSubscriptionWithResponse call
+func ParseUpdatePlatformSubscriptionResult(rsp *http.Response) (*UpdatePlatformSubscriptionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdatePlatformSubscriptionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformSubscription
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPlatformDeliveriesResult parses an HTTP response from a ListPlatformDeliveriesWithResponse call
+func ParseListPlatformDeliveriesResult(rsp *http.Response) (*ListPlatformDeliveriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPlatformDeliveriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformDeliveryPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRedeliverPlatformSubscriptionResult parses an HTTP response from a RedeliverPlatformSubscriptionWithResponse call
+func ParseRedeliverPlatformSubscriptionResult(rsp *http.Response) (*RedeliverPlatformSubscriptionResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RedeliverPlatformSubscriptionResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest struct {
+			// Queued How many dead letters were queued again.
+			Queued int `json:"queued"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRotatePlatformSubscriptionSecretResult parses an HTTP response from a RotatePlatformSubscriptionSecretWithResponse call
+func ParseRotatePlatformSubscriptionSecretResult(rsp *http.Response) (*RotatePlatformSubscriptionSecretResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RotatePlatformSubscriptionSecretResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PlatformSubscriptionSecret
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

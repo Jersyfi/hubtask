@@ -260,3 +260,30 @@ tests:
               summary: "A certificate expires in under 14 days"
               description: "cert-manager reports a certificate within two weeks of its end and renewal has not happened. Renewal is supposed to be automatic - it firing means the automation broke.\n"
               runbook: RB-A17-certificate-expiry.md
+
+  # A-21: dead letters wait for the platform for longer than a quarter of an hour.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_platform_dead_letters'
+        values: '0 0 3x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: HubtaskPlatformDeadLetters
+        exp_alerts:
+          - exp_labels:
+              severity: ticket
+              alert_id: A-21
+            exp_annotations:
+              summary: "Events wait to be redelivered to the purchase platform"
+              description: "Deliveries of the installation's events to a platform subscription ended without arriving. The subscription stays on and the events wait; the platform can also read them from GET /admin/events. Redeliver from the installation screen or hubctl once the platform answers again.\n"
+              runbook: RB-A21-platform-dead-letters.md
+
+  # A-21 resolves once the dead letters are redelivered: the gauge is back at zero.
+  - interval: 1m
+    input_series:
+      - series: 'hubtask_platform_dead_letters'
+        values: '3x20 0x20'
+    alert_rule_test:
+      - eval_time: 35m
+        alertname: HubtaskPlatformDeadLetters
+        exp_alerts: []

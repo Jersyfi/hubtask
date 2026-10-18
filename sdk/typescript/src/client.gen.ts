@@ -1008,6 +1008,46 @@ export class HubtaskClient {
     return this.call("GET", "/admin/events", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The installation's subscriptions for a purchase platform */
+  listPlatformSubscriptions(options: CallOptions = {}): Promise<operations["listPlatformSubscriptions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Subscribe a purchase platform to the installation's events */
+  createPlatformSubscription(body: NonNullable<operations["createPlatformSubscription"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly stepUp?: string } = {}): Promise<operations["createPlatformSubscription"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions", {  }, undefined, { "Idempotency-Key": options.idempotencyKey, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One subscription of the installation */
+  readPlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<operations["readPlatformSubscription"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a subscription's target, or pause and resume it */
+  updatePlatformSubscription(subscriptionId: string, body: NonNullable<operations["updatePlatformSubscription"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["updatePlatformSubscription"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Unsubscribe */
+  deletePlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Issue a new signing secret */
+  rotatePlatformSubscriptionSecret(subscriptionId: string, options: CallOptions & { readonly idempotencyKey?: string; readonly stepUp?: string } = {}): Promise<operations["rotatePlatformSubscriptionSecret"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions/{subscriptionId}:rotate-secret", { "subscriptionId": subscriptionId }, undefined, { "Idempotency-Key": options.idempotencyKey, "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** What was sent to the subscription, and what became of it */
+  listPlatformDeliveries(subscriptionId: string, options: CallOptions & { readonly query?: NonNullable<operations["listPlatformDeliveries"]['parameters']['query']> } = {}): Promise<operations["listPlatformDeliveries"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions/{subscriptionId}/deliveries", { "subscriptionId": subscriptionId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Send the subscription's dead letters again */
+  redeliverPlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<operations["redeliverPlatformSubscription"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The use per workspace, metric and day, for billing */
   readUsage(options: CallOptions & { readonly query?: NonNullable<operations["readUsage"]['parameters']['query']> } = {}): Promise<operations["readUsage"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/usage", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

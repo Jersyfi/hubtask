@@ -389,9 +389,14 @@ const (
 	KindSearchReindex Kind = "search.reindex"
 
 	// KindPlatformSweep removes what the installation keeps for a purchase platform past its 30
-	// days (UC-INS-14): its events. One installation job, without a tenant, seeded when a worker
+	// days (UC-INS-14): its events and their deliveries. One installation job, without a tenant, seeded when a worker
 	// starts and repeating; the dedupe key keeps it one however many workers start.
 	KindPlatformSweep Kind = "platform.sweep"
+
+	// KindPlatformDeliver sends one installation event to one platform subscription (UC-INS-14):
+	// an installation job without a tenant, queued in the event's own transaction and again for
+	// each retry and redelivery. A workspace's purge removes its jobs, never these.
+	KindPlatformDeliver Kind = "platform.deliver"
 )
 
 func (k Kind) String() string { return string(k) }

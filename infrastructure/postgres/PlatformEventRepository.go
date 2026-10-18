@@ -87,38 +87,69 @@ func (PlatformEventRepository) After(ctx context.Context, after int64, limit int
 
 	events := make([]repository.PlatformEvent, 0, len(rows))
 	for _, row := range rows {
-		id, err := idFrom(row.ID)
+		read, err := platformEventOf(row)
 		if err != nil {
 			return nil, err
 		}
-		workspace, err := idFrom(row.TenantID)
-		if err != nil {
-			return nil, err
-		}
-		var actor shared.ID
-		if row.ActorID.Valid {
-			if actor, err = idFrom(row.ActorID); err != nil {
-				return nil, err
-			}
-		}
-		var payload map[string]any
-		if err := json.Unmarshal(row.Payload, &payload); err != nil {
-			return nil, shared.ErrInternal.
-				WithDetail("postgres.query_failed").
-				WithCause(fmt.Errorf("decoding an installation event: %w", err))
-		}
-		at := row.OccurredAt.Time.UTC()
-		events = append(events, repository.PlatformEvent{
-			Number: row.Number,
-			Envelope: event.Envelope{
-				ID: id, Type: event.Type(row.EventType), TenantID: workspace,
-				Subject:    "workspace/" + workspace.String(),
-				Actor:      event.Actor{Kind: shared.ActorKind(row.ActorType), ID: actor},
-				OccurredAt: at, ReceivedAt: at, CorrelationID: id, Payload: payload,
-			},
-		})
+		events = append(events, read)
 	}
 	return events, nil
+}
+
+func platformEventOf(row sqlc.PlatformEventsAfterRow) (repository.PlatformEvent, error) {
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return repository.PlatformEvent{}, err
+	}
+	workspace, err := idFrom(row.TenantID)
+	if err != nil {
+		return repository.PlatformEvent{}, err
+	}
+	var actor shared.ID
+	if row.ActorID.Valid {
+		if actor, err = idFrom(row.ActorID); err != nil {
+			return repository.PlatformEvent{}, err
+		}
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(row.Payload, &payload); err != nil {
+		return repository.PlatformEvent{}, shared.ErrInternal.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("decoding an installation event: %w", err))
+	}
+	at := row.OccurredAt.Time.UTC()
+	return repository.PlatformEvent{
+		Number: row.Number,
+		Envelope: event.Envelope{
+			ID: id, Type: event.Type(row.EventType), TenantID: workspace,
+			Subject:    "workspace/" + workspace.String(),
+			Actor:      event.Actor{Kind: shared.ActorKind(row.ActorType), ID: actor},
+			OccurredAt: at, ReceivedAt: at, CorrelationID: id, Payload: payload,
+		},
+	}, nil
+}
+
+// FindEvent answers one event by its id, for its delivery; ErrNotFound once it is swept.
+func (PlatformEventRepository) FindEvent(ctx context.Context, id shared.ID) (event.Envelope, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return event.Envelope{}, err
+	}
+	row, err := queries.FindPlatformEvent(ctx, key)
+	if err != nil {
+		if IsNoRows(err) {
+			return event.Envelope{}, shared.ErrNotFound.WithDetail("webhooks.event_expired")
+		}
+		return event.Envelope{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading an installation event: %w", err))
+	}
+	read, err := platformEventOf(sqlc.PlatformEventsAfterRow(row))
+	return read.Envelope, err
 }
 
 // ForgetReference removes the reference from the transaction's workspace's events.
