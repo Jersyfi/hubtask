@@ -407,10 +407,11 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
 
 * **Its credential.** A service account in the operator register, with a token carrying
   `admin:provisioning` ([api-guidelines.md](./api-guidelines.md)) rather than all of
-  `admin:tenants`, admitted by the verbs that declare it and refused everything else. It may request a
-  deletion without a step-up, sending the typed name, when the register holds its own row as a
-  service account's; the grace, the cancellation (the operator's), the export and the legal-hold
-  refusal of §5 stay.
+  `admin:tenants`, admitted by the verbs that declare it and refused everything else. When the
+  register holds its own row as a service account's it needs no step-up for its own operations: it
+  requests a deletion sending the typed name - the grace, the cancellation (the operator's), the
+  export and the legal-hold refusal of §5 stay - and it creates, changes, rotates and deletes the
+  installation's subscriptions ([decision #1601](https://github.com/Jersyfi/hubtask/issues/1601)).
 * **Naming.** A plan's short name never changes and is never reused once created; it is what the
   platform maps its products to. A workspace may carry the platform's own reference
   (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,

@@ -183,7 +183,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |
 | [UC-INS-04](./admin/UC-INS-04-work-on-the-installation-for-an-hour.md) | Work on the installation for an hour after proving it is me | admin | verified |
 | [UC-INS-05](./admin/UC-INS-05-appoint-and-remove-operators.md) | Appoint and remove the people who run the installation | admin | verified |
-| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | partial |
+| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | built |
 | [UC-INS-07](./admin/UC-INS-07-provision-a-workspace.md) | Create a workspace for a customer | admin | built |
 | [UC-INS-08](./admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md) | Suspend, resume and delete a workspace | admin | verified |
 | [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | partial |
