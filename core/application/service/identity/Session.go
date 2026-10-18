@@ -134,8 +134,11 @@ type SessionWriter struct {
 	// Keys counts the account's passkeys as second factors (identity.md §23.2) where turning the app
 	// off and the codes ask. Set in the literal, the step-up's reason below: every writer is a copy.
 	// Nil holds none.
-	Keys    FactorKeys
-	Pending repository.PendingCredentials
+	Keys FactorKeys
+	// KeyProofs asks for a key at the factor's step, the step-up and the setup during sign-in
+	// (identity.md §23.2). Nil asks for none.
+	KeyProofs *KeyProofs
+	Pending   repository.PendingCredentials
 	// Encryptor opens and seals the TOTP secret: verification needs the plaintext for
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor
@@ -216,6 +219,10 @@ type SignInChallenge struct {
 	// Terms travels with a TERMS challenge and with no other: the terms of use the person is asked
 	// to agree to, and who set them (UC-ID-19).
 	Terms *domain.TermsInForce
+	// KeyOptions travel with a factor's step that offers PASSKEY: the ceremony's options.
+	KeyOptions *KeyOptions
+	// KeySetup says, with ENROLL, that a key can be set up here instead of the app.
+	KeySetup bool
 }
 
 // SignInResult is one of two answers: the pair, or the challenge that stands between the
@@ -253,6 +260,8 @@ type SignInCommand struct {
 	// TenantHeader is the X-Hubtask-Tenant header, when the caller sent one. It may confirm the
 	// resolution, never overrule it.
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // SignIn is the password sign-in: email and password in, an access/refresh pair and a
@@ -377,7 +386,8 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	if err != nil {
 		return SignInResult{}, err
 	}
-	if paused != nil && (challenge == nil || !slices.Contains(challenge.Methods, methodTotp)) {
+	if paused != nil && (challenge == nil || slices.Contains(challenge.Methods, methodEnroll) ||
+		slices.Contains(challenge.Methods, methodPasswordChange)) {
 		// Nothing but the second factor's step may follow a paused workspace's password: an
 		// enrolment or a password change would lead on to a session.
 		return SignInResult{}, paused
@@ -963,6 +973,7 @@ func (h SignIn) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"resolution, never overrule it.",
 			},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SignedInAction, TargetType: sessionTarget,
@@ -986,6 +997,7 @@ func (h SignIn) invoke(
 		RemoteAddr:   in.String("remote_addr"),
 		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

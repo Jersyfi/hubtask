@@ -97,6 +97,8 @@ type RedeemInvitationCommand struct {
 	// as they were shown (UC-ID-19 check 1). Required where terms are in force.
 	TermsURL     string
 	TermsVersion string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // RedeemInvitation closes the invitation loop: the token from the mail, a password under
@@ -258,7 +260,7 @@ func (h RedeemInvitation) Execute(
 	// After the commit, as the reset does: the invitation is accepted whatever follows, and a person
 	// who leaves the setup signs in with the password just set and meets the step there.
 	challenge, _, err := w.challengeFor(ctx, scope, account, SignInCommand{
-		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr,
+		UserAgent: cmd.UserAgent, RemoteAddr: cmd.RemoteAddr, Host: cmd.Host,
 		// The empty candidate: the password was judged in full a moment ago, so the change step must
 		// not fire on it; the factor is the verdict's answer that is wanted.
 		Password: secret.Secret{},
@@ -355,6 +357,7 @@ func (h RedeemInvitation) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it.",
 			},
+			hostField,
 			{
 				Name: "terms_url", Kind: usecase.KindString,
 				Description: "The terms of use agreed to on the invitation card, as shown. " +
@@ -385,6 +388,7 @@ func (h RedeemInvitation) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 		TermsURL:     in.String("terms_url"),
 		TermsVersion: in.String("terms_version"),
 	})

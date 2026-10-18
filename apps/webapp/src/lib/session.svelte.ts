@@ -29,7 +29,9 @@
  * every entry screen draws as though no type carried anything.
  */
 
-import { TransportError, type InstallationSetUp, type PasskeyAssertion } from '@hubtask/sync-engine';
+import { TransportError, type InstallationSetUp, type PasskeyAssertion, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
+
+import type { KeyAnswer } from './data/passkeys.ts';
 
 import { manifest } from './data/capabilities.svelte.ts';
 import { instance } from './data/instance.svelte.ts';
@@ -116,6 +118,10 @@ export interface SecondFactorOwed {
   readonly afterReset?: boolean;
   /** The terms of use to agree to, where the step is `TERMS`. */
   readonly terms?: TermsInForce;
+  /** The key's ceremony, where the step offers `PASSKEY` (identity.md §23.2). */
+  readonly passkeyOptions?: PasskeyAssertionOptions;
+  /** Whether a key can be set up here instead of the app, where the step is `ENROLL`. */
+  readonly passkeySetup?: boolean;
 }
 
 class Session {
@@ -333,6 +339,8 @@ class Session {
       afterReset?: boolean;
       passwordRules?: unknown;
       terms?: TermsInForce;
+      passkeyOptions?: PasskeyAssertionOptions;
+      passkeySetup?: boolean;
     } = {},
   ): void {
     this.#pending = pendingToken;
@@ -344,6 +352,8 @@ class Session {
       afterReset: context.afterReset,
       passwordRules: context.passwordRules,
       terms: context.terms,
+      passkeyOptions: context.passkeyOptions,
+      passkeySetup: context.passkeySetup,
     };
     // A provider arrival and a reset link typed no address, so the identity line takes the one the
     // server names.
@@ -445,6 +455,19 @@ class Session {
   }
 
   /**
+   * Presents a passkey or security key's answer to the step's options (identity.md §23.2). A refused
+   * key is a retry, as a wrong code is: the credential stays.
+   */
+  async completeWithKey(answer: KeyAnswer): Promise<boolean> {
+    const pending = this.#pending;
+    if (pending === undefined) return false;
+    return this.#open(
+      () => engine.mutate<SessionTokens>('POST', VERIFY, { pending_token: pending, ...answer }),
+      { keepPending: true },
+    );
+  }
+
+  /**
    * The pending credential, for the one caller entitled to it: the enrolment an enforcement
    * sign-in routes into. It is presented to `:enroll` and `:confirm` and travels nowhere else.
    */
@@ -521,6 +544,8 @@ class Session {
           passwordRules: answer.password_rules,
           // The terms to agree to, where the step is `TERMS`.
           ...(answer.terms ? { terms: answer.terms } : {}),
+          ...(answer.passkey_options ? { passkeyOptions: answer.passkey_options } : {}),
+          ...(answer.passkey_setup ? { passkeySetup: true } : {}),
         };
         this.#pending = answer.pending_token;
         // An invitation card typed no address, so the identity line takes the one the server names.
@@ -669,6 +694,8 @@ interface SecondFactorAnswer {
   readonly password_rules?: unknown;
   readonly terms?: TermsInForce;
   readonly email?: string;
+  readonly passkey_options?: PasskeyAssertionOptions;
+  readonly passkey_setup?: boolean;
 }
 
 /**

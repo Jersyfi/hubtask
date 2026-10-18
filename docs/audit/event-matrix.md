@@ -97,7 +97,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_replaced` | ConfirmAuthenticatorReplacement | `account` | NOTICE | Every time |
 | `auth.mfa_replacement_started` | StartAuthenticatorReplacement | `account` | INFO | Every time |
 | `auth.own_passkeys_read` | ListOwnPasskeys | `account` | INFO | When refused |
+| `auth.passkey_added` | CompletePasskeyEnrollment | `account` | NOTICE | Every time |
 | `auth.passkey_added` | CompletePasskeyRegistration | `account` | NOTICE | Every time |
+| `auth.passkey_registration_started` | StartPasskeyEnrollment | `account` | INFO | Every time |
 | `auth.passkey_registration_started` | StartPasskeyRegistration | `account` | INFO | Every time |
 | `auth.passkey_removed` | RemoveOwnPasskey | `account` | NOTICE | Every time |
 | `auth.passkey_renamed` | RenameOwnPasskey | `account` | INFO | Every time |
@@ -112,6 +114,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.signed_in` | CompleteSignIn | `session` | NOTICE | Every time |
 | `auth.signed_in` | SignIn | `session` | NOTICE | Every time |
 | `auth.step_up` | StepUp | `session` | NOTICE | Every time |
+| `auth.step_up_passkey_started` | StartPasskeyStepUp | `session` | INFO | Every time |
 | `auth.step_up_provider_started` | StartProviderStepUp | `session` | INFO | Every time |
 | `auth.terms_agreed` | AgreeToTerms | `account` | NOTICE | Every time |
 

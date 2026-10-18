@@ -78,8 +78,8 @@ the step owed; the client draws exactly the step the server names.
 
 | Step (`methods` in the `202`) | Owed when | Completed by |
 |---|---|---|
-| `TOTP` | The account has a second factor on | A current code, or one recovery code (§8, §9) |
-| `ENROLL` | The rule requires a factor of this person and they have none | Enrolment and its confirmation (§8) |
+| `TOTP` | The account holds a second factor that can be asked for here: the app armed, or a key of the workspace's relying party with the request at its very host (§23.2) | Whatever `methods` names beside it: a current code (`TOTP`), a key's answer to `passkey_options` (`PASSKEY`), one recovery code (`RECOVERY`) (§8, §9, §23.4) |
+| `ENROLL` | The rule requires a factor of this person and they have none that can be asked for here | Enrolment and its confirmation (§8), or a key set up instead where the `202` says `passkey_setup` (§23.4) |
 | `PASSWORD_CHANGE` | The password is right but no longer meets the rule (too weak, older than `max_age_days`, set before `rotation_from`) | Setting a new password; confirming it *is* the sign-in (§6) |
 | `LINK` | A provider's first arrival meets an account that already holds a credential | The account's own proof (§11) |
 | `TERMS` | Terms of use are in force (§18) and the account has not agreed to their link and version | Agreeing to the terms the step names, at `/auth/sessions:agree-terms` ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)) |
@@ -254,7 +254,7 @@ notices; a passkey's notice never names it.
 | TOTP, written in-house | RFC 6238 on `crypto/hmac`, `crypto/sha1`, `crypto/subtle`: a 20-byte secret, six digits, a 30-second step. |
 | Verification | One step either side of now, never twice for one step; attempts count in the ledger (§4.3). |
 | Enrolment | The secret is sealed under its own purpose ([security.md](./security.md) §8); the provisioning URI and ten recovery codes are shown **once**; the factor is armed only after a valid code. The client draws the QR code. |
-| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
+| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12) — where the setup offers the app and, at the workspace's own host, a passkey or security key (§23.4). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
 | Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of the workspace's address (§23.2). The recovery codes go with it unless such a key remains, which they then back (§9). Decided under the account's row lock, which removing a passkey takes too, so two removals never each count the other as the factor that remains. The body's `password` is `deprecated` until the next major contract version. |
 | Replacing the authenticator | A step-up with any method held, a new secret confirmed by a code from the new app, one atomic swap answering ten new recovery codes; until then the old factor and codes hold, the replacement waiting ten minutes as an unconfirmed enrolment. Audited as `auth.mfa_replaced`. |
 | No secret travels | The secret and every code appear nowhere after their single showing; MFA state does not travel to devices ([offline-sync.md](./offline-sync.md) §4.2). |
@@ -599,12 +599,14 @@ A fresh proof on the current session, demanded by a privileged action.
 |---|---|---|
 | `PASSWORD` | An account with a password | The password, checked as at sign-in |
 | `TOTP` | An account with the authenticator app armed | A current code |
-| `RECOVERY` | An account with the app armed and at least one code left | A recovery code, consumed |
+| `PASSKEY` | An account with a passkey or security key of the workspace's relying party | Its answer to `POST /auth/step-up:passkey-options`, presence enough (§23.4) |
+| `RECOVERY` | An account with a second factor (the app or a key) and at least one code left | A recovery code, consumed |
 | `PROVIDER` | An account with an identity at a provider switched on in its workspace | A fresh sign-in there |
 
 `stepup.Methods` answers the methods held, in this order; the refusal's `params.methods` carries
-them and the client builds its prompt from that list alone. A passkey is not yet among them (§23,
-*Not yet*): an account holding only keys proves itself with its password or its provider.
+them and the client builds its prompt from that list alone. `Methods` cannot see the host a prompt
+runs at: the key's options are refused at another host (`auth.passkey_unavailable`), and the prompt
+then offers the other ways.
 
 **`PROVIDER` is verified twice.** The flow sends `prompt=login` and `max_age=0`, bound to the
 session that asked; the proof holds only when the ID token's subject is the identity connected to
@@ -908,10 +910,10 @@ role given while the last member leaves is seen.
 `StartPasskeyRegistration` and `CompletePasskeyRegistration`; renaming and removing one
 (`RenameOwnPasskey`, `RemoveOwnPasskey`), and a key counted as the second factor where the profile,
 turning the app off and the recovery codes ask (§8, §9, `SecondFactor`); signing in with a passkey
-alone (§23.4: `StartPasskeySignIn`, `CompletePasskeySignIn`, the `PASSKEY` method). **Not yet:** the
-second-factor step, the step-up and the setup with one. Until they are, the sign-in's step, §16.1's
-methods, replacing the app and a provider's kept factor read the app alone - a person whom the rule
-covers and who holds only a key is led into setting up the app, never let in with the password alone.
+alone (§23.4: `StartPasskeySignIn`, `CompletePasskeySignIn`, the `PASSKEY` method); a key as the
+second-factor step, the step-up and the setup during sign-in (§23.4: `StartPasskeyStepUp`,
+`StartPasskeyEnrollment`, `CompletePasskeyEnrollment`, the assertion at `CompleteSignIn` and `StepUp`).
+Replacing the authenticator app reads the app alone, as it replaces only the app.
 
 ### 23.1 One credential, two strengths
 
@@ -945,7 +947,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
-| Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
+| Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose - `PASSKEY_REGISTER`, `PASSKEY_SIGN_IN`, `PASSKEY_FACTOR`, `PASSKEY_ENROLL`, `PASSKEY_STEP_UP` (migrations 0161, 0174, 0176), each under its own token prefix: five minutes, single use, bound to the workspace, to the account where one is known and, for a step-up or an addition, to the session. A challenge is spent only by its own door. |
 | Discoverable | Registration asks for a resident key (`preferred`) and user verification (`preferred`); the user handle is an opaque random value per account, never the address. |
 | The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero, which passes and never lowers the stored value - a deliberate departure from WebAuthn Level 3 §7.2 step 22, written in one statement so two sign-ins with one credential cannot both pass. |
 
@@ -976,9 +978,33 @@ A credential that once answered with UV and later without is held to the ceremon
   suspended workspace keeps its sentence, as at the password door. A challenge that ran out is refused
   apart (`auth.passkey_challenge_stale`), uncounted, and the card asks again; a cancelled prompt is
   the client's and sends nothing.
-* The second-factor step and the reset's kept factor (ADR-0078) accept a security key or passkey
-  beside the code and a recovery code.
-* The step-up gains `PASSKEY` after `TOTP` in §16.1's order.
+* **A key counts as a second factor where it can be asked for**: the account holds one of the
+  workspace's relying party *and* the request arrived at that party's very host. One helper decides it
+  for every door that hands on to the factor's step - the password, the reset's kept factor
+  (ADR-0078), an invitation's redemption and the three provider-link doors (§11). Where no key can sign
+  - a reset or a redemption at the installation's host in multi mode - the account meets what it met
+  before keys: the app's step, or `ENROLL` under the rule.
+* **The factor's step** offers `PASSKEY` in `methods` beside `TOTP` (the app) and `RECOVERY`, with
+  `passkey_options`: the account's credentials and a challenge of purpose `PASSKEY_FACTOR` for the
+  account. `POST /auth/sessions:verify` takes the key's answer as exactly one proof - presence
+  suffices, since the password came first. A refused key - another account's, another address's,
+  unknown, a refused signature, a challenge not this step's, a counter that went back - is the code's
+  refusal (`auth.mfa_code_invalid`), counted on the account's `mfa:` subject, and the step and its
+  challenge stand for another try. The session says `PASSWORD_PASSKEY`; a link a mailbox proved stays
+  the provider's; the change step and `TERMS` follow as after a code.
+* **The step-up** takes `PASSKEY` after `TOTP` (§16.1): `POST /auth/step-up:passkey-options` issues a
+  challenge of purpose `PASSKEY_STEP_UP` bound to the session and the account, refused for a token
+  (`auth.step_up_session_required`) and where no key can sign at the request's host
+  (`auth.passkey_unavailable`); `POST /auth/step-up` takes the answer, presence enough, and is audited
+  with the method `PASSKEY`. A refused key is the step-up's refusal on its own subject.
+* **The setup during sign-in** offers a key beside the app where the `ENROLL` step says
+  `passkey_setup` - only at the relying party's host. `POST /auth/mfa/passkey:enroll-options` with the
+  `ENROLL` credential answers creation options and a challenge of purpose `PASSKEY_ENROLL` carrying the
+  user handle; `POST /auth/mfa/passkey:enroll` keeps the key with the verifier, limit, codes (only where
+  none), audit and notice of adding one, spends the `ENROLL` credential and ends as confirming the app
+  does: the session (`PASSWORD_PASSKEY`) or the step still owed. No step-up: an `ENROLL` credential
+  exists only where no factor is held, and one that appeared meanwhile refuses the setup under the
+  account's lock (`auth.mfa_already_armed`).
 
 ### 23.5 What travels
 

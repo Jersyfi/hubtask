@@ -12,9 +12,9 @@
 import { TransportError } from '@hubtask/sync-engine';
 
 /** What the refusal said would be accepted: the four ways of ADR-0075, each where the account holds it. */
-export type StepUpMethod = 'PASSWORD' | 'TOTP' | 'RECOVERY' | 'PROVIDER';
+export type StepUpMethod = 'PASSWORD' | 'TOTP' | 'RECOVERY' | 'PROVIDER' | 'PASSKEY';
 
-const KNOWN: readonly StepUpMethod[] = ['PASSWORD', 'TOTP', 'RECOVERY', 'PROVIDER'];
+const KNOWN: readonly StepUpMethod[] = ['PASSWORD', 'TOTP', 'RECOVERY', 'PROVIDER', 'PASSKEY'];
 
 /**
  * Runs a call, and where the server refuses it for want of a proof, asks for one and runs it again.

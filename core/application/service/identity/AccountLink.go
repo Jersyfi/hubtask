@@ -106,8 +106,11 @@ func (w SessionWriter) passwordIsTheWholeProof(
 	}
 	var purpose domain.PendingPurpose
 	if err := w.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-		var err error
-		purpose, err = w.pendingPurposeFor(ctx, account, verdict)
+		held, err := w.factorHeldAt(ctx, account.ID, cmd.Host)
+		if err != nil {
+			return err
+		}
+		purpose, err = w.pendingPurposeFor(ctx, account, verdict, held)
 		return err
 	}); err != nil {
 		return false, err

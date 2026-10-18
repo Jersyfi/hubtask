@@ -28,6 +28,7 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/installation:set-up":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/password:reset":        true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm":      true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/passkey:enroll":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:callback":         true,
 	http.MethodPost + " " + APIBasePath + "/oauth/token":                true,
 	http.MethodPost + " " + APIBasePath + "/auth/step-up":               true,
