@@ -133,6 +133,7 @@ func Standings(
 		MediaBytes:     usage.MediaBytes,
 		WebhookTargets: usage.WebhookTargets,
 		ExportJobs:     usage.LiveExports,
+		Accounts:       usage.Accounts,
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},

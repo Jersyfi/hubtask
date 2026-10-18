@@ -134,18 +134,19 @@ func (u *usageCounts) MeteredSince(context.Context, string, time.Time) (int64, e
 func TestAMoveAnswersTheLimitsTheWorkspaceIsNowOver(t *testing.T) {
 	f := newMoveFixture(t)
 	f.quotas.overrides.Items = nil
-	itemsLimit, webhooks := int64(1000), int64(3)
-	f.quotas.plan = quotarepo.PlanLimits{Overrides: quotarepo.Overrides{Items: &itemsLimit, WebhookTargets: &webhooks}}
+	itemsLimit, webhooks, people := int64(1000), int64(3), int64(2)
+	f.quotas.plan = quotarepo.PlanLimits{Overrides: quotarepo.Overrides{Items: &itemsLimit, WebhookTargets: &webhooks, Accounts: &people}}
 	f.usage.webhooks = 3
+	f.usage.people = 6
 
 	out, err := f.registry.Invoke(t.Context(), MoveTenantPlanName, operator(), moveTo("family", 4))
 	if err != nil {
 		t.Fatalf("moving: %v", err)
 	}
 	exceeded, _ := out["limits_exceeded"].([]usecase.Output)
-	if len(exceeded) != 1 || exceeded[0]["quota"] != "items" || exceeded[0]["limit"] != int64(1000) ||
-		exceeded[0]["used"] != int64(4210) {
-		t.Errorf("the limits exceeded read %v, want items alone at 4210 of 1000", exceeded)
+	if len(exceeded) != 2 || exceeded[0]["quota"] != "items" || exceeded[0]["limit"] != int64(1000) ||
+		exceeded[0]["used"] != int64(4210) || exceeded[1]["quota"] != "accounts" || exceeded[1]["used"] != int64(6) {
+		t.Errorf("the limits exceeded read %v, want items at 4210 of 1000 and people at 6 of 2", exceeded)
 	}
 }
 

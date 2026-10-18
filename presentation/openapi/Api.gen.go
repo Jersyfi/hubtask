@@ -10158,7 +10158,7 @@ type TenantPlanMoved struct {
 	// FeaturesResting The features the workspace's plan now leaves out.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }

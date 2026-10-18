@@ -17699,7 +17699,7 @@
           },
           "limits_exceeded": {
             "type": "array",
-            "description": "Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.\n",
+            "description": "Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.\n",
             "items": {
               "$ref": "#/components/schemas/LimitExceeded"
             }
