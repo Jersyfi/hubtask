@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-owner, PE-admin]
 deployments: [D5, D6, D7]
 serves: [P-03, P-07, P-11]
-state: partial
-tasks: [H-08, SI-17, PL-03, PL-04]
-checked_by: [core/application/service/admin/Quotas_test.go, core/application/service/quota/Quota_test.go, test/integration/plan_limits_test.go, test/integration/plan_rate_test.go, presentation/rest/QuotaController_test.go, apps/webapp/e2e/quotas.test.mjs, docs/evidence/PL-03-2026-10-17.md, core/application/service/identity/PeopleLimit_test.go, test/integration/people_limit_test.go, cmd/server/PeopleWiring_test.go, docs/evidence/PL-04-2026-10-18.md]
+state: verified
+tasks: [H-08, SI-17, PL-03, PL-04, PL-06]
+checked_by: [core/application/service/admin/Quotas_test.go, core/application/service/quota/Quota_test.go, test/integration/plan_limits_test.go, test/integration/plan_rate_test.go, presentation/rest/QuotaController_test.go, apps/webapp/e2e/quotas.test.mjs, docs/evidence/PL-03-2026-10-17.md, core/application/service/identity/PeopleLimit_test.go, test/integration/people_limit_test.go, cmd/server/PeopleWiring_test.go, docs/evidence/PL-04-2026-10-18.md, apps/webapp/e2e/instanceplans.test.mjs, docs/evidence/PL-06-2026-10-18.md]
 ---
 
 # Set limits for workspaces, and see them before they hurt
@@ -29,8 +29,8 @@ limit, the next new entry is refused with a sentence naming the limit; everythin
 
 1. The effective limit resolves product → installation → (plan) → workspace exception, and the
    workspace screen says which level set it.
-2. The exception dialog shows the installation's value as the placeholder; empty means "use the
-   default".
+2. The exception dialog shows the value in force without the exception as the placeholder; empty
+   means "use the default".
 3. Reaching a limit refuses the next creation with the limit named; nothing existing is removed or
    hidden.
 4. A workspace's administrators see use and limit side by side; they cannot change the limit.
@@ -44,7 +44,3 @@ limit, the next new entry is refused with a sentence naming the limit; everythin
 * No warnings by mail at 80 %; telling a platform is UC-INS-14.
 * No prices ([NG-billing](../../vision/non-goals.md)); a link to the provider's own page is
   UC-INS-13's.
-
-## Today
-
-* Check 2: not met under a plan — the exception dialog's placeholder shows the installation's value, not the plan's (PL-06).
