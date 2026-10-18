@@ -13,6 +13,7 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -249,5 +250,154 @@ func TestTheSweepTakesOnlyExpiredInstallationEvents(t *testing.T) {
 	kept := platformEventsOf(ctx, t, uow, start, workspace)
 	if len(kept) != 1 || kept[0].Envelope.OccurredAt.Before(now.Add(-30*24*time.Hour)) {
 		t.Errorf("after the sweep the feed holds %+v", kept)
+	}
+}
+
+// Work held for after the transaction runs once the refused transaction has ended, in a transaction
+// of its own that commits although the first rolled back - the shape a limit reached is told in.
+func TestWorkHeldForAfterwardsOutlivesTheRefusal(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	recorder := platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{}))
+	workspace := seedWorkspace(ctx, t, "refused")
+	start := lastPlatformNumber(ctx, t)
+
+	ran, ranInside := false, false
+	refused := errors.New("refused")
+	err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+		persistence.After(ctx, func(ctx context.Context) {
+			ran = true
+			if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+				return recorder.Record(ctx, event.WorkspaceLimitReached, event.Actor{Kind: shared.ActorSystem},
+					time.Now(), map[string]any{"quota": "items", "limit": int64(1)})
+			}); err != nil {
+				t.Errorf("the held work's own transaction: %v", err)
+			}
+		})
+		ranInside = ran
+		return refused
+	})
+	if !errors.Is(err, refused) {
+		t.Fatalf("answered %v", err)
+	}
+	if ranInside {
+		t.Error("the held work ran inside the refused transaction")
+	}
+	if events := platformEventsOf(ctx, t, uow, start, workspace); len(events) != 1 {
+		t.Errorf("after the refusal the feed holds %d events of the workspace, want 1", len(events))
+	}
+}
+
+// A create refused at a limit, through the guard's crossings against the database: the mark and the
+// event outlive the refused transaction, a second refusal tells nothing, an admitted create clears
+// the mark, and the next refusal is the next crossing - all within the one workspace (UC-INS-14
+// check 2).
+func TestALimitReachedIsToldOncePerCrossingAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	crossings := platform.Crossings{
+		Marks: postgres.NewQuotaReachedRepository(), Recorder: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})),
+		UnitOfWork: uow, Clock: clockadapter.System{},
+	}
+	reached, other := seedWorkspace(ctx, t, "reached"), seedWorkspace(ctx, t, "other")
+	start := lastPlatformNumber(ctx, t)
+	refused := errors.New("capacity.items")
+
+	refuse := func(workspace shared.ID) {
+		t.Helper()
+		err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+			crossings.Refused(ctx, workspace, "items", 10)
+			return refused
+		})
+		if !errors.Is(err, refused) {
+			t.Fatalf("the refusal answered %v", err)
+		}
+	}
+	admit := func(workspace shared.ID) {
+		t.Helper()
+		if err := uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+			return crossings.Admitted(ctx, "items")
+		}); err != nil {
+			t.Fatalf("admitting: %v", err)
+		}
+	}
+	told := func() int { return len(platformEventsOf(ctx, t, uow, start, reached)) }
+
+	refuse(reached)
+	refuse(reached)
+	if told() != 1 {
+		t.Fatalf("two refusals at one crossing told %d events", told())
+	}
+	// Another workspace's admitted create clears nothing of this one's.
+	admit(other)
+	refuse(reached)
+	if told() != 1 {
+		t.Fatalf("another workspace's create cleared this one's mark: %d events", told())
+	}
+	admit(reached)
+	refuse(reached)
+	if told() != 2 {
+		t.Errorf("a second crossing told %d events in all, want 2", told())
+	}
+	events := platformEventsOf(ctx, t, uow, start, reached)
+	if events[0].Envelope.Type != event.WorkspaceLimitReached || events[0].Envelope.Payload["quota"] != "items" {
+		t.Errorf("told %+v", events[0].Envelope)
+	}
+}
+
+// Two meterings that see the day's budget spent at once tell it once: the day's mark is one row.
+func TestTwoMeteringsAtOnceTellTheAiBudgetSpentOnce(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	crossings := platform.Crossings{
+		Marks: postgres.NewQuotaReachedRepository(), Recorder: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})),
+		UnitOfWork: uow, Scopes: uow, Clock: clockadapter.System{},
+	}
+	workspace := seedWorkspace(ctx, t, "spent")
+	start := lastPlatformNumber(ctx, t)
+	day := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+
+	done := make(chan error, 2)
+	for range 2 {
+		go func() {
+			done <- uow.Within(ctx, persistence.Scope{TenantID: workspace}, func(ctx context.Context) error {
+				crossings.Spent(ctx, "ai_tokens_per_day", day, time.Now())
+				return nil
+			})
+		}()
+	}
+	for range 2 {
+		if err := <-done; err != nil {
+			t.Fatalf("metering: %v", err)
+		}
+	}
+	events := platformEventsOf(ctx, t, uow, start, workspace)
+	if len(events) != 1 || events[0].Envelope.Type != event.WorkspaceAiBudgetSpent ||
+		events[0].Envelope.Payload["day"] != "2026-10-17" {
+		t.Errorf("two meterings told %+v", events)
+	}
+}
+
+// The export's event is written from the worker, outside any transaction the job had, and a job run
+// twice writes it once.
+func TestAnExportFinishedIsToldOnceAgainstTheDatabase(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	told := adminservice.TellExportFinished{
+		Platform: platformRecorder(clockadapter.NewUUIDv7(clockadapter.System{})), UnitOfWork: uow,
+		Clock: clockadapter.System{},
+	}
+	workspace := seedWorkspace(ctx, t, "exported")
+	start := lastPlatformNumber(ctx, t)
+	export := freshID(t)
+
+	for range 2 {
+		if err := told.Finished(ctx, workspace, export); err != nil {
+			t.Fatalf("telling: %v", err)
+		}
+	}
+	events := platformEventsOf(ctx, t, uow, start, workspace)
+	if len(events) != 1 || events[0].Envelope.Payload["export_id"] != export.String() {
+		t.Errorf("a job run twice told %+v", events)
 	}
 }

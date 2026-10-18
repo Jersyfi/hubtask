@@ -999,6 +999,10 @@ func run() error {
 	quotaGuard := quotaservice.Guard{
 		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+		Crossings: platformservice.Crossings{
+			Marks: postgres.NewQuotaReachedRepository(), Recorder: platformEvents,
+			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
+		},
 	}
 
 	duplicate := work.DuplicateWorkItem{
@@ -1549,7 +1553,7 @@ func run() error {
 			Grant: identity.GrantMembership{
 				Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
 				Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -1592,13 +1596,15 @@ func run() error {
 				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
 				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
 			Owners:     grants,
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1609,12 +1615,12 @@ func run() error {
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
-			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
@@ -3427,6 +3433,9 @@ func run() error {
 				Snapshot:      unitOfWork,
 				Clock:         clockadapter.System{},
 				SchemaVersion: schemaVersion(), ProductVersion: version,
+			},
+			Told: adminservice.TellExportFinished{
+				Platform: platformEvents, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 		},
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -32,6 +33,23 @@ type Guard struct {
 	Meter   repository.Meter
 	Signals Signals
 	Tenancy env.TenancyMode
+	// Crossings tells a purchase platform a limit was reached, once per crossing (UC-INS-14).
+	// Nil tells nobody.
+	Crossings Crossings
+}
+
+// Crossings is told which creates a capacity quota admitted and which it refused - the platform
+// package's, which marks a crossing once and writes its event.
+type Crossings interface {
+	// Admitted runs in the create's transaction: the workspace is below the limit.
+	Admitted(ctx context.Context, quota string) error
+	// Refused must not write in the refused transaction, which rolls back with the refusal.
+	Refused(ctx context.Context, workspace shared.ID, quota string, limit int64)
+	// Spent is told in the metering's transaction once the day's total of an AI budget has reached
+	// it; what it writes waits for that transaction to end.
+	Spent(ctx context.Context, budget string, day, at time.Time)
+	// On reports whether anybody listens, so the guard reads nothing only to tell nobody.
+	On() bool
 }
 
 // limits resolves the transaction's tenant's table.
@@ -65,7 +83,13 @@ func (g Guard) check(
 		g.Signals.QuotaUsage(ctx, quota, tenant, Ratio(limit, used))
 	}
 	if used+adding > limit {
+		if g.Crossings != nil {
+			g.Crossings.Refused(ctx, shared.ID(tenant), quota, limit)
+		}
 		return Exceeded(quota, limit, used)
+	}
+	if g.Crossings != nil {
+		return g.Crossings.Admitted(ctx, quota)
 	}
 	return nil
 }
@@ -158,7 +182,33 @@ func (g Guard) MeterAi(ctx context.Context, own bool, at time.Time, tokens int64
 	if err != nil {
 		return err
 	}
-	return g.Meter.Add(ctx, aiQuota(own), day, tokens)
+	if err := g.Meter.Add(ctx, aiQuota(own), day, tokens); err != nil {
+		return err
+	}
+	return g.spent(ctx, aiQuota(own), day, at)
+}
+
+// spent tells the crossings when the day's total, the call just metered included, has reached the
+// budget. Read after the increment in the same transaction, so the call that crosses it is the one
+// that sees it crossed.
+func (g Guard) spent(ctx context.Context, quota string, day, at time.Time) error {
+	if g.Crossings == nil || !g.Crossings.On() {
+		return nil
+	}
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	limit := limits.Of(quota)
+	if limit == Unlimited {
+		return nil
+	}
+	total, err := g.Usage.MeteredSince(ctx, quota, day)
+	if err != nil || total < limit {
+		return err
+	}
+	g.Crossings.Spent(ctx, quota, day, at)
+	return nil
 }
 
 // AiRenewal is the next midnight in the workspace's time zone after `now`: when the day a spent AI
