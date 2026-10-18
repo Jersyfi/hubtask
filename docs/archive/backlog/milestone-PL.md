@@ -9,14 +9,15 @@ self-hosted one, meets none of it. Milestone SI prepared the level without build
 §3): the resolver's plan parameter, `tenant.plan_id`, and a lock that knows its origin. Read against
 the code, less of it holds than the ADR says (§ "The cut checklist", 4).
 
-The rules are drafted in [multi-tenancy.md](../architecture/multi-tenancy.md) §4.2 and §4.3,
-[identity.md](../architecture/identity.md) §18 and [api-guidelines.md](../architecture/api-guidelines.md)
+The rules are drafted in [multi-tenancy.md](../../architecture/multi-tenancy.md) §4.2 and §4.3,
+[identity.md](../../architecture/identity.md) §18 and [api-guidelines.md](../../architecture/api-guidelines.md)
 (the scope), the reasoning in
-[ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md). Every task names its use cases; a task
+[ADR-0086](../../adr/ADR-0086-plans-a-level-for-providers.md). Every task names its use cases; a task
 is done when the named checks hold, with the evidence in the pull request.
 
 **Delivers:** UC-INS-13 (1–11), UC-INS-14 (1–8), UC-INS-10 (1, 5), UC-INS-06 (6), UC-INS-08 (7), UC-ID-12 (4), UC-ID-16 (7), UC-ID-20 (8), UC-AI-06 (2), UC-AI-07 (1), UC-PRV-05 (11)
 **Released:** 2026-10-16
+**Closed:** 2026-10-19
 
 ## Decisions
 
