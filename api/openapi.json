@@ -3790,7 +3790,7 @@
         ],
         "operationId": "inviteAccount",
         "summary": "Invite a person into this workspace",
-        "description": "Creates an account in `INVITED` status. Permissions can be granted to it immediately;\nit cannot act until the invitation is accepted.\n\n**Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the\ninvitation mail is queued as a job - this call does not wait for it - and the answer\ncarries no link.\n\n**Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the\nsame link the mail would have carried, **shown here and never again**, to be handed over by\nany other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a\nrepeat with the same `Idempotency-Key` answers the status without the body. A lost link is\nreplaced with `POST /accounts/{accountId}:renew-invitation`.\n\nAn address that already has an account here is `409 accounts.email_taken`; one whose\ninvitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or\nsent for either. Without mail, an act an automation rule runs is refused with\n`accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.\n",
+        "description": "Creates an account in `INVITED` status. Permissions can be granted to it immediately;\nit cannot act until the invitation is accepted. An open invitation holds a place under the\nworkspace's people limit: at the limit the answer is `422 capacity.accounts`.\n\n**Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the\ninvitation mail is queued as a job - this call does not wait for it - and the answer\ncarries no link.\n\n**Where it sends no mail**, nothing is queued: the answer carries `invitation_link`, the\nsame link the mail would have carried, **shown here and never again**, to be handed over by\nany other way. Only its hash is kept. The answer is marked `Cache-Control: no-store`, and a\nrepeat with the same `Idempotency-Key` answers the status without the body. A lost link is\nreplaced with `POST /accounts/{accountId}:renew-invitation`.\n\nAn address that already has an account here is `409 accounts.email_taken`; one whose\ninvitation has not been accepted yet is `409 accounts.already_invited`. Nothing is written or\nsent for either. Without mail, an act an automation rule runs is refused with\n`accounts.invitation_needs_a_person`: a run reads no answer, so the link would reach nobody.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -3835,7 +3835,7 @@
         ],
         "operationId": "renewInvitation",
         "summary": "Give an invitation not yet accepted a new link",
-        "description": "For an invitation whose link was lost, or ran out. The account must still be `INVITED`;\nany other is `409 accounts.not_invited`.\n\n**Where this installation sends mail**, the invitation mail is queued again and the answer\ncarries no link; the earlier link stops working when the new mail goes out. **Where it sends\nno mail**, the answer carries a new `invitation_link`, shown here and never again, and the\nearlier link stops working at once. Without mail, an act an automation rule runs is refused\nwith `accounts.invitation_needs_a_person`.\n\nAsks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.\n",
+        "description": "For an invitation whose link was lost, or ran out. The account must still be `INVITED`;\nany other is `409 accounts.not_invited`. A link that ran out had freed its place under the\npeople limit; renewing it at the limit is `422 capacity.accounts`.\n\n**Where this installation sends mail**, the invitation mail is queued again and the answer\ncarries no link; the earlier link stops working when the new mail goes out. **Where it sends\nno mail**, the answer carries a new `invitation_link`, shown here and never again, and the\nearlier link stops working at once. Without mail, an act an automation rule runs is refused\nwith `accounts.invitation_needs_a_person`.\n\nAsks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -3865,7 +3865,7 @@
         ],
         "operationId": "createManagedAccount",
         "summary": "Give somebody an account without a mail address",
-        "description": "Creates a managed account: a person who signs in with a sign-in name instead of an address,\nand the role they hold at one scope, in one step. The account is active at once - there is\nno invitation to redeem, because there is no mailbox to send one to.\n\n**The start password is drawn here and answered once**, as `start_password`. Nobody chooses\nit and nothing can read it again: only its hash is kept. The first sign-in with it leads into\nchoosing the person's own password under the workspace's rule.\n\nAsks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with\n`accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed\naccounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any\nspelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an\nautomation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no\nanswer, so the start password would reach nobody. Granting `OWNER` demands the step-up,\nas the grant does.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it. A repeat after\na lost answer finds the name taken.\n",
+        "description": "Creates a managed account: a person who signs in with a sign-in name instead of an address,\nand the role they hold at one scope, in one step. The account is active at once - there is\nno invitation to redeem, because there is no mailbox to send one to. At the workspace's\npeople limit the answer is `422 capacity.accounts`.\n\n**The start password is drawn here and answered once**, as `start_password`. Nobody chooses\nit and nothing can read it again: only its hash is kept. The first sign-in with it leads into\nchoosing the person's own password under the workspace's rule.\n\nAsks `MANAGE_MEMBERS` at the workspace and at the scope of the role, and refuses with\n`accounts.managed_accounts_off` where the workspace's sign-in rule does not allow managed\naccounts (`sign_in_policy.managed_accounts`). A sign-in name already taken here, in any\nspelling that folds to the same name, is `409 accounts.sign_in_name_taken`. An act an\nautomation rule runs is refused with `accounts.managed_needs_a_person`: a run reads no\nanswer, so the start password would reach nobody. Granting `OWNER` demands the step-up,\nas the grant does.\n\nThere is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:\nno-store`: an answer kept for a replay would keep the start password with it. A repeat after\na lost answer finds the name taken.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/StepUpToken"
@@ -5024,6 +5024,103 @@
         }
       }
     },
+    "/auth/step-up:passkey-options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "startPasskeyStepUp",
+        "summary": "The options for a fresh proof with a passkey or security key",
+        "description": "The options for `navigator.credentials.get()` that prove the caller afresh at\n`POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this\nsession and account, five minutes, single use. Presence on the device suffices. Refused with\n`auth.passkey_unavailable` where the account holds none here or the request did not arrive at\nthe workspace's own host, and with `auth.step_up_session_required` for a token.\n",
+        "responses": {
+          "200": {
+            "description": "The options",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyAssertionOptions"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/mfa/passkey:enroll-options": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "startPasskeyEnrollment",
+        "security": [],
+        "summary": "Begin setting up a passkey or security key during sign-in",
+        "description": "For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the\noptions to add a passkey or a security key instead of the authenticator app. The `ENROLL`\ncredential is the proof. Only where the request arrived at the workspace's own host\n(`auth.passkey_unavailable` otherwise).\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyEnrollmentStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The options for the browser's ceremony",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyRegistrationOptions"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/auth/mfa/passkey:enroll": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "operationId": "completePasskeyEnrollment",
+        "security": [],
+        "summary": "Finish setting up a passkey or security key during sign-in",
+        "description": "The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten\nrecovery codes are shown once where the account held none, and - the second factor proved -\nthe sign-in completes: the pair, or the step still owed.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyEnrollment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Set up, and signed in or the next step",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyEnrolled"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/auth/step-up:provider": {
       "post": {
         "tags": [
@@ -5436,7 +5533,7 @@
         ],
         "operationId": "listTenants",
         "summary": "The installation's workspaces",
-        "description": "The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. \"Nothing enumerates tenants\" remains the rule for jobs; this is not a job.\n",
+        "description": "The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. \"Nothing enumerates tenants\" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "200": {
             "description": "The workspaces",
@@ -5462,7 +5559,7 @@
         ],
         "operationId": "provisionTenant",
         "summary": "Provision a workspace",
-        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.\n",
+        "description": "Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -5507,7 +5604,7 @@
         ],
         "operationId": "readTenant",
         "summary": "One workspace",
-        "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.\n",
+        "description": "One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "200": {
             "description": "The workspace",
@@ -5537,7 +5634,7 @@
         ],
         "operationId": "updateTenant",
         "summary": "Set or clear the platform's reference on a workspace",
-        "description": "The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.\n",
+        "description": "The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -5584,7 +5681,7 @@
         ],
         "operationId": "queryTenants",
         "summary": "Find workspaces",
-        "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.\n",
+        "description": "The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -5624,7 +5721,7 @@
         ],
         "operationId": "suspendTenant",
         "summary": "Suspend a workspace",
-        "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.\n",
+        "description": "Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "204": {
             "description": "Suspended"
@@ -5647,7 +5744,7 @@
         ],
         "operationId": "resumeTenant",
         "summary": "Reactivate a workspace",
-        "description": "One write. The next request of the tenant's people works again.",
+        "description": "One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "responses": {
           "204": {
             "description": "Active again"
@@ -5696,7 +5793,7 @@
         ],
         "operationId": "requestTenantDeletion",
         "summary": "Request a workspace's deletion",
-        "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.\n",
+        "description": "The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -6310,7 +6407,7 @@
         ],
         "operationId": "moveTenantPlan",
         "summary": "Put a workspace on another plan",
-        "description": "Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.\n",
+        "description": "Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -6485,7 +6582,7 @@
         ],
         "operationId": "listPlatformEvents",
         "summary": "The installation's events, read forward",
-        "description": "What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.\nEach event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.\nThe events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).\n",
+        "description": "What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.\nEach event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.\nThe events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
@@ -7210,7 +7307,7 @@
         ],
         "operationId": "updateTenantQuotas",
         "summary": "Set a workspace's quotas",
-        "description": "The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and \"who moved the wall\" is a question with an answer.\n",
+        "description": "The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and \"who moved the wall\" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -14247,6 +14344,7 @@
               "PASSWORD",
               "PASSWORD_TOTP",
               "PASSWORD_RECOVERY",
+              "PASSWORD_PASSKEY",
               "OIDC",
               "INVITATION",
               "RESET",
@@ -17190,13 +17288,22 @@
               "enum": [
                 "TOTP",
                 "RECOVERY",
+                "PASSKEY",
                 "ENROLL",
                 "PASSWORD_CHANGE",
                 "LINK",
                 "TERMS"
               ]
             },
-            "description": "`TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.\n"
+            "description": "`TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an account holding a second factor, each where it can be given; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.\n"
+          },
+          "passkey_options": {
+            "$ref": "#/components/schemas/PasskeyAssertionOptions",
+            "description": "Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of the step's own. Presence on the device suffices here; the password came first.\n"
+          },
+          "passkey_setup": {
+            "type": "boolean",
+            "description": "With `ENROLL`: whether a passkey or a security key can be set up here instead of the authenticator app - only where the page runs at the workspace's own address.\n"
           },
           "password_rules": {
             "$ref": "#/components/schemas/PasswordRules",
@@ -17320,6 +17427,38 @@
               "null"
             ],
             "description": "One of the ten shown at enrolment. It works exactly once."
+          },
+          "raw_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1400,
+            "description": "A passkey or security key's answer, with the three fields below - its `rawId`."
+          },
+          "client_data_json": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5600,
+            "description": "The answer's `clientDataJSON`."
+          },
+          "authenticator_data": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 87400,
+            "description": "The answer's `authenticatorData`."
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1400,
+            "description": "The answer's `signature`."
           }
         }
       },
@@ -18216,7 +18355,7 @@
           },
           "limits_exceeded": {
             "type": "array",
-            "description": "Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.\n",
+            "description": "Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.\n",
             "items": {
               "$ref": "#/components/schemas/LimitExceeded"
             }
@@ -18460,7 +18599,8 @@
               "webhook_targets",
               "export_jobs",
               "ai_tokens_per_day",
-              "ai_own_tokens_per_day"
+              "ai_own_tokens_per_day",
+              "accounts"
             ],
             "description": "The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.\n"
           },
@@ -18563,6 +18703,15 @@
             ],
             "format": "int64",
             "minimum": 0
+          },
+          "accounts": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "description": "The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.\n"
           },
           "ai_tokens_per_day": {
             "type": [
@@ -18848,7 +18997,7 @@
       },
       "StepUpRequest": {
         "type": "object",
-        "description": "Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.\n",
+        "description": "Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.\n",
         "properties": {
           "password": {
             "type": [
@@ -18888,6 +19037,38 @@
             ],
             "maxLength": 4096,
             "description": "The code the provider issued. Presented together with `state`."
+          },
+          "raw_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1400,
+            "description": "A passkey or security key's answer, with the three fields below - its `rawId`."
+          },
+          "client_data_json": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5600,
+            "description": "The answer's `clientDataJSON`."
+          },
+          "authenticator_data": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 87400,
+            "description": "The answer's `authenticatorData`."
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1400,
+            "description": "The answer's `signature`."
           }
         }
       },
@@ -19105,6 +19286,109 @@
             "type": "string",
             "maxLength": 88,
             "description": "The response's `userHandle`, which a passkey signing in without an identifier always gives."
+          }
+        }
+      },
+      "PasskeyAssertionOptions": {
+        "type": "object",
+        "description": "The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form.\n",
+        "required": [
+          "public_key",
+          "expires_at"
+        ],
+        "properties": {
+          "public_key": {
+            "type": "object",
+            "required": [
+              "rpId",
+              "challenge",
+              "timeout",
+              "userVerification",
+              "allowCredentials"
+            ],
+            "properties": {
+              "rpId": {
+                "type": "string",
+                "description": "The workspace's host."
+              },
+              "challenge": {
+                "type": "string",
+                "description": "Thirty-two random bytes",
+                "base64url.": null
+              },
+              "timeout": {
+                "type": "integer",
+                "description": "Milliseconds."
+              },
+              "userVerification": {
+                "type": "string",
+                "enum": [
+                  "preferred"
+                ]
+              },
+              "allowCredentials": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PasskeyDescriptor"
+                }
+              }
+            }
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PasskeyEnrollmentStart": {
+        "type": "object",
+        "required": [
+          "pending_token"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string",
+            "description": "The `ENROLL` step's credential."
+          }
+        }
+      },
+      "PasskeyEnrollment": {
+        "type": "object",
+        "description": "The `ENROLL` step's credential, what the ceremony answered, and the name.",
+        "required": [
+          "pending_token",
+          "name",
+          "raw_id",
+          "client_data_json",
+          "attestation_object"
+        ],
+        "properties": {
+          "pending_token": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "What the person calls it."
+          },
+          "raw_id": {
+            "type": "string",
+            "maxLength": 1400
+          },
+          "client_data_json": {
+            "type": "string",
+            "maxLength": 5600
+          },
+          "attestation_object": {
+            "type": "string",
+            "maxLength": 87400
+          },
+          "transports": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "$ref": "#/components/schemas/PasskeyTransport"
+            }
           }
         }
       },
@@ -19350,6 +19634,49 @@
           }
         }
       },
+      "PasskeyEnrolled": {
+        "type": "object",
+        "description": "A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed.\n",
+        "required": [
+          "passkey"
+        ],
+        "properties": {
+          "passkey": {
+            "$ref": "#/components/schemas/Passkey"
+          },
+          "recovery_codes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 10,
+            "maxItems": 10,
+            "description": "Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.\n"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionTokens"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pair, where nothing else is owed."
+          },
+          "challenge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MfaChallenge"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The `PASSWORD_CHANGE` step, where the password must still be changed."
+          }
+        }
+      },
       "ProviderConnectStart": {
         "type": "object",
         "required": [
@@ -19462,6 +19789,7 @@
             "enum": [
               "PASSWORD",
               "TOTP",
+              "PASSKEY",
               "RECOVERY",
               "PROVIDER"
             ],

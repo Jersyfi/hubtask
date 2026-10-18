@@ -2620,6 +2620,7 @@ func (e MembershipScope) Valid() bool {
 const (
 	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
 	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
+	MfaChallengeMethodsPASSKEY        MfaChallengeMethods = "PASSKEY"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
 	MfaChallengeMethodsTERMS          MfaChallengeMethods = "TERMS"
@@ -2632,6 +2633,8 @@ func (e MfaChallengeMethods) Valid() bool {
 	case MfaChallengeMethodsENROLL:
 		return true
 	case MfaChallengeMethodsLINK:
+		return true
+	case MfaChallengeMethodsPASSKEY:
 		return true
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
@@ -2688,6 +2691,21 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyAssertionOptionsPublicKeyUserVerification.
+const (
+	PasskeyAssertionOptionsPublicKeyUserVerificationPreferred PasskeyAssertionOptionsPublicKeyUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyAssertionOptionsPublicKeyUserVerification enum.
+func (e PasskeyAssertionOptionsPublicKeyUserVerification) Valid() bool {
+	switch e {
+	case PasskeyAssertionOptionsPublicKeyUserVerificationPreferred:
 		return true
 	default:
 		return false
@@ -3143,6 +3161,7 @@ func (e QuotaSource) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	Accounts              QuotaStandingQuota = "accounts"
 	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
@@ -3156,6 +3175,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case Accounts:
+		return true
 	case AiOwnTokensPerDay:
 		return true
 	case AiTokensPerDay:
@@ -3913,6 +3934,7 @@ const (
 	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
 	SessionSignedInWithPASSKEY          SessionSignedInWith = "PASSKEY"
 	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDPASSKEY  SessionSignedInWith = "PASSWORD_PASSKEY"
 	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
 	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
 	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
@@ -3930,6 +3952,8 @@ func (e SessionSignedInWith) Valid() bool {
 	case SessionSignedInWithPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORDRECOVERY:
 		return true
@@ -4052,6 +4076,7 @@ func (e SortTermNulls) Valid() bool {
 
 // Defines values for StepUpGrantMethod.
 const (
+	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
 	StepUpGrantMethodPROVIDER StepUpGrantMethod = "PROVIDER"
 	StepUpGrantMethodRECOVERY StepUpGrantMethod = "RECOVERY"
@@ -4061,6 +4086,8 @@ const (
 // Valid indicates whether the value is a known member of the StepUpGrantMethod enum.
 func (e StepUpGrantMethod) Valid() bool {
 	switch e {
+	case StepUpGrantMethodPASSKEY:
+		return true
 	case StepUpGrantMethodPASSWORD:
 		return true
 	case StepUpGrantMethodPROVIDER:
@@ -7883,8 +7910,14 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an account holding a second factor, each where it can be given; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasskeyOptions Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of the step's own. Presence on the device suffices here; the password came first.
+	PasskeyOptions *PasskeyAssertionOptions `json:"passkey_options,omitempty"`
+
+	// PasskeySetup With `ENROLL`: whether a passkey or a security key can be set up here instead of the authenticator app - only where the page runs at the workspace's own address.
+	PasskeySetup *bool `json:"passkey_setup,omitempty"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
 	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
@@ -8261,6 +8294,27 @@ type PasskeyAssertion struct {
 	UserHandle string `json:"user_handle"`
 }
 
+// PasskeyAssertionOptions The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form.
+type PasskeyAssertionOptions struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey struct {
+		AllowCredentials []PasskeyDescriptor `json:"allowCredentials"`
+
+		// Challenge Thirty-two random bytes
+		Challenge string `json:"challenge"`
+
+		// RpId The workspace's host.
+		RpId string `json:"rpId"`
+
+		// Timeout Milliseconds.
+		Timeout          int                                              `json:"timeout"`
+		UserVerification PasskeyAssertionOptionsPublicKeyUserVerification `json:"userVerification"`
+	} `json:"public_key"`
+}
+
+// PasskeyAssertionOptionsPublicKeyUserVerification defines model for PasskeyAssertionOptions.PublicKey.UserVerification.
+type PasskeyAssertionOptionsPublicKeyUserVerification string
+
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
 type PasskeyCreationOptions struct {
 	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
@@ -8323,6 +8377,39 @@ type PasskeyDescriptor struct {
 
 // PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
 type PasskeyDescriptorType string
+
+// PasskeyEnrolled A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed.
+type PasskeyEnrolled struct {
+	// Challenge The `PASSWORD_CHANGE` step, where the password must still be changed.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+
+	// Tokens The pair, where nothing else is owed.
+	Tokens *SessionTokens `json:"tokens,omitempty"`
+}
+
+// PasskeyEnrollment The `ENROLL` step's credential, what the ceremony answered, and the name.
+type PasskeyEnrollment struct {
+	AttestationObject string `json:"attestation_object"`
+	ClientDataJson    string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name         string              `json:"name"`
+	PendingToken string              `json:"pending_token"`
+	RawId        string              `json:"raw_id"`
+	Transports   *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyEnrollmentStart defines model for PasskeyEnrollmentStart.
+type PasskeyEnrollmentStart struct {
+	// PendingToken The `ENROLL` step's credential.
+	PendingToken string `json:"pending_token"`
+}
 
 // PasskeyList defines model for PasskeyList.
 type PasskeyList struct {
@@ -9733,12 +9820,24 @@ type SignIn struct {
 
 // SignInCompletion defines model for SignInCompletion.
 type SignInCompletion struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+
 	// Code The authenticator's current code.
 	Code         *string `json:"code,omitempty"`
 	PendingToken string  `json:"pending_token"`
 
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
+
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 }
 
 // SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
@@ -9952,15 +10051,27 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
 	// AuthorizationCode The code the provider issued. Presented together with `state`.
 	AuthorizationCode *string `json:"authorization_code,omitempty"`
-	Code              *string `json:"code,omitempty"`
-	Password          *string `json:"password,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+	Code           *string `json:"code,omitempty"`
+	Password       *string `json:"password,omitempty"`
+
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
 
 	// RecoveryCode One of the account's recovery codes. Consumed, as at sign-in.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 
 	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
 	State *string `json:"state,omitempty"`
@@ -10368,7 +10479,7 @@ type TenantPlanMoved struct {
 	// FeaturesResting The features the workspace's plan now leaves out.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }
@@ -10416,6 +10527,9 @@ type TenantQueryStatus string
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
+	// Accounts The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.
+	Accounts *int64 `json:"accounts,omitempty"`
+
 	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
@@ -12393,6 +12507,12 @@ type InspectInvitationJSONRequestBody = InvitationInspection
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// CompletePasskeyEnrollmentJSONRequestBody defines body for CompletePasskeyEnrollment for application/json ContentType.
+type CompletePasskeyEnrollmentJSONRequestBody = PasskeyEnrollment
+
+// StartPasskeyEnrollmentJSONRequestBody defines body for StartPasskeyEnrollment for application/json ContentType.
+type StartPasskeyEnrollmentJSONRequestBody = PasskeyEnrollmentStart
+
 // ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
 type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
 
@@ -13177,7 +13297,8 @@ type ClientInterface interface {
 	// RenewInvitation Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-	// any other is `409 accounts.not_invited`.
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail**, the invitation mail is queued again and the answer
 	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -13220,7 +13341,8 @@ type ClientInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -13247,7 +13369,8 @@ type ClientInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -13273,7 +13396,8 @@ type ClientInterface interface {
 	// InviteAccountWithBody Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -13298,7 +13422,8 @@ type ClientInterface interface {
 	// InviteAccount Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -13429,7 +13554,7 @@ type ClientInterface interface {
 	//
 	// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
 	// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
-	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
 	ListPlatformEvents(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -13734,14 +13859,14 @@ type ClientInterface interface {
 
 	// ListTenants The installation's workspaces
 	//
-	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with GET /admin/tenants (the `ListTenants` operationId).
 	ListTenants(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ProvisionTenantWithBody Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13750,7 +13875,7 @@ type ClientInterface interface {
 
 	// ProvisionTenant Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13759,14 +13884,14 @@ type ClientInterface interface {
 
 	// ReadTenant One workspace
 	//
-	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
 	ReadTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateTenantWithBody Set or clear the platform's reference on a workspace
 	//
-	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13775,7 +13900,7 @@ type ClientInterface interface {
 
 	// UpdateTenant Set or clear the platform's reference on a workspace
 	//
-	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13784,7 +13909,7 @@ type ClientInterface interface {
 
 	// UpdateTenantQuotasWithBody Set a workspace's quotas
 	//
-	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13793,7 +13918,7 @@ type ClientInterface interface {
 
 	// UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody Set a workspace's quotas
 	//
-	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
 	//
@@ -13816,7 +13941,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletionWithBody Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13825,7 +13950,7 @@ type ClientInterface interface {
 
 	// RequestTenantDeletion Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13852,7 +13977,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlanWithBody Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13861,7 +13986,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlan Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13926,21 +14051,21 @@ type ClientInterface interface {
 
 	// ResumeTenant Reactivate a workspace
 	//
-	// One write. The next request of the tenant's people works again.
+	// One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:resume (the `ResumeTenant` operationId).
 	ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SuspendTenant Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 	SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// QueryTenantsWithBody Find workspaces
 	//
-	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13949,7 +14074,7 @@ type ClientInterface interface {
 
 	// QueryTenants Find workspaces
 	//
-	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -14235,6 +14360,52 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeyEnrollmentWithBody Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeyEnrollment Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollment(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyEnrollmentWithBody Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyEnrollment Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollment(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	//
@@ -14751,6 +14922,17 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyStepUp The options for a fresh proof with a passkey or security key
+	//
+	// The options for `navigator.credentials.get()` that prove the caller afresh at
+	// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+	// session and account, five minutes, single use. Presence on the device suffices. Refused with
+	// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+	// the workspace's own host, and with `auth.step_up_session_required` for a token.
+	//
+	// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+	StartPasskeyStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartProviderStepUp Begin a step-up at the provider this account is connected to
 	//
@@ -18150,7 +18332,8 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 // RenewInvitation Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-// any other is `409 accounts.not_invited`.
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
 //
 // **Where this installation sends mail**, the invitation mail is queued again and the answer
 // carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -18223,7 +18406,8 @@ func (c *Client) RestrictProcessing(ctx context.Context, accountId AccountId, bo
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -18260,7 +18444,8 @@ func (c *Client) CreateManagedAccountWithBody(ctx context.Context, params *Creat
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -18296,7 +18481,8 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 // InviteAccountWithBody Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -18331,7 +18517,8 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 // InviteAccount Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -18602,7 +18789,7 @@ func (c *Client) ResealSecrets(ctx context.Context, reqEditors ...RequestEditorF
 //
 // What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
 // Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
-// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with GET /admin/events (the `ListPlatformEvents` operationId).
 func (c *Client) ListPlatformEvents(ctx context.Context, params *ListPlatformEventsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19267,7 +19454,7 @@ func (c *Client) RotatePlatformSubscriptionSecret(ctx context.Context, subscript
 
 // ListTenants The installation's workspaces
 //
-// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with GET /admin/tenants (the `ListTenants` operationId).
 func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19284,7 +19471,7 @@ func (c *Client) ListTenants(ctx context.Context, reqEditors ...RequestEditorFn)
 
 // ProvisionTenantWithBody Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19303,7 +19490,7 @@ func (c *Client) ProvisionTenantWithBody(ctx context.Context, params *ProvisionT
 
 // ProvisionTenant Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19322,7 +19509,7 @@ func (c *Client) ProvisionTenant(ctx context.Context, params *ProvisionTenantPar
 
 // ReadTenant One workspace
 //
-// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with GET /admin/tenants/{tenantId} (the `ReadTenant` operationId).
 func (c *Client) ReadTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19339,7 +19526,7 @@ func (c *Client) ReadTenant(ctx context.Context, tenantId AdminTenantId, reqEdit
 
 // UpdateTenantWithBody Set or clear the platform's reference on a workspace
 //
-// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19358,7 +19545,7 @@ func (c *Client) UpdateTenantWithBody(ctx context.Context, tenantId AdminTenantI
 
 // UpdateTenant Set or clear the platform's reference on a workspace
 //
-// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19377,7 +19564,7 @@ func (c *Client) UpdateTenant(ctx context.Context, tenantId AdminTenantId, param
 
 // UpdateTenantQuotasWithBody Set a workspace's quotas
 //
-// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19396,7 +19583,7 @@ func (c *Client) UpdateTenantQuotasWithBody(ctx context.Context, tenantId AdminT
 
 // UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody Set a workspace's quotas
 //
-// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/merge-patch+json` content type.
 //
@@ -19449,7 +19636,7 @@ func (c *Client) CloseTenantPassword(ctx context.Context, tenantId AdminTenantId
 
 // RequestTenantDeletionWithBody Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19468,7 +19655,7 @@ func (c *Client) RequestTenantDeletionWithBody(ctx context.Context, tenantId Adm
 
 // RequestTenantDeletion Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19525,7 +19712,7 @@ func (c *Client) ExportTenant(ctx context.Context, tenantId AdminTenantId, body 
 
 // MoveTenantPlanWithBody Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19544,7 +19731,7 @@ func (c *Client) MoveTenantPlanWithBody(ctx context.Context, tenantId AdminTenan
 
 // MoveTenantPlan Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19679,7 +19866,7 @@ func (c *Client) ReplaceLegalHolds(ctx context.Context, tenantId AdminTenantId, 
 
 // ResumeTenant Reactivate a workspace
 //
-// One write. The next request of the tenant's people works again.
+// One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:resume (the `ResumeTenant` operationId).
 func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19696,7 +19883,7 @@ func (c *Client) ResumeTenant(ctx context.Context, tenantId AdminTenantId, reqEd
 
 // SuspendTenant Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with POST /admin/tenants/{tenantId}:suspend (the `SuspendTenant` operationId).
 func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19713,7 +19900,7 @@ func (c *Client) SuspendTenant(ctx context.Context, tenantId AdminTenantId, reqE
 
 // QueryTenantsWithBody Find workspaces
 //
-// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19732,7 +19919,7 @@ func (c *Client) QueryTenantsWithBody(ctx context.Context, contentType string, b
 
 // QueryTenants Find workspaces
 //
-// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -20279,6 +20466,92 @@ func (c *Client) RedeemInvitationWithBody(ctx context.Context, contentType strin
 // Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRedeemInvitationRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeyEnrollmentWithBody Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *Client) CompletePasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyEnrollmentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeyEnrollment Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *Client) CompletePasskeyEnrollment(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyEnrollmentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyEnrollmentWithBody Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *Client) StartPasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyEnrollmentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyEnrollment Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *Client) StartPasskeyEnrollment(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyEnrollmentRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -21275,6 +21548,27 @@ func (c *Client) StepUpWithBody(ctx context.Context, contentType string, body io
 // Corresponds with POST /auth/step-up (the `StepUp` operationId).
 func (c *Client) StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStepUpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyStepUp The options for a fresh proof with a passkey or security key
+//
+// The options for `navigator.credentials.get()` that prove the caller afresh at
+// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+// session and account, five minutes, single use. Presence on the device suffices. Refused with
+// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+// the workspace's own host, and with `auth.step_up_session_required` for a token.
+//
+// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+func (c *Client) StartPasskeyStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyStepUpRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -31098,6 +31392,86 @@ func NewRedeemInvitationRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewCompletePasskeyEnrollmentRequest calls the generic CompletePasskeyEnrollment builder with application/json body
+func NewCompletePasskeyEnrollmentRequest(server string, body CompletePasskeyEnrollmentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompletePasskeyEnrollmentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompletePasskeyEnrollmentRequestWithBody constructs an http.Request for the CompletePasskeyEnrollment method, with any body, and a specified content type
+func NewCompletePasskeyEnrollmentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/passkey:enroll")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeyEnrollmentRequest calls the generic StartPasskeyEnrollment builder with application/json body
+func NewStartPasskeyEnrollmentRequest(server string, body StartPasskeyEnrollmentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartPasskeyEnrollmentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStartPasskeyEnrollmentRequestWithBody constructs an http.Request for the StartPasskeyEnrollment method, with any body, and a specified content type
+func NewStartPasskeyEnrollmentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/passkey:enroll-options")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRegenerateRecoveryCodesRequest constructs an http.Request for the RegenerateRecoveryCodes method
 func NewRegenerateRecoveryCodesRequest(server string, params *RegenerateRecoveryCodesParams) (*http.Request, error) {
 	var err error
@@ -32236,6 +32610,33 @@ func NewStepUpRequestWithBody(server string, contentType string, body io.Reader)
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeyStepUpRequest constructs an http.Request for the StartPasskeyStepUp method
+func NewStartPasskeyStepUpRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/step-up:passkey-options")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -43781,7 +44182,8 @@ type ClientWithResponsesInterface interface {
 	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-	// any other is `409 accounts.not_invited`.
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail**, the invitation mail is queued again and the answer
 	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -43826,7 +44228,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -43853,7 +44256,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -43879,7 +44283,8 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithBodyWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -43904,7 +44309,8 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -44049,7 +44455,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
 	// Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
-	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+	// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44390,7 +44796,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListTenantsWithResponse The installation's workspaces
 	//
-	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+	// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44399,7 +44805,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithBodyWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44408,7 +44814,7 @@ type ClientWithResponsesInterface interface {
 
 	// ProvisionTenantWithResponse Provision a workspace
 	//
-	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+	// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44417,7 +44823,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadTenantWithResponse One workspace
 	//
-	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+	// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44426,7 +44832,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateTenantWithBodyWithResponse Set or clear the platform's reference on a workspace
 	//
-	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44435,7 +44841,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateTenantWithResponse Set or clear the platform's reference on a workspace
 	//
-	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+	// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44444,7 +44850,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateTenantQuotasWithBodyWithResponse Set a workspace's quotas
 	//
-	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44453,7 +44859,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdateTenantQuotasWithApplicationMergePatchPlusJSONBodyWithResponse Set a workspace's quotas
 	//
-	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+	// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44480,7 +44886,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44489,7 +44895,7 @@ type ClientWithResponsesInterface interface {
 
 	// RequestTenantDeletionWithResponse Request a workspace's deletion
 	//
-	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+	// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44516,7 +44922,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44525,7 +44931,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44590,7 +44996,7 @@ type ClientWithResponsesInterface interface {
 
 	// ResumeTenantWithResponse Reactivate a workspace
 	//
-	// One write. The next request of the tenant's people works again.
+	// One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44599,7 +45005,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuspendTenantWithResponse Suspend a workspace
 	//
-	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
+	// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44608,7 +45014,7 @@ type ClientWithResponsesInterface interface {
 
 	// QueryTenantsWithBodyWithResponse Find workspaces
 	//
-	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44617,7 +45023,7 @@ type ClientWithResponsesInterface interface {
 
 	// QueryTenantsWithResponse Find workspaces
 	//
-	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+	// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44911,6 +45317,52 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitationWithResponse(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemInvitationResult, error)
+
+	// CompletePasskeyEnrollmentWithBodyWithResponse Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error)
+
+	// CompletePasskeyEnrollmentWithResponse Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithResponse(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error)
+
+	// StartPasskeyEnrollmentWithBodyWithResponse Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error)
+
+	// StartPasskeyEnrollmentWithResponse Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithResponse(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error)
 
 	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 	//
@@ -45447,6 +45899,19 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUpWithResponse(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*StepUpResult, error)
+
+	// StartPasskeyStepUpWithResponse The options for a fresh proof with a passkey or security key
+	//
+	// The options for `navigator.credentials.get()` that prove the caller afresh at
+	// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+	// session and account, five minutes, single use. Presence on the device suffices. Refused with
+	// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+	// the workspace's own host, and with `auth.step_up_session_required` for a token.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+	StartPasskeyStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeyStepUpResult, error)
 
 	// StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
 	//
@@ -52835,6 +53300,102 @@ func (r RedeemInvitationResult) ContentType() string {
 	return ""
 }
 
+type CompletePasskeyEnrollmentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PasskeyEnrolled
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompletePasskeyEnrollmentResult) GetJSON201() *PasskeyEnrolled {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompletePasskeyEnrollmentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompletePasskeyEnrollmentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompletePasskeyEnrollmentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompletePasskeyEnrollmentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompletePasskeyEnrollmentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeyEnrollmentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyRegistrationOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeyEnrollmentResult) GetJSON200() *PasskeyRegistrationOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeyEnrollmentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeyEnrollmentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeyEnrollmentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeyEnrollmentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeyEnrollmentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RegenerateRecoveryCodesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -54228,6 +54789,54 @@ func (r StepUpResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StepUpResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeyStepUpResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyAssertionOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeyStepUpResult) GetJSON200() *PasskeyAssertionOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeyStepUpResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeyStepUpResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeyStepUpResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeyStepUpResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeyStepUpResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -65826,7 +66435,8 @@ func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context
 // RenewInvitationWithResponse Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-// any other is `409 accounts.not_invited`.
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
 //
 // **Where this installation sends mail**, the invitation mail is queued again and the answer
 // carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -65889,7 +66499,8 @@ func (c *ClientWithResponses) RestrictProcessingWithResponse(ctx context.Context
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -65922,7 +66533,8 @@ func (c *ClientWithResponses) CreateManagedAccountWithBodyWithResponse(ctx conte
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -65954,7 +66566,8 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 // InviteAccountWithBodyWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -65985,7 +66598,8 @@ func (c *ClientWithResponses) InviteAccountWithBodyWithResponse(ctx context.Cont
 // InviteAccountWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -66214,7 +66828,7 @@ func (c *ClientWithResponses) ResealSecretsWithResponse(ctx context.Context, req
 //
 // What a provider's purchase platform learns about the workspaces - created, moved to another plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The same events the installation's subscriptions are sent, so a platform that was down reads what it missed from the cursor it last kept and misses nothing.
 // Each event carries the workspace's id, the platform's reference, its status, its plan and a version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and states only, never anybody's content.
-// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`).
+// The events are numbered in the order their changes committed, so a page never skips one that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor` is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a cursor older than that is answered `410` with `admin.events_cursor_expired`, since what followed it is no longer all there. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -66771,7 +67385,7 @@ func (c *ClientWithResponses) RotatePlatformSubscriptionSecretWithResponse(ctx c
 
 // ListTenantsWithResponse The installation's workspaces
 //
-// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job.
+// The one legitimate tenant enumerator: provisioning and lifecycle are the control plane's job, and the control plane must see its rows. It reads through a deliberate installation-scoped path behind the `admin:tenants` scope - which no session carries: the credential is a personal access token minted for exactly this, behind a step-up. "Nothing enumerates tenants" remains the rule for jobs; this is not a job. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -66786,7 +67400,7 @@ func (c *ClientWithResponses) ListTenantsWithResponse(ctx context.Context, reqEd
 
 // ProvisionTenantWithBodyWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66801,7 +67415,7 @@ func (c *ClientWithResponses) ProvisionTenantWithBodyWithResponse(ctx context.Co
 
 // ProvisionTenantWithResponse Provision a workspace
 //
-// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one.
+// Creates the tenant with its defaults: a default hub, an example collection, standard buckets and labels, the locale and time zone, and the owner - an invited account whose redemption token is answered once, so the person the workspace is for can set their password and sign in. Idempotent under `Idempotency-Key`: provisioning twice under one key creates one. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66816,7 +67430,7 @@ func (c *ClientWithResponses) ProvisionTenantWithResponse(ctx context.Context, p
 
 // ReadTenantWithResponse One workspace
 //
-// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`.
+// One workspace as the control plane sees it: its state, plan, version, the platform's own reference, the legal hold and the deletion dates. The `ETag` is the version a change presents in `If-Match`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -66831,7 +67445,7 @@ func (c *ClientWithResponses) ReadTenantWithResponse(ctx context.Context, tenant
 
 // UpdateTenantWithBodyWithResponse Set or clear the platform's reference on a workspace
 //
-// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66846,7 +67460,7 @@ func (c *ClientWithResponses) UpdateTenantWithBodyWithResponse(ctx context.Conte
 
 // UpdateTenantWithResponse Set or clear the platform's reference on a workspace
 //
-// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only.
+// The reference a purchase platform keeps for the workspace - its customer or subscription id - unique on the installation and refused with `admin.reference_taken` where another workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that changed since it was read is refused with `version_conflict`. Multi mode only. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66861,7 +67475,7 @@ func (c *ClientWithResponses) UpdateTenantWithResponse(ctx context.Context, tena
 
 // UpdateTenantQuotasWithBodyWithResponse Set a workspace's quotas
 //
-// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66876,7 +67490,7 @@ func (c *ClientWithResponses) UpdateTenantQuotasWithBodyWithResponse(ctx context
 
 // UpdateTenantQuotasWithApplicationMergePatchPlusJSONBodyWithResponse Set a workspace's quotas
 //
-// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer.
+// The operator's write: each provided key becomes the workspace's ceiling, an explicit null clears the override back to the mode's default, and absent keys stay untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and "who moved the wall" is a question with an answer. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66921,7 +67535,7 @@ func (c *ClientWithResponses) CloseTenantPasswordWithResponse(ctx context.Contex
 
 // RequestTenantDeletionWithBodyWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66936,7 +67550,7 @@ func (c *ClientWithResponses) RequestTenantDeletionWithBodyWithResponse(ctx cont
 
 // RequestTenantDeletionWithResponse Request a workspace's deletion
 //
-// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it.
+// The most irreversible act this API has, and it behaves like it: it demands a fresh step-up in the `X-Hubtask-Step-Up` header and the workspace's display name, typed - the restore precedent. A purchase platform's service account that the operator register names sends the typed name without a step-up, which it cannot give; the grace, the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked, automations disabled, the export still answering. Until the hard delete begins, `:cancel-deletion` calls it off. The hard delete runs after the 30-day grace as a job seeded by this very write - it cascades across database rows, media bytes, search, outbox and queue, and leaves an installation-level evidence entry, because the tenant's own trail dies with it. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66981,7 +67595,7 @@ func (c *ClientWithResponses) ExportTenantWithResponse(ctx context.Context, tena
 
 // MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66996,7 +67610,7 @@ func (c *ClientWithResponses) MoveTenantPlanWithBodyWithResponse(ctx context.Con
 
 // MoveTenantPlanWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67103,7 +67717,7 @@ func (c *ClientWithResponses) ReplaceLegalHoldsWithResponse(ctx context.Context,
 
 // ResumeTenantWithResponse Reactivate a workspace
 //
-// One write. The next request of the tenant's people works again.
+// One write. The next request of the tenant's people works again. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67118,7 +67732,7 @@ func (c *ClientWithResponses) ResumeTenantWithResponse(ctx context.Context, tena
 
 // SuspendTenantWithResponse Suspend a workspace
 //
-// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation.
+// Flips the middleware: every API call of the tenant's own people answers `403 tenant_suspended` on their very next request. The data remains, and the read export still works - the suspended are exactly who needs it. Refused with `admin.multi_mode_required` in single mode, where the one workspace is the installation. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67133,7 +67747,7 @@ func (c *ClientWithResponses) SuspendTenantWithResponse(ctx context.Context, ten
 
 // QueryTenantsWithBodyWithResponse Find workspaces
 //
-// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67148,7 +67762,7 @@ func (c *ClientWithResponses) QueryTenantsWithBodyWithResponse(ctx context.Conte
 
 // QueryTenantsWithResponse Find workspaces
 //
-// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated.
+// The workspaces matching every filter given, oldest first, one page at a time - how a purchase platform finds a workspace by its own reference or reconciles its records. A `POST` because a reference may identify a customer, and a query string travels through access logs; it reads, and the same request may be repeated. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67603,6 +68217,76 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseRedeemInvitationResult(rsp)
+}
+
+// CompletePasskeyEnrollmentWithBodyWithResponse Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *ClientWithResponses) CompletePasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error) {
+	rsp, err := c.CompletePasskeyEnrollmentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyEnrollmentResult(rsp)
+}
+
+// CompletePasskeyEnrollmentWithResponse Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *ClientWithResponses) CompletePasskeyEnrollmentWithResponse(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error) {
+	rsp, err := c.CompletePasskeyEnrollment(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyEnrollmentResult(rsp)
+}
+
+// StartPasskeyEnrollmentWithBodyWithResponse Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *ClientWithResponses) StartPasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error) {
+	rsp, err := c.StartPasskeyEnrollmentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyEnrollmentResult(rsp)
+}
+
+// StartPasskeyEnrollmentWithResponse Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *ClientWithResponses) StartPasskeyEnrollmentWithResponse(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error) {
+	rsp, err := c.StartPasskeyEnrollment(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyEnrollmentResult(rsp)
 }
 
 // RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
@@ -68427,6 +69111,25 @@ func (c *ClientWithResponses) StepUpWithResponse(ctx context.Context, body StepU
 		return nil, err
 	}
 	return ParseStepUpResult(rsp)
+}
+
+// StartPasskeyStepUpWithResponse The options for a fresh proof with a passkey or security key
+//
+// The options for `navigator.credentials.get()` that prove the caller afresh at
+// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+// session and account, five minutes, single use. Presence on the device suffices. Refused with
+// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+// the workspace's own host, and with `auth.step_up_session_required` for a token.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+func (c *ClientWithResponses) StartPasskeyStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeyStepUpResult, error) {
+	rsp, err := c.StartPasskeyStepUp(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyStepUpResult(rsp)
 }
 
 // StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
@@ -76405,6 +77108,72 @@ func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, e
 	return response, nil
 }
 
+// ParseCompletePasskeyEnrollmentResult parses an HTTP response from a CompletePasskeyEnrollmentWithResponse call
+func ParseCompletePasskeyEnrollmentResult(rsp *http.Response) (*CompletePasskeyEnrollmentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompletePasskeyEnrollmentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PasskeyEnrolled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeyEnrollmentResult parses an HTTP response from a StartPasskeyEnrollmentWithResponse call
+func ParseStartPasskeyEnrollmentResult(rsp *http.Response) (*StartPasskeyEnrollmentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeyEnrollmentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyRegistrationOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRegenerateRecoveryCodesResult parses an HTTP response from a RegenerateRecoveryCodesWithResponse call
 func ParseRegenerateRecoveryCodesResult(rsp *http.Response) (*RegenerateRecoveryCodesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -77374,6 +78143,39 @@ func ParseStepUpResult(rsp *http.Response) (*StepUpResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeyStepUpResult parses an HTTP response from a StartPasskeyStepUpWithResponse call
+func ParseStartPasskeyStepUpResult(rsp *http.Response) (*StartPasskeyStepUpResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeyStepUpResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyAssertionOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

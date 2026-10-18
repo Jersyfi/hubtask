@@ -98,3 +98,25 @@ SET sign_count = GREATEST(sign_count, sqlc.arg('sign_count')::bigint),
     last_used_at = sqlc.arg('used_at'), backed_up = sqlc.arg('backed_up')
 WHERE id = sqlc.arg('id')
   AND (sqlc.arg('sign_count')::bigint = 0 OR sign_count = 0 OR sqlc.arg('sign_count')::bigint > sign_count);
+
+-- name: InsertPasskeyProofChallenge :exec
+-- A challenge a known account answers: the second factor's, a setup's or a fresh proof's
+-- (migration 0176). The check constraints hold the session and the handle to their purposes.
+INSERT INTO auth_pending (id, tenant_id, account_id, token_hash, purpose, created_at, expires_at,
+                          session_id, user_handle)
+VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('token_hash'),
+  sqlc.arg('purpose'), sqlc.arg('created_at'), sqlc.arg('expires_at'),
+  sqlc.narg('session_id'), sqlc.narg('user_handle')
+);
+
+-- name: ConsumePasskeyProofChallenge :one
+-- One statement, so two answers to one challenge let exactly one through; only under its purpose,
+-- for its account and - a fresh proof's - its session.
+UPDATE auth_pending SET consumed_at = sqlc.arg('now')
+WHERE token_hash = sqlc.arg('token_hash') AND purpose = sqlc.arg('purpose')
+  AND purpose IN ('PASSKEY_FACTOR', 'PASSKEY_ENROLL', 'PASSKEY_STEP_UP')
+  AND account_id = sqlc.arg('account_id')
+  AND session_id IS NOT DISTINCT FROM sqlc.narg('session_id')
+  AND consumed_at IS NULL AND expires_at > sqlc.arg('now')
+RETURNING id, user_handle, created_at, expires_at;

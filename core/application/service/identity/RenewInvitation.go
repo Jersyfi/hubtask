@@ -48,6 +48,8 @@ type RenewInvitation struct {
 	Clock      clock.Clock
 	// Links hands the invitation over as a link where no mail goes out, as InviteAccount does.
 	Links InvitationLinks
+	// People holds the renewal to the people limit: a link that ran out had freed its place.
+	People PeopleLimit
 }
 
 // Execute renews and answers the account, with the new link where it is handed over by hand.
@@ -82,6 +84,12 @@ func (h RenewInvitation) Execute(
 		}
 		// The actor's workspace, not the row's: the account repository's read does not carry the
 		// tenant, and the row was found inside this workspace's transaction anyway.
+		// Asked before the new link goes out: a link that ran out had freed its place.
+		if h.People != nil {
+			if err := h.People.Renewal(ctx, actor.TenantID.String(), invited.ID.String()); err != nil {
+				return err
+			}
+		}
 		link, err := deliver(ctx, h.Links, h.Notifier, actor.TenantID, invited.ID, actor)
 		if err != nil {
 			return err

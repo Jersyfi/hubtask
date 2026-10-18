@@ -302,6 +302,7 @@ func (c *RestController) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"host":          r.Host,
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)

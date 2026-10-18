@@ -769,6 +769,23 @@ export class HubtaskClient {
     return this.call("POST", "/auth/step-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The options for a fresh proof with a passkey or security key */
+  startPasskeyStepUp(options: CallOptions = {}): Promise<operations["startPasskeyStepUp"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/step-up:passkey-options", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin setting up a passkey or security key during sign-in
+   * Public: sent without a bearer where the client holds none. */
+  startPasskeyEnrollment(body: NonNullable<operations["startPasskeyEnrollment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startPasskeyEnrollment"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/passkey:enroll-options", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish setting up a passkey or security key during sign-in
+   * Public: sent without a bearer where the client holds none. */
+  completePasskeyEnrollment(body: NonNullable<operations["completePasskeyEnrollment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeyEnrollment"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/passkey:enroll", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Begin a step-up at the provider this account is connected to */
   startProviderStepUp(options: CallOptions = {}): Promise<operations["startProviderStepUp"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/step-up:provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

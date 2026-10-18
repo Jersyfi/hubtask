@@ -36,6 +36,7 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 	// it, which did not exist then and so have no kept bodies for it to empty.
 	markedLater := map[string]bool{
 		"POST /api/v1/auth/sessions:passkey":                              true,
+		"POST /api/v1/auth/mfa/passkey:enroll":                            true,
 		"POST /api/v1/admin/subscriptions":                                true,
 		"POST /api/v1/admin/subscriptions/{subscriptionId}:rotate-secret": true,
 	}

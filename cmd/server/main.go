@@ -512,6 +512,19 @@ func run() error {
 				Domains:      domains,
 			},
 		},
+		// A key is asked for at the factor's step, the step-up and the setup during sign-in, where it
+		// can sign (identity.md §23.2). In the literal, for the same reason.
+		KeyProofs: &identity.KeyProofs{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+			Proofs:   postgres.NewPasskeyProofRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Holders:  postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Verifier: webauthn.Verifier{},
+		},
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
 		StepUpWindow: cfg.StepUpWindow,
 		Encryptor:    encryptor,
@@ -1095,6 +1108,7 @@ func run() error {
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
+		People:      quotaGuard,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
 		// What a provider names for newcomers is given in the arrival's own transaction.
@@ -1547,12 +1561,12 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
-			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.RenewInvitation{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -1572,7 +1586,7 @@ func run() error {
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Text: forms,
+			Text: forms, People: quotaGuard,
 		}.Descriptor(),
 		identity.IssueStartPassword{
 			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
@@ -1696,6 +1710,7 @@ func run() error {
 		identity.ConfirmAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.StartProviderStepUp{Writer: sessionWriter}.Descriptor(),
+		identity.StartPasskeyStepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
 		identity.ReadOauthClient{Writer: oauthWriter}.Descriptor(),
@@ -1798,6 +1813,8 @@ func run() error {
 		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
 		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
+		identity.CompletePasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
 		identity.CompletePasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
 		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
@@ -2343,7 +2360,8 @@ func run() error {
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
 			Quotas: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
 		}.Descriptor(),
-		// The control plane. Its credential is a PAT carrying admin:tenants - never a
+		// The control plane. Its credential is a PAT carrying admin:tenants, or for a purchase
+		// platform the subset admin:provisioning on the verbs that declare it - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
@@ -2367,7 +2385,9 @@ func run() error {
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
-			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			// A purchase platform's service account in the register sends the typed name alone.
+			Register: postgres.NewOperatorRepository(),
+			Audit:    auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back

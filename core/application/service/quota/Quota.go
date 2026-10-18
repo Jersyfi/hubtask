@@ -30,6 +30,9 @@ const (
 	AutomationRunsPerHour = "automation_runs_per_hour"
 	WebhookTargets        = "webhook_targets"
 	ExportJobs            = "export_jobs"
+	// Accounts is the people a workspace may hold: active and managed accounts and open
+	// invitations, never service accounts (§4.2).
+	Accounts = "accounts"
 	// AiTokensPerDay is what a workspace may spend on AI in a day, counted in the tokens
 	// every provider reports - the one unit that means the same thing across OpenAI-compatible
 	// endpoints and a local Ollama, which is why `ai.Usage` carries it.
@@ -48,7 +51,7 @@ const (
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
-		AiTokensPerDay, AiOwnTokensPerDay,
+		AiTokensPerDay, AiOwnTokensPerDay, Accounts,
 	}
 }
 
@@ -84,6 +87,7 @@ type Limits struct {
 	AutomationRunsPerHour int64
 	WebhookTargets        int64
 	ExportJobs            int64
+	Accounts              int64
 	AiTokensPerDay        int64
 	AiOwnTokensPerDay     int64
 }
@@ -243,6 +247,8 @@ func valueOf(overrides repository.Overrides, name string) *int64 {
 		return overrides.WebhookTargets
 	case ExportJobs:
 		return overrides.ExportJobs
+	case Accounts:
+		return overrides.Accounts
 	case AiTokensPerDay:
 		return overrides.AiTokensPerDay
 	case AiOwnTokensPerDay:
@@ -267,6 +273,8 @@ func (l *Limits) set(name string, value int64) {
 		l.WebhookTargets = value
 	case ExportJobs:
 		l.ExportJobs = value
+	case Accounts:
+		l.Accounts = value
 	case AiTokensPerDay:
 		l.AiTokensPerDay = value
 	case AiOwnTokensPerDay:
@@ -289,6 +297,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.WebhookTargets
 	case ExportJobs:
 		return l.ExportJobs
+	case Accounts:
+		return l.Accounts
 	case AiTokensPerDay:
 		return l.AiTokensPerDay
 	case AiOwnTokensPerDay:

@@ -73,7 +73,9 @@ type OidcWriter struct {
 	Flows    repository.OidcFlows
 	External repository.ExternalAccounts
 	Accounts repository.Accounts
-	Relying  provider.Port
+	// People refuses a newcomer past the workspace's people limit; nil enforces none.
+	People  PeopleLimit
+	Relying provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form.
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
@@ -372,6 +374,8 @@ type CompleteOidcSignInCommand struct {
 	UserAgent    string
 	RemoteAddr   string
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // Execute burns the flow, verifies the token, finds or makes the account, and opens the session.
@@ -658,6 +662,14 @@ func (w OidcWriter) settleAccount(
 		}
 
 		if deferNewcomer {
+			// The people limit is asked before the terms are put, so that nobody agrees to terms
+			// for a place there is not; it is asked again where the account is made.
+			if err := w.roomForANewcomer(ctx, scope); err != nil {
+				if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+					return turnedAway(err)
+				}
+				return err
+			}
 			// Validated now, so that an address or a name the account could not take fails before
 			// the person agrees rather than after.
 			valid, err := domain.ProvisionExternal(
@@ -673,6 +685,9 @@ func (w OidcWriter) settleAccount(
 		}
 		provisioned, err := w.provisionNewcomer(ctx, scope, configured, arriving)
 		account = provisioned
+		if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+			return turnedAway(err)
+		}
 		return err
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
@@ -700,6 +715,9 @@ func (w OidcWriter) provisionNewcomer(
 	provisioned, err := domain.ProvisionExternal(
 		w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
 	if err != nil {
+		return domain.Account{}, err
+	}
+	if err := w.roomForANewcomer(ctx, scope); err != nil {
 		return domain.Account{}, err
 	}
 	if err := w.Accounts.Insert(ctx, provisioned); err != nil {
@@ -929,19 +947,15 @@ func (w OidcWriter) connectByMail(
 		link := domain.LinkIntent{
 			ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofMailbox,
 		}
-		armed := false
-		if s.Enrollments != nil {
-			enrollment, err := s.Enrollments.Find(ctx, held.ID)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		factor, err := s.factorHeldAt(ctx, held.ID, cmd.Host)
+		if err != nil {
+			return err
 		}
 		account = held
-		if armed {
+		if factor.any() {
 			next, err := w.handOnToTheFactor(ctx, scope, held, domain.PendingCredential{
 				UserAgent: cmd.UserAgent, IPClass: domain.IPClass(cmd.RemoteAddr), Link: &link,
-			}, now)
+			}, factor, now)
 			if err != nil {
 				return err
 			}
@@ -984,6 +998,17 @@ type turnedAwayError struct{ cause error }
 
 func (e turnedAwayError) Error() string { return e.cause.Error() }
 func (e turnedAwayError) Unwrap() error { return e.cause }
+
+// capacityAccounts is the people limit's refusal (quota's `capacity.<quota>`).
+const capacityAccounts = "capacity.accounts"
+
+// roomForANewcomer asks the people limit for one more person, in the arrival's transaction.
+func (w OidcWriter) roomForANewcomer(ctx context.Context, scope persistence.Scope) error {
+	if w.People == nil {
+		return nil
+	}
+	return w.People.Accounts(ctx, scope.TenantID.String(), 1)
+}
 
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
@@ -1207,14 +1232,13 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		return proofPassword, nil
 	}
 
-	armed := false
-	if w.Session.Enrollments != nil {
-		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return proofNone, err
-		}
-		armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+	// No host: what is read here matters only for an invited account, which has never signed in and
+	// so holds no key - the app alone decides, through the one helper every door reads.
+	factor, err := w.Session.factorHeldAt(ctx, existing.ID, "")
+	if err != nil {
+		return proofNone, err
 	}
+	armed := factor.any()
 	// An invited account's provider identities were connected on a provider's word alone, before
 	// any second proof: they are not a credential, and activating the account drops them
 	// (ADR-0078 §1).
@@ -1608,6 +1632,7 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The peer's address; only its network class is ever recorded."},
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the state's workspace, never overrule it."},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignedInAction, TargetType: sessionTarget,
@@ -1629,6 +1654,7 @@ func (h CompleteOidcSignIn) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

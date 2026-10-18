@@ -62,10 +62,13 @@ func (s *quotaStoreFake) SetOverrides(
 
 type quotaUsageFake struct{}
 
-func (quotaUsageFake) Items(context.Context) (int64, error)          { return 3, nil }
-func (quotaUsageFake) MediaBytes(context.Context) (int64, error)     { return 0, nil }
-func (quotaUsageFake) WebhookTargets(context.Context) (int64, error) { return 0, nil }
-func (quotaUsageFake) LiveExports(context.Context) (int64, error)    { return 0, nil }
+func (quotaUsageFake) Items(context.Context) (int64, error)                 { return 3, nil }
+func (quotaUsageFake) MediaBytes(context.Context) (int64, error)            { return 0, nil }
+func (quotaUsageFake) WebhookTargets(context.Context) (int64, error)        { return 0, nil }
+func (quotaUsageFake) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (quotaUsageFake) Accounts(context.Context) (int64, error)              { return 0, nil }
+func (quotaUsageFake) LockPeople(context.Context) error                     { return nil }
+func (quotaUsageFake) InvitationOpen(context.Context, string) (bool, error) { return false, nil }
 func (quotaUsageFake) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }

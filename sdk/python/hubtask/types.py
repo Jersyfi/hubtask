@@ -229,7 +229,7 @@ class Session(TypedDict, total=False):
     user_agent: str | None
     ip_class: str | None
     current: Required[bool]
-    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET", "PASSKEY"] | None
+    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "PASSWORD_PASSKEY", "OIDC", "INVITATION", "RESET", "PASSKEY"] | None
     signed_in_provider: str | None
 
 class SessionTokens(TypedDict, total=False):
@@ -875,7 +875,9 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "PASSKEY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
+    passkey_options: "PasskeyAssertionOptions"
+    passkey_setup: bool
     password_rules: "PasswordRules"
     email: str | None
     provider_name: str | None
@@ -900,6 +902,10 @@ class SignInCompletion(TypedDict, total=False):
     pending_token: Required[str]
     code: str | None
     recovery_code: str | None
+    raw_id: str | None
+    client_data_json: str | None
+    authenticator_data: str | None
+    signature: str | None
 
 class TotpEnrollmentStart(TypedDict, total=False):
     """Empty for a signed-in caller; the pending credential for an enforcement sign-in. A body because the credential authenticates the call and travels nowhere else."""
@@ -1125,7 +1131,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "accounts"]]
     limit: Required[int]
     used: int | None
     ratio: float | None
@@ -1144,6 +1150,7 @@ class TenantQuotas(TypedDict, total=False):
     automation_runs_per_hour: int | None
     webhook_targets: int | None
     export_jobs: int | None
+    accounts: int | None
     ai_tokens_per_day: int | None
 
 class TenantDeletionScheduled(TypedDict, total=False):
@@ -1205,12 +1212,16 @@ class OauthGrant(TypedDict, total=False):
     last_used_at: str | None
 
 class StepUpRequest(TypedDict, total=False):
-    """Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
+    """Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
     password: str | None
     code: str | None
     recovery_code: str | None
     state: str | None
     authorization_code: str | None
+    raw_id: str | None
+    client_data_json: str | None
+    authenticator_data: str | None
+    signature: str | None
 
 class ConnectedIdentity(TypedDict, total=False):
     """One provider identity connected to the caller's account."""
@@ -1251,6 +1262,23 @@ class PasskeyAssertion(TypedDict, total=False):
     signature: Required[str]
     user_handle: Required[str]
 
+class PasskeyAssertionOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form."""
+    public_key: Required[dict[str, Any]]
+    expires_at: Required[str]
+
+class PasskeyEnrollmentStart(TypedDict, total=False):
+    pending_token: Required[str]
+
+class PasskeyEnrollment(TypedDict, total=False):
+    """The `ENROLL` step's credential, what the ceremony answered, and the name."""
+    pending_token: Required[str]
+    name: Required[str]
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    attestation_object: Required[str]
+    transports: list["PasskeyTransport"]
+
 class PasskeyRegistrationOptions(TypedDict, total=False):
     """The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
     public_key: Required["PasskeyCreationOptions"]
@@ -1285,6 +1313,13 @@ class PasskeyRegistered(TypedDict, total=False):
     passkey: Required["Passkey"]
     recovery_codes: list[str]
 
+class PasskeyEnrolled(TypedDict, total=False):
+    """A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed."""
+    passkey: Required["Passkey"]
+    recovery_codes: list[str]
+    tokens: "SessionTokens" | Any
+    challenge: "MfaChallenge" | Any
+
 class ProviderConnectStart(TypedDict, total=False):
     provider_id: Required[str]
 
@@ -1309,7 +1344,7 @@ class ProviderStepUpAuthorization(TypedDict, total=False):
 class StepUpGrant(TypedDict, total=False):
     step_up_token: Required[str]
     expires_at: Required[str]
-    method: Required[Literal["PASSWORD", "TOTP", "RECOVERY", "PROVIDER"]]
+    method: Required[Literal["PASSWORD", "TOTP", "PASSKEY", "RECOVERY", "PROVIDER"]]
 
 class MfaDisable(TypedDict, total=False):
     password: str

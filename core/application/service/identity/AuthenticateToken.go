@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -221,7 +222,10 @@ func (a AuthenticateToken) executeSession(
 		// own session carries every declared scope, because it is the person.
 		scopes := a.SessionScopes
 		if credential.Session.Scopes != nil {
-			scopes = credential.Session.Scopes
+			// Cut to what a consent may hand out: a grant stored before the consent refused the
+			// control plane would otherwise carry it unbounded, since the register bounds tokens.
+			scopes = slices.DeleteFunc(slices.Clone(credential.Session.Scopes),
+				func(scope string) bool { return !Consentable(scope) })
 		} else {
 			scopes = a.elevatedScopes(ctx, credential.Session, now, scopes)
 		}
@@ -278,17 +282,14 @@ func (a AuthenticateToken) elevatedScopes(
 		return scopes
 	}
 
+	// The whole control plane and not its subset: the hour is a person changing a switch, and the
+	// narrow scope would add nothing beside the full one.
+	if slices.Contains(scopes, operatorScope) {
+		return scopes
+	}
 	raised := make([]string, 0, len(scopes)+1)
 	raised = append(raised, scopes...)
-	for _, scope := range raised {
-		if adminScopes[scope] {
-			return raised
-		}
-	}
-	for scope := range adminScopes {
-		raised = append(raised, scope)
-	}
-	return raised
+	return append(raised, operatorScope)
 }
 
 // boundedScopes is the register's second check (ADR-0070 §1): the control plane's scope is dropped

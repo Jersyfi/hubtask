@@ -241,7 +241,7 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Bulk operations per request | 500 | 500 |
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
-| People per workspace (decided for PL, §4.2) | Unlimited | Unlimited |
+| People per workspace (§4.2) | Unlimited | Unlimited |
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 
@@ -313,8 +313,7 @@ never rows — the boundary is a database policy, not a role.
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
 provisioning on a plan, finding a workspace by the platform's reference, the sign-in rule and
 legal links resolved through the plan ([identity.md](./identity.md) §18), what a plan leaves out,
-the limits (§4) and the AI rule. Not built yet: the people limit and the account link - until they
-merge, §4 and §4.1 describe what a workspace meets there.
+the limits (§4) with the people limit, and the AI rule. Not built yet: the account link.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
@@ -358,8 +357,11 @@ failed (automation.md §2.0). No entry of the set reaches export, deletion, acce
 accessibility, or a door — REST, MCP, `hubctl`, tokens, the calendar feed (P-08).
 
 **Downgrade.** A plan with a lower limit refuses the next creation past it and removes nothing
-(P-03). The people limit (§4) counts active and managed accounts and open invitations, never service
-accounts, and refuses the next invitation, managed account or account a provider would create.
+(P-03). The people limit (§4) counts active, restricted and managed accounts and open invitations -
+an invitation whose link ran out frees its place until it is renewed - never service accounts, and
+refuses the next invitation, renewal, managed account or account a provider would create, under a
+lock per workspace so the last place is given once. Restoring a backup and the first owner are not
+checked.
 
 **Doors and record.** Plans are created, changed, removed and assigned on the `/instance` screens,
 with `hubctl admin plan`, through `/admin/plans` and in the instance file, with the same refusals; a
@@ -378,7 +380,7 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order, finding, and the events with their feed and subscriptions; the credential and the use are not
+order, finding, the credential, and the events with their feed and subscriptions; the use is not
 built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
@@ -386,8 +388,10 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
 
 * **Its credential.** A service account in the operator register, with a token carrying
   `admin:provisioning` ([api-guidelines.md](./api-guidelines.md)) rather than all of
-  `admin:tenants`. It may request a deletion without a step-up, sending the typed name; the grace,
-  the cancellation, the export and the legal-hold refusal of §5 stay.
+  `admin:tenants`, admitted by the verbs that declare it and refused everything else. It may request a
+  deletion without a step-up, sending the typed name, when the register holds its own row as a
+  service account's; the grace, the cancellation (the operator's), the export and the legal-hold
+  refusal of §5 stay.
 * **Naming.** A plan's short name never changes and is never reused once created; it is what the
   platform maps its products to. A workspace may carry the platform's own reference
   (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,
@@ -445,8 +449,8 @@ stateDiagram-v2
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
 Deleting a tenant demands a step-up and the typed tenant name — from a person; a purchase
-platform's service account that is a registered operator sends the typed name without one (decided
-for PL, not built, §4.3). In single mode the one workspace is
+platform's service account that is a registered operator sends the typed name without one (§4.3); a
+person, an agent and the empty register's owner still give one. In single mode the one workspace is
 the installation and holds every operator: suspending it and requesting its deletion are refused
 (`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
 and cancelling stay open in every mode. A workspace that got there anyway - before the refusal, or

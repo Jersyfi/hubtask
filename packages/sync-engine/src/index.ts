@@ -78,6 +78,8 @@ export type {
   PasskeyRegistered,
   PasskeySignInOptions,
   PasskeyAssertion,
+  PasskeyAssertionOptions,
+  PasskeyEnrolled,
   ActivityEntry,
   ActivityPage,
   Assignment,

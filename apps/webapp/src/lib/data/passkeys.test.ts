@@ -18,6 +18,8 @@ import {
   fromBase64Url,
   isAtRelyingParty,
   isStale,
+  keyAnswerOf,
+  keyRequestOptionsOf,
   nameFits,
   registrationOf,
   removalOf,
@@ -183,4 +185,33 @@ test('the sign-in options become the browser’s, in the field or asked directly
   assert.equal(await canOfferInField({}), false);
   assert.equal(await canOfferInField({ PublicKeyCredential: { isConditionalMediationAvailable: async () => true } }), true);
   assert.equal(await canOfferInField({ PublicKeyCredential: { isConditionalMediationAvailable: async () => { throw new Error('no'); } } }), false);
+});
+
+test('a known account’s key is asked with its own credentials, and answers without a handle', () => {
+  const asked = keyRequestOptionsOf({
+    expires_at: '2099-01-01T00:05:00Z',
+    public_key: {
+      rpId: 'acme.hubtask.example', challenge: 'KioqKg', timeout: 300000, userVerification: 'preferred',
+      allowCredentials: [{ type: 'public-key', id: 'C-c', transports: ['usb'] }],
+    },
+  });
+  assert.equal(asked.mediation, 'optional');
+  assert.equal(asked.publicKey?.userVerification, 'preferred', 'presence is enough for a second factor');
+  const allowed = asked.publicKey?.allowCredentials ?? [];
+  assert.equal(allowed.length, 1);
+  assert.deepEqual([...new Uint8Array(allowed[0]?.id as ArrayBuffer)], [11, 231]);
+  assert.deepEqual(allowed[0]?.transports, ['usb']);
+
+  assert.deepEqual(
+    keyAnswerOf({
+      rawId: new Uint8Array([1, 2]).buffer,
+      response: {
+        clientDataJSON: new Uint8Array([123, 125]).buffer,
+        authenticatorData: new Uint8Array([9]).buffer,
+        signature: new Uint8Array([48]).buffer,
+        userHandle: null,
+      },
+    }),
+    { raw_id: 'AQI', client_data_json: 'e30', authenticator_data: 'CQ', signature: 'MA' },
+  );
 });

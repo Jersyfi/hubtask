@@ -50,6 +50,29 @@ SELECT coalesce(sum(byte_size), 0)::bigint FROM media_object WHERE deleted_at IS
 -- name: CountWebhookTargets :one
 SELECT count(*) FROM webhook_subscription;
 
+-- name: CountTenantPeople :one
+-- The people limit's count (multi-tenancy.md §4.2): active, restricted and managed accounts and the
+-- invitations still open. A service account is no person, and an invitation whose link ran out has
+-- freed its place until it is renewed.
+SELECT count(*) FROM account
+WHERE kind = 'USER' AND deleted_at IS NULL
+  AND (status IN ('ACTIVE', 'RESTRICTED')
+       OR (status = 'INVITED' AND (redemption_expires_at IS NULL OR redemption_expires_at > now())));
+
+-- name: InvitationIsOpen :one
+-- Whether the people count holds this invitation: the same condition CountTenantPeople reads.
+SELECT EXISTS (
+  SELECT 1 FROM account
+  WHERE id = $1 AND kind = 'USER' AND deleted_at IS NULL AND status = 'INVITED'
+    AND (redemption_expires_at IS NULL OR redemption_expires_at > now())
+);
+
+-- name: LockTenantPeople :exec
+-- Taken by the people limit's guard, inside the transaction that creates a person and before it
+-- counts: two creations at the last place would otherwise each see room. Transaction-scoped, per
+-- tenant, like the owners' lock (Identity.sql); taken before the audit chain's, never after it.
+SELECT pg_advisory_xact_lock(hashtext('people:' || current_tenant_id()::text));
+
 -- name: CountTenantRunsSince :one
 -- CountRunsSince's reasoning, without its rule predicate: the tenant's whole hour, THROTTLED
 -- excluded - counting the refusals would make the bound tighten on itself.

@@ -112,3 +112,12 @@ func TestALiveLockIsWaitedFor(t *testing.T) {
 		t.Error("releasing a refused lock removed the holder's lock")
 	}
 }
+
+// A pull request stacked on another branch is compared with that branch, in the description's check
+// as in every gate: its record comes after the first commit of the branch beneath.
+func TestTheDescriptionIsComparedWithTheGivenBase(t *testing.T) {
+	stacked := descriptionStep("origin/claude/beneath", "body.md")
+	if !strings.Contains(stacked.command, "BASE="+strconv.Quote("origin/claude/beneath")) || strings.Contains(stacked.command, "origin/main") {
+		t.Errorf("the description's check runs %q", stacked.command)
+	}
+}

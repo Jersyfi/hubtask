@@ -124,6 +124,7 @@ func Standings(
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour != nil,
 		WebhookTargets:        overrides.WebhookTargets != nil,
 		ExportJobs:            overrides.ExportJobs != nil,
+		Accounts:              overrides.Accounts != nil,
 		AiTokensPerDay:        overrides.AiTokensPerDay != nil,
 		AiOwnTokensPerDay:     overrides.AiOwnTokensPerDay != nil,
 	}
@@ -132,6 +133,7 @@ func Standings(
 		MediaBytes:     usage.MediaBytes,
 		WebhookTargets: usage.WebhookTargets,
 		ExportJobs:     usage.LiveExports,
+		Accounts:       usage.Accounts,
 		AutomationRunsPerHour: func(ctx context.Context) (int64, error) {
 			return usage.AutomationRunsSince(ctx, now.Add(-time.Hour))
 		},

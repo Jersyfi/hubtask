@@ -77,7 +77,7 @@ type MoveTenantPlan struct {
 func (h MoveTenantPlan) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd MoveTenantPlanCommand,
 ) (MovedTenant, error) {
-	if err := h.Writer.authorize(ctx, actor); err != nil {
+	if err := h.Writer.authorize(ctx, actor, platformScopes...); err != nil {
 		return MovedTenant{}, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -164,6 +164,7 @@ func (h MoveTenantPlan) Execute(
 
 // exceeded answers the counted capacities above the limit in force after the move. Rates and day
 // budgets pass with the hour or the day, and running exports end; at the limit is not over it.
+// People are counted as the people limit counts them (§4.2).
 func (h MoveTenantPlan) exceeded(ctx context.Context, levels quotaservice.Levels) ([]LimitExceeded, error) {
 	exceeded := []LimitExceeded{}
 	if h.Usage == nil {
@@ -177,6 +178,7 @@ func (h MoveTenantPlan) exceeded(ctx context.Context, levels quotaservice.Levels
 		{quotaservice.Items, h.Usage.Items},
 		{quotaservice.MediaBytes, h.Usage.MediaBytes},
 		{quotaservice.WebhookTargets, h.Usage.WebhookTargets},
+		{quotaservice.Accounts, h.Usage.Accounts},
 	} {
 		limit := limits.Of(counted.quota)
 		if limit == quotaservice.Unlimited {
@@ -226,6 +228,7 @@ func exceptionsOf(overrides quotarepo.Overrides) []string {
 		quotaservice.AutomationRunsPerHour: overrides.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        overrides.WebhookTargets,
 		quotaservice.ExportJobs:            overrides.ExportJobs,
+		quotaservice.Accounts:              overrides.Accounts,
 		quotaservice.AiTokensPerDay:        overrides.AiTokensPerDay,
 	}
 	kept := []string{}
@@ -248,6 +251,7 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 			"keeps an operator's exception. Multi mode only.",
 		SideEffects: "Writes the workspace's plan, its trail and the instance journal.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{Name: "plan", Kind: usecase.KindString,
