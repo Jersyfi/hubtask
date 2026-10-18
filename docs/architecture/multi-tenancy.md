@@ -240,7 +240,7 @@ ceiling; the rate as `429` with `Retry-After`. The approach to a ceiling is aler
 | Bulk operations per request | 500 | 500 |
 | Automation causality depth | 5 | 5 |
 | Concurrent export jobs | 2 | 5 |
-| People per workspace (decided for PL, §4.2) | Unlimited | Unlimited |
+| People per workspace (§4.2) | Unlimited | Unlimited |
 | AI tokens per day, offered models | 200,000 | Unlimited |
 | AI tokens per day, the workspace's own model | Unlimited (the workspace's own setting) | Unlimited (the workspace's own setting) |
 
@@ -312,8 +312,7 @@ never rows — the boundary is a database policy, not a role.
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
 provisioning on a plan, finding a workspace by the platform's reference, the sign-in rule and
 legal links resolved through the plan ([identity.md](./identity.md) §18), what a plan leaves out,
-the limits (§4) and the AI rule. Not built yet: the people limit and the account link - until they
-merge, §4 and §4.1 describe what a workspace meets there.
+the limits (§4) with the people limit, and the AI rule. Not built yet: the account link.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
@@ -357,8 +356,11 @@ failed (automation.md §2.0). No entry of the set reaches export, deletion, acce
 accessibility, or a door — REST, MCP, `hubctl`, tokens, the calendar feed (P-08).
 
 **Downgrade.** A plan with a lower limit refuses the next creation past it and removes nothing
-(P-03). The people limit (§4) counts active and managed accounts and open invitations, never service
-accounts, and refuses the next invitation, managed account or account a provider would create.
+(P-03). The people limit (§4) counts active, restricted and managed accounts and open invitations -
+an invitation whose link ran out frees its place until it is renewed - never service accounts, and
+refuses the next invitation, renewal, managed account or account a provider would create, under a
+lock per workspace so the last place is given once. Restoring a backup and the first owner are not
+checked.
 
 **Doors and record.** Plans are created, changed, removed and assigned on the `/instance` screens,
 with `hubctl admin plan`, through `/admin/plans` and in the instance file, with the same refusals; a

@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-03, P-07, P-11]
 state: partial
 tasks: [H-08, SI-17, PL-03, PL-04]
-checked_by: [core/application/service/admin/Quotas_test.go, core/application/service/quota/Quota_test.go, test/integration/plan_limits_test.go, test/integration/plan_rate_test.go, presentation/rest/QuotaController_test.go, apps/webapp/e2e/quotas.test.mjs, docs/evidence/PL-03-2026-10-17.md]
+checked_by: [core/application/service/admin/Quotas_test.go, core/application/service/quota/Quota_test.go, test/integration/plan_limits_test.go, test/integration/plan_rate_test.go, presentation/rest/QuotaController_test.go, apps/webapp/e2e/quotas.test.mjs, docs/evidence/PL-03-2026-10-17.md, core/application/service/identity/PeopleLimit_test.go, test/integration/people_limit_test.go, cmd/server/PeopleWiring_test.go, docs/evidence/PL-04-2026-10-18.md]
 ---
 
 # Set limits for workspaces, and see them before they hurt
@@ -47,4 +47,4 @@ limit, the next new entry is refused with a sentence naming the limit; everythin
 
 ## Today
 
-* Check 5: not met — there is no limit on people.
+* Check 2: not met under a plan — the exception dialog's placeholder shows the installation's value, not the plan's (PL-06).
