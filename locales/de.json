@@ -1438,6 +1438,8 @@
   "app.instance.move_nothing": "Nichts ruht, keine Grenze wird überschritten, und keine Ausnahme bleibt.",
   "app.instance.move_confirm": "Auf „{plan}“ setzen",
   "app.instance.move_confirm_none": "Vom Plan nehmen",
+  "app.instance.new_plan_label": "Plan",
+  "app.instance.new_plan_hint": "Womit der Arbeitsbereich beginnt. Er lässt sich später über „Plan wechseln“ ändern.",
   "app.instance.operators": "Betreiber",
   "app.instance.journal": "Journal",
   "app.instance.reading": "Die Installation wird gelesen",

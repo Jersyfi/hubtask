@@ -101,6 +101,7 @@ async function openInstance(browser, { manifest = MULTI, level = LEVEL, answer =
     if (path === '/admin/plans' && request.method() === 'GET') return route.fulfill({ json: { data: PLANS } });
     if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: TENANTS });
     if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: level });
+    if (path === '/admin/backup-targets' && request.method() === 'GET') return route.fulfill({ json: [] });
     return stub(route);
   });
   await context.addInitScript(() => {
@@ -348,4 +349,58 @@ test('chromium: a move somebody overtook is refused and says so', async (t) => {
   await dialog.getByRole('combobox', { name: 'Plan' }).selectOption('-');
   await dialog.getByText('The workspace changed while you were editing; read it again.').waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByRole('button', { name: 'Take it off its plan' }).count(), 0, 'a refused dry run offers the move');
+});
+
+test('chromium: a new workspace starts without a plan among several, and on the one chosen', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === '/admin/tenants' && request.method() === 'POST') {
+        const body = request.postDataJSON();
+        sent.push(body);
+        return route.fulfill({
+          status: 201,
+          json: {
+            id: '01936f2a-7c1e-7000-8000-0000000035a9', slug: body.slug, display_name: body.display_name, status: 'ACTIVE',
+            created_at: '2026-10-18T00:00:00Z', plan: body.plan ?? null, version: 1,
+            owner_account_id: '01936f2a-7c1e-7000-8000-0000000035b9', owner_redemption_token: 'e2e-token',
+            default_hub_id: '01936f2a-7c1e-7000-8000-0000000035c9', example_collection_id: '01936f2a-7c1e-7000-8000-0000000035d9',
+          },
+        });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  const plan = dialog.getByRole('combobox', { name: 'Plan' });
+  assert.equal(await plan.inputValue(), '', 'among three plans, one was chosen for the operator');
+  assert.deepEqual(await plan.locator('option').allInnerTexts(), ['Without a plan', 'Private', 'Family', 'Business']);
+  await dialog.getByRole('textbox', { name: 'Address', exact: true }).fill('familie-weber');
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Familie Weber');
+  await dialog.getByRole('textbox', { name: 'The owner\'s email address' }).fill('weber@example.org');
+  await plan.selectOption('family');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].plan, 'family');
+});
+
+test('chromium: where the installation has one plan, a new workspace starts on it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) =>
+      path === '/admin/plans' && request.method() === 'GET' ? route.fulfill({ json: { data: [PLANS[1]] } }) : undefined,
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
+  await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
+  assert.equal(await page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).inputValue(), 'family');
 });

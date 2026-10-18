@@ -70,6 +70,10 @@
   let slug = $state('');
   let displayName = $state('');
   let ownerEmail = $state('');
+  /** The plan a new workspace starts on; empty for none. */
+  let newPlan = $state('');
+  /** Whether the plan field was preset yet: the plans may arrive after the dialog opened. */
+  let isPlanPreset = $state(false);
   let ownerName = $state('');
   // What a deletion must be told, and what an export and the quotas need.
   let confirmation = $state('');
@@ -87,6 +91,12 @@
     // "the installation's default" is not a helpful sentence without the number.
     const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
     return () => stops.forEach((stop) => stop());
+  });
+  // A New workspace opened before the plans were read is preset once they are, as it would have been.
+  $effect(() => {
+    if (acting?.kind !== 'new' || isPlanPreset || plans.state.status !== 'ready') return;
+    isPlanPreset = true;
+    newPlan = untrack(() => (plans.all.length === 1 ? (plans.all[0]?.name ?? '') : ''));
   });
   // The plans, where there are any to put a workspace on (multi-tenancy.md §4.2).
   $effect(() => {
@@ -159,6 +169,9 @@
       displayName = '';
       ownerEmail = '';
       ownerName = '';
+      // One plan is the installation's plan; among several, none is the choice nobody made.
+      newPlan = plans.all.length === 1 ? (plans.all[0]?.name ?? '') : '';
+      isPlanPreset = plans.state.status === 'ready';
     }
   }
 
@@ -409,6 +422,7 @@
             display_name: displayName.trim(),
             owner_email: ownerEmail.trim(),
             ...(ownerName.trim() === '' ? {} : { owner_display_name: ownerName.trim() }),
+            ...(newPlan === '' ? {} : { plan: newPlan }),
           });
         })}
     >
@@ -429,6 +443,18 @@
     <Input label={t('app.instance.name_label')} bind:value={displayName} autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_email_label')} hint={t('app.instance.owner_email_hint')} bind:value={ownerEmail} type="email" autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_name_label')} bind:value={ownerName} autocomplete="off" />
+    {#if hasPlans}
+      <Select
+        label={t('app.instance.new_plan_label')}
+        hint={t('app.instance.new_plan_hint')}
+        options={[
+          { value: '', label: t('app.instance.plan_none') },
+          ...plans.all.map((plan) => ({ value: plan.name, label: plan.display_name })),
+        ]}
+        bind:value={newPlan}
+        error={failure?.fields.get('/plan')}
+      />
+    {/if}
   </Stack>
 </Dialog>
 

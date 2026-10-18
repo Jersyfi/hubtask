@@ -2065,6 +2065,8 @@
   "app.instance.move_nothing": "Nothing rests, no limit is exceeded, and no exception stays.",
   "app.instance.move_confirm": "Put it on {plan}",
   "app.instance.move_confirm_none": "Take it off its plan",
+  "app.instance.new_plan_label": "Plan",
+  "app.instance.new_plan_hint": "What the workspace starts on. It can be changed later under Change plan.",
   "app.instance.operators": "Operators",
   "app.instance.journal": "Journal",
   "app.instance.reading": "Reading the installation",
