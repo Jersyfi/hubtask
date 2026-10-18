@@ -7,7 +7,7 @@ deployments: [D5, D6]
 serves: [P-08, P-15]
 state: partial
 tasks: [SI-05, SC-05, PL-10]
-checked_by: [apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminElevate_test.go, core/application/service/identity/AuthenticateRegister_test.go, docs/evidence/SC-05-2026-10-12.md, apps/webapp/e2e/admintoken.test.mjs, docs/evidence/SC-15-D4-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md, core/application/service/admin/ProvisioningScope_test.go, test/security/provisioning_scope_test.go, core/application/service/identity/ProvisioningScope_test.go, cmd/hubctl/AdminProvisioning_test.go]
+checked_by: [apps/webapp/e2e/instanceoperators.test.mjs, cmd/hubctl/AdminElevate_test.go, core/application/service/identity/AuthenticateRegister_test.go, docs/evidence/SC-05-2026-10-12.md, apps/webapp/e2e/admintoken.test.mjs, docs/evidence/SC-15-D4-2026-10-13.md, docs/evidence/SC-15-D5-2026-10-13.md, core/application/service/admin/ProvisioningScope_test.go, test/security/provisioning_scope_test.go, core/application/service/identity/ProvisioningScope_test.go, cmd/hubctl/AdminProvisioning_test.go, docs/evidence/PL-10-2026-10-18.md]
 ---
 
 # Let a purchase platform provision workspaces with its own credential

@@ -31,6 +31,7 @@
     Checkbox,
     Input,
     OneTimeSecret,
+    Radio,
     Spinner,
     Stack,
     Table,
@@ -57,10 +58,21 @@
    * and its subset for a purchase platform, both named by this prefix in the contract.
    */
   const OPERATOR_SCOPE_PREFIX = 'admin:';
+  const PROVISIONING_SCOPE = 'admin:provisioning';
+  const OPERATOR_SCOPE = 'admin:tenants';
+  /** The installation choice's "nothing": a value no scope can have. */
+  const NO_INSTALLATION = 'none';
+
+  // The installation is one choice rather than two checkboxes, because the two scopes are a subset
+  // and its whole: ticking both says nothing more than the whole. A service account's panel
+  // preselects the narrow scope - it is how a purchase platform's token is made - and a person's
+  // own panel preselects nothing, so an ordinary token stays one (the owner's word on the preview).
+  const installationDefault = $derived(accountId ? PROVISIONING_SCOPE : NO_INSTALLATION);
 
   let name = $state('');
   let expiresAt = $state('');
   let chosen = $state<string[]>([]);
+  let installation = $state(untrack(() => installationDefault));
   let minted = $state<MintedToken | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
@@ -86,9 +98,28 @@
    * refusal (P-05). The register decides whose mint it is - the person creating the token - so a
    * service account's panel follows the same answer.
    */
-  const scopes = $derived(
-    (manifest.value?.token_scopes ?? []).filter((scope) => !scope.startsWith(OPERATOR_SCOPE_PREFIX) || manifest.isInstanceReachable),
+  const declared = $derived(manifest.value?.token_scopes ?? []);
+  const scopes = $derived(declared.filter((scope) => !scope.startsWith(OPERATOR_SCOPE_PREFIX)));
+
+  /**
+   * The installation's scopes as one choice, drawn only for somebody the register names and only with
+   * the scopes this installation declares - the reasoning above, for the same two.
+   */
+  const installationOptions = $derived(
+    manifest.isInstanceReachable
+      ? [
+          { value: PROVISIONING_SCOPE, label: t('app.tokens.installation_provisioning'), hint: t('app.tokens.installation_provisioning_hint') },
+          { value: OPERATOR_SCOPE, label: t('app.tokens.installation_all'), hint: t('app.tokens.installation_all_hint') },
+        ].filter((option) => declared.includes(option.value))
+      : [],
   );
+
+  /** The installation scope the token will carry, if the choice offered one and it was taken. */
+  const installationScope = $derived(
+    installationOptions.some((option) => option.value === installation) ? installation : undefined,
+  );
+
+  const requested = $derived(installationScope ? [...chosen, installationScope] : chosen);
 
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
@@ -151,7 +182,7 @@
 
   async function mint(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!name.trim() || !expiresAt || chosen.length === 0) return;
+    if (!name.trim() || !expiresAt || requested.length === 0) return;
 
     failure = undefined;
     isWorking = true;
@@ -160,7 +191,7 @@
       // the person is, so a token chosen for "the 31st" works through their 31st and is listed so.
       minted = await tokens.mint({
         name: name.trim(),
-        scopes: chosen,
+        scopes: requested,
         expiresAt: endOfDayIn(expiresAt, zone) ?? `${expiresAt}T23:59:59Z`,
         accountId,
       });
@@ -168,6 +199,7 @@
       name = '';
       expiresAt = '';
       chosen = [];
+      installation = installationDefault;
     } catch (cause) {
       failure = renderProblem(cause as never, messages);
     } finally {
@@ -312,13 +344,25 @@
           {/if}
         </Stack>
 
+        {#if installationOptions.length > 0}
+          <!-- Absent, not disabled, for somebody the register does not name (P-05). -->
+          <Radio
+            label={t('app.tokens.installation')}
+            options={[
+              { value: NO_INSTALLATION, label: t('app.tokens.installation_none'), hint: t('app.tokens.installation_none_hint') },
+              ...installationOptions,
+            ]}
+            bind:value={installation}
+          />
+        {/if}
+
         <div>
           <Button
             type="submit"
             tone="primary"
             isBusy={isWorking}
             busyLabel={t('app.tokens.minting')}
-            disabledReason={chosen.length === 0 ? t('app.tokens.pick_a_scope') : undefined}
+            disabledReason={requested.length === 0 ? t('app.tokens.pick_a_scope') : undefined}
           >
             {t('app.tokens.mint')}
           </Button>
