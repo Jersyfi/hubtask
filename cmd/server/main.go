@@ -2311,6 +2311,7 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ReadUsage{Writer: instanceWriter, Ledger: postgres.NewUsageRepository(cursors), Tenancy: cfg.Tenancy}.Descriptor(),
 		adminservice.ListPlatformEvents{
 			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
 			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),

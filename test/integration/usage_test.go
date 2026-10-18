@@ -14,7 +14,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // UC-INS-14 checks 4 and 8 (multi-tenancy.md §4.3, migration 0183): a workspace's entries, stored
@@ -209,5 +212,121 @@ func TestCountsOlderThanThirteenMonthsAreSwept(t *testing.T) {
 	}
 	if left != 2 {
 		t.Errorf("%d counts are left, want the two younger ones", left)
+	}
+}
+
+// The control plane's read through the adapter: a page of workspaces, live and purged, under the
+// installation's scope.
+func TestTheUseIsReadThroughTheAdapter(t *testing.T) {
+	ctx := context.Background()
+	admin := adminPool(ctx, t)
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	workspace := seedWorkspace(ctx, t, "read")
+	gone := freshID(t)
+	day := time.Now().UTC().AddDate(0, 0, -2).Format(time.DateOnly)
+	for _, statement := range []string{
+		`INSERT INTO usage_record (tenant_id, period, metric, value, closing) VALUES ('` + workspace.String() + `', '` + day + `', 'items', 9, 4)`,
+		`INSERT INTO usage_archive (tenant_id, period, metric, value, closing) VALUES ('` + gone.String() + `', '` + day + `', 'items', 2, 2)`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = admin.Exec(context.WithoutCancel(ctx), `DELETE FROM usage_archive WHERE tenant_id = $1`, gone.String())
+	})
+	from, _ := time.Parse(time.DateOnly, day)
+	var rows []adminrepo.UsageRow
+	for _, tenant := range []shared.ID{workspace, gone} {
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			read, err := postgres.NewUsageRepository(pageCursors()).Read(ctx, adminrepo.UsageQuery{From: from, To: from, Tenant: tenant, Size: 10})
+			rows = append(rows, read...)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(rows) != 2 || rows[0].Value != 9 || rows[0].Closing == nil || *rows[0].Closing != 4 || rows[0].Purged ||
+		!rows[1].Purged || rows[1].Tenant != gone {
+		t.Errorf("read %+v", rows)
+	}
+}
+
+// Two writers at once, each the day's first: the second waits on the first's day row and adds its
+// delta to it, so the closing count is exact. And the media seal - an UPDATE of byte_size - moves the
+// stored bytes as an upload does.
+func TestTwoWritersAndTheMediaSealAreCounted(t *testing.T) {
+	ctx := context.Background()
+	app, admin := appPool(ctx, t), adminPool(ctx, t)
+	workspace := seedWorkspace(ctx, t, "concurrent")
+	person, hub, collection := freshID(t), freshID(t), freshID(t)
+	for _, statement := range []string{
+		fmt.Sprintf(`INSERT INTO account (id, tenant_id, kind, display_name, status) VALUES ('%s', '%s', 'USER', 'P', 'ACTIVE')`, person, workspace),
+		fmt.Sprintf(`INSERT INTO container (id, tenant_id, type, name, order_key, created_by) VALUES ('%s', '%s', 'HUB', 'Hub', 'a0', '%s')`, hub, workspace, person),
+		fmt.Sprintf(`INSERT INTO container (id, tenant_id, type, parent_id, name, order_key, created_by)
+			VALUES ('%s', '%s', 'COLLECTION', '%s', 'Collection', 'a0', '%s')`, collection, workspace, hub, person),
+	} {
+		// As the owner: no workspace in scope, nothing recorded - the day starts at no entries.
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insertItem := func(tx pgx.Tx) error {
+		id := freshID(t)
+		_, err := tx.Exec(ctx, fmt.Sprintf(`INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key, created_by)
+			VALUES ('%s', '%s', '%s', 'TASK', '/%s/', 1, 'Raced', 'a0', '%s')`, id, workspace, collection, id, person))
+		return err
+	}
+	begin := func() pgx.Tx {
+		t.Helper()
+		tx, err := app.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, `SELECT set_config('app.tenant_id', $1, true)`, workspace.String()); err != nil {
+			t.Fatal(err)
+		}
+		return tx
+	}
+	first := begin()
+	if err := insertItem(first); err != nil {
+		t.Fatal(err)
+	}
+	secondDone := make(chan error, 1)
+	go func() {
+		second := begin()
+		if err := insertItem(second); err != nil {
+			_ = second.Rollback(ctx)
+			secondDone <- err
+			return
+		}
+		secondDone <- second.Commit(ctx)
+	}()
+	time.Sleep(200 * time.Millisecond)
+	if err := first.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-secondDone; err != nil {
+		t.Fatalf("the second writer: %v", err)
+	}
+	var value, closing int64
+	if err := admin.QueryRow(ctx, `SELECT value, closing FROM usage_record WHERE tenant_id = $1 AND metric = 'items'`,
+		workspace.String()).Scan(&value, &closing); err != nil || value != 2 || closing != 2 {
+		t.Errorf("two writers read %d / %d (%v), want 2 / 2", value, closing, err)
+	}
+
+	upload := freshID(t)
+	inRawTenant(ctx, t, app, workspace.String(), true, func(tx pgx.Tx) {
+		if _, err := tx.Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
+			VALUES ($1, $2, 'media/seal', 'text/plain', 0, 'ATTACHMENT', 'PENDING')`, upload.String(), workspace.String()); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tx.Exec(ctx, `UPDATE media_object SET byte_size = 50 WHERE id = $1`, upload.String()); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if err := admin.QueryRow(ctx, `SELECT value, closing FROM usage_record WHERE tenant_id = $1 AND metric = 'media_bytes'`,
+		workspace.String()).Scan(&value, &closing); err != nil || value != 50 || closing != 50 {
+		t.Errorf("the sealed upload reads %d / %d (%v), want 50 / 50", value, closing, err)
 	}
 }
