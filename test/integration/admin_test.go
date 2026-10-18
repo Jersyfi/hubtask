@@ -205,6 +205,19 @@ func TestTheHardDeleteLeavesNothingCountableAndTheNeighbourEverything(t *testing
 		return nil
 	})
 
+	// A day's counts the workspace held (UC-INS-14 check 8): they outlive it as bare numbers.
+	counted := adminPool(ctx, t)
+	if _, err := counted.Exec(ctx, `INSERT INTO usage_record (tenant_id, period, metric, value, closing)
+		VALUES ($1, (now() AT TIME ZONE 'UTC')::date - 1, 'items', 7, 5),
+		       ($1, (now() AT TIME ZONE 'UTC')::date - 1, 'media_bytes', 40, 33),
+		       ($1, (now() AT TIME ZONE 'UTC')::date - 1, 'accounts', 3, 2)
+		ON CONFLICT DO NOTHING`, doomedTenant.String()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = counted.Exec(context.WithoutCancel(ctx), `DELETE FROM usage_archive WHERE tenant_id = $1`, doomedTenant.String())
+	})
+
 	deletion := adminservice.HardDeleteTenant{
 		Tenants: tenants, Purge: postgres.NewTenantPurge(),
 		Journal: postgres.NewInstanceJournal(pageCursors()), Store: store,
@@ -241,6 +254,7 @@ func TestTheHardDeleteLeavesNothingCountableAndTheNeighbourEverything(t *testing
 		"job":             "tenant_id",
 		"idempotency_key": "tenant_id",
 		"automation_rule": "tenant_id",
+		"usage_record":    "tenant_id",
 	} {
 		var count int
 		if err := admin.QueryRow(ctx,
@@ -283,6 +297,23 @@ func TestTheHardDeleteLeavesNothingCountableAndTheNeighbourEverything(t *testing
 		doomedTenant.String(),
 	).Scan(&evidence); err != nil || evidence != 1 {
 		t.Errorf("evidence entries: %d (%v)", evidence, err)
+	}
+
+	// The counts moved to the installation's ledger, by the bare id, the day's highest and closing.
+	var value, closing int64
+	if err := admin.QueryRow(ctx, `SELECT value, closing FROM usage_archive WHERE tenant_id = $1 AND metric = 'items'
+		AND period = (now() AT TIME ZONE 'UTC')::date - 1`,
+		doomedTenant.String()).Scan(&value, &closing); err != nil || value != 7 || closing != 5 {
+		t.Errorf("the archived count reads %d / %d (%v), want 7 / 5", value, closing, err)
+	}
+	// The purge day closes each kept count at 0, its highest the count it began with: a read after
+	// it bills nothing for a workspace that is gone.
+	for metric, began := range map[string]int64{"items": 5, "media_bytes": 33, "accounts": 2} {
+		if err := admin.QueryRow(ctx, `SELECT value, closing FROM usage_archive WHERE tenant_id = $1 AND metric = $2
+			AND period = (now() AT TIME ZONE 'UTC')::date`, doomedTenant.String(), metric).Scan(&value, &closing); err != nil ||
+			value != began || closing != 0 {
+			t.Errorf("the purge day's %s reads %d / %d (%v), want %d / 0", metric, value, closing, err, began)
+		}
 	}
 
 	// A second pass is a quiet nothing: the tenant is gone, and nothing errors.

@@ -355,7 +355,7 @@ func planOutput(view PlanView) usecase.Output {
 	out := instanceLevelOutput(identityrepo.InstanceLevel{
 		Policy: held.Values.Policy, Legal: held.Values.Legal, Quotas: held.Values.Quotas, Ai: held.Values.Ai,
 	})
-	for _, levelOnly := range []string{areaLocalisation, "source", "is_enforced_from_file", "blocklist_file"} {
+	for _, levelOnly := range []string{areaLocalisation, "source", "is_enforced_from_file", "blocklist_file", "metering"} {
 		delete(out, levelOnly)
 	}
 	leftOut := make([]any, 0, len(held.Values.LeftOut))

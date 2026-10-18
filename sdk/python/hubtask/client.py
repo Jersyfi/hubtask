@@ -799,6 +799,10 @@ class Client:
         """The installation's events, read forward"""
         return self._call("GET", "/admin/events", {}, query, {}, None, "none", None, "json")
 
+    def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
+        """The use per workspace, metric and day, for billing"""
+        return self._call("GET", "/admin/usage", {}, query, {}, None, "none", None, "json")
+
     def list_instance_ai_providers(self) -> dict[str, Any]:
         """The AI models this installation offers every workspace"""
         return self._call("GET", "/admin/ai-providers", {}, None, {}, None, "none", None, "json")

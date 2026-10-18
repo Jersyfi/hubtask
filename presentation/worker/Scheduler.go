@@ -52,6 +52,16 @@ type FinishedJobs interface {
 	PurgeFinished(ctx context.Context, before time.Time, batch int) (map[string]int, error)
 }
 
+// UsageSweep removes the use counts older than the day it is given, inside workspaces and in the
+// installation's ledger (multi-tenancy.md §4.3).
+type UsageSweep interface {
+	SweepUsage(ctx context.Context, before time.Time) (int64, error)
+}
+
+// UsageMonths is how long a use count is kept: 13 months, also after the workspace's purge (the
+// data catalogue's `usage_record`).
+const UsageMonths = 13
+
 // FinishedJobPeriod is how long a finished job is kept: the data catalogue's seven days after
 // completion. A payload names people by identifier, which is why the period exists at all.
 const FinishedJobPeriod = 7 * 24 * time.Hour
@@ -144,6 +154,9 @@ type Scheduler struct {
 	// FinishedJobs removes finished jobs past FinishedJobPeriod, on the first tick of every hour.
 	// Nil skips.
 	FinishedJobs FinishedJobs
+	// Usage removes the use counts older than UsageMonths, on the first tick of every day. Nil
+	// skips.
+	Usage UsageSweep
 	// AuditTrail lets the trail's months past their period go, on the first tick of every hour,
 	// and queues the entry each workspace's own trail gets. Nil skips.
 	AuditTrail auditrepo.TrailRetention
@@ -249,6 +262,7 @@ func (s Scheduler) tick(ctx context.Context, wasLeading bool, due time.Time) boo
 	s.dropAgedStreamPartitions(ctx)
 	s.applyOperators(ctx, due)
 	s.purgeFinishedJobs(ctx, due)
+	s.sweepUsage(ctx, due)
 	s.dropAgedAuditPartitions(ctx, due)
 	return true
 }
@@ -370,6 +384,29 @@ func (s Scheduler) purgeFinishedJobs(ctx context.Context, due time.Time) {
 	}
 	for _, state := range finishedJobStates {
 		s.Signals.JobsPurged(ctx, state, int64(purged[state]))
+	}
+}
+
+// sweepUsage keeps the catalogue's 13 months for the use counts: daily and stateless - the first
+// tick of each UTC day - so a new leader keeps the pace, in the installation's scope, where the one
+// door that reaches every workspace's counts answers.
+func (s Scheduler) sweepUsage(ctx context.Context, due time.Time) {
+	if s.Usage == nil {
+		return
+	}
+	day := 24 * time.Hour
+	if due.UTC().Truncate(day).Equal(due.Add(-s.TickInterval).UTC().Truncate(day)) {
+		return
+	}
+	dutyCtx, cancel := context.WithTimeout(ctx, bookkeepingTimeout)
+	defer cancel()
+	before := s.Clock.Now().UTC().Truncate(day).AddDate(0, -UsageMonths, 0)
+	err := s.UnitOfWork.Within(dutyCtx, persistence.SystemScope(), func(txCtx context.Context) error {
+		_, err := s.Usage.SweepUsage(txCtx, before)
+		return err
+	})
+	if err != nil && ctx.Err() == nil {
+		slog.WarnContext(ctx, "the use counts could not be swept", slog.String("error", shared.AsError(err).Code))
 	}
 }
 

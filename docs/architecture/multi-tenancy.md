@@ -70,6 +70,7 @@ copy in `cmd/restore-drill/checks.go`, and this table. A new exception is entere
 | `instance_setting` | Installation configuration every workspace reads (§4.1) | Holds configuration, never personal data; written by one control-plane use case |
 | `plan`, `plan_setting` | The plans every workspace on them reads (§4.2) | Hold configuration, never personal data; written by the control plane's use cases; no `DELETE` on `plan`, so a short name is never reused |
 | `platform_event` | The installation's events for a purchase platform (§4.3): read across every workspace by the control plane, and the `deleted` event outlives its workspace | Identifiers and states only; written beside a control-plane change in its transaction; read only by `GET /admin/events`, behind `admin:tenants` and the register; the reference nulled at the purge, every row swept after 30 days |
+| `usage_archive` | A purged workspace's daily counts (§4.3), kept for 13 months after its row is gone, keyed by the bare id | Counts only, no name and no reference; written by the purge in its own transaction, the only application code that touches it; read by the control plane through `admin_usage()`; swept by `sweep_usage()` |
 
 **Doors through the boundary.** A `SECURITY DEFINER` function is the only way the application role
 reads across tenants. Each is narrow by construction and granted to `hubtask_app` alone:
@@ -84,6 +85,8 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `is_operator`, `operator_roster(caller)`, `enlist_operator`, `dismiss_operator` | The operator register; the roster names only the register's own accounts, and nothing to a caller it does not name | The control plane (§4.1) |
 | `purge_tenant_trail(tenant)` | Deletes one tenant's audit trail | The hard delete only ([audit.md](./audit.md) §3) |
 | `remove_plan(plan, at, actor)` | `REMOVED`, `IN_USE` or `NOT_FOUND` — never a row | Removing a plan, refused while a workspace is on it (§4.2) |
+| `admin_usage(from, to, metric, tenant, after, size)` | One page of workspaces' daily counts, live and purged — numbers, no names | The control plane's use read while metering is on (§4.3) |
+| `sweep_usage(before)` | Deletes every count older than the day it is given, inside workspaces and in `usage_archive` | The scheduler's leader, daily (§4.3) |
 
 **The doors' owner reads across tenants by policy.** `FORCE` binds the owner too, so a door owned
 by a role that is neither superuser nor `BYPASSRLS` — the database an operator brings (§2.1.1) —
@@ -379,7 +382,7 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order, finding, the credential, and the events with their feed; the subscriptions and the use are not
+order, finding, the credential, the events with their feed, and the use; the subscriptions are not
 built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
@@ -415,11 +418,17 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   installation-wide lock held until the transaction ends), so a platform that was down misses
   nothing.
 * **Use.** Recorded per workspace, metric and day; people, storage and entries as the day's highest
-  count, written where the count changes (no job visits workspaces), the rest as sums. Every metric
+  count and its closing count, written where the count changes by triggers that add each
+  statement's delta (no job visits workspaces), the rest as sums. The first write to a count on a
+  day counts afresh, so an invitation whose link ran out - which changes the count with no write -
+  is counted until then. A day without a change carries the closing count forward; the purge day
+  closes a workspace's counts at 0. Every metric
   names its day (UTC, or the workspace's zone for the AI budget) and the read says up to which day it
-  is final. Offered for billing (`GET /admin/usage`) only while the operator switches metering on,
-  off by default. At the purge a workspace's counts move to an installation-level ledger keyed by
-  the bare id and are kept, like every count, for 13 months.
+  is final. Offered for billing (`GET /admin/usage`, `hubctl admin usage`) only while the operator
+  switches metering on (`metering` on the installation level, the instance file, `hubctl admin
+  settings set metering on`), off by default; recorded either way. At the purge a workspace's counts
+  move to `usage_archive`, keyed by the bare id, and are kept, like every count, for 13 months; the
+  scheduler's leader sweeps the older ones daily.
 
 ---
 

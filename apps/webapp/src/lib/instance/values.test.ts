@@ -67,3 +67,9 @@ test("the terms' version is locked exactly when the terms link is, while the for
   const undecided: InstanceSettings = { legal: { terms_version: { ...version, set: false } }, blocklist_file: '' };
   assert.equal(draftEntry(undecided, 'legal', 'terms_version'), undefined);
 });
+
+test('the metering switch travels through a save unchanged', () => {
+  // A `PUT` replaces the level: a document without the switch would switch metering off.
+  assert.equal(documentOf({ metering: true }).metering, true);
+  assert.equal(documentOf({ metering: false }).metering, false);
+});

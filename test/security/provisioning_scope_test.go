@@ -34,11 +34,11 @@ const (
 )
 
 // platformVerbs is UC-INS-06 check 6, as use cases. Written down here on purpose, against the
-// descriptors: the scope is derived from them, so the gate is what notices an eleventh use case
+// descriptors: the scope is derived from them, so the gate is what notices a further use case
 // quietly opened to a platform's token.
 var platformVerbs = []string{
 	"ListPlatformEvents", "ListTenants", "MoveTenantPlan", "ProvisionTenant", "QueryTenants", "ReadTenant",
-	"RequestTenantDeletion", "ResumeTenant", "SuspendTenant", "UpdateTenant", "UpdateTenantQuotas",
+	"ReadUsage", "RequestTenantDeletion", "ResumeTenant", "SuspendTenant", "UpdateTenant", "UpdateTenantQuotas",
 }
 
 func TestSGTheProvisioningScopeAdmitsExactlyThePlatformsVerbs(t *testing.T) {
