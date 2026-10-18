@@ -84,6 +84,9 @@ func (c *RestController) WriteInstanceSettings(w http.ResponseWriter, r *http.Re
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
 	}
+	if body.Metering != nil {
+		in["metering"] = *body.Metering
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), writeInstanceSettingsUseCase, actorOf(r), in)
 	if err != nil {
@@ -214,6 +217,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file
+	}
+	if metering, held := out["metering"].(bool); held {
+		answer.Metering = &metering
 	}
 	if source := out.String("source"); source != "" {
 		answer.Source = &source

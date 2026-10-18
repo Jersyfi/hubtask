@@ -750,6 +750,7 @@ class InstanceSettings(TypedDict, total=False):
     quotas: dict[str, Any]
     ai: dict[str, Any]
     blocklist_file: str
+    metering: bool
     source: str
     is_enforced_from_file: bool
 

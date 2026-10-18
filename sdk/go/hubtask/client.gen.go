@@ -7101,6 +7101,9 @@ type InstanceSettings struct {
 	// **A default, never a lock.** `locked` is always false here and a write that sets one is refused rather than partly obeyed — "eine Instanz gibt einen Standard, nie ein Schloss: ein Unternehmen, das nicht auf Deutsch arbeiten darf, weil der Betreiber es so eingestellt hat, ist ein Produktfehler".
 	Localisation *map[string]InstanceSetting `json:"localisation,omitempty"`
 
+	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
+	Metering *bool `json:"metering,omitempty"`
+
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
