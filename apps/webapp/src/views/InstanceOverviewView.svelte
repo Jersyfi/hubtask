@@ -95,7 +95,6 @@
   const later = [
     { id: 'retention', code: 'app.instance.later_retention' },
     { id: 'backup', code: 'app.instance.later_backup' },
-    { id: 'plans', code: 'app.instance.later_plans' },
   ];
 
   const reading = $derived(instance.overview);

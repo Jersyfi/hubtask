@@ -564,6 +564,17 @@ export type ProvisionedTenant = components['schemas']['ProvisionedTenant'];
 /** A workspace's limits, each absent where the installation's default applies. */
 export type TenantQuotas = components['schemas']['TenantQuotas'];
 /**
+ * A plan: a provider's group of workspaces with its own values, locks and the features it leaves
+ * out (multi-tenancy.md §4.2), and what writing one or moving a workspace onto one takes and answers.
+ */
+export type Plan = components['schemas']['Plan'];
+export type PlanCreate = components['schemas']['PlanCreate'];
+export type PlanChange = components['schemas']['PlanChange'];
+export type PlanFeature = components['schemas']['PlanFeature'];
+export type TenantPlanMove = components['schemas']['TenantPlanMove'];
+export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
+export type LimitExceeded = components['schemas']['LimitExceeded'];
+/**
  * An operator's opening of the password for one workspace (ADR-0078 §3): until when, who asked and
  * why - and what opening one asks for.
  */

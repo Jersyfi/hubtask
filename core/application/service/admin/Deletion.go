@@ -238,8 +238,14 @@ func (h RequestTenantDeletion) Execute(
 	return scheduled, nil
 }
 
-// waivesStepUp answers whether the actor is a service account whose register row is a service
-// account's.
+// waivesStepUp answers whether the actor is a registered service account (registeredServiceAccount).
+func (h RequestTenantDeletion) waivesStepUp(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	return registeredServiceAccount(ctx, h.UnitOfWork, h.Register, actor)
+}
+
+// registeredServiceAccount answers whether the actor is a service account whose register row is a
+// service account's: the one whose step-up the platform's own operations waive (multi-tenancy.md
+// §4.3) - the deletion request and the installation's subscriptions.
 //
 // Both, because either alone is looser than it looks: an actor's kind is "service account" for
 // every account kind but a person's, the stricter reading for a permission and the looser one for
@@ -247,15 +253,18 @@ func (h RequestTenantDeletion) Execute(
 // themselves, and so does an agent. The empty register's owner is no registered operator, so an
 // `OWNER` service account of a private installation is not waved through. Outside the workspace's
 // transaction, as the proof is: the register is the installation's. A register that cannot be read
-// refuses rather than demanding a proof the machine cannot give - and never waives on a guess.
-func (h RequestTenantDeletion) waivesStepUp(ctx context.Context, actor appshared.ActorContext) (bool, error) {
-	if actor.Kind != appshared.ActorServiceAccount || h.Register == nil {
+// refuses rather than demanding a proof the machine cannot give - and never waives on a guess. A nil
+// register waives for nobody.
+func registeredServiceAccount(
+	ctx context.Context, uow persistence.UnitOfWork, register PlatformRegister, actor appshared.ActorContext,
+) (bool, error) {
+	if actor.Kind != appshared.ActorServiceAccount || register == nil {
 		return false, nil
 	}
 	var registered bool
-	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
+	err := uow.WithinReadOnly(ctx, persistence.InstallationScope(),
 		func(ctx context.Context) error {
-			held, err := h.Register.RegisteredServiceAccount(ctx, actor.AccountID)
+			held, err := register.RegisteredServiceAccount(ctx, actor.AccountID)
 			registered = held
 			return err
 		})

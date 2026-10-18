@@ -10506,6 +10506,9 @@ type TenantExportRequest struct {
 
 // TenantPlanMove defines model for TenantPlanMove.
 type TenantPlanMove struct {
+	// DryRun True answers what the move would change - the features that would rest, the limits the workspace would be over, the exceptions that would stay - and writes nothing: no plan, no trail or journal entry, no event. Its `tenant` is the state the move would leave, its version included; a move that follows names the version the caller read, not that one. Send it with an idempotency key of its own.
+	DryRun *bool `json:"dry_run,omitempty"`
+
 	// ExpectedVersion The workspace's version as last read; a stale one is refused.
 	ExpectedVersion *int `json:"expected_version,omitempty"`
 
@@ -10518,10 +10521,10 @@ type TenantPlanMoved struct {
 	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
 	ExceptionsKept []string `json:"exceptions_kept"`
 
-	// FeaturesResting The features the workspace's plan now leaves out.
+	// FeaturesResting The features the workspace's plan now leaves out, or with `dry_run` would.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds - or with `dry_run` would hold - more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }

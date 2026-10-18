@@ -225,7 +225,7 @@ operation checks cannot exist; `GET /meta/capabilities` and the contract list th
   subset of `admin:tenants`, minted and checked against the operator register the same way:
   provisioning, reading, finding and listing workspaces, the platform's reference on one, moving
   them between plans, suspend, resume, a deletion request, a workspace's limit exception, the use,
-  the events, and the installation's subscriptions once they are built — nothing else. An operation admits it by declaring it
+  the events, and the installation's subscriptions — nothing else. An operation admits it by declaring it
   beside its own scope (`usecase.Descriptor.AlsoScope`); a refusal for want of either names
   `admin:provisioning`, the narrowest that would do.
 * No OAuth consent grants an `admin:*` scope or `agent:destructive` (`access.token_scope_unknown`).

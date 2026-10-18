@@ -1090,6 +1090,7 @@ class Plan(TypedDict, total=False):
 class TenantPlanMove(TypedDict, total=False):
     plan: Required[str | None]
     expected_version: int
+    dry_run: bool
 
 class TenantPlanMoved(TypedDict, total=False):
     tenant: Required["AdminTenant"]

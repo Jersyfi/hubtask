@@ -1562,6 +1562,9 @@ func run() error {
 		Instance: instanceWriter, Subscriptions: postgres.NewPlatformSubscriptionRepository(),
 		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
 		StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Tenancy: cfg.Tenancy,
+		// The operator register: a registered service account - the platform - runs its own
+		// subscription without the step-up it cannot give, as its deletion request does.
+		Register: postgres.NewOperatorRepository(),
 		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
 		// one that names none leaves them to the API and the screen.
 		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),

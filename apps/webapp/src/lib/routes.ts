@@ -109,6 +109,8 @@ export const ROUTES: readonly Route[] = [
   // refusal rather than a list that is quietly empty.
   { name: 'instance', pattern: '/instance', area: 'instance' },
   { name: 'instance-workspaces', pattern: '/instance/workspaces', area: 'instance' },
+  { name: 'instance-plans', pattern: '/instance/plans', area: 'instance' },
+  { name: 'instance-plan', pattern: '/instance/plans/:name', area: 'instance' },
   { name: 'instance-settings', pattern: '/instance/settings', area: 'instance' },
   { name: 'instance-providers', pattern: '/instance/providers', area: 'instance' },
   { name: 'instance-ai', pattern: '/instance/ai', area: 'instance' },

@@ -10512,6 +10512,9 @@ type TenantExportRequest struct {
 
 // TenantPlanMove defines model for TenantPlanMove.
 type TenantPlanMove struct {
+	// DryRun True answers what the move would change - the features that would rest, the limits the workspace would be over, the exceptions that would stay - and writes nothing: no plan, no trail or journal entry, no event. Its `tenant` is the state the move would leave, its version included; a move that follows names the version the caller read, not that one. Send it with an idempotency key of its own.
+	DryRun *bool `json:"dry_run,omitempty"`
+
 	// ExpectedVersion The workspace's version as last read; a stale one is refused.
 	ExpectedVersion *int `json:"expected_version,omitempty"`
 
@@ -10524,10 +10527,10 @@ type TenantPlanMoved struct {
 	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
 	ExceptionsKept []string `json:"exceptions_kept"`
 
-	// FeaturesResting The features the workspace's plan now leaves out.
+	// FeaturesResting The features the workspace's plan now leaves out, or with `dry_run` would.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds - or with `dry_run` would hold - more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }
@@ -13895,7 +13898,7 @@ type ClientInterface interface {
 
 	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
 	//
-	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
 	ListPlatformSubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -13903,7 +13906,7 @@ type ClientInterface interface {
 	// CreatePlatformSubscriptionWithBody Subscribe a purchase platform to the installation's events
 	//
 	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13913,7 +13916,7 @@ type ClientInterface interface {
 	// CreatePlatformSubscription Subscribe a purchase platform to the installation's events
 	//
 	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -13922,19 +13925,21 @@ type ClientInterface interface {
 
 	// DeletePlatformSubscription Unsubscribe
 	//
-	// The subscription goes with its deliveries; the events stay readable.
+	// The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
 	DeletePlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadPlatformSubscription One subscription of the installation
 	//
+	// Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	//
 	// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
 	ReadPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdatePlatformSubscriptionWithBody Change a subscription's target, or pause and resume it
 	//
-	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13943,7 +13948,7 @@ type ClientInterface interface {
 
 	// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody Change a subscription's target, or pause and resume it
 	//
-	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/merge-patch+json` content type.
 	//
@@ -13952,21 +13957,21 @@ type ClientInterface interface {
 
 	// ListPlatformDeliveries What was sent to the subscription, and what became of it
 	//
-	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
 	ListPlatformDeliveries(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RedeliverPlatformSubscription Send the subscription's dead letters again
 	//
-	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
 	RedeliverPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RotatePlatformSubscriptionSecret Issue a new signing secret
 	//
-	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
 	RotatePlatformSubscriptionSecret(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -14091,7 +14096,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlanWithBody Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -14100,7 +14105,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlan Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -19403,7 +19408,7 @@ func (c *Client) WriteInstanceSettings(ctx context.Context, params *WriteInstanc
 
 // ListPlatformSubscriptions The installation's subscriptions for a purchase platform
 //
-// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with GET /admin/subscriptions (the `ListPlatformSubscriptions` operationId).
 func (c *Client) ListPlatformSubscriptions(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19421,7 +19426,7 @@ func (c *Client) ListPlatformSubscriptions(ctx context.Context, reqEditors ...Re
 // CreatePlatformSubscriptionWithBody Subscribe a purchase platform to the installation's events
 //
 // Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19441,7 +19446,7 @@ func (c *Client) CreatePlatformSubscriptionWithBody(ctx context.Context, params 
 // CreatePlatformSubscription Subscribe a purchase platform to the installation's events
 //
 // Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -19460,7 +19465,7 @@ func (c *Client) CreatePlatformSubscription(ctx context.Context, params *CreateP
 
 // DeletePlatformSubscription Unsubscribe
 //
-// The subscription goes with its deliveries; the events stay readable.
+// The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with DELETE /admin/subscriptions/{subscriptionId} (the `DeletePlatformSubscription` operationId).
 func (c *Client) DeletePlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19477,6 +19482,8 @@ func (c *Client) DeletePlatformSubscription(ctx context.Context, subscriptionId 
 
 // ReadPlatformSubscription One subscription of the installation
 //
+// Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+//
 // Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
 func (c *Client) ReadPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadPlatformSubscriptionRequest(c.Server, subscriptionId)
@@ -19492,7 +19499,7 @@ func (c *Client) ReadPlatformSubscription(ctx context.Context, subscriptionId op
 
 // UpdatePlatformSubscriptionWithBody Change a subscription's target, or pause and resume it
 //
-// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19511,7 +19518,7 @@ func (c *Client) UpdatePlatformSubscriptionWithBody(ctx context.Context, subscri
 
 // UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody Change a subscription's target, or pause and resume it
 //
-// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/merge-patch+json` content type.
 //
@@ -19530,7 +19537,7 @@ func (c *Client) UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBody
 
 // ListPlatformDeliveries What was sent to the subscription, and what became of it
 //
-// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with GET /admin/subscriptions/{subscriptionId}/deliveries (the `ListPlatformDeliveries` operationId).
 func (c *Client) ListPlatformDeliveries(ctx context.Context, subscriptionId openapi_types.UUID, params *ListPlatformDeliveriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19547,7 +19554,7 @@ func (c *Client) ListPlatformDeliveries(ctx context.Context, subscriptionId open
 
 // RedeliverPlatformSubscription Send the subscription's dead letters again
 //
-// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with POST /admin/subscriptions/{subscriptionId}:redeliver (the `RedeliverPlatformSubscription` operationId).
 func (c *Client) RedeliverPlatformSubscription(ctx context.Context, subscriptionId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19564,7 +19571,7 @@ func (c *Client) RedeliverPlatformSubscription(ctx context.Context, subscription
 
 // RotatePlatformSubscriptionSecret Issue a new signing secret
 //
-// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Corresponds with POST /admin/subscriptions/{subscriptionId}:rotate-secret (the `RotatePlatformSubscriptionSecret` operationId).
 func (c *Client) RotatePlatformSubscriptionSecret(ctx context.Context, subscriptionId openapi_types.UUID, params *RotatePlatformSubscriptionSecretParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19839,7 +19846,7 @@ func (c *Client) ExportTenant(ctx context.Context, tenantId AdminTenantId, body 
 
 // MoveTenantPlanWithBody Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19858,7 +19865,7 @@ func (c *Client) MoveTenantPlanWithBody(ctx context.Context, tenantId AdminTenan
 
 // MoveTenantPlan Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -44977,7 +44984,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
 	//
-	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+	// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44987,7 +44994,7 @@ type ClientWithResponsesInterface interface {
 	// CreatePlatformSubscriptionWithBodyWithResponse Subscribe a purchase platform to the installation's events
 	//
 	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44997,7 +45004,7 @@ type ClientWithResponsesInterface interface {
 	// CreatePlatformSubscriptionWithResponse Subscribe a purchase platform to the installation's events
 	//
 	// Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+	// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45006,7 +45013,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeletePlatformSubscriptionWithResponse Unsubscribe
 	//
-	// The subscription goes with its deliveries; the events stay readable.
+	// The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -45015,6 +45022,8 @@ type ClientWithResponsesInterface interface {
 
 	// ReadPlatformSubscriptionWithResponse One subscription of the installation
 	//
+	// Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
@@ -45022,7 +45031,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdatePlatformSubscriptionWithBodyWithResponse Change a subscription's target, or pause and resume it
 	//
-	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45031,7 +45040,7 @@ type ClientWithResponsesInterface interface {
 
 	// UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse Change a subscription's target, or pause and resume it
 	//
-	// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+	// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45040,7 +45049,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListPlatformDeliveriesWithResponse What was sent to the subscription, and what became of it
 	//
-	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+	// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -45049,7 +45058,7 @@ type ClientWithResponsesInterface interface {
 
 	// RedeliverPlatformSubscriptionWithResponse Send the subscription's dead letters again
 	//
-	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+	// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -45058,7 +45067,7 @@ type ClientWithResponsesInterface interface {
 
 	// RotatePlatformSubscriptionSecretWithResponse Issue a new signing secret
 	//
-	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+	// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -45193,7 +45202,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45202,7 +45211,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -67576,7 +67585,7 @@ func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Cont
 
 // ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
 //
-// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`).
+// The addresses the installation's events are pushed to, oldest first, each with its state, the dead letters waiting to be redelivered and the last delivery. The secret is not among the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67592,7 +67601,7 @@ func (c *ClientWithResponses) ListPlatformSubscriptionsWithResponse(ctx context.
 // CreatePlatformSubscriptionWithBodyWithResponse Subscribe a purchase platform to the installation's events
 //
 // Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67608,7 +67617,7 @@ func (c *ClientWithResponses) CreatePlatformSubscriptionWithBodyWithResponse(ctx
 // CreatePlatformSubscriptionWithResponse Subscribe a purchase platform to the installation's events
 //
 // Every installation event is sent to the target as the CloudEvent `GET /admin/events` answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead letter. Unlike a workspace's, the subscription is never switched off for being unreachable: the operator is told and the dead letters wait to be redelivered for 30 days.
-// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+// The signing secret is answered here once and never again. Demands a fresh step-up: every workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with `admin.instance_enforced_from_file` while the instance file decides the subscriptions. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67623,7 +67632,7 @@ func (c *ClientWithResponses) CreatePlatformSubscriptionWithResponse(ctx context
 
 // DeletePlatformSubscriptionWithResponse Unsubscribe
 //
-// The subscription goes with its deliveries; the events stay readable.
+// The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67638,6 +67647,8 @@ func (c *ClientWithResponses) DeletePlatformSubscriptionWithResponse(ctx context
 
 // ReadPlatformSubscriptionWithResponse One subscription of the installation
 //
+// Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+//
 // Returns a wrapper object for the known response body format(s).
 //
 // Corresponds with GET /admin/subscriptions/{subscriptionId} (the `ReadPlatformSubscription` operationId).
@@ -67651,7 +67662,7 @@ func (c *ClientWithResponses) ReadPlatformSubscriptionWithResponse(ctx context.C
 
 // UpdatePlatformSubscriptionWithBodyWithResponse Change a subscription's target, or pause and resume it
 //
-// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67666,7 +67677,7 @@ func (c *ClientWithResponses) UpdatePlatformSubscriptionWithBodyWithResponse(ctx
 
 // UpdatePlatformSubscriptionWithApplicationMergePatchPlusJSONBodyWithResponse Change a subscription's target, or pause and resume it
 //
-// An omitted field is left alone. A new target demands a fresh step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+// An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused subscription is sent nothing; the platform reads what it missed from `GET /admin/events`. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67681,7 +67692,7 @@ func (c *ClientWithResponses) UpdatePlatformSubscriptionWithApplicationMergePatc
 
 // ListPlatformDeliveriesWithResponse What was sent to the subscription, and what became of it
 //
-// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+// One row per event and subscription, newest first: its attempts, its status, the answer the target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67696,7 +67707,7 @@ func (c *ClientWithResponses) ListPlatformDeliveriesWithResponse(ctx context.Con
 
 // RedeliverPlatformSubscriptionWithResponse Send the subscription's dead letters again
 //
-// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused.
+// Every dead letter of the subscription is queued again, with the event identifier it always had and its attempts counting on. Refused with `admin.subscription_paused` while the subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67711,7 +67722,7 @@ func (c *ClientWithResponses) RedeliverPlatformSubscriptionWithResponse(ctx cont
 
 // RotatePlatformSubscriptionSecretWithResponse Issue a new signing secret
 //
-// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+// Answers the new secret once; deliveries are signed with it from this moment, and the old one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67936,7 +67947,7 @@ func (c *ClientWithResponses) ExportTenantWithResponse(ctx context.Context, tena
 
 // MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67951,7 +67962,7 @@ func (c *ClientWithResponses) MoveTenantPlanWithBodyWithResponse(ctx context.Con
 
 // MoveTenantPlanWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

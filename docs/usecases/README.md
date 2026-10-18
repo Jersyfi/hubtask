@@ -183,14 +183,14 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |
 | [UC-INS-04](./admin/UC-INS-04-work-on-the-installation-for-an-hour.md) | Work on the installation for an hour after proving it is me | admin | verified |
 | [UC-INS-05](./admin/UC-INS-05-appoint-and-remove-operators.md) | Appoint and remove the people who run the installation | admin | verified |
-| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | partial |
+| [UC-INS-06](./admin/UC-INS-06-let-a-platform-run-the-installation.md) | Let a purchase platform provision workspaces with its own credential | admin | built |
 | [UC-INS-07](./admin/UC-INS-07-provision-a-workspace.md) | Create a workspace for a customer | admin | built |
 | [UC-INS-08](./admin/UC-INS-08-suspend-resume-and-delete-a-workspace.md) | Suspend, resume and delete a workspace | admin | verified |
 | [UC-INS-09](./admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md) | Decide defaults and locks for every workspace | admin | built |
-| [UC-INS-10](./admin/UC-INS-10-set-limits-for-workspaces.md) | Set limits for workspaces, and see them before they hurt | admin | partial |
+| [UC-INS-10](./admin/UC-INS-10-set-limits-for-workspaces.md) | Set limits for workspaces, and see them before they hurt | admin | verified |
 | [UC-INS-11](./admin/UC-INS-11-offer-sign-in-providers-to-every-workspace.md) | Offer sign-in providers to every workspace | admin | verified |
 | [UC-INS-12](./admin/UC-INS-12-see-the-installation-at-a-glance.md) | See the installation at a glance and read what happened | admin | built |
-| [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | partial |
+| [UC-INS-13](./admin/UC-INS-13-put-workspaces-on-plans.md) | Put workspaces on plans with their own limits, features and locks | admin | verified |
 | [UC-INS-14](./admin/UC-INS-14-tell-a-platform-what-happened.md) | Tell the purchase platform what happened, without it asking | admin | verified |
 | [UC-INS-15](./admin/UC-INS-15-give-a-workspace-its-own-domain.md) | Give a workspace its own domain | admin | specified |
 | [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | verified |

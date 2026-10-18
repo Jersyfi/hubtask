@@ -5070,7 +5070,8 @@ paths:
         `expected_version`, a move made on a workspace that changed since it was read is refused
         with `version_conflict`, so a late retry of an older move cannot undo a newer one;
         repeated under one `Idempotency-Key` it moves once and answers the same. The answer names
-        the features that now rest and the limit exceptions that stay. Nothing is deleted.
+        the features that now rest and the limit exceptions that stay - or, with `dry_run`, would.
+        Nothing is deleted.
         Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -5081,7 +5082,7 @@ paths:
             schema: { $ref: "#/components/schemas/TenantPlanMove" }
       responses:
         "200":
-          description: The workspace on its plan
+          description: The workspace on its plan, or with `dry_run` as it would be
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TenantPlanMoved" }
@@ -5257,7 +5258,7 @@ paths:
       description: >
         The addresses the installation's events are pushed to, oldest first, each with its state,
         the dead letters waiting to be redelivered and the last delivery. The secret is not among
-        the fields. Single mode offers none of this (`admin.multi_mode_required`).
+        the fields. Single mode offers none of this (`admin.multi_mode_required`). Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "200":
           description: The subscriptions
@@ -5282,8 +5283,9 @@ paths:
         days.
 
         The signing secret is answered here once and never again. Demands a fresh step-up: every
-        workspace's reference is sent to this address. Refused with
+        workspace's reference is sent to this address. A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Refused with
         `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/StepUpToken"
@@ -5308,6 +5310,7 @@ paths:
       tags: [admin]
       operationId: readPlatformSubscription
       summary: One subscription of the installation
+      description: Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "200":
           description: The subscription
@@ -5321,8 +5324,9 @@ paths:
       operationId: updatePlatformSubscription
       summary: Change a subscription's target, or pause and resume it
       description: >
-        An omitted field is left alone. A new target demands a fresh step-up. A paused subscription
-        is sent nothing; the platform reads what it missed from `GET /admin/events`.
+        An omitted field is left alone. A new target demands a fresh step-up; a person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. A paused
+        subscription is sent nothing; the platform reads what it missed from `GET /admin/events`.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
         - $ref: "#/components/parameters/StepUpToken"
@@ -5343,7 +5347,8 @@ paths:
       tags: [admin]
       operationId: deletePlatformSubscription
       summary: Unsubscribe
-      description: The subscription goes with its deliveries; the events stay readable.
+      description: >
+        The subscription goes with its deliveries; the events stay readable. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "204":
           description: Unsubscribed
@@ -5360,6 +5365,7 @@ paths:
       description: >
         Answers the new secret once; deliveries are signed with it from this moment, and the old
         one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+        A person proves themselves; a purchase platform's service account that the operator register names as one sends no step-up. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/StepUpToken"
@@ -5382,6 +5388,7 @@ paths:
       description: >
         One row per event and subscription, newest first: its attempts, its status, the answer the
         target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
@@ -5410,7 +5417,7 @@ paths:
       description: >
         Every dead letter of the subscription is queued again, with the event identifier it always
         had and its attempts counting on. Refused with `admin.subscription_paused` while the
-        subscription is paused.
+        subscription is paused. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "202":
           description: Queued
@@ -13752,6 +13759,14 @@ components:
         expected_version:
           type: integer
           description: The workspace's version as last read; a stale one is refused.
+        dry_run:
+          type: boolean
+          description: >
+            True answers what the move would change - the features that would rest, the limits the
+            workspace would be over, the exceptions that would stay - and writes nothing: no plan,
+            no trail or journal entry, no event. Its `tenant` is the state the move would leave, its
+            version included; a move that follows names the version the caller read, not that one.
+            Send it with an idempotency key of its own.
 
     TenantPlanMoved:
       type: object
@@ -13760,7 +13775,7 @@ components:
         tenant: { $ref: "#/components/schemas/AdminTenant" }
         features_resting:
           type: array
-          description: The features the workspace's plan now leaves out.
+          description: The features the workspace's plan now leaves out, or with `dry_run` would.
           items: { $ref: "#/components/schemas/PlanFeature" }
         exceptions_kept:
           type: array
@@ -13771,8 +13786,8 @@ components:
         limits_exceeded:
           type: array
           description: >
-            Each counted limit the workspace now holds more of than its plan, the installation or
-            an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed;
+            Each counted limit the workspace now holds - or with `dry_run` would hold - more of than
+            its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed;
             the next creation past the limit is refused.
           items: { $ref: "#/components/schemas/LimitExceeded" }
 

@@ -107,6 +107,25 @@ func TestAWorkspaceIsMovedFromTheTerminal(t *testing.T) {
 	}
 }
 
+// --dry-run asks what the move would change: the same answer, nothing changed (P-08: every door).
+func TestAMovesDryRunFromTheTerminal(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"tenant": {"id": "0192f000-0000-7000-8000-0000000000e1",
+	  "slug": "maria", "display_name": "Maria", "status": "ACTIVE", "created_at": "2026-10-01T08:00:00Z",
+	  "plan": "private", "version": 5}, "features_resting": ["AUTOMATION_RULES"], "exceptions_kept": [],
+	  "limits_exceeded": [{"quota": "accounts", "limit": 2, "used": 6}]}`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "tenant", "move-plan",
+		"0192f000-0000-7000-8000-0000000000e1", "--plan", "private", "--dry-run")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"dry_run":true`) {
+		t.Errorf("sent %s", stub.body)
+	}
+	if !strings.Contains(out, "accounts 6/2") || !strings.Contains(out, "nothing changed") {
+		t.Errorf("printed %q", out)
+	}
+}
+
 func TestProvisioningNamesThePlan(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, `{"id": "0192f000-0000-7000-8000-0000000000e1", "slug": "maria",
 	  "display_name": "Maria", "status": "ACTIVE", "created_at": "2026-10-01T08:00:00Z",
