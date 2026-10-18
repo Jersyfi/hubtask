@@ -12,6 +12,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -57,14 +58,16 @@ type Rules struct {
 	// Policies is the old table, read for one thing only: the upper bound an operator has set for
 	// a kind (§4.4). The periods in it are carried into rules by the sweep; the bounds stay where
 	// an operator writes them.
-	Policies   repository.Policies
-	Marking    repository.Marking
-	Holds      repository.LegalHolds
-	Authorizer Authorizer
-	Audit      audit.Sink
-	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
+	Policies repository.Policies
+	Marking  repository.Marking
+	Holds    repository.LegalHolds
+	// Restrictions is read by the preview, so that what it counts as held is what the run keeps.
+	Restrictions privacyrepo.Restrictions
+	Authorizer   Authorizer
+	Audit        audit.Sink
+	UnitOfWork   persistence.UnitOfWork
+	Clock        clock.Clock
+	IDs          clock.IDGenerator
 	// Conditions compiles a rule's expression when it is written. A port, so this layer
 	// never learns which engine evaluates one - and the same port the automation rules use, which is
 	// what makes "the same expression language" one statement rather than two.
@@ -394,7 +397,11 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	if err != nil {
 		return Preview{}, err
 	}
-	contributors, err := contributorsOf(ctx, r.Holds, holds, candidateIDs(candidates))
+	restricted, err := restrictionsOf(ctx, r.Restrictions)
+	if err != nil {
+		return Preview{}, err
+	}
+	contributors, err := contributorsOf(ctx, r.Holds, holds, restricted, candidateIDs(candidates))
 	if err != nil {
 		return Preview{}, err
 	}
@@ -410,6 +417,10 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 			Contributors:    contributors[candidate.ID],
 		}); held {
 			preview.Blocked[domain.BlockedByLegalHold]++
+			continue
+		}
+		if restrictedAmong(restricted, contributors[candidate.ID]) {
+			preview.Blocked[domain.BlockedByRestriction]++
 			continue
 		}
 		if len(preview.Samples) < SampleSize {

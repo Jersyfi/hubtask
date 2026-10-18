@@ -11,6 +11,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -257,6 +258,9 @@ func (h RunRetention) Execute(
 		// once every known device has had the chance to learn of the deletion, and nobody asked for
 		// this to happen today (offline-sync.md §7).
 		ObserveTombstoneWindow: true,
+		// And for the same reason a restriction of processing keeps what its person contributed
+		// (UC-PRV-04 check 8): nobody asked the system to remove it.
+		ObserveRestrictions: true,
 	}, started)
 
 	// The log is closed either way. A failed pass that left no trace would be indistinguishable from
@@ -433,7 +437,9 @@ func (h RunRetention) sweepKeptTexts(ctx context.Context, started time.Time) (Ou
 		for _, text := range page {
 			items = append(items, text.ItemID)
 		}
-		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, items)
+		// A kept text is cleared once its hold ends: the comment was already deleted by a person,
+		// and a restriction does not undo a person's own act.
+		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, privacy.Restricted{}, items)
 		if err != nil {
 			return outcome, err
 		}

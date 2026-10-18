@@ -10,12 +10,14 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -58,7 +60,10 @@ type Sweeper struct {
 	Rules   repository.Rules
 	Marking repository.Marking
 	Holds   repository.LegalHolds
-	Items   workrepo.Items
+	// Restrictions is whose processing is restricted (data-retention.md §4 item 2): what they
+	// contributed is kept back as a legal hold on their account would keep it.
+	Restrictions privacyrepo.Restrictions
+	Items        workrepo.Items
 	// Entries reads a page's entries in one statement, the first time a condition on that page
 	// asks for `item`. Optional: without it every candidate is read on its own through Items, which
 	// is what a page of a thousand candidates costs a thousand statements for (data-retention.md §5).
@@ -112,6 +117,13 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 	if err != nil {
 		return Outcome{}, err
 	}
+	// Once per pass, like the holds: a restriction placed or lifted while the pass runs counts
+	// from the next one.
+	restricted, err := restrictionsOf(ctx, s.Restrictions)
+	if err != nil {
+		return Outcome{}, err
+	}
+	safeguards := passSafeguards{holds: holds, restricted: restricted}
 
 	outcome := Outcome{Blocked: map[string]int{}}
 	for _, kind := range domain.SweptKinds() {
@@ -120,20 +132,20 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			// phase on top would be a second grace period on a grace period.
 			continue
 		}
-		marked, err := s.announce(ctx, actor, rules, holds, kind, now)
+		marked, err := s.announce(ctx, actor, rules, safeguards, kind, now)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.add(marked)
 
-		chained, err := s.announceChains(ctx, rules, holds, kind, now, outcome.SetAside)
+		chained, err := s.announceChains(ctx, rules, safeguards, kind, now, outcome.SetAside)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.add(chained)
 	}
 
-	acted, err := s.act(ctx, actor, holds, now, outcome.SetAside)
+	acted, err := s.act(ctx, actor, safeguards, now, outcome.SetAside)
 	if err != nil {
 		return outcome, err
 	}
@@ -143,7 +155,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 
 // announce is phase one: what is due, what may not go, and what is now on notice.
 func (s Sweeper) announce(
-	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, safeguards passSafeguards,
 	kind domain.Kind, now time.Time,
 ) (Outcome, error) {
 	applicable := rulesFor(rules, kind.Name)
@@ -184,7 +196,7 @@ func (s Sweeper) announce(
 		if err != nil {
 			return Outcome{}, err
 		}
-		contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+		contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, candidateIDs(candidates))
 		if err != nil {
 			return Outcome{}, err
 		}
@@ -226,7 +238,7 @@ func (s Sweeper) announce(
 				continue
 			}
 			outcome.Matched++
-			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+			if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 				outcome.blocked(reason)
 				// Held as well as matched: a block sets no due moment, so the next pass reads this
 				// entry again, and a batch of them is no reason to come straight back (Exhausted).
@@ -369,7 +381,7 @@ func (s Sweeper) warn(
 // chain from sweeping up an entry somebody archived by hand - that entry is not part of anybody's
 // chain, and a rule acting on it would be acting outside what it matched.
 func (s Sweeper) announceChains(
-	ctx context.Context, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, rules []domain.Rule, safeguards passSafeguards,
 	kind domain.Kind, now time.Time, setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
@@ -403,7 +415,7 @@ func (s Sweeper) announceChains(
 			if err != nil {
 				return outcome, err
 			}
-			contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+			contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, candidateIDs(candidates))
 			if err != nil {
 				return outcome, err
 			}
@@ -414,7 +426,7 @@ func (s Sweeper) announceChains(
 				outcome.Read++
 				place.judged(candidate)
 				outcome.Matched++
-				if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+				if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 					outcome.blocked(reason)
 					outcome.Held++
 					continue
@@ -458,7 +470,7 @@ func (s Sweeper) announceChains(
 
 // act is phase two: what the grace period has run out on.
 func (s Sweeper) act(
-	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
+	ctx context.Context, actor appshared.ActorContext, safeguards passSafeguards, now time.Time,
 	setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
@@ -491,7 +503,7 @@ func (s Sweeper) act(
 		if err != nil {
 			return outcome, err
 		}
-		contributors, err := contributorsOf(ctx, s.Holds, holds, going)
+		contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, going)
 		if err != nil {
 			return outcome, err
 		}
@@ -517,7 +529,7 @@ func (s Sweeper) act(
 			// come straight back (Exhausted). The descendant counts here though the trash pass does
 			// not count it, because here the parent is read again on every pass until its child
 			// goes.
-			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+			if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 				outcome.blocked(reason)
 				outcome.Held++
 				continue
@@ -664,11 +676,6 @@ func (s Sweeper) remove(
 	return removed, nil
 }
 
-// blocked is data-retention.md §4, in its order, against one object.
-//
-// Only the legal hold is consulted: the restriction of processing (§4 item 2) has no source this
-// sweep reads. Its place in the order is here, after the hold.
-
 // matchesCondition answers whether this rule's condition holds for this entry.
 //
 // A rule with no condition matches everything its scope and period already selected, which is what a
@@ -780,12 +787,22 @@ func (p *pageEntries) find(ctx context.Context, id shared.ID) (work.WorkItem, bo
 	return item, found, nil
 }
 
-// Until then nothing sets it, which is the honest state rather than a silent gap.
+// passSafeguards is what one pass judges every object against, read once at its start.
+type passSafeguards struct {
+	holds      domain.Holds
+	restricted privacy.Restricted
+}
+
+// blocked is data-retention.md §4, in its order, against one object: a legal hold, then a
+// restriction of processing on a person whose own data the object carries.
 func (s Sweeper) blocked(
-	holds domain.Holds, contributors map[shared.ID][]shared.ID, candidate repository.Candidate,
+	safeguards passSafeguards, contributors map[shared.ID][]shared.ID, candidate repository.Candidate,
 ) (string, bool) {
 	found := map[string]bool{}
-	if _, held := holds.Blocking(domain.Target{
+	if restrictedAmong(safeguards.restricted, contributors[candidate.ID]) {
+		found[domain.BlockedByRestriction] = true
+	}
+	if _, held := safeguards.holds.Blocking(domain.Target{
 		ItemID:          candidate.ID,
 		ContainerIDs:    nonZero(candidate.HubID, candidate.CollectionID),
 		AncestorItemIDs: work.PathIDs(candidate.Path),

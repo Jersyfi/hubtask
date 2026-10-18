@@ -128,7 +128,13 @@ Evaluated in this order; the first that applies wins:
    [data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30).
 2. **A restriction of processing** (GDPR Art. 18) → the object is neither deleted nor changed. The
    **account** carries it (status `RESTRICTED`), not an open case
-   ([data-protection.md](./data-protection.md) §4).
+   ([data-protection.md](./data-protection.md) §4). It reaches what an account hold reaches (item 1):
+   the account and what its person contributed. It binds the automatic runs — the rules, their
+   preview and the automatic trash purge — which read it once per pass, with the holds, through the
+   read automation and the AI exclusion share. A kept entry carries `blocked_by: restriction`, a kept
+   deletion in the trash `held_by: restriction`, and the run counts it under `restriction`. A person
+   emptying the trash or purging an entry is not stopped: a restriction is not a lock
+   ([UC-PRV-04](../usecases/privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md)).
 3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash at least 7
    days.
 4. **Upper bounds per data kind** (`max_days`, where the operator set one) → exceeding it requires a
