@@ -66,3 +66,34 @@ test('chromium: where no link is answered, the notice stands alone', async (t) =
   assert.equal(await page.getByRole('link', { name: 'Your provider\'s account page' }).count(), 0);
   assert.deepEqual(failures, []);
 });
+
+const STANDINGS = [
+  { quota: 'items', limit: 100, used: 100, ratio: 1, configured: false, locked: false },
+  { quota: 'webhook_targets', limit: 5, used: 7, ratio: 1.4, configured: false, locked: false },
+  { quota: 'export_jobs', limit: 0, used: 5, configured: false, locked: false },
+  { quota: 'api_requests_per_minute', limit: 600, configured: false, locked: false },
+  { quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068, configured: false, locked: false },
+];
+
+test('chromium: a reached limit says what still works, with the provider\'s account page for an owner', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const quotas = (route, _request, path) => (path === '/quotas' ? route.fulfill({ json: STANDINGS }) : undefined);
+  const { page, failures, context } = await withManifest(browser, { account_link: ACCOUNT_PAGE }, quotas);
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/administration/quotas`);
+  await page.getByText('The limit for Entries is reached.').waitFor({ timeout: 5_000 });
+  // Reached at and above the limit; never where there is no ceiling or no live count.
+  assert.equal(await page.getByText(/The limit for .* is reached\./).count(), 2);
+  assert.ok(await page.getByText('Everything that exists stays as it is.').first().isVisible());
+  assert.equal(await page.getByRole('link', { name: 'Your provider\'s account page' }).count(), 2);
+  assert.deepEqual(failures, []);
+
+  // Without an answered link - an auditor, or no address set - the notice stands alone.
+  const second = await withManifest(browser, { workspace_permissions: ['READ_CONFIGURATION', 'AUDIT_READ'] }, quotas);
+  t.after(() => second.context.close());
+  await second.page.goto(`${served.origin}/administration/quotas`);
+  await second.page.getByText('The limit for Entries is reached.').waitFor({ timeout: 5_000 });
+  assert.equal(await second.page.getByRole('link', { name: 'Your provider\'s account page' }).count(), 0);
+});

@@ -1016,6 +1016,8 @@
   "app.quotas.approach": "Wie nah",
   "app.quotas.source": "Gesetzt von",
   "app.quotas.unlimited": "Keine Grenze",
+  "app.quotas.reached_title": "Das Limit für {name} ist erreicht.",
+  "app.quotas.reached_body": "Neues kann davon nicht hinzukommen. Alles Bestehende bleibt, wie es ist.",
   "app.quotas.no_count": "Wird hier nicht gezählt",
   "app.quotas.percent": "{percent} % der Obergrenze",
   "app.quotas.workspace": "Dieser Arbeitsbereich",

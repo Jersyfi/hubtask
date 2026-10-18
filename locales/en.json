@@ -2628,6 +2628,8 @@
   "app.quotas.approach": "How close",
   "app.quotas.source": "Set by",
   "app.quotas.unlimited": "No limit",
+  "app.quotas.reached_title": "The limit for {name} is reached.",
+  "app.quotas.reached_body": "Nothing new of it can be added. Everything that exists stays as it is.",
   "app.quotas.no_count": "Not counted here",
   "app.quotas.percent": "{percent} % of the ceiling",
   "app.quotas.workspace": "This workspace",
