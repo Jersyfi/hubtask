@@ -51,7 +51,7 @@ type UpdateTenantCommand struct {
 func (h UpdateTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateTenantCommand,
 ) (adminrepo.TenantRecord, error) {
-	if err := h.Writer.authorize(ctx, actor); err != nil {
+	if err := h.Writer.authorize(ctx, actor, platformScopes...); err != nil {
 		return adminrepo.TenantRecord{}, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -141,6 +141,7 @@ func (h UpdateTenant) Descriptor() usecase.Descriptor {
 		SideEffects: "Writes the workspace's reference, its trail (the value masked) and the journal " +
 			"(without the value).",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{Name: "external_reference", Kind: usecase.KindString,
@@ -192,7 +193,7 @@ type QueryTenants struct{ Reader TenantReader }
 func (r TenantReader) query(
 	ctx context.Context, actor appshared.ActorContext, query adminrepo.TenantQuery,
 ) ([]adminrepo.TenantRecord, adminrepo.PageInfo, error) {
-	if err := r.Writer.Instance.authorize(ctx, actor); err != nil {
+	if err := r.Writer.Instance.authorize(ctx, actor, platformScopes...); err != nil {
 		return nil, adminrepo.PageInfo{}, err
 	}
 	var records []adminrepo.TenantRecord
@@ -259,6 +260,7 @@ func (h ReadTenant) Descriptor() usecase.Descriptor {
 		Summary: "Reads one workspace as the control plane sees it: state, plan, version, the platform's " +
 			"reference, the legal hold and the deletion dates.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		ReadOnly:   true,
 		Input:      []usecase.Field{{Name: "tenant_id", Kind: usecase.KindID, Required: true}},
 		Audit:      usecase.AuditDeclaration{Action: "tenant.read", TargetType: tenantTarget, Severity: audit.SeverityInfo},
@@ -284,6 +286,7 @@ func (h QueryTenants) Descriptor() usecase.Descriptor {
 		Summary: "Finds the workspaces matching every filter given - short name, the platform's " +
 			"reference, plan, no plan, status - oldest first, one page at a time.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		ReadOnly:   true,
 		Input: []usecase.Field{
 			{Name: "slug", Kind: usecase.KindString},

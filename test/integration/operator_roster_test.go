@@ -15,6 +15,7 @@ import (
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -328,5 +329,78 @@ func TestAnEmptyRegisterNamesTheOnlyWorkspacesOwnerAndNobodyElse(t *testing.T) {
 		if operatorHeld(ctx, t, app, owner) {
 			t.Errorf("%s, the owner of one of two workspaces, reaches the installation through an empty register", owner)
 		}
+	}
+}
+
+// UC-INS-08 check 7's question to the register: does it hold this service account's own row? The
+// empty register's owner is no answer - not even a service account holding OWNER - nor is a
+// registered person, nor an account of another workspace the register does not hold.
+func TestTheRegisterNamesAServiceAccountByItsOwnRow(t *testing.T) {
+	ctx := context.Background()
+	admin, app := privateInstallation(ctx, t, "hubtask_operator_roster_service")
+	const (
+		ownerService = "019364de-0000-7000-8000-0000000135a7"
+		otherService = "019364de-0000-7000-8000-0000000135b6"
+	)
+	for _, statement := range []string{
+		`INSERT INTO account (id, tenant_id, kind, display_name, status) VALUES
+		   ('` + ownerService + `', '` + rosterTenant + `', 'SERVICE_ACCOUNT', 'The owner bot', 'ACTIVE')`,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES
+		   ('019364de-0000-7000-8000-0000000135c4', '` + rosterTenant + `', '` + ownerService + `', 'TENANT', 'OWNER')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	uow := postgres.NewUnitOfWork(app)
+	operators := postgres.NewOperatorRepository()
+	registered := func(account string) bool {
+		t.Helper()
+		var held bool
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			answer, err := operators.RegisteredServiceAccount(ctx, shared.ID(account))
+			held = answer
+			return err
+		}); err != nil {
+			t.Fatalf("asking the register about %s: %v", account, err)
+		}
+		return held
+	}
+
+	// The empty register: its owner is an operator, a service account holding OWNER too - and
+	// neither is registered.
+	if !operatorHeld(ctx, t, app, ownerService) {
+		t.Fatal("the OWNER service account is not an operator of the empty register")
+	}
+	if registered(ownerService) || registered(rosterService) {
+		t.Fatal("the empty register names a service account by its own row")
+	}
+
+	// A second workspace with a service account of its own, which the register will not hold.
+	for _, statement := range []string{
+		`INSERT INTO tenant (id, slug, display_name) VALUES ('` + rosterOther + `', 'other', 'The Other')`,
+		`INSERT INTO account (id, tenant_id, kind, display_name, status) VALUES
+		   ('` + otherService + `', '` + rosterOther + `', 'SERVICE_ACCOUNT', 'Their shop', 'ACTIVE')`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+
+	// The first addition to an empty register brings the owner who made it along.
+	if got := enlist(ctx, t, app, rosterService, rosterOwner); got != "ADDED_WITH_CALLER" {
+		t.Fatalf("enlisting the shop answered %q", got)
+	}
+	if got := enlist(ctx, t, app, rosterColleague, rosterOwner); got != "ADDED" {
+		t.Fatalf("enlisting the colleague answered %q", got)
+	}
+	if !registered(rosterService) {
+		t.Error("the registered shop is not named by its row")
+	}
+	if registered(rosterColleague) || registered(rosterOwner) {
+		t.Error("a registered person was answered as a service account")
+	}
+	if registered(ownerService) || registered(otherService) || registered(rosterNobody) {
+		t.Error("an account the register does not hold was answered as registered")
 	}
 }

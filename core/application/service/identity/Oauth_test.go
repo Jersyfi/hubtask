@@ -545,3 +545,25 @@ func TestTheOauthUseCasesRoundTripThroughTheRegistry(t *testing.T) {
 		t.Fatalf("deleting through the registry: %v", err)
 	}
 }
+
+// A consent screen never hands out the control plane, nor the agent capability: minting those asks a
+// fresh proof and the operator register, and a consent asks neither. Refused even where the
+// installation declares the scope, which is exactly where it would otherwise be granted.
+func TestAnAppIsNeverConsentedTheControlPlane(t *testing.T) {
+	fixture := newOauthFixture(now)
+	fixture.writer.KnownScopes = append(fixture.writer.KnownScopes,
+		"admin:tenants", "admin:provisioning", usecase.AgentDestructiveScope)
+	registered := register(t, fixture, true)
+	_, challenge := pkcePair()
+
+	for _, scope := range []string{"admin:tenants", "admin:provisioning", usecase.AgentDestructiveScope} {
+		_, err := AuthorizeOauthClient{Writer: fixture.writer}.Execute(t.Context(), adminActor(),
+			AuthorizeOauthClientCommand{
+				ClientID: registered.Client.ID, RedirectURI: "https://zapier.example/callback",
+				Scopes: []string{"items:read", scope}, Challenge: challenge, Method: "S256",
+			})
+		if err == nil || shared.AsError(err).DetailCode != "access.token_scope_unknown" {
+			t.Errorf("consenting %s answered %v, want access.token_scope_unknown", scope, err)
+		}
+	}
+}

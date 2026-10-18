@@ -381,11 +381,13 @@ func Scopes() []string {
 	seen := make(map[string]bool)
 	scopes := make([]string, 0, len(Descriptors()))
 	for _, descriptor := range Descriptors() {
-		if descriptor.TokenScope == "" || seen[descriptor.TokenScope] {
-			continue
+		for _, scope := range []string{descriptor.TokenScope, descriptor.AlsoScope} {
+			if scope == "" || seen[scope] {
+				continue
+			}
+			seen[scope] = true
+			scopes = append(scopes, scope)
 		}
-		seen[descriptor.TokenScope] = true
-		scopes = append(scopes, descriptor.TokenScope)
 	}
 	// And the one scope that is not an operation's. `agent:destructive` is a *capability*:
 	// it says an agent token may reach the destructive use cases at all, and no descriptor declares

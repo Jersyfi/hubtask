@@ -191,6 +191,24 @@ func (q *Queries) IsOperator(ctx context.Context, accountID pgtype.UUID) (bool, 
 	return is_operator, err
 }
 
+const isRegisteredServiceAccount = `-- name: IsRegisteredServiceAccount :one
+SELECT EXISTS (
+  SELECT 1 FROM operator_roster($1) r
+  WHERE r.account_id = $1 AND r.kind = 'SERVICE_ACCOUNT'
+)::boolean AS registered
+`
+
+// Whether the register holds the account's own row, and holds it as a service account's - not the
+// empty register's owner, whom `is_operator` admits as well: a purchase platform's service account
+// requests a deletion without a step-up only when it is registered (UC-INS-08 check 7). Through the
+// roster's function, the register's narrow door, so no new grant is needed.
+func (q *Queries) IsRegisteredServiceAccount(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isRegisteredServiceAccount, accountID)
+	var registered bool
+	err := row.Scan(&registered)
+	return registered, err
+}
+
 const issueSetupCode = `-- name: IssueSetupCode :one
 SELECT issue_setup_code($1, $2, $3, $4)
 `

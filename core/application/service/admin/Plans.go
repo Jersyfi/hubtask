@@ -49,8 +49,8 @@ type PlanWriter struct {
 	Tenancy  env.TenancyMode
 }
 
-func (w PlanWriter) authorize(ctx context.Context, actor appshared.ActorContext) error {
-	if err := w.Instance.authorize(ctx, actor); err != nil {
+func (w PlanWriter) authorize(ctx context.Context, actor appshared.ActorContext, scopes ...string) error {
+	if err := w.Instance.authorize(ctx, actor, scopes...); err != nil {
 		return err
 	}
 	return requireMulti(w.Tenancy)

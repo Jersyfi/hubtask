@@ -73,14 +73,19 @@ type InstanceWriter struct {
 	IDs        clock.IDGenerator
 }
 
-// authorize is the pair every operation here demands: the scope, then the register.
+// authorize is the pair every operation here demands: the scope, then the register. The scopes are
+// adminTenantsScope where none are named, or the operation's declared one followed by the narrower
+// one that admits it as well (platformScopes).
 //
 // The register is checked again although the credential could only carry the scope by passing it at
 // minting time, and that is the point: a token minted last month by somebody who has since been
 // removed still carries the scope, and the second check is what makes the removal mean something
 // (ADR-0070 §1).
-func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext, scopes ...string) error {
+	if len(scopes) == 0 {
+		scopes = []string{adminTenantsScope}
+	}
+	if err := actor.RequireAnyScope(scopes...); err != nil {
 		return err
 	}
 	if w.Operators == nil {

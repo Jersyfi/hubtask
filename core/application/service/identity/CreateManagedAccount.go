@@ -72,6 +72,8 @@ type CreateManagedAccount struct {
 	IDs        clock.IDGenerator
 	// Text folds the sign-in name and composes the display name (i18n-l10n.md §5).
 	Text text.Normalizer
+	// People refuses a managed account past the workspace's people limit.
+	People PeopleLimit
 }
 
 // Execute creates the account, places it, and answers its start password once.
@@ -120,6 +122,11 @@ func (h CreateManagedAccount) Execute(
 		}
 		if !rule.Effective.Policy.ManagedAccounts {
 			return shared.ErrForbidden.WithDetail("accounts.managed_accounts_off")
+		}
+		if h.People != nil {
+			if err := h.People.Accounts(ctx, actor.TenantID.String(), 1); err != nil {
+				return err
+			}
 		}
 		// Asked before inserting, so the common case - a name already in use - is a clear answer;
 		// the index still decides between two creations at once.

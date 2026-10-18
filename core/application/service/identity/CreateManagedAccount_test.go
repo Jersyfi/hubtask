@@ -69,6 +69,7 @@ type managedFixture struct {
 	policy     *workspacePolicyFixture
 	stepUp     *stepUpFake
 	platform   *ownerChangesFake
+	people     *peopleFake
 }
 
 func newManagedFixture(t *testing.T) *managedFixture {
@@ -81,6 +82,7 @@ func newManagedFixture(t *testing.T) *managedFixture {
 		grants: newGrants(), authorizer: &authorizer{}, audit: &auditSink{},
 		policy: newWorkspacePolicyFixture(now), stepUp: &stepUpFake{satisfied: true},
 		platform: &ownerChangesFake{},
+		people:   &peopleFake{},
 	}
 	ids := ids{next: managedID}
 	registry, err := usecase.NewRegistry(nil, CreateManagedAccount{
@@ -92,7 +94,7 @@ func newManagedFixture(t *testing.T) *managedFixture {
 		},
 		Rule: f.policy.writer.Resolver, Passwords: &passwordsFake{}, Entropy: &countingEntropy{},
 		Audit: f.audit, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: ids,
-		Text: text.Composing{},
+		Text: text.Composing{}, People: f.people,
 	}.Descriptor())
 	if err != nil {
 		t.Fatalf("registering: %v", err)

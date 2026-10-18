@@ -26,7 +26,9 @@ type Signals interface {
 // the write it guards see the same database. The check is check-then-act and deliberately not
 // serialised - two concurrent creates can both pass at limit-1 and land one row over the wall.
 // A quota is a wall against runaway growth, not an invariant; making it one would cost a lock
-// on every create for a race that self-corrects at the very next request.
+// on every create for a race that self-corrects at the very next request. The one exception is
+// the people limit (Accounts, Renewal): one person too many is not what an operator sold, so it
+// is serialised by a lock per workspace, taken only where a limit is set.
 type Guard struct {
 	Store   repository.Store
 	Usage   repository.Usage
@@ -84,7 +86,9 @@ func (g Guard) check(
 		}
 		return Exceeded(quota, limit, used)
 	}
-	if g.Crossings != nil {
+	// Admitted means the workspace was below the limit: a renewal at the limit adds nobody and
+	// leaves the crossing standing, so the next refusal is not a second one.
+	if g.Crossings != nil && used < limit {
 		return g.Crossings.Admitted(ctx, quota)
 	}
 	return nil
@@ -115,6 +119,49 @@ func (g Guard) WebhookTargets(ctx context.Context, tenant string) error {
 		return err
 	}
 	return g.check(ctx, tenant, WebhookTargets, limits.WebhookTargets, g.Usage.WebhookTargets, 1)
+}
+
+// Accounts refuses when the people the workspace holds would pass their ceiling. Unlike the other
+// capacities it is serialised: where a limit is set the count runs under the workspace's people
+// lock, held until the creating transaction ends, so two creations at the last place admit one.
+func (g Guard) Accounts(ctx context.Context, tenant string, adding int64) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	if limits.Accounts == Unlimited {
+		return nil
+	}
+	if err := g.Usage.LockPeople(ctx); err != nil {
+		return err
+	}
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
+}
+
+// Renewal refuses renewing an invitation past the people limit: one whose link is still open
+// already counts and adds nobody, one whose link ran out takes a place again. Asked before the new
+// link is written, under the same lock as Accounts - in the mail mode the link is written later,
+// by the mail's own job, so a count after the renewal would not see it.
+func (g Guard) Renewal(ctx context.Context, tenant, account string) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	if limits.Accounts == Unlimited {
+		return nil
+	}
+	if err := g.Usage.LockPeople(ctx); err != nil {
+		return err
+	}
+	open, err := g.Usage.InvitationOpen(ctx, account)
+	if err != nil {
+		return err
+	}
+	adding := int64(1)
+	if open {
+		adding = 0
+	}
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
 }
 
 // ExportJobs refuses when another live export would pass the ceiling.
