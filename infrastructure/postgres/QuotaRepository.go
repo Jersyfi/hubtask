@@ -39,6 +39,7 @@ type quotasDocument struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	Accounts              *int64 `json:"accounts,omitempty"`
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 }
 
@@ -226,6 +227,7 @@ func fromDocument(document quotasDocument) repository.Overrides {
 		AutomationRunsPerHour: document.AutomationRunsPerHour,
 		WebhookTargets:        document.WebhookTargets,
 		ExportJobs:            document.ExportJobs,
+		Accounts:              document.Accounts,
 		AiTokensPerDay:        document.AiTokensPerDay,
 	}
 }
@@ -238,6 +240,7 @@ func toDocument(overrides repository.Overrides) quotasDocument {
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
 		WebhookTargets:        overrides.WebhookTargets,
 		ExportJobs:            overrides.ExportJobs,
+		Accounts:              overrides.Accounts,
 		AiTokensPerDay:        overrides.AiTokensPerDay,
 	}
 }
@@ -289,6 +292,46 @@ func (QuotaRepository) WebhookTargets(ctx context.Context) (int64, error) {
 	return count(ctx, "counting the webhook targets", func(q *sqlc.Queries) (int64, error) {
 		return q.CountWebhookTargets(ctx)
 	})
+}
+
+// Accounts counts the people the workspace holds (multi-tenancy.md §4.2).
+func (QuotaRepository) Accounts(ctx context.Context) (int64, error) {
+	return count(ctx, "counting the people", func(q *sqlc.Queries) (int64, error) {
+		return q.CountTenantPeople(ctx)
+	})
+}
+
+// InvitationOpen answers whether the people count holds the invitation.
+func (QuotaRepository) InvitationOpen(ctx context.Context, account string) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(shared.ID(account))
+	if err != nil {
+		return false, err
+	}
+	open, err := queries.InvitationIsOpen(ctx, id)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether the invitation is open: %w", err))
+	}
+	return open, nil
+}
+
+// LockPeople serialises the creations of people in the transaction's workspace until it ends.
+func (QuotaRepository) LockPeople(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockTenantPeople(ctx); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking the people count: %w", err))
+	}
+	return nil
 }
 
 // AutomationRunsSince counts the runs that actually ran since the instant.

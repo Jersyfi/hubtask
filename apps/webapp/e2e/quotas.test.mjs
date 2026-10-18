@@ -154,3 +154,29 @@ test('chromium: a workspace on a plan names it, and each limit says who set it',
   const runs = await page.getByRole('row').filter({ hasText: /Automation/i }).textContent() ?? '';
   assert.match(runs, /Hubtask's default/, runs);
 });
+
+// UC-INS-10 check 5: the people limit is a row like any other; reached, the screen says nobody new
+// comes in and nobody here goes, and what is counted.
+test('chromium: a reached people limit says nobody new comes in and nobody here goes', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const reached = await openLimits(browser, [
+    { quota: 'items', limit: 5000, used: 12, configured: false, locked: false, source: 'PLAN', lock: null },
+    { quota: 'accounts', limit: 6, used: 6, ratio: 1, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
+  ], { tenancy: 'multi' });
+  const said = (await reached.page.locator('main').textContent()) ?? '';
+  const row = (await reached.page.getByRole('row').filter({ hasText: 'People' }).textContent()) ?? '';
+  await reached.close();
+  assert.match(row, /6/, row);
+  assert.match(row, /Set by your plan/, row);
+  assert.match(said, /The limit for people is reached\./, said);
+  assert.match(said, /Everybody here stays as they are\./, said);
+  assert.match(said, /service accounts and invitations whose link ran out are not counted/, said);
+
+  const room = await openLimits(browser, [
+    { quota: 'accounts', limit: 6, used: 4, configured: false, locked: false, source: 'PLAN', lock: null },
+  ], { tenancy: 'multi' });
+  const roomy = (await room.page.locator('main').textContent()) ?? '';
+  await room.close();
+  assert.doesNotMatch(roomy, /limit for people is reached/, roomy);
+});

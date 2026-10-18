@@ -3080,6 +3080,7 @@ func (e QuotaSource) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
+	Accounts              QuotaStandingQuota = "accounts"
 	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
 	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
 	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
@@ -3093,6 +3094,8 @@ const (
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
+	case Accounts:
+		return true
 	case AiOwnTokensPerDay:
 		return true
 	case AiTokensPerDay:
@@ -10269,7 +10272,7 @@ type TenantPlanMoved struct {
 	// FeaturesResting The features the workspace's plan now leaves out.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }
@@ -10317,6 +10320,9 @@ type TenantQueryStatus string
 
 // TenantQuotas Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing.
 type TenantQuotas struct {
+	// Accounts The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.
+	Accounts *int64 `json:"accounts,omitempty"`
+
 	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
@@ -13041,7 +13047,8 @@ type ClientInterface interface {
 	// RenewInvitation Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-	// any other is `409 accounts.not_invited`.
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail**, the invitation mail is queued again and the answer
 	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -13084,7 +13091,8 @@ type ClientInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -13111,7 +13119,8 @@ type ClientInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -13137,7 +13146,8 @@ type ClientInterface interface {
 	// InviteAccountWithBody Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -13162,7 +13172,8 @@ type ClientInterface interface {
 	// InviteAccount Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -17993,7 +18004,8 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 // RenewInvitation Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-// any other is `409 accounts.not_invited`.
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
 //
 // **Where this installation sends mail**, the invitation mail is queued again and the answer
 // carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -18066,7 +18078,8 @@ func (c *Client) RestrictProcessing(ctx context.Context, accountId AccountId, bo
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -18103,7 +18116,8 @@ func (c *Client) CreateManagedAccountWithBody(ctx context.Context, params *Creat
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -18139,7 +18153,8 @@ func (c *Client) CreateManagedAccount(ctx context.Context, params *CreateManaged
 // InviteAccountWithBody Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -18174,7 +18189,8 @@ func (c *Client) InviteAccountWithBody(ctx context.Context, params *InviteAccoun
 // InviteAccount Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -43247,7 +43263,8 @@ type ClientWithResponsesInterface interface {
 	// RenewInvitationWithResponse Give an invitation not yet accepted a new link
 	//
 	// For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-	// any other is `409 accounts.not_invited`.
+	// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+	// people limit; renewing it at the limit is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail**, the invitation mail is queued again and the answer
 	// carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -43292,7 +43309,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -43319,7 +43337,8 @@ type ClientWithResponsesInterface interface {
 	//
 	// Creates a managed account: a person who signs in with a sign-in name instead of an address,
 	// and the role they hold at one scope, in one step. The account is active at once - there is
-	// no invitation to redeem, because there is no mailbox to send one to.
+	// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+	// people limit the answer is `422 capacity.accounts`.
 	//
 	// **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 	// it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -43345,7 +43364,8 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithBodyWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -43370,7 +43390,8 @@ type ClientWithResponsesInterface interface {
 	// InviteAccountWithResponse Invite a person into this workspace
 	//
 	// Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-	// it cannot act until the invitation is accepted.
+	// it cannot act until the invitation is accepted. An open invitation holds a place under the
+	// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 	//
 	// **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 	// invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -65022,7 +65043,8 @@ func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context
 // RenewInvitationWithResponse Give an invitation not yet accepted a new link
 //
 // For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-// any other is `409 accounts.not_invited`.
+// any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+// people limit; renewing it at the limit is `422 capacity.accounts`.
 //
 // **Where this installation sends mail**, the invitation mail is queued again and the answer
 // carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -65085,7 +65107,8 @@ func (c *ClientWithResponses) RestrictProcessingWithResponse(ctx context.Context
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -65118,7 +65141,8 @@ func (c *ClientWithResponses) CreateManagedAccountWithBodyWithResponse(ctx conte
 //
 // Creates a managed account: a person who signs in with a sign-in name instead of an address,
 // and the role they hold at one scope, in one step. The account is active at once - there is
-// no invitation to redeem, because there is no mailbox to send one to.
+// no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+// people limit the answer is `422 capacity.accounts`.
 //
 // **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
 // it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -65150,7 +65174,8 @@ func (c *ClientWithResponses) CreateManagedAccountWithResponse(ctx context.Conte
 // InviteAccountWithBodyWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -65181,7 +65206,8 @@ func (c *ClientWithResponses) InviteAccountWithBodyWithResponse(ctx context.Cont
 // InviteAccountWithResponse Invite a person into this workspace
 //
 // Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-// it cannot act until the invitation is accepted.
+// it cannot act until the invitation is accepted. An open invitation holds a place under the
+// workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 //
 // **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
 // invitation mail is queued as a job - this call does not wait for it - and the answer

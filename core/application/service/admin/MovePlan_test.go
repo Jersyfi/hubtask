@@ -115,12 +115,15 @@ func TestAWorkspaceMovesToAPlan(t *testing.T) {
 }
 
 // usageCounts is what the workspace holds.
-type usageCounts struct{ items, media, webhooks int64 }
+type usageCounts struct{ items, media, webhooks, people int64 }
 
-func (u *usageCounts) Items(context.Context) (int64, error)          { return u.items, nil }
-func (u *usageCounts) MediaBytes(context.Context) (int64, error)     { return u.media, nil }
-func (u *usageCounts) WebhookTargets(context.Context) (int64, error) { return u.webhooks, nil }
-func (u *usageCounts) LiveExports(context.Context) (int64, error)    { return 0, nil }
+func (u *usageCounts) Items(context.Context) (int64, error)                 { return u.items, nil }
+func (u *usageCounts) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageCounts) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageCounts) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (u *usageCounts) Accounts(context.Context) (int64, error)              { return u.people, nil }
+func (u *usageCounts) LockPeople(context.Context) error                     { return nil }
+func (u *usageCounts) InvitationOpen(context.Context, string) (bool, error) { return false, nil }
 func (u *usageCounts) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }
@@ -131,18 +134,19 @@ func (u *usageCounts) MeteredSince(context.Context, string, time.Time) (int64, e
 func TestAMoveAnswersTheLimitsTheWorkspaceIsNowOver(t *testing.T) {
 	f := newMoveFixture(t)
 	f.quotas.overrides.Items = nil
-	itemsLimit, webhooks := int64(1000), int64(3)
-	f.quotas.plan = quotarepo.PlanLimits{Overrides: quotarepo.Overrides{Items: &itemsLimit, WebhookTargets: &webhooks}}
+	itemsLimit, webhooks, people := int64(1000), int64(3), int64(2)
+	f.quotas.plan = quotarepo.PlanLimits{Overrides: quotarepo.Overrides{Items: &itemsLimit, WebhookTargets: &webhooks, Accounts: &people}}
 	f.usage.webhooks = 3
+	f.usage.people = 6
 
 	out, err := f.registry.Invoke(t.Context(), MoveTenantPlanName, operator(), moveTo("family", 4))
 	if err != nil {
 		t.Fatalf("moving: %v", err)
 	}
 	exceeded, _ := out["limits_exceeded"].([]usecase.Output)
-	if len(exceeded) != 1 || exceeded[0]["quota"] != "items" || exceeded[0]["limit"] != int64(1000) ||
-		exceeded[0]["used"] != int64(4210) {
-		t.Errorf("the limits exceeded read %v, want items alone at 4210 of 1000", exceeded)
+	if len(exceeded) != 2 || exceeded[0]["quota"] != "items" || exceeded[0]["limit"] != int64(1000) ||
+		exceeded[0]["used"] != int64(4210) || exceeded[1]["quota"] != "accounts" || exceeded[1]["used"] != int64(6) {
+		t.Errorf("the limits exceeded read %v, want items at 4210 of 1000 and people at 6 of 2", exceeded)
 	}
 }
 
