@@ -5136,6 +5136,7 @@ paths:
         cursor older than that is answered `410` with `admin.events_cursor_expired`, since what
         followed it is no longer all there. Single mode offers none of this
         (`admin.multi_mode_required`).
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"

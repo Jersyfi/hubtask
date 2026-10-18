@@ -50,4 +50,4 @@ purchase; a webhook arriving twice creates one workspace.
 
 ## Today
 
-* Check 6: not met — reading use and events and the installation's subscriptions with `admin:provisioning`, tracked in #1561 and #1562.
+* Check 6: not met — reading use and the installation's subscriptions with `admin:provisioning`, tracked in #1561 and #1562.

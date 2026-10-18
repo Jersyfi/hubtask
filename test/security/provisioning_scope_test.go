@@ -37,7 +37,7 @@ const (
 // descriptors: the scope is derived from them, so the gate is what notices an eleventh use case
 // quietly opened to a platform's token.
 var platformVerbs = []string{
-	"ListTenants", "MoveTenantPlan", "ProvisionTenant", "QueryTenants", "ReadTenant",
+	"ListPlatformEvents", "ListTenants", "MoveTenantPlan", "ProvisionTenant", "QueryTenants", "ReadTenant",
 	"RequestTenantDeletion", "ResumeTenant", "SuspendTenant", "UpdateTenant", "UpdateTenantQuotas",
 }
 
