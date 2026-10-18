@@ -354,6 +354,7 @@
   "admin.tenant_not_found": "Diesen Workspace gibt es nicht.",
   "admin.localisation_never_locked": "{setting} ist eine Voreinstellung, keine Vorschrift. Eine Installation darf eine Sprache, eine Zeitzone oder einen Wochenbeginn vorschlagen – sie darf einen Arbeitsbereich nicht daran hindern, eigene zu wählen.",
   "admin.instance_enforced_from_file": "Diese Werte kommen aus {source} und werden bei jedem Start neu geschrieben – eine Änderung hier würde der nächste Neustart rückgängig machen. Ändere die Datei.",
+  "admin.instance_settings_version_conflict": "Jemand anderes hat die Voreinstellungen der Installation zuerst gespeichert, deshalb wurde hier nichts gespeichert. Lade neu, um zu sehen, was gespeichert wurde, und nimm deine Änderung dann noch einmal vor.",
   "admin.slug_taken": "Diese Subdomain gehört bereits einem Workspace. Wähle eine andere.",
   "workspace.version_conflict": "Jemand anderes hat den Arbeitsbereich geändert. Lies ihn neu und versuche es noch einmal.",
   "workspace.admin_flag_contradicts_rule": "Diese Änderung sagt zweierlei darüber, wer einen zweiten Faktor braucht. Sende nur die Regel.",

@@ -288,6 +288,7 @@
   "admin.operator_incomplete": "Name the account that is to become an operator.",
   "admin.localisation_never_locked": "{setting} is a default, not a rule. An installation may suggest a language, a time zone or a week start; it may not stop a workspace choosing its own.",
   "admin.instance_enforced_from_file": "These values come from {source} and are written again at every start, so a change made here would be undone by the next restart. Change the file.",
+  "admin.instance_settings_version_conflict": "Somebody else saved the installation's defaults first, so this save was not made. Reload to see what they saved, then make your change again.",
   "admin.operator_unknown_account": "There is no such account on this installation.",
   "admin.operator_not_active": "Only an active account can be an operator. An invited account becomes one once its person has signed in; a disabled one, once it is enabled again.",
   "admin.operator_not_registered": "This account is not in the operator register. Read the list again.",

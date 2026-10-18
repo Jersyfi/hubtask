@@ -179,8 +179,16 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 		delete(*target, name)
 	}
 
+	// The version read goes back as If-Match: a level somebody saved between this read and this
+	// write refuses the save rather than losing theirs (UC-INS-09 check 8).
+	read := 0
+	if settings.Version != nil {
+		read = *settings.Version
+	}
 	var written openapi.InstanceSettings
-	if err := client.Put(ctx, adminSettingsPath, settings, &written); err != nil {
+	if err := client.PutVersioned(
+		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,
+	); err != nil {
 		return err
 	}
 	return cli.Emit(written, settingsTable(written))

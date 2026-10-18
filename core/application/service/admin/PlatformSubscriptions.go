@@ -37,7 +37,8 @@ const (
 	platformSecretBytes = 32
 
 	// platformStepUp is the descriptors' sentence (identity.md §16.3).
-	platformStepUp = "sending every workspace's reference and state to an address outside the installation"
+	platformStepUp = "from a person - it sends every workspace's reference and state to an address outside " +
+		"the installation; a service account the operator register names sends none, having no proof to give"
 )
 
 // PlatformWriter is the control plane's half of the installation's subscriptions for a purchase
@@ -49,17 +50,30 @@ type PlatformWriter struct {
 	Encryptor     crypto.Encryptor
 	Entropy       clock.Entropy
 	StepUp        stepup.Verifier
-	Tenancy       env.TenancyMode
+	// Register waives the step-up for a service account it names as one, as the deletion request
+	// does: the platform runs its own subscription. Nil demands it of everybody.
+	Register PlatformRegister
+	Tenancy  env.TenancyMode
 	// Enforced is the instance file deciding the subscriptions: a change through the API is
 	// refused, as the file's plans are.
 	Enforced bool
 }
 
 func (w PlatformWriter) authorize(ctx context.Context, actor appshared.ActorContext) error {
-	if err := w.Instance.authorize(ctx, actor); err != nil {
+	if err := w.Instance.authorize(ctx, actor, platformScopes...); err != nil {
 		return err
 	}
 	return requireMulti(w.Tenancy)
+}
+
+// proved demands the step-up of everybody but a registered service account, which cannot give one:
+// the platform's own subscription is its to run (multi-tenancy.md §4.3), as its deletion request is.
+func (w PlatformWriter) proved(ctx context.Context, actor appshared.ActorContext, token string) error {
+	waived, err := registeredServiceAccount(ctx, w.Instance.UnitOfWork, w.Register, actor)
+	if err != nil || waived {
+		return err
+	}
+	return stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, token)
 }
 
 // writable is authorize for a change: refused while the file decides.
@@ -176,7 +190,7 @@ func (h CreatePlatformSubscription) Execute(
 	if err != nil {
 		return MintedPlatformSubscription{}, err
 	}
-	if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, stepUpToken); err != nil {
+	if err := w.proved(ctx, actor, stepUpToken); err != nil {
 		return MintedPlatformSubscription{}, err
 	}
 	signing, sealed, err := w.mint(ctx, subscription.ID)
@@ -214,7 +228,8 @@ func PlatformSubscriptionOutput(s integration.PlatformSubscription) usecase.Outp
 var (
 	platformStepUpField = usecase.Field{
 		Name: "step_up_token", Kind: usecase.KindString,
-		Description: "The proof POST /auth/step-up answered, consumed by this one request.",
+		Description: "The proof POST /auth/step-up answered, consumed by this one request. " +
+			"A service account in the operator register sends none.",
 	}
 	platformSubscriptionIDField = usecase.Field{
 		Name: "subscription_id", Kind: usecase.KindID, Required: true, Description: "The subscription.",
@@ -232,6 +247,7 @@ func (h ListPlatformSubscriptions) Descriptor() usecase.Descriptor {
 			"delivery. The secret is not among the fields.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		ReadOnly:    true,
 		Audit: usecase.AuditDeclaration{
 			Action: platformSubscriptionReadAction, TargetType: platformSubscriptionTarget,
@@ -258,6 +274,7 @@ func (h ReadPlatformSubscription) Descriptor() usecase.Descriptor {
 		Summary:     "One subscription of the installation, without its secret.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		ReadOnly:    true,
 		Input:       []usecase.Field{platformSubscriptionIDField},
 		Audit: usecase.AuditDeclaration{
@@ -285,9 +302,11 @@ func (h CreatePlatformSubscription) Descriptor() usecase.Descriptor {
 		Summary: "Subscribes a purchase platform to the installation's events: every event is " +
 			"POSTed to the target as a signed CloudEvent, retried as a workspace's webhook is, and " +
 			"never switched off for being unreachable. The signing secret is answered once. " +
-			"Demands a fresh step-up.",
+			"Demands a fresh step-up of a person; a purchase platform's service account in the " +
+			"operator register sends none.",
 		SideEffects: "Writes the subscription with its sealed secret and one journal entry.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		StepUp:      platformStepUp,
 		Input: []usecase.Field{
 			{Name: "target_url", Kind: usecase.KindString, Required: true,
@@ -357,7 +376,7 @@ func (h UpdatePlatformSubscription) Execute(
 		if changed, err = changed.Retargeted(cmd.TargetURL); err != nil {
 			return integration.PlatformSubscription{}, err
 		}
-		if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+		if err := w.proved(ctx, actor, cmd.StepUpToken); err != nil {
 			return integration.PlatformSubscription{}, err
 		}
 	}
@@ -425,7 +444,7 @@ func (h RotatePlatformSubscriptionSecret) Execute(
 	if err != nil {
 		return MintedPlatformSubscription{}, err
 	}
-	if err := stepup.Demand(ctx, w.StepUp, actor.TenantID, actor.AccountID, stepUpToken); err != nil {
+	if err := w.proved(ctx, actor, stepUpToken); err != nil {
 		return MintedPlatformSubscription{}, err
 	}
 	signing, sealed, err := w.mint(ctx, id)
@@ -457,6 +476,7 @@ func (h UpdatePlatformSubscription) Descriptor() usecase.Descriptor {
 			"missed from the event feed. Never switched off for being unreachable.",
 		SideEffects: "Writes the subscription and one journal entry.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		StepUp:      platformStepUp,
 		Input: []usecase.Field{
 			platformSubscriptionIDField,
@@ -493,6 +513,7 @@ func (h DeletePlatformSubscription) Descriptor() usecase.Descriptor {
 		Summary:     "Unsubscribes a purchase platform: the subscription goes with its deliveries; the events stay readable.",
 		SideEffects: "Removes the subscription and its deliveries, and writes one journal entry.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Destructive: true,
 		Input:       []usecase.Field{platformSubscriptionIDField},
 		Audit: usecase.AuditDeclaration{
@@ -514,9 +535,11 @@ func (h RotatePlatformSubscriptionSecret) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: RotatePlatformSubscriptionSecretName,
 		Summary: "Issues a new signing secret for a subscription of the installation, answered " +
-			"once; deliveries are signed with it from this moment. Demands a fresh step-up.",
+			"once; deliveries are signed with it from this moment. Demands a fresh step-up of a " +
+			"person; a purchase platform's service account in the operator register sends none.",
 		SideEffects: "Seals and stores the new secret, and writes one journal entry.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		StepUp:      platformStepUp,
 		Input:       []usecase.Field{platformSubscriptionIDField, platformStepUpField},
 		Audit: usecase.AuditDeclaration{
@@ -701,6 +724,7 @@ func (h ListPlatformDeliveries) Descriptor() usecase.Descriptor {
 			"next attempt. DEAD_LETTER is what a redelivery acts on.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			platformSubscriptionIDField,
@@ -743,6 +767,7 @@ func (h RedeliverPlatformSubscription) Descriptor() usecase.Descriptor {
 			"subscription is paused.",
 		SideEffects: "Returns the dead letters to pending, queues their attempts, and writes one journal entry.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Input:       []usecase.Field{platformSubscriptionIDField},
 		Audit: usecase.AuditDeclaration{
 			Action: platformSubscriptionRedeliveredAction, TargetType: platformSubscriptionTarget,

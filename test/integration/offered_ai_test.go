@@ -222,7 +222,8 @@ func TestTheAiAreaRoundTripsThroughTheInstanceLevel(t *testing.T) {
 	}
 	write := func(level identityrepo.InstanceLevel) {
 		inSystem(ctx, t, uow, func(ctx context.Context) error {
-			return instance.Write(ctx, level, "", time.Now().UTC())
+			_, err := instance.Write(ctx, level, 0, "", time.Now().UTC())
+			return err
 		})
 	}
 	before := read()

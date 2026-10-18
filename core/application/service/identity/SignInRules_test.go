@@ -27,10 +27,10 @@ func (s *instanceSettings) Read(context.Context) (repository.InstanceLevel, erro
 }
 
 func (s *instanceSettings) Write(
-	_ context.Context, level repository.InstanceLevel, _ shared.ID, _ time.Time,
-) error {
+	_ context.Context, level repository.InstanceLevel, _ int, _ shared.ID, _ time.Time,
+) (bool, error) {
 	s.written = append(s.written, level)
-	return nil
+	return true, nil
 }
 
 func newRulesFixture() (GetSignInRules, *workspaceStore, *instanceSettings) {

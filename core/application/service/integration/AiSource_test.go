@@ -40,8 +40,10 @@ type sourceWorld struct {
 func (w *sourceWorld) Read(context.Context) (identityrepo.InstanceLevel, error) { return w.level, nil }
 
 func (w *sourceWorld) PlanAi(context.Context) (domain.AiLayer, error) { return w.plan, nil }
-func (w *sourceWorld) Write(context.Context, identityrepo.InstanceLevel, shared.ID, time.Time) error {
-	return nil
+func (w *sourceWorld) Write(
+	context.Context, identityrepo.InstanceLevel, int, shared.ID, time.Time,
+) (bool, error) {
+	return true, nil
 }
 
 type sourceWorkspaces struct{ world *sourceWorld }

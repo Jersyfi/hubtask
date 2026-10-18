@@ -467,10 +467,16 @@ class Instance {
    * Refused while a file enforces them, which the answer says with `is_enforced_from_file` — the
    * screen reads that and offers no controls rather than offering a refusal (ADR-0070 §5: one API,
    * three doors, and one source per mode).
+   *
+   * The `ETag` the read carried is presented as `If-Match`: two operators on this screen is the
+   * ordinary case, and a save made on values somebody else saved since is refused with
+   * `version_conflict` rather than quietly replacing theirs (UC-INS-09 check 8).
    */
   async writeSettings(settings: InstanceSettings): Promise<InstanceSettings> {
+    const etag = this.#settings.status === 'ready' ? this.#settings.etag : undefined;
     return stepUp.around((stepUpToken) =>
       engine.mutate<InstanceSettings>('PUT', SETTINGS, settings, {
+        ifMatch: etag,
         stepUpToken,
         invalidates: EVERYTHING,
       }),
