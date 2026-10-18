@@ -502,3 +502,55 @@ func TestTheInstanceFileDecidesTheSubscriptions(t *testing.T) {
 		t.Errorf("single mode applied %+v, %v", out, err)
 	}
 }
+
+// UC-INS-06 check 6: the platform's token manages its subscription. A registered service account
+// creates, retargets and rotates without the step-up it cannot give, as its deletion request does; a
+// person with either scope still proves themselves.
+func TestThePlatformsTokenManagesItsSubscriptionWithoutAStepUp(t *testing.T) {
+	unregistered := shared.ID("018f2a1b-0000-7000-8000-0000000000c8")
+	instance, _, _ := newInstanceWriter(newRegister(operatorID, platformID, unregistered))
+	store := newSubscriptionStore()
+	writer := PlatformWriter{
+		Instance: instance, Subscriptions: store, Encryptor: roundTrip{&plainEnvelope{}},
+		Entropy: clock.FixedEntropy{}, StepUp: &stepUpFake{expect: "hbt_sup_proof"}, Tenancy: env.TenancyMulti,
+		Register: &platformRegister{rows: map[shared.ID]bool{platformID: true}},
+	}
+	registry, err := usecase.NewRegistry(nil,
+		CreatePlatformSubscription{writer}.Descriptor(), RotatePlatformSubscriptionSecret{writer}.Descriptor(),
+		ListPlatformSubscriptions{writer}.Descriptor(), UpdatePlatformSubscription{writer}.Descriptor())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	created, err := registry.Invoke(t.Context(), CreatePlatformSubscriptionName, shopActor(),
+		usecase.Input{"target_url": "https://shop.example/hubtask"})
+	if err != nil {
+		t.Fatalf("the platform's token subscribing without a step-up: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), RotatePlatformSubscriptionSecretName, shopActor(),
+		usecase.Input{"subscription_id": created.String("id")}); err != nil {
+		t.Errorf("the platform's token rotating its secret: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), ListPlatformSubscriptionsName, shopActor(), usecase.Input{}); err != nil {
+		t.Errorf("the platform's token listing: %v", err)
+	}
+	if _, err := registry.Invoke(t.Context(), UpdatePlatformSubscriptionName, shopActor(),
+		usecase.Input{"subscription_id": created.String("id"), "target_url": "https://shop.example/moved"}); err != nil {
+		t.Errorf("the platform's token retargeting its subscription: %v", err)
+	}
+
+	// A service account the register does not name as one proves itself like a person.
+	stranger := shopActor()
+	stranger.AccountID = unregistered
+	_, err = registry.Invoke(t.Context(), CreatePlatformSubscriptionName, stranger,
+		usecase.Input{"target_url": "https://shop.example/stranger"})
+	if refusalCode(err) != "auth.step_up_required" {
+		t.Errorf("an unregistered service account subscribing without a step-up answered %v", err)
+	}
+
+	_, err = registry.Invoke(t.Context(), CreatePlatformSubscriptionName, operator(),
+		usecase.Input{"target_url": "https://shop.example/other"})
+	if refusalCode(err) != "auth.step_up_required" {
+		t.Errorf("a person subscribing without a step-up answered %v, want auth.step_up_required", err)
+	}
+}

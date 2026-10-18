@@ -37,8 +37,11 @@ const (
 // descriptors: the scope is derived from them, so the gate is what notices a further use case
 // quietly opened to a platform's token.
 var platformVerbs = []string{
-	"ListPlatformEvents", "ListTenants", "MoveTenantPlan", "ProvisionTenant", "QueryTenants", "ReadTenant",
-	"ReadUsage", "RequestTenantDeletion", "ResumeTenant", "SuspendTenant", "UpdateTenant", "UpdateTenantQuotas",
+	"CreatePlatformSubscription", "DeletePlatformSubscription", "ListPlatformDeliveries", "ListPlatformEvents",
+	"ListPlatformSubscriptions", "ListTenants", "MoveTenantPlan", "ProvisionTenant", "QueryTenants",
+	"ReadPlatformSubscription", "ReadTenant", "ReadUsage", "RedeliverPlatformSubscription",
+	"RequestTenantDeletion", "ResumeTenant", "RotatePlatformSubscriptionSecret", "SuspendTenant",
+	"UpdatePlatformSubscription", "UpdateTenant", "UpdateTenantQuotas",
 }
 
 func TestSGTheProvisioningScopeAdmitsExactlyThePlatformsVerbs(t *testing.T) {
