@@ -115,12 +115,15 @@ func TestAWorkspaceMovesToAPlan(t *testing.T) {
 }
 
 // usageCounts is what the workspace holds.
-type usageCounts struct{ items, media, webhooks int64 }
+type usageCounts struct{ items, media, webhooks, people int64 }
 
-func (u *usageCounts) Items(context.Context) (int64, error)          { return u.items, nil }
-func (u *usageCounts) MediaBytes(context.Context) (int64, error)     { return u.media, nil }
-func (u *usageCounts) WebhookTargets(context.Context) (int64, error) { return u.webhooks, nil }
-func (u *usageCounts) LiveExports(context.Context) (int64, error)    { return 0, nil }
+func (u *usageCounts) Items(context.Context) (int64, error)                 { return u.items, nil }
+func (u *usageCounts) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageCounts) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageCounts) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (u *usageCounts) Accounts(context.Context) (int64, error)              { return u.people, nil }
+func (u *usageCounts) LockPeople(context.Context) error                     { return nil }
+func (u *usageCounts) InvitationOpen(context.Context, string) (bool, error) { return false, nil }
 func (u *usageCounts) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }

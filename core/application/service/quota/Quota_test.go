@@ -126,6 +126,11 @@ func (s *storeFake) SetOverrides(
 
 type usageFake struct {
 	items, media, webhooks, runs, exports int64
+	// people is the people count, and locks how often the people lock was taken.
+	people int64
+	locks  int
+	// open is whether the invitation being renewed still counts.
+	open bool
 	// metered is what the ledger holds, and the three below record how it was asked - which is
 	// the interesting half for a budget measured over a period.
 	metered       int64
@@ -134,10 +139,16 @@ type usageFake struct {
 	meteredSince  time.Time
 }
 
-func (u *usageFake) Items(context.Context) (int64, error)          { return u.items, nil }
-func (u *usageFake) MediaBytes(context.Context) (int64, error)     { return u.media, nil }
-func (u *usageFake) WebhookTargets(context.Context) (int64, error) { return u.webhooks, nil }
-func (u *usageFake) LiveExports(context.Context) (int64, error)    { return u.exports, nil }
+func (u *usageFake) Items(context.Context) (int64, error)                 { return u.items, nil }
+func (u *usageFake) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageFake) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageFake) LiveExports(context.Context) (int64, error)           { return u.exports, nil }
+func (u *usageFake) Accounts(context.Context) (int64, error)              { return u.people, nil }
+func (u *usageFake) InvitationOpen(context.Context, string) (bool, error) { return u.open, nil }
+func (u *usageFake) LockPeople(context.Context) error {
+	u.locks++
+	return nil
+}
 func (u *usageFake) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return u.runs, nil
 }
@@ -715,5 +726,54 @@ func TestAPlansLowerLimitRefusesTheNextCreation(t *testing.T) {
 	err := guard.Items(t.Context(), "acme", 1)
 	if got := shared.AsError(err); got == nil || got.DetailCode != "capacity.items" || got.Params["limit"] != "3" {
 		t.Fatalf("a creation past the plan's limit answered %v, want capacity.items at 3", err)
+	}
+}
+
+// UC-INS-10 check 5: the people limit refuses the next person past it, and takes the people lock
+// only where a limit is set - an unlimited workspace pays nothing.
+func TestThePeopleLimitRefusesTheNextPersonUnderItsLock(t *testing.T) {
+	unlimited := &usageFake{people: 40}
+	guard := Guard{Store: &storeFake{}, Usage: unlimited, Tenancy: env.TenancyMulti}
+	if err := guard.Accounts(t.Context(), "acme", 1); err != nil || unlimited.locks != 0 {
+		t.Errorf("an unlimited workspace answered %v and took the lock %d times", err, unlimited.locks)
+	}
+
+	limited := &usageFake{people: 6}
+	guard = Guard{Store: &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Accounts: ceiling(6)}}},
+		Usage: limited, Tenancy: env.TenancyMulti}
+	err := guard.Accounts(t.Context(), "acme", 1)
+	if got := shared.AsError(err); got == nil || got.DetailCode != "capacity.accounts" || got.Params["limit"] != "6" ||
+		got.Params["used"] != "6" {
+		t.Errorf("the seventh person answered %v, want capacity.accounts at 6 of 6", err)
+	}
+	if limited.locks != 1 {
+		t.Errorf("the people lock was taken %d times, want once before the count", limited.locks)
+	}
+	limited.people = 5
+	if err := guard.Accounts(t.Context(), "acme", 1); err != nil {
+		t.Errorf("the sixth person was refused: %v", err)
+	}
+}
+
+// A renewal adds a person only where the invitation's link ran out; at the limit it leaves the
+// platform's crossing standing rather than clearing it.
+func TestARenewalAddsAPersonOnlyWhereItsLinkRanOut(t *testing.T) {
+	store := &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Accounts: ceiling(6)}}}
+	crossings := &crossingsFake{}
+	open := &usageFake{people: 6, open: true}
+	guard := Guard{Store: store, Usage: open, Tenancy: env.TenancyMulti, Crossings: crossings}
+	if err := guard.Renewal(t.Context(), "acme", "bert"); err != nil {
+		t.Errorf("renewing an open invitation at the limit answered %v", err)
+	}
+	if len(crossings.admitted) != 0 {
+		t.Errorf("a renewal at the limit cleared the crossing: %v", crossings.admitted)
+	}
+	lapsed := &usageFake{people: 6}
+	guard.Usage = lapsed
+	if got := shared.AsError(guard.Renewal(t.Context(), "acme", "bert")); got == nil || got.DetailCode != "capacity.accounts" {
+		t.Errorf("renewing a lapsed invitation at the limit answered %v, want capacity.accounts", got)
+	}
+	if lapsed.locks != 1 {
+		t.Errorf("the people lock was taken %d times, want once", lapsed.locks)
 	}
 }

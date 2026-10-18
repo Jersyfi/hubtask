@@ -99,6 +99,19 @@ type Usage interface {
 	// on itself.
 	AutomationRunsSince(ctx context.Context, since time.Time) (int64, error)
 
+	// Accounts counts the people the workspace holds: active, restricted and managed accounts and
+	// open invitations, never service accounts.
+	Accounts(ctx context.Context) (int64, error)
+
+	// InvitationOpen answers whether the account is an invitation whose link is still open, which
+	// the people count already holds.
+	InvitationOpen(ctx context.Context, account string) (bool, error)
+
+	// LockPeople holds the creations of people in the transaction's workspace until it ends, so a
+	// count followed by a creation is not raced by another. Only the guard takes it, and only
+	// where a limit is set: a read never does.
+	LockPeople(ctx context.Context) error
+
 	// LiveExports counts the pending and running export jobs.
 	LiveExports(ctx context.Context) (int64, error)
 
