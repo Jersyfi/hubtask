@@ -390,6 +390,7 @@
   "admin.quota_unknown": "Es gibt kein Kontingent namens {quota}.",
   "admin.quota_negative": "Eine Obergrenze ist 0 (unbegrenzt) oder mehr; für {quota} wurde weniger angegeben.",
   "admin.tenant_version_moved": "Der Workspace hat sich geändert, während du ihn bearbeitet hast; lies ihn erneut.",
+  "admin.dry_run_inside_transaction": "Diese Installation ist falsch eingerichtet: Ein Probelauf des Planwechsels wurde innerhalb einer anderen Änderung angefragt, wo er kein Probelauf bliebe; deshalb ist nichts geschehen.",
   "admin.plan_name_taken": "Ein Plan hat oder hatte bereits diesen Kurznamen. Wähle einen anderen: Der Name eines Plans wird nie wiederverwendet.",
   "admin.plan_name_invalid": "Der Kurzname eines Plans hat 2 bis 40 Kleinbuchstaben, Ziffern und Bindestriche und beginnt mit einem Buchstaben oder einer Ziffer.",
   "admin.plan_not_found": "Es gibt keinen Plan mit diesem Namen.",

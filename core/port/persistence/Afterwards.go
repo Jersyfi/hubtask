@@ -39,6 +39,14 @@ func HoldAfterwards(ctx context.Context) (context.Context, *Afterwards) {
 	return context.WithValue(ctx, afterwardsKey{}, held), held
 }
 
+// Holding reports whether ctx belongs to an outermost transaction an adapter opened - whether a
+// unit of work called with it joins rather than opens. A test's fake holds nothing, so it answers
+// false there.
+func Holding(ctx context.Context) bool {
+	held, ok := ctx.Value(afterwardsKey{}).(*Afterwards)
+	return ok && held != nil
+}
+
 // After runs fn once the outermost transaction ctx belongs to has ended, or at once when nothing
 // holds work for later. fn opens whatever transaction it needs: it runs outside every transaction.
 func After(ctx context.Context, fn func(context.Context)) {

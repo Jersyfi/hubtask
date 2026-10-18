@@ -39,7 +39,12 @@ type MoveTenantPlanCommand struct {
 	// ExpectedVersion is the workspace's version as the caller last read it; nil moves whatever
 	// stands. A stale one is refused, so a late retry of an older move cannot undo a newer one.
 	ExpectedVersion *int
+	// DryRun answers what the move would change and writes nothing.
+	DryRun bool
 }
+
+// errDryRun ends a dry run's transaction from its outermost frame, so that nothing it did commits.
+var errDryRun = errors.New("admin: a dry run of a move ends here")
 
 // MovedTenant is what a move answers: the workspace on its plan, the features its plan now leaves
 // out, and the limits for which it keeps an operator's exception - the exception stays the last
@@ -82,6 +87,13 @@ func (h MoveTenantPlan) Execute(
 	}
 	if cmd.TenantID.IsZero() {
 		return MovedTenant{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+
+	// A dry run ends its transaction with a refusal of its own, which rolls back only a transaction
+	// it opened: joined into a caller's, the sentinel would end here as success and the caller's
+	// commit would keep the would-be move.
+	if cmd.DryRun && persistence.Holding(ctx) {
+		return MovedTenant{}, shared.ErrInternal.WithDetail("admin.dry_run_inside_transaction")
 	}
 
 	var moved MovedTenant
@@ -127,21 +139,25 @@ func (h MoveTenantPlan) Execute(
 			if !written {
 				return shared.ErrVersionConflict.WithDetail("admin.tenant_version_moved")
 			}
-			if err := h.record(ctx, actor, record, cmd.Plan, now); err != nil {
-				return err
-			}
-			previous := record.PlanName
+			before, previous := record, record.PlanName
 			if record, err = h.Tenants.Find(ctx); err != nil {
 				return err
 			}
-			var from any
-			if previous != "" {
-				from = previous
-			}
-			if err := h.Platform.Record(ctx, event.WorkspacePlanChanged,
-				event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, map[string]any{"previous_plan": from},
-			); err != nil {
-				return err
+			// A dry run keeps only the assignment the limits below are read under: no trail, no
+			// journal, no event - not even for the length of a transaction that rolls back.
+			if !cmd.DryRun {
+				if err := h.record(ctx, actor, before, cmd.Plan, now); err != nil {
+					return err
+				}
+				var from any
+				if previous != "" {
+					from = previous
+				}
+				if err := h.Platform.Record(ctx, event.WorkspacePlanChanged,
+					event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, map[string]any{"previous_plan": from},
+				); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -157,8 +173,15 @@ func (h MoveTenantPlan) Execute(
 			Tenant: record, FeaturesResting: target.Values.LeftOut, ExceptionsKept: exceptionsOf(levels.Exception),
 			LimitsExceeded: exceeded,
 		}
+		if cmd.DryRun {
+			return errDryRun
+		}
 		return nil
 	})
+	if errors.Is(err, errDryRun) {
+		// The move's own transaction, opened above and ended by the sentinel: nothing committed.
+		return moved, nil
+	}
 	return moved, err
 }
 
@@ -248,8 +271,8 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 			"workspace's next request, nothing is copied into it and nothing is deleted. With " +
 			"`expected_version`, a move on a workspace that changed since it was read is refused. " +
 			"Answers the features the plan now leaves out and the limits for which the workspace " +
-			"keeps an operator's exception. Multi mode only.",
-		SideEffects: "Writes the workspace's plan, its trail and the instance journal.",
+			"keeps an operator's exception. With `dry_run`, answers the same and writes nothing. Multi mode only.",
+		SideEffects: "Writes the workspace's plan, its trail and the instance journal; nothing on a dry run.",
 		TokenScope:  adminTenantsScope,
 		AlsoScope:   provisioningScope,
 		Input: []usecase.Field{
@@ -258,6 +281,8 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 				Description: "The plan's short name; empty or absent for none."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The workspace's version as last read; a stale one is refused with version_conflict."},
+			{Name: "dry_run", Kind: usecase.KindBool, CallerOnly: true,
+				Description: "True answers what the move would change and writes nothing."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TenantPlanChangedAction, TargetType: tenantTarget,
@@ -269,7 +294,7 @@ func (h MoveTenantPlan) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			cmd := MoveTenantPlanCommand{TenantID: tenantID, Plan: in.String("plan")}
+			cmd := MoveTenantPlanCommand{TenantID: tenantID, Plan: in.String("plan"), DryRun: in.Bool("dry_run")}
 			if in.Present("expected_version") {
 				version := in.Int("expected_version")
 				cmd.ExpectedVersion = &version

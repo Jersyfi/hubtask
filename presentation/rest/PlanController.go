@@ -196,6 +196,9 @@ func (c *RestController) MoveTenantPlan(
 	if body.ExpectedVersion != nil {
 		in["expected_version"] = *body.ExpectedVersion
 	}
+	if body.DryRun != nil {
+		in["dry_run"] = *body.DryRun
+	}
 	out, err := c.UseCases.Invoke(r.Context(), moveTenantPlanUse, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)

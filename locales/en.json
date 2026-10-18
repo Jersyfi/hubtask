@@ -311,6 +311,7 @@
   "admin.tenant_leaving": "That workspace is pending deletion. Its lifecycle only moves forward from here.",
   "admin.tenant_deletion_underway": "That workspace is being removed right now, so its deletion can no longer be called off.",
   "admin.holds_not_wired": "This installation is misconfigured: a deletion cannot read the legal holds, so it does not proceed.",
+  "admin.dry_run_inside_transaction": "This installation is misconfigured: a move's dry run was asked for inside another change, where it could not stay a dry run, so nothing was done.",
   "admin.automations_not_wired": "This installation is misconfigured: a cancelled deletion cannot switch the automations back on, so it is not called off.",
   "admin.deletion_confirmation_required": "Deleting a workspace needs its display name, typed exactly. Expected {name}.",
   "admin.password_opening_hours": "An opening lasts from one hour to {maximum} hours.",
