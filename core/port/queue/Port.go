@@ -387,6 +387,11 @@ const (
 	// workspace's operation, because nothing may enumerate tenants - and deduplicated per tenant,
 	// so asking twice before the walk has finished queues nothing new.
 	KindSearchReindex Kind = "search.reindex"
+
+	// KindPlatformSweep removes what the installation keeps for a purchase platform past its 30
+	// days (UC-INS-14): its events. One installation job, without a tenant, seeded when a worker
+	// starts and repeating; the dedupe key keeps it one however many workers start.
+	KindPlatformSweep Kind = "platform.sweep"
 )
 
 func (k Kind) String() string { return string(k) }

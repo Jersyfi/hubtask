@@ -131,6 +131,7 @@ func (AdminTenantRepository) Find(ctx context.Context) (repository.TenantRecord,
 		PurgeStartedAt:       timeFrom(row.PurgeStartedAt),
 		Version:              int(row.Version),
 		PlanName:             row.PlanName,
+		ExternalReference:    row.ExternalReference,
 	}, nil
 }
 

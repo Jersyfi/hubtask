@@ -54,6 +54,12 @@ func adminGroup() group {
 				run:     adminPlan,
 			},
 			{
+				name:    "events",
+				usage:   "[--cursor <cursor>] [--size <n>]",
+				summary: "the installation's events, read forward: what a purchase platform learns",
+				run:     adminEvents,
+			},
+			{
 				name:    "settings",
 				usage:   "show|set|clear …",
 				summary: "the values this installation decided for every workspace on it",

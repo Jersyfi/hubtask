@@ -775,6 +775,10 @@ class Client:
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
 
+    def list_platform_events(self, *, query: dict[str, Any] | None = None) -> "PlatformEventPage":
+        """The installation's events, read forward"""
+        return self._call("GET", "/admin/events", {}, query, {}, None, "none", None, "json")
+
     def list_instance_ai_providers(self) -> dict[str, Any]:
         """The AI models this installation offers every workspace"""
         return self._call("GET", "/admin/ai-providers", {}, None, {}, None, "none", None, "json")

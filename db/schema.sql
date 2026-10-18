@@ -2937,6 +2937,32 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 -- or removed afterwards would not be evidence.
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
+
+-- ============ The installation's events =============================
+-- What a provider's purchase platform learns about the workspaces (UC-INS-14, multi-tenancy.md
+-- §4.3). Numbered in commit order: `number` is drawn while the writer holds the advisory lock
+-- 8_010_002 until its transaction ends. No row-level-security policy, the journal's
+-- reasoning; `tenant_id` is a bare identifier, since the `deleted` event outlives its workspace. See
+-- db/migrations/0180_platform_event.sql.
+CREATE SEQUENCE platform_event_number AS bigint;
+CREATE TABLE platform_event (
+  number      bigint PRIMARY KEY,
+  id          uuid NOT NULL,
+  event_type  text NOT NULL CHECK (event_type ~ '^de\.hubtask\.installation\.[a-z_.]+\.v[0-9]+$'),
+  tenant_id   uuid NOT NULL,
+  occurred_at timestamptz NOT NULL,
+  actor_type  text NOT NULL,
+  actor_id    uuid,
+  payload     jsonb NOT NULL,
+  dedupe_key  text,
+  CONSTRAINT platform_event_id_key UNIQUE (id),
+  CONSTRAINT platform_event_dedupe_key UNIQUE (dedupe_key)
+);
+CREATE INDEX platform_event_tenant_idx ON platform_event (tenant_id);
+CREATE INDEX platform_event_occurred_idx ON platform_event (occurred_at);
+GRANT SELECT, INSERT, DELETE ON platform_event TO hubtask_app;
+GRANT UPDATE (payload) ON platform_event TO hubtask_app;
+GRANT USAGE ON SEQUENCE platform_event_number TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE ON plan TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON plan_setting TO hubtask_app;

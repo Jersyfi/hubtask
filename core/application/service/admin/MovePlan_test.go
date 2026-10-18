@@ -10,6 +10,7 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -57,13 +58,21 @@ func newMoveFixture(t *testing.T) moveFixture {
 	quotas := &quotaStoreFake{}
 	quotas.overrides.Items = &items
 	sink := &auditSink{}
+	f := moveFixture{plans: plans, tenants: tenants, audit: sink, quotas: quotas}
+	f.registry = moveRegistry(t, f, platform.Recorder{})
+	return f
+}
+
+// moveRegistry serves the move over the fixture's stores, telling the platform through recorder.
+func moveRegistry(t *testing.T, f moveFixture, recorder platform.Recorder) *usecase.Registry {
+	t.Helper()
 	registry, err := usecase.NewRegistry(nil, MoveTenantPlan{
-		Writer: plans.writer, Tenants: tenants, Quotas: quotas, Audit: sink,
+		Writer: f.plans.writer, Tenants: f.tenants, Quotas: f.quotas, Audit: f.audit, Platform: recorder,
 	}.Descriptor())
 	if err != nil {
 		t.Fatal(err)
 	}
-	return moveFixture{plans: plans, tenants: tenants, audit: sink, quotas: quotas, registry: registry}
+	return registry
 }
 
 func moveTo(plan string, version ...int) usecase.Input {

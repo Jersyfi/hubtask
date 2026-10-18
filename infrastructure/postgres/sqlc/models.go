@@ -1234,6 +1234,18 @@ type PlanSetting struct {
 	Locked bool
 }
 
+type PlatformEvent struct {
+	Number     int64
+	ID         pgtype.UUID
+	EventType  string
+	TenantID   pgtype.UUID
+	OccurredAt pgtype.Timestamptz
+	ActorType  string
+	ActorID    pgtype.UUID
+	Payload    []byte
+	DedupeKey  *string
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
