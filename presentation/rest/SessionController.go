@@ -84,6 +84,7 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 		"remote_addr":   r.RemoteAddr,
 		"tenant_slug":   c.tenantSlug(r),
 		"tenant_header": r.Header.Get(TenantHeader),
+		"host":          r.Host,
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -216,6 +217,7 @@ func (c *RestController) RedeemInvitation(w http.ResponseWriter, r *http.Request
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"host":          r.Host,
 		"terms_url":     optionalStringField(body.TermsUrl),
 		"terms_version": optionalStringField(body.TermsVersion),
 	})

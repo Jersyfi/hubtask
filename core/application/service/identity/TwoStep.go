@@ -33,7 +33,9 @@ const FailureMfa = "mfa_refused"
 const (
 	methodTotp     = "TOTP"
 	methodRecovery = "RECOVERY"
-	methodEnroll   = "ENROLL"
+	// methodPasskey is a passkey or security key as the second factor (identity.md §23.2).
+	methodPasskey = "PASSKEY"
+	methodEnroll  = "ENROLL"
 	// methodPasswordChange is ADR-0068 §3's whole enforcement: the password was right and no longer
 	// meets the rule, so the sign-in continues by setting a new one. Confirming it *is* the
 	// sign-in, exactly as ENROLL already works.
@@ -80,7 +82,11 @@ func (w SessionWriter) challengeFor(
 
 	var challenge *SignInChallenge
 	err := w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		purpose, err := w.pendingPurposeFor(ctx, account, verdict)
+		held, err := w.factorHeldAt(ctx, account.ID, cmd.Host)
+		if err != nil {
+			return err
+		}
+		purpose, err := w.pendingPurposeFor(ctx, account, verdict, held)
 		if err != nil || purpose == "" {
 			return err
 		}
@@ -120,17 +126,30 @@ func (w SessionWriter) challengeFor(
 			}
 		}
 
-		methods := []string{methodTotp, methodRecovery}
-		switch purpose {
-		case domain.PendingEnroll:
-			methods = []string{methodEnroll}
-		case domain.PendingPassword:
-			methods = []string{methodPasswordChange}
-		}
 		challenge = &SignInChallenge{
 			Token:     secret.New(presented.Secret()),
 			ExpiresAt: credential.ExpiresAt,
-			Methods:   methods,
+		}
+		switch purpose {
+		case domain.PendingEnroll:
+			challenge.Methods = []string{methodEnroll}
+			// The setup offers a key beside the app only where a browser can make one for the
+			// workspace: at its relying party's very host.
+			_, challenge.KeySetup, err = w.keyPartyAt(ctx, cmd.Host)
+			if err != nil {
+				return err
+			}
+		case domain.PendingPassword:
+			challenge.Methods = []string{methodPasswordChange}
+		default:
+			challenge.Methods = factorMethods(held)
+			if len(held.Keys) > 0 {
+				challenge.KeyOptions, err = w.issueKeyChallenge(
+					ctx, scope.TenantID, domain.PendingPasskeyFactor, account.ID, "", held)
+				if err != nil {
+					return err
+				}
+			}
 		}
 		if purpose == domain.PendingPassword {
 			// The rules travel with the challenge, so the list under the new password's field is
@@ -146,7 +165,8 @@ func (w SessionWriter) challengeFor(
 	return challenge, verdict, nil
 }
 
-// pendingPurposeFor is the decision itself: TOTP for an armed enrolment, ENROLL for somebody the
+// pendingPurposeFor is the decision itself: TOTP for an armed enrolment or a key that can sign here
+// (the factor's step, whichever it asks for), ENROLL for somebody the
 // workspace demands a factor of who has none, PASSWORD for a password that is right and no longer
 // meets the rule, and empty for a plain sign-in.
 //
@@ -155,19 +175,14 @@ func (w SessionWriter) challengeFor(
 // a session, and the next sign-in meets the password step. The other order would ask for a new
 // password from somebody who has not yet proved they are the account's holder.
 func (w SessionWriter) pendingPurposeFor(
-	ctx context.Context, account domain.Account, verdict SignInVerdict,
+	ctx context.Context, account domain.Account, verdict SignInVerdict, held heldFactor,
 ) (domain.PendingPurpose, error) {
-	enrollment, err := w.Enrollments.Find(ctx, account.ID)
-	armed := err == nil && !enrollment.ConfirmedAt.IsZero()
-	if err != nil && !errors.Is(err, shared.ErrNotFound) {
-		return "", err
-	}
-	if armed {
+	if held.any() {
 		return domain.PendingTotp, nil
 	}
 
-	// Not armed. An unconfirmed enrolment protects nobody and locks nobody out, so it counts
-	// exactly as none here.
+	// Nothing held that can be asked for here. An unconfirmed enrolment protects nobody and locks
+	// nobody out, so it counts exactly as none.
 	demanded, err := w.factorDemandedOf(ctx, account, verdict)
 	if err != nil {
 		return "", err
@@ -241,6 +256,8 @@ type CompleteSignInCommand struct {
 	PendingToken secret.Secret
 	Code         string
 	RecoveryCode secret.Secret
+	// Key is a passkey or security key's answer to the step's options.
+	Key KeyAnswer
 	// TenantHeader may confirm the token's tenant, never overrule it.
 	TenantHeader string
 }
@@ -267,7 +284,14 @@ func (h CompleteSignIn) Execute(
 	if cmd.TenantHeader != "" && cmd.TenantHeader != token.TenantID().String() {
 		return SignInResult{}, -1, shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
-	if cmd.Code == "" && cmd.RecoveryCode.IsEmpty() {
+	given := 0
+	for _, proof := range []bool{cmd.Code != "", !cmd.RecoveryCode.IsEmpty(), cmd.Key.given()} {
+		if proof {
+			given++
+		}
+	}
+	if given != 1 {
+		// Exactly one proof: none is nothing to judge, and two would let the weaker decide.
 		return SignInResult{}, -1, shared.ErrValidation.
 			WithDetail("auth.mfa_code_required").
 			WithFields(shared.FieldError{Path: "/code", Code: "auth.mfa_code_required"})
@@ -279,6 +303,7 @@ func (h CompleteSignIn) Execute(
 		hint      domain.PendingCredential
 		remaining = -1
 		bounds    domain.SessionPolicy
+		byKey     bool
 	)
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		lookup, err := w.Pending.FindByToken(ctx, token)
@@ -315,11 +340,24 @@ func (h CompleteSignIn) Execute(
 			return err
 		}
 
-		if cmd.Code != "" {
+		switch {
+		case cmd.Code != "":
 			if err := w.verifyTotpCode(ctx, lookup.Account.ID, cmd.Code, now); err != nil {
 				return countedRefusal(subject, err)
 			}
-		} else {
+		case cmd.Key.given():
+			// A refused key is the code's refusal, counted on the same subject; the step and its
+			// challenge stand for another try (identity.md §4.3).
+			err := w.proveWithKey(ctx, scope.TenantID, domain.PendingPasskeyFactor, lookup.Account.ID, "", cmd.Key)
+			if errors.Is(err, errKeyRefused) {
+				w.failure(ctx, FailureMfa)
+				return countedRefusal(subject, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid").WithCause(err))
+			}
+			if err != nil {
+				return err
+			}
+			byKey = true
+		default:
 			burned, err := w.Recovery.Burn(ctx, lookup.Account.ID, cmd.RecoveryCode.Reveal(), now)
 			if err != nil {
 				return err
@@ -374,10 +412,7 @@ func (h CompleteSignIn) Execute(
 	if hint.PasswordChangeOwed {
 		// The change step opens the session; it carries how this step was proven, so that the
 		// session says so rather than "Password" (UC-ID-06 check 2).
-		hint.SignedInWith = domain.SignedInWithPasswordTotp
-		if remaining >= 0 {
-			hint.SignedInWith = domain.SignedInWithPasswordRecovery
-		}
+		hint.SignedInWith = proofMethod(remaining, byKey)
 		challenge, err := w.owedChange(ctx, scope, account, hint)
 		if err != nil {
 			return SignInResult{}, -1, err
@@ -393,10 +428,7 @@ func (h CompleteSignIn) Execute(
 	}
 
 	// How it was opened, for the list a person reads: the code, or one of the ten they kept.
-	method := domain.SignedInWithPasswordTotp
-	if remaining >= 0 {
-		method = domain.SignedInWithPasswordRecovery
-	}
+	method := proofMethod(remaining, byKey)
 	via := shared.ID("")
 	// A connection the mailbox proved began at the provider and holds no password: the session is
 	// the provider's, as the connection without a factor opens it (ADR-0078 §1).
@@ -410,6 +442,18 @@ func (h CompleteSignIn) Execute(
 		return SignInResult{}, -1, err
 	}
 	return result, remaining, nil
+}
+
+// proofMethod is how the factor's step was proven, for the session list: the code, one of the ten
+// codes, or a key.
+func proofMethod(remaining int, byKey bool) string {
+	switch {
+	case byKey:
+		return domain.SignedInWithPasswordPasskey
+	case remaining >= 0:
+		return domain.SignedInWithPasswordRecovery
+	}
+	return domain.SignedInWithPasswordTotp
 }
 
 // owedChange answers the change step a factor's step still owes (identity.md §4.2): a new
@@ -590,6 +634,12 @@ func challengeOutput(challenge SignInChallenge) usecase.Output {
 		// field that was always there and usually null would be a field every client had to read.
 		out["password_rules"] = passwordRulesOutput(*challenge.PasswordRules)
 	}
+	if challenge.KeyOptions != nil {
+		out["passkey_options"] = keyOptionsOutput(*challenge.KeyOptions)
+	}
+	if challenge.KeySetup {
+		out["passkey_setup"] = true
+	}
 	if challenge.Email != "" {
 		out["email"] = challenge.Email
 	}
@@ -613,7 +663,8 @@ func (h CompleteSignIn) Descriptor() usecase.Descriptor {
 		Summary: "Presents the second factor of a two-step sign-in: the pending credential the " +
 			"password answered, plus a TOTP code - one step of drift either side, never the " +
 			"same step twice - or one recovery code, which burns on use and answers how many " +
-			"remain. Failures count against the account's own attempt ledger.",
+			"remain - or a passkey or security key's answer to the step's options, presence " +
+			"sufficing. Exactly one. Failures count against the account's own attempt ledger.",
 		SideEffects: "Consumes the pending credential, advances the replay floor or burns a " +
 			"recovery code, opens a session, and writes audit entries.",
 		Input: []usecase.Field{
@@ -634,6 +685,7 @@ func (h CompleteSignIn) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"token's tenant, never overrule it.",
 			},
+			keyAnswerFields[0], keyAnswerFields[1], keyAnswerFields[2], keyAnswerFields[3],
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SignedInAction, TargetType: sessionTarget,
@@ -649,10 +701,15 @@ func (h CompleteSignIn) Descriptor() usecase.Descriptor {
 func (h CompleteSignIn) invoke(
 	ctx context.Context, _ appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	key, ok := keyAnswerOf(in)
+	if !ok {
+		return nil, shared.ErrUnauthenticated.WithDetail("auth.mfa_code_invalid")
+	}
 	result, remaining, err := h.Execute(ctx, CompleteSignInCommand{
 		PendingToken: secret.New(in.String("pending_token")),
 		Code:         in.String("code"),
 		RecoveryCode: secret.New(in.String("recovery_code")),
+		Key:          key,
 		TenantHeader: in.String("tenant_header"),
 	})
 	if err != nil {

@@ -2620,6 +2620,7 @@ func (e MembershipScope) Valid() bool {
 const (
 	MfaChallengeMethodsENROLL         MfaChallengeMethods = "ENROLL"
 	MfaChallengeMethodsLINK           MfaChallengeMethods = "LINK"
+	MfaChallengeMethodsPASSKEY        MfaChallengeMethods = "PASSKEY"
 	MfaChallengeMethodsPASSWORDCHANGE MfaChallengeMethods = "PASSWORD_CHANGE"
 	MfaChallengeMethodsRECOVERY       MfaChallengeMethods = "RECOVERY"
 	MfaChallengeMethodsTERMS          MfaChallengeMethods = "TERMS"
@@ -2632,6 +2633,8 @@ func (e MfaChallengeMethods) Valid() bool {
 	case MfaChallengeMethodsENROLL:
 		return true
 	case MfaChallengeMethodsLINK:
+		return true
+	case MfaChallengeMethodsPASSKEY:
 		return true
 	case MfaChallengeMethodsPASSWORDCHANGE:
 		return true
@@ -2688,6 +2691,21 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PasskeyAssertionOptionsPublicKeyUserVerification.
+const (
+	PasskeyAssertionOptionsPublicKeyUserVerificationPreferred PasskeyAssertionOptionsPublicKeyUserVerification = "preferred"
+)
+
+// Valid indicates whether the value is a known member of the PasskeyAssertionOptionsPublicKeyUserVerification enum.
+func (e PasskeyAssertionOptionsPublicKeyUserVerification) Valid() bool {
+	switch e {
+	case PasskeyAssertionOptionsPublicKeyUserVerificationPreferred:
 		return true
 	default:
 		return false
@@ -3832,6 +3850,7 @@ const (
 	SessionSignedInWithOIDC             SessionSignedInWith = "OIDC"
 	SessionSignedInWithPASSKEY          SessionSignedInWith = "PASSKEY"
 	SessionSignedInWithPASSWORD         SessionSignedInWith = "PASSWORD"
+	SessionSignedInWithPASSWORDPASSKEY  SessionSignedInWith = "PASSWORD_PASSKEY"
 	SessionSignedInWithPASSWORDRECOVERY SessionSignedInWith = "PASSWORD_RECOVERY"
 	SessionSignedInWithPASSWORDTOTP     SessionSignedInWith = "PASSWORD_TOTP"
 	SessionSignedInWithRESET            SessionSignedInWith = "RESET"
@@ -3849,6 +3868,8 @@ func (e SessionSignedInWith) Valid() bool {
 	case SessionSignedInWithPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORD:
+		return true
+	case SessionSignedInWithPASSWORDPASSKEY:
 		return true
 	case SessionSignedInWithPASSWORDRECOVERY:
 		return true
@@ -3971,6 +3992,7 @@ func (e SortTermNulls) Valid() bool {
 
 // Defines values for StepUpGrantMethod.
 const (
+	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
 	StepUpGrantMethodPASSWORD StepUpGrantMethod = "PASSWORD"
 	StepUpGrantMethodPROVIDER StepUpGrantMethod = "PROVIDER"
 	StepUpGrantMethodRECOVERY StepUpGrantMethod = "RECOVERY"
@@ -3980,6 +4002,8 @@ const (
 // Valid indicates whether the value is a known member of the StepUpGrantMethod enum.
 func (e StepUpGrantMethod) Valid() bool {
 	switch e {
+	case StepUpGrantMethodPASSKEY:
+		return true
 	case StepUpGrantMethodPASSWORD:
 		return true
 	case StepUpGrantMethodPROVIDER:
@@ -7778,8 +7802,14 @@ type MfaChallenge struct {
 	Email     *string   `json:"email,omitempty"`
 	ExpiresAt time.Time `json:"expires_at"`
 
-	// Methods `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
+	// Methods `TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an account holding a second factor, each where it can be given; `ENROLL` alone for somebody the workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password that was right and no longer meets the rule; `LINK` alone for a provider arrival that met an account with a password, completed at `/auth/sessions:link`; `TERMS` alone, after every other step, where the account has not agreed to the terms of use in force, completed at `/auth/sessions:agree-terms`. Each is a step the pending credential can complete and nothing else.
 	Methods []MfaChallengeMethods `json:"methods"`
+
+	// PasskeyOptions Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of the step's own. Presence on the device suffices here; the password came first.
+	PasskeyOptions *PasskeyAssertionOptions `json:"passkey_options,omitempty"`
+
+	// PasskeySetup With `ENROLL`: whether a passkey or a security key can be set up here instead of the authenticator app - only where the page runs at the workspace's own address.
+	PasskeySetup *bool `json:"passkey_setup,omitempty"`
 
 	// PasswordRules Present with `PASSWORD_CHANGE` and with no other step: the screen that asks for a new password needs the rule in the same answer, or the list under the field arrives a round trip after the field does.
 	PasswordRules *PasswordRules `json:"password_rules,omitempty"`
@@ -8156,6 +8186,27 @@ type PasskeyAssertion struct {
 	UserHandle string `json:"user_handle"`
 }
 
+// PasskeyAssertionOptions The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form.
+type PasskeyAssertionOptions struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	PublicKey struct {
+		AllowCredentials []PasskeyDescriptor `json:"allowCredentials"`
+
+		// Challenge Thirty-two random bytes
+		Challenge string `json:"challenge"`
+
+		// RpId The workspace's host.
+		RpId string `json:"rpId"`
+
+		// Timeout Milliseconds.
+		Timeout          int                                              `json:"timeout"`
+		UserVerification PasskeyAssertionOptionsPublicKeyUserVerification `json:"userVerification"`
+	} `json:"public_key"`
+}
+
+// PasskeyAssertionOptionsPublicKeyUserVerification defines model for PasskeyAssertionOptions.PublicKey.UserVerification.
+type PasskeyAssertionOptionsPublicKeyUserVerification string
+
 // PasskeyCreationOptions defines model for PasskeyCreationOptions.
 type PasskeyCreationOptions struct {
 	Attestation            PasskeyCreationOptionsAttestation `json:"attestation"`
@@ -8218,6 +8269,39 @@ type PasskeyDescriptor struct {
 
 // PasskeyDescriptorType defines model for PasskeyDescriptor.Type.
 type PasskeyDescriptorType string
+
+// PasskeyEnrolled A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed.
+type PasskeyEnrolled struct {
+	// Challenge The `PASSWORD_CHANGE` step, where the password must still be changed.
+	Challenge *MfaChallenge `json:"challenge,omitempty"`
+
+	// Passkey One passkey or security key of the caller's account.
+	Passkey Passkey `json:"passkey"`
+
+	// RecoveryCodes Present only where the account held no unused recovery code: ten single-use codes, shown this once and stored only as hashes.
+	RecoveryCodes *[]string `json:"recovery_codes,omitempty"`
+
+	// Tokens The pair, where nothing else is owed.
+	Tokens *SessionTokens `json:"tokens,omitempty"`
+}
+
+// PasskeyEnrollment The `ENROLL` step's credential, what the ceremony answered, and the name.
+type PasskeyEnrollment struct {
+	AttestationObject string `json:"attestation_object"`
+	ClientDataJson    string `json:"client_data_json"`
+
+	// Name What the person calls it.
+	Name         string              `json:"name"`
+	PendingToken string              `json:"pending_token"`
+	RawId        string              `json:"raw_id"`
+	Transports   *[]PasskeyTransport `json:"transports,omitempty"`
+}
+
+// PasskeyEnrollmentStart defines model for PasskeyEnrollmentStart.
+type PasskeyEnrollmentStart struct {
+	// PendingToken The `ENROLL` step's credential.
+	PendingToken string `json:"pending_token"`
+}
 
 // PasskeyList defines model for PasskeyList.
 type PasskeyList struct {
@@ -9526,12 +9610,24 @@ type SignIn struct {
 
 // SignInCompletion defines model for SignInCompletion.
 type SignInCompletion struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+
 	// Code The authenticator's current code.
 	Code         *string `json:"code,omitempty"`
 	PendingToken string  `json:"pending_token"`
 
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
+
 	// RecoveryCode One of the ten shown at enrolment. It works exactly once.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 }
 
 // SignInMethod One way into a workspace. A named schema, so that every reader of one shares a type.
@@ -9745,15 +9841,27 @@ type StepUpGrant struct {
 // StepUpGrantMethod What proved it - recorded in the audit trail, never the credential.
 type StepUpGrantMethod string
 
-// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
+// StepUpRequest Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it.
 type StepUpRequest struct {
+	// AuthenticatorData The answer's `authenticatorData`.
+	AuthenticatorData *string `json:"authenticator_data,omitempty"`
+
 	// AuthorizationCode The code the provider issued. Presented together with `state`.
 	AuthorizationCode *string `json:"authorization_code,omitempty"`
-	Code              *string `json:"code,omitempty"`
-	Password          *string `json:"password,omitempty"`
+
+	// ClientDataJson The answer's `clientDataJSON`.
+	ClientDataJson *string `json:"client_data_json,omitempty"`
+	Code           *string `json:"code,omitempty"`
+	Password       *string `json:"password,omitempty"`
+
+	// RawId A passkey or security key's answer, with the three fields below - its `rawId`.
+	RawId *string `json:"raw_id,omitempty"`
 
 	// RecoveryCode One of the account's recovery codes. Consumed, as at sign-in.
 	RecoveryCode *string `json:"recovery_code,omitempty"`
+
+	// Signature The answer's `signature`.
+	Signature *string `json:"signature,omitempty"`
 
 	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
 	State *string `json:"state,omitempty"`
@@ -12143,6 +12251,12 @@ type InspectInvitationJSONRequestBody = InvitationInspection
 // RedeemInvitationJSONRequestBody defines body for RedeemInvitation for application/json ContentType.
 type RedeemInvitationJSONRequestBody = InvitationRedemption
 
+// CompletePasskeyEnrollmentJSONRequestBody defines body for CompletePasskeyEnrollment for application/json ContentType.
+type CompletePasskeyEnrollmentJSONRequestBody = PasskeyEnrollment
+
+// StartPasskeyEnrollmentJSONRequestBody defines body for StartPasskeyEnrollment for application/json ContentType.
+type StartPasskeyEnrollmentJSONRequestBody = PasskeyEnrollmentStart
+
 // ConfirmAuthenticatorReplacementJSONRequestBody defines body for ConfirmAuthenticatorReplacement for application/json ContentType.
 type ConfirmAuthenticatorReplacementJSONRequestBody = AuthenticatorReplacementConfirmation
 
@@ -13908,6 +14022,52 @@ type ClientInterface interface {
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitation(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CompletePasskeyEnrollmentWithBody Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompletePasskeyEnrollment Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollment(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyEnrollmentWithBody Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyEnrollment Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollment(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RegenerateRecoveryCodes Replace the ten recovery codes
 	//
 	// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
@@ -14423,6 +14583,17 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// StartPasskeyStepUp The options for a fresh proof with a passkey or security key
+	//
+	// The options for `navigator.credentials.get()` that prove the caller afresh at
+	// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+	// session and account, five minutes, single use. Presence on the device suffices. Refused with
+	// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+	// the workspace's own host, and with `auth.step_up_session_required` for a token.
+	//
+	// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+	StartPasskeyStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StartProviderStepUp Begin a step-up at the provider this account is connected to
 	//
@@ -19783,6 +19954,92 @@ func (c *Client) RedeemInvitation(ctx context.Context, body RedeemInvitationJSON
 	return c.Client.Do(req)
 }
 
+// CompletePasskeyEnrollmentWithBody Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *Client) CompletePasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyEnrollmentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompletePasskeyEnrollment Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *Client) CompletePasskeyEnrollment(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompletePasskeyEnrollmentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyEnrollmentWithBody Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *Client) StartPasskeyEnrollmentWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyEnrollmentRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyEnrollment Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *Client) StartPasskeyEnrollment(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyEnrollmentRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RegenerateRecoveryCodes Replace the ten recovery codes
 //
 // Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
@@ -20769,6 +21026,27 @@ func (c *Client) StepUpWithBody(ctx context.Context, contentType string, body io
 // Corresponds with POST /auth/step-up (the `StepUp` operationId).
 func (c *Client) StepUp(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStepUpRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// StartPasskeyStepUp The options for a fresh proof with a passkey or security key
+//
+// The options for `navigator.credentials.get()` that prove the caller afresh at
+// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+// session and account, five minutes, single use. Presence on the device suffices. Refused with
+// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+// the workspace's own host, and with `auth.step_up_session_required` for a token.
+//
+// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+func (c *Client) StartPasskeyStepUp(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartPasskeyStepUpRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -30179,6 +30457,86 @@ func NewRedeemInvitationRequestWithBody(server string, contentType string, body 
 	return req, nil
 }
 
+// NewCompletePasskeyEnrollmentRequest calls the generic CompletePasskeyEnrollment builder with application/json body
+func NewCompletePasskeyEnrollmentRequest(server string, body CompletePasskeyEnrollmentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompletePasskeyEnrollmentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCompletePasskeyEnrollmentRequestWithBody constructs an http.Request for the CompletePasskeyEnrollment method, with any body, and a specified content type
+func NewCompletePasskeyEnrollmentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/passkey:enroll")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeyEnrollmentRequest calls the generic StartPasskeyEnrollment builder with application/json body
+func NewStartPasskeyEnrollmentRequest(server string, body StartPasskeyEnrollmentJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewStartPasskeyEnrollmentRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewStartPasskeyEnrollmentRequestWithBody constructs an http.Request for the StartPasskeyEnrollment method, with any body, and a specified content type
+func NewStartPasskeyEnrollmentRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/mfa/passkey:enroll-options")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewRegenerateRecoveryCodesRequest constructs an http.Request for the RegenerateRecoveryCodes method
 func NewRegenerateRecoveryCodesRequest(server string, params *RegenerateRecoveryCodesParams) (*http.Request, error) {
 	var err error
@@ -31317,6 +31675,33 @@ func NewStepUpRequestWithBody(server string, contentType string, body io.Reader)
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewStartPasskeyStepUpRequest constructs an http.Request for the StartPasskeyStepUp method
+func NewStartPasskeyStepUpRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/step-up:passkey-options")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -43903,6 +44288,52 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /auth/invitations:redeem (the `RedeemInvitation` operationId).
 	RedeemInvitationWithResponse(ctx context.Context, body RedeemInvitationJSONRequestBody, reqEditors ...RequestEditorFn) (*RedeemInvitationResult, error)
 
+	// CompletePasskeyEnrollmentWithBodyWithResponse Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error)
+
+	// CompletePasskeyEnrollmentWithResponse Finish setting up a passkey or security key during sign-in
+	//
+	// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+	// recovery codes are shown once where the account held none, and - the second factor proved -
+	// the sign-in completes: the pair, or the step still owed.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+	CompletePasskeyEnrollmentWithResponse(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error)
+
+	// StartPasskeyEnrollmentWithBodyWithResponse Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error)
+
+	// StartPasskeyEnrollmentWithResponse Begin setting up a passkey or security key during sign-in
+	//
+	// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+	// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+	// credential is the proof. Only where the request arrived at the workspace's own host
+	// (`auth.passkey_unavailable` otherwise).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+	StartPasskeyEnrollmentWithResponse(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error)
+
 	// RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 	//
 	// Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
@@ -44438,6 +44869,19 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/step-up (the `StepUp` operationId).
 	StepUpWithResponse(ctx context.Context, body StepUpJSONRequestBody, reqEditors ...RequestEditorFn) (*StepUpResult, error)
+
+	// StartPasskeyStepUpWithResponse The options for a fresh proof with a passkey or security key
+	//
+	// The options for `navigator.credentials.get()` that prove the caller afresh at
+	// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+	// session and account, five minutes, single use. Presence on the device suffices. Refused with
+	// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+	// the workspace's own host, and with `auth.step_up_session_required` for a token.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+	StartPasskeyStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeyStepUpResult, error)
 
 	// StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
 	//
@@ -51443,6 +51887,102 @@ func (r RedeemInvitationResult) ContentType() string {
 	return ""
 }
 
+type CompletePasskeyEnrollmentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PasskeyEnrolled
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompletePasskeyEnrollmentResult) GetJSON201() *PasskeyEnrolled {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompletePasskeyEnrollmentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompletePasskeyEnrollmentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompletePasskeyEnrollmentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompletePasskeyEnrollmentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompletePasskeyEnrollmentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeyEnrollmentResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyRegistrationOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeyEnrollmentResult) GetJSON200() *PasskeyRegistrationOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeyEnrollmentResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeyEnrollmentResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeyEnrollmentResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeyEnrollmentResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeyEnrollmentResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RegenerateRecoveryCodesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -52836,6 +53376,54 @@ func (r StepUpResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r StepUpResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type StartPasskeyStepUpResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PasskeyAssertionOptions
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartPasskeyStepUpResult) GetJSON200() *PasskeyAssertionOptions {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartPasskeyStepUpResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartPasskeyStepUpResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartPasskeyStepUpResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartPasskeyStepUpResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartPasskeyStepUpResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -66063,6 +66651,76 @@ func (c *ClientWithResponses) RedeemInvitationWithResponse(ctx context.Context, 
 	return ParseRedeemInvitationResult(rsp)
 }
 
+// CompletePasskeyEnrollmentWithBodyWithResponse Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *ClientWithResponses) CompletePasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error) {
+	rsp, err := c.CompletePasskeyEnrollmentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyEnrollmentResult(rsp)
+}
+
+// CompletePasskeyEnrollmentWithResponse Finish setting up a passkey or security key during sign-in
+//
+// The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+// recovery codes are shown once where the account held none, and - the second factor proved -
+// the sign-in completes: the pair, or the step still owed.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll (the `CompletePasskeyEnrollment` operationId).
+func (c *ClientWithResponses) CompletePasskeyEnrollmentWithResponse(ctx context.Context, body CompletePasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*CompletePasskeyEnrollmentResult, error) {
+	rsp, err := c.CompletePasskeyEnrollment(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompletePasskeyEnrollmentResult(rsp)
+}
+
+// StartPasskeyEnrollmentWithBodyWithResponse Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *ClientWithResponses) StartPasskeyEnrollmentWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error) {
+	rsp, err := c.StartPasskeyEnrollmentWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyEnrollmentResult(rsp)
+}
+
+// StartPasskeyEnrollmentWithResponse Begin setting up a passkey or security key during sign-in
+//
+// For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+// options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+// credential is the proof. Only where the request arrived at the workspace's own host
+// (`auth.passkey_unavailable` otherwise).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/mfa/passkey:enroll-options (the `StartPasskeyEnrollment` operationId).
+func (c *ClientWithResponses) StartPasskeyEnrollmentWithResponse(ctx context.Context, body StartPasskeyEnrollmentJSONRequestBody, reqEditors ...RequestEditorFn) (*StartPasskeyEnrollmentResult, error) {
+	rsp, err := c.StartPasskeyEnrollment(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyEnrollmentResult(rsp)
+}
+
 // RegenerateRecoveryCodesWithResponse Replace the ten recovery codes
 //
 // Ten new ones, behind a step-up, for an account that holds a second factor - the authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else held; both before the proof is spent). The old set stops working in the same moment the new one is answered - one statement, because a set answered without the old one burned would be twenty live codes, and a set burned without a new one answered would lock somebody out of their own escape hatch.
@@ -66885,6 +67543,25 @@ func (c *ClientWithResponses) StepUpWithResponse(ctx context.Context, body StepU
 		return nil, err
 	}
 	return ParseStepUpResult(rsp)
+}
+
+// StartPasskeyStepUpWithResponse The options for a fresh proof with a passkey or security key
+//
+// The options for `navigator.credentials.get()` that prove the caller afresh at
+// `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+// session and account, five minutes, single use. Presence on the device suffices. Refused with
+// `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+// the workspace's own host, and with `auth.step_up_session_required` for a token.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/step-up:passkey-options (the `StartPasskeyStepUp` operationId).
+func (c *ClientWithResponses) StartPasskeyStepUpWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*StartPasskeyStepUpResult, error) {
+	rsp, err := c.StartPasskeyStepUp(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartPasskeyStepUpResult(rsp)
 }
 
 // StartProviderStepUpWithResponse Begin a step-up at the provider this account is connected to
@@ -74600,6 +75277,72 @@ func ParseRedeemInvitationResult(rsp *http.Response) (*RedeemInvitationResult, e
 	return response, nil
 }
 
+// ParseCompletePasskeyEnrollmentResult parses an HTTP response from a CompletePasskeyEnrollmentWithResponse call
+func ParseCompletePasskeyEnrollmentResult(rsp *http.Response) (*CompletePasskeyEnrollmentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompletePasskeyEnrollmentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PasskeyEnrolled
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeyEnrollmentResult parses an HTTP response from a StartPasskeyEnrollmentWithResponse call
+func ParseStartPasskeyEnrollmentResult(rsp *http.Response) (*StartPasskeyEnrollmentResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeyEnrollmentResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyRegistrationOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseRegenerateRecoveryCodesResult parses an HTTP response from a RegenerateRecoveryCodesWithResponse call
 func ParseRegenerateRecoveryCodesResult(rsp *http.Response) (*RegenerateRecoveryCodesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -75569,6 +76312,39 @@ func ParseStepUpResult(rsp *http.Response) (*StepUpResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseStartPasskeyStepUpResult parses an HTTP response from a StartPasskeyStepUpWithResponse call
+func ParseStartPasskeyStepUpResult(rsp *http.Response) (*StartPasskeyStepUpResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartPasskeyStepUpResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PasskeyAssertionOptions
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

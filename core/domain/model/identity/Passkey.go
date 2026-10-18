@@ -144,3 +144,48 @@ const PendingPasskeySignIn PendingPurpose = "PASSKEY_SIGN_IN"
 func NewPasskeySignInToken(tenantID shared.ID, challenge []byte) (Token, error) {
 	return newPrefixed(PasskeySignInTokenPrefix, tenantID, challenge)
 }
+
+// The challenges a known account answers with one of its own credentials (identity.md §23.3,
+// migration 0176): the step after the password, a setup during sign-in, and a session's fresh proof.
+const (
+	PendingPasskeyFactor PendingPurpose = "PASSKEY_FACTOR"
+	PendingPasskeyEnroll PendingPurpose = "PASSKEY_ENROLL"
+	PendingPasskeyStepUp PendingPurpose = "PASSKEY_STEP_UP"
+)
+
+// Each of those challenges is held to a prefix of its own, for the registration challenge's reason:
+// they are public, and no door may take one kind for another.
+const (
+	passkeyFactorTokenPrefix = "hbt_pkf_" //nolint:gosec // G101: a public format marker, not a credential
+	passkeyEnrollTokenPrefix = "hbt_pke_" //nolint:gosec // G101: a public format marker, not a credential
+	passkeyStepUpTokenPrefix = "hbt_pku_" //nolint:gosec // G101: a public format marker, not a credential
+)
+
+// NewPasskeyFactorToken is a second factor's challenge as the token its row is found by.
+func NewPasskeyFactorToken(tenantID shared.ID, challenge []byte) (Token, error) {
+	return newPrefixed(passkeyFactorTokenPrefix, tenantID, challenge)
+}
+
+// NewPasskeyEnrollToken is the challenge of a key set up during sign-in as the token its row is
+// found by.
+func NewPasskeyEnrollToken(tenantID shared.ID, challenge []byte) (Token, error) {
+	return newPrefixed(passkeyEnrollTokenPrefix, tenantID, challenge)
+}
+
+// NewPasskeyStepUpToken is a fresh proof's challenge as the token its row is found by.
+func NewPasskeyStepUpToken(tenantID shared.ID, challenge []byte) (Token, error) {
+	return newPrefixed(passkeyStepUpTokenPrefix, tenantID, challenge)
+}
+
+// PasskeyProofChallenge is a challenge waiting for one of its account's credentials.
+type PasskeyProofChallenge struct {
+	ID        shared.ID
+	Purpose   PendingPurpose
+	AccountID shared.ID
+	// SessionID is the session a fresh proof is for; zero for the other two.
+	SessionID shared.ID
+	// UserHandle is the handle a key set up during sign-in will carry; nil for the other two.
+	UserHandle []byte
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+}

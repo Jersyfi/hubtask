@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-05, P-11, P-13, P-16]
-state: partial
+state: verified
 tasks: [PK-01, PK-02, PK-04]
-checked_by: [core/application/service/identity/Passkey_test.go, core/domain/model/identity/Passkey_test.go, test/integration/passkey_test.go, infrastructure/webauthn/Registration_test.go, infrastructure/webauthn/Captured_test.go, apps/webapp/e2e/passkeys.test.mjs, docs/evidence/PK-01-2026-10-16.md, core/application/service/identity/PasskeyManage_test.go, core/application/service/identity/PasskeyFactor_test.go, core/application/service/identity/WayIn_test.go, core/application/service/notification/WayInChanged_test.go, core/domain/model/identity/SecondFactor_test.go, test/integration/passkey_factor_test.go, presentation/rest/PasskeyController_test.go, apps/webapp/src/lib/data/passkeys.test.ts, docs/evidence/PK-02-2026-10-16.md]
+checked_by: [core/application/service/identity/Passkey_test.go, core/domain/model/identity/Passkey_test.go, test/integration/passkey_test.go, infrastructure/webauthn/Registration_test.go, infrastructure/webauthn/Captured_test.go, apps/webapp/e2e/passkeys.test.mjs, docs/evidence/PK-01-2026-10-16.md, core/application/service/identity/PasskeyManage_test.go, core/application/service/identity/PasskeyFactor_test.go, core/application/service/identity/WayIn_test.go, core/application/service/notification/WayInChanged_test.go, core/domain/model/identity/SecondFactor_test.go, test/integration/passkey_factor_test.go, presentation/rest/PasskeyController_test.go, apps/webapp/src/lib/data/passkeys.test.ts, docs/evidence/PK-02-2026-10-16.md, core/application/service/identity/PasskeyEnrollment_test.go, apps/webapp/e2e/keyfactor.test.mjs, docs/evidence/PK-04-2026-10-17.md]
 ---
 
 # Manage my passkeys and security keys
@@ -53,7 +53,3 @@ tells her that a way into her account was removed.
   every code is removed and invited again (`NG-weaker-recovery`).
 * No maker's name or picture for a key: the person names it.
 * Passkeys belong to the workspace's address; another workspace of the same person has its own.
-
-## Today
-
-* Check 8: not met — the setup during sign-in offers the authenticator app only; PK-04.

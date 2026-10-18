@@ -181,6 +181,9 @@ export type PasskeyRegistered = components['schemas']['PasskeyRegistered'];
 /** The options for a passkey sign-in, and what the browser's ceremony answered (identity.md §23.4). */
 export type PasskeySignInOptions = components['schemas']['PasskeySignInOptions'];
 export type PasskeyAssertion = components['schemas']['PasskeyAssertion'];
+/** The options for a key's ceremony as the second factor or a fresh proof, and a setup's answer. */
+export type PasskeyAssertionOptions = components['schemas']['PasskeyAssertionOptions'];
+export type PasskeyEnrolled = components['schemas']['PasskeyEnrolled'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**

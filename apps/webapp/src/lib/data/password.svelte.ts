@@ -18,7 +18,7 @@
  * other browser signed out.
  */
 
-import { TransportError } from '@hubtask/sync-engine';
+import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
@@ -41,6 +41,9 @@ interface ResetAnswer {
   readonly expires_at?: string;
   /** Whose account, for the card's identity line: the person arrived from a link, not an address. */
   readonly email?: string | null;
+  /** The key's ceremony, where the step offers one; whether a key can be set up, with ENROLL. */
+  readonly passkey_options?: PasskeyAssertionOptions | null;
+  readonly passkey_setup?: boolean | null;
 }
 
 class Password {
@@ -114,6 +117,8 @@ class Password {
           expiresAt: answer.expires_at,
           email: answer.email ?? undefined,
           afterReset: true,
+          passkeyOptions: answer.passkey_options ?? undefined,
+          passkeySetup: answer.passkey_setup ?? undefined,
         });
         return false;
       }

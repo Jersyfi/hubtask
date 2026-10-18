@@ -372,6 +372,8 @@ type CompleteOidcSignInCommand struct {
 	UserAgent    string
 	RemoteAddr   string
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // Execute burns the flow, verifies the token, finds or makes the account, and opens the session.
@@ -929,19 +931,15 @@ func (w OidcWriter) connectByMail(
 		link := domain.LinkIntent{
 			ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofMailbox,
 		}
-		armed := false
-		if s.Enrollments != nil {
-			enrollment, err := s.Enrollments.Find(ctx, held.ID)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		factor, err := s.factorHeldAt(ctx, held.ID, cmd.Host)
+		if err != nil {
+			return err
 		}
 		account = held
-		if armed {
+		if factor.any() {
 			next, err := w.handOnToTheFactor(ctx, scope, held, domain.PendingCredential{
 				UserAgent: cmd.UserAgent, IPClass: domain.IPClass(cmd.RemoteAddr), Link: &link,
-			}, now)
+			}, factor, now)
 			if err != nil {
 				return err
 			}
@@ -1207,14 +1205,13 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		return proofPassword, nil
 	}
 
-	armed := false
-	if w.Session.Enrollments != nil {
-		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return proofNone, err
-		}
-		armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+	// No host: what is read here matters only for an invited account, which has never signed in and
+	// so holds no key - the app alone decides, through the one helper every door reads.
+	factor, err := w.Session.factorHeldAt(ctx, existing.ID, "")
+	if err != nil {
+		return proofNone, err
 	}
+	armed := factor.any()
 	// An invited account's provider identities were connected on a provider's word alone, before
 	// any second proof: they are not a credential, and activating the account drops them
 	// (ADR-0078 §1).
@@ -1608,6 +1605,7 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The peer's address; only its network class is ever recorded."},
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the state's workspace, never overrule it."},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignedInAction, TargetType: sessionTarget,
@@ -1629,6 +1627,7 @@ func (h CompleteOidcSignIn) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

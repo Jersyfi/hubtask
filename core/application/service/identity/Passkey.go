@@ -499,6 +499,11 @@ func (h StartPasskeyRegistration) invoke(
 	if err != nil {
 		return nil, err
 	}
+	return registrationOptionsOutput(options), nil
+}
+
+// registrationOptionsOutput is the options in the WebAuthn JSON form.
+func registrationOptionsOutput(options PasskeyRegistrationOptions) usecase.Output {
 	exclude := make([]any, 0, len(options.Exclude))
 	for _, held := range options.Exclude {
 		transports := make([]any, 0, len(held.Transports))
@@ -531,7 +536,7 @@ func (h StartPasskeyRegistration) invoke(
 			"attestation": "none",
 		},
 		"expires_at": options.ExpiresAt.UTC(),
-	}, nil
+	}
 }
 
 // The algorithms the options offer, in order of preference (identity.md §23.3): COSE's numbers for
