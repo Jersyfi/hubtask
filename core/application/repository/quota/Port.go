@@ -24,6 +24,8 @@ type Overrides struct {
 	WebhookTargets        *int64
 	ExportJobs            *int64
 	AiTokensPerDay        *int64
+	// Accounts is the people the workspace may hold.
+	Accounts *int64
 	// AiOwnTokensPerDay is the workspace's own budget for its own model. Written by the workspace,
 	// never by the operator's quota write, and stored apart from the quotas key so that write cannot
 	// drop it (SetOwnAiBudget).

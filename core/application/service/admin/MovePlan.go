@@ -226,6 +226,7 @@ func exceptionsOf(overrides quotarepo.Overrides) []string {
 		quotaservice.AutomationRunsPerHour: overrides.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        overrides.WebhookTargets,
 		quotaservice.ExportJobs:            overrides.ExportJobs,
+		quotaservice.Accounts:              overrides.Accounts,
 		quotaservice.AiTokensPerDay:        overrides.AiTokensPerDay,
 	}
 	kept := []string{}

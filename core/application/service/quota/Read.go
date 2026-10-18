@@ -124,6 +124,7 @@ func Standings(
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour != nil,
 		WebhookTargets:        overrides.WebhookTargets != nil,
 		ExportJobs:            overrides.ExportJobs != nil,
+		Accounts:              overrides.Accounts != nil,
 		AiTokensPerDay:        overrides.AiTokensPerDay != nil,
 		AiOwnTokensPerDay:     overrides.AiOwnTokensPerDay != nil,
 	}

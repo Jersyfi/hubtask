@@ -39,6 +39,7 @@ type quotasDocument struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	Accounts              *int64 `json:"accounts,omitempty"`
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 }
 
@@ -226,6 +227,7 @@ func fromDocument(document quotasDocument) repository.Overrides {
 		AutomationRunsPerHour: document.AutomationRunsPerHour,
 		WebhookTargets:        document.WebhookTargets,
 		ExportJobs:            document.ExportJobs,
+		Accounts:              document.Accounts,
 		AiTokensPerDay:        document.AiTokensPerDay,
 	}
 }
@@ -238,6 +240,7 @@ func toDocument(overrides repository.Overrides) quotasDocument {
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
 		WebhookTargets:        overrides.WebhookTargets,
 		ExportJobs:            overrides.ExportJobs,
+		Accounts:              overrides.Accounts,
 		AiTokensPerDay:        overrides.AiTokensPerDay,
 	}
 }

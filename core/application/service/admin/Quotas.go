@@ -132,6 +132,7 @@ func applyChange(overrides *quotarepo.Overrides, change QuotaChange) {
 		quotaservice.AutomationRunsPerHour: &overrides.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        &overrides.WebhookTargets,
 		quotaservice.ExportJobs:            &overrides.ExportJobs,
+		quotaservice.Accounts:              &overrides.Accounts,
 		quotaservice.AiTokensPerDay:        &overrides.AiTokensPerDay,
 	}[change.Quota]
 	if target == nil {
@@ -163,6 +164,7 @@ func (h UpdateTenantQuotas) recordAudit(
 		quotaservice.AutomationRunsPerHour: before.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        before.WebhookTargets,
 		quotaservice.ExportJobs:            before.ExportJobs,
+		quotaservice.Accounts:              before.Accounts,
 		quotaservice.AiTokensPerDay:        before.AiTokensPerDay,
 	}
 	for _, change := range cmd.Changes {
