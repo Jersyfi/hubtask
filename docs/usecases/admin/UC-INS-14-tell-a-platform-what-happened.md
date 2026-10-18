@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-08, P-11, P-15]
 state: partial
 tasks: [PL-07, PL-08]
-checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go, core/application/service/platform/Crossings_test.go, core/application/service/identity/OwnerChanges_test.go, core/application/service/quota/Crossings_test.go, core/application/service/admin/ExportFinished_test.go, test/integration/platform_event_test.go]
+checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go, core/application/service/platform/Crossings_test.go, core/application/service/identity/OwnerChanges_test.go, core/application/service/quota/Crossings_test.go, core/application/service/admin/ExportFinished_test.go, test/integration/platform_event_test.go, test/integration/usage_test.go, core/application/service/admin/Usage_test.go, cmd/hubctl/AdminUsage_test.go, presentation/worker/SchedulerPurge_test.go, test/integration/admin_test.go, test/integration/instance_values_test.go]
 ---
 
 # Tell the purchase platform what happened, without it asking
@@ -55,8 +55,6 @@ platform reads the use per workspace and metric for the period.
 
 * Check 1: not met — there are no installation-level webhook subscriptions (PL-07).
 * Check 2: not met — no event is delivered to a subscription (PL-07).
-* Check 4: not met — use cannot be read at all, and people and storage are not recorded (PL-08).
 * Check 5: not met — there are no installation subscriptions or deliveries to see or retry (PL-07).
 * Check 6: not met — there are no installation subscriptions to keep on, tell the operator about or redeliver from (PL-07).
-* Check 7: not met — there are no installation subscriptions or usage read for `hubctl` or the file to reach (PL-07, PL-08).
-* Check 8: not met — use is always recorded, never offered, and goes with the workspace (PL-08).
+* Check 7: not met — there are no installation subscriptions for `hubctl` or the file to reach (PL-07).
