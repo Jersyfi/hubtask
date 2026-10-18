@@ -9,7 +9,7 @@
  * the real document. The same split `resource.svelte.ts` makes around the engine.
  */
 
-import type { Verdict } from './capability.ts';
+import type { PlanFeature, Verdict } from './capability.ts';
 import {
   allowedChildTypes,
   capabilityVerdict,
@@ -19,6 +19,7 @@ import {
   itemPermitted,
   holdsOnWorkspace,
   hubCreation,
+  includedByPlan,
   permissionVerdict,
   reachesAdministration,
   rootTypes as rootTypesOf,
@@ -76,6 +77,16 @@ export function workspaceRefusal(permission: string): string | undefined {
 
 /** Which hub the reader may create - `shared`, `private` or `none`; `undefined` while unknown. */
 export const hubCreationHere = (): 'shared' | 'private' | 'none' | undefined => hubCreation(manifest.value);
+
+/** Whether the reader's plan includes the feature; `undefined` while the manifest is unread. */
+export const includedHere = (feature: PlanFeature): boolean | undefined => includedByPlan(manifest.value, feature);
+
+/**
+ * The provider's account page, where the server answers one to this reader - the workspace's owners
+ * and administrators - and `undefined` otherwise (multi-tenancy.md §4.2). The address is the
+ * operator's; the label beside it is ours.
+ */
+export const accountLinkHere = (): string | undefined => manifest.value?.account_link ?? undefined;
 
 /** Whether the reader reaches the administration; `undefined` while unknown. */
 export const reachesAdministrationArea = (): boolean | undefined => reachesAdministration(manifest.value);

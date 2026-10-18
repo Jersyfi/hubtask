@@ -22,6 +22,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -85,6 +86,12 @@ type Descriptor struct {
 	// TokenScope is the scope a credential needs (api-guidelines.md §7). Empty for an operation
 	// that needs none.
 	TokenScope string
+	// AlsoScope is a narrower scope that admits this operation as well, empty for none. It exists
+	// for the control plane's one subset, `admin:provisioning` (api-guidelines.md §7): a purchase
+	// platform reaches the verbs it needs without the rest of the installation. Declared here
+	// rather than listed beside the catalogue, so that the scope names exactly the operations that
+	// check it.
+	AlsoScope string
 	// ReadOnly and Destructive become the MCP annotations `readOnlyHint` and `destructiveHint`,
 	// so that an agent client can ask for confirmation before the dangerous ones (ai-first.md).
 	ReadOnly    bool
@@ -95,6 +102,12 @@ type Descriptor struct {
 	// what the architecture test reconciles against the privileged list, so the next privileged
 	// action ships with one or fails the build.
 	StepUp string
+	// Entitlement is the feature a plan may leave out that this operation uses - creating,
+	// changing, switching on, running or sending (multi-tenancy.md §4.2). The registry's middleware
+	// refuses it where the caller's workspace's plan leaves the feature out, and the rule editor is
+	// not offered it as an action there. Empty for every operation a plan cannot reach, which is
+	// every read and every act that stops or removes.
+	Entitlement entitlement.Feature
 
 	Input    []Field
 	Audit    AuditDeclaration
@@ -177,6 +190,8 @@ func check(d Descriptor) error {
 		return incomplete("activity")
 	case d.Activity.Verb != "" && !d.Activity.Verb.Valid():
 		return incomplete("activity verb " + string(d.Activity.Verb))
+	case d.Entitlement != "" && !d.Entitlement.Valid():
+		return incomplete("entitlement " + string(d.Entitlement))
 	}
 
 	seen := make(map[string]bool, len(d.Input))

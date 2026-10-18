@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -60,6 +62,8 @@ type FanOut struct {
 	// that the events of one push, dispatched across a few rounds, fold onto one delivery
 	// rather than racing the worker to the target (offline-sync.md §8). Zero means the default.
 	CollapseGrace time.Duration
+	// Entitlements is what the workspace's plan leaves out. Nil includes every feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // PrivateReach is the authoriser's question about a private hub, asked for the person a
@@ -115,6 +119,18 @@ func (f FanOut) Deliver(ctx context.Context, envelope event.Envelope) error {
 	wanting, err := f.Subscriptions.WantingEvent(ctx, envelope.Type)
 	if err != nil {
 		return err
+	}
+	if len(wanting) > 0 && f.Entitlements != nil {
+		// Asked only where a subscription wants the event. Where the plan leaves webhooks out,
+		// nothing is owed for it - not now and not when they are included again, which delivers
+		// the events from then on (multi-tenancy.md §4.2).
+		leftOut, err := f.Entitlements.LeftOut(ctx)
+		if err != nil {
+			return err
+		}
+		if !leftOut.Includes(entitlement.Webhooks) {
+			return nil
+		}
 	}
 
 	now := f.Clock.Now()

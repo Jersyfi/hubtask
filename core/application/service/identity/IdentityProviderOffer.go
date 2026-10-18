@@ -14,6 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -103,6 +104,11 @@ func (h OfferIdentityProvider) Execute(
 		if offered && found.Installation() && !found.OfferedAt(now) {
 			return shared.ErrValidation.WithDetail("identity_provider.withdrawn")
 		}
+		// The workspace's own provider is not switched on where the plan leaves those out; switching
+		// one off stays, as removing it does.
+		if offered && !found.Installation() && !here.ownProvidersIncluded() {
+			return entitlement.NotIncluded(entitlement.OwnSignInProviders)
+		}
 
 		if found.Installation() {
 			switched, err = h.offerInstallationRow(ctx, found, offered)
@@ -110,6 +116,7 @@ func (h OfferIdentityProvider) Execute(
 			switched.InstallationLock = switched.InstallationLockAt(here.providersLockedIn, now)
 		} else {
 			switched, err = h.switchOwnRow(ctx, found, offered)
+			switched.OfferedHere = switched.Enabled && here.ownProvidersIncluded()
 		}
 		if err != nil {
 			return err
@@ -216,7 +223,7 @@ type waysHere struct {
 // moved past it says something the rule no longer does. The fallback and an operator's opening
 // (§17) are not counted: they open because no way in works, which is what this guard prevents.
 func (h waysHere) passwordIsAWayIn() bool {
-	inForce := domain.Effective(h.installation, domain.PolicyLayer{}, h.workspace.Settings.SignInLayer())
+	inForce := domain.Effective(h.installation, h.workspace.Plan.Policy, h.workspace.Settings.SignInLayer())
 	return slices.Contains(inForce.Policy.Methods, domain.MethodDirect)
 }
 
@@ -241,13 +248,22 @@ func readWaysHere(
 		if err != nil {
 			return waysHere{}, err
 		}
-		// The workspace's layer cannot move a locked switch, so the level above alone decides it.
-		above := domain.Effective(level.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
-		here.providersLockedIn = above.ProvidersLockedIn()
-		here.lockOrigin = above.LockOf(domain.SwitchMethods)
 		here.installation = level.Policy
 	}
+	// Settled whether or not the installation's level was read: the workspace's plan locks the ways
+	// in on its own.
+	here.settle()
 	return here, nil
+}
+
+// settle reads the lock on the ways in from the levels above the workspace: the installation's and
+// the workspace's plan (multi-tenancy.md §4.2). The workspace's own layer cannot move a locked
+// switch, so the levels above alone decide it. Called again by a reader that sets the workspace
+// after reading the level.
+func (h *waysHere) settle() {
+	above := domain.Effective(h.installation, h.workspace.Plan.Policy, domain.PolicyLayer{})
+	h.providersLockedIn = above.ProvidersLockedIn()
+	h.lockOrigin = above.LockOf(domain.SwitchMethods)
 }
 
 // mandatedHere answers whether the installation's lock turns this row on here while its offer
@@ -306,7 +322,16 @@ func offeredHere(configured domain.IdentityProvider, here waysHere, now time.Tim
 		return here.workspace.Settings.Offers(configured.ID) ||
 			configured.MandatedHere(here.providersLockedIn)
 	}
-	return true
+	// The workspace's own row, unless its plan leaves its own providers out: then it signs nobody
+	// in and is no way in - the fallback reads it so, and opens the password where nothing else is
+	// left (multi-tenancy.md §4.2, identity.md §17.1). The row, its connections and its sealed
+	// secret stay, and it is a way in again the moment the plan includes it.
+	return here.ownProvidersIncluded()
+}
+
+// ownProvidersIncluded answers whether the workspace's plan includes its own sign-in providers.
+func (h waysHere) ownProvidersIncluded() bool {
+	return h.workspace.Plan.LeftOut.Includes(entitlement.OwnSignInProviders)
 }
 
 // recordOffer writes the trail entry. The provider and the direction, never a secret.

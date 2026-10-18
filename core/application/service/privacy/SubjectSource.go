@@ -39,6 +39,8 @@ var subjectColumns = map[string][]string{
 	// secrets: the token's hash is what is stored, and §8.4 keeps a restore from making it valid
 	// again in any case.
 	"calendar_feed": {"account_id"},
+	// Their passkeys by name and date; the copy is redacted, so no identifier or key leaves.
+	"webauthn_credential": {"account_id"},
 	// Their own words and their own work.
 	"comment":         {"author_id"},
 	"activity_entry":  {"actor_id"},

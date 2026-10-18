@@ -9,8 +9,10 @@ import (
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -53,6 +55,8 @@ type CancelTenantDeletion struct {
 	UnitOfWork  persistence.UnitOfWork
 	Clock       clock.Clock
 	IDs         clock.IDGenerator
+	// Platform tells a purchase platform the deletion was called off (UC-INS-14).
+	Platform platform.Recorder
 }
 
 // Execute calls the deletion off and answers the status the workspace is in afterwards.
@@ -124,14 +128,18 @@ func (h CancelTenantDeletion) Execute(
 		}); err != nil {
 			return err
 		}
-		return h.Journal.Record(ctx, adminrepo.InstanceEvent{
+		if err := h.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: h.IDs.NewID(), OccurredAt: now, Action: journalDeletionCancelled,
 			TenantID: tenantID, TenantSlug: record.Slug, ActorLabel: actor.AccountName,
 			Details: map[string]any{
 				"status":              string(back),
 				"automations_resumed": resumed,
 			},
-		})
+		}); err != nil {
+			return err
+		}
+		return h.Platform.Record(ctx, event.WorkspaceDeletionCancelled,
+			event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, nil)
 	})
 	if err != nil {
 		return "", err

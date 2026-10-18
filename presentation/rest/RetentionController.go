@@ -5,6 +5,7 @@ package rest
 
 import (
 	"net/http"
+	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -169,6 +170,15 @@ func retentionPolicyResponse(out usecase.Output) openapi.RetentionPolicy {
 	}
 	if notify, present := out["notify"].(map[string]any); present {
 		policy.Notify = retentionNotifyResponse(notify)
+	}
+	if failure, present := out["last_failure"].(map[string]any); present {
+		code, _ := failure["code"].(string)
+		raw, _ := failure["at"].(string)
+		at, _ := time.Parse(time.RFC3339Nano, raw)
+		policy.LastFailure = &struct {
+			At   time.Time `json:"at"`
+			Code string    `json:"code"`
+		}{At: at, Code: code}
 	}
 	// Present only when the listing was asked about a container: with nothing to be in force in,
 	// the question has no answer, and false would be one.

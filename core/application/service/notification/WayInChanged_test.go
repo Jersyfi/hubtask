@@ -98,6 +98,9 @@ func TestEveryChangeIsToldInItsOwnWordsWithItsWayBack(t *testing.T) {
 		{identity.WayInPasswordReset, subjectWayInReset, bodyWayInReset, "link=https://acme.example/"},
 		{identity.WayInProviderConnected, subjectProviderConnected, bodyProviderConnected, "link=https://acme.example/profile/security"},
 		{identity.WayInProviderDisconnected, subjectProviderDisconnected, bodyProviderDisconnected, "link=https://acme.example/"},
+		// A passkey is undone where it is listed (UC-ID-22 check 7).
+		{identity.WayInPasskeyAdded, subjectPasskeyAdded, bodyPasskeyAdded, "link=https://acme.example/profile/security"},
+		{identity.WayInPasskeyRemoved, subjectPasskeyRemoved, bodyPasskeyRemoved, "link=https://acme.example/profile/security"},
 	} {
 		mailer := &mailbox{}
 		err := wayInSender(mailer, providersHeld{}).Execute(t.Context(), tenant, WayInNotice{
@@ -166,5 +169,23 @@ func TestANoticeWithNobodyToTellIsFinishedBusiness(t *testing.T) {
 	}
 	if len(mailer.sent) != 0 {
 		t.Errorf("sent %+v", mailer.sent)
+	}
+}
+
+// A passkey's notice carries the event, the moment and the account - never the name the person gave
+// it, which is user content (rule 10); the change has no field that could hold it.
+func TestAPasskeysNoticeCarriesNoName(t *testing.T) {
+	jobs := &jobQueue{}
+	at := time.Date(2026, 10, 16, 9, 30, 0, 0, time.UTC)
+	for _, event := range []identity.WayInEvent{identity.WayInPasskeyAdded, identity.WayInPasskeyRemoved} {
+		if err := (RecordWayInChanged{Jobs: jobs}).WayInChanged(t.Context(), tenant, anna,
+			identity.WayInChange{Event: event, At: at}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, request := range jobs.requests {
+		if len(request.Payload) != 3 || request.Payload["event"] == "" {
+			t.Errorf("a passkey's notice carries %v", request.Payload)
+		}
 	}
 }

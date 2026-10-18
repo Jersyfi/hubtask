@@ -18,6 +18,7 @@ import (
 	integrationdomain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	syncdomain "github.com/Jersyfi/hubtask/core/domain/model/sync"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -152,6 +153,7 @@ func TestAPushsDeliveryIsNeitherFoundNorRepointedAcrossTheTenantBoundary(t *test
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
+	owe(ctx, t, tenantA, delivery.ID)
 
 	newer := freshID(t)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
@@ -170,6 +172,54 @@ func TestAPushsDeliveryIsNeitherFoundNorRepointedAcrossTheTenantBoundary(t *test
 		found, ok, err := deliveries.FindPendingOfPush(ctx, subscription.ID, key)
 		if err != nil || !ok || found.ID != delivery.ID || found.Collapse != key {
 			t.Errorf("the own tenant found %+v (%v, %v)", found, ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("asking: %v", err)
+	}
+}
+
+// owe queues the delivery job a pending delivery is owed, as the fan-out does.
+func owe(ctx context.Context, t *testing.T, tenant, deliveryID shared.ID) {
+	t.Helper()
+	enqueue(ctx, t, queue.Request{
+		Kind: queue.KindWebhookDeliver, TenantID: tenant, RunAt: time.Now().Add(time.Hour),
+		Payload: map[string]any{"delivery_id": deliveryID.String()},
+	})
+}
+
+// A pending delivery whose job ended without sending - webhooks a plan left out
+// (multi-tenancy.md §4.2) - is sent by nothing, so no newer event of its push is folded onto it:
+// that event gets a delivery of its own.
+func TestAPendingDeliveryNoJobOwesIsNotCollapsedOnto(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	subscription := seedSubscription(ctx, t, tenantA)
+	deliveries := postgres.NewWebhookDeliveryRepository()
+	key := integrationdomain.CollapseKey{PushID: freshID(t), Subject: "item/" + freshID(t).String(), EventType: string(event.ItemCreated)}
+	orphan, err := integrationdomain.NewWebhookDelivery(freshID(t), tenantA, subscription.ID, freshID(t), 1, time.Now())
+	if err != nil {
+		t.Fatalf("building the delivery: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return deliveries.Insert(ctx, orphan.Collapsed(key))
+	}); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if found, ok, err := deliveries.FindPendingOfPush(ctx, subscription.ID, key); err != nil || ok {
+			t.Errorf("a pending delivery no job owes was found to collapse onto: %+v (%v, %v)", found, ok, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("asking: %v", err)
+	}
+
+	owe(ctx, t, tenantA, orphan.ID)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if found, ok, err := deliveries.FindPendingOfPush(ctx, subscription.ID, key); err != nil || !ok || found.ID != orphan.ID {
+			t.Errorf("a pending delivery its job still owes was not found: %+v (%v, %v)", found, ok, err)
 		}
 		return nil
 	}); err != nil {

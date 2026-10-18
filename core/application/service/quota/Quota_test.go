@@ -41,10 +41,10 @@ func TestTheResolutionLaysOverridesOverTheModesColumn(t *testing.T) {
 		t.Errorf("the plan-bound rows default bounded: %+v", multi)
 	}
 
-	resolved := Resolve(repository.Overrides{
+	resolved := Resolve(Levels{Exception: repository.Overrides{
 		Items:          ceiling(1_000),
 		WebhookTargets: ceiling(Unlimited),
-	}, repository.Overrides{}, env.TenancyMulti)
+	}}, env.TenancyMulti)
 	if resolved.Items != 1_000 {
 		t.Errorf("the override lost: %d", resolved.Items)
 	}
@@ -90,10 +90,16 @@ type storeFake struct {
 	instance repository.Overrides
 	// locks are the installation's locked quotas, by name.
 	locks map[string]bool
+	// plan is the workspace's plan's level, empty for a workspace on no plan.
+	plan repository.PlanLimits
 }
 
 func (s *storeFake) InstanceLocks(context.Context) (map[string]bool, error) {
 	return s.locks, nil
+}
+
+func (s *storeFake) PlanLimits(context.Context) (repository.PlanLimits, error) {
+	return s.plan, nil
 }
 
 func (s *storeFake) Overrides(context.Context) (repository.Overrides, error) {
@@ -120,6 +126,11 @@ func (s *storeFake) SetOverrides(
 
 type usageFake struct {
 	items, media, webhooks, runs, exports int64
+	// people is the people count, and locks how often the people lock was taken.
+	people int64
+	locks  int
+	// open is whether the invitation being renewed still counts.
+	open bool
 	// metered is what the ledger holds, and the three below record how it was asked - which is
 	// the interesting half for a budget measured over a period.
 	metered       int64
@@ -128,10 +139,16 @@ type usageFake struct {
 	meteredSince  time.Time
 }
 
-func (u *usageFake) Items(context.Context) (int64, error)          { return u.items, nil }
-func (u *usageFake) MediaBytes(context.Context) (int64, error)     { return u.media, nil }
-func (u *usageFake) WebhookTargets(context.Context) (int64, error) { return u.webhooks, nil }
-func (u *usageFake) LiveExports(context.Context) (int64, error)    { return u.exports, nil }
+func (u *usageFake) Items(context.Context) (int64, error)                 { return u.items, nil }
+func (u *usageFake) MediaBytes(context.Context) (int64, error)            { return u.media, nil }
+func (u *usageFake) WebhookTargets(context.Context) (int64, error)        { return u.webhooks, nil }
+func (u *usageFake) LiveExports(context.Context) (int64, error)           { return u.exports, nil }
+func (u *usageFake) Accounts(context.Context) (int64, error)              { return u.people, nil }
+func (u *usageFake) InvitationOpen(context.Context, string) (bool, error) { return u.open, nil }
+func (u *usageFake) LockPeople(context.Context) error {
+	u.locks++
+	return nil
+}
 func (u *usageFake) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return u.runs, nil
 }
@@ -528,7 +545,7 @@ func TestEachSourceHasItsOwnBudget(t *testing.T) {
 		}
 	}
 	// And no installation value reaches it.
-	installation := Resolve(repository.Overrides{}, repository.Overrides{AiOwnTokensPerDay: &own}, env.TenancyMulti)
+	installation := Resolve(Levels{Instance: repository.Overrides{AiOwnTokensPerDay: &own}}, env.TenancyMulti)
 	if installation.AiOwnTokensPerDay != Unlimited {
 		t.Errorf("the installation bounded an own model: %d", installation.AiOwnTokensPerDay)
 	}
@@ -542,7 +559,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 	product := Defaults(env.TenancyMulti)
 
 	// Nothing set anywhere: the product's table, untouched.
-	if bare := Resolve(repository.Overrides{}, repository.Overrides{}, env.TenancyMulti); bare != product {
+	if bare := Resolve(Levels{}, env.TenancyMulti); bare != product {
 		t.Errorf("an empty resolution moved the product's defaults: %+v", bare)
 	}
 
@@ -551,7 +568,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 		ExportJobs:     ceiling(9),
 		AiTokensPerDay: ceiling(50_000),
 	}
-	inherited := Resolve(repository.Overrides{}, installation, env.TenancyMulti)
+	inherited := Resolve(Levels{Instance: installation}, env.TenancyMulti)
 	if inherited.ExportJobs != 9 || inherited.AiTokensPerDay != 50_000 {
 		t.Errorf("the installation's defaults did not reach a workspace that set nothing: %+v", inherited)
 	}
@@ -561,7 +578,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 
 	// And the workspace's own is still the last word - which is the half that would be lost by
 	// applying the two in the other order.
-	own := Resolve(repository.Overrides{ExportJobs: ceiling(1)}, installation, env.TenancyMulti)
+	own := Resolve(Levels{Exception: repository.Overrides{ExportJobs: ceiling(1)}, Instance: installation}, env.TenancyMulti)
 	if own.ExportJobs != 1 {
 		t.Errorf("a workspace's own exception lost to the installation's default: %d", own.ExportJobs)
 	}
@@ -571,7 +588,7 @@ func TestTheInstallationSitsBetweenTheProductAndTheWorkspace(t *testing.T) {
 
 	// A configured unlimited at the installation is a decision, not an absence: it has to beat a
 	// bounded product default, which is the case a `!= 0` test would get wrong.
-	unbounded := Resolve(repository.Overrides{}, repository.Overrides{ExportJobs: ceiling(Unlimited)}, env.TenancyMulti)
+	unbounded := Resolve(Levels{Instance: repository.Overrides{ExportJobs: ceiling(Unlimited)}}, env.TenancyMulti)
 	if unbounded.ExportJobs != Unlimited {
 		t.Errorf("an installation's configured unlimited lost to the default: %d", unbounded.ExportJobs)
 	}
@@ -638,5 +655,125 @@ func TestASpentAiBudgetRenewsAtTheWorkspacesNextMidnight(t *testing.T) {
 				t.Errorf("renews %s, want %s", renews.UTC(), c.renew)
 			}
 		})
+	}
+}
+
+// UC-INS-10 check 1, UC-INS-13 check 2 (multi-tenancy.md §4.2): product -> installation -> plan ->
+// the operator's exception, and each standing says which level set it and which locked it.
+func TestAPlanSitsBetweenTheInstallationAndTheException(t *testing.T) {
+	product := Defaults(env.TenancyMulti)
+	cases := []struct {
+		name       string
+		levels     Levels
+		quota      string
+		wantLimit  int64
+		wantSource string
+		wantLock   string
+	}{
+		{"the plan's limit, lower than the installation's",
+			Levels{Instance: repository.Overrides{Items: ceiling(5_000)}, Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(1_000)}}},
+			Items, 1_000, SourcePlan, ""},
+		{"the plan's limit, higher than the installation's open one",
+			Levels{Instance: repository.Overrides{Items: ceiling(1_000)}, Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(9_000)}}},
+			Items, 9_000, SourcePlan, ""},
+		{"the plan's limit under the installation's lock",
+			Levels{Instance: repository.Overrides{Items: ceiling(1_000)}, InstanceLocks: map[string]bool{Items: true},
+				Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(9_000)}, Locks: map[string]bool{Items: true}}},
+			Items, 1_000, SourceInstance, LockInstance},
+		{"the plan's lock",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(2_000)}, Locks: map[string]bool{Items: true}}},
+			Items, 2_000, SourcePlan, LockPlan},
+		{"the plan's lock without a value",
+			Levels{Instance: repository.Overrides{ExportJobs: ceiling(3)}, Plan: repository.PlanLimits{Locks: map[string]bool{ExportJobs: true}}},
+			ExportJobs, 3, SourceInstance, LockPlan},
+		{"the plan's lock without a value or the installation's",
+			Levels{Plan: repository.PlanLimits{Locks: map[string]bool{ExportJobs: true}}},
+			ExportJobs, product.ExportJobs, SourceDefault, LockPlan},
+		{"the operator's exception under the plan's lock",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(2_000)}, Locks: map[string]bool{Items: true}},
+				Exception: repository.Overrides{Items: ceiling(8_000)}},
+			Items, 8_000, SourceException, LockPlan},
+		{"the workspace's own AI budget, which no plan reaches",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{AiOwnTokensPerDay: ceiling(10)}},
+				Exception: repository.Overrides{AiOwnTokensPerDay: ceiling(500)}},
+			AiOwnTokensPerDay, 500, SourceWorkspace, ""},
+		{"the own AI budget a plan alone names",
+			Levels{Plan: repository.PlanLimits{Overrides: repository.Overrides{AiOwnTokensPerDay: ceiling(10)}, Locks: map[string]bool{AiOwnTokensPerDay: true}}},
+			AiOwnTokensPerDay, Unlimited, SourceDefault, ""},
+		{"no plan", Levels{}, Items, product.Items, SourceDefault, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			limits := Resolve(c.levels, env.TenancyMulti)
+			if got := limits.Of(c.quota); got != c.wantLimit {
+				t.Errorf("limit %d, want %d", got, c.wantLimit)
+			}
+			if got := c.levels.SourceOf(c.quota); got != c.wantSource {
+				t.Errorf("source %q, want %q", got, c.wantSource)
+			}
+			if got := c.levels.LockOf(c.quota); got != c.wantLock {
+				t.Errorf("lock %q, want %q", got, c.wantLock)
+			}
+		})
+	}
+}
+
+// UC-INS-13 check 4: a plan lowered below what the workspace holds refuses the next creation past it
+// and removes nothing.
+func TestAPlansLowerLimitRefusesTheNextCreation(t *testing.T) {
+	store := &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Items: ceiling(3)}}}
+	guard := Guard{Store: store, Usage: &usageFake{items: 3}, Tenancy: env.TenancyMulti}
+	err := guard.Items(t.Context(), "acme", 1)
+	if got := shared.AsError(err); got == nil || got.DetailCode != "capacity.items" || got.Params["limit"] != "3" {
+		t.Fatalf("a creation past the plan's limit answered %v, want capacity.items at 3", err)
+	}
+}
+
+// UC-INS-10 check 5: the people limit refuses the next person past it, and takes the people lock
+// only where a limit is set - an unlimited workspace pays nothing.
+func TestThePeopleLimitRefusesTheNextPersonUnderItsLock(t *testing.T) {
+	unlimited := &usageFake{people: 40}
+	guard := Guard{Store: &storeFake{}, Usage: unlimited, Tenancy: env.TenancyMulti}
+	if err := guard.Accounts(t.Context(), "acme", 1); err != nil || unlimited.locks != 0 {
+		t.Errorf("an unlimited workspace answered %v and took the lock %d times", err, unlimited.locks)
+	}
+
+	limited := &usageFake{people: 6}
+	guard = Guard{Store: &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Accounts: ceiling(6)}}},
+		Usage: limited, Tenancy: env.TenancyMulti}
+	err := guard.Accounts(t.Context(), "acme", 1)
+	if got := shared.AsError(err); got == nil || got.DetailCode != "capacity.accounts" || got.Params["limit"] != "6" ||
+		got.Params["used"] != "6" {
+		t.Errorf("the seventh person answered %v, want capacity.accounts at 6 of 6", err)
+	}
+	if limited.locks != 1 {
+		t.Errorf("the people lock was taken %d times, want once before the count", limited.locks)
+	}
+	limited.people = 5
+	if err := guard.Accounts(t.Context(), "acme", 1); err != nil {
+		t.Errorf("the sixth person was refused: %v", err)
+	}
+}
+
+// A renewal adds a person only where the invitation's link ran out; at the limit it leaves the
+// platform's crossing standing rather than clearing it.
+func TestARenewalAddsAPersonOnlyWhereItsLinkRanOut(t *testing.T) {
+	store := &storeFake{plan: repository.PlanLimits{Overrides: repository.Overrides{Accounts: ceiling(6)}}}
+	crossings := &crossingsFake{}
+	open := &usageFake{people: 6, open: true}
+	guard := Guard{Store: store, Usage: open, Tenancy: env.TenancyMulti, Crossings: crossings}
+	if err := guard.Renewal(t.Context(), "acme", "bert"); err != nil {
+		t.Errorf("renewing an open invitation at the limit answered %v", err)
+	}
+	if len(crossings.admitted) != 0 {
+		t.Errorf("a renewal at the limit cleared the crossing: %v", crossings.admitted)
+	}
+	lapsed := &usageFake{people: 6}
+	guard.Usage = lapsed
+	if got := shared.AsError(guard.Renewal(t.Context(), "acme", "bert")); got == nil || got.DetailCode != "capacity.accounts" {
+		t.Errorf("renewing a lapsed invitation at the limit answered %v, want capacity.accounts", got)
+	}
+	if lapsed.locks != 1 {
+		t.Errorf("the people lock was taken %d times, want once", lapsed.locks)
 	}
 }

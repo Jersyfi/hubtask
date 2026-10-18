@@ -37,6 +37,9 @@ const (
 	// MethodRecovery is a recovery code, offered where a factor is armed and a code is left
 	// (ADR-0075 §1). The step-up consumes it.
 	MethodRecovery Method = "RECOVERY"
+	// MethodPasskey is a passkey or security key, offered where the account holds one that belongs to
+	// the workspace's relying party.
+	MethodPasskey Method = "PASSKEY"
 	// MethodProvider is a fresh sign-in at the provider the account is connected to, offered where
 	// that provider is switched on for the account's workspace (ADR-0075 §2).
 	MethodProvider Method = "PROVIDER"

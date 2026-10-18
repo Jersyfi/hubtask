@@ -32,6 +32,9 @@
   // fresh sign-in at the provider, so the button leaves the page. An account without an address is
   // one no provider reaches (identity.md §4.1): the panel is absent for it, as it is where the
   // workspace offers no provider and none is connected.
+  //
+  // **Passkeys and security keys are the account's own devices** (identity.md §23, UC-ID-22), a panel
+  // of their own beside the password: `PasskeyPanel` lists them and adds one where adding would work.
 
   import { untrack } from 'svelte';
 
@@ -40,6 +43,7 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AuthenticatorReplacement from '../lib/frame/AuthenticatorReplacement.svelte';
+  import PasskeyPanel from '../lib/frame/PasskeyPanel.svelte';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
 
@@ -50,6 +54,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
   import { identities } from '../lib/data/identities.svelte.ts';
+  import { passkeys } from '../lib/data/passkeys.svelte.ts';
+  import { isStale } from '../lib/data/passkeys.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
 
@@ -59,15 +65,24 @@
   // (ADR-0028), so the field is never missing from a server this client is talking to; `=== true`
   // is nevertheless what is asked, because the permissive reading of an unanswered question is
   // what put three refusals on this screen.
-  const armed = $derived(actor.hasSecondFactor === true);
+  const armed = $derived(actor.hasAuthenticatorApp);
+  // Whether any second factor stands - the app or a passkey. The recovery codes back whichever the
+  // account holds (identity.md §9), so their count and *New codes* hang off this, not off the app.
+  const factor = $derived(actor.hasSecondFactor === true);
+  // Whether a passkey of this workspace's address stands beside the app: then the codes stay when
+  // the app goes, and the account is not left without a second factor.
+  const keyHeld = $derived.by(() => {
+    const list = passkeys.list;
+    return list !== undefined && list.passkeys.some((each) => !isStale(each, list));
+  });
 
   // The setup on this screen confirmed its code: the factor is on although the ten codes are still
   // on screen and the account has not been read again, so the panel's state line says so already.
   let confirmedHere = $state(false);
   const isOn = $derived(armed || confirmedHere);
 
-  // How many recovery codes are left. Answered only where a factor is armed, so it needs no
-  // defence of its own: the panel that reads it is inside that branch.
+  // How many recovery codes are left. Answered only where a factor stands, so it needs no defence
+  // of its own: the section that reads it is drawn only then.
   const left = $derived(actor.recoveryCodesLeft);
 
   let newPassword = $state('');
@@ -111,7 +126,9 @@
   async function armedFactor(): Promise<void> {
     notice = t('app.mfa.armed');
     announcer.say(notice);
-    await actor.reread();
+    // The confirmation invalidated nothing (mfa.svelte.ts), so both answers that just moved are
+    // read again: the account's, and whether the last passkey may now go.
+    await Promise.all([actor.reread(), passkeys.reread()]);
     confirmedHere = false;
   }
 
@@ -177,6 +194,8 @@
       </Stack>
     </div>
 
+    <PasskeyPanel />
+
     {#if showsProviders}
       <div class="panel" data-testid="sign-in-providers">
         <Stack gap="150">
@@ -215,17 +234,19 @@
       </div>
     {/if}
 
-    <!-- The factor and the codes under one heading, because the codes are the factor's: they are
-         made with it, they stop working when it goes, and a panel of its own suggested otherwise. -->
+    <!-- The factor and the codes under one heading, because the codes back the factor: they come
+         with the first one, they stop working when the last one goes, and a panel of their own
+         suggested otherwise. The codes hang off any factor - the app or a passkey - and the app's
+         own controls off the app alone. -->
     <div class="panel">
       <Stack gap="150">
         <h2>{t('app.mfa.title')}</h2>
-        <p class="quiet">{isOn ? t('app.mfa.on') : t('app.mfa.off')}</p>
+        <p class="quiet">{isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}</p>
         <!-- Beside the state it is about. At the foot of the panel it sat under the "turn it off"
              section and read as a caption for it. -->
         {#if notice}<p class="quiet">{notice}</p>{/if}
 
-        {#if armed}
+        {#if factor}
           <div class="section">
             <Stack gap="150">
               <h3>{t('app.recovery.title')}</h3>
@@ -267,6 +288,9 @@
             </Stack>
           </div>
 
+        {/if}
+
+        {#if armed}
           <div class="section">
             <!-- Offered whenever a factor is on, also where the workspace requires one: the old
                  factor works until the new app confirms the swap, so there is never a moment
@@ -280,9 +304,10 @@
           </div>
 
           <div class="section">
-            {#if actor.secondFactorRequired}
-              <!-- Not a switch the server would refuse (P-05): the workspace's rule demands the
-                   factor of this person, and the sentence says so where the control would be. -->
+            {#if !actor.authenticatorAppRemovable}
+              <!-- Not a switch the server would refuse (P-05): the workspace's rule demands a
+                   factor of this person and the app is the last one, and the sentence says so where
+                   the control would be. -->
               <p class="quiet">{t('app.mfa.required_by_workspace')}</p>
             {:else}
             <!-- Offered wherever the rule does not require the factor, to every account: the proof
@@ -291,7 +316,7 @@
             <details>
               <summary>{t('app.mfa.disable_summary')}</summary>
               <Stack gap="150">
-                <p class="quiet">{t('app.mfa.disable_body')}</p>
+                <p class="quiet">{keyHeld ? t('app.mfa.disable_body_beside_key') : t('app.mfa.disable_body')}</p>
                 <p class="quiet">{t('app.mfa.disable_hint')}</p>
                 <div>
                   <Button tone="danger" isBusy={mfa.isWorking} busyLabel={t('app.mfa.disabling')} onclick={() => void disableFactor()}>
@@ -307,7 +332,7 @@
           <!-- Said where the codes would be, so that the question "where are my recovery codes"
                has an answer on the screen rather than a button that refuses - until the setup
                confirmed, when the codes are the panel above it. -->
-          {#if !confirmedHere}<p class="quiet">{t('app.recovery.none_yet')}</p>{/if}
+          {#if !confirmedHere && !factor}<p class="quiet">{t('app.recovery.none_yet')}</p>{/if}
         {/if}
       </Stack>
     </div>

@@ -113,6 +113,11 @@ class Rules {
     return this.#page.status === 'ready' ? (this.#page.data.data ?? []) : [];
   }
 
+  /** Whether `all` is every rule there is - the first page was the last - so a count of it is true. */
+  get isComplete(): boolean {
+    return this.#page.status === 'ready' && !this.#page.data.next_cursor;
+  }
+
   /** Starts the listing. **From `untrack`**, for the reason every other store records. */
   open(): () => void {
     return engine.subscribe<RulePage>({ path: PATH }, (next) => {

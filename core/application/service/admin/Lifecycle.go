@@ -8,8 +8,10 @@ import (
 	"errors"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -49,7 +51,7 @@ type ListTenants struct {
 func (h ListTenants) Execute(
 	ctx context.Context, actor appshared.ActorContext,
 ) ([]adminrepo.TenantRecord, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return nil, err
 	}
 
@@ -80,6 +82,7 @@ func (h ListTenants) Descriptor() usecase.Descriptor {
 			"stands, and an operator's opening of the password while it is in force. The one " +
 			"legitimate tenant enumerator, for the control plane alone.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		ReadOnly:   true,
 		Audit: usecase.AuditDeclaration{
 			Action: "tenant.listed", TargetType: tenantTarget, Severity: audit.SeverityInfo,
@@ -115,6 +118,8 @@ type LifecycleShift struct {
 	IDs        clock.IDGenerator
 	// Tenancy is read by the suspension alone: in single mode it is refused (requireMulti).
 	Tenancy env.TenancyMode
+	// Platform tells a purchase platform the workspace was suspended or is active again (UC-INS-14).
+	Platform platform.Recorder
 }
 
 // requireMulti refuses an act that would shut a single-mode installation's only workspace: that
@@ -136,7 +141,7 @@ func (s LifecycleShift) shift(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 	from, to domain.TenantStatus, action audit.Action, severity audit.Severity, journal string,
 ) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return err
 	}
 	if tenantID.IsZero() {
@@ -188,10 +193,17 @@ func (s LifecycleShift) shift(
 		}); err != nil {
 			return err
 		}
-		return s.Journal.Record(ctx, adminrepo.InstanceEvent{
+		if err := s.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: s.IDs.NewID(), OccurredAt: now, Action: journal,
 			TenantID: tenantID, TenantSlug: record.Slug, ActorLabel: actor.AccountName,
-		})
+		}); err != nil {
+			return err
+		}
+		told := event.WorkspaceResumed
+		if to == domain.TenantSuspended {
+			told = event.WorkspaceSuspended
+		}
+		return s.Platform.Record(ctx, told, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, nil)
 	})
 }
 
@@ -203,7 +215,7 @@ type SuspendTenant struct{ LifecycleShift }
 func (h SuspendTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, tenantID shared.ID,
 ) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return err
 	}
 	if err := requireMulti(h.Tenancy); err != nil {
@@ -225,6 +237,7 @@ func (h SuspendTenant) Descriptor() usecase.Descriptor {
 		SideEffects: "Flips the tenant's lifecycle status; records the act in the tenant's " +
 			"audit trail and the instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 		},
@@ -273,6 +286,7 @@ func (h ResumeTenant) Descriptor() usecase.Descriptor {
 		SideEffects: "Flips the tenant's lifecycle status back; records the act in the " +
 			"tenant's audit trail and the instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 		},

@@ -175,7 +175,7 @@ func TestAWorkerWhoseLeaseExpiredCannotFinishTheJob(t *testing.T) {
 	}
 
 	err := systemWrite(ctx, t, func(ctx context.Context) error {
-		return jobQueue(t).Complete(ctx, slow)
+		return jobQueue(t).Complete(ctx, slow, "")
 	})
 	if err == nil || shared.AsError(err).DetailCode != "queue.lease_lost" {
 		t.Fatalf("error %v, want the completion to be refused", err)

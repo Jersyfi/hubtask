@@ -35,7 +35,7 @@ Decision records: [ADR-0005](../adr/ADR-0005-authn-authz.md),
 | Accounts belong to one workspace | The address is unique per tenant (`account_email_uq` on `(tenant_id, lower(email))`); one address in two workspaces is two accounts, with no global identity ([non-goals](../vision/non-goals.md)). |
 | Two kinds | `USER` and `SERVICE_ACCOUNT`, recorded in every audit entry. A service account holds tokens only (§15). |
 | States | `INVITED` (§12), `ACTIVE`, `DISABLED`, `RESTRICTED` (Art. 18, [data-protection.md](./data-protection.md) §4), `ANONYMIZED` (erased, authorship kept). Only `ACTIVE` and `RESTRICTED` act; a disabled account, or one of a suspended workspace, is refused at every door, a provider's token exchange included. |
-| What an account holds | Any of: a password, one second factor with recovery codes, provider identities (`account_identity`, unique per provider and subject). `GET /accounts/me` answers `has_password` and `recovery_codes_remaining`. |
+| What an account holds | Any of: a password, one second factor with recovery codes, provider identities (`account_identity`, unique per provider and subject). `GET /accounts/me` answers `has_password`, `has_second_factor` (the app or a passkey, §23.2), `has_authenticator_app` and `recovery_codes_remaining`. |
 | A provider-only account | No password: the password doors refuse it, and it never meets a password change or password step-up. |
 
 ---
@@ -60,8 +60,8 @@ The header may confirm a tenant, never overrule one; token and host contradictin
 
 ### 4.1 The ways in
 
-A workspace's rule names its **methods**: `PASSWORD` and `OIDC` (each switched-on provider is one
-way in), switched in that list and nowhere else (§10.6). Which methods resolve, and when the
+A workspace's rule names its **methods**: `PASSWORD`, `OIDC` (each switched-on provider is one
+way in) and `PASSKEY` (§23.4, never the last way in), switched in that list and nowhere else (§10.6). Which methods resolve, and when the
 password opens anyway, is §17.
 
 | Rule | Detail |
@@ -78,8 +78,8 @@ the step owed; the client draws exactly the step the server names.
 
 | Step (`methods` in the `202`) | Owed when | Completed by |
 |---|---|---|
-| `TOTP` | The account has a second factor on | A current code, or one recovery code (§8, §9) |
-| `ENROLL` | The rule requires a factor of this person and they have none | Enrolment and its confirmation (§8) |
+| `TOTP` | The account holds a second factor that can be asked for here: the app armed, or a key of the workspace's relying party with the request at its very host (§23.2) | Whatever `methods` names beside it: a current code (`TOTP`), a key's answer to `passkey_options` (`PASSKEY`), one recovery code (`RECOVERY`) (§8, §9, §23.4) |
+| `ENROLL` | The rule requires a factor of this person and they have none that can be asked for here | Enrolment and its confirmation (§8), or a key set up instead where the `202` says `passkey_setup` (§23.4) |
 | `PASSWORD_CHANGE` | The password is right but no longer meets the rule (too weak, older than `max_age_days`, set before `rotation_from`) | Setting a new password; confirming it *is* the sign-in (§6) |
 | `LINK` | A provider's first arrival meets an account that already holds a credential | The account's own proof (§11) |
 | `TERMS` | Terms of use are in force (§18) and the account has not agreed to their link and version | Agreeing to the terms the step names, at `/auth/sessions:agree-terms` ([UC-ID-19](../usecases/identity/UC-ID-19-agree-to-the-terms.md)) |
@@ -206,13 +206,14 @@ the password's shape), one place the history is written. An invitation's first p
 written by the redemption itself and recorded as `auth.invitation_redeemed`.
 
 **The person is told** ([ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6): a password changed or set
-through a reset, a provider connected to an account that already existed, and a provider removed
-with the connections it held are each mailed to the account's own address — what changed, when, and
+through a reset, a provider connected to an account that already existed, a provider removed
+with the connections it held, and a passkey or security key added or removed (§23.2) are each mailed to the account's own address — what changed, when, and
 the way back — from a job queued in the change's own transaction, which no preference silences. A
 first way in made by the person on an account that had none (an invitation redeemed, an invited
 account activated, a newcomer provisioned) is not told. Without a mail server, or for an account
 without an address (§13), the change is only audited. An operator's opening (§17.2) tells the
-administrators, not every member. A second factor and its recovery codes are not among the notices.
+administrators, not every member. The authenticator app and the recovery codes are not among the
+notices; a passkey's notice never names it.
 
 | Rule | Detail |
 |---|---|
@@ -253,8 +254,8 @@ administrators, not every member. A second factor and its recovery codes are not
 | TOTP, written in-house | RFC 6238 on `crypto/hmac`, `crypto/sha1`, `crypto/subtle`: a 20-byte secret, six digits, a 30-second step. |
 | Verification | One step either side of now, never twice for one step; attempts count in the ledger (§4.3). |
 | Enrolment | The secret is sealed under its own purpose ([security.md](./security.md) §8); the provisioning URI and ten recovery codes are shown **once**; the factor is armed only after a valid code. The client draws the QR code. |
-| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
-| Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person. The body's `password` is `deprecated` until the next major contract version. |
+| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12) — where the setup offers the app and, at the workspace's own host, a passkey or security key (§23.4). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
+| Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of the workspace's address (§23.2). The recovery codes go with it unless such a key remains, which they then back (§9). Decided under the account's row lock, which removing a passkey takes too, so two removals never each count the other as the factor that remains. The body's `password` is `deprecated` until the next major contract version. |
 | Replacing the authenticator | A step-up with any method held, a new secret confirmed by a code from the new app, one atomic swap answering ten new recovery codes; until then the old factor and codes hold, the replacement waiting ten minutes as an unconfirmed enrolment. Audited as `auth.mfa_replaced`. |
 | No secret travels | The secret and every code appear nowhere after their single showing; MFA state does not travel to devices ([offline-sync.md](./offline-sync.md) §4.2). |
 
@@ -269,10 +270,14 @@ factor and back whatever second factor the account holds.
   normalised (case, spaces, dashes) before hashing.
 * Stored hashed, each once: using one at sign-in or a step-up burns it, is audited, and the answer
   says how many are left.
-* `POST /auth/mfa/recovery:regenerate` takes a step-up: ten new codes, the old ten burned in the same
-  transaction, audited as `auth.mfa_recovery_regenerated` (a filter for it also finds the older
-  `mfa.recovery_regenerated`).
-* `recovery_codes_remaining` is answered to the holder only, at sign-in and on `GET /accounts/me`.
+* `POST /auth/mfa/recovery:regenerate` takes a step-up, for an account that holds a second factor -
+  the app or a passkey (§23.2) - and refuses before the proof where it holds none: ten new codes,
+  the old ten burned in the same transaction, audited as `auth.mfa_recovery_regenerated` (a filter
+  for it also finds the older `mfa.recovery_regenerated`).
+* They go with the last factor of either kind, by one statement whose condition is that no app row
+  (armed or begun) and no passkey remains; beside no armed factor they open nothing.
+* `recovery_codes_remaining` is answered to the holder only, at sign-in and on `GET /accounts/me`
+  wherever a second factor is held.
 * Somebody with neither the app, a code, a password nor a provider is not let through
   (`NG-weaker-recovery`, §17.4).
 
@@ -555,7 +560,8 @@ written onto the session when it opens: a tightened bound reaches new sessions o
   gains nothing, as the hash covers the whole string.
 * Shown once; stored as an HMAC under its own purpose label ([security.md](./security.md) §8).
 * A mandatory expiry of at most one year, scopes, the last use visible. An `admin:*` scope takes a
-  step-up (§16); `admin:tenants` is checked against the operator register (§19).
+  step-up (§16); `admin:tenants` and its subset for a purchase platform, `admin:provisioning`, are
+  checked against the operator register (§19).
 * It is the HTTP Basic password of a CalDAV client, on the CalDAV tree only
   ([security.md](./security.md) §4, T-22).
 
@@ -571,7 +577,9 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
   confidential client's secret (`hbt_ocs_…`) is stored hashed and shown once.
 * **The authorization endpoint is headless.** `POST /oauth/authorize` is called by the signed-in
   person — never a token — from the consent screen, which consents only ever to catalogue scopes
-  (`catalogue.Scopes()`).
+  (`catalogue.Scopes()`) and never to an `admin:*` scope or `agent:destructive`
+  (`access.token_scope_unknown`): minting those asks a step-up and the register, and a consent asks
+  neither. A grant session carries none of them, whatever its grant once stored.
 * The code (`hbt_oac_…`) lives two minutes and is exchanged once.
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
@@ -593,12 +601,15 @@ A fresh proof on the current session, demanded by a privileged action.
 | Method | Who holds it | How it proves |
 |---|---|---|
 | `PASSWORD` | An account with a password | The password, checked as at sign-in |
-| `TOTP` | An account with a second factor on | A current code |
-| `RECOVERY` | An account with a factor on and at least one code left | A recovery code, consumed |
+| `TOTP` | An account with the authenticator app armed | A current code |
+| `PASSKEY` | An account with a passkey or security key of the workspace's relying party | Its answer to `POST /auth/step-up:passkey-options`, presence enough (§23.4) |
+| `RECOVERY` | An account with a second factor (the app or a key) and at least one code left | A recovery code, consumed |
 | `PROVIDER` | An account with an identity at a provider switched on in its workspace | A fresh sign-in there |
 
 `stepup.Methods` answers the methods held, in this order; the refusal's `params.methods` carries
-them and the client builds its prompt from that list alone.
+them and the client builds its prompt from that list alone. `Methods` cannot see the host a prompt
+runs at: the key's options are refused at another host (`auth.passkey_unavailable`), and the prompt
+then offers the other ways.
 
 **`PROVIDER` is verified twice.** The flow sends `prompt=login` and `max_age=0`, bound to the
 session that asked; the proof holds only when the ID token's subject is the identity connected to
@@ -621,13 +632,14 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
-request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting
-such a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one
-member of `PATCH /tenant` that asks), §13's new start password, connecting a provider from a
-session (§11), a private hub's emergency access (§22), and every write of §6 (bearer door), §8–§9,
-§10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's destructive modes and §8.5's
-erasures carried out again after a point-in-time recovery, and configuring or removing one of the
-installation's own backup targets (backup-restore.md §2).
+request (a person's; a service account whose own register row is a service account's sends the
+typed name alone, having no proof to give — [multi-tenancy.md](./multi-tenancy.md) §5), granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
+a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
+/tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
+removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
+(bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
+configuring or removing one of the installation's own backup targets (backup-restore.md §2).
 
 ---
 
@@ -642,7 +654,8 @@ somebody with no way in either refuses (§4.1's last-way-in guard) or a way stay
 The password opens **whenever the resolved methods leave no way in that works** — the password is
 not among them and no provider is a way in now — **whatever the cause**: an ended offer, an
 installation default or lock, a lifted rescue lock, a restore or import, two administrators
-switching off the last two ways at once.
+switching off the last two ways at once, a plan that leaves the workspace's own providers out
+([multi-tenancy.md](./multi-tenancy.md) §4.2).
 
 * It opens for **every** account holding a password, under the workspace's password and factor
   rules; one without a password is mailed a link to set one (§7).
@@ -695,13 +708,18 @@ for **one named workspace** (`POST /admin/tenants/{id}:open-password`):
 ## 18. The levels of the sign-in settings
 
 ```
-product bounds (§5.2)  →  the installation's default and lock  →  the workspace, where no lock lies
+product bounds (§5.2)  →  the installation's default and lock  →  the plan's, under the installation's lock
+                      →  the workspace, where no lock lies
 ```
 
 * The installation sets a **default** and a **lock** per switch, as every instance setting
   ([multi-tenancy.md](./multi-tenancy.md) §4.1); a locked control shows **the value, the reason and
-  who set it**. A lock's origin, `INSTANCE` or `PLAN` (no writer yet), tells "ask your
-  administrator" from "ask your provider".
+  who set it**. A lock's origin, `INSTANCE` or `PLAN`, tells "ask your administrator" from "ask
+  your provider". A workspace's plan sets a default and a lock the same way: it tightens what the
+  installation left open and never writes under its lock; where the installation locks a switch,
+  the plan's value for it is not read at all ([multi-tenancy.md](./multi-tenancy.md) §4.2). The
+  level above a workspace is the installation and its plan together; the workspace's screen names
+  the plan (`plan` on the sign-in policy) and says "your plan" for what the plan set or locked.
 * **A workspace only ever tightens**, enforced field by field; a screen offers nothing looser than
   the level above.
 * `Effective(product, instance, plan, workspace)` resolves the rule on read for the sign-in path,
@@ -722,11 +740,23 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
   in the fallback opens (§17.1). While the mandated provider's offer stands it is a way in, so the
   fallback stays shut; the operator's opening (§17.2) still overrides it. The installation's count
   of a mandated provider is every live workspace, so its removal waits for the withdrawal.
+* A plan that locks the ways in with providers among them mandates the same offers in every
+  workspace on that plan, read the same way and lifted the same way — a move off the plan included.
+  Where the installation locks the ways in itself, its lock decides and the plan's is not read. The
+  count of a mandated provider includes every live workspace on such a plan; the installation's own
+  list names only its own lock (`installation_lock`), so a removal the count refuses is explained by
+  the count, not by that column.
 * **Never a switch:** exporting, deleting or asking about one's own data, language, time zone,
   accessibility. Rate limits, the lockout curve, the key ring, and a workspace's name, colour and
   start page have no installation level; language and time zone may be defaulted there, never locked.
 * The legal links (imprint, privacy, terms, accessibility statement) resolve
-  `workspace → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line shown.
+  `workspace → plan → installation → nothing`, answered by `/auth/sign-in-rules`; none set, no line
+  shown. A plan sets and locks them as the installation does, under the installation's lock; moving
+  a workspace to a plan with other terms asks everybody once more, as a changed link does
+  ([multi-tenancy.md](./multi-tenancy.md) §4.2). A plan's terms answer `terms_set_by: INSTALLATION`:
+  the provider is whom a person who does not agree asks, as for the installation's. The provider's
+  account link (`account_url`) resolves from installation and plan only (§4.2 there): it is no link
+  a workspace sets, the footer shows or the sign-in rules answer.
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
@@ -740,16 +770,16 @@ product bounds (§5.2)  →  the installation's default and lock  →  the works
 
 | Rule | Detail |
 |---|---|
-| The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` is minted **and** exercised. |
+| The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` or `admin:provisioning` is minted **and** exercised. |
 | Narrow functions | `is_operator`; `operator_roster(caller)`, the register with each account's name, address or sign-in name, kind and workspace, answering nothing to a caller the register does not name and never naming another account; `enlist_operator` and `dismiss_operator`, the writes. All `SECURITY DEFINER`; the table has no row policy and no grant to the application role. |
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. Adding the first entry therefore adds the person adding it as well, in the same statement and under a lock, both journalled. |
 | The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
 | The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
 | The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). Where the workspace itself is locked - suspended or set for deletion, so every credential of its operators is refused - `hubtask workspace cancel-deletion --workspace <short name>` and `hubtask workspace resume --workspace <short name>` make the control plane's two edges back, with the same guards, trail and journal entries, recorded as the machine's (`SYSTEM`, label `machine`). |
-| The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
+| The bound on a token | A token carrying `admin:tenants` or `admin:provisioning` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | Who can be added | Only an active account (`admin.operator_not_active`), named by workspace and address or, for a service account, chosen from the caller's own workspace and sent by identifier. |
 | The last operator | Cannot be removed: `dismiss_operator` deletes only while more than one remains (`admin.operator_last`); an account not in the register is `admin.operator_not_registered`. |
-| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`, or `hubctl admin elevate` on a `hubctl login` session): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A running hour is not replaced: a second raise is `auth.session_already_elevated` (409) before any proof, naming the end. A token refresh rotates the same session and keeps the hour. A machine holds a personal access token with `admin:tenants`, minted with a step-up from the web app or `hubctl token create`. |
+| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`, or `hubctl admin elevate` on a `hubctl login` session): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A running hour is not replaced: a second raise is `auth.session_already_elevated` (409) before any proof, naming the end. A token refresh rotates the same session and keeps the hour. A machine holds a personal access token with `admin:tenants`, or a purchase platform's service account one with `admin:provisioning` ([api-guidelines.md](./api-guidelines.md) §7), minted with a step-up from the web app or `hubctl token create`; the hour gains `admin:tenants` alone. |
 | The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); on a single-workspace installation it is the last group of the administration for an operator who reaches the administration, and the account menu's row otherwise; it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
 | Three doors, one API | The area, `hubctl admin` and `HUBTASK_INSTANCE_FILE` share the use cases and refusals; under `enforce` the file refuses the writing routes, naming the path. |
 
@@ -778,7 +808,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 |---|---|
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
-| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans, then custom domains, follow. |
+| I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans: decided ([multi-tenancy.md](./multi-tenancy.md) §4.2, [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)), being built — milestone PL; the sign-in rule and the legal links resolve through them. Custom domains follow. |
 | I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
 | I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
 | I-14 | Decided ([decision #1511](https://github.com/Jersyfi/hubtask/issues/1511), option b) and built: a provider's admission settings bound which identities members may connect as well as who comes in new (§10.4). |
@@ -878,9 +908,16 @@ role given while the last member leaves is seen.
 
 ## 23. Passkeys and security keys
 
-**Decided for milestone PK, not built** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md);
-the owner, 2026-10-15). Until PK's tasks merge, §2, §8 and §16.1 describe what runs: one second
-factor, the authenticator app.
+**Decided for milestone PK** ([ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md); the owner,
+2026-10-15). **Built:** adding one (§23.2's limit, recovery codes and step-up, §23.3, §23.5) - the
+`webauthn_credential` table, the verifier in `infrastructure/webauthn`, `ListOwnPasskeys`,
+`StartPasskeyRegistration` and `CompletePasskeyRegistration`; renaming and removing one
+(`RenameOwnPasskey`, `RemoveOwnPasskey`), and a key counted as the second factor where the profile,
+turning the app off and the recovery codes ask (§8, §9, `SecondFactor`); signing in with a passkey
+alone (§23.4: `StartPasskeySignIn`, `CompletePasskeySignIn`, the `PASSKEY` method); a key as the
+second-factor step, the step-up and the setup during sign-in (§23.4: `StartPasskeyStepUp`,
+`StartPasskeyEnrollment`, `CompletePasskeyEnrollment`, the assertion at `CompleteSignIn` and `StepUp`).
+Replacing the authenticator app reads the app alone, as it replaces only the app.
 
 ### 23.1 One credential, two strengths
 
@@ -910,13 +947,13 @@ A credential that once answered with UV and later without is held to the ceremon
 
 | Rule | Detail |
 |---|---|
-| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). |
-| Origin | `https://` and that host (the configured public port where it is not 443); any other origin is refused. Neither the shells' webview origin nor a localhost origin outside development passes; the shells' path is F7's. |
+| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
-| Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose: five minutes, single use, bound to the workspace and, for a step-up or an addition, to the session. |
+| Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose - `PASSKEY_REGISTER`, `PASSKEY_SIGN_IN`, `PASSKEY_FACTOR`, `PASSKEY_ENROLL`, `PASSKEY_STEP_UP` (migrations 0161, 0174, 0176), each under its own token prefix: five minutes, single use, bound to the workspace, to the account where one is known and, for a step-up or an addition, to the session. A challenge is spent only by its own door. |
 | Discoverable | Registration asks for a resident key (`preferred`) and user verification (`preferred`); the user handle is an opaque random value per account, never the address. |
-| The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero. |
+| The sign counter | A counter that went backwards is refused only where both values are non-zero; synchronised passkeys report zero, which passes and never lowers the stored value - a deliberate departure from WebAuthn Level 3 §7.2 step 22, written in one statement so two sign-ins with one credential cannot both pass. |
 
 ### 23.4 Ways in and the steps
 
@@ -928,15 +965,57 @@ A credential that once answered with UV and later without is held to the ceremon
 * The migration that adds it puts `PASSKEY` into every stored method list that holds `PASSWORD`, and
   into the product's default; a workspace that switched the password off chose its ways in and
   switches passkeys on itself. Under an installation lock the workspace follows the lock (§18).
-* A passkey sign-in fails with the one refusal of §4.3 and counts in the attempt ledger; a
-  cancelled prompt is the client's and sends nothing.
-* The second-factor step and the reset's kept factor (ADR-0078) accept a security key or passkey
-  beside the code and a recovery code.
-* The step-up gains `PASSKEY` after `TOTP` in §16.1's order.
+* **Signing in with a passkey** is `POST /auth/sessions:passkey-options` - offered only where
+  `PASSKEY` is on, a relying party exists and the request arrived at its very host, answering a
+  five-minute challenge that names nobody (an `auth_pending` row of purpose `PASSKEY_SIGN_IN`, no
+  account) and `userVerification: required` - then `POST /auth/sessions:passkey` with the ceremony's
+  answer. The device's verification of the person is required at this door; the verified assertion is
+  the whole proof: no `TOTP` or `ENROLL` step, also under `mfa_required_for`. A start password still
+  owes its `PASSWORD_CHANGE` (§13), `TERMS` stays last, the session says `PASSKEY` and is bounded as
+  every session is. The card asks the device when the address field gains focus (the field offers
+  this workspace's passkeys) or *Sign in with a passkey* is pressed; `GET /auth/sign-in-rules` names
+  `PASSKEY` only where a ceremony can finish (P-05).
+* A passkey sign-in fails with the one refusal of §4.3 - an unknown, removed or another address's
+  passkey, an account that cannot act, a device that did not verify the person, a signature or
+  counter that does not hold - and counts on the network's subject only: nobody typed an identifier,
+  and a subject per account would let anyone holding a credential's identifier lock its owner out. A
+  suspended workspace keeps its sentence, as at the password door. A challenge that ran out is refused
+  apart (`auth.passkey_challenge_stale`), uncounted, and the card asks again; a cancelled prompt is
+  the client's and sends nothing.
+* **A key counts as a second factor where it can be asked for**: the account holds one of the
+  workspace's relying party *and* the request arrived at that party's very host. One helper decides it
+  for every door that hands on to the factor's step - the password, the reset's kept factor
+  (ADR-0078), an invitation's redemption and the three provider-link doors (§11). Where no key can sign
+  - a reset or a redemption at the installation's host in multi mode - the account meets what it met
+  before keys: the app's step, or `ENROLL` under the rule.
+* **The factor's step** offers `PASSKEY` in `methods` beside `TOTP` (the app) and `RECOVERY`, with
+  `passkey_options`: the account's credentials and a challenge of purpose `PASSKEY_FACTOR` for the
+  account. `POST /auth/sessions:verify` takes the key's answer as exactly one proof - presence
+  suffices, since the password came first. A refused key - another account's, another address's,
+  unknown, a refused signature, a challenge not this step's, a counter that went back - is the code's
+  refusal (`auth.mfa_code_invalid`), counted on the account's `mfa:` subject, and the step and its
+  challenge stand for another try. The session says `PASSWORD_PASSKEY`; a link a mailbox proved stays
+  the provider's; the change step and `TERMS` follow as after a code.
+* **The step-up** takes `PASSKEY` after `TOTP` (§16.1): `POST /auth/step-up:passkey-options` issues a
+  challenge of purpose `PASSKEY_STEP_UP` bound to the session and the account, refused for a token
+  (`auth.step_up_session_required`) and where no key can sign at the request's host
+  (`auth.passkey_unavailable`); `POST /auth/step-up` takes the answer, presence enough, and is audited
+  with the method `PASSKEY`. A refused key is the step-up's refusal on its own subject.
+* **The setup during sign-in** offers a key beside the app where the `ENROLL` step says
+  `passkey_setup` - only at the relying party's host. `POST /auth/mfa/passkey:enroll-options` with the
+  `ENROLL` credential answers creation options and a challenge of purpose `PASSKEY_ENROLL` carrying the
+  user handle; `POST /auth/mfa/passkey:enroll` keeps the key with the verifier, limit, codes (only where
+  none), audit and notice of adding one, spends the `ENROLL` credential and ends as confirming the app
+  does: the session (`PASSWORD_PASSKEY`) or the step still owed. No step-up: an `ENROLL` credential
+  exists only where no factor is held, and one that appeared meanwhile refuses the setup under the
+  account's lock (`auth.mfa_already_armed`).
 
 ### 23.5 What travels
 
-* A backup keeps the credentials, a tenant export strips them as it strips every credential, and an
-  erased account loses them with the account (`CASCADE`).
+* A data backup keeps the credentials, so a restore leaves people their way in; a tenant export and
+  a person's export strip them as they strip every credential
+  ([tenant-export.md](./tenant-export.md) §9) — a passkey leaves by its name and dates, without
+  identifier, key or handle, and an import skips it; an erased account loses them in every mode —
+  with the account (`CASCADE`) where it is deleted, with its tokens where it is anonymised.
 * The data catalogue names the table, its personal data (the name, the last use) and its legal basis
   in the task that creates it.

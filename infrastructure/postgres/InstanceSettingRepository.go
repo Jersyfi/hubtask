@@ -94,6 +94,7 @@ const (
 	keyManagedAccounts    = signInArea + ".managed_accounts"
 	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
+	keyMetering           = "metering.enabled"
 )
 
 // switchKeys maps each policy switch to its row's key. `rotation_from` is deliberately absent: it
@@ -234,6 +235,8 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		patch.Methods = &methods
 	case keyBlocklistFile:
 		level.BlocklistFile, err = word()
+	case keyMetering:
+		err = json.Unmarshal(raw, &level.Metering)
 	case localisationArea + ".locale":
 		level.Localisation.Locale, err = word()
 	case localisationArea + ".time_zone":
@@ -302,7 +305,7 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 }
 
 func legalLinkOf(key string) (identity.LegalLink, bool) {
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		if key == legalArea+"."+string(link) {
 			return link, true
 		}
@@ -473,7 +476,7 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		rows = append(rows, settingRow{key: key, value: encoded, lock: lockOf(level.Policy.Locks[name], "")})
 	}
 
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		value := level.Legal.Links.Of(link)
 		if value == "" && (!level.Legal.Locks[link] || link == identity.LinkTermsVersion) {
 			// The version's lock is the terms link's own row; an empty version is no row at all.
@@ -571,6 +574,9 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 			return nil, shared.Internalf("postgres: encoding the blocklist path: %w", err)
 		}
 		rows = append(rows, settingRow{key: keyBlocklistFile, value: encoded, lock: "OPEN"})
+	}
+	if level.Metering {
+		rows = append(rows, settingRow{key: keyMetering, value: []byte("true"), lock: "OPEN"})
 	}
 
 	return rows, nil

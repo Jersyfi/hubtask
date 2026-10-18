@@ -39,6 +39,6 @@ that names the storage limit, and sees their standing on the workspace's quota p
 
 * No per-person or per-collection quota.
 * No price per gigabyte and no upgrade button ([NG-billing](../../vision/non-goals.md)); the
-  platform sets the quota.
+  platform sets the quota. A link to the provider's own page is UC-INS-13's.
 * No list of which types may be uploaded; what a file may do is decided by its type, not refused
   by it.

@@ -65,11 +65,12 @@ func (l *leadership) Release(context.Context) error {
 }
 
 type schedulerSignals struct {
-	depths    map[string]int64
-	lags      []float64
-	freshness map[string]time.Time
-	backlogs  []int64
-	purged    map[string]int64
+	platformDeadLetters []int64
+	depths              map[string]int64
+	lags                []float64
+	freshness           map[string]time.Time
+	backlogs            []int64
+	purged              map[string]int64
 
 	auditHeld        []int64
 	auditDefaultAged []int64
@@ -89,6 +90,10 @@ func (s *schedulerSignals) QueueDepth(_ context.Context, kind string, pending in
 
 func (s *schedulerSignals) SchedulerTickLag(_ context.Context, seconds float64) {
 	s.lags = append(s.lags, seconds)
+}
+
+func (s *schedulerSignals) PlatformDeadLetters(_ context.Context, waiting int64) {
+	s.platformDeadLetters = append(s.platformDeadLetters, waiting)
 }
 
 func (s *schedulerSignals) WebhookRetryBacklog(_ context.Context, waiting int64) {
@@ -525,5 +530,28 @@ func TestASchedulerWhoseSchemaIsBehindDoesNotLead(t *testing.T) {
 	if leading := s.tick(t.Context(), true, now); leading || !held.released {
 		t.Errorf("fell behind while leading: leading %v, released %v; want leadership given up",
 			leading, held.released)
+	}
+}
+
+type platformDeadLetters struct{ waiting int64 }
+
+func (p platformDeadLetters) DeadLetters(context.Context) (int64, error) { return p.waiting, nil }
+
+// The leader samples the dead letters waiting for a purchase platform on every tick, so A-21's
+// gauge falls to zero after a redelivery and after a restart alike.
+func TestTheLeaderSamplesThePlatformsDeadLetters(t *testing.T) {
+	signals := newSchedulerSignals()
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, signals)
+	leader.PlatformDeliveries = platformDeadLetters{waiting: 4}
+
+	leader.tick(t.Context(), false, now)
+	if len(signals.platformDeadLetters) != 1 || signals.platformDeadLetters[0] != 4 {
+		t.Errorf("sampled %v, want [4]", signals.platformDeadLetters)
+	}
+
+	leader.PlatformDeliveries = nil
+	leader.tick(t.Context(), true, now.Add(time.Second))
+	if len(signals.platformDeadLetters) != 1 {
+		t.Errorf("an installation without the feed sampled %v", signals.platformDeadLetters)
 	}
 }

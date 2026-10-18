@@ -118,42 +118,43 @@ re-mints identities must rewrite exactly these).
 |---|---|---|---|---|
 | 1 | `tenants` | `tenant` | `id` | — (the workspace itself: slug, display name, defaults, settings) |
 | 2 | `accounts` | `account` | `id` | — (people and service accounts; credentials are **not** among the fields, §9) |
-| 3 | `account_groups` | `account_group` | `id` | — |
-| 4 | `account_group_members` | `account_group_member` | `group_id/account_id` | `group_id`→account_groups, `account_id`→accounts |
-| 5 | `memberships` | `membership` | `id` | `account_id`→accounts, `group_id`→account_groups |
-| 6 | `containers` | `container` | `id` | `parent_id`→containers (hubs first — a parent precedes its children within the file). `private` marks a private hub; an archive without it restores the hub shared, as it was |
-| 7 | `buckets` | `bucket` | `id` | `collection_id`→containers |
-| 8 | `labels` | `label` | `id` | `collection_id`→containers |
-| 9 | `custom_field_definitions` | `custom_field_definition` | `id` | `collection_id`→containers |
-| 10 | `work_items` | `work_item` | `id` | `collection_id`→containers, `parent_id`→work_items, `bucket_id`→buckets, `assignee_id`→accounts, `cover_media_id`→media_objects, `recurrence_rule_id`→recurrence_rules, `origin_jumble_id`→jumble_entries |
-| 11 | `item_labels` | `item_label` | `item_id/label_id` | `item_id`→work_items, `label_id`→labels |
-| 12 | `item_members` | `item_member` | `item_id/account_id` | `item_id`→work_items, `account_id`→accounts |
-| 13 | `comments` | `comment` | `id` | `item_id`→work_items, `parent_comment_id`→comments |
-| 14 | `activity_entries` | `activity_entry` | `id` | `item_id`→work_items |
-| 15 | `media_objects` | `media_object` | `id` | — (`blobs` points into `media/`, §7) |
-| 16 | `item_attachments` | `item_attachment` | `item_id/media_id` | `item_id`→work_items, `media_id`→media_objects |
-| 17 | `recurrence_rules` | `recurrence_rule` | `id` | `source_item_id`→work_items |
-| 18 | `reminders` | `reminder` | `id` | `item_id`→work_items |
-| 19 | `saved_views` | `saved_view` | `id` | — |
-| 20 | `templates` | `template` | `id` | — |
-| 21 | `jumble_entries` | `jumble_entry` | `id` | — |
-| 22 | `auto_assign_policies` | `auto_assign_policy` | `id` | — |
-| 23 | `automation_rules` | `automation_rule` | `id` | `run_as`→accounts |
-| 24 | `webhook_subscriptions` | `webhook_subscription` | `id` | — |
-| 25 | `calendar_feeds` | `calendar_feed` | `id` | `account_id`→accounts, `view_id`→saved_views (the feed's token is not among the fields, §9) |
-| 26 | `notification_preferences` | `notification_preference` | `account_id/category/channel` | `account_id`→accounts |
-| 27 | `retention_policies` | `retention_policy` | `data_kind` | — |
-| 28 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
-| 29 | `legal_holds` | `legal_hold` | `id` | — |
-| 30 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
-| 31 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
-| 32 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 3 | `webauthn_credentials` | `webauthn_credential` | `id` | `account_id`→accounts (a person's passkeys; an export carries their name and dates, not the credential, §9) |
+| 4 | `account_groups` | `account_group` | `id` | — |
+| 5 | `account_group_members` | `account_group_member` | `group_id/account_id` | `group_id`→account_groups, `account_id`→accounts |
+| 6 | `memberships` | `membership` | `id` | `account_id`→accounts, `group_id`→account_groups |
+| 7 | `containers` | `container` | `id` | `parent_id`→containers (hubs first — a parent precedes its children within the file). `private` marks a private hub; an archive without it restores the hub shared, as it was |
+| 8 | `buckets` | `bucket` | `id` | `collection_id`→containers |
+| 9 | `labels` | `label` | `id` | `collection_id`→containers |
+| 10 | `custom_field_definitions` | `custom_field_definition` | `id` | `collection_id`→containers |
+| 11 | `work_items` | `work_item` | `id` | `collection_id`→containers, `parent_id`→work_items, `bucket_id`→buckets, `assignee_id`→accounts, `cover_media_id`→media_objects, `recurrence_rule_id`→recurrence_rules, `origin_jumble_id`→jumble_entries |
+| 12 | `item_labels` | `item_label` | `item_id/label_id` | `item_id`→work_items, `label_id`→labels |
+| 13 | `item_members` | `item_member` | `item_id/account_id` | `item_id`→work_items, `account_id`→accounts |
+| 14 | `comments` | `comment` | `id` | `item_id`→work_items, `parent_comment_id`→comments |
+| 15 | `activity_entries` | `activity_entry` | `id` | `item_id`→work_items |
+| 16 | `media_objects` | `media_object` | `id` | — (`blobs` points into `media/`, §7) |
+| 17 | `item_attachments` | `item_attachment` | `item_id/media_id` | `item_id`→work_items, `media_id`→media_objects |
+| 18 | `recurrence_rules` | `recurrence_rule` | `id` | `source_item_id`→work_items |
+| 19 | `reminders` | `reminder` | `id` | `item_id`→work_items |
+| 20 | `saved_views` | `saved_view` | `id` | — |
+| 21 | `templates` | `template` | `id` | — |
+| 22 | `jumble_entries` | `jumble_entry` | `id` | — |
+| 23 | `auto_assign_policies` | `auto_assign_policy` | `id` | — |
+| 24 | `automation_rules` | `automation_rule` | `id` | `run_as`→accounts |
+| 25 | `webhook_subscriptions` | `webhook_subscription` | `id` | — |
+| 26 | `calendar_feeds` | `calendar_feed` | `id` | `account_id`→accounts, `view_id`→saved_views (the feed's token is not among the fields, §9) |
+| 27 | `notification_preferences` | `notification_preference` | `account_id/category/channel` | `account_id`→accounts |
+| 28 | `retention_policies` | `retention_policy` | `data_kind` | — |
+| 29 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
+| 30 | `legal_holds` | `legal_hold` | `id` | — |
+| 31 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
+| 32 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
+| 33 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
 
-**Three references point forward.** In `work_items`, `cover_media_id` (#15), `recurrence_rule_id`
-(#17) and `origin_jumble_id` (#21) name rows of later files; an importer that enforces them sets
+**Three references point forward.** In `work_items`, `cover_media_id` (#16), `recurrence_rule_id`
+(#18) and `origin_jumble_id` (#22) name rows of later files; an importer that enforces them sets
 them after the later file is applied. `work_items` also carries `recurrence_source_id`, a reference
 to another `work_items` row without a foreign key. Of the three, only `cover_media_id` is a foreign
 key in Hubtask's own schema, and its restore applies `media_objects`, which references nothing,
@@ -225,6 +226,7 @@ is absent from the record, not null. The redacted fields, exhaustively:
 | `automation_rules` | `inbound_token_hash` |
 | `webhook_subscriptions` | `secret_enc`, `secret_key_id`, `previous_secret_enc`, `previous_secret_key_id`, `previous_secret_until` |
 | `calendar_feeds` | `token_hash` |
+| `webauthn_credentials` | `credential_id`, `public_key`, `user_handle` — the passkey leaves by name and dates, and an import skips it ([identity.md](./identity.md) §23.5) |
 
 A *backup* keeps these columns: it is encrypted at the operator's own target, and a restore is
 expected to keep sign-ins working. The export is handed outwards.

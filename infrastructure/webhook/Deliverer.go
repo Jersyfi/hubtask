@@ -17,8 +17,10 @@ import (
 	"net/http"
 	"time"
 
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/integration"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -107,6 +109,9 @@ type Deliverer struct {
 	// NextAttempt is the backoff, given the attempts made so far. Injected for the runner's
 	// reason: this layer decides when to retry, not how far apart.
 	NextAttempt func(attempt int) time.Duration
+	// Entitlements is what the workspace's plan leaves out (multi-tenancy.md §4.2). Nil includes
+	// every feature.
+	Entitlements adminrepo.Entitlements
 	// Signals carries each settled attempt into the metrics. Nil skips; the composition root
 	// always wires it.
 	Signals Signals
@@ -167,6 +172,20 @@ func (d Deliverer) Run(ctx context.Context, job queue.Job) (queue.Result, error)
 			// the event twice against one attempt row.
 			skip = true
 			return nil
+		}
+		if d.Entitlements != nil {
+			leftOut, err := d.Entitlements.LeftOut(ctx)
+			if err != nil {
+				return err
+			}
+			if !leftOut.Includes(entitlement.Webhooks) {
+				// The plan left webhooks out after this was queued: nothing leaves. The row stays
+				// PENDING rather than settled - a settled failure would count towards switching the
+				// subscription off, and no status says "held back by the plan" - and it is not sent
+				// when webhooks return either, which delivers the events from then on.
+				skip = true
+				return nil
+			}
 		}
 
 		envelope, err = d.Events.FindEvent(ctx, delivery.EventID)

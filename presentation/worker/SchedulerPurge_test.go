@@ -70,3 +70,33 @@ func TestAFailedPurgeDoesNotStopTheLeader(t *testing.T) {
 		t.Error("the leader's other duties did not run")
 	}
 }
+
+// usageSweep is the use counts' sweep, as the leader sees it.
+type usageSweep struct {
+	calls  int
+	before time.Time
+}
+
+func (u *usageSweep) SweepUsage(_ context.Context, before time.Time) (int64, error) {
+	u.calls++
+	u.before = before
+	return 2, nil
+}
+
+// UC-INS-14 check 8: the leader sweeps the use counts older than 13 months on the first tick of
+// each UTC day, and not again that day.
+func TestTheLeaderSweepsTheUseCountsDaily(t *testing.T) {
+	sweep := &usageSweep{}
+	leader := scheduler(&leadership{lock: &lock{}, name: "a"}, &depthQueue{}, newSchedulerSignals())
+	leader.Usage = sweep
+	midnight := now.UTC().Truncate(24 * time.Hour)
+
+	leader.tick(t.Context(), false, midnight)
+	if sweep.calls != 1 || !sweep.before.Equal(leader.Clock.Now().UTC().Truncate(24*time.Hour).AddDate(0, -13, 0)) {
+		t.Fatalf("swept %d times, before %s", sweep.calls, sweep.before)
+	}
+	leader.tick(t.Context(), true, midnight.Add(10*time.Second))
+	if sweep.calls != 1 {
+		t.Errorf("swept %d times within one day", sweep.calls)
+	}
+}

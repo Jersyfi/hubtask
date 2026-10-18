@@ -10,6 +10,8 @@ import (
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -67,6 +69,9 @@ type HardDeleteTenant struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
+	// Platform tells a purchase platform the workspace is gone, and removes the platform's
+	// reference from the workspace's kept events with it (UC-INS-14, multi-tenancy.md §4.3).
+	Platform platform.Recorder
 }
 
 // Execute performs one hard delete. jobID names the queue row running this pass, which survives
@@ -166,6 +171,11 @@ func (h HardDeleteTenant) Execute(
 		if _, err := h.Purge.DeleteIdempotency(ctx); err != nil {
 			return err
 		}
+		// Before the row goes: the cascade would take the counts, which outlive the workspace as
+		// bare numbers for 13 months (UC-INS-14 check 8).
+		if _, err := h.Purge.ArchiveUsage(ctx); err != nil {
+			return err
+		}
 		jobsRemoved, err := h.Purge.DeleteJobs(ctx, jobID)
 		if err != nil {
 			return err
@@ -194,6 +204,13 @@ func (h HardDeleteTenant) Execute(
 		}); err != nil {
 			return err
 		}
+		// The state the platform is told last is read here, in the transaction that ends the row:
+		// a write since the guard's read would otherwise leave "the last version + 1" at a version
+		// the workspace already had.
+		last, err := h.Tenants.Find(ctx)
+		if err != nil {
+			return err
+		}
 
 		removed, err := h.Purge.HardDelete(ctx, now)
 		if err != nil {
@@ -206,7 +223,10 @@ func (h HardDeleteTenant) Execute(
 			return shared.ErrConflict.WithDetail("admin.tenant_leaving")
 		}
 		outcome.Deleted = true
-		return nil
+		// After the row is gone rather than before: the event takes the installation's numbering
+		// lock until this transaction commits, and the cascade above must not hold every other
+		// event writer waiting.
+		return h.Platform.RecordDeleted(ctx, last, event.Actor{Kind: shared.ActorSystem}, now)
 	})
 	if err != nil {
 		return outcome, err

@@ -1,0 +1,12 @@
+{
+  "origin": "http://localhost:58730",
+  "rp_id": "localhost",
+  "challenge": "KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKio",
+  "name": "Laptop at work",
+  "raw_id": "_tUzhy-AquRPGrpf3yCnAUMfNKZLdFVBrGNaf6gp_pU",
+  "client_data_json": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiS2lvcUtpb3FLaW9xS2lvcUtpb3FLaW9xS2lvcUtpb3FLaW9xS2lvcUtpbyIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTg3MzAiLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+  "attestation_object": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YVikSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NFAAAAAQECAwQFBgcIAQIDBAUGBwgAIP7VM4cvgKrkTxq6X98gpwFDHzSmS3RVQaxjWn-oKf6VpQECAyYgASFYIMijt0TwmkHprF1WBywwFz_Dn2KcKQlfKUujkwyGA9_bIlggYzY1vkdxVa0b4h7VrbtRQCT1dcEoU5WMDlje96RgE20",
+  "transports": [
+    "internal"
+  ]
+}

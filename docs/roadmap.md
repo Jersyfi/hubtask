@@ -28,8 +28,11 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
    their own (retention, backup, privacy requests, `hubctl` and people, webhook filters,
    concurrent saves, the multi-mode host) and the decided sign-in tasks SC-36 and SC-37. SC-30
    waits for the first release after one that contains SC-26.
-2. **PK — Passkeys** ([`backlog/milestone-PK.md`](./backlog/milestone-PK.md), cut 2026-10-15),
-   then **PL — Plans** and **CD — Custom domains**: SI prepared all three without building any.
+2. **PK — Passkeys** ([`archive/backlog/milestone-PK.md`](./archive/backlog/milestone-PK.md), cut 2026-10-15, closed 2026-10-18),
+   then **PL — Plans** ([`backlog/milestone-PL.md`](./backlog/milestone-PL.md), cut and released
+   2026-10-16) and **CD — Custom domains**: SI prepared all three without building any. CD also
+   carries changing a workspace's address and owners' own domains, the device's workspace list and
+   the reserved short names (multi-tenancy.md §3.1, decided 2026-10-16).
 3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.
 
 ---

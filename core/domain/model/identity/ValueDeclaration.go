@@ -44,6 +44,9 @@ const (
 	MayRaise WorkspaceMay = "RAISE"
 	// MayReplace: a workspace may set its own value instead.
 	MayReplace WorkspaceMay = "REPLACE"
+	// MayPlanReplace: no workspace sets the key; open, a plan may set its own - the provider's
+	// account link.
+	MayPlanReplace WorkspaceMay = "PLAN_REPLACE"
 	// MayNeverLock is a default and nothing else: there is no lock to describe.
 	MayNeverLock WorkspaceMay = ""
 )
@@ -58,6 +61,9 @@ type ValueDeclaration struct {
 	Minimum *int
 	Maximum *int
 	May     WorkspaceMay
+	// OneOf is, for a list of choices, the options at least one of which it must hold: the ways in
+	// keep the password or a provider, whatever else they list.
+	OneOf []string
 }
 
 func bounds(minimum int, maximum *int) (*int, *int) { return &minimum, maximum }
@@ -101,17 +107,22 @@ func DeclarationOfSwitch(name PolicySwitch) (ValueDeclaration, bool) {
 		}, true
 	case SwitchMethods:
 		return ValueDeclaration{
-			Kind: KindChoices, May: MayTighten, Options: []string{MethodDirect, MethodOidc},
+			Kind: KindChoices, May: MayTighten, Options: []string{MethodDirect, MethodOidc, MethodPasskey},
+			OneOf: []string{MethodDirect, MethodOidc},
 		}, true
 	}
 	return ValueDeclaration{}, false
 }
 
 // DeclarationOfLink is every legal link's: an address a workspace may replace with its own. The
-// terms' version beside them is one short line, replaced only together with its link.
+// terms' version beside them is one short line, replaced only together with its link; the
+// provider's account link is replaced by a plan, never by a workspace.
 func DeclarationOfLink(link LegalLink) ValueDeclaration {
 	if link == LinkTermsVersion {
 		return ValueDeclaration{Kind: KindText, May: MayReplace}
+	}
+	if link == LinkAccount {
+		return ValueDeclaration{Kind: KindLink, May: MayPlanReplace}
 	}
 	return ValueDeclaration{Kind: KindLink, May: MayReplace}
 }

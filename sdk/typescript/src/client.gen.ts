@@ -682,6 +682,18 @@ export class HubtaskClient {
     return this.call("POST", "/auth/sessions:verify", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Begin a sign-in with a passkey
+   * Public: sent without a bearer where the client holds none. */
+  startPasskeySignIn(options: CallOptions = {}): Promise<operations["startPasskeySignIn"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:passkey-options", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Sign in with a passkey and receive the pair
+   * Public: sent without a bearer where the client holds none. */
+  completePasskeySignIn(body: NonNullable<operations["completePasskeySignIn"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeySignIn"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/sessions:passkey", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Prove the account before a provider is connected to it
    * Public: sent without a bearer where the client holds none. */
   completeLink(body: NonNullable<operations["completeLink"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeLink"]['responses'][201]['content']["application/json"]> {
@@ -757,6 +769,23 @@ export class HubtaskClient {
     return this.call("POST", "/auth/step-up", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The options for a fresh proof with a passkey or security key */
+  startPasskeyStepUp(options: CallOptions = {}): Promise<operations["startPasskeyStepUp"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/step-up:passkey-options", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin setting up a passkey or security key during sign-in
+   * Public: sent without a bearer where the client holds none. */
+  startPasskeyEnrollment(body: NonNullable<operations["startPasskeyEnrollment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startPasskeyEnrollment"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/passkey:enroll-options", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish setting up a passkey or security key during sign-in
+   * Public: sent without a bearer where the client holds none. */
+  completePasskeyEnrollment(body: NonNullable<operations["completePasskeyEnrollment"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeyEnrollment"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/auth/mfa/passkey:enroll", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Begin a step-up at the provider this account is connected to */
   startProviderStepUp(options: CallOptions = {}): Promise<operations["startProviderStepUp"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/auth/step-up:provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -827,6 +856,21 @@ export class HubtaskClient {
   /** Provision a workspace */
   provisionTenant(body: NonNullable<operations["provisionTenant"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["provisionTenant"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One workspace */
+  readTenant(tenantId: string, options: CallOptions = {}): Promise<operations["readTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Set or clear the platform's reference on a workspace */
+  updateTenant(tenantId: string, body: NonNullable<operations["updateTenant"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateTenant"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/tenants/{tenantId}", { "tenantId": tenantId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Find workspaces */
+  queryTenants(body: NonNullable<operations["queryTenants"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["queryTenants"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Suspend a workspace */
@@ -904,6 +948,36 @@ export class HubtaskClient {
     return this.call("PUT", "/admin/settings", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The installation's plans */
+  listPlans(options: CallOptions = {}): Promise<operations["listPlans"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a plan */
+  createPlan(body: NonNullable<operations["createPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["createPlan"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/plans", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One plan */
+  readPlan(planName: string, options: CallOptions = {}): Promise<operations["readPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a plan's values */
+  changePlan(planName: string, body: NonNullable<operations["changePlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changePlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/admin/plans/{planName}", { "planName": planName }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove a plan */
+  removePlan(planName: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Put a workspace on another plan */
+  moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Who operates this installation */
   listOperators(options: CallOptions = {}): Promise<operations["listOperators"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/operators", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -927,6 +1001,56 @@ export class HubtaskClient {
   /** The installation's own record */
   listInstanceJournal(options: CallOptions & { readonly query?: NonNullable<operations["listInstanceJournal"]['parameters']['query']> } = {}): Promise<operations["listInstanceJournal"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/admin/journal", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The installation's events, read forward */
+  listPlatformEvents(options: CallOptions & { readonly query?: NonNullable<operations["listPlatformEvents"]['parameters']['query']> } = {}): Promise<operations["listPlatformEvents"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/events", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The installation's subscriptions for a purchase platform */
+  listPlatformSubscriptions(options: CallOptions = {}): Promise<operations["listPlatformSubscriptions"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Subscribe a purchase platform to the installation's events */
+  createPlatformSubscription(body: NonNullable<operations["createPlatformSubscription"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string; readonly stepUp?: string } = {}): Promise<operations["createPlatformSubscription"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions", {  }, undefined, { "Idempotency-Key": options.idempotencyKey, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** One subscription of the installation */
+  readPlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<operations["readPlatformSubscription"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Change a subscription's target, or pause and resume it */
+  updatePlatformSubscription(subscriptionId: string, body: NonNullable<operations["updatePlatformSubscription"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string; readonly stepUp?: string } = {}): Promise<operations["updatePlatformSubscription"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Unsubscribe */
+  deletePlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/admin/subscriptions/{subscriptionId}", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Issue a new signing secret */
+  rotatePlatformSubscriptionSecret(subscriptionId: string, options: CallOptions & { readonly idempotencyKey?: string; readonly stepUp?: string } = {}): Promise<operations["rotatePlatformSubscriptionSecret"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions/{subscriptionId}:rotate-secret", { "subscriptionId": subscriptionId }, undefined, { "Idempotency-Key": options.idempotencyKey, "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** What was sent to the subscription, and what became of it */
+  listPlatformDeliveries(subscriptionId: string, options: CallOptions & { readonly query?: NonNullable<operations["listPlatformDeliveries"]['parameters']['query']> } = {}): Promise<operations["listPlatformDeliveries"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/subscriptions/{subscriptionId}/deliveries", { "subscriptionId": subscriptionId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Send the subscription's dead letters again */
+  redeliverPlatformSubscription(subscriptionId: string, options: CallOptions = {}): Promise<operations["redeliverPlatformSubscription"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", { "subscriptionId": subscriptionId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The use per workspace, metric and day, for billing */
+  readUsage(options: CallOptions & { readonly query?: NonNullable<operations["readUsage"]['parameters']['query']> } = {}): Promise<operations["readUsage"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/usage", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** The AI models this installation offers every workspace */
@@ -1037,6 +1161,31 @@ export class HubtaskClient {
   /** Finish connecting a sign-in provider to the caller's account */
   completeProviderConnect(body: NonNullable<operations["completeProviderConnect"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completeProviderConnect"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/accounts/me/identities:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The passkeys and security keys the caller's account holds */
+  listOwnPasskeys(options: CallOptions = {}): Promise<operations["listOwnPasskeys"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/passkeys", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Begin adding a passkey or a security key to the caller's account */
+  startPasskeyRegistration(options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["startPasskeyRegistration"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:start", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Finish adding a passkey or a security key to the caller's account */
+  completePasskeyRegistration(body: NonNullable<operations["completePasskeyRegistration"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["completePasskeyRegistration"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/accounts/me/passkeys:complete", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Rename one of the caller's passkeys or security keys */
+  renameOwnPasskey(passkeyId: string, body: NonNullable<operations["renameOwnPasskey"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["renameOwnPasskey"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Remove one of the caller's passkeys or security keys */
+  removeOwnPasskey(passkeyId: string, options: CallOptions & { readonly stepUp?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/accounts/me/passkeys/{passkeyId}", { "passkeyId": passkeyId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** The emergency accesses the caller was told of in the last 30 days */

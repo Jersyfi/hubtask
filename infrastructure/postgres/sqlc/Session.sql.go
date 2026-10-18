@@ -282,10 +282,28 @@ const disableMfa = `-- name: DisableMfa :execrows
 DELETE FROM account_mfa WHERE account_id = $1
 `
 
-// The enrolment goes whole; the recovery codes go with it by their own statement in the same
-// transaction, because half a disable is worse than none.
+// The enrolment goes whole. The recovery codes are the account's: they go by their own statement
+// where nothing remains for them to back (DiscardUnbackedRecoveryCodes).
 func (q *Queries) DisableMfa(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, disableMfa, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const discardUnbackedRecoveryCodes = `-- name: DiscardUnbackedRecoveryCodes :execrows
+DELETE FROM account_recovery_code c
+WHERE c.account_id = $1
+  AND NOT EXISTS (SELECT 1 FROM account_mfa m WHERE m.account_id = c.account_id)
+  AND NOT EXISTS (SELECT 1 FROM webauthn_credential w WHERE w.account_id = c.account_id)
+`
+
+// The codes back whatever second factor the account holds (identity.md §9), so they go only where
+// it holds none: no app, armed or begun, and no passkey. The condition sits in the statement, so a
+// removal that raced an enrolment's start never takes the codes that enrolment just showed.
+func (q *Queries) DiscardUnbackedRecoveryCodes(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, discardUnbackedRecoveryCodes, accountID)
 	if err != nil {
 		return 0, err
 	}
@@ -458,7 +476,7 @@ SELECT p.id, p.purpose, p.user_agent, p.ip_class,
        n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM auth_pending p
 JOIN tenant n ON n.id = p.tenant_id
-WHERE p.token_hash = $1 AND p.account_id IS NULL
+WHERE p.token_hash = $1 AND p.account_id IS NULL AND p.purpose = 'TERMS'
 `
 
 type FindArrivalPendingByHashRow struct {
@@ -483,8 +501,8 @@ type FindArrivalPendingByHashRow struct {
 }
 
 // A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
-// and the workspace, nothing to join an account from. Read only by the agreement, so no other step
-// ever meets a credential without an account.
+// and the workspace, nothing to join an account from. Read only by the agreement, and only under its
+// purpose: a passkey sign-in's challenge has no account either (migration 0174).
 func (q *Queries) FindArrivalPendingByHash(ctx context.Context, tokenHash []byte) (FindArrivalPendingByHashRow, error) {
 	row := q.db.QueryRow(ctx, findArrivalPendingByHash, tokenHash)
 	var i FindArrivalPendingByHashRow
@@ -846,7 +864,20 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
        (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
-       coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
+       -- The per-token rate resolves as every limit does (multi-tenancy.md §4.2): the operator's
+       -- exception, the plan's where the installation does not lock it, the installation's default. A
+       -- value that is not a number reads as none at every level rather than failing every sign-in.
+       coalesce(
+         CASE WHEN jsonb_typeof(n.settings #> '{quotas,api_requests_per_minute}') = 'number'
+              THEN (n.settings #>> '{quotas,api_requests_per_minute}')::numeric::bigint END,
+         (SELECT (ps.value #>> '{}')::numeric::bigint FROM plan_setting ps
+          WHERE ps.plan_id = n.plan_id AND ps.key = 'quota.api_requests_per_minute'
+            AND jsonb_typeof(ps.value) = 'number'
+            AND NOT EXISTS (SELECT 1 FROM instance_setting il
+                            WHERE il.key = 'quota.api_requests_per_minute' AND il.lock_origin <> 'OPEN')),
+         (SELECT (i.value #>> '{}')::numeric::bigint FROM instance_setting i
+          WHERE i.key = 'quota.api_requests_per_minute' AND jsonb_typeof(i.value) = 'number'),
+         0) AS token_rate_override
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id

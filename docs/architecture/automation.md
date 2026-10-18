@@ -298,6 +298,14 @@ cleared. The rule's sentence stands collapsed under the name.
 Inside a run, the cheapest refusal comes first: **depth**, then **throttle**, then **conditions**
 (reads), then **actions** (writes).
 
+**Where the workspace's plan leaves the rules out** ([multi-tenancy.md](./multi-tenancy.md) §4.2) no
+event queues a run, a schedule moves on from now without firing, a relative-date occurrence that
+falls due meanwhile is dropped, a run queued before runs into nothing and a waiting run ends
+(`plan.not_included`, outside the streak); creating, changing, switching on, testing, starting and
+replaying a rule are refused, switching one off and deleting it stay. An action whose own feature
+the plan leaves out - a `SEND_WEBHOOK` on a plan without webhooks - is skipped, not failed, so no
+rule switches itself off for it.
+
 **No run acts as or about a person whose processing is restricted** (Art. 18,
 [data-protection.md](./data-protection.md) §4). Before its conditions - and again at the resume of a
 waiting run - the engine reads who is restricted: a run whose `run_as` is restricted ends `SKIPPED`
@@ -407,6 +415,11 @@ reason.
 ## 3. External automation
 
 ### 3.1 Webhook subscriptions (push)
+
+Where the workspace's plan leaves webhooks out ([multi-tenancy.md](./multi-tenancy.md) §4.2) no event
+owes a delivery, a delivery queued before is not sent and not settled - it stays `PENDING`, and
+nothing counts towards switching the subscription off - and a subscription may be paused, given a
+new secret and removed, but not added, changed, resumed, sent to or replayed (`plan.not_included`).
 
 * `POST /api/v1/integrations/webhooks` with `target_url` and `event_types[]`, and optionally a
   `scope` and a `filter` ([UC-INT-01](../usecases/integration/UC-INT-01-receive-workspace-events-on-my-server.md)).

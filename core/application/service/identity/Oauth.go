@@ -603,13 +603,21 @@ func (w SessionWriter) openLeashedSession(
 // FailureOauth is the metric reason of a refused exchange.
 const FailureOauth = "oauth_refused"
 
+// Consentable reports whether a person may hand the scope to an app: never the control plane's,
+// never the agent capability - the scopes a session does not carry either (catalogue.SessionScopes).
+func Consentable(scope string) bool {
+	return !strings.HasPrefix(scope, "admin:") && scope != usecase.AgentDestructiveScope
+}
+
 // exchangeRefused is the token endpoint's one probe-facing refusal.
 func exchangeRefused() error {
 	return shared.ErrUnauthenticated.WithDetail("oauth.exchange_failed")
 }
 
 // checkScopes refuses a name the installation does not declare, the token mint's rule: a scope
-// nothing checks is a bound nothing applies.
+// nothing checks is a bound nothing applies. It refuses as well what no consent may hand out: the
+// control plane's scopes, whose minting asks a fresh proof and the operator register, and the agent
+// capability - a consent screen asks for neither, so an app reaches them only by being refused here.
 func (w OauthWriter) checkScopes(requested []string) error {
 	if len(requested) == 0 {
 		return shared.ErrValidation.
@@ -617,7 +625,7 @@ func (w OauthWriter) checkScopes(requested []string) error {
 			WithFields(shared.FieldError{Path: "/scopes", Code: "access.token_scopes_required"})
 	}
 	for _, scope := range requested {
-		if !slices.Contains(w.KnownScopes, scope) {
+		if !slices.Contains(w.KnownScopes, scope) || !Consentable(scope) {
 			return shared.ErrValidation.
 				WithDetail("access.token_scope_unknown").
 				WithParams(map[string]string{"scope": scope}).

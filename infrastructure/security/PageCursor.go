@@ -157,3 +157,12 @@ func (c CursorCodec) tag(payload []byte) []byte {
 var errCursorInvalid = shared.ErrValidation.
 	WithDetail("shared.cursor_invalid").
 	WithFields(shared.FieldError{Path: "/cursor", Code: "shared.cursor_invalid"})
+
+// EncodeID is the cursor of a walk keyed on an identifier alone.
+func (c CursorCodec) EncodeID(id shared.ID) string { return c.Encode(Position{ID: id}) }
+
+// DecodeID reads such a cursor back.
+func (c CursorCodec) DecodeID(cursor string) (shared.ID, error) {
+	position, err := c.Decode(cursor)
+	return position.ID, err
+}

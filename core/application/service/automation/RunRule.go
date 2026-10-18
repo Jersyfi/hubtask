@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	outboxrepo "github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
@@ -17,6 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	expression "github.com/Jersyfi/hubtask/core/port/expression"
@@ -125,6 +127,10 @@ type RunRule struct {
 	// Restrictions is whose processing is restricted (Art. 18): no run acts as or about them. The
 	// same read the AI exclusion makes. Nil restricts nobody - a build without it.
 	Restrictions privacyrepo.Restrictions
+	// Entitlements is what the workspace's plan leaves out (multi-tenancy.md §4.2): where it leaves
+	// out the rules, a run queued before the plan changed runs into nothing. Nil includes every
+	// feature - a build without plans.
+	Entitlements adminrepo.Entitlements
 	// Signals carries the run into the metrics. Nil skips; the composition root always wires it.
 	Signals RunSignals
 	// Jobs is where a WAIT parks its resume. The engine runs inside the queue runner's
@@ -250,6 +256,11 @@ func (h RunRule) Execute(
 	if !rule.Enabled {
 		return domain.Run{}, nil
 	}
+	if resting, err := rulesRest(ctx, h.Entitlements); err != nil || resting {
+		// The plan leaves the rules out: no run is recorded that would say one happened, as for a
+		// rule switched off between the event and the run.
+		return domain.Run{}, err
+	}
 	if rule.Trigger.Kind != cmd.Trigger {
 		// Edited into another kind between the job and the run. Not a failure of anything: the
 		// producer that queued this no longer speaks for the rule, and a run recorded against a
@@ -339,6 +350,13 @@ func (h RunRule) resume(
 	}
 	if !rule.Enabled {
 		return h.orphan(ctx, rule, run, "automation.rule_not_enabled", now)
+	}
+	if resting, err := rulesRest(ctx, h.Entitlements); err != nil {
+		return domain.Run{}, err
+	} else if resting {
+		// Ended rather than left waiting for a plan that may never include the rules again; outside
+		// the streak, because the rule did nothing wrong.
+		return h.orphan(ctx, rule, run, entitlement.NotIncludedCode, now)
 	}
 	if cmd.RuleVersion != 0 && rule.Version != cmd.RuleVersion {
 		return h.orphan(ctx, rule, run, "automation.rule_changed_while_waiting", now)
@@ -910,6 +928,23 @@ var notAFailure = map[string]bool{
 	"ai.nothing_to_work_with": true, "ai.kept_out": true, "ai.processing_restricted": true,
 	// And an assignment a rule may not make: the person's processing is restricted.
 	"items.assignee_restricted": true,
+	// And an action whose feature the workspace's plan leaves out (multi-tenancy.md §4.2): a rule
+	// sending a webhook on a plan without webhooks rests that action, and must not switch itself
+	// off by a streak of failures the plan caused.
+	entitlement.NotIncludedCode: true,
+}
+
+// rulesRest answers whether the workspace's plan leaves the rules out, in the transaction the
+// caller runs in.
+func rulesRest(ctx context.Context, plans adminrepo.Entitlements) (bool, error) {
+	if plans == nil {
+		return false, nil
+	}
+	leftOut, err := plans.LeftOut(ctx)
+	if err != nil {
+		return false, err
+	}
+	return !leftOut.Includes(entitlement.AutomationRules), nil
 }
 
 // record writes one result, applying `on_error` to a failure.

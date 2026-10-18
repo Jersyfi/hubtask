@@ -45,6 +45,7 @@ type queueDouble struct {
 	claimable []queue.Job
 	held      []shared.ID
 	completed []shared.ID
+	outcomes  []string
 	repeated  map[shared.ID]time.Time
 	failures  []queue.Failure
 
@@ -85,8 +86,9 @@ func (q *queueDouble) Hold(_ context.Context, job queue.Job) error {
 	return nil
 }
 
-func (q *queueDouble) Complete(_ context.Context, job queue.Job) error {
+func (q *queueDouble) Complete(_ context.Context, job queue.Job, outcome string) error {
 	q.completed = append(q.completed, job.ID)
+	q.outcomes = append(q.outcomes, outcome)
 	return nil
 }
 
@@ -538,6 +540,29 @@ func TestADetachedHandlerRunsOutsideTheRunnersTransaction(t *testing.T) {
 	}
 	if len(work.scopes) != 1 || work.scopes[0].TenantID != tenantID {
 		t.Errorf("the completion ran as %+v", work.scopes)
+	}
+}
+
+// The outcome a handler answers is what the job is completed with, wrapped or detached: it is what a
+// caller polling the job reads, and a runner that dropped it would leave a job that proposed nothing
+// looking like one still on its way.
+func TestACompletedJobCarriesItsHandlersOutcome(t *testing.T) {
+	for name, wrap := range map[string]func(queue.Handler) queue.Handler{
+		"wrapped":  func(h queue.Handler) queue.Handler { return h },
+		"detached": func(h queue.Handler) queue.Handler { return detachedHandler{h.(handlerFunc)} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			jobs := newQueue()
+			handler := wrap(handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+				return queue.Result{Outcome: "ai.nothing_to_change"}, nil
+			}))
+
+			runner(jobs, &unitOfWork{}, handler, nil).execute(t.Context(), job(1))
+
+			if len(jobs.outcomes) != 1 || jobs.outcomes[0] != "ai.nothing_to_change" {
+				t.Errorf("completed with %v, want the handler's outcome", jobs.outcomes)
+			}
+		})
 	}
 }
 

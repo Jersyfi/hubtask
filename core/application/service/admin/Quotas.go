@@ -61,7 +61,7 @@ type UpdateTenantQuotas struct {
 func (h UpdateTenantQuotas) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateTenantQuotasCommand,
 ) ([]quotaservice.Standing, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return nil, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -106,7 +106,7 @@ func (h UpdateTenantQuotas) Execute(
 			return err
 		}
 		if !written {
-			return shared.ErrConflict.WithDetail("admin.tenant_version_moved")
+			return shared.ErrVersionConflict.WithDetail("admin.tenant_version_moved")
 		}
 
 		if err := h.recordAudit(ctx, actor, cmd, before, now); err != nil {
@@ -132,6 +132,7 @@ func applyChange(overrides *quotarepo.Overrides, change QuotaChange) {
 		quotaservice.AutomationRunsPerHour: &overrides.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        &overrides.WebhookTargets,
 		quotaservice.ExportJobs:            &overrides.ExportJobs,
+		quotaservice.Accounts:              &overrides.Accounts,
 		quotaservice.AiTokensPerDay:        &overrides.AiTokensPerDay,
 	}[change.Quota]
 	if target == nil {
@@ -163,6 +164,7 @@ func (h UpdateTenantQuotas) recordAudit(
 		quotaservice.AutomationRunsPerHour: before.AutomationRunsPerHour,
 		quotaservice.WebhookTargets:        before.WebhookTargets,
 		quotaservice.ExportJobs:            before.ExportJobs,
+		quotaservice.Accounts:              before.Accounts,
 		quotaservice.AiTokensPerDay:        before.AiTokensPerDay,
 	}
 	for _, change := range cmd.Changes {
@@ -203,6 +205,7 @@ func (h UpdateTenantQuotas) Descriptor() usecase.Descriptor {
 		SideEffects: "Rewrites the quotas key of the tenant's settings document and records " +
 			"the movement, field by field, in the workspace's audit trail.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{

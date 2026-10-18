@@ -92,7 +92,9 @@ export function countOf(raw: string): number | string | undefined {
  * `PUT` replaces the level, so an undecided key is simply absent.
  */
 export function documentOf(draft: InstanceSettings): InstanceSettings {
-  const document: InstanceSettings = { blocklist_file: draft.blocklist_file };
+  // The installation-only values beside the areas travel as they were read: a `PUT` that left one
+  // out would switch it off.
+  const document: InstanceSettings = { blocklist_file: draft.blocklist_file, metering: draft.metering };
   for (const area of AREAS) {
     const entries: Record<string, InstanceSetting> = {};
     for (const [key, setting] of Object.entries(draft[area] ?? {})) {
@@ -106,3 +108,30 @@ export function documentOf(draft: InstanceSettings): InstanceSettings {
 
 /** A refusal's field, as the server names it: the area and the key. */
 export const fieldOf = (area: Area, key: string): string => `/${area}/${key}`;
+
+/** The areas a plan decides, in the screen's order: the installation's, without localisation. */
+export const PLAN_AREAS = ['sign_in', 'legal', 'quotas', 'ai'] as const satisfies readonly Area[];
+
+/** A plan's document in the installation level's shape: the areas it shares with it. */
+export type PlanAreas = Partial<Record<Area, Record<string, InstanceSetting>>>;
+
+/**
+ * A plan's body to send: its name, the features it leaves out and every decided key of its areas -
+ * a `PUT` replaces what the plan decides, so a key left out is one it no longer decides.
+ */
+export function planBodyOf(
+  displayName: string,
+  leftOut: readonly string[],
+  areas: PlanAreas,
+): Record<string, unknown> {
+  const body: Record<string, unknown> = { display_name: displayName, left_out: [...leftOut] };
+  for (const area of PLAN_AREAS) {
+    const entries: Record<string, InstanceSetting> = {};
+    for (const [key, setting] of Object.entries(areas[area] ?? {})) {
+      if (!setting.set) continue;
+      entries[key] = { set: true, value: setting.value, locked: setting.locked };
+    }
+    body[area] = entries;
+  }
+  return body;
+}

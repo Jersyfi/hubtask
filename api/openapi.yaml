@@ -2694,7 +2694,8 @@ paths:
       summary: Invite a person into this workspace
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-        it cannot act until the invitation is accepted.
+        it cannot act until the invitation is accepted. An open invitation holds a place under the
+        workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 
         **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
         invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -2737,7 +2738,8 @@ paths:
       summary: Give an invitation not yet accepted a new link
       description: |
         For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-        any other is `409 accounts.not_invited`.
+        any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+        people limit; renewing it at the limit is `422 capacity.accounts`.
 
         **Where this installation sends mail**, the invitation mail is queued again and the answer
         carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -2766,7 +2768,8 @@ paths:
       description: |
         Creates a managed account: a person who signs in with a sign-in name instead of an address,
         and the role they hold at one scope, in one step. The account is active at once - there is
-        no invitation to redeem, because there is no mailbox to send one to.
+        no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+        people limit the answer is `422 capacity.accounts`.
 
         **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
         it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -3063,6 +3066,12 @@ paths:
         address nobody holds: whether an account exists is exactly what a guessing client is
         trying to learn. Behind that one answer sit the progressive delay and the lockout,
         per account and per IP, and the auth rate-limit bucket in front of everything.
+
+        After the right password, a workspace that is suspended or pending deletion refuses with
+        `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is
+        the whole proof - no second step owed - and the account is an owner or administrator there,
+        the problem's `params` carry `account_url`, the provider's account page, where one is set;
+        the second step and the passkey answer the same once they complete the proof.
       requestBody:
         required: true
         content:
@@ -3347,6 +3356,72 @@ paths:
           description: >
             The code was right and the password the sign-in began with must be changed first: the
             `PASSWORD_CHANGE` step, with the rule the new one is judged against.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions:passkey-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeySignIn
+      security: []
+      summary: Begin a sign-in with a passkey
+      description: |
+        The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+        request's host names, with no identifier: the relying party, a single-use challenge that
+        lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+        when the person was verified on the device. No credential is named; the device offers the
+        ones it holds for this workspace.
+
+        Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+        with `auth.passkey_unavailable` where the installation has no public address or the request
+        did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+        workspace answers at it.
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeySignInOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions:passkey:
+    post:
+      tags: [auth]
+      operationId: completePasskeySignIn
+      security: []
+      summary: Sign in with a passkey and receive the pair
+      description: |
+        What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+        this workspace issued within five minutes and not yet used; otherwise
+        `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+        unknown or removed passkey, one made at another address, an account that cannot sign in, a
+        device that did not verify the person, a signature or counter that does not hold - is the one
+        answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+
+        A verified passkey is the whole proof: no second factor is asked, also where the workspace
+        requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+        replacing a start password Hubtask drew, or agreeing to the terms of use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyAssertion"
+      responses:
+        "201":
+          description: Signed in, with the pair shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: The passkey was right and a step is still owed, named in `methods`.
           content:
             application/json:
               schema:
@@ -3824,6 +3899,80 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/step-up:passkey-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeyStepUp
+      summary: The options for a fresh proof with a passkey or security key
+      description: |
+        The options for `navigator.credentials.get()` that prove the caller afresh at
+        `POST /auth/step-up`: the account's passkeys and security keys and a challenge bound to this
+        session and account, five minutes, single use. Presence on the device suffices. Refused with
+        `auth.passkey_unavailable` where the account holds none here or the request did not arrive at
+        the workspace's own host, and with `auth.step_up_session_required` for a token.
+      responses:
+        "200":
+          description: The options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyAssertionOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/passkey:enroll-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeyEnrollment
+      security: []
+      summary: Begin setting up a passkey or security key during sign-in
+      description: |
+        For a person the workspace demands a second factor of, routed into setup (`ENROLL`): the
+        options to add a passkey or a security key instead of the authenticator app. The `ENROLL`
+        credential is the proof. Only where the request arrived at the workspace's own host
+        (`auth.passkey_unavailable` otherwise).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyEnrollmentStart"
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistrationOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/mfa/passkey:enroll:
+    post:
+      tags: [auth]
+      operationId: completePasskeyEnrollment
+      security: []
+      summary: Finish setting up a passkey or security key during sign-in
+      description: |
+        The ceremony's answer and the name, with the `ENROLL` credential: the key is kept, the ten
+        recovery codes are shown once where the account held none, and - the second factor proved -
+        the sign-in completes: the pair, or the step still owed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyEnrollment"
+      responses:
+        "201":
+          description: Set up, and signed in or the next step
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyEnrolled"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/step-up:provider:
     post:
       tags: [auth]
@@ -3916,7 +4065,10 @@ paths:
       operationId: regenerateRecoveryCodes
       summary: Replace the ten recovery codes
       description: >
-        Ten new ones, behind a step-up. The old set stops working in the same moment the new one is
+        Ten new ones, behind a step-up, for an account that holds a second factor - the
+        authenticator app or a passkey (`auth.mfa_not_enrolled` otherwise, and
+        `auth.mfa_enrollment_pending` while an app's setup waits for its first code with nothing else
+        held; both before the proof is spent). The old set stops working in the same moment the new one is
         answered - one statement, because a set answered without the old one burned would be twenty
         live codes, and a set burned without a new one answered would lock somebody out of their own
         escape hatch.
@@ -3943,12 +4095,14 @@ paths:
       operationId: disableTotp
       summary: Disable the second factor
       description: >
-        Removes the TOTP enrolment and burns the remaining recovery codes. It demands a step-up
-        like every privileged action - a stolen session removing the second factor is exactly the
-        attack the factor exists against - and takes it with whatever
-        the account holds: a code, a recovery code, its provider, or its password. Where the
-        workspace's rule requires a factor of this person it cannot be disabled at all; the refusal
-        names the rule.
+        Removes the TOTP enrolment. The recovery codes go with it unless a passkey or security key
+        remains, which they then back. It demands a step-up like every privileged action - a stolen
+        session removing the second factor is exactly the attack the factor exists against - and
+        takes it with whatever the account holds: a code, a recovery code, its provider, or its
+        password. Where the workspace's rule requires a factor of this person and the app is the last
+        one the account holds - no passkey or security key of this workspace's address - it cannot be
+        disabled; the refusal names the rule, and `authenticator_app_removable` on `GET /accounts/me`
+        answers the same condition.
 
         The body's `password` is the proof this route took before; it is still accepted for one
         release, deprecated, and goes then. A client sends the `X-Hubtask-Step-Up` header instead.
@@ -4259,6 +4413,7 @@ paths:
         which no session carries: the credential is a personal access token minted for exactly
         this, behind a step-up. "Nothing enumerates tenants" remains the rule
         for jobs; this is not a job.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "200":
           description: The workspaces
@@ -4280,6 +4435,7 @@ paths:
         invited account whose redemption token is answered once, so the person the workspace is
         for can set their password and sign in. Idempotent under
         `Idempotency-Key`: provisioning twice under one key creates one.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
@@ -4298,6 +4454,83 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    get:
+      tags: [admin]
+      operationId: readTenant
+      summary: One workspace
+      description: >
+        One workspace as the control plane sees it: its state, plan, version, the platform's own
+        reference, the legal hold and the deletion dates. The `ETag` is the version a change
+        presents in `If-Match`.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+      responses:
+        "200":
+          description: The workspace
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenant" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [admin]
+      operationId: updateTenant
+      summary: Set or clear the platform's reference on a workspace
+      description: >
+        The reference a purchase platform keeps for the workspace - its customer or subscription
+        id - unique on the installation and refused with `admin.reference_taken` where another
+        workspace holds it. `null` clears it. With `If-Match`, a change made on a workspace that
+        changed since it was read is refused with `version_conflict`. Multi mode only.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantUpdate" }
+      responses:
+        "200":
+          description: The workspace as it now stands
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenant" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants:query:
+    post:
+      tags: [admin]
+      operationId: queryTenants
+      summary: Find workspaces
+      description: >
+        The workspaces matching every filter given, oldest first, one page at a time - how a
+        purchase platform finds a workspace by its own reference or reconciles its records. A
+        `POST` because a reference may identify a customer, and a query string travels through
+        access logs; it reads, and the same request may be repeated.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantQuery" }
+      responses:
+        "200":
+          description: One page of workspaces
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminTenantPage" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:suspend:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -4311,6 +4544,7 @@ paths:
         export still works - the suspended are exactly who needs it.
         Refused with `admin.multi_mode_required` in single mode, where the one workspace is
         the installation.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "204":
           description: Suspended
@@ -4324,7 +4558,9 @@ paths:
       tags: [admin]
       operationId: resumeTenant
       summary: Reactivate a workspace
-      description: One write. The next request of the tenant's people works again.
+      description: >
+        One write. The next request of the tenant's people works again.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       responses:
         "204":
           description: Active again
@@ -4363,13 +4599,16 @@ paths:
       description: >
         The most irreversible act this API has, and it behaves like it: it demands a fresh
         step-up in the `X-Hubtask-Step-Up` header and the workspace's display name,
-        typed - the restore precedent. Refused with `admin.multi_mode_required` in single
+        typed - the restore precedent. A purchase platform's service account that the operator
+        register names sends the typed name without a step-up, which it cannot give; the grace,
+        the cancellation, the export and the legal-hold refusal are the same. Refused with `admin.multi_mode_required` in single
         mode, where the one workspace is the installation. The tenant moves to `PENDING_DELETION`: access blocked,
         automations disabled, the export still answering. Until the hard delete begins,
         `:cancel-deletion` calls it off. The hard delete runs after the
         30-day grace as a job seeded by this very write - it cascades across database rows,
         media bytes, search, outbox and queue, and leaves an installation-level evidence entry,
         because the tenant's own trail dies with it.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       requestBody:
         required: true
         content:
@@ -4686,6 +4925,154 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/plans:
+    get:
+      tags: [admin]
+      operationId: listPlans
+      summary: The installation's plans
+      description: >
+        Every plan not removed, oldest first, each with its values in the installation level's
+        shape, the features it leaves out and the number of workspaces on it. A plan holds only
+        what it decides; the rest falls through to the installation. Plans exist in multi mode
+        only; single mode refuses with `admin.multi_mode_required`. No price, no contract: a
+        provider's platform sells plans and puts workspaces on them.
+      responses:
+        "200":
+          description: The plans
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createPlan
+      summary: Create a plan
+      description: >
+        A short name that never changes and is never reused, even after the plan is removed -
+        it is what a provider's platform maps its products to. A value is refused where the
+        installation locks it (`admin.plan_under_installation_lock`) or where it is looser than
+        the installation's (`admin.plan_looser_than_installation`); a plan takes no localisation
+        (`admin.plan_localisation`). Idempotent under `Idempotency-Key`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanCreate" }
+      responses:
+        "201":
+          description: The plan
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/plans/{planName}:
+    parameters:
+      - name: planName
+        in: path
+        required: true
+        description: The plan's short name.
+        schema: { type: string }
+    get:
+      tags: [admin]
+      operationId: readPlan
+      summary: One plan
+      responses:
+        "200":
+          description: The plan
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [admin]
+      operationId: changePlan
+      summary: Replace a plan's values
+      description: >
+        A `PUT`, as the installation's level is: a value the body does not name is no longer
+        decided by the plan. With `If-Match`, a save made on a plan somebody else changed since it
+        was read is refused with `version_conflict`. The change applies to every workspace on the
+        plan at its next request; nothing is copied into a workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlanChange" }
+      responses:
+        "200":
+          description: The plan as it now stands
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Plan" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: removePlan
+      summary: Remove a plan
+      description: >
+        Refused while a workspace is on it (`admin.plan_in_use`). A removed plan is listed no
+        more, and its short name stays taken.
+      responses:
+        "204":
+          description: Removed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/tenants/{tenantId}:move-plan:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+    post:
+      tags: [admin]
+      operationId: moveTenantPlan
+      summary: Put a workspace on another plan
+      description: >
+        Applies at the workspace's next request, with no job. `plan: null` takes the workspace
+        off plans: it has the installation's values and every feature again. With
+        `expected_version`, a move made on a workspace that changed since it was read is refused
+        with `version_conflict`, so a late retry of an older move cannot undo a newer one;
+        repeated under one `Idempotency-Key` it moves once and answers the same. The answer names
+        the features that now rest and the limit exceptions that stay - or, with `dry_run`, would.
+        Nothing is deleted.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantPlanMove" }
+      responses:
+        "200":
+          description: The workspace on its plan, or with `dry_run` as it would be
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantPlanMoved" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/operators:
     get:
       tags: [admin]
@@ -4808,6 +5195,256 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/InstanceJournalPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/events:
+    get:
+      tags: [admin]
+      operationId: listPlatformEvents
+      summary: The installation's events, read forward
+      description: >
+        What a provider's purchase platform learns about the workspaces - created, moved to another
+        plan, suspended, active again, deletion requested, cancelled and done, an owner changed, a
+        limit reached, the AI budget spent, an export finished - as CloudEvents, oldest first. The
+        same events the installation's subscriptions are sent, so a platform that was down reads
+        what it missed from the cursor it last kept and misses nothing.
+
+        Each event carries the workspace's id, the platform's reference, its status, its plan and a
+        version that only grows; a receiver keeps the newest and needs no ordering. Identifiers and
+        states only, never anybody's content.
+
+        The events are numbered in the order their changes committed, so a page never skips one
+        that commits later. Without a cursor the read starts at the oldest event kept; `next_cursor`
+        is always set, and `has_more` says whether to read again at once. Events are kept 30 days: a
+        cursor older than that is answered `410` with `admin.events_cursor_expired`, since what
+        followed it is no longer all there. Single mode offers none of this
+        (`admin.multi_mode_required`).
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: One page, oldest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformEventPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/subscriptions:
+    get:
+      tags: [admin]
+      operationId: listPlatformSubscriptions
+      summary: The installation's subscriptions for a purchase platform
+      description: >
+        The addresses the installation's events are pushed to, oldest first, each with its state,
+        the dead letters waiting to be redelivered and the last delivery. The secret is not among
+        the fields. Single mode offers none of this (`admin.multi_mode_required`).
+      responses:
+        "200":
+          description: The subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/PlatformSubscription" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createPlatformSubscription
+      summary: Subscribe a purchase platform to the installation's events
+      description: >
+        Every installation event is sent to the target as the CloudEvent `GET /admin/events`
+        answers, signed and retried as a workspace's webhook is: `X-Hubtask-Signature` of a
+        timestamp and an HMAC-SHA256, `X-Hubtask-Event-Id`, `X-Hubtask-Event-Type` and
+        `X-Hubtask-Delivery-Attempt`, eight attempts over a little more than two days, then a dead
+        letter. Unlike a workspace's, the subscription is never switched off for being
+        unreachable: the operator is told and the dead letters wait to be redelivered for 30
+        days.
+
+        The signing secret is answered here once and never again. Demands a fresh step-up: every
+        workspace's reference is sent to this address. Refused with
+        `admin.instance_enforced_from_file` while the instance file decides the subscriptions.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlatformSubscriptionCreate" }
+      responses:
+        "201":
+          description: Subscribed, with the signing secret shown for the only time
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSubscriptionSecret" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/subscriptions/{subscriptionId}:
+    parameters:
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [admin]
+      operationId: readPlatformSubscription
+      summary: One subscription of the installation
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSubscription" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    patch:
+      tags: [admin]
+      operationId: updatePlatformSubscription
+      summary: Change a subscription's target, or pause and resume it
+      description: >
+        An omitted field is left alone. A new target demands a fresh step-up. A paused subscription
+        is sent nothing; the platform reads what it missed from `GET /admin/events`.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+        - $ref: "#/components/parameters/StepUpToken"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema: { $ref: "#/components/schemas/PlatformSubscriptionUpdate" }
+      responses:
+        "200":
+          description: The subscription
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSubscription" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: deletePlatformSubscription
+      summary: Unsubscribe
+      description: The subscription goes with its deliveries; the events stay readable.
+      responses:
+        "204":
+          description: Unsubscribed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/subscriptions/{subscriptionId}:rotate-secret:
+    parameters:
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      operationId: rotatePlatformSubscriptionSecret
+      summary: Issue a new signing secret
+      description: >
+        Answers the new secret once; deliveries are signed with it from this moment, and the old
+        one stays valid on the platform's side for the grace it chooses. Demands a fresh step-up.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "200":
+          description: Rotated, with the new secret shown for the only time
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformSubscriptionSecret" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/subscriptions/{subscriptionId}/deliveries:
+    parameters:
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [admin]
+      operationId: listPlatformDeliveries
+      summary: What was sent to the subscription, and what became of it
+      description: >
+        One row per event and subscription, newest first: its attempts, its status, the answer the
+        target gave and when the next attempt is due. `DEAD_LETTER` is what a redelivery acts on.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+      responses:
+        "200":
+          description: The deliveries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlatformDeliveryPage" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/subscriptions/{subscriptionId}:redeliver:
+    parameters:
+      - { name: subscriptionId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [admin]
+      operationId: redeliverPlatformSubscription
+      summary: Send the subscription's dead letters again
+      description: >
+        Every dead letter of the subscription is queued again, with the event identifier it always
+        had and its attempts counting on. Refused with `admin.subscription_paused` while the
+        subscription is paused.
+      responses:
+        "202":
+          description: Queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued:
+                    type: integer
+                    description: How many dead letters were queued again.
+  /admin/usage:
+    get:
+      tags: [admin]
+      operationId: readUsage
+      summary: The use per workspace, metric and day, for billing
+      description: >
+        Each workspace's use, a page of workspaces at a time, every day of the range: entries, stored
+        bytes and people as the day's highest count, the AI budget's tokens and the automation runs
+        as the day's sum. Each metric says how it is counted and by which day - UTC, or the
+        workspace's own zone for the AI budget - and `final_through` is the last day that has ended
+        in every zone, up to which nothing will change. A day with no change carries the day before
+        forward. A workspace purged within the last 13 months is answered by its bare id as
+        `purged`, with no name and no reference; counts older than 13 months are gone.
+
+        Offered only while the operator has switched metering on (`metering` on the installation
+        level), off by default: otherwise `409 admin.metering_off`. A range is at most 366 days
+        (`422 admin.usage_range_invalid`); an unknown metric is `422 admin.usage_metric_unknown`.
+        Single mode offers none of this (`admin.multi_mode_required`).
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - name: metric
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/UsageMetricName" }
+        - name: workspace
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: One page of workspaces' use
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UsagePage" }
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5121,6 +5758,7 @@ paths:
         explicit null clears the override back to the mode's default, and absent keys stay
         untouched. 0 means unlimited. Audited - a quota decides what a workspace may hold, and
         "who moved the wall" is a question with an answer.
+        Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       requestBody:
         required: true
         content:
@@ -5396,6 +6034,148 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectedIdentity"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys:
+    get:
+      tags: [identity]
+      operationId: listOwnPasskeys
+      summary: The passkeys and security keys the caller's account holds
+      description: |
+        Each WebAuthn credential of the caller's account in this workspace: the name the person gave
+        it, when it was added and when it was last used. Never the credential's identifier, its
+        public key or the account's user handle.
+
+        Beside the list, whether another one can be added now (`can_add`) and, where not, why
+        (`cannot_add_reason`): the account holds the most it may (`auth.passkey_limit_reached`), the
+        installation has no public address to bind a passkey to (`auth.passkey_unavailable`), or the
+        account holds nothing to give the fresh proof adding asks for (`auth.step_up_no_method`).
+        `rp_id` is the host passkeys of this workspace belong to; a page served at another host
+        cannot add one. Refused with `auth.passkey_person_only` for anyone but a person.
+      responses:
+        "200":
+          description: The credentials, oldest first, and whether another can be added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys:start:
+    post:
+      tags: [identity]
+      operationId: startPasskeyRegistration
+      summary: Begin adding a passkey or a security key to the caller's account
+      description: |
+        The first of two calls that add a WebAuthn credential. Asks a fresh proof of the account
+        first (`auth.step_up_required` otherwise), then answers the options to pass to
+        `navigator.credentials.create()`: the relying party, the account's opaque user handle, a
+        single-use challenge, the accepted algorithms (ES256, EdDSA, RS256), the credentials the
+        account already holds to exclude, and attestation `none`. The challenge is bound to the
+        caller's session and lives five minutes; a newer start replaces it.
+
+        Refused before the proof is spent with `auth.passkey_limit_reached` where the account holds
+        the most it may, and with `auth.passkey_unavailable` where the installation has no public
+        address; with `auth.step_up_session_required` for a caller without a session, and with
+        `auth.passkey_person_only` for anyone but a person.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistrationOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys:complete:
+    post:
+      tags: [identity]
+      operationId: completePasskeyRegistration
+      summary: Finish adding a passkey or a security key to the caller's account
+      description: |
+        The second call: what the browser's ceremony answered, and the name the person chose. The
+        challenge inside the client data must be the one the same session started within five
+        minutes, and it is spent by this call whatever its outcome; otherwise
+        `auth.passkey_challenge_stale`. The ceremony is checked against this workspace's address
+        (origin and relying party), the authenticator's key must use one of the accepted
+        algorithms, and anything malformed is refused with `auth.passkey_registration_invalid`.
+        A credential already held here is refused with `auth.passkey_already_registered`, an
+        account at its limit with `auth.passkey_limit_reached`, a name that is empty, longer than
+        64 characters or holds control characters with `auth.passkey_name_invalid`.
+
+        Where the account held no unused recovery code, the answer carries ten new ones, shown
+        once and stored only as hashes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyRegistration"
+      responses:
+        "201":
+          description: The credential now held, and the recovery codes where they were minted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeyRegistered"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/passkeys/{passkeyId}:
+    parameters:
+      - $ref: "#/components/parameters/PasskeyId"
+    patch:
+      tags: [identity]
+      operationId: renameOwnPasskey
+      summary: Rename one of the caller's passkeys or security keys
+      description: |
+        Changes the name the person gave it, and nothing else. The session alone is enough, or a
+        token with `accounts:write`; no fresh proof is asked, since a name opens nothing. The last
+        write wins: a name only its holder writes has no lost update worth a version.
+
+        Refused with `auth.passkey_not_found` for a credential the caller's account does not hold,
+        `auth.passkey_name_invalid` for a name that is empty, longer than 64 characters or holds
+        control characters, and `auth.passkey_person_only` for anyone but a person.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyRename"
+      responses:
+        "200":
+          description: The passkey with its new name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Passkey"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: removeOwnPasskey
+      summary: Remove one of the caller's passkeys or security keys
+      description: |
+        Removes the credential at once: it signs in and proves nothing from this moment. Asks a
+        fresh proof of the session (`auth.step_up_required` otherwise, `auth.step_up_session_required`
+        for a token). The person is told by mail, as every change to a way into the account is.
+
+        Refused before the proof is spent with `auth.passkey_not_found` for a credential the
+        caller's account does not hold, and with `auth.mfa_required_by_tenant` where it is the last
+        second factor the account holds - no authenticator app, no other passkey or security key of
+        this workspace's address - and the workspace's rule requires one of this person. `can_remove`
+        on the list answers the same condition. Where the last factor of any kind goes, the recovery
+        codes go with it.
+      parameters:
+        - $ref: "#/components/parameters/StepUpToken"
+      responses:
+        "204":
+          description: Removed
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -5833,7 +6613,10 @@ paths:
       description: >
         Asks the workspace's AI provider to propose labels for one entry - what the automation
         action `AI_CLASSIFY` does. Asynchronous, and a proposal unless the caller asks for it to be
-        applied.
+        applied. The answer may only choose - from the labels the entry's collection uses, the
+        columns of its board, and the collection's closed custom fields for the entry's type - so
+        an entry with none of the three to choose from is refused with `ai.nothing_to_choose_from`
+        (422) rather than queued.
       requestBody:
         required: false
         content:
@@ -9343,6 +10126,12 @@ components:
         repeat reaches the operation again. A client that is asked for a proof retries with the
         proof under the same key.
       schema: { type: string, format: uuid }
+    PasskeyId:
+      name: passkeyId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     IfMatch:
       name: If-Match
       in: header
@@ -9571,9 +10360,10 @@ components:
         has_second_factor:
           type: boolean
           description: >
-            Whether an *armed* second factor stands on this account, answered on `GET /accounts/me`
-            and on nothing else. An enrolment begun and never confirmed counts as none, the same
-            reading the sign-in path takes.
+            Whether a second factor stands on this account - an armed authenticator app, or a
+            passkey or security key of this workspace's address - answered on `GET /accounts/me` and
+            on nothing else. An enrolment begun and never confirmed counts as none. Whether the app
+            itself is armed is `has_authenticator_app`.
 
             Until this was answered, nothing in the contract said it, and a screen could not tell
             an account with no authenticator from one whose recovery codes had all been spent. That
@@ -9591,6 +10381,18 @@ components:
 
             The same number rides along with a sign-in, where nobody can act on it; here it is
             beside the account, which is where the screen that makes new ones is.
+        has_authenticator_app:
+          type: boolean
+          description: >
+            Whether an *armed* authenticator app stands on this account, answered on
+            `GET /accounts/me` and on nothing else. An enrolment begun and never confirmed counts as
+            none, the same reading the sign-in path takes.
+        authenticator_app_removable:
+          type: boolean
+          description: >
+            Whether turning the authenticator app off would be accepted now, answered on
+            `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule
+            does not require a second factor of this person or a passkey or security key remains.
         second_factor_required:
           type: boolean
           description: >
@@ -10049,7 +10851,7 @@ components:
           description: Whether this session is the one answering the call.
         signed_in_with:
           type: [string, "null"]
-          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, OIDC, INVITATION, RESET, null]
+          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, PASSWORD_PASSKEY, OIDC, INVITATION, RESET, PASSKEY, null]
           description: >
             How this session was opened. Null for one opened before this was
             recorded, which is not "unknown method" so much as "before this existed" - a client
@@ -10543,6 +11345,9 @@ components:
           $ref: "#/components/schemas/AiSources"
         installation_sources:
           $ref: "#/components/schemas/AiSources"
+          description: >
+            What the levels above the workspace allow - the installation and the workspace's plan
+            together - which is what the workspace may narrow.
         narrowing:
           $ref: "#/components/schemas/AiSources"
         sources_origin:
@@ -10890,7 +11695,7 @@ components:
     SignInPolicyNumber:
       type: object
       description: >
-        One numeric switch, at the three levels that decide it. Zero is off for every one of them.
+        One numeric switch, at the levels that decide it. Zero is off for every one of them.
       required: [value, installation, lock, source, installation_source]
       properties:
         value: { type: integer, description: What is in force in this workspace. }
@@ -10901,7 +11706,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInPolicyFlag:
       type: object
@@ -10913,7 +11718,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInPolicyText:
       type: object
@@ -10925,11 +11730,11 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     SignInMethod:
       type: string
-      enum: [PASSWORD, OIDC]
+      enum: [PASSWORD, OIDC, PASSKEY]
       description: One way into a workspace. A named schema, so that every reader of one shares a type.
 
     SignInPolicyMethods:
@@ -10946,7 +11751,7 @@ components:
         source: { $ref: "#/components/schemas/PolicySource" }
         installation_source:
           $ref: "#/components/schemas/PolicySource"
-          description: Who decided the level above's value - `DEFAULT` where the installation decided nothing.
+          description: Who decided the level above's value - the installation or the workspace's plan, `DEFAULT` where neither did.
 
     PolicySource:
       type: string
@@ -10968,8 +11773,8 @@ components:
     SignInPolicy:
       type: object
       description: >
-        The workspace's sign-in rule, every switch at the three levels that decide it: what is in
-        force here, what the level above set, and whether a lock is on it.
+        The workspace's sign-in rule, every switch at the levels that decide it: what is in force
+        here, what the level above set, and whether a lock is on it.
 
         **A locked switch is answered, not withheld.** A setting that simply is not there is a
         setting somebody opens a support ticket about; one shown with its value, its reason and a
@@ -10983,6 +11788,11 @@ components:
         methods: { $ref: "#/components/schemas/SignInPolicyMethods" }
         session: { $ref: "#/components/schemas/SessionPolicySettings" }
         legal: { $ref: "#/components/schemas/LegalPolicySettings" }
+        plan:
+          type: [string, "null"]
+          description: >
+            The name of the plan the workspace is on, as its provider named it, null for none - what
+            "Set by your plan" refers to.
         managed_accounts:
           $ref: "#/components/schemas/SignInPolicyFlag"
           description: >
@@ -11620,6 +12430,183 @@ components:
           items: { $ref: "#/components/schemas/InstanceJournalEntry" }
         page: { $ref: "#/components/schemas/PageInfo" }
 
+    PlatformSubscription:
+      type: object
+      description: >
+        One address the installation's events are pushed to. The signing secret is not a member: it
+        is answered once, at creation and at each rotation, and stored sealed.
+      required: [id, target_url, state, dead_letters, created_at, version, from_file]
+      properties:
+        id: { type: string, format: uuid }
+        target_url:
+          type: string
+          format: uri
+          description: Where each event is POSTed, through the guarded client.
+        state:
+          type: string
+          enum: [ACTIVE, PAUSED]
+          description: >
+            Never switched off for being unreachable; a paused subscription is one the operator
+            paused, and is sent nothing.
+        dead_letters:
+          type: integer
+          description: The deliveries that ended without arriving and wait to be redelivered.
+        last_delivery_at:
+          type: [string, "null"]
+          format: date-time
+          description: When an event last arrived; null before the first.
+        last_error:
+          type: [string, "null"]
+          description: A message code for the last failed attempt, never the target's own words.
+        from_file:
+          type: boolean
+          description: >
+            Decided by an enforcing instance file: changed there, and refused here. A subscription a
+            seeding file wrote is the operator's.
+        created_at: { type: string, format: date-time }
+        version: { type: integer }
+
+    PlatformSubscriptionCreate:
+      type: object
+      required: [target_url]
+      properties:
+        target_url: { type: string, format: uri, maxLength: 2000 }
+
+    PlatformSubscriptionUpdate:
+      type: object
+      description: Every field optional; an omitted one is left alone.
+      properties:
+        target_url: { type: [string, "null"], format: uri, maxLength: 2000 }
+        state:
+          type: [string, "null"]
+          enum: [ACTIVE, PAUSED, null]
+
+    PlatformSubscriptionSecret:
+      allOf:
+        - $ref: "#/components/schemas/PlatformSubscription"
+        - type: object
+          required: [secret]
+          properties:
+            secret:
+              type: string
+              description: The signing secret, in clear, for the only time.
+
+    PlatformDelivery:
+      type: object
+      description: One event sent to one subscription, across its attempts.
+      required: [id, subscription_id, event_id, event_type, attempt, status, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        subscription_id: { type: string, format: uuid }
+        event_id:
+          type: string
+          format: uuid
+          description: The event, as `X-Hubtask-Event-Id` carries it.
+        event_type: { type: string }
+        attempt:
+          type: integer
+          description: How many attempts were made, a redelivery's counting on.
+        status:
+          type: string
+          enum: [PENDING, SUCCEEDED, FAILED, DEAD_LETTER]
+        response_status: { type: [integer, "null"] }
+        error_code:
+          type: [string, "null"]
+          description: A message code, never the target's response body.
+        next_attempt_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PlatformDeliveryPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformDelivery" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+    UsageMetricName:
+      type: string
+      description: >
+        A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`,
+        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted
+        per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client
+        tolerates a name it does not know, as a later release may add one.
+
+    UsageMetric:
+      type: object
+      required: [name, aggregate, day]
+      properties:
+        name: { $ref: "#/components/schemas/UsageMetricName" }
+        aggregate:
+          type: string
+          enum: [HIGHEST, SUM]
+          description: The day's highest count, or the day's sum.
+        day:
+          type: string
+          enum: [UTC, WORKSPACE]
+          description: Which day a value counts by - UTC, or the workspace's own zone.
+
+    UsageDay:
+      type: object
+      required: [day, value]
+      properties:
+        day: { type: string, format: date }
+        value: { type: integer, format: int64 }
+
+    WorkspaceUsage:
+      type: object
+      required: [workspace_id, purged, metrics]
+      properties:
+        workspace_id: { type: string, format: uuid }
+        purged:
+          type: boolean
+          description: True for a workspace purged within the last 13 months, answered by its bare id.
+        metrics:
+          type: object
+          description: Every day of the range, per metric by its name.
+          additionalProperties:
+            type: array
+            items: { $ref: "#/components/schemas/UsageDay" }
+
+    UsagePage:
+      type: object
+      required: [data, page, metrics, final_through]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/WorkspaceUsage" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/UsageMetric" }
+        final_through:
+          type: string
+          format: date
+          description: The last day that has ended in every zone; no value up to it changes any more.
+
+    PlatformEventPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PlatformEvent" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    PlatformEvent:
+      type: object
+      description: >
+        One installation event: the CloudEvents 1.0 structured-JSON document a subscription is sent,
+        unwrapped. `id` is what `X-Hubtask-Event-Id` names on the push side, so a platform
+        deduplicates on it either way; `tenantid` is the workspace the event is about, and `data`
+        carries its state as the schema of the event's `type` describes.
+
+        Free-form here on purpose, for `TriggerEvent`'s reason: the document's shape is owned by the
+        event schemas and the CloudEvents specification, and a second list of its properties here
+        would drift.
+      additionalProperties: true
+
     SessionElevation:
       type: object
       description: How long this session carries the control plane's scope.
@@ -11764,11 +12751,14 @@ components:
         workspace_may:
           type: string
           readOnly: true
-          enum: [TIGHTEN, RAISE, REPLACE]
+          enum: [TIGHTEN, RAISE, REPLACE, PLAN_REPLACE]
           description: >
             What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value,
-            `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the
-            key is never locked - a language, a time zone and a week start are defaults only.
+            `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the
+            one key no workspace sets, the provider's account link: open, a plan may set its own.
+            Absent where the key is never locked - a language, a time zone and a week start are
+            defaults only - and wherever the lock binds nobody: the account link in single mode, and
+            in a plan's own document.
 
     InstanceSettings:
       type: object
@@ -11798,6 +12788,12 @@ components:
             version is locked exactly when `terms_url` is - its own `locked` is answered as the
             link's and ignored in a write - and it is refused without a terms link
             (`auth.terms_version_without_link`).
+
+            And `account_url`, the provider's account page: an address where the workspace's owners
+            and administrators manage what they are on. It is set here and per plan, never by a
+            workspace; a plan's own replaces the installation's unless the installation locks it,
+            and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and
+            administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
         localisation:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
@@ -11843,6 +12839,11 @@ components:
           description: >
             The path to the operator's own list of refused passwords, read offline. Instance-only:
             the file is on the operator's disk, so there is nothing for a workspace to point at.
+        metering:
+          type: boolean
+          description: >
+            Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off
+            by default. The counts are recorded either way; this switch only offers them.
         source:
           type: string
           readOnly: true
@@ -12097,9 +13098,10 @@ components:
         expires_at: { type: string, format: date-time }
         methods:
           type: array
-          items: { type: string, enum: [TOTP, RECOVERY, ENROLL, PASSWORD_CHANGE, LINK, TERMS] }
+          items: { type: string, enum: [TOTP, RECOVERY, PASSKEY, ENROLL, PASSWORD_CHANGE, LINK, TERMS] }
           description: >
-            `TOTP` and `RECOVERY` for an enrolled account; `ENROLL` alone for somebody the
+            `TOTP` (the authenticator app), `PASSKEY` (a passkey or security key) and `RECOVERY` for an
+            account holding a second factor, each where it can be given; `ENROLL` alone for somebody the
             workspace demands a factor of who holds none; `PASSWORD_CHANGE` alone for a password
             that was right and no longer meets the rule; `LINK` alone for a provider
             arrival that met an account with a password, completed at `/auth/sessions:link`;
@@ -12107,6 +13109,17 @@ components:
             of use in force, completed at `/auth/sessions:agree-terms`.
             Each is a step the pending credential can complete and nothing
             else.
+        passkey_options:
+          $ref: "#/components/schemas/PasskeyAssertionOptions"
+          description: >
+            Present with `PASSKEY`: the options for `navigator.credentials.get()` that complete this
+            step at `/auth/sessions:verify` - the account's passkeys and security keys, a challenge of
+            the step's own. Presence on the device suffices here; the password came first.
+        passkey_setup:
+          type: boolean
+          description: >
+            With `ENROLL`: whether a passkey or a security key can be set up here instead of the
+            authenticator app - only where the page runs at the workspace's own address.
         password_rules:
           $ref: "#/components/schemas/PasswordRules"
           description: >
@@ -12190,6 +13203,13 @@ components:
         recovery_code:
           type: [string, "null"]
           description: One of the ten shown at enrolment. It works exactly once.
+        raw_id:
+          type: [string, "null"]
+          maxLength: 1400
+          description: A passkey or security key's answer, with the three fields below - its `rawId`.
+        client_data_json: { type: [string, "null"], maxLength: 5600, description: The answer's `clientDataJSON`. }
+        authenticator_data: { type: [string, "null"], maxLength: 87400, description: The answer's `authenticatorData`. }
+        signature: { type: [string, "null"], maxLength: 1400, description: The answer's `signature`. }
 
     TotpEnrollmentStart:
       type: object
@@ -12290,6 +13310,17 @@ components:
         default_locale: { type: string }
         default_time_zone: { type: string }
         created_at: { type: string, format: date-time }
+        plan:
+          type: [string, "null"]
+          description: The short name of the workspace's plan, null for none.
+        external_reference:
+          type: [string, "null"]
+          description: The purchase platform's own reference, where it set one.
+        version:
+          type: integer
+          description: >
+            The workspace's version: it grows with every change to the workspace, by the control
+            plane or by its own administrators. A move names it to refuse a stale one.
         purge_after:
           type: [string, "null"]
           format: date-time
@@ -12614,6 +13645,163 @@ components:
           type: integer
           description: How many workspaces were given a re-sealing job.
 
+    PlanFeature:
+      type: string
+      enum: [AUTOMATION_RULES, WEBHOOKS, OWN_SIGN_IN_PROVIDERS]
+
+    PlanChange:
+      type: object
+      description: >
+        What a plan decides, in the installation level's shape: each area maps a key to
+        `{value, locked}`, and a key the plan does not name falls through to the installation.
+        A lock here holds every workspace on the plan to the value ("Set by your plan").
+      required: [display_name]
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        legal:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        quotas:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        ai:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        left_out:
+          type: array
+          description: >
+            The features the plan leaves out. Each rests while left out - it stops running and
+            keeps everything it holds - and comes back when included again. Export, deletion,
+            access requests, language, time zone, accessibility and every door are no such feature.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+
+    PlanCreate:
+      type: object
+      description: A new plan - its short name and what it decides, as PlanChange.
+      required: [name, display_name]
+      properties:
+        name:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,39}$"
+          description: The short name, which never changes and is never reused.
+        display_name: { type: string, minLength: 1, maxLength: 200 }
+        sign_in:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        legal:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        quotas:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        ai:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        left_out:
+          type: array
+          description: >
+            The features the plan leaves out. Each rests while left out - it stops running and
+            keeps everything it holds - and comes back when included again. Export, deletion,
+            access requests, language, time zone, accessibility and every door are no such feature.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+
+    Plan:
+      allOf:
+        - $ref: "#/components/schemas/PlanCreate"
+        - type: object
+          required: [version, workspaces, created_at, updated_at]
+          properties:
+            version: { type: integer }
+            workspaces:
+              type: integer
+              description: How many workspaces are on the plan.
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+
+    TenantPlanMove:
+      type: object
+      required: [plan]
+      properties:
+        plan:
+          type: [string, "null"]
+          description: The plan's short name, or null for none.
+        expected_version:
+          type: integer
+          description: The workspace's version as last read; a stale one is refused.
+        dry_run:
+          type: boolean
+          description: >
+            True answers what the move would change - the features that would rest, the limits the
+            workspace would be over, the exceptions that would stay - and writes nothing: no plan,
+            no trail or journal entry, no event. Its `tenant` is the state the move would leave, its
+            version included; a move that follows names the version the caller read, not that one.
+            Send it with an idempotency key of its own.
+
+    TenantPlanMoved:
+      type: object
+      required: [tenant, features_resting, exceptions_kept]
+      properties:
+        tenant: { $ref: "#/components/schemas/AdminTenant" }
+        features_resting:
+          type: array
+          description: The features the workspace's plan now leaves out, or with `dry_run` would.
+          items: { $ref: "#/components/schemas/PlanFeature" }
+        exceptions_kept:
+          type: array
+          description: >
+            The limits for which the workspace keeps an operator's exception: an exception stays
+            the last word, so a platform that sold an add-on sets it again where it should change.
+          items: { type: string }
+        limits_exceeded:
+          type: array
+          description: >
+            Each counted limit the workspace now holds - or with `dry_run` would hold - more of than
+            its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed;
+            the next creation past the limit is refused.
+          items: { $ref: "#/components/schemas/LimitExceeded" }
+
+    LimitExceeded:
+      type: object
+      required: [quota, limit, used]
+      properties:
+        quota: { type: string }
+        limit: { type: integer, format: int64, description: The limit in force. }
+        used: { type: integer, format: int64, description: What the workspace holds. }
+
+    TenantUpdate:
+      type: object
+      required: [external_reference]
+      properties:
+        external_reference:
+          type: [string, "null"]
+          maxLength: 200
+          description: The platform's own reference, or null to clear it.
+
+    TenantQuery:
+      type: object
+      properties:
+        slug: { type: string, minLength: 1, description: The workspace's short name. }
+        external_reference: { type: string, minLength: 1, description: The platform's own reference. }
+        plan: { type: string, minLength: 1, description: The short name of a plan; not with without_plan. }
+        without_plan: { type: boolean, description: Only workspaces on no plan. }
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, PENDING_DELETION]
+        size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        cursor: { type: [string, "null"], description: The cursor of the page before. }
+
+    AdminTenantPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/AdminTenant" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
     TenantProvision:
       type: object
       required: [slug, display_name, owner_email]
@@ -12627,6 +13815,17 @@ components:
         default_time_zone: { type: [string, "null"] }
         owner_email: { type: string, format: email, maxLength: 254 }
         owner_display_name: { type: [string, "null"], maxLength: 200 }
+        plan:
+          type: [string, "null"]
+          description: >
+            The short name of the plan the workspace starts on, or none. An unknown or removed
+            plan is refused before anything is written.
+        external_reference:
+          type: [string, "null"]
+          maxLength: 200
+          description: >
+            The purchase platform's own reference for the workspace, unique on the installation -
+            what it finds the workspace by when an answer was lost.
 
     ProvisionedTenant:
       allOf:
@@ -12672,7 +13871,7 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, accounts]
           description: >
             The two AI rows are counted per source and per day in the workspace's time zone:
             `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
@@ -12696,6 +13895,20 @@ components:
           description: >
             True when the installation locked this ceiling for every workspace, so it is set by the
             installation rather than offered as its default.
+        source: { $ref: "#/components/schemas/QuotaSource" }
+        lock:
+          $ref: "#/components/schemas/PolicyLock"
+          description: >
+            Which level locked this ceiling - the installation, or the workspace's plan - or null.
+            The operator's exception for one workspace still decides under either.
+
+    QuotaSource:
+      type: string
+      enum: [DEFAULT, INSTANCE, PLAN, EXCEPTION, WORKSPACE]
+      description: >
+        Which level set the ceiling in force: Hubtask's default for the mode, the installation, the
+        workspace's plan, the operator's exception for this one workspace, or - for the workspace's
+        own AI budget only - the workspace itself.
 
     TenantQuotas:
       type: object
@@ -12710,6 +13923,14 @@ components:
         automation_runs_per_hour: { type: [integer, "null"], format: int64, minimum: 0 }
         webhook_targets: { type: [integer, "null"], format: int64, minimum: 0 }
         export_jobs: { type: [integer, "null"], format: int64, minimum: 0 }
+        accounts:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            The people the workspace may hold: active, restricted and managed accounts and open
+            invitations - never service accounts, nor an invitation whose link ran out. Nobody here
+            is disabled below it; the next is refused.
         ai_tokens_per_day:
           type: [integer, "null"]
           format: int64
@@ -12867,7 +14088,8 @@ components:
       type: object
       description: >
         Exactly one method: the password; the authenticator's current code; a recovery
-        code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
+        code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`;
+        or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser
         back with after `POST /auth/step-up:provider`. Each proves the person holding the session is
         still the person who opened it.
       properties:
@@ -12885,6 +14107,13 @@ components:
           type: [string, "null"]
           maxLength: 4096
           description: The code the provider issued. Presented together with `state`.
+        raw_id:
+          type: [string, "null"]
+          maxLength: 1400
+          description: A passkey or security key's answer, with the three fields below - its `rawId`.
+        client_data_json: { type: [string, "null"], maxLength: 5600, description: The answer's `clientDataJSON`. }
+        authenticator_data: { type: [string, "null"], maxLength: 87400, description: The answer's `authenticatorData`. }
+        signature: { type: [string, "null"], maxLength: 1400, description: The answer's `signature`. }
 
     ConnectedIdentity:
       type: object
@@ -12899,6 +14128,310 @@ components:
           type: string
           format: date-time
           description: When the identity was connected.
+
+    Passkey:
+      type: object
+      description: One passkey or security key of the caller's account.
+      required: [id, name, created_at, last_used_at, rp_id]
+      properties:
+        id: { type: string, format: uuid }
+        name:
+          type: string
+          maxLength: 64
+          description: The name the person gave it.
+        created_at:
+          type: string
+          format: date-time
+          description: When it was added.
+        last_used_at:
+          type: [string, "null"]
+          format: date-time
+          description: When it last signed in or gave a fresh proof; null until it has.
+        rp_id:
+          type: [string, "null"]
+          description: >
+            The host it was made for. Where it is not the list's `rp_id` - the workspace moved to
+            another address, or the account was restored into another workspace - it opens nothing
+            here, counts as no second factor, and can always be removed. Null for one made before the
+            host was recorded, which counts as this workspace's.
+
+    PasskeyRename:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: What the person calls it, 1 to 64 characters.
+
+    PasskeyList:
+      type: object
+      required: [passkeys, limit, can_add, can_remove, rp_id]
+      properties:
+        passkeys:
+          type: array
+          items:
+            $ref: "#/components/schemas/Passkey"
+        limit:
+          type: integer
+          description: The most an account may hold.
+          example: 10
+        can_add:
+          type: boolean
+          description: Whether starting to add another would be accepted now.
+        cannot_add_reason:
+          type: string
+          description: Present where `can_add` is false - the message code saying why.
+          enum: [auth.passkey_limit_reached, auth.passkey_unavailable, auth.step_up_no_method]
+        can_remove:
+          type: boolean
+          description: >
+            Whether removing one of the passkeys of this workspace's address would be accepted now.
+            False where it is the last second factor the account holds and the workspace's rule
+            requires one of this person, and where the account holds nothing to give the fresh proof
+            with. A passkey of another address can always be removed.
+        cannot_remove_reason:
+          type: string
+          description: Present where `can_remove` is false - the message code saying why.
+          enum: [auth.mfa_required_by_tenant, auth.step_up_no_method]
+        rp_id:
+          type: [string, "null"]
+          description: >
+            The host this workspace's passkeys belong to; null where the installation has no
+            public address. A page served at another host cannot add or use one.
+
+    PasskeySignInOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every
+        binary value is base64url without padding.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          type: object
+          required: [rpId, challenge, timeout, userVerification]
+          properties:
+            rpId: { type: string, description: The workspace's host. }
+            challenge: { type: string, description: Thirty-two random bytes, base64url. }
+            timeout: { type: integer, description: Milliseconds. }
+            userVerification: { type: string, enum: [required] }
+        expires_at:
+          type: string
+          format: date-time
+          description: When the challenge stops being accepted.
+
+    PasskeyAssertion:
+      type: object
+      description: What `navigator.credentials.get()` answered, base64url without padding.
+      required: [raw_id, client_data_json, authenticator_data, signature, user_handle]
+      properties:
+        raw_id:
+          type: string
+          maxLength: 1400
+          description: The credential's `rawId`.
+        client_data_json:
+          type: string
+          maxLength: 5600
+          description: The response's `clientDataJSON`.
+        authenticator_data:
+          type: string
+          maxLength: 87400
+          description: The response's `authenticatorData`.
+        signature:
+          type: string
+          maxLength: 1400
+          description: The response's `signature`.
+        user_handle:
+          type: string
+          maxLength: 88
+          description: The response's `userHandle`, which a passkey signing in without an identifier always gives.
+
+    PasskeyAssertionOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is
+        the second factor or the fresh proof, in the WebAuthn JSON form.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          type: object
+          required: [rpId, challenge, timeout, userVerification, allowCredentials]
+          properties:
+            rpId: { type: string, description: The workspace's host. }
+            challenge: { type: string, description: Thirty-two random bytes, base64url. }
+            timeout: { type: integer, description: Milliseconds. }
+            userVerification: { type: string, enum: [preferred] }
+            allowCredentials:
+              type: array
+              items:
+                $ref: "#/components/schemas/PasskeyDescriptor"
+        expires_at:
+          type: string
+          format: date-time
+
+    PasskeyEnrollmentStart:
+      type: object
+      required: [pending_token]
+      properties:
+        pending_token:
+          type: string
+          description: The `ENROLL` step's credential.
+
+    PasskeyEnrollment:
+      type: object
+      description: The `ENROLL` step's credential, what the ceremony answered, and the name.
+      required: [pending_token, name, raw_id, client_data_json, attestation_object]
+      properties:
+        pending_token: { type: string }
+        name: { type: string, maxLength: 64, description: What the person calls it. }
+        raw_id: { type: string, maxLength: 1400 }
+        client_data_json: { type: string, maxLength: 5600 }
+        attestation_object: { type: string, maxLength: 87400 }
+        transports:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+
+    PasskeyRegistrationOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form:
+        every binary value is base64url without padding.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          $ref: "#/components/schemas/PasskeyCreationOptions"
+        expires_at:
+          type: string
+          format: date-time
+          description: When the challenge stops being accepted.
+
+    PasskeyCreationOptions:
+      type: object
+      required: [rp, user, challenge, pubKeyCredParams, timeout, excludeCredentials, authenticatorSelection, attestation]
+      properties:
+        rp:
+          type: object
+          required: [id, name]
+          properties:
+            id: { type: string, description: The workspace's host. }
+            name: { type: string, description: The workspace's name. }
+        user:
+          type: object
+          required: [id, name, displayName]
+          properties:
+            id: { type: string, description: The account's opaque user handle, base64url. }
+            name: { type: string, description: The account's address, or its sign-in name where it has none. }
+            displayName: { type: string }
+        challenge: { type: string, description: Thirty-two random bytes, base64url. }
+        pubKeyCredParams:
+          type: array
+          items:
+            type: object
+            required: [type, alg]
+            properties:
+              type: { type: string, enum: [public-key] }
+              alg: { type: integer, enum: [-7, -8, -257] }
+        timeout: { type: integer, description: Milliseconds. }
+        excludeCredentials:
+          type: array
+          items:
+            $ref: "#/components/schemas/PasskeyDescriptor"
+        authenticatorSelection:
+          type: object
+          required: [residentKey, requireResidentKey, userVerification]
+          properties:
+            residentKey: { type: string, enum: [preferred] }
+            requireResidentKey: { type: boolean }
+            userVerification: { type: string, enum: [preferred] }
+        attestation: { type: string, enum: [none] }
+
+    PasskeyDescriptor:
+      type: object
+      required: [type, id]
+      properties:
+        type: { type: string, enum: [public-key] }
+        id: { type: string, description: A credential identifier, base64url. }
+        transports:
+          type: array
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+
+    PasskeyTransport:
+      type: string
+      enum: [usb, nfc, ble, hybrid, internal, smart-card]
+
+    PasskeyRegistration:
+      type: object
+      description: What `navigator.credentials.create()` answered, base64url without padding, and the name.
+      required: [name, raw_id, client_data_json, attestation_object]
+      properties:
+        name:
+          type: string
+          maxLength: 64
+          description: What the person calls it.
+        raw_id:
+          type: string
+          maxLength: 1400
+          description: The credential's `rawId`.
+        client_data_json:
+          type: string
+          maxLength: 5600
+          description: The response's `clientDataJSON`.
+        attestation_object:
+          type: string
+          maxLength: 87400
+          description: The response's `attestationObject`.
+        transports:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/PasskeyTransport"
+          description: The response's `getTransports()`, where the browser offers it.
+
+    PasskeyRegistered:
+      type: object
+      required: [passkey]
+      properties:
+        passkey:
+          $ref: "#/components/schemas/Passkey"
+        recovery_codes:
+          type: array
+          items: { type: string }
+          minItems: 10
+          maxItems: 10
+          description: >
+            Present only where the account held no unused recovery code: ten single-use codes,
+            shown this once and stored only as hashes.
+
+    PasskeyEnrolled:
+      type: object
+      description: >
+        A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or
+        the `PASSWORD_CHANGE` step still owed.
+      required: [passkey]
+      properties:
+        passkey:
+          $ref: "#/components/schemas/Passkey"
+        recovery_codes:
+          type: array
+          items: { type: string }
+          minItems: 10
+          maxItems: 10
+          description: >
+            Present only where the account held no unused recovery code: ten single-use codes,
+            shown this once and stored only as hashes.
+        tokens:
+          anyOf:
+            - $ref: "#/components/schemas/SessionTokens"
+            - type: "null"
+          description: The pair, where nothing else is owed.
+        challenge:
+          anyOf:
+            - $ref: "#/components/schemas/MfaChallenge"
+            - type: "null"
+          description: The `PASSWORD_CHANGE` step, where the password must still be changed.
 
     ProviderConnectStart:
       type: object
@@ -12970,7 +14503,7 @@ components:
         expires_at: { type: string, format: date-time }
         method:
           type: string
-          enum: [PASSWORD, TOTP, RECOVERY, PROVIDER]
+          enum: [PASSWORD, TOTP, PASSKEY, RECOVERY, PROVIDER]
           description: What proved it - recorded in the audit trail, never the credential.
 
     MfaDisable:
@@ -16749,6 +18282,18 @@ components:
             (`container_id`). Absent from a listing that named no container: with nothing to be in
             force *in*, the question has no answer. The narrower rule wins, and a rule switched off
             in a collection lets the wider one through rather than stopping it.
+        last_failure:
+          type: [object, "null"]
+          readOnly: true
+          description: >
+            Present while the rule's condition could not be evaluated on an entry in the last pass
+            that reached it: the rule then announced and removed nothing in that pass, and the
+            workspace's other rules went on. Gone once a pass evaluates the condition without
+            failing. `code` is the message code of what failed, `at` when.
+          required: [code, at]
+          properties:
+            code: { type: string }
+            at: { type: string, format: date-time }
 
     RetentionPolicyUpdate:
       type: object
@@ -17130,6 +18675,16 @@ components:
             that has some - an AI budget spent since the job was accepted carries `reason`
             (`budget_spent`) and `renews_at`, exactly as the same refusal does on a request.
             Absent otherwise.
+        outcome_code:
+          type: string
+          description: >
+            How a `SUCCEEDED` job ended, as a message code, where its kind says more than that it
+            finished - never a message and never free text. A question to the workspace's AI
+            answers `ai.proposed` (the suggestion stands under `GET /suggestions`),
+            `ai.nothing_to_change` (the model found nothing to propose), `ai.nothing_to_work_with`
+            (nothing was left to describe when the job ran), or `ai.kept_out` /
+            `ai.processing_restricted` (the person who asked keeps their content out since asking).
+            Absent on every other job; a client treats a code it does not know as "finished".
         created_at: { type: string, format: date-time }
         finished_at:
           type: [string, "null"]
@@ -17545,6 +19100,31 @@ components:
             including somebody whose roles sit only on hubs, collections or entries and who cannot
             read `GET /tenant`. Whoever holds `STRUCTURE` on the workspace creates shared hubs
             whatever this says.
+        account_link:
+          type: string
+          format: uri
+          description: >
+            The provider's account page, where the workspace's owners and administrators manage what
+            they are on: the installation's address, or the plan's where it sets one and the
+            installation does not lock it. Answered only to whoever holds `STRUCTURE` on the
+            workspace itself, and only where one is set; absent for everybody else. A client shows
+            it beside "Not included in your plan" and at a reached limit, under its own label - the
+            address is the operator's, never a price or an offer.
+        not_included:
+          type: array
+          items: { $ref: "#/components/schemas/PlanFeature" }
+          description: >
+            The features the caller's workspace's plan leaves out, in the order of `PlanFeature`;
+            empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like
+            `workspace_permissions`: absent for an anonymous caller.
+
+            A feature that is left out rests: automation rules run nowhere, webhooks deliver nothing,
+            the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays
+            readable, and it works again from the moment the plan includes it. Creating, changing,
+            switching on, running or sending is refused with `403 plan.not_included`, the feature as
+            its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws
+            "Not included in your plan" in place of the refused controls. `automation_actions`
+            already leaves out the actions of a feature named here.
         deprecations:
           type: array
           items: { $ref: "#/components/schemas/DeprecatedField" }

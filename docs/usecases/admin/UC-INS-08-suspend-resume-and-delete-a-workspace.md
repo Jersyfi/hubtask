@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-platform]
 deployments: [D5, D6, D7]
 serves: [P-03, P-04, P-15]
-state: built
-tasks: [H-06, SI-17, PH-10, SC-08]
-checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go, core/application/service/admin/Cancel_test.go, core/application/service/admin/SingleMode_test.go, test/integration/tenant_deletion_test.go, test/integration/tenant_cancel_test.go, test/integration/tenant_cancel_acceptance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, test/integration/admin_test.go, docs/evidence/SC-15-D5-2026-10-13.md, test/integration/workspace_recovery_test.go]
+state: verified
+tasks: [H-06, SI-17, PH-10, SC-08, PL-10]
+checked_by: [core/application/service/admin/Lifecycle_test.go, core/application/service/admin/Deletion_test.go, core/application/service/admin/Cancel_test.go, core/application/service/admin/SingleMode_test.go, test/integration/tenant_deletion_test.go, test/integration/tenant_cancel_test.go, test/integration/tenant_cancel_acceptance_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, test/integration/admin_test.go, docs/evidence/SC-15-D5-2026-10-13.md, test/integration/workspace_recovery_test.go, test/security/provisioning_scope_test.go, cmd/hubctl/AdminProvisioning_test.go]
 ---
 
 # Suspend, resume and delete a workspace
@@ -34,6 +34,9 @@ that period *Cancel deletion* brings it back.
 4. Deleting requires typing the name and states the grace period.
 5. During the grace period, *Cancel deletion* restores the workspace; after it, nothing remains.
 6. Every step is in the instance journal and, where the workspace still exists, in its own trail.
+7. A platform's service account that is a registered operator requests a deletion with the typed
+   name and no step-up, and gets the same grace period, cancellation, export and legal-hold refusal;
+   a person still gives a step-up.
 
 ## Where it ends
 

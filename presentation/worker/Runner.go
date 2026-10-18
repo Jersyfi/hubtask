@@ -243,7 +243,7 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 				// finishing, so the deduplication of a pending job keeps it a single row.
 				return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
 			}
-			return r.Queue.Complete(txCtx, job)
+			return r.Queue.Complete(txCtx, job, result.Outcome)
 		})
 	})
 	if err != nil {
@@ -278,7 +278,7 @@ func (r Runner) executeDetached(ctx context.Context, handler queue.Handler, job 
 		if result.Repeat {
 			return r.Queue.Repeat(txCtx, job, r.Clock.Now().Add(result.RepeatAfter))
 		}
-		return r.Queue.Complete(txCtx, job)
+		return r.Queue.Complete(txCtx, job, result.Outcome)
 	})
 }
 

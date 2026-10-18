@@ -94,6 +94,28 @@ var rlsExceptions = map[string]string{
 		"password screen, so a policy comparing current_tenant_id() would make it invisible to " +
 		"everybody; it holds configuration and never a person's data, which is what makes that " +
 		"acceptable, and the bound on writing it is the one control-plane use case that does",
+	"plan": "the installation's plans (multi-tenancy.md §4.2, migration 0164): every workspace " +
+		"reads its plan once plans resolve, so a policy comparing current_tenant_id() would make " +
+		"every plan invisible to everybody; it holds configuration and never a person's data, the " +
+		"control plane's use cases are what write it, and without a DELETE grant a short name is " +
+		"never reused",
+	"platform_event": "the installation's events for a purchase platform (multi-tenancy.md " +
+		"§4.3, migration 0180): read by the control plane under the installation's scope across " +
+		"every workspace, and the deleted event outlives its workspace, so a policy comparing " +
+		"current_tenant_id() would make the feed impossible; identifiers and states only, " +
+		"never a person's content",
+	"platform_subscription": "the installation's subscriptions for a purchase platform " +
+		"(multi-tenancy.md §4.3, migration 0182): no tenant column - they belong to the " +
+		"installation, and only the control plane's use cases and its delivery jobs reach them",
+	"platform_delivery": "the deliveries of the installation's subscriptions (migration 0182): no " +
+		"tenant column, reached with their subscription",
+	"usage_archive": "a purged workspace's daily counts (multi-tenancy.md §4.3, migration 0183): " +
+		"kept for 13 months after the workspace's row is gone, so a policy comparing " +
+		"current_tenant_id() would make them unreachable under every honest scope; counts only, " +
+		"no name and no reference, written by the purge and read by the control plane through admin_usage()",
+	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
+		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
+		"person's data, written only by the control plane's use cases",
 }
 
 // Every tenant table carries RLS, and it is FORCE - without that the owner would be exempt.

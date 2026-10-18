@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -62,7 +63,9 @@ const (
 
 // InstanceWriter is what the control plane's instance use cases share.
 type InstanceWriter struct {
-	Settings   identityrepo.InstanceSettings
+	Settings identityrepo.InstanceSettings
+	// Tenancy is the mode: in multi mode plans exist, and the account link's lock binds them.
+	Tenancy    env.TenancyMode
 	Operators  identityrepo.Operators
 	Journal    adminrepo.Journal
 	UnitOfWork persistence.UnitOfWork
@@ -70,14 +73,19 @@ type InstanceWriter struct {
 	IDs        clock.IDGenerator
 }
 
-// authorize is the pair every operation here demands: the scope, then the register.
+// authorize is the pair every operation here demands: the scope, then the register. The scopes are
+// adminTenantsScope where none are named, or the operation's declared one followed by the narrower
+// one that admits it as well (platformScopes).
 //
 // The register is checked again although the credential could only carry the scope by passing it at
 // minting time, and that is the point: a token minted last month by somebody who has since been
 // removed still carries the scope, and the second check is what makes the removal mean something
 // (ADR-0070 §1).
-func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext, scopes ...string) error {
+	if len(scopes) == 0 {
+		scopes = []string{adminTenantsScope}
+	}
+	if err := actor.RequireAnyScope(scopes...); err != nil {
 		return err
 	}
 	if w.Operators == nil {
@@ -218,7 +226,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(name))
 		}
 	}
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))
@@ -245,6 +253,9 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	}
 	if before.BlocklistFile != after.BlocklistFile {
 		moved = append(moved, "blocklist_file")
+	}
+	if before.Metering != after.Metering {
+		moved = append(moved, "metering")
 	}
 	return moved
 }
@@ -480,7 +491,7 @@ func (h ReadInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(level), nil
+	return levelOutput(level, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.
@@ -531,6 +542,11 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 					"offline. Instance-only: the file is on the operator's disk, so there is " +
 					"nothing for a workspace to point at.",
 			},
+			{
+				Name: "metering", Kind: usecase.KindBool,
+				Description: "Whether the use per workspace and day is offered for billing " +
+					"(GET /admin/usage). Off by default; the counts are recorded either way.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: instanceSettingsChangedAction, TargetType: instanceTarget,
@@ -550,11 +566,16 @@ func (h WriteInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
+	if h.Writer.Tenancy != env.TenancyMulti {
+		// The account link's lock binds plans, and there are none here: a lock stored now would
+		// bind them unseen the day the installation turns multi.
+		delete(level.Legal.Locks, identity.LinkAccount)
+	}
 	written, err := h.Execute(ctx, actor, level)
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(written), nil
+	return levelOutput(written, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.

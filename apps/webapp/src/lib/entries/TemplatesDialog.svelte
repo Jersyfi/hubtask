@@ -31,6 +31,7 @@
   import { holds } from '../data/capability.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { suggestions } from '../data/suggestions.svelte.ts';
+  import { isPending } from '../data/suggestions.ts';
   import { rootTypes } from '../data/capability.svelte.ts';
   import { templates } from '../data/templates.svelte.ts';
   import { scopeCodeOf } from '../data/templates.ts';
@@ -395,7 +396,7 @@
               size="sm"
               tone="secondary"
               icon="sparkles"
-              disabledReason={generation?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
+              disabledReason={isPending(generation) ? t('app.suggestions.pending') : undefined}
               onclick={startGenerating}
             >
               {t('app.templates.generate_from_description')}

@@ -18,6 +18,11 @@ readonly K3S_VERSION="v1.36.3+k3s1"
 readonly K3S_INSTALL_SHA256="ed01f89fd977bf20ac1516bbebf8370bf3ddbaa55dac8aba610956a4c78cc00b"
 readonly CERT_MANAGER_VERSION="v1.21.1"
 readonly CERT_MANAGER_SHA256="5f6a499b8c1857d57f560f536e0dcc830914b45c420899fe7ad0692c8624e408"
+# The CloudNativePG operator, the version and hash gate-pitr installs (the Makefile's CNPG_VERSION
+# and CNPG_SHA256; test/architecture holds the two equal). Production's operator is the platform's;
+# this one is integration's, so that the database here is in production's shape (ADR-0082).
+readonly CNPG_VERSION="1.30.0"
+readonly CNPG_SHA256="f8bede43fe4ee0d478c2355b204a36876b2ae4faac60f2a9452280b293da3b88"
 
 # The name CI reaches the API server by. It resolves through the environment's wildcard record, so
 # it costs no DNS entry of its own, and it means the endpoint in the kubeconfig is a name we
@@ -92,27 +97,79 @@ for attempt in 1 2 3 4 5 6; do
 done
 
 # ---------------------------------------------------------------------------------------------
+log "CloudNativePG ${CNPG_VERSION}"
+
+# The database moved to production's shape (ADR-0082). A host still running the StatefulSet of
+# before is rebuilt by a person, not by this script: deleting a database is a step somebody takes
+# on purpose (deploy/integration/README.md, "Rebuilding the database").
+if kubectl -n "$NAMESPACE" get statefulset hubtask-db >/dev/null 2>&1; then
+  echo "the StatefulSet database of before is still here; rebuild it first:" >&2
+  echo "  deploy/integration/README.md, \"Rebuilding the database\"" >&2
+  exit 1
+fi
+
+if ! kubectl get deployment cnpg-controller-manager -n cnpg-system >/dev/null 2>&1; then
+  fetch_verified \
+    "https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-${CNPG_VERSION%.*}/releases/cnpg-${CNPG_VERSION}.yaml" \
+    /tmp/cnpg.yaml "$CNPG_SHA256"
+  # Server-side: the CRDs are larger than the annotation a client-side apply keeps.
+  kubectl apply --server-side -f /tmp/cnpg.yaml
+fi
+kubectl -n cnpg-system rollout status deployment/cnpg-controller-manager --timeout=300s
+
+# ---------------------------------------------------------------------------------------------
 log "namespace, secrets and volumes"
 
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
+# The WAL archive's bucket credentials (values.yaml, database.backup). Read from the environment of
+# whoever runs this, once, and never printed: the bucket's name and endpoint are configuration in
+# the values file, its keys are not.
+if ! kubectl -n "$NAMESPACE" get secret hubtask-wal >/dev/null 2>&1; then
+  : "${HUBTASK_WAL_ACCESS_KEY:?export HUBTASK_WAL_ACCESS_KEY, the WAL bucket's access key (README)}"
+  : "${HUBTASK_WAL_SECRET_KEY:?export HUBTASK_WAL_SECRET_KEY, the WAL bucket's secret key (README)}"
+  kubectl -n "$NAMESPACE" create secret generic hubtask-wal \
+    --from-literal=access-key="$HUBTASK_WAL_ACCESS_KEY" \
+    --from-literal=secret-key="$HUBTASK_WAL_SECRET_KEY"
+fi
+
 # Passwords are hex, not base64: they travel inside a DSN, and a `/` or `+` in a URL is a parsing
 # question nobody should have to think about (deployment.md §6.1).
-if ! kubectl -n "$NAMESPACE" get secret hubtask-db >/dev/null 2>&1; then
-  kubectl -n "$NAMESPACE" create secret generic hubtask-db \
-    --from-literal=owner-password="$(openssl rand -hex 24)"
+#
+# Two DSNs, the arrangement of production: the migration runs as the owner, out of the Secret the
+# operator generates (`hubtask-db-app`), so that credential is never copied; the application
+# connects as hubtask_app, a role the operator creates from `hubtask-app-role`. Both carry the one
+# password generated here - two names for one credential.
+if ! kubectl -n "$NAMESPACE" get secret hubtask-app-role >/dev/null 2>&1; then
+  kubectl -n "$NAMESPACE" create secret generic hubtask-app-role \
+    --type=kubernetes.io/basic-auth \
+    --from-literal=username=hubtask_app \
+    --from-literal=password="$(openssl rand -hex 24)"
 fi
 if ! kubectl -n "$NAMESPACE" get secret hubtask-secrets >/dev/null 2>&1; then
-  owner="$(kubectl -n "$NAMESPACE" get secret hubtask-db -o jsonpath='{.data.owner-password}' | base64 -d)"
-  app="$(openssl rand -hex 24)"
-  # sslmode=disable: the connection never leaves the node, and a certificate the cluster would
-  # have to issue to itself buys nothing here. A database on another host makes this require.
+  app="$(kubectl -n "$NAMESPACE" get secret hubtask-app-role -o jsonpath='{.data.password}' | base64 -d)"
+  # sslmode=require: the operator serves TLS from its own authority, as production's does.
   kubectl -n "$NAMESPACE" create secret generic hubtask-secrets \
-    --from-literal=db-dsn-owner="postgres://hubtask:${owner}@hubtask-db:5432/hubtask?sslmode=disable" \
-    --from-literal=db-dsn="postgres://hubtask_app:${app}@hubtask-db:5432/hubtask?sslmode=disable" \
-    --from-literal=db-app-password="${app}" \
+    --from-literal=db-dsn="postgres://hubtask_app:${app}@hubtask-db-rw:5432/hubtask?sslmode=require" \
     --from-literal=secret-key="$(openssl rand -base64 32)"
 fi
+
+# The master keyring (values.yaml, encryption.keys): one key, generated here and never printed,
+# added to a Secret made before the keyring existed. Losing it makes every sealed value unreadable
+# (backup-restore.md §4), so it is never replaced once it is there.
+if [[ -z "$(kubectl -n "$NAMESPACE" get secret hubtask-secrets -o go-template='{{if index .data "encryption-key-k1"}}set{{end}}' 2>/dev/null)" ]]; then
+  kubectl -n "$NAMESPACE" patch secret hubtask-secrets --type merge \
+    -p "{\"stringData\":{\"encryption-key-k1\":\"$(openssl rand -base64 32)\"}}"
+fi
+
+# Plain HTTP redirects to HTTPS on the application's route (https-redirect.yaml): a Traefik object,
+# so it is made here rather than by the release.
+kubectl apply -f "${HERE}/https-redirect.yaml"
+
+# The restore drill's Role, created here rather than by the release: the deploy identity may not
+# create RBAC objects (deployer-rbac.yaml), the same arrangement as production's
+# (deploy/production/PLATFORM-INTERFACE.md). values.yaml sets restoreDrill.rbac.create=false.
+kubectl apply -f "${HERE}/restore-drill-rbac.yaml"
 
 # The chart mounts this claim and does not create it: a chart that creates storage is a chart that
 # can delete it (k8s/values.yaml, storage.persistence).
@@ -129,10 +186,8 @@ spec:
       storage: 10Gi
 PVC
 
-# ---------------------------------------------------------------------------------------------
-log "PostgreSQL"
-kubectl apply -f "${HERE}/postgres.yaml"
-kubectl -n "$NAMESPACE" rollout status statefulset/hubtask-db --timeout=300s
+# The database itself is the release's (values.yaml, database.enabled): CI's deploy creates the
+# Cluster on its first run after a rebuild, before it migrates (deploy.yml).
 
 # ---------------------------------------------------------------------------------------------
 log "the application's mail server"

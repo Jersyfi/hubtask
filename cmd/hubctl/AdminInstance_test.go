@@ -350,3 +350,29 @@ func TestThePersonOptOutIsLockedFromTheTerminal(t *testing.T) {
 		t.Errorf("the rest of the area was not sent back: %v", ai)
 	}
 }
+
+// UC-INS-14 checks 7 and 8: the metering switch is set from the terminal, beside the areas, and the
+// rest of the level goes back untouched.
+func TestMeteringIsSwitchedOnFromTheTerminal(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(wholeLevel))
+	})
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "metering", "on")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if stub.request.Method != http.MethodPut || sent["metering"] != true {
+		t.Errorf("sent %s %v", stub.request.Method, sent["metering"])
+	}
+	if _, held := sent["sign_in"]; !held {
+		t.Error("switching metering dropped the sign-in area")
+	}
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "metering", "maybe"); code == exitOK {
+		t.Error("a value that is neither on nor off was taken")
+	}
+}

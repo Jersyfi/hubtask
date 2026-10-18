@@ -170,6 +170,20 @@ export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */
 export type ProviderConnectAuthorization = components['schemas']['ProviderConnectAuthorization'];
+/** The passkeys of the reader's own account, and whether another can be added now (identity.md §23). */
+export type PasskeyList = components['schemas']['PasskeyList'];
+export type Passkey = components['schemas']['Passkey'];
+/** The options `navigator.credentials.create()` is asked with, in WebAuthn's JSON form. */
+export type PasskeyRegistrationOptions = components['schemas']['PasskeyRegistrationOptions'];
+/** What the browser's ceremony answered, encoded, and the name the person chose. */
+export type PasskeyRegistration = components['schemas']['PasskeyRegistration'];
+export type PasskeyRegistered = components['schemas']['PasskeyRegistered'];
+/** The options for a passkey sign-in, and what the browser's ceremony answered (identity.md §23.4). */
+export type PasskeySignInOptions = components['schemas']['PasskeySignInOptions'];
+export type PasskeyAssertion = components['schemas']['PasskeyAssertion'];
+/** The options for a key's ceremony as the second factor or a fresh proof, and a setup's answer. */
+export type PasskeyAssertionOptions = components['schemas']['PasskeyAssertionOptions'];
+export type PasskeyEnrolled = components['schemas']['PasskeyEnrolled'];
 /** What the installation says about itself. The frame configures from it and hard-codes nothing. */
 export type Capabilities = components['schemas']['Capabilities'];
 /**
@@ -528,6 +542,13 @@ export type InstanceOverview = components['schemas']['InstanceOverview'];
 export type InstallationSetUp = components['schemas']['InstallationSetUp'];
 export type InstanceJournalEntry = components['schemas']['InstanceJournalEntry'];
 export type InstanceJournalPage = components['schemas']['InstanceJournalPage'];
+/**
+ * The installation's subscriptions for a purchase platform (UC-INS-14): an address its events are
+ * pushed to, with the dead letters waiting. The secret is answered once, at creation and rotation.
+ */
+export type PlatformSubscription = components['schemas']['PlatformSubscription'];
+export type PlatformSubscriptionSecret = components['schemas']['PlatformSubscriptionSecret'];
+export type PlatformDelivery = components['schemas']['PlatformDelivery'];
 /** The control plane's view of a workspace: its standing and its lifecycle, never its contents. */
 export type AdminTenant = components['schemas']['AdminTenant'];
 /** The installation's own switches, each with where its lock came from. */
@@ -542,6 +563,17 @@ export type TenantProvision = components['schemas']['TenantProvision'];
 export type ProvisionedTenant = components['schemas']['ProvisionedTenant'];
 /** A workspace's limits, each absent where the installation's default applies. */
 export type TenantQuotas = components['schemas']['TenantQuotas'];
+/**
+ * A plan: a provider's group of workspaces with its own values, locks and the features it leaves
+ * out (multi-tenancy.md §4.2), and what writing one or moving a workspace onto one takes and answers.
+ */
+export type Plan = components['schemas']['Plan'];
+export type PlanCreate = components['schemas']['PlanCreate'];
+export type PlanChange = components['schemas']['PlanChange'];
+export type PlanFeature = components['schemas']['PlanFeature'];
+export type TenantPlanMove = components['schemas']['TenantPlanMove'];
+export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
+export type LimitExceeded = components['schemas']['LimitExceeded'];
 /**
  * An operator's opening of the password for one workspace (ADR-0078 §3): until when, who asked and
  * why - and what opening one asks for.

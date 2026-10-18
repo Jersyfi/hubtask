@@ -73,6 +73,8 @@ func (c *RestController) ProvisionTenant(
 		"default_time_zone":  optionalStringField(body.DefaultTimeZone),
 		"owner_email":        string(body.OwnerEmail),
 		"owner_display_name": optionalStringField(body.OwnerDisplayName),
+		"plan":               optionalStringField(body.Plan),
+		"external_reference": optionalStringField(body.ExternalReference),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -158,6 +160,15 @@ func adminTenantResponse(row usecase.Output) openapi.AdminTenant {
 	}
 	if opening, held := row["password_opening"].(usecase.Output); held {
 		tenant.PasswordOpening = passwordOpeningResponse(opening)
+	}
+	if name := row.String("plan"); name != "" {
+		tenant.Plan = &name
+	}
+	if reference := row.String("external_reference"); reference != "" {
+		tenant.ExternalReference = &reference
+	}
+	if version := row.Int("version"); version > 0 {
+		tenant.Version = &version
 	}
 	return tenant
 }
@@ -331,6 +342,17 @@ func quotaStandingsResponse(out usecase.Output) []openapi.QuotaStanding {
 		}
 		if configured, _ := row["configured"].(bool); configured {
 			standing.Configured = &configured
+		}
+		if locked, _ := row["locked"].(bool); locked {
+			standing.Locked = &locked
+		}
+		if source := row.String("source"); source != "" {
+			answered := openapi.QuotaSource(source)
+			standing.Source = &answered
+		}
+		if lock := row.String("lock"); lock != "" {
+			answered := openapi.PolicyLock(lock)
+			standing.Lock = &answered
 		}
 		if used, held := row["used"].(int64); held {
 			standing.Used = &used

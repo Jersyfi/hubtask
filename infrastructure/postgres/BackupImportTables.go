@@ -304,6 +304,17 @@ var importers = map[string]importer{
 			return queries.ClearNotificationPreference(ctx)
 		},
 	},
+	"webauthn_credential": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportPasskey(ctx, sqlc.ImportPasskeyParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsPasskey(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearPasskeys(ctx)
+		},
+	},
 	"private_hub_access": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportPrivateHubAccess(ctx, sqlc.ImportPrivateHubAccessParams{Payload: payload, Overwrite: overwrite})

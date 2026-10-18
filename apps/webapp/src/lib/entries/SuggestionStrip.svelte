@@ -32,8 +32,11 @@
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
   import {
     acceptCodeOf,
+    hasChoices,
     headingCodeOf,
+    isPending,
     isStale,
+    noteOf,
     offersFor,
     operationOf,
     shapeOf,
@@ -58,10 +61,21 @@
 
   $effect(() => untrack(() => labels.open(item.collection_id)));
   $effect(() => untrack(() => buckets.open(item.collection_id)));
+  $effect(() => untrack(() => customFields.open(item.collection_id)));
   $effect(() => () => suggestions.forget(item.id));
 
   const hasComments = $derived(thread.state.status === 'ready' && (thread.state.data.data ?? []).length > 0);
-  const offers = $derived(offersFor(manifest.value?.features, item, hasComments));
+  // What a classification could choose from: the same three lists the server reads before it
+  // queues one, so the menu offers it exactly where it can succeed (P-05).
+  const choices = $derived(
+    hasChoices(
+      item,
+      labels.stateOf(item.collection_id),
+      buckets.stateOf(item.collection_id),
+      customFields.stateOf(item.collection_id),
+    ),
+  );
+  const offers = $derived(offersFor(manifest.value?.features, item, hasComments, choices));
 
   const open = $derived(
     listing.state.status === 'ready'
@@ -74,23 +88,20 @@
 
   const asking = $derived(suggestions.askingOf(item.id));
 
+  const note = $derived(noteOf(asking));
+
   // A proposal arriving is a job finishing that nobody focused (4.1.3): said once, at the moment
-  // the strip shows it - and a wait that ended empty is said the same way, since the note it
-  // leaves is as silent as the proposal would have been.
+  // the strip shows it - and every other change of an ask (slow, ended with a note, refused) is
+  // said the same way, since the note it leaves is as silent as the proposal would have been.
   let announcedFor = $state<string | undefined>(undefined);
   $effect(() => {
     const now = asking;
-    if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
-    announcedFor = now.askedAt;
-    announcer.say(
-      now.outcome === 'refused' && now.refusal
-        ? renderRefusal(now.refusal, messages)
-        : now.outcome === 'arrived'
-          ? t('app.suggestions.arrived_announced')
-          : now.outcome === 'gave_up'
-            ? t('app.suggestions.gave_up')
-            : t('app.suggestions.nothing_near'),
-    );
+    if (!now || now.outcome === 'following') return;
+    const key = `${now.askedAt} ${now.outcome}`;
+    if (announcedFor === key) return;
+    announcedFor = key;
+    const said = now.outcome === 'arrived' ? t('app.suggestions.arrived_announced') : note ? renderRefusal(note, messages) : undefined;
+    if (said) announcer.say(said);
   });
 
   /** The code each operation's menu item reads. */
@@ -173,19 +184,15 @@
         <Button size="sm" tone="secondary" icon="sparkles" {...props}>{t('app.suggestions.ask')}</Button>
       {/snippet}
     </Menu>
-    {#if asking?.outcome === 'gave_up'}
-      <p class="note">{t('app.suggestions.gave_up')}</p>
-    {:else if asking?.outcome === 'refused' && asking.refusal}
-      <p class="note">{renderRefusal(asking.refusal, messages)}</p>
-    {:else if asking?.outcome === 'nothing_near'}
-      <p class="note">{t('app.suggestions.nothing_near')}</p>
+    {#if note}
+      <p class="note" data-note={note.code}>{renderRefusal(note, messages)}</p>
     {/if}
     {#if askFailure}
       <p class="failure" role="alert">{askFailure.message}</p>
     {/if}
   </div>
 
-  {#if asking?.outcome === 'following'}
+  {#if asking && isPending(asking)}
     <AISuggestion heading={t(OPERATION_CODE[asking.operation as Operation])} state="pending" pendingLabel={t('app.suggestions.pending')} />
   {/if}
 
@@ -193,7 +200,7 @@
     <p class="failure" role="alert">{listingFailure.message}</p>
   {:else if listing.state.status === 'loading' || listing.state.status === 'idle'}
     <div aria-busy="true"><Skeleton lines={2} /></div>
-  {:else if open.length === 0 && asking?.outcome !== 'following'}
+  {:else if open.length === 0 && !isPending(asking) && !note}
     <p class="note">{t('app.suggestions.none')}</p>
   {/if}
 

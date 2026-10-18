@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -875,7 +876,8 @@ func (h ListIdentityProviders) invoke(
 
 func (h ConfigureIdentityProvider) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ConfigureIdentityProviderName,
+		Name:        ConfigureIdentityProviderName,
+		Entitlement: entitlement.OwnSignInProviders,
 		Summary: "Adds or replaces one of the providers this workspace signs its people in " +
 			"through: the issuer, the client registration, whom the provider may bring in, and " +
 			"the email domains inside which an arriving address may claim an account that " +

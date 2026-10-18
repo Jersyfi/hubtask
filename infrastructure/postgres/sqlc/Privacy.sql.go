@@ -311,6 +311,20 @@ func (q *Queries) DeleteNotificationsOfAccount(ctx context.Context, accountID pg
 	return result.RowsAffected(), nil
 }
 
+const deletePasskeysOfAccount = `-- name: DeletePasskeysOfAccount :execrows
+DELETE FROM webauthn_credential WHERE account_id = $1
+`
+
+// A passkey is a way in like a token: an anonymised account keeps its row and none of its
+// credentials (identity.md §23.5).
+func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePasskeysOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const discardIntakeOf = `-- name: DiscardIntakeOf :execrows
 DELETE FROM jumble_entry
 WHERE tenant_id = current_tenant_id()

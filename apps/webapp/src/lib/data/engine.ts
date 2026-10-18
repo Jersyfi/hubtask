@@ -12,7 +12,7 @@
  * back, and a copy taken once is a copy that keeps working after a sign-out.
  * `lib/session.svelte.ts` is what puts a pair there and takes it away again.
  */
-import { FetchTransport, SyncEngine } from '@hubtask/sync-engine';
+import { FetchTransport, SyncEngine, TransportError } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { mutationFor, storeFor } from './replica.ts';
@@ -47,7 +47,47 @@ export function whenCredentialRefused(handler: () => void): void {
  * exchange that could trigger an exchange. Every `fetch` in this client still happens in exactly
  * one place — `FetchTransport` — which is the rule that matters (`project-structure.md` §2.1).
  */
-const transport = new FetchTransport({ baseUrl: '/api/v1' });
+/**
+ * What to do when the server answers that the workspace is paused - suspended or pending deletion -
+ * registered rather than imported, for the reason `onRefused` is.
+ */
+let onPaused: (cause: TransportError) => void = () => {};
+
+export function whenWorkspacePaused(handler: (cause: TransportError) => void): void {
+  onPaused = handler;
+}
+
+/** The refusals a paused workspace answers every request with (multi-tenancy.md §5). */
+const PAUSED = new Set(['access.tenant_suspended', 'access.tenant_pending_deletion']);
+
+export function isPaused(cause: unknown): cause is TransportError {
+  return cause instanceof TransportError && cause.status === 403 && PAUSED.has(cause.detailCode ?? '');
+}
+
+/**
+ * The transport, watched for the paused refusal on every call it makes. A `403` is not a refused
+ * credential, so the engine keeps the session through it - and a person whose workspace was paused
+ * under them would meet the same refusal on every screen. Each call's answer passes through as it
+ * came; the refusal is only reported on the way.
+ */
+function watchedForPause<T extends object>(inner: T): T {
+  return new Proxy(inner, {
+    get(target, key, receiver) {
+      const value: unknown = Reflect.get(target, key, receiver);
+      if (typeof value !== 'function') return value;
+      return (...args: unknown[]) => {
+        const answer: unknown = value.apply(target, args);
+        if (!(answer instanceof Promise)) return answer;
+        return answer.catch((cause: unknown) => {
+          if (isPaused(cause)) onPaused(cause);
+          throw cause;
+        });
+      };
+    },
+  });
+}
+
+const transport = watchedForPause(new FetchTransport({ baseUrl: '/api/v1' }));
 
 /**
  * Exchanges the refresh token for the next pair, and answers whether the session survived.

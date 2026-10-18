@@ -22,17 +22,21 @@
   // so no native GET can carry it in a URL, never logged, never written into a message, and out of
   // this component's state the moment an attempt is over.
 
-  import { Banner, Button, CodeField, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Callout, CodeField, Input, Stack } from '@hubtask/design-system/components';
 
+  import AccountLink from '../lib/workspace/AccountLink.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import TotpEnrollment from '../lib/frame/TotpEnrollment.svelte';
+  import KeyEnrollment from '../lib/frame/KeyEnrollment.svelte';
   import { oidc } from '../lib/data/oidc.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
   import { session } from '../lib/session.svelte.ts';
+  import { passkeySignIn } from '../lib/data/passkeysignin.svelte.ts';
+  import { canCreatePasskeys, ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential } from '../lib/data/passkeys.ts';
   import { phaseOf, remaining } from '../lib/signin/expiry.ts';
   import { ordered, readLastProvider, rememberPassword, rememberProvider } from '../lib/signin/lastMethod.ts';
   import { passwordFormOf } from '../lib/signin/passwordForm.ts';
@@ -75,6 +79,22 @@
   const termsOwed = $derived(session.mustAgreeTerms ? owed?.terms : undefined);
   let linkPassword = $state('');
   const hasRecovery = $derived(owed?.methods.includes('RECOVERY') ?? false);
+  /**
+   * The factor's step draws what the server names (identity.md §23.2): the code field only with
+   * `TOTP`, the key's button with `PASSKEY` where this browser can ask a device, the recovery code
+   * with `RECOVERY`. Nothing else asked for, the recovery field stands from the start.
+   */
+  const hasCode = $derived(owed?.methods.includes('TOTP') ?? false);
+  const offersKey = $derived(
+    (owed?.methods.includes('PASSKEY') ?? false) && owed?.passkeyOptions !== undefined &&
+      canCreatePasskeys(globalThis as never),
+  );
+  const showsRecovery = $derived(usingRecovery || (!hasCode && !offersKey));
+  let keyWaiting = $state(false);
+  let keyFailed = $state(false);
+  let keyButton = $state<HTMLElement | undefined>(undefined);
+  /** The setup during sign-in offers a key beside the app where the server says it can be made here. */
+  const offersKeySetup = $derived((owed?.passkeySetup ?? false) && canCreatePasskeys(globalThis as never));
   /**
    * The providers, with the one this browser used last at the top.
    *
@@ -124,18 +144,45 @@
    */
   let recoveryBox = $state<HTMLDivElement | undefined>(undefined);
   $effect(() => {
-    if (usingRecovery) recoveryBox?.querySelector('input')?.focus();
+    if (showsRecovery) recoveryBox?.querySelector('input')?.focus();
   });
 
   async function complete(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     await session.completeSecondFactor(
-      usingRecovery ? { recoveryCode: recoveryCode.trim() } : { code: code.trim() },
+      showsRecovery ? { recoveryCode: recoveryCode.trim() } : { code: code.trim() },
     );
     // Out of the component's state whatever happened. A recovery code works exactly once, and one
     // left in a field is one somebody may try to use again.
     code = '';
     recoveryCode = '';
+  }
+
+  /**
+   * Asks the device for the key's answer to the step's options. A prompt the person closes says
+   * nothing and leaves the focus on the button (P-11); a refused key is the server's sentence, and
+   * the step stands for another try.
+   */
+  async function useKey(): Promise<void> {
+    const options = owed?.passkeyOptions;
+    if (!options) return;
+    keyFailed = false;
+    keyWaiting = true;
+    let credential: Credential | null;
+    try {
+      credential = await navigator.credentials.get(keyRequestOptionsOf(options));
+    } catch (cause) {
+      keyWaiting = false;
+      if (ceremonyEndOf(cause) === 'cancelled') keyButton?.querySelector('button')?.focus();
+      else keyFailed = true;
+      return;
+    }
+    keyWaiting = false;
+    if (credential === null) {
+      keyButton?.querySelector('button')?.focus();
+      return;
+    }
+    await session.completeWithKey(keyAnswerOf(credential as unknown as AssertedCredential));
   }
 
   async function setNewPassword(event: SubmitEvent): Promise<void> {
@@ -176,6 +223,24 @@
     // `replace`: Back should return to the sign-in screen, which is where somebody who changed
     // their mind at the provider wants to be.
     if (url) location.assign(url);
+  }
+
+  // A passkey where the server names one (it does so only at this workspace's very host) and the
+  // browser can ask a device at all (UC-ID-21 check 1, P-05).
+  const offersPasskey = $derived(signInRules.hasPasskey && canCreatePasskeys(globalThis as never));
+  let passkeyButton = $state<HTMLElement | undefined>(undefined);
+
+  const getCredential = (options: CredentialRequestOptions) => navigator.credentials.get(options);
+
+  /** The address field offers this workspace's passkeys once it has focus, where the browser can. */
+  function offerInField(): void {
+    if (offersPasskey) void passkeySignIn.armField(getCredential);
+  }
+
+  async function signInWithPasskey(): Promise<void> {
+    const ended = await passkeySignIn.ask(getCredential);
+    // A prompt the person closed says nothing and leaves them where they were (P-11).
+    if (ended === 'cancelled') passkeyButton?.querySelector('button')?.focus();
   }
 
   async function submit(event: SubmitEvent): Promise<void> {
@@ -221,6 +286,15 @@
     </Banner>
   {:else if passwordApi.wasSent}
     <Banner tone="success">{t('app.password.forgot_sent')}</Banner>
+  {:else if session.paused}
+    <!-- The workspace is paused (UC-INS-08 check 2): its data is kept, and whom to ask is the
+         provider. Its owners and administrators who proved who they are find the provider's account
+         page here (UC-INS-13 check 11); everybody else the sentence alone. -->
+    <div class="paused" role="status" data-testid="paused">
+      <Callout tone="info" title={t('app.paused.title')}>
+        {t('app.paused.body')} <AccountLink href={session.paused.accountUrl ?? ''} />
+      </Callout>
+    </div>
   {:else if session.problem}
     <!-- The server's one sentence for a refused sign-in, rather than a status code shown raw.
          `role="alert"` is `Banner`'s own for a danger tone: a refusal beside a form is heard. -->
@@ -301,11 +375,27 @@
   <SignInCard
     title={t('app.mfa.title')}
     step={{ index: 2, total: 2 }}
-    lead={t('app.mfa.required_at_sign_in')}
+    lead={t(offersKeySetup ? 'app.mfa.required_at_sign_in_key' : 'app.mfa.required_at_sign_in')}
     {notice}
   >
     <Stack gap="200">
       {@render identity()}
+      {#if offersKeySetup}
+        <KeyEnrollment
+          pendingToken={session.pendingCredential}
+          onarmed={(pair, owedChange) => {
+            if (pair) session.hold(pair);
+            else if (owedChange) {
+              session.owe(owedChange.pending_token, owedChange.methods, {
+                expiresAt: owedChange.expires_at,
+                passwordRules: owedChange.password_rules,
+                terms: owedChange.terms ?? undefined,
+              });
+            }
+          }}
+        />
+        <p class="or">{t('app.mfa.key_or_app')}</p>
+      {/if}
       <TotpEnrollment
         pendingToken={session.pendingCredential}
         onarmed={(pair, owedChange) => {
@@ -419,13 +509,15 @@
   <SignInCard
     title={t('app.sign_in.second_factor')}
     step={{ index: 2, total: 2 }}
-    lead={t(owed.afterReset ? 'app.sign_in.second_factor_after_reset' : 'app.sign_in.second_factor_hint')}
+    lead={t(hasCode || !offersKey
+      ? (owed.afterReset ? 'app.sign_in.second_factor_after_reset' : 'app.sign_in.second_factor_hint')
+      : (owed.afterReset ? 'app.sign_in.second_factor_key_after_reset' : 'app.sign_in.second_factor_key_hint'))}
     {notice}
   >
     <form onsubmit={complete}>
       <Stack gap="200">
         {@render identity()}
-        {#if usingRecovery}
+        {#if showsRecovery}
           <!-- A plain field, not the code field: a recovery code is sixteen letters and digits in
                four groups, and it arrives pasted with its dashes. The code field is six numeric
                places, and drawn as places it would not fit a phone. Nothing here cuts or reshapes
@@ -443,7 +535,7 @@
               isRequired
             />
           </div>
-        {:else}
+        {:else if hasCode}
           <CodeField
             label={t('app.sign_in.code_label')}
             hint={t('app.sign_in.code_hint')}
@@ -452,17 +544,35 @@
             isAutofocused
           />
         {/if}
+        {#if offersKey && !showsRecovery}
+          <div class="passkey" bind:this={keyButton}>
+            <Button
+              tone={hasCode ? 'secondary' : 'primary'}
+              isBusy={keyWaiting || (isBusy && !hasCode)}
+              busyLabel={t('app.sign_in.key_waiting')}
+              onclick={() => void useKey()}
+            >
+              {t('app.sign_in.use_key')}
+            </Button>
+            <p class="waiting" role="status">{keyWaiting ? t('app.sign_in.key_waiting_said') : ''}</p>
+            {#if keyFailed}<p class="waiting" role="alert">{t('app.sign_in.key_failed')}</p>{/if}
+          </div>
+        {/if}
         {#if expiry}
           <p class="expiry">{t('app.sign_in.expires_in', { remaining: expiry })}</p>
           {@render closing()}
         {/if}
         <div class="row">
-          <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
-            {t('app.sign_in.submit')}
-          </Button>
-          {#if hasRecovery}
+          {#if showsRecovery || hasCode}
+            <Button type="submit" tone="primary" {isBusy} busyLabel={t('app.sign_in.working')}>
+              {t('app.sign_in.submit')}
+            </Button>
+          {/if}
+          {#if hasRecovery && (hasCode || offersKey)}
             <Button tone="subtle" onclick={() => (usingRecovery = !usingRecovery)}>
-              {usingRecovery ? t('app.sign_in.use_code') : t('app.sign_in.use_recovery')}
+              {usingRecovery
+                ? t(hasCode ? 'app.sign_in.use_code' : 'app.sign_in.use_key_instead')
+                : t(hasCode ? 'app.sign_in.use_recovery' : 'app.sign_in.use_recovery_key')}
             </Button>
           {/if}
         </div>
@@ -478,6 +588,10 @@
       <Stack gap="250">
         {#if form === 'email' || form === 'identifier'}
           {@render passwordForm()}
+        {/if}
+
+        {#if offersPasskey}
+          {@render passkeyWay()}
         {/if}
 
         <!-- Only providers the rules name (UC-ID-01 check 5): before the rules are read, or when they
@@ -528,6 +642,23 @@
   </SignInCard>
 {/if}
 
+{#snippet passkeyWay()}
+  <!-- Under the password form, or the first way where the password is off. The wait for the device
+       is said once, in a region mounted empty (UC-ID-21 check 9). -->
+  <div class="passkey" bind:this={passkeyButton}>
+    <Button
+      tone="secondary"
+      isFull
+      isBusy={passkeySignIn.isWaiting}
+      busyLabel={t('app.sign_in.passkey_waiting')}
+      onclick={() => void signInWithPasskey()}
+    >
+      {t('app.sign_in.passkey')}
+    </Button>
+    <p class="waiting" role="status">{passkeySignIn.isWaiting ? t('app.sign_in.passkey_waiting_said') : ''}</p>
+  </div>
+{/snippet}
+
 {#snippet passwordForm()}
   <form onsubmit={submit}>
     <Stack gap="200">
@@ -544,6 +675,7 @@
         bind:value={email}
         type={namesAccepted ? 'text' : 'email'}
         autocomplete="username webauthn"
+        onfocus={offerInField}
         autocapitalize="none"
         spellcheck={false}
         isRequired
@@ -671,4 +803,6 @@
     height: var(--bw-hairline);
     background: var(--border-subtle);
   }
+  .passkey { display: grid; gap: var(--sp-050); }
+  .waiting { margin: 0; color: var(--text-secondary); }
 </style>

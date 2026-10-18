@@ -18,7 +18,7 @@
 
   import { resource } from '../data/resource.svelte.ts';
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
-  import { acceptCodeOf, headingCodeOf, shapeOf } from '../data/suggestions.ts';
+  import { acceptCodeOf, headingCodeOf, isPending, noteOf, shapeOf } from '../data/suggestions.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -40,23 +40,20 @@
   );
   const asking = $derived(suggestions.askingOf(containerId));
 
+  const note = $derived(noteOf(asking));
+
   // A proposal arriving is a job finishing that nobody focused (4.1.3): said once, at the moment
-  // the strip shows it - and a wait that ended empty is said the same way, since the note it
-  // leaves is as silent as the proposal would have been.
+  // the strip shows it - and every other change of an ask (slow, ended with a note, refused) is
+  // said the same way, since the note it leaves is as silent as the proposal would have been.
   let announcedFor = $state<string | undefined>(undefined);
   $effect(() => {
     const now = asking;
-    if (!now || now.outcome === 'following' || announcedFor === now.askedAt) return;
-    announcedFor = now.askedAt;
-    announcer.say(
-      now.outcome === 'refused' && now.refusal
-        ? renderRefusal(now.refusal, messages)
-        : now.outcome === 'arrived'
-          ? t('app.suggestions.arrived_announced')
-          : now.outcome === 'gave_up'
-            ? t('app.suggestions.gave_up')
-            : t('app.suggestions.nothing_near'),
-    );
+    if (!now || now.outcome === 'following') return;
+    const key = `${now.askedAt} ${now.outcome}`;
+    if (announcedFor === key) return;
+    announcedFor = key;
+    const said = now.outcome === 'arrived' ? t('app.suggestions.arrived_announced') : note ? renderRefusal(note, messages) : undefined;
+    if (said) announcer.say(said);
   });
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -121,7 +118,7 @@
       size="sm"
       tone="secondary"
       icon="sparkles"
-      disabledReason={asking?.outcome === 'following' ? t('app.suggestions.pending') : undefined}
+      disabledReason={isPending(asking) ? t('app.suggestions.pending') : undefined}
       onclick={ask}
     >
       {t('app.workspace.summarise')}
@@ -130,16 +127,15 @@
   {#if failure}
     <p class="failure" role="alert">{failure.message}</p>
   {/if}
-  {#if asking?.outcome === 'following'}
+  {#if asking && isPending(asking)}
     <AISuggestion
       heading={asking.operation === 'template' ? t('app.suggestions.kind_template') : t('app.workspace.summary')}
       state="pending"
       pendingLabel={t('app.suggestions.pending')}
     />
-  {:else if asking?.outcome === 'gave_up'}
-    <p class="note">{t('app.suggestions.gave_up')}</p>
-  {:else if asking?.outcome === 'refused' && asking.refusal}
-    <p class="note">{renderRefusal(asking.refusal, messages)}</p>
+  {/if}
+  {#if note}
+    <p class="note" data-note={note.code}>{renderRefusal(note, messages)}</p>
   {/if}
   {#each open as suggestion (suggestion.id)}
     {@const shape = shapeOf(suggestion, undefined)}

@@ -4,6 +4,7 @@
 package rest
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -47,18 +48,22 @@ func identityRequestWithBody(
 	controller := NewRestController()
 	controller.UseCases = registry
 
-	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
-		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
-		AccountID: shared.MustParseID(signedInAccount),
-	})
-
-	request := httptest.NewRequestWithContext(ctx, method, APIBasePath+path, strings.NewReader(body))
+	request := httptest.NewRequestWithContext(identityContext(t), method, APIBasePath+path, strings.NewReader(body))
 	if body != "" {
 		request.Header.Set("Content-Type", "application/json")
 	}
 	recorder := httptest.NewRecorder()
 	controller.Routes().ServeHTTP(recorder, request)
 	return recorder
+}
+
+// identityContext is the signed-in person every request of these tests comes from.
+func identityContext(t *testing.T) context.Context {
+	t.Helper()
+	return appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID(signedInAccount),
+	})
 }
 
 // The read a client makes before it can render anything: who am I, and in which language, time
@@ -158,6 +163,21 @@ func TestTheSecondFactorAndTheCodeCountReachTheBody(t *testing.T) {
 	}
 	if required.SecondFactorRequired == nil || !*required.SecondFactorRequired {
 		t.Errorf("second_factor_required = %v, want true", required.SecondFactorRequired)
+	}
+
+	// The app apart from the factor, and whether it may go (UC-ID-03 check 5, UC-ID-22 check 5).
+	out["has_authenticator_app"] = false
+	out["authenticator_app_removable"] = true
+	recorder = identityRequest(t, &catalogue{out: out}, http.MethodGet, "/accounts/me")
+	var app openapi.Account
+	if err := json.Unmarshal(recorder.Body.Bytes(), &app); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if app.HasAuthenticatorApp == nil || *app.HasAuthenticatorApp {
+		t.Errorf("has_authenticator_app = %v, want false", app.HasAuthenticatorApp)
+	}
+	if app.AuthenticatorAppRemovable == nil || !*app.AuthenticatorAppRemovable {
+		t.Errorf("authenticator_app_removable = %v, want true", app.AuthenticatorAppRemovable)
 	}
 
 	// Whether the account holds a password (UC-ID-05 check 5), through the same projection.

@@ -283,6 +283,60 @@ func TestASummaryIsRefusedForWhatTheAskerMayNotRead(t *testing.T) {
 	}
 }
 
+// fixedMaterial answers one material for every question, as the producer would read it.
+type fixedMaterial struct{ material Material }
+
+func (f fixedMaterial) Material(
+	context.Context, appshared.ActorContext, domain.TargetType, shared.ID, string,
+) (Material, error) {
+	return f.material, nil
+}
+
+// A classification may only choose, so with nothing to choose from it is refused before it is
+// queued - from any one of the three lists it may choose from, it is asked (P-05: the client reads
+// the same three lists and offers it exactly there).
+func TestAClassificationWithNothingToChooseFromIsRefused(t *testing.T) {
+	labels := Choices{Key: labelsKey, Options: []Option{{ID: "l1", Name: "moving"}}}
+	columns := Choices{Key: bucketKey, Options: []Option{{ID: "b1", Name: "Doing", Current: true}}}
+	field := Declared{}
+	for _, testCase := range []struct {
+		name     string
+		material Material
+		refused  bool
+	}{
+		{"nothing to choose from", Material{Content: "Title: deck"}, true},
+		{"labels", Material{Content: "Title: deck", Choices: []Choices{labels}}, false},
+		{"columns", Material{Content: "Title: deck", Choices: []Choices{columns}}, false},
+		{"a closed field", Material{Content: "Title: deck", Declared: []Declared{field}}, false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			a := newAsker(true)
+			a.ask.Cases.Material = fixedMaterial{testCase.material}
+
+			err := errOf(AiClassify(a.ask).Execute(context.Background(), person(), targetID, false))
+			if testCase.refused {
+				if shared.AsError(err).DetailCode != "ai.nothing_to_choose_from" || !errors.Is(err, shared.ErrValidation) {
+					t.Fatalf("the answer was %v, want ai.nothing_to_choose_from", err)
+				}
+				if len(a.jobs.queued) != 0 {
+					t.Error("a question with nothing to choose from was queued")
+				}
+				return
+			}
+			if err != nil || len(a.jobs.queued) != 1 {
+				t.Fatalf("the answer was %v with %d jobs, want one queued", err, len(a.jobs.queued))
+			}
+		})
+	}
+
+	// A question that does not choose is asked with the same material.
+	a := newAsker(true)
+	a.ask.Cases.Material = fixedMaterial{Material{Content: "Title: deck"}}
+	if err := errOf(AiSummarize(a.ask).Execute(context.Background(), person(), targetID, false)); err != nil {
+		t.Fatalf("a summary was refused: %v", err)
+	}
+}
+
 // The fixtures.
 
 type asker struct {
