@@ -7,7 +7,7 @@ deployments: [D5, D6, D7]
 serves: [P-03, P-07, P-11]
 state: partial
 tasks: [H-08, SI-17, PL-03, PL-04]
-checked_by: [core/application/service/admin/Quotas_test.go]
+checked_by: [core/application/service/admin/Quotas_test.go, core/application/service/quota/Quota_test.go, test/integration/plan_limits_test.go, test/integration/plan_rate_test.go, presentation/rest/QuotaController_test.go, apps/webapp/e2e/quotas.test.mjs, docs/evidence/PL-03-2026-10-17.md]
 ---
 
 # Set limits for workspaces, and see them before they hurt

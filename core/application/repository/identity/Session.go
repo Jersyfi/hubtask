@@ -30,8 +30,8 @@ type SessionCredential struct {
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
-	// TokenRatePerMinute is the workspace's own request-rate ceiling, Credential's
-	// reason. 0 means the installation's default applies.
+	// TokenRatePerMinute is the workspace's request-rate ceiling per credential, resolved as
+	// Credential's is. 0 means none is set and only the credential level applies.
 	TokenRatePerMinute int64
 	// RotationFrom is the workspace's rotation cutoff (ADR-0068 §3), read off the tenant row this
 	// credential already joins. A session opened before it is refused on its next request - which

@@ -30,6 +30,12 @@ type Overrides struct {
 	AiOwnTokensPerDay *int64
 }
 
+// PlanLimits is a plan's ceilings and the quotas it locks, by their contract names.
+type PlanLimits struct {
+	Overrides Overrides
+	Locks     map[string]bool
+}
+
 // Store reads and writes the overrides in the tenant's own settings document
 // (`tenant.settings.quotas` - §4's home for per-tenant knobs).
 type Store interface {
@@ -53,6 +59,11 @@ type Store interface {
 	// screen says "set by the installation" there (UC-INS-09 check 5). Beside the overrides rather
 	// than in them, because an override is a ceiling a level may leave unset and a lock is not.
 	InstanceLocks(ctx context.Context) (map[string]bool, error)
+
+	// PlanLimits answers what the workspace's plan decides about its limits (multi-tenancy.md
+	// §4.2), read in the transaction's own scope: the zero value for a workspace on no plan. The
+	// workspace's own AI budget is never a plan's.
+	PlanLimits(ctx context.Context) (PlanLimits, error)
 
 	// SetOverrides replaces the quotas key of the settings document, guarded on the row
 	// version. False means the version moved under the caller. AiOwnTokensPerDay is not written:

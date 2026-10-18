@@ -1015,6 +1015,12 @@ class TenantPlanMoved(TypedDict, total=False):
     tenant: Required["AdminTenant"]
     features_resting: Required[list["PlanFeature"]]
     exceptions_kept: Required[list[str]]
+    limits_exceeded: list["LimitExceeded"]
+
+class LimitExceeded(TypedDict, total=False):
+    quota: Required[str]
+    limit: Required[int]
+    used: Required[int]
 
 class TenantUpdate(TypedDict, total=False):
     external_reference: Required[str | None]
@@ -1075,6 +1081,10 @@ class QuotaStanding(TypedDict, total=False):
     ratio: float | None
     configured: bool
     locked: bool
+    source: "QuotaSource"
+    lock: "PolicyLock"
+
+QuotaSource = Literal["DEFAULT", "INSTANCE", "PLAN", "EXCEPTION", "WORKSPACE"]
 
 class TenantQuotas(TypedDict, total=False):
     """Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing."""

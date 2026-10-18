@@ -54,15 +54,11 @@ type Crossings interface {
 
 // limits resolves the transaction's tenant's table.
 func (g Guard) limits(ctx context.Context) (Limits, error) {
-	overrides, err := g.Store.Overrides(ctx)
+	levels, err := ReadLevels(ctx, g.Store)
 	if err != nil {
 		return Limits{}, err
 	}
-	instance, err := g.Store.InstanceOverrides(ctx)
-	if err != nil {
-		return Limits{}, err
-	}
-	return Resolve(overrides, instance, g.Tenancy), nil
+	return Resolve(levels, g.Tenancy), nil
 }
 
 // check is every capacity quota's shape: resolve, count, report the ratio, refuse at the wall.

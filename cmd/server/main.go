@@ -1118,7 +1118,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore, Plans: postgres.NewPlanRepository(),
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
@@ -2314,7 +2314,7 @@ func run() error {
 		}.Descriptor(),
 		adminservice.MoveTenantPlan{
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
-			Quotas: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
+			Quotas: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
 		}.Descriptor(),
 		// The control plane. Its credential is a PAT carrying admin:tenants - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator

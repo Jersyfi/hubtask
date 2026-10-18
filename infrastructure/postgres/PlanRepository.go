@@ -396,3 +396,12 @@ func (PlanRepository) OfWorkspace(ctx context.Context) (plan.Plan, bool, error) 
 	}
 	return plans[0], true, nil
 }
+
+// PlanAi answers the transaction's workspace's plan's AI layer, the zero layer on no plan.
+func (PlanRepository) PlanAi(ctx context.Context) (integration.AiLayer, error) {
+	held, on, err := PlanRepository{}.OfWorkspace(ctx)
+	if err != nil || !on {
+		return integration.AiLayer{}, err
+	}
+	return held.Values.Ai, nil
+}

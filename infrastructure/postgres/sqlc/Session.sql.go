@@ -864,7 +864,20 @@ SELECT s.id, s.tenant_id, s.account_id, s.created_at, s.last_seen_at, s.expires_
        coalesce(n.settings ->> 'week_start', '')::text AS tenant_week_start,
        (SELECT i.value FROM instance_setting i WHERE i.key = 'localisation.week_start') AS installation_week_start,
        n.slug AS tenant_slug, n.status::text AS tenant_status,
-       coalesce((n.settings #>> '{quotas,api_requests_per_minute}')::bigint, 0) AS token_rate_override
+       -- The per-token rate resolves as every limit does (multi-tenancy.md §4.2): the operator's
+       -- exception, the plan's where the installation does not lock it, the installation's default. A
+       -- value that is not a number reads as none at every level rather than failing every sign-in.
+       coalesce(
+         CASE WHEN jsonb_typeof(n.settings #> '{quotas,api_requests_per_minute}') = 'number'
+              THEN (n.settings #>> '{quotas,api_requests_per_minute}')::numeric::bigint END,
+         (SELECT (ps.value #>> '{}')::numeric::bigint FROM plan_setting ps
+          WHERE ps.plan_id = n.plan_id AND ps.key = 'quota.api_requests_per_minute'
+            AND jsonb_typeof(ps.value) = 'number'
+            AND NOT EXISTS (SELECT 1 FROM instance_setting il
+                            WHERE il.key = 'quota.api_requests_per_minute' AND il.lock_origin <> 'OPEN')),
+         (SELECT (i.value #>> '{}')::numeric::bigint FROM instance_setting i
+          WHERE i.key = 'quota.api_requests_per_minute' AND jsonb_typeof(i.value) = 'number'),
+         0) AS token_rate_override
 FROM session s
 JOIN account a ON a.id = s.account_id
 JOIN tenant  n ON n.id = s.tenant_id

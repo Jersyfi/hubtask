@@ -11030,6 +11030,9 @@ components:
           $ref: "#/components/schemas/AiSources"
         installation_sources:
           $ref: "#/components/schemas/AiSources"
+          description: >
+            What the levels above the workspace allow - the installation and the workspace's plan
+            together - which is what the workspace may narrow.
         narrowing:
           $ref: "#/components/schemas/AiSources"
         sources_origin:
@@ -13241,6 +13244,21 @@ components:
             The limits for which the workspace keeps an operator's exception: an exception stays
             the last word, so a platform that sold an add-on sets it again where it should change.
           items: { type: string }
+        limits_exceeded:
+          type: array
+          description: >
+            Each counted limit the workspace now holds more of than its plan, the installation or
+            an exception allows - items, stored bytes, webhook subscriptions. Nothing is removed;
+            the next creation past the limit is refused.
+          items: { $ref: "#/components/schemas/LimitExceeded" }
+
+    LimitExceeded:
+      type: object
+      required: [quota, limit, used]
+      properties:
+        quota: { type: string }
+        limit: { type: integer, format: int64, description: The limit in force. }
+        used: { type: integer, format: int64, description: What the workspace holds. }
 
     TenantUpdate:
       type: object
@@ -13366,6 +13384,20 @@ components:
           description: >
             True when the installation locked this ceiling for every workspace, so it is set by the
             installation rather than offered as its default.
+        source: { $ref: "#/components/schemas/QuotaSource" }
+        lock:
+          $ref: "#/components/schemas/PolicyLock"
+          description: >
+            Which level locked this ceiling - the installation, or the workspace's plan - or null.
+            The operator's exception for one workspace still decides under either.
+
+    QuotaSource:
+      type: string
+      enum: [DEFAULT, INSTANCE, PLAN, EXCEPTION, WORKSPACE]
+      description: >
+        Which level set the ceiling in force: Hubtask's default for the mode, the installation, the
+        workspace's plan, the operator's exception for this one workspace, or - for the workspace's
+        own AI budget only - the workspace itself.
 
     TenantQuotas:
       type: object

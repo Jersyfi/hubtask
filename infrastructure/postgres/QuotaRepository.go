@@ -115,6 +115,31 @@ func (QuotaRepository) InstanceLocks(ctx context.Context) (map[string]bool, erro
 	return locked, nil
 }
 
+// PlanLimits answers the transaction's workspace's plan's ceilings and locks, through the plan read
+// the sign-in rule uses. The plan's map is reassembled by the same document as the installation's
+// rows, so a name this build does not know is dropped in both.
+func (QuotaRepository) PlanLimits(ctx context.Context) (repository.PlanLimits, error) {
+	held, on, err := PlanRepository{}.OfWorkspace(ctx)
+	if err != nil || !on {
+		return repository.PlanLimits{}, err
+	}
+	encoded, err := json.Marshal(held.Values.Quotas.Limits)
+	if err != nil {
+		return repository.PlanLimits{}, shared.Internalf("postgres: encoding the plan's quotas: %w", err)
+	}
+	var document quotasDocument
+	if err := json.Unmarshal(encoded, &document); err != nil {
+		return repository.PlanLimits{}, nil
+	}
+	locks := map[string]bool{}
+	for name, locked := range held.Values.Quotas.Locks {
+		if locked {
+			locks[name] = true
+		}
+	}
+	return repository.PlanLimits{Overrides: fromDocument(document), Locks: locks}, nil
+}
+
 // Overrides answers what the transaction's tenant configured.
 func (QuotaRepository) Overrides(ctx context.Context) (repository.Overrides, error) {
 	queries, err := queriesFrom(ctx)
