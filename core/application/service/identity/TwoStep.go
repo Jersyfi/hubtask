@@ -279,6 +279,8 @@ func (h CompleteSignIn) Execute(
 		hint      domain.PendingCredential
 		remaining = -1
 		bounds    domain.SessionPolicy
+		// pausedFor is the account whose proof completed in a paused workspace.
+		pausedFor shared.ID
 	)
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		lookup, err := w.Pending.FindByToken(ctx, token)
@@ -305,10 +307,10 @@ func (h CompleteSignIn) Execute(
 			return err
 		}
 		// The workspace's standing, Session's reasoning: the second step of a sign-in a
-		// suspension has overtaken completes nothing.
-		if err := lookup.TenantStatus.Verify(); err != nil {
-			return err
-		}
+		// suspension has overtaken completes nothing. Asked after the factor, so that the
+		// refusal can tell an owner or administrator the provider's account link once the proof is
+		// complete; whatever the factor's step wrote rolls back with the refusal.
+		standing := lookup.TenantStatus.Verify()
 
 		subject := mfaSubject(lookup.Account.ID)
 		if err := w.checkLocked(ctx, []string{subject}, now); err != nil {
@@ -336,6 +338,11 @@ func (h CompleteSignIn) Execute(
 			if err := w.recordRecoveryUse(ctx, lookup.Account, left, now); err != nil {
 				return err
 			}
+		}
+
+		if standing != nil {
+			pausedFor = lookup.Account.ID
+			return standing
 		}
 
 		consumed, err := w.Pending.Consume(ctx, lookup.Credential.ID, now)
@@ -367,6 +374,9 @@ func (h CompleteSignIn) Execute(
 		account, hint = lookup.Account, lookup.Credential
 		return nil
 	})
+	if !pausedFor.IsZero() {
+		return SignInResult{}, -1, w.paused(ctx, scope.TenantID, pausedFor, err)
+	}
 	err = w.settleRefusal(ctx, scope, err)
 	if err != nil {
 		return SignInResult{}, -1, err

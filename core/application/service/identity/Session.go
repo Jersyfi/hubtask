@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -88,6 +89,9 @@ type IdentityConnector interface {
 // SessionWriter is what the session use cases share, AccessTokenWriter's shape: one dependency
 // set, because the rules about one credential pair belong in one place.
 type SessionWriter struct {
+	// AccountLinks tells an owner or administrator of a paused workspace the provider's account
+	// link with the refusal, once the proof is complete (multi-tenancy.md §4.2). Nil tells nobody.
+	AccountLinks AccountLinkTold
 	// Connector finishes a provider link at the end of the second factor's step (E2). Nil where
 	// nothing links - a sign-in that never began at a provider carries no link to finish.
 	Connector IdentityConnector
@@ -350,20 +354,38 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	}
 	// The workspace's own standing: a suspended tenant refuses sign-in with the same
 	// code every authenticated call answers, after the password so the refusal leaks nothing.
-	if err := found.TenantStatus.Verify(); err != nil {
-		return SignInResult{}, err
+	// Where a second factor completes the proof, the refusal waits for it: the second step
+	// answers it, so that an owner or administrator is told the provider's account link only
+	// once they have proved who they are (multi-tenancy.md §4.2).
+	paused := found.TenantStatus.Verify()
+	if paused != nil {
+		whole, err := w.passwordIsTheWholeProof(ctx, scope, found.Account, cmd)
+		if err != nil {
+			// Unreadable: the paused sentence, without the link - never a step that might open.
+			return SignInResult{}, paused
+		}
+		if whole {
+			return SignInResult{}, w.paused(ctx, tenantID, found.Account.ID, paused)
+		}
 	}
-	// Only now, with the caller let in: a further step owed below does not undo the proof.
-	w.upgradeHash(ctx, scope, found.Account.ID, found.PasswordHash, cmd.Password)
+	if paused == nil {
+		// Only now, with the caller let in: a further step owed below does not undo the proof.
+		w.upgradeHash(ctx, scope, found.Account.ID, found.PasswordHash, cmd.Password)
+	}
 
 	challenge, verdict, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
 	if err != nil {
 		return SignInResult{}, err
 	}
+	if paused != nil && (challenge == nil || !slices.Contains(challenge.Methods, methodTotp)) {
+		// Nothing but the second factor's step may follow a paused workspace's password: an
+		// enrolment or a password change would lead on to a session.
+		return SignInResult{}, paused
+	}
 	// The password was right and opened the door only as ADR-0076 §4's fallback: the workspace's
 	// trail says so, whichever step follows - its administrators are to see that no way in they
 	// switched on works.
-	if fallback.Opens() {
+	if fallback.Opens() && paused == nil {
 		if err := w.recordFallback(ctx, scope, found.Account, fallback); err != nil {
 			return SignInResult{}, err
 		}

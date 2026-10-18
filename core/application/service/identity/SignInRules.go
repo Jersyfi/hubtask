@@ -58,6 +58,8 @@ type ResolvedPolicy struct {
 	// InstallationEffective is the level above with who decided each switch of it, so a screen can
 	// say "set by the installation" only where the installation set something (P-06, P-10).
 	InstallationEffective domain.EffectivePolicy
+	// AccountLink is the provider's account link in force: installation, then plan (§4.2 there).
+	AccountLink string
 	// InstanceLegal is the installation's own layer of the four links, for where a link came from.
 	InstanceLegal domain.LegalLayer
 	// Workspace is the row the rule was resolved for. Zero where none was.
@@ -133,6 +135,7 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		InstallationLegal:     above,
 		InstallationEffective: installation,
 		InstanceLegal:         instance.Legal,
+		AccountLink:           domain.EffectiveAccountLink(instance.Legal, plan.Legal),
 		Workspace:             workspace,
 		BlocklistFile:         instance.BlocklistFile,
 

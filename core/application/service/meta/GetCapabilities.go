@@ -152,6 +152,9 @@ type Capabilities struct {
 	// WorkspacePermissions: a client draws "Not included in your plan" in place of the controls the
 	// gate would refuse.
 	NotIncluded entitlement.LeftOut
+	// AccountLink is the provider's account link, answered only to the workspace's owners and
+	// administrators and only where one is in force (multi-tenancy.md §4.2); empty otherwise.
+	AccountLink string
 	// Legal is the four links this installation is obliged to show, resolved for the caller's
 	// workspace or - where there is none - for the installation itself (ADR-0068 §7).
 	//
@@ -236,6 +239,12 @@ type PlanEntitlements interface {
 	LeftOut(ctx context.Context, actor appshared.ActorContext) (entitlement.LeftOut, error)
 }
 
+// AccountLinkTold decides who is told the provider's account link, and answers it
+// (identity.AccountLinkTeller): one decision for the manifest and the sign-in.
+type AccountLinkTold interface {
+	For(ctx context.Context, actor appshared.ActorContext) (string, error)
+}
+
 // PeopleCount answers how many people can act in the workspace: a workspace of one has nobody to
 // keep a hub from, so nothing offers one there.
 type PeopleCount interface {
@@ -313,6 +322,9 @@ type GetCapabilities struct {
 	// ActionEntitlements is the feature each action kind's use case uses, where it uses one: an
 	// action a plan leaves out is not offered to a rule editor there.
 	ActionEntitlements map[string]entitlement.Feature
+	// AccountLinks answers the provider's account link to whom it is for. Optional: a build
+	// without it answers none.
+	AccountLinks AccountLinkTold
 	// Entitlements reads what the caller's plan leaves out. Optional: a build without it answers
 	// every feature included.
 	Entitlements PlanEntitlements
@@ -444,6 +456,16 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		}
 		notIncluded = append(entitlement.LeftOut{}, leftOut...)
 		actions = g.offeredActions(leftOut)
+	}
+
+	// The provider's account link, to the workspace's owners and administrators only.
+	var accountLink string
+	if g.AccountLinks != nil && actor.IsAuthenticated() {
+		// A link that cannot be read is no link: the manifest is what every screen waits on, and the
+		// sign-in answers the same failure with its refusal unchanged.
+		if link, err := g.AccountLinks.For(ctx, actor); err == nil {
+			accountLink = link
+		}
 	}
 
 	var privateHubOffered *bool
@@ -593,6 +615,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		WorkspacePermissions: workspacePermissions,
 		PrivateHubOffered:    privateHubOffered,
 		NotIncluded:          notIncluded,
+		AccountLink:          accountLink,
 	}, nil
 }
 

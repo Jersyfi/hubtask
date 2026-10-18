@@ -254,7 +254,7 @@ func (h CompletePasskeySignIn) Execute(ctx context.Context, cmd PasskeySignInCom
 	// The workspace's own state keeps the sentence it has at every door (UC-INS-08 check 2): the
 	// signature has proved the person, so saying the workspace is paused tells nobody else anything.
 	if err := holder.TenantStatus.Verify(); err != nil {
-		return SignInResult{}, err
+		return SignInResult{}, s.paused(ctx, scope.TenantID, account.ID, err)
 	}
 
 	var marked bool

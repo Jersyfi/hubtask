@@ -317,6 +317,13 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		notIncluded = &left
 	}
 
+	// The provider's account link: absent wherever the use case answered none.
+	var accountLink *string
+	if source.AccountLink != "" {
+		link := source.AccountLink
+		accountLink = &link
+	}
+
 	return openapi.Capabilities{
 		ProductVersion:         &productVersion,
 		ApiVersion:             &apiVersion,
@@ -342,6 +349,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		WorkspacePermissions:   workspacePermissions,
 		PrivateHubOffered:      source.PrivateHubOffered,
 		NotIncluded:            notIncluded,
+		AccountLink:            accountLink,
 		Deprecations:           deprecationManifest(),
 	}
 }
