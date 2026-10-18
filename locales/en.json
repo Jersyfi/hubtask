@@ -2450,6 +2450,8 @@
   "app.ai.set_by_plan": "set by your plan",
   "app.plan.not_included": "Not included in your plan",
   "app.plan.account_link": "Your provider's account page",
+  "app.paused.title": "This workspace is paused",
+  "app.paused.body": "Your data is kept in full. Why it is paused and how it goes on, your provider knows.",
   "app.plan.resting": "Resting",
   "app.plan.rules_title": "Rules don't run in this plan.",
   "app.plan.rules_body": "{count, plural, =0 {Your rules rest and stay.} one {Your # rule rests and stays.} other {Your # rules rest and stay.}} When automation is included again, they run from then on.",

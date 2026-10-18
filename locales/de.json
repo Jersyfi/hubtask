@@ -894,6 +894,8 @@
   "app.ai.set_by_plan": "von deinem Plan festgelegt",
   "app.plan.not_included": "Nicht in deinem Plan enthalten",
   "app.plan.account_link": "Kontoseite deines Anbieters",
+  "app.paused.title": "Dieser Arbeitsbereich ist pausiert",
+  "app.paused.body": "Deine Daten sind vollständig erhalten. Warum er pausiert ist und wie es weitergeht, weiß dein Anbieter.",
   "app.plan.resting": "Ruht",
   "app.plan.rules_title": "Regeln laufen in diesem Plan nicht.",
   "app.plan.rules_body": "{count, plural, =0 {Deine Regeln ruhen und bleiben erhalten.} one {Deine # Regel ruht und bleibt erhalten.} other {Deine # Regeln ruhen und bleiben erhalten.}} Ist Automatisierung wieder enthalten, laufen sie ab dann weiter.",

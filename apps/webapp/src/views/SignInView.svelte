@@ -22,8 +22,9 @@
   // so no native GET can carry it in a URL, never logged, never written into a message, and out of
   // this component's state the moment an attempt is over.
 
-  import { Banner, Button, CodeField, Input, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Callout, CodeField, Input, Stack } from '@hubtask/design-system/components';
 
+  import AccountLink from '../lib/workspace/AccountLink.svelte';
   import PasswordField from '../lib/signin/PasswordField.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import SignInCard from '../lib/signin/SignInCard.svelte';
@@ -241,6 +242,15 @@
     </Banner>
   {:else if passwordApi.wasSent}
     <Banner tone="success">{t('app.password.forgot_sent')}</Banner>
+  {:else if session.paused}
+    <!-- The workspace is paused (UC-INS-08 check 2): its data is kept, and whom to ask is the
+         provider. Its owners and administrators who proved who they are find the provider's account
+         page here (UC-INS-13 check 11); everybody else the sentence alone. -->
+    <div class="paused" role="status" data-testid="paused">
+      <Callout tone="info" title={t('app.paused.title')}>
+        {t('app.paused.body')} <AccountLink href={session.paused.accountUrl ?? ''} />
+      </Callout>
+    </div>
   {:else if session.problem}
     <!-- The server's one sentence for a refused sign-in, rather than a status code shown raw.
          `role="alert"` is `Banner`'s own for a danger tone: a refusal beside a form is heard. -->
