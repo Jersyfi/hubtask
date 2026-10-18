@@ -311,8 +311,10 @@ test('chromium: a passkey is renamed with the session alone, and another removed
   await proveWithPassword(page);
   await panel.getByText('Key in the drawer was removed. It no longer works.').waitFor();
   assert.deepEqual(sent.removals, [{ id: DRAWER.id, proof: null }, { id: DRAWER.id, proof: GRANT }]);
-  assert.equal(await panel.getByRole('listitem').count(), 1, 'the removed passkey is still listed');
+  // The notice comes with the answer, the list with the re-read after it: the count is read once the
+  // list has caught up, which the sentence beneath it says.
   await panel.getByText('You hold 1 of at most 10.').waitFor();
+  assert.equal(await panel.getByRole('listitem').count(), 1, 'the removed passkey is still listed');
   assert.deepEqual(failures, []);
 });
 
