@@ -122,7 +122,7 @@ func TestTheProvisioningScopeIsAdmittedOrRefusedPerOperation(t *testing.T) {
 			}
 		})
 	}
-	if admitted != 12 || refused == 0 {
-		t.Errorf("%d operations admitted and %d refused; the platform's verbs are twelve", admitted, refused)
+	if admitted != 20 || refused == 0 {
+		t.Errorf("%d operations admitted and %d refused; the platform's verbs are twenty", admitted, refused)
 	}
 }
