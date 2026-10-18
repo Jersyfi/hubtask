@@ -316,7 +316,8 @@ never rows — the boundary is a database policy, not a role.
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
 provisioning on a plan, finding a workspace by the platform's reference, the sign-in rule and
 legal links resolved through the plan ([identity.md](./identity.md) §18), what a plan leaves out,
-the limits (§4) with the people limit, the AI rule and the account link.
+the limits (§4) with the people limit, the AI rule, the account link and the installation's
+screens.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
@@ -372,6 +373,15 @@ save carries the version it read and is refused with `version_conflict` otherwis
 takes a plan. A plan with workspaces on it cannot be removed. Moving a workspace is written to
 `instance_event` and the workspace's trail; changing a plan to `instance_event`.
 
+**The screens.** *Installation → Plans* lists the plans with their workspaces and what each leaves
+out, and the workspaces on none. The editor draws the installation's levels: a key the installation
+locks is read-only, a value such a lock overtook is shown as not in force, with a way to remove it,
+and a save names how many workspaces it reaches. *Workspaces* shows each one's plan. Changing it
+confirms with the move's dry run (§4.3), in order: what rests, the limits it would be over (people
+included), the exceptions that stay. *New workspace* takes a plan, preset to the only one where
+there is one. An exception's empty field shows what it falls back to: the plan's value where the
+plan sets one the installation does not lock, the installation's otherwise.
+
 **The account link.** An operator may set one address (`legal.account_url`), at the installation
 and per plan; a plan's replaces the installation's unless the installation locks it, a plan cannot
 lock it, and no workspace sets one ([identity.md](./identity.md) §18). Owners and administrators -
@@ -388,7 +398,8 @@ plan, no offer to upgrade.
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order, finding, the credential, the events with their feed and subscriptions, and the use.
+order, finding, the credential, the events with their feed and subscriptions, the use, and the
+move's dry run.
 Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
@@ -408,7 +419,9 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
   the control plane's and a workspace administrator's alike. A move or a lifecycle call may name
   the version it last saw and is refused with `version_conflict` when it is stale; repeated under
   its idempotency key it acts once. Its answer names the limits the workspace is now over, the
-  entitlements that rest and the exceptions that stay.
+  entitlements that rest and the exceptions that stay. A move with `dry_run` answers the same and
+  writes nothing - no trail, journal or event - computed inside the move's transaction and rolled
+  back, so it reads exactly what the move would; it is what a screen's confirmation shows.
 * **Finding.** One workspace is read by its id (`GET /admin/tenants/{id}`, the version as its tag);
   `POST /admin/tenants:query` finds workspaces by short name, reference, plan or state, a page at a
   time - a `POST`, because a reference in a query string would reach access logs. A taken reference

@@ -38,6 +38,8 @@
   import { OWN_TARGET, exportTargetChoices } from '../lib/backup/targets.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
+  import { plans } from '../lib/data/plans.svelte.ts';
+  import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -68,6 +70,10 @@
   let slug = $state('');
   let displayName = $state('');
   let ownerEmail = $state('');
+  /** The plan a new workspace starts on; empty for none. */
+  let newPlan = $state('');
+  /** Whether the plan field was preset yet: the plans may arrive after the dialog opened. */
+  let isPlanPreset = $state(false);
   let ownerName = $state('');
   // What a deletion must be told, and what an export and the quotas need.
   let confirmation = $state('');
@@ -86,6 +92,22 @@
     const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
     return () => stops.forEach((stop) => stop());
   });
+  // A New workspace opened before the plans were read is preset once they are, as it would have been.
+  $effect(() => {
+    if (acting?.kind !== 'new' || isPlanPreset || plans.state.status !== 'ready') return;
+    isPlanPreset = true;
+    newPlan = untrack(() => (plans.all.length === 1 ? (plans.all[0]?.name ?? '') : ''));
+  });
+  // The plans, where there are any to put a workspace on (multi-tenancy.md §4.2).
+  $effect(() => {
+    if (!manifest.isMultiTenant) return;
+    return untrack(() => plans.open());
+  });
+  /** The workspace whose plan is being changed, while the dialog is open. */
+  let moving = $state<AdminTenant | undefined>(undefined);
+  const hasPlans = $derived(manifest.isMultiTenant && plans.all.length > 0);
+  const planName = (name: string | null | undefined): string =>
+    name ? (plans.named(name)?.display_name ?? name) : t('app.instance.plan_none');
 
   /** The installation's own ceiling for a quota, where it set one. */
   function instanceDefault(name: string): string | undefined {
@@ -93,6 +115,23 @@
     const entry = settings?.quotas?.[name];
     if (!entry?.set) return undefined;
     return String(entry.value);
+  }
+
+  /**
+   * What an empty exception falls back to for this workspace: its plan's value where the plan sets
+   * one the installation does not lock, the installation's own otherwise. The same reading as the
+   * server's `quota.Levels.planApplies` (multi-tenancy.md §4.2) - kept beside it, since a
+   * placeholder that names another number than the one in force would be the dialog lying.
+   */
+  function fallbackOf(name: string, tenant: AdminTenant | undefined): { value: string; plan?: string } | undefined {
+    const settings = instance.settings.status === 'ready' ? instance.settings.data : undefined;
+    const plan = tenant?.plan ? plans.named(tenant.plan) : undefined;
+    const planned = plan?.quotas?.[name];
+    if (planned?.set && planned.value !== undefined && planned.value !== null && settings?.quotas?.[name]?.locked !== true) {
+      return { value: String(planned.value), plan: plan?.display_name };
+    }
+    const own = instanceDefault(name);
+    return own === undefined ? undefined : { value: own };
   }
 
   // The operator's own workspace, to mark its row: the one whose suspension or deletion ends the
@@ -112,6 +151,7 @@
   const columns = $derived([
     { id: 'workspace', label: t('app.instance.column_workspace') },
     { id: 'state', label: t('app.instance.column_state') },
+    ...(hasPlans ? [{ id: 'plan', label: t('app.instance.column_plan') }] : []),
     { id: 'since', label: t('app.instance.column_since') },
     { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
   ]);
@@ -146,6 +186,9 @@
       displayName = '';
       ownerEmail = '';
       ownerName = '';
+      // One plan is the installation's plan; among several, none is the choice nobody made.
+      newPlan = plans.all.length === 1 ? (plans.all[0]?.name ?? '') : '';
+      isPlanPreset = plans.state.status === 'ready';
     }
   }
 
@@ -294,6 +337,9 @@
                     </span>
                   {/if}
                 </td>
+                {#if hasPlans}
+                  <td>{planName(workspace.plan)}</td>
+                {/if}
                 <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
                   <div class="row">
@@ -327,6 +373,11 @@
                       >
                         {t('app.instance.resume')}
                       </Button>
+                    {/if}
+                    {#if hasPlans && !workspace.purge_started_at}
+                      <!-- Every workspace but one whose removal has begun can be moved, a suspended or
+                           pending one included: its plan applies as it is used again. -->
+                      <Button tone="subtle" onclick={() => (moving = workspace)}>{t('app.instance.move_action')}</Button>
                     {/if}
                     <Button tone="subtle" onclick={() => open('quotas', workspace)}>
                       {t('app.instance.quotas')}
@@ -366,6 +417,8 @@
   </InstanceGate>
 </Stack>
 
+<MovePlanDialog tenant={moving} onclose={() => (moving = undefined)} />
+
 <Dialog
   title={t('app.instance.workspace_new')}
   isOpen={acting?.kind === 'new'}
@@ -386,6 +439,7 @@
             display_name: displayName.trim(),
             owner_email: ownerEmail.trim(),
             ...(ownerName.trim() === '' ? {} : { owner_display_name: ownerName.trim() }),
+            ...(newPlan === '' ? {} : { plan: newPlan }),
           });
         })}
     >
@@ -406,6 +460,18 @@
     <Input label={t('app.instance.name_label')} bind:value={displayName} autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_email_label')} hint={t('app.instance.owner_email_hint')} bind:value={ownerEmail} type="email" autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_name_label')} bind:value={ownerName} autocomplete="off" />
+    {#if hasPlans}
+      <Select
+        label={t('app.instance.new_plan_label')}
+        hint={t('app.instance.new_plan_hint')}
+        options={[
+          { value: '', label: t('app.instance.plan_none') },
+          ...plans.all.map((plan) => ({ value: plan.name, label: plan.display_name })),
+        ]}
+        bind:value={newPlan}
+        error={failure?.fields.get('/plan')}
+      />
+    {/if}
   </Stack>
 </Dialog>
 
@@ -598,14 +664,17 @@
   <Stack gap="150">
     <p class="prose">{t('app.instance.quotas_intro')}</p>
     {#each QUOTAS as name (name)}
-      <!-- The placeholder is the installation's own ceiling where it set one, so an empty field
-           shows the number it falls back to rather than only saying that it falls back. -->
+      <!-- The placeholder is the number an empty field falls back to - the plan's or the
+           installation's - rather than only saying that it falls back. -->
+      {@const fallback = fallbackOf(name, acting?.tenant)}
       <Input
         label={t(`app.instance.quota.${name}`)}
-        hint={instanceDefault(name) !== undefined
-          ? t('app.instance.quota_default', { value: instanceDefault(name) ?? '' })
-          : t('app.instance.quota_product_default')}
-        placeholder={instanceDefault(name)}
+        hint={fallback === undefined
+          ? t('app.instance.quota_product_default')
+          : fallback.plan !== undefined
+            ? t('app.instance.quota_plan_default', { plan: fallback.plan, value: fallback.value })
+            : t('app.instance.quota_default', { value: fallback.value })}
+        placeholder={fallback?.value}
         value={quotas[name] === undefined ? '' : String(quotas[name])}
         oninput={(event) => readQuota(name, (event.currentTarget as HTMLInputElement).value)}
         type="number"

@@ -251,6 +251,8 @@ async function views() {
     // raised session is not a thing a server-rendered screen can have.
     ['instance', await load('InstanceOverviewView'), { onnavigate: noop }],
     ['instance-workspaces', await load('InstanceWorkspacesView'), { onnavigate: noop }],
+    ['instance-plans', await load('InstancePlansView'), { onnavigate: noop }],
+    ['instance-plan', await load('InstancePlanView'), { name: 'family', onnavigate: noop }],
     ['instance-settings', await load('InstanceSettingsView'), { onnavigate: noop }],
     ['instance-providers', await load('InstanceProvidersView'), { onnavigate: noop }],
     ['instance-ai', await load('InstanceAiView'), { onnavigate: noop }],

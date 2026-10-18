@@ -229,7 +229,7 @@ func adminPlanRemove(ctx context.Context, cli *CLI, args []string) error {
 
 // adminTenantMovePlan puts a workspace on a plan, or on none with --plan "".
 func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
-	usage := "admin tenant move-plan <id> --plan <short name> [--expected-version <n>]"
+	usage := "admin tenant move-plan <id> --plan <short name> [--expected-version <n>] [--dry-run]"
 	tenantID, rest, err := cli.takeID(args, usage)
 	if err != nil {
 		return err
@@ -237,6 +237,7 @@ func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin tenant", "move-plan", "<id> --plan <short name>")
 	target := flags.String("plan", "", "the plan's short name; empty for none")
 	expected := flags.Int("expected-version", 0, "the workspace's version as last read")
+	dryRun := flags.Bool("dry-run", false, "answer what the move would change, and change nothing")
 	if err := parseOnlyFlags(flags, rest, usage); err != nil {
 		return err
 	}
@@ -246,6 +247,9 @@ func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
 	}
 	if *expected > 0 {
 		move.ExpectedVersion = expected
+	}
+	if *dryRun {
+		move.DryRun = dryRun
 	}
 	client, err := cli.client()
 	if err != nil {
@@ -259,13 +263,20 @@ func adminTenantMovePlan(ctx context.Context, cli *CLI, args []string) error {
 	if moved.Tenant.Plan != nil {
 		plan = *moved.Tenant.Plan
 	}
-	return cli.Emit(moved, Table{
+	table := Table{
 		Columns: []string{"workspace", "plan", "features resting", "exceptions kept", "limits exceeded"},
 		Rows: [][]string{{
 			moved.Tenant.Slug, plan, leftOutOf(&moved.FeaturesResting), strings.Join(moved.ExceptionsKept, ","),
 			exceededOf(moved.LimitsExceeded),
 		}},
-	})
+	}
+	// The answer has the move's shape either way; the table says which it was, since a reader of
+	// the output alone could not tell a dry run from a move.
+	if *dryRun {
+		table.Columns = append(table.Columns, "dry run")
+		table.Rows[0] = append(table.Rows[0], "nothing changed")
+	}
+	return cli.Emit(moved, table)
 }
 
 // exceededOf says each limit the workspace is now over as "quota used/limit".

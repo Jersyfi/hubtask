@@ -10509,6 +10509,9 @@ type TenantExportRequest struct {
 
 // TenantPlanMove defines model for TenantPlanMove.
 type TenantPlanMove struct {
+	// DryRun True answers what the move would change - the features that would rest, the limits the workspace would be over, the exceptions that would stay - and writes nothing: no plan, no trail or journal entry, no event. Its `tenant` is the state the move would leave, its version included; a move that follows names the version the caller read, not that one. Send it with an idempotency key of its own.
+	DryRun *bool `json:"dry_run,omitempty"`
+
 	// ExpectedVersion The workspace's version as last read; a stale one is refused.
 	ExpectedVersion *int `json:"expected_version,omitempty"`
 
@@ -10521,10 +10524,10 @@ type TenantPlanMoved struct {
 	// ExceptionsKept The limits for which the workspace keeps an operator's exception: an exception stays the last word, so a platform that sold an add-on sets it again where it should change.
 	ExceptionsKept []string `json:"exceptions_kept"`
 
-	// FeaturesResting The features the workspace's plan now leaves out.
+	// FeaturesResting The features the workspace's plan now leaves out, or with `dry_run` would.
 	FeaturesResting []PlanFeature `json:"features_resting"`
 
-	// LimitsExceeded Each counted limit the workspace now holds more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
+	// LimitsExceeded Each counted limit the workspace now holds - or with `dry_run` would hold - more of than its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed; the next creation past the limit is refused.
 	LimitsExceeded *[]LimitExceeded `json:"limits_exceeded,omitempty"`
 	Tenant         AdminTenant      `json:"tenant"`
 }
@@ -14079,7 +14082,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlanWithBody Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -14088,7 +14091,7 @@ type ClientInterface interface {
 
 	// MoveTenantPlan Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -19824,7 +19827,7 @@ func (c *Client) ExportTenant(ctx context.Context, tenantId AdminTenantId, body 
 
 // MoveTenantPlanWithBody Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type.
 //
@@ -19843,7 +19846,7 @@ func (c *Client) MoveTenantPlanWithBody(ctx context.Context, tenantId AdminTenan
 
 // MoveTenantPlan Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -45160,7 +45163,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -45169,7 +45172,7 @@ type ClientWithResponsesInterface interface {
 
 	// MoveTenantPlanWithResponse Put a workspace on another plan
 	//
-	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+	// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -67886,7 +67889,7 @@ func (c *ClientWithResponses) ExportTenantWithResponse(ctx context.Context, tena
 
 // MoveTenantPlanWithBodyWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67901,7 +67904,7 @@ func (c *ClientWithResponses) MoveTenantPlanWithBodyWithResponse(ctx context.Con
 
 // MoveTenantPlanWithResponse Put a workspace on another plan
 //
-// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
+// Applies at the workspace's next request, with no job. `plan: null` takes the workspace off plans: it has the installation's values and every feature again. With `expected_version`, a move made on a workspace that changed since it was read is refused with `version_conflict`, so a late retry of an older move cannot undo a newer one; repeated under one `Idempotency-Key` it moves once and answers the same. The answer names the features that now rest and the limit exceptions that stay - or, with `dry_run`, would. Nothing is deleted. Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

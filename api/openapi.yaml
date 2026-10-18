@@ -5054,7 +5054,8 @@ paths:
         `expected_version`, a move made on a workspace that changed since it was read is refused
         with `version_conflict`, so a late retry of an older move cannot undo a newer one;
         repeated under one `Idempotency-Key` it moves once and answers the same. The answer names
-        the features that now rest and the limit exceptions that stay. Nothing is deleted.
+        the features that now rest and the limit exceptions that stay - or, with `dry_run`, would.
+        Nothing is deleted.
         Admitted by `admin:tenants` and by `admin:provisioning`, the purchase platform's narrower scope.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -5065,7 +5066,7 @@ paths:
             schema: { $ref: "#/components/schemas/TenantPlanMove" }
       responses:
         "200":
-          description: The workspace on its plan
+          description: The workspace on its plan, or with `dry_run` as it would be
           content:
             application/json:
               schema: { $ref: "#/components/schemas/TenantPlanMoved" }
@@ -13730,6 +13731,14 @@ components:
         expected_version:
           type: integer
           description: The workspace's version as last read; a stale one is refused.
+        dry_run:
+          type: boolean
+          description: >
+            True answers what the move would change - the features that would rest, the limits the
+            workspace would be over, the exceptions that would stay - and writes nothing: no plan,
+            no trail or journal entry, no event. Its `tenant` is the state the move would leave, its
+            version included; a move that follows names the version the caller read, not that one.
+            Send it with an idempotency key of its own.
 
     TenantPlanMoved:
       type: object
@@ -13738,7 +13747,7 @@ components:
         tenant: { $ref: "#/components/schemas/AdminTenant" }
         features_resting:
           type: array
-          description: The features the workspace's plan now leaves out.
+          description: The features the workspace's plan now leaves out, or with `dry_run` would.
           items: { $ref: "#/components/schemas/PlanFeature" }
         exceptions_kept:
           type: array
@@ -13749,8 +13758,8 @@ components:
         limits_exceeded:
           type: array
           description: >
-            Each counted limit the workspace now holds more of than its plan, the installation or
-            an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed;
+            Each counted limit the workspace now holds - or with `dry_run` would hold - more of than
+            its plan, the installation or an exception allows - items, stored bytes, webhook subscriptions, people. Nothing is removed;
             the next creation past the limit is refused.
           items: { $ref: "#/components/schemas/LimitExceeded" }
 
