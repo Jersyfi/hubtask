@@ -272,3 +272,80 @@ test('chromium: where a file enforces the level, a plan shows its values and the
   await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'New plan' }).count(), 0);
 });
+
+test('chromium: moving a workspace names what rests, what is over the new limit and which exceptions stay, then moves it on the version read', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const familie = TENANTS[0];
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === `/admin/tenants/${familie.id}:move-plan`) {
+        const body = request.postDataJSON();
+        sent.push({ body, key: request.headers()['idempotency-key'] });
+        return route.fulfill({
+          json: {
+            tenant: { ...familie, plan: body.plan, version: body.dry_run ? 7 : 8 },
+            features_resting: ['WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS'],
+            limits_exceeded: [{ quota: 'accounts', used: 9, limit: 3 }, { quota: 'items', used: 2400, limit: 1000 }],
+            exceptions_kept: ['items'],
+          },
+        });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const row = page.getByRole('row').filter({ hasText: 'Familie Berger' });
+  await row.waitFor({ timeout: 10_000 });
+  assert.match(await row.textContent() ?? '', /Family/);
+  assert.match(await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).textContent() ?? '', /Without a plan/);
+
+  await row.getByRole('button', { name: 'Change plan' }).click();
+  const choosing = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
+  const offered = await choosing.getByRole('combobox', { name: 'Plan' }).locator('option:not([disabled])').allInnerTexts();
+  assert.deepEqual(offered, ['Private', 'Business', 'Without a plan'], 'the plan it is on is offered');
+  await choosing.getByRole('combobox', { name: 'Plan' }).selectOption('private');
+
+  const confirming = page.getByRole('dialog', { name: 'Put Familie Berger on Private?' });
+  const changes = confirming.getByTestId('move-changes');
+  await changes.waitFor({ timeout: 5_000 });
+  assert.deepEqual(await changes.locator('li').allInnerTexts(), [
+    'Rest from now: Webhooks, Own sign-in providers. Nothing is deleted.',
+    'Over the new limit: People 9 of 3, Entries 2400 of 1000. What exists stays; only something new is refused.',
+    'Stays as an exception: Entries, set for this workspace.',
+  ]);
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0].body, { plan: 'private', expected_version: 7, dry_run: true });
+
+  await confirming.getByRole('button', { name: 'Put it on Private' }).click();
+  await confirming.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent[1].body, { plan: 'private', expected_version: 7 }, 'the move is not a dry run and carries the version read');
+  assert.notEqual(sent[0].key, sent[1].key, 'the dry run and the move share a key');
+});
+
+test('chromium: a move somebody overtook is refused and says so', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const familie = TENANTS[0];
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => {
+      if (path === `/admin/tenants/${familie.id}:move-plan`) {
+        return route.fulfill({ status: 409, json: { code: 'version_conflict', detail_code: 'admin.tenant_version_moved', status: 409, request_id: 'r9' } });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const row = page.getByRole('row').filter({ hasText: 'Familie Berger' });
+  await row.waitFor({ timeout: 10_000 });
+  await row.getByRole('button', { name: 'Change plan' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox', { name: 'Plan' }).selectOption('-');
+  await dialog.getByText('The workspace changed while you were editing; read it again.').waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('button', { name: 'Take it off its plan' }).count(), 0, 'a refused dry run offers the move');
+});

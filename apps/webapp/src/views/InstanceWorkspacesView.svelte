@@ -38,6 +38,8 @@
   import { OWN_TARGET, exportTargetChoices } from '../lib/backup/targets.ts';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
+  import { plans } from '../lib/data/plans.svelte.ts';
+  import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -86,6 +88,16 @@
     const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
     return () => stops.forEach((stop) => stop());
   });
+  // The plans, where there are any to put a workspace on (multi-tenancy.md §4.2).
+  $effect(() => {
+    if (!manifest.isMultiTenant) return;
+    return untrack(() => plans.open());
+  });
+  /** The workspace whose plan is being changed, while the dialog is open. */
+  let moving = $state<AdminTenant | undefined>(undefined);
+  const hasPlans = $derived(manifest.isMultiTenant && plans.all.length > 0);
+  const planName = (name: string | null | undefined): string =>
+    name ? (plans.named(name)?.display_name ?? name) : t('app.instance.plan_none');
 
   /** The installation's own ceiling for a quota, where it set one. */
   function instanceDefault(name: string): string | undefined {
@@ -112,6 +124,7 @@
   const columns = $derived([
     { id: 'workspace', label: t('app.instance.column_workspace') },
     { id: 'state', label: t('app.instance.column_state') },
+    ...(hasPlans ? [{ id: 'plan', label: t('app.instance.column_plan') }] : []),
     { id: 'since', label: t('app.instance.column_since') },
     { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
   ]);
@@ -294,6 +307,9 @@
                     </span>
                   {/if}
                 </td>
+                {#if hasPlans}
+                  <td>{planName(workspace.plan)}</td>
+                {/if}
                 <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
                   <div class="row">
@@ -327,6 +343,11 @@
                       >
                         {t('app.instance.resume')}
                       </Button>
+                    {/if}
+                    {#if hasPlans && !workspace.purge_started_at}
+                      <!-- Every workspace but one whose removal has begun can be moved, a suspended or
+                           pending one included: its plan applies as it is used again. -->
+                      <Button tone="subtle" onclick={() => (moving = workspace)}>{t('app.instance.move_action')}</Button>
                     {/if}
                     <Button tone="subtle" onclick={() => open('quotas', workspace)}>
                       {t('app.instance.quotas')}
@@ -365,6 +386,8 @@
     </Stack>
   </InstanceGate>
 </Stack>
+
+<MovePlanDialog tenant={moving} onclose={() => (moving = undefined)} />
 
 <Dialog
   title={t('app.instance.workspace_new')}
