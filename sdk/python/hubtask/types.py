@@ -740,7 +740,7 @@ class InstanceSetting(TypedDict, total=False):
     minimum: int
     maximum: int
     position: int
-    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE"]
+    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE", "PLAN_REPLACE"]
 
 class InstanceSettings(TypedDict, total=False):
     """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""
@@ -2808,6 +2808,7 @@ class Capabilities(TypedDict, total=False):
     instance: "InstanceReach"
     workspace_permissions: list[Literal["READ", "WRITE_ITEMS", "STRUCTURE", "MANAGE_MEMBERS", "AUTOMATION", "DELETE_CONTAINER", "READ_CONFIGURATION", "AUDIT_READ"]]
     private_hub_offered: bool
+    account_link: str
     not_included: list["PlanFeature"]
     deprecations: list["DeprecatedField"]
 

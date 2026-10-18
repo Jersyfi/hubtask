@@ -3063,6 +3063,12 @@ paths:
         address nobody holds: whether an account exists is exactly what a guessing client is
         trying to learn. Behind that one answer sit the progressive delay and the lockout,
         per account and per IP, and the auth rate-limit bucket in front of everything.
+
+        After the right password, a workspace that is suspended or pending deletion refuses with
+        `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is
+        the whole proof - no second step owed - and the account is an owner or administrator there,
+        the problem's `params` carry `account_url`, the provider's account page, where one is set;
+        the second step and the passkey answer the same once they complete the proof.
       requestBody:
         required: true
         content:
@@ -12284,11 +12290,14 @@ components:
         workspace_may:
           type: string
           readOnly: true
-          enum: [TIGHTEN, RAISE, REPLACE]
+          enum: [TIGHTEN, RAISE, REPLACE, PLAN_REPLACE]
           description: >
             What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value,
-            `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the
-            key is never locked - a language, a time zone and a week start are defaults only.
+            `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the
+            one key no workspace sets, the provider's account link: open, a plan may set its own.
+            Absent where the key is never locked - a language, a time zone and a week start are
+            defaults only - and wherever the lock binds nobody: the account link in single mode, and
+            in a plan's own document.
 
     InstanceSettings:
       type: object
@@ -12318,6 +12327,12 @@ components:
             version is locked exactly when `terms_url` is - its own `locked` is answered as the
             link's and ignored in a write - and it is refused without a terms link
             (`auth.terms_version_without_link`).
+
+            And `account_url`, the provider's account page: an address where the workspace's owners
+            and administrators manage what they are on. It is set here and per plan, never by a
+            workspace; a plan's own replaces the installation's unless the installation locks it,
+            and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and
+            administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
         localisation:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
@@ -18491,6 +18506,16 @@ components:
             including somebody whose roles sit only on hubs, collections or entries and who cannot
             read `GET /tenant`. Whoever holds `STRUCTURE` on the workspace creates shared hubs
             whatever this says.
+        account_link:
+          type: string
+          format: uri
+          description: >
+            The provider's account page, where the workspace's owners and administrators manage what
+            they are on: the installation's address, or the plan's where it sets one and the
+            installation does not lock it. Answered only to whoever holds `STRUCTURE` on the
+            workspace itself, and only where one is set; absent for everybody else. A client shows
+            it beside "Not included in your plan" and at a reached limit, under its own label - the
+            address is the operator's, never a price or an offer.
         not_included:
           type: array
           items: { $ref: "#/components/schemas/PlanFeature" }

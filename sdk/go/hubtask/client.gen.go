@@ -2111,14 +2111,17 @@ func (e InstanceSettingKind) Valid() bool {
 
 // Defines values for InstanceSettingWorkspaceMay.
 const (
-	RAISE   InstanceSettingWorkspaceMay = "RAISE"
-	REPLACE InstanceSettingWorkspaceMay = "REPLACE"
-	TIGHTEN InstanceSettingWorkspaceMay = "TIGHTEN"
+	PLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
+	RAISE       InstanceSettingWorkspaceMay = "RAISE"
+	REPLACE     InstanceSettingWorkspaceMay = "REPLACE"
+	TIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
 )
 
 // Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
 func (e InstanceSettingWorkspaceMay) Valid() bool {
 	switch e {
+	case PLANREPLACE:
+		return true
 	case RAISE:
 		return true
 	case REPLACE:
@@ -5800,7 +5803,9 @@ type CalendarFeedSecret struct {
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
-	ApiVersion *string `json:"api_version,omitempty"`
+	// AccountLink The provider's account page, where the workspace's owners and administrators manage what they are on: the installation's address, or the plan's where it sets one and the installation does not lock it. Answered only to whoever holds `STRUCTURE` on the workspace itself, and only where one is set; absent for everybody else. A client shows it beside "Not included in your plan" and at a reached limit, under its own label - the address is the operator's, never a price or an offer.
+	AccountLink *string `json:"account_link,omitempty"`
+	ApiVersion  *string `json:"api_version,omitempty"`
 
 	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
@@ -7044,14 +7049,14 @@ type InstanceSetting struct {
 	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words. Absent where `set` is false.
 	Value interface{} `json:"value,omitempty"`
 
-	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the one key no workspace sets, the provider's account link: open, a plan may set its own. Absent where the key is never locked - a language, a time zone and a week start are defaults only - and wherever the lock binds nobody: the account link in single mode, and in a plan's own document.
 	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
 
 // InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 type InstanceSettingKind string
 
-// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the one key no workspace sets, the provider's account link: open, a plan may set its own. Absent where the key is never locked - a language, a time zone and a week start are defaults only - and wherever the lock binds nobody: the account link in single mode, and in a plan's own document.
 type InstanceSettingWorkspaceMay string
 
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
@@ -7068,6 +7073,7 @@ type InstanceSettings struct {
 	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
 
 	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
+	// And `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
@@ -14191,6 +14197,7 @@ type ClientInterface interface {
 	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -14203,6 +14210,7 @@ type ClientInterface interface {
 	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -20336,6 +20344,7 @@ func (c *Client) ListSessions(ctx context.Context, reqEditors ...RequestEditorFn
 // Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 //
 // Takes any type of body and a specified content type.
 //
@@ -20358,6 +20367,7 @@ func (c *Client) SignInWithBody(ctx context.Context, contentType string, body io
 // Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -44196,6 +44206,7 @@ type ClientWithResponsesInterface interface {
 	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44208,6 +44219,7 @@ type ClientWithResponsesInterface interface {
 	// Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 	// The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 	// Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+	// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -66518,6 +66530,7 @@ func (c *ClientWithResponses) ListSessionsWithResponse(ctx context.Context, reqE
 // Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -66536,6 +66549,7 @@ func (c *ClientWithResponses) SignInWithBodyWithResponse(ctx context.Context, co
 // Where the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 // The tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.
 // Every failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.
+// After the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

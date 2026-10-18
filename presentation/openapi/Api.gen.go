@@ -2105,14 +2105,17 @@ func (e InstanceSettingKind) Valid() bool {
 
 // Defines values for InstanceSettingWorkspaceMay.
 const (
-	RAISE   InstanceSettingWorkspaceMay = "RAISE"
-	REPLACE InstanceSettingWorkspaceMay = "REPLACE"
-	TIGHTEN InstanceSettingWorkspaceMay = "TIGHTEN"
+	PLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
+	RAISE       InstanceSettingWorkspaceMay = "RAISE"
+	REPLACE     InstanceSettingWorkspaceMay = "REPLACE"
+	TIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
 )
 
 // Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
 func (e InstanceSettingWorkspaceMay) Valid() bool {
 	switch e {
+	case PLANREPLACE:
+		return true
 	case RAISE:
 		return true
 	case REPLACE:
@@ -5794,7 +5797,9 @@ type CalendarFeedSecret struct {
 
 // Capabilities Self-description; clients configure themselves from this.
 type Capabilities struct {
-	ApiVersion *string `json:"api_version,omitempty"`
+	// AccountLink The provider's account page, where the workspace's owners and administrators manage what they are on: the installation's address, or the plan's where it sets one and the installation does not lock it. Answered only to whoever holds `STRUCTURE` on the workspace itself, and only where one is set; absent for everybody else. A client shows it beside "Not included in your plan" and at a reached limit, under its own label - the address is the operator's, never a price or an offer.
+	AccountLink *string `json:"account_link,omitempty"`
+	ApiVersion  *string `json:"api_version,omitempty"`
 
 	// AutoAssignStrategies The values an auto-assign policy's `strategy` may take, for the reason the completion policies are listed.
 	AutoAssignStrategies *[]AutoAssignStrategy `json:"auto_assign_strategies,omitempty"`
@@ -7038,14 +7043,14 @@ type InstanceSetting struct {
 	// Value The value, of whatever kind the switch is - a number, a flag, a word or a list of words. Absent where `set` is false.
 	Value interface{} `json:"value,omitempty"`
 
-	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+	// WorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the one key no workspace sets, the provider's account link: open, a plan may set its own. Absent where the key is never locked - a language, a time zone and a week start are defaults only - and wherever the lock binds nobody: the account link in single mode, and in a plan's own document.
 	WorkspaceMay *InstanceSettingWorkspaceMay `json:"workspace_may,omitempty"`
 }
 
 // InstanceSettingKind What kind of value the key takes, so a client draws the control for it whether or not the key is decided: `COUNT` a whole number, `FLAG` true or false, `CHOICE` one of `options`, `CHOICES` a list drawn from `options`, `LINK` an `https` address, `TEXT` one short line (the terms' version), `LOCALE` a BCP 47 tag, `TIME_ZONE` an IANA zone.
 type InstanceSettingKind string
 
-// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.
+// InstanceSettingWorkspaceMay What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the one key no workspace sets, the provider's account link: open, a plan may set its own. Absent where the key is never locked - a language, a time zone and a week start are defaults only - and wherever the lock binds nobody: the account link in single mode, and in a plan's own document.
 type InstanceSettingWorkspaceMay string
 
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
@@ -7062,6 +7067,7 @@ type InstanceSettings struct {
 	IsEnforcedFromFile *bool `json:"is_enforced_from_file,omitempty"`
 
 	// Legal The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).
+	// And `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.
 	Legal *map[string]InstanceSetting `json:"legal,omitempty"`
 
 	// Localisation `locale`, `time_zone` and `week_start`: what a new workspace starts with, and, for the week start, what a workspace that set none of its own inherits. `week_start` is `MONDAY`, `SATURDAY` or `SUNDAY`, the vocabulary of the account's own; the ISO numbers 1, 6 and 7 are accepted for those days.
