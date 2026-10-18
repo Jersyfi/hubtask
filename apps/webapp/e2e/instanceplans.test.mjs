@@ -428,3 +428,269 @@ test('chromium: under a plan, an empty exception shows the plan\'s value where t
   await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Limits', exact: true }).click();
   assert.equal(await page.getByRole('dialog', { name: 'Limits for Kanzlei Roth' }).getByRole('spinbutton', { name: 'People' }).getAttribute('placeholder'), null, 'without a plan, the installation sets no people');
 });
+
+/** Presses Tab until `locator` has the focus, as a keyboard user reaches it; fails after `limit`. */
+async function tabTo(page, locator, limit = 80) {
+  for (let i = 0; i < limit; i += 1) {
+    if (await locator.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press('Tab');
+  }
+  assert.fail(`Tab never reached ${locator}`);
+}
+
+/**
+ * Whether the focus stays out of the page behind `dialog`. A modal `<dialog>` cycles Tab through its
+ * own controls and the browser's, so between the last and the first the page's focus is on no
+ * element (`body`) - never on one behind the dialog.
+ */
+const focusIsIn = (dialog) =>
+  dialog.evaluate((element) => element.contains(document.activeElement) || document.activeElement === document.body);
+
+test('chromium: the plans list, the editor and the move dialog work from the keyboard', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const familie = TENANTS[0];
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === `/admin/tenants/${familie.id}:move-plan`) {
+        const body = request.postDataJSON();
+        sent.push(body);
+        return route.fulfill({ json: { tenant: { ...familie, plan: body.plan }, features_resting: [], exceptions_kept: [] } });
+      }
+      if (path === '/admin/backup-targets') return route.fulfill({ json: [] });
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans`);
+  const family = page.getByRole('link', { name: 'Family' });
+  await family.waitFor({ timeout: 10_000 });
+  await tabTo(page, family);
+  await page.keyboard.press('Enter');
+  await page.waitForURL(/\/instance\/plans\/family$/, { timeout: 5_000 });
+
+  const save = page.getByRole('button', { name: 'Save the plan' });
+  await save.waitFor({ timeout: 10_000 });
+  await tabTo(page, save, 120);
+  await page.keyboard.press('Enter');
+  const confirming = page.getByRole('dialog', { name: 'Save Family?' });
+  await confirming.waitFor({ timeout: 5_000 });
+  for (let i = 0; i < 6; i += 1) {
+    await page.keyboard.press('Tab');
+    assert.ok(await focusIsIn(confirming), 'the focus left the open confirmation');
+  }
+  await page.keyboard.press('Escape');
+  await confirming.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.ok(await save.evaluate((element) => element === document.activeElement), 'the focus did not return to Save the plan');
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const change = page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' });
+  await change.waitFor({ timeout: 10_000 });
+  await tabTo(page, change);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
+  await dialog.waitFor({ timeout: 5_000 });
+  for (let i = 0; i < 6; i += 1) {
+    await page.keyboard.press('Tab');
+    assert.ok(await focusIsIn(dialog), 'the focus left the open move dialog');
+  }
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.ok(await change.evaluate((element) => element === document.activeElement), 'the focus did not return to Change plan');
+
+  // The closed dialog's own close event arrives a task later and would shut a dialog reopened
+  // before it: let it arrive, as a person's next key press would.
+  await page.waitForTimeout(100);
+  await page.keyboard.press('Enter');
+  await dialog.waitFor({ timeout: 5_000 });
+  const plan = dialog.getByRole('combobox', { name: 'Plan' });
+  // The choice itself is the native select's, whose keyboard is the platform's picker (a popup
+  // headless Chromium does not draw): what is walked here is reaching it and leaving it.
+  await tabTo(page, plan, 10);
+  await plan.selectOption('private');
+  const confirm = page.getByRole('button', { name: 'Put it on Private' });
+  await confirm.waitFor({ timeout: 5_000 });
+  assert.match(await page.getByTestId('move-changes').innerText(), /Nothing rests/);
+  await tabTo(page, confirm, 10);
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog', { name: 'Put Familie Berger on Private?' }).waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(sent.map((body) => body.dry_run === true), [true, false]);
+});
+
+test('chromium: the editor says each refusal where it belongs', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  let creations = 0;
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => {
+      if (path === '/admin/plans/family' && request.method() === 'PUT') {
+        return route.fulfill({ status: 422, json: { code: 'validation_failed', detail_code: 'admin.plan_looser_than_installation', status: 422, request_id: 'r3',
+          field_errors: [{ path: '/sign_in/min_length', code: 'admin.plan_looser_than_installation', params: { setting: 'the minimum length' } }] } });
+      }
+      if (path === '/admin/plans/business' && request.method() === 'DELETE') {
+        return route.fulfill({ status: 409, json: { code: 'conflict', detail_code: 'admin.plan_in_use', status: 409, request_id: 'r4' } });
+      }
+      if (path === '/admin/plans/business' && request.method() === 'PUT') {
+        return route.fulfill({ status: 404, json: { code: 'not_found', detail_code: 'admin.plan_not_found', status: 404, request_id: 'r5' } });
+      }
+      if (path === '/admin/plans' && request.method() === 'POST') {
+        creations += 1;
+        const [code, field] = creations === 1 ? ['admin.plan_name_invalid', '/name'] : ['admin.plan_display_name_invalid', '/display_name'];
+        return route.fulfill({ status: 422, json: { code: 'validation_failed', detail_code: code, status: 422, request_id: 'r6',
+          field_errors: [{ path: field, code }] } });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  // The account link is the plan's value alone: a plan cannot lock it.
+  await page.goto(`${served.origin}/instance/plans/family`);
+  const link = page.locator('[data-value="legal.account_url"]');
+  await link.waitFor({ timeout: 10_000 });
+  assert.equal(await link.getByRole('combobox', { name: 'Workspaces may' }).count(), 0, 'the account link offers a lock');
+
+  // A value looser than the installation's: at its field, not as a banner alone.
+  await page.getByRole('button', { name: 'Save the plan' }).click();
+  await page.getByRole('dialog', { name: 'Save Family?' }).getByRole('button', { name: 'Save', exact: true }).click();
+  const field = page.locator('[data-value="sign_in.min_length"]');
+  await field.getByText('A plan may only make the minimum length stricter than the installation does.').waitFor({ timeout: 5_000 });
+
+  // Removing a plan somebody put a workspace on meanwhile: the server's refusal, said.
+  await page.goto(`${served.origin}/instance/plans/business`);
+  await page.getByRole('button', { name: 'Remove the plan', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Remove Business?' }).getByRole('button', { name: 'Remove it' }).click();
+  await page.getByText('Workspaces are on this plan. Move them to another plan before removing it.').first().waitFor({ timeout: 5_000 });
+
+  // A plan removed meanwhile: said gone, with the way back to the list.
+  await page.goto(`${served.origin}/instance/plans/business`);
+  await page.getByRole('button', { name: 'Save the plan' }).click();
+  await page.getByRole('dialog', { name: 'Save Business?' }).getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('This plan no longer exists.').waitFor({ timeout: 5_000 });
+
+  // A short name the server will not take: at the field.
+  await page.goto(`${served.origin}/instance/plans`);
+  await page.getByRole('button', { name: 'New plan' }).click();
+  const create = page.getByRole('dialog', { name: 'New plan' });
+  await create.getByRole('textbox', { name: 'Name', exact: true }).fill('Premium');
+  await create.getByRole('textbox', { name: 'Short name' }).fill('-x');
+  await create.getByRole('button', { name: 'Create the plan' }).click();
+  await create.getByText('A plan\'s short name is 2 to 40 lowercase letters, digits and hyphens, starting with a letter or digit.').waitFor({ timeout: 5_000 });
+  await create.getByRole('textbox', { name: 'Short name' }).fill('premium');
+  await create.getByRole('button', { name: 'Create the plan' }).click();
+  const named = create.getByRole('textbox', { name: 'Name', exact: true });
+  await page.waitForFunction(() => document.querySelector('dialog[open] [aria-invalid="true"]') !== null, undefined, { timeout: 5_000 });
+  assert.equal(await named.getAttribute('aria-invalid'), 'true', 'the name\'s refusal is not at the name');
+});
+
+test('chromium: an unknown plan is said at the plan field when provisioning, and in the move dialog', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const familie = TENANTS[0];
+  const unknown = { status: 422, json: { code: 'validation_failed', detail_code: 'admin.plan_unknown', status: 422, request_id: 'r7',
+    field_errors: [{ path: '/plan', code: 'admin.plan_unknown' }] } };
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => {
+      if (path === '/admin/tenants' && request.method() === 'POST') return route.fulfill(unknown);
+      if (path === `/admin/tenants/${familie.id}:move-plan`) return route.fulfill(unknown);
+      if (path === '/admin/backup-targets') return route.fulfill({ json: [] });
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
+  await page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  await dialog.getByRole('textbox', { name: 'Address', exact: true }).fill('familie-weber');
+  await dialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Familie Weber');
+  await dialog.getByRole('textbox', { name: 'The owner\'s email address' }).fill('weber@example.org');
+  await dialog.getByRole('combobox', { name: 'Plan' }).selectOption('family');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+  const plan = dialog.getByRole('combobox', { name: 'Plan' });
+  await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]') !== null, undefined, { timeout: 5_000 });
+  assert.equal(await plan.getAttribute('aria-invalid'), 'true', 'the refusal is not at the plan field');
+  await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+
+  await page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' }).click();
+  const moving = page.getByRole('dialog');
+  await moving.getByRole('combobox', { name: 'Plan' }).selectOption('business');
+  await moving.getByText('There is no plan with that name to put the workspace on.').waitFor({ timeout: 5_000 });
+});
+
+test('chromium: an earlier choice\'s late dry run is not shown under a later choice', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const familie = TENANTS[0];
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => {
+      if (path !== `/admin/tenants/${familie.id}:move-plan`) return undefined;
+      const body = request.postDataJSON();
+      const delay = body.plan === 'private' ? 800 : 0;
+      return new Promise((resolve) => setTimeout(resolve, delay)).then(() => route.fulfill({ json: {
+        tenant: { ...familie, plan: body.plan },
+        features_resting: body.plan === 'private' ? ['WEBHOOKS'] : [],
+        exceptions_kept: [],
+      } }));
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' }).click();
+  const plan = page.getByRole('dialog').getByRole('combobox', { name: 'Plan' });
+  await plan.selectOption('private');
+  await plan.selectOption('business');
+  await page.getByRole('dialog', { name: 'Put Familie Berger on Business?' }).getByTestId('move-changes').waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(1_200);
+  assert.match(await page.getByTestId('move-changes').innerText(), /Nothing rests/, 'Private\'s answer replaced Business\'s');
+});
+
+test('chromium: a workspace read without a version moves without guessing one', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { version: _, ...unversioned } = TENANTS[1];
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [TENANTS[0], unversioned] });
+      if (path === `/admin/tenants/${unversioned.id}:move-plan`) {
+        sent.push(request.postDataJSON());
+        return route.fulfill({ json: { tenant: { ...unversioned, plan: 'business' }, features_resting: [], exceptions_kept: [] } });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Change plan' }).click();
+  await page.getByRole('dialog').getByRole('combobox', { name: 'Plan' }).selectOption('business');
+  await page.getByRole('button', { name: 'Put it on Business' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(sent, [{ plan: 'business', dry_run: true }, { plan: 'business' }]);
+});
+
+test('chromium: a single installation shows no plan on Workspaces; an enforced one still moves and provisions on plans', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const single = await openInstance(browser, { manifest: MANIFEST });
+  t.after(single.close);
+  await single.page.goto(`${served.origin}/instance/workspaces`);
+  await single.page.getByRole('row').filter({ hasText: 'Familie Berger' }).waitFor({ timeout: 10_000 });
+  assert.equal(await single.page.getByRole('columnheader', { name: 'Plan' }).count(), 0);
+  assert.equal(await single.page.getByRole('button', { name: 'Change plan' }).count(), 0);
+
+  // The file enforces the level's values, not which plan a workspace is on.
+  const enforced = await openInstance(browser, {
+    level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' },
+    answer: (route, request, path) => (path === '/admin/backup-targets' ? route.fulfill({ json: [] }) : undefined),
+  });
+  t.after(enforced.close);
+  await enforced.page.goto(`${served.origin}/instance/workspaces`);
+  await enforced.page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
+  assert.equal(await enforced.page.getByRole('button', { name: 'Change plan' }).count(), 2);
+  await enforced.page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
+  assert.equal(await enforced.page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).count(), 1);
+});
