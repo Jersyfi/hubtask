@@ -377,7 +377,7 @@ suspended page. Hubtask writes the label; no price, no other plan, no offer to u
 
 **Decided for milestone PL** (the owner, 2026-10-16;
 [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)). Built so far: naming, changing state in
-order, finding, and the events with their feed; the credential, the subscriptions and the use are not
+order, finding, the credential, and the events with their feed; the subscriptions and the use are not
 built yet. Plans exist so that a provider's own
 purchase or billing platform can drive Hubtask: it pushes state in and reads use and events out
 ([P-15](../vision/principles.md#p-15-hubtask-holds-state-the-platform-holds-the-business),
@@ -385,8 +385,10 @@ purchase or billing platform can drive Hubtask: it pushes state in and reads use
 
 * **Its credential.** A service account in the operator register, with a token carrying
   `admin:provisioning` ([api-guidelines.md](./api-guidelines.md)) rather than all of
-  `admin:tenants`. It may request a deletion without a step-up, sending the typed name; the grace,
-  the cancellation, the export and the legal-hold refusal of §5 stay.
+  `admin:tenants`, admitted by the verbs that declare it and refused everything else. It may request a
+  deletion without a step-up, sending the typed name, when the register holds its own row as a
+  service account's; the grace, the cancellation (the operator's), the export and the legal-hold
+  refusal of §5 stay.
 * **Naming.** A plan's short name never changes and is never reused once created; it is what the
   platform maps its products to. A workspace may carry the platform's own reference
   (`external_reference`: opaque, unique on the installation, changeable, `PERSONAL_TECHNICAL`,
@@ -444,8 +446,8 @@ stateDiagram-v2
 | Hard delete | A job seeded by the deletion request's own write runs after the grace period. It cascades across every storage location — database rows, media objects, search entries, outbox, queue — and purges the tenant's audit trail; the evidence goes to `instance_event` in the same transaction ([audit.md](./audit.md) §6) |
 
 Deleting a tenant demands a step-up and the typed tenant name — from a person; a purchase
-platform's service account that is a registered operator sends the typed name without one (decided
-for PL, not built, §4.3). In single mode the one workspace is
+platform's service account that is a registered operator sends the typed name without one (§4.3); a
+person, an agent and the empty register's owner still give one. In single mode the one workspace is
 the installation and holds every operator: suspending it and requesting its deletion are refused
 (`admin.multi_mode_required`), because either would shut everybody out with no way back; resuming
 and cancelling stay open in every mode. A workspace that got there anyway - before the refusal, or

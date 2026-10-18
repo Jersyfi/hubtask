@@ -72,7 +72,7 @@ type PlatformEventsPage struct {
 func (h ListPlatformEvents) Execute(
 	ctx context.Context, actor appshared.ActorContext, cursor string, size int,
 ) (PlatformEventsPage, error) {
-	if err := h.Writer.authorize(ctx, actor); err != nil {
+	if err := h.Writer.authorize(ctx, actor, platformScopes...); err != nil {
 		return PlatformEventsPage{}, err
 	}
 	if err := requireMulti(h.Tenancy); err != nil {
@@ -152,6 +152,7 @@ func (h ListPlatformEvents) Descriptor() usecase.Descriptor {
 			"cursor older than the 30 days kept is refused rather than answered from what is left.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "cursor", Kind: usecase.KindString,

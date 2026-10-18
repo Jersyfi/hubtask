@@ -2332,7 +2332,8 @@ func run() error {
 			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
 			Quotas: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
 		}.Descriptor(),
-		// The control plane. Its credential is a PAT carrying admin:tenants - never a
+		// The control plane. Its credential is a PAT carrying admin:tenants, or for a purchase
+		// platform the subset admin:provisioning on the verbs that declare it - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
@@ -2356,7 +2357,9 @@ func run() error {
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
-			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			// A purchase platform's service account in the register sends the typed name alone.
+			Register: postgres.NewOperatorRepository(),
+			Audit:    auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back

@@ -6,6 +6,7 @@ package identity
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1097,5 +1098,29 @@ func TestASignInFindsTheAccountUnderTheAddressAsTheDNSHoldsIt(t *testing.T) {
 	}
 	if len(fixture.sessions.inserted) != 1 || fixture.sessions.inserted[0].AccountID != account {
 		t.Errorf("the session opened is %+v", fixture.sessions.inserted)
+	}
+}
+
+// A grant session stored with the control plane's scope - consented before the consent refused it -
+// carries it no longer: an app never reaches what minting guards with a proof and the register.
+func TestAGrantSessionLosesTheControlPlanesScopes(t *testing.T) {
+	sessions := newSessionsStore()
+	credential, _ := refreshCredential(now)
+	credential.Session.Scopes = []string{"items:read", "admin:tenants", "admin:provisioning", "agent:destructive"}
+	sessions.sessions[sessionRowID] = repository.SessionCredential{
+		TenantStatus: domain.TenantActive, Session: credential.Session, Account: credential.Account,
+	}
+	signer := validatingSigner{token: "hbt_sat_x", claims: cryptoport.SessionClaims{
+		TenantID: tenant, SessionID: sessionRowID, AccountID: account,
+		ExpiresAt: now.Add(10 * time.Minute),
+	}}
+
+	actor, err := sessionAuthenticator(sessions, signer, now).Execute(t.Context(),
+		AuthenticateTokenCommand{Credential: "hbt_sat_x"})
+	if err != nil {
+		t.Fatalf("authenticating: %v", err)
+	}
+	if !slices.Equal(actor.Scopes, []string{"items:read"}) {
+		t.Errorf("the grant session carries %v, want items:read alone", actor.Scopes)
 	}
 }

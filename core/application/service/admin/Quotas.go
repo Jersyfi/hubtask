@@ -61,7 +61,7 @@ type UpdateTenantQuotas struct {
 func (h UpdateTenantQuotas) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateTenantQuotasCommand,
 ) ([]quotaservice.Standing, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return nil, err
 	}
 	if cmd.TenantID.IsZero() {
@@ -203,6 +203,7 @@ func (h UpdateTenantQuotas) Descriptor() usecase.Descriptor {
 		SideEffects: "Rewrites the quotas key of the tenant's settings document and records " +
 			"the movement, field by field, in the workspace's audit trail.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{

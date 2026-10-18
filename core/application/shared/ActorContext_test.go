@@ -206,3 +206,54 @@ func TestAWithheldScopeNamesTheRegister(t *testing.T) {
 		})
 	}
 }
+
+// RequireAnyScope admits either of an operation's scopes, and a refusal names the narrowest that
+// would do - or the register, where it withheld one of them (api-guidelines.md §7).
+func TestRequireAnyScope(t *testing.T) {
+	cases := []struct {
+		name     string
+		scopes   []string
+		withheld WithheldScopes
+		detail   string
+		scope    string
+	}{
+		{name: "the operation's own scope", scopes: []string{"admin:tenants"}},
+		{name: "the narrower one", scopes: []string{"admin:provisioning"}},
+		{name: "neither", scopes: []string{"items:read"},
+			detail: "access.insufficient_scope", scope: "admin:provisioning"},
+		{name: "the narrower one withheld by the register", scopes: []string{"items:read"},
+			withheld: WithheldScopes{Scopes: []string{"admin:provisioning"}},
+			detail:   "access.operator_register_required", scope: "admin:provisioning"},
+		{name: "the whole one withheld while the register is unreadable", scopes: []string{"items:read"},
+			withheld: WithheldScopes{Scopes: []string{"admin:tenants"}, Unreadable: true},
+			detail:   "access.operator_register_unreadable", scope: "admin:tenants"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actor := ActorContext{Kind: ActorUser, TenantID: tenant, Scopes: tc.scopes, Withheld: tc.withheld}
+			err := actor.RequireAnyScope("admin:tenants", "admin:provisioning")
+			if tc.detail == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			var domainErr *domain.Error
+			if !errors.As(err, &domainErr) || domainErr.DetailCode != tc.detail ||
+				domainErr.Params["scope"] != tc.scope {
+				t.Fatalf("error = %v, want %s naming %s", err, tc.detail, tc.scope)
+			}
+		})
+	}
+	if err := Anonymous("en", "UTC").RequireAnyScope("admin:tenants"); !errors.Is(err, domain.ErrUnauthenticated) {
+		t.Errorf("an anonymous actor answered %v", err)
+	}
+}
+
+// A call naming no scope refuses rather than admitting everybody.
+func TestRequireAnyScopeOfNothingRefuses(t *testing.T) {
+	actor := ActorContext{Kind: ActorUser, TenantID: tenant, Scopes: []string{"admin:tenants"}}
+	if err := actor.RequireAnyScope(); err == nil {
+		t.Fatal("naming no scope admitted the actor")
+	}
+}

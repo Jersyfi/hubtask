@@ -560,7 +560,8 @@ written onto the session when it opens: a tightened bound reaches new sessions o
   gains nothing, as the hash covers the whole string.
 * Shown once; stored as an HMAC under its own purpose label ([security.md](./security.md) §8).
 * A mandatory expiry of at most one year, scopes, the last use visible. An `admin:*` scope takes a
-  step-up (§16); `admin:tenants` is checked against the operator register (§19).
+  step-up (§16); `admin:tenants` and its subset for a purchase platform, `admin:provisioning`, are
+  checked against the operator register (§19).
 * It is the HTTP Basic password of a CalDAV client, on the CalDAV tree only
   ([security.md](./security.md) §4, T-22).
 
@@ -576,7 +577,9 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
   confidential client's secret (`hbt_ocs_…`) is stored hashed and shown once.
 * **The authorization endpoint is headless.** `POST /oauth/authorize` is called by the signed-in
   person — never a token — from the consent screen, which consents only ever to catalogue scopes
-  (`catalogue.Scopes()`).
+  (`catalogue.Scopes()`) and never to an `admin:*` scope or `agent:destructive`
+  (`access.token_scope_unknown`): minting those asks a step-up and the register, and a consent asks
+  neither. A grant session carries none of them, whatever its grant once stored.
 * The code (`hbt_oac_…`) lives two minutes and is exchanged once.
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
@@ -629,7 +632,8 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
 
 **Each privileged operation declares its step-up on its use case descriptor** (`StepUp`); the
 architecture test fails one that does not. The descriptors are the list: a workspace's deletion
-request, granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
+request (a person's; a service account whose own register row is a service account's sends the
+typed name alone, having no proof to give — [multi-tenancy.md](./multi-tenancy.md) §5), granting or revoking `OWNER` — changing who is in a group that holds it, and deleting such
 a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the one member of `PATCH
 /tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
@@ -765,16 +769,16 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
 
 | Rule | Detail |
 |---|---|
-| The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` is minted **and** exercised. |
+| The register | `operator` lists the accounts (people or service accounts) running this installation, checked when `admin:tenants` or `admin:provisioning` is minted **and** exercised. |
 | Narrow functions | `is_operator`; `operator_roster(caller)`, the register with each account's name, address or sign-in name, kind and workspace, answering nothing to a caller the register does not name and never naming another account; `enlist_operator` and `dismiss_operator`, the writes. All `SECURITY DEFINER`; the table has no row policy and no grant to the application role. |
 | The empty register | Answers *yes* only for an active `OWNER` on an installation with **exactly one** workspace. Adding the first entry therefore adds the person adding it as well, in the same statement and under a lock, both journalled. |
 | The first start | An installation with no workspace and an empty register prints a one-time setup code on each API process's standard error at start - thirty minutes, single use, only its hash stored (`instance_setup_code`). `POST /auth/installation:set-up` spends it on the first workspace, its owner with a password, and the owner's register entry, in one transaction, journalled as `instance.set_up`; a second setup is refused `setup.already_done` (409), a wrong code `setup.code_wrong`, an expired one `setup.code_expired` (403). `features.setup_open` says whether it is offered. |
 | The environment | `HUBTASK_OPERATORS` (`workspace:address`, a bare address in single mode) adds the named accounts at start and on the scheduler's first tick of every minute, journalled under the variable's name; it never removes anybody. The health report names the entries still waiting for their account. |
 | The way back | `hubtask operator add --workspace <short name> --email <address>`, run where the server runs with its configuration, adds the account and journals it as the machine's. No route reaches it. The health report names it when an installation with more than one workspace has an empty register (`config.operator_register_empty`). Where the workspace itself is locked - suspended or set for deletion, so every credential of its operators is refused - `hubtask workspace cancel-deletion --workspace <short name>` and `hubtask workspace resume --workspace <short name>` make the control plane's two edges back, with the same guards, trail and journal entries, recorded as the machine's (`SYSTEM`, label `machine`). |
-| The bound on a token | A token carrying `admin:tenants` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
+| The bound on a token | A token carrying `admin:tenants` or `admin:provisioning` whose holder the register does not name keeps its other scopes; an administrative route refuses it with `access.operator_register_required` (403). A register that cannot be read withholds the scope too (`access.operator_register_unreadable`, 503). |
 | Who can be added | Only an active account (`admin.operator_not_active`), named by workspace and address or, for a service account, chosen from the caller's own workspace and sent by identifier. |
 | The last operator | Cannot be removed: `dismiss_operator` deletes only while more than one remains (`admin.operator_last`); an account not in the register is `admin.operator_not_registered`. |
-| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`, or `hubctl admin elevate` on a `hubctl login` session): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A running hour is not replaced: a second raise is `auth.session_already_elevated` (409) before any proof, naming the end. A token refresh rotates the same session and keeps the hour. A machine holds a personal access token with `admin:tenants`, minted with a step-up from the web app or `hubctl token create`. |
+| Elevation | An operator raises **their own session** to `admin:tenants` with a step-up (`POST /auth/sessions:elevate`, or `hubctl admin elevate` on a `hubctl login` session): one hour, never sliding or renewed, the register read on every request, both ends in the installation's journal. A running hour is not replaced: a second raise is `auth.session_already_elevated` (409) before any proof, naming the end. A token refresh rotates the same session and keeps the hour. A machine holds a personal access token with `admin:tenants`, or a purchase platform's service account one with `admin:provisioning` ([api-guidelines.md](./api-guidelines.md) §7), minted with a step-up from the web app or `hubctl token create`; the hour gains `admin:tenants` alone. |
 | The `/instance` area | **Absent**, not disabled, for anybody but an operator (`instance.reachable` in `/meta/capabilities`); on a single-workspace installation it is the last group of the administration for an operator who reaches the administration, and the account menu's row otherwise; it shows what [multi-tenancy.md](./multi-tenancy.md) §4.1 allows, the key ring shown, never turned there, and offers what the API serves and the configuration permits. |
 | Three doors, one API | The area, `hubctl admin` and `HUBTASK_INSTANCE_FILE` share the use cases and refusals; under `enforce` the file refuses the writing routes, naming the path. |
 
