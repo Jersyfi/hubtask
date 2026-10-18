@@ -77,7 +77,14 @@
     'export_jobs',
     'ai_tokens_per_day',
     'ai_own_tokens_per_day',
+    'accounts',
   ]);
+
+  /** The people limit, where one is set and reached: nobody new comes in, nobody here goes. */
+  const people = $derived(quotas.standings.find((standing) => standing.quota === 'accounts'));
+  const peopleReached = $derived(
+    people !== undefined && people.limit > 0 && (people.used ?? 0) >= people.limit,
+  );
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
@@ -150,6 +157,9 @@
         {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
       </Banner>
     {:else}
+      {#if peopleReached}
+        <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')}</Banner>
+      {/if}
       <Table
         label={t('app.quotas.title')}
         isLabelHidden
@@ -197,6 +207,7 @@
         {/each}
       </Table>
 
+      {#if people}<p class="quiet">{t('app.quotas.people_counted')}</p>{/if}
       <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')}</p>
     {/if}
     </Stack>
