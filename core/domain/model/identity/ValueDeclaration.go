@@ -44,6 +44,9 @@ const (
 	MayRaise WorkspaceMay = "RAISE"
 	// MayReplace: a workspace may set its own value instead.
 	MayReplace WorkspaceMay = "REPLACE"
+	// MayPlanReplace: no workspace sets the key; open, a plan may set its own - the provider's
+	// account link.
+	MayPlanReplace WorkspaceMay = "PLAN_REPLACE"
 	// MayNeverLock is a default and nothing else: there is no lock to describe.
 	MayNeverLock WorkspaceMay = ""
 )
@@ -112,10 +115,14 @@ func DeclarationOfSwitch(name PolicySwitch) (ValueDeclaration, bool) {
 }
 
 // DeclarationOfLink is every legal link's: an address a workspace may replace with its own. The
-// terms' version beside them is one short line, replaced only together with its link.
+// terms' version beside them is one short line, replaced only together with its link; the
+// provider's account link is replaced by a plan, never by a workspace.
 func DeclarationOfLink(link LegalLink) ValueDeclaration {
 	if link == LinkTermsVersion {
 		return ValueDeclaration{Kind: KindText, May: MayReplace}
+	}
+	if link == LinkAccount {
+		return ValueDeclaration{Kind: KindLink, May: MayPlanReplace}
 	}
 	return ValueDeclaration{Kind: KindLink, May: MayReplace}
 }

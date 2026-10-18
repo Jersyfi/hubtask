@@ -391,6 +391,7 @@
   "admin.plan_version_moved": "Jemand hat den Plan geändert, während du ihn bearbeitet hast; lies ihn erneut.",
   "admin.plan_display_name_invalid": "Der Name eines Plans hat 1 bis 200 Zeichen.",
   "admin.plan_feature_unknown": "{feature} ist keine Funktion, die ein Plan weglassen kann.",
+  "admin.plan_account_link_not_lockable": "Ein Plan kann den Link zur Kontoseite nicht sperren: kein Arbeitsbereich setzt einen.",
   "plan.not_included": "{feature, select, AUTOMATION_RULES {Automatisierung ist} WEBHOOKS {Webhooks sind} OWN_SIGN_IN_PROVIDERS {Eigene Anmelde-Anbieter sind} other {Das ist}} nicht in deinem Plan enthalten. Was es gibt, bleibt erhalten und lesbar.",
   "admin.provisioning_incomplete": "Der Workspace konnte nicht fertig angelegt werden und wurde deshalb nicht angelegt. Versuche es erneut.",
   "admin.reference_taken": "Ein anderer Workspace hat diese Referenz bereits.",

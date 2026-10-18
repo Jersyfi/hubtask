@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -62,7 +63,9 @@ const (
 
 // InstanceWriter is what the control plane's instance use cases share.
 type InstanceWriter struct {
-	Settings   identityrepo.InstanceSettings
+	Settings identityrepo.InstanceSettings
+	// Tenancy is the mode: in multi mode plans exist, and the account link's lock binds them.
+	Tenancy    env.TenancyMode
 	Operators  identityrepo.Operators
 	Journal    adminrepo.Journal
 	UnitOfWork persistence.UnitOfWork
@@ -218,7 +221,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(name))
 		}
 	}
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))
@@ -480,7 +483,7 @@ func (h ReadInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(level), nil
+	return levelOutput(level, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.
@@ -550,11 +553,16 @@ func (h WriteInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
+	if h.Writer.Tenancy != env.TenancyMulti {
+		// The account link's lock binds plans, and there are none here: a lock stored now would
+		// bind them unseen the day the installation turns multi.
+		delete(level.Legal.Locks, identity.LinkAccount)
+	}
 	written, err := h.Execute(ctx, actor, level)
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(written), nil
+	return levelOutput(written, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.

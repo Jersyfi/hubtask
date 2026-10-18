@@ -1332,6 +1332,7 @@ func run() error {
 
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: servingSettings, Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1348,6 +1349,7 @@ func run() error {
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
