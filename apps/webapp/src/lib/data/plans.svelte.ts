@@ -45,6 +45,11 @@ class Plans {
     });
   }
 
+  /** Reads the list again: after a save somebody else made first, what is answered now. */
+  async reload(): Promise<void> {
+    this.#list = await engine.refresh<{ readonly data: readonly Plan[] }>({ path: PLANS });
+  }
+
   async create(plan: PlanCreate): Promise<Plan> {
     return stepUp.around((stepUpToken) =>
       engine.mutate<Plan>('POST', PLANS, plan, {

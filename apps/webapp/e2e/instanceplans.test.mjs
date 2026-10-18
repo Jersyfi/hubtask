@@ -51,7 +51,14 @@ function planDocument(name, displayName, { workspaces = 0, version = 1, leftOut 
 
 const PLANS = [
   planDocument('private', 'Private', { workspaces: 1284, leftOut: ['AUTOMATION_RULES', 'WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS'] }),
-  planDocument('family', 'Family', { workspaces: 412, leftOut: ['WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS'], quotas: { accounts: { set: true, value: 6, locked: true, kind: 'COUNT', minimum: 0, position: 0, ...raise } } }),
+  planDocument('family', 'Family', {
+    workspaces: 412, leftOut: ['WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS'],
+    quotas: {
+      accounts: { set: true, value: 6, locked: true, kind: 'COUNT', minimum: 0, position: 0, ...raise },
+      // Stored before the installation locked the request rate: not in force, and refused on a save.
+      api_requests_per_minute: { set: true, value: 1200, locked: false, kind: 'COUNT', minimum: 0, position: 2, ...raise },
+    },
+  }),
   planDocument('business', 'Business', { workspaces: 0 }),
 ];
 
@@ -160,5 +167,108 @@ test('chromium: a single installation offers no plans', async (t) => {
   await page.goto(`${served.origin}/instance/plans`);
   await page.getByText('Plans exist where an installation runs several workspaces', { exact: false }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('nav').getByText('Plans', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'New plan' }).count(), 0);
+});
+
+test('chromium: the plan editor draws the installation\'s levels, and a save names how many workspaces it reaches', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === '/admin/plans/family' && request.method() === 'PUT') {
+        sent.push({ body: request.postDataJSON(), ifMatch: request.headers()['if-match'] });
+        return route.fulfill({ json: { ...PLANS[1], version: 2 } });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans/family`);
+  await page.getByRole('heading', { name: 'Family', level: 1 }).waitFor({ timeout: 10_000 });
+  assert.match(await page.locator('main').innerText(), /412 workspaces/);
+
+  // The installation locks the request rate: its value, no control - and the plan's own, overtaken.
+  const locked = page.locator('[data-value="quotas.api_requests_per_minute"]');
+  assert.match(await locked.innerText(), /Set by the installation: 600/);
+  assert.match(await locked.innerText(), /1200, is not in force/);
+  await locked.getByRole('button', { name: 'Remove the plan\'s value' }).click();
+
+  // An undecided key says what it falls back to.
+  assert.ok(await page.getByText('Not decided by the plan: the installation\'s applies, 20000.').isVisible());
+
+  // The features: webhooks and own providers left out; automation switched off now.
+  assert.equal(await page.getByLabel('Webhooks', { exact: true }).isChecked(), false);
+  await page.getByLabel('Automation', { exact: true }).uncheck();
+
+  await page.getByRole('button', { name: 'Save the plan' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Save Family?' });
+  await dialog.waitFor();
+  assert.match(await dialog.innerText(), /It changes at once for all 412 workspaces on this plan\./);
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('Saved.').waitFor({ timeout: 5_000 });
+
+  const put = sent.at(-1);
+  assert.equal(put.ifMatch, '"1"');
+  assert.deepEqual(put.body.left_out, ['AUTOMATION_RULES', 'WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS']);
+  assert.deepEqual(Object.keys(put.body.quotas), ['accounts'], 'the overtaken value was sent again');
+  assert.equal(await page.getByRole('button', { name: 'Remove the plan', exact: true }).count(), 0, 'a plan in use offers its removal');
+});
+
+test('chromium: a save after somebody else saved says so and overwrites nothing', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openInstance(browser, {
+    answer: (route, request, path) => {
+      if (path === '/admin/plans/business' && request.method() === 'PUT') {
+        return route.fulfill({ status: 409, json: { code: 'version_conflict', detail_code: 'admin.plan_version_moved', status: 409, request_id: 'r2' } });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans/business`);
+  await page.getByRole('button', { name: 'Save the plan' }).click();
+  await page.getByRole('dialog', { name: 'Save Business?' }).getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('Somebody saved the plan in the meantime.').waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByRole('button', { name: 'Read it again' }).isVisible());
+});
+
+test('chromium: a plan nobody is on can be removed, and its short name is said to stay taken', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await openInstance(browser, {
+    answer: (route, request, path, sent) => {
+      if (path === '/admin/plans/business' && request.method() === 'DELETE') {
+        sent.push('removed');
+        return route.fulfill({ status: 204, body: '' });
+      }
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans/business`);
+  await page.getByRole('button', { name: 'Remove the plan', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Remove Business?' });
+  assert.match(await dialog.innerText(), /Its short name business stays taken and is never used again\./);
+  await dialog.getByRole('button', { name: 'Remove it' }).click();
+  await page.waitForURL(/\/instance\/plans$/, { timeout: 5_000 });
+  assert.deepEqual(sent, ['removed']);
+});
+
+test('chromium: where a file enforces the level, a plan shows its values and the file, and no control', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openInstance(browser, { level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' } });
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/plans/family`);
+  await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Save the plan' }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Remove the plan', exact: true }).count(), 0);
+  await page.goto(`${served.origin}/instance/plans`);
+  await page.getByText('/etc/hubtask/instance.json').waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'New plan' }).count(), 0);
 });

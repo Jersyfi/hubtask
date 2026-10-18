@@ -361,7 +361,7 @@ export const INSTANCE: readonly SectionGroup[] = [
     rows: [
       { id: 'overview', icon: 'gauge', code: 'app.instance.overview', path: '/instance', routes: ['instance'] },
       { id: 'workspaces', icon: 'workspace', code: 'app.instance.workspaces', path: '/instance/workspaces', routes: ['instance-workspaces'] },
-      { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans'] },
+      { id: 'plans', icon: 'sliders-horizontal', code: 'app.instance.plans', path: '/instance/plans', routes: ['instance-plans', 'instance-plan'] },
       { id: 'settings', icon: 'settings', code: 'app.instance.settings', path: '/instance/settings', routes: ['instance-settings'] },
       { id: 'providers', icon: 'key', code: 'app.instance.providers', path: '/instance/providers', routes: ['instance-providers'] },
       { id: 'ai', icon: 'sparkles', code: 'app.instance.ai', path: '/instance/ai', routes: ['instance-ai'] },
