@@ -24,6 +24,7 @@ type purgeFake struct {
 	structure    bool
 	outboxRounds int
 	idempotency  bool
+	archived     bool
 	jobsKeep     shared.ID
 	trailRemoved int64
 	trailCalls   int
@@ -70,6 +71,11 @@ func (p *purgeFake) DeleteOutbox(context.Context, int) (int, error) {
 	}
 	p.outboxRounds--
 	return 7, nil
+}
+
+func (p *purgeFake) ArchiveUsage(context.Context) (int64, error) {
+	p.archived = true
+	return 1, nil
 }
 
 func (p *purgeFake) DeleteIdempotency(context.Context) (int, error) {
@@ -153,6 +159,9 @@ func TestTheHardDeleteFellsEveryStoreAndLeavesTheEvidence(t *testing.T) {
 	// Bytes store-first, both objects.
 	if len(f.store.deleted) != 2 || outcome.BytesObjects != 2 {
 		t.Errorf("bytes %v (%d)", f.store.deleted, outcome.BytesObjects)
+	}
+	if !f.purge.archived {
+		t.Error("the purge did not move the counts to the installation's ledger")
 	}
 	if !f.purge.structure || !f.purge.idempotency || f.purge.jobsKeep != purgeJobID {
 		t.Errorf("purge state %+v", f.purge)
