@@ -22,7 +22,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Callout, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { quotas, type Standing } from '../lib/data/quotas.svelte.ts';
@@ -33,6 +33,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
+  import AccountLink from '../lib/workspace/AccountLink.svelte';
 
   $effect(() => untrack(() => quotas.open()));
   // The plan's name rides on the workspace read the sign-in rule already answers (UC-INS-10
@@ -109,6 +110,20 @@
     return standing.source === 'INSTANCE' ? t('app.quotas.installation') : t('app.quotas.default');
   }
 
+  /**
+   * The limits whose use has reached them: a ceiling (zero is "no ceiling") and a live count at or
+   * above it - above where a lowered limit left more than it allows. Each is said once above the
+   * table, with what still works and, for owners and administrators, the provider's account page
+   * (UC-INS-13 check 11).
+   */
+  const reached = $derived(
+    quotas.standings.filter(
+      // People have their own sentence above, which says who is affected.
+      (standing) => standing.quota !== 'accounts' && standing.limit > 0 && standing.used !== undefined &&
+        standing.used !== null && standing.used >= standing.limit,
+    ),
+  );
+
   /** A number as the limit counts it: attachment storage in bytes is said as a size. */
   const amount = (quota: string, value: number) =>
     quota === 'media_bytes' ? formatBytes(value, messages.locale) : String(value);
@@ -158,8 +173,13 @@
       </Banner>
     {:else}
       {#if peopleReached}
-        <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')}</Banner>
+        <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')} <AccountLink /></Banner>
       {/if}
+      {#each reached as standing (standing.quota)}
+        <Callout tone="warning" title={t('app.quotas.reached_title', { name: nameOf(standing.quota) })}>
+          {t('app.quotas.reached_body')} <AccountLink />
+        </Callout>
+      {/each}
       <Table
         label={t('app.quotas.title')}
         isLabelHidden

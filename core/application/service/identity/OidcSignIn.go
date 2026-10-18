@@ -339,6 +339,21 @@ func (w OidcWriter) passwordShutFor(ctx context.Context, scope persistence.Scope
 	return nil
 }
 
+// workspaceStanding refuses a suspended workspace, or one pending deletion, with the code every
+// authenticated call answers. A build wired without the workspaces reads none.
+func (w OidcWriter) workspaceStanding(ctx context.Context, scope persistence.Scope) error {
+	if w.Workspaces == nil {
+		return nil
+	}
+	return w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := w.Workspaces.Find(ctx)
+		if err != nil {
+			return err
+		}
+		return found.Status.Verify()
+	})
+}
+
 // connectStands answers whether a CONNECT link may still stand in for the account's password, inside
 // a transaction bound to the link's workspace: a live CONNECT credential, an active account of a
 // workspace in good standing, and no provider switched on there that already lets the account in.
@@ -430,6 +445,13 @@ func (h CompleteOidcSignIn) Execute(
 	})
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)
+		return SignInResult{}, err
+	}
+
+	// The workspace's own standing, as every other way in asks it after the proof (UC-INS-08
+	// check 2): a suspended workspace makes no account and opens no session, whoever arrives.
+	// Not counted as a provider's failure: the provider answered, and the workspace is paused.
+	if err := w.workspaceStanding(ctx, scope); err != nil {
 		return SignInResult{}, err
 	}
 

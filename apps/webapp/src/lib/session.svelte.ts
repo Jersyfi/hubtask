@@ -35,7 +35,7 @@ import type { KeyAnswer } from './data/passkeys.ts';
 
 import { manifest } from './data/capabilities.svelte.ts';
 import { instance } from './data/instance.svelte.ts';
-import { engine, whenCredentialRefused } from './data/engine.ts';
+import { engine, isPaused, whenCredentialRefused, whenWorkspacePaused } from './data/engine.ts';
 import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
@@ -155,6 +155,12 @@ class Session {
   #signingIn = false;
   /** Set when a session ended under somebody rather than when a sign-in was refused. */
   #ended = $state(false);
+  /**
+   * Set when the workspace answered that it is paused - at sign-in, or under a session - with the
+   * provider's account link where the server sent one: only to an owner or administrator who
+   * completed the proof (UC-INS-13 check 11). Cleared by the next attempt.
+   */
+  #paused = $state<{ readonly accountUrl?: string } | undefined>(undefined);
   /** Set when the second step's time ran out, so step one can say why it is back (UC-ID-02 check 2). */
   #waitedTooLong = $state(false);
   /**
@@ -215,6 +221,23 @@ class Session {
     return this.#ended;
   }
 
+  /** Whether the workspace is paused, and the provider's account link where the server sent one. */
+  get paused(): { readonly accountUrl?: string } | undefined {
+    return this.#paused;
+  }
+
+  /**
+   * The workspace was paused under the session: every request is refused, so the session ends here
+   * and the sign-in screen says why. No link - a refusal to a session is no proof of a role; the
+   * next sign-in that completes the proof answers it to whom it is for.
+   */
+  pausedUnder(): void {
+    if (this.#signingIn || this.#status === 'signed-out') return;
+    this.#paused = {};
+    this.#problem = undefined;
+    this.#discard();
+  }
+
   /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
   get waitedTooLong(): boolean {
     return this.#waitedTooLong;
@@ -241,6 +264,7 @@ class Session {
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#email = undefined;
     this.#declinedTermsOf = undefined;
     this.#status = 'signed-out';
@@ -459,6 +483,7 @@ class Session {
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#status = 'signed-in';
     void manifest.refresh();
   }
@@ -499,6 +524,7 @@ class Session {
     options: { keepPending?: boolean; onRefusal?: (error: TransportError) => void } = {},
   ): Promise<boolean> {
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#ended = false;
     this.#waitedTooLong = false;
     this.#declinedTermsOf = undefined;
@@ -545,9 +571,20 @@ class Session {
     } catch (error) {
       // Everything the engine throws is a `TransportError`; anything else would be a defect in
       // the seam rather than an answer, and `errors.internal` is what a reader is owed for one.
-      this.#problem = error instanceof TransportError
-        ? renderProblem(error, messages)
-        : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      if (isPaused(error)) {
+        // Not a refusal of what the person typed: the workspace is paused, and the screen says so
+        // in its own words rather than as a red sentence beside the form.
+        const accountUrl = error.params?.['account_url'];
+        this.#paused = accountUrl ? { accountUrl } : {};
+        this.#problem = undefined;
+        // A second step a paused workspace refused is over: its form does not stay to be retried.
+        this.#pending = undefined;
+        this.#owed = undefined;
+      } else {
+        this.#problem = error instanceof TransportError
+          ? renderProblem(error, messages)
+          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      }
       if (error instanceof TransportError) options.onRefusal?.(error);
       this.#discard();
       return false;
@@ -680,3 +717,4 @@ export const session = new Session();
 // Registered at module load so that a `401` from a request nobody is watching still ends the
 // session.
 whenCredentialRefused(() => session.refused(location.pathname + location.search));
+whenWorkspacePaused(() => session.pausedUnder());

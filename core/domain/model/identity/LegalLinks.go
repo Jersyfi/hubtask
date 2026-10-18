@@ -35,6 +35,12 @@ const (
 	// from the level that set the link, under the link's lock - a workspace never puts its own
 	// version on somebody else's terms.
 	LinkTermsVersion LegalLink = "terms_version"
+
+	// LinkAccount is the provider's account page (multi-tenancy.md §4.2): where a workspace's
+	// owners and administrators manage what they are on. Set by the installation and per plan,
+	// never by a workspace, and never one of the links a footer or the sign-in card shows - so it is
+	// in neither list above, and only in LevelLegalSettingNames.
+	LinkAccount LegalLink = "account_url"
 )
 
 // LegalLinkNames is the four, in the order a footer draws them.
@@ -46,6 +52,12 @@ func LegalLinkNames() []LegalLink {
 // in the order a form draws them - the version right after the link it belongs to.
 func LegalSettingNames() []LegalLink {
 	return []LegalLink{LinkImprint, LinkPrivacy, LinkTerms, LinkTermsVersion, LinkAccessibility}
+}
+
+// LevelLegalSettingNames is what the installation and a plan set in the legal area: the four links,
+// the terms' version and the provider's account link, in the order a form draws them.
+func LevelLegalSettingNames() []LegalLink {
+	return append(LegalSettingNames(), LinkAccount)
 }
 
 // MaxLegalURLLength bounds a stored link. Long enough for any real address, short enough that the
@@ -61,6 +73,8 @@ type LegalLinks struct {
 	AccessibilityURL string
 	// TermsVersion is the terms link's version, empty where none was given.
 	TermsVersion string
+	// AccountURL is the provider's account page, at the installation's and a plan's level only.
+	AccountURL string
 	// TermsSetBy is who set the terms link in force - filled by EffectiveLegal, empty in a level's
 	// own layer and wherever no terms link is in force.
 	TermsSetBy TermsSetBy
@@ -79,6 +93,8 @@ func (l LegalLinks) Of(name LegalLink) string {
 		return l.AccessibilityURL
 	case LinkTermsVersion:
 		return l.TermsVersion
+	case LinkAccount:
+		return l.AccountURL
 	}
 	return ""
 }
@@ -96,6 +112,8 @@ func (l LegalLinks) With(name LegalLink, value string) LegalLinks {
 		l.AccessibilityURL = value
 	case LinkTermsVersion:
 		l.TermsVersion = value
+	case LinkAccount:
+		l.AccountURL = value
 	}
 	return l
 }
@@ -115,6 +133,19 @@ func (l LegalLinks) IsEmpty() bool {
 type LegalLayer struct {
 	Links LegalLinks
 	Locks map[LegalLink]bool
+}
+
+// EffectiveAccountLink resolves the provider's account link: the installation's where it locks it,
+// otherwise the plan's where it sets one, otherwise the installation's - empty where neither does.
+// There is no workspace level: the link is the provider's, whom the workspace's people ask.
+func EffectiveAccountLink(instance, plan LegalLayer) string {
+	if instance.Locks[LinkAccount] {
+		return instance.Links.AccountURL
+	}
+	if plan.Links.AccountURL != "" {
+		return plan.Links.AccountURL
+	}
+	return instance.Links.AccountURL
 }
 
 // EffectiveLegal resolves workspace -> plan -> instance -> nothing (identity.md §18).

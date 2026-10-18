@@ -588,6 +588,27 @@ func TestTheManifestPublishesWhatThePlanLeavesOut(t *testing.T) {
 	}
 }
 
+// The provider's account link reaches the response where the use case answered one, and is absent
+// otherwise.
+func TestTheManifestPublishesTheAccountLink(t *testing.T) {
+	for link, want := range map[string]*string{"https://provider.example/account": ptr("https://provider.example/account"), "": nil} {
+		answer := manifest()
+		answer.AccountLink = link
+		response := serveCapabilities(t, &capabilities{result: answer})
+		var body struct {
+			AccountLink *string `json:"account_link"`
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+			t.Fatalf("the manifest is not JSON: %v", err)
+		}
+		if (body.AccountLink == nil) != (want == nil) || (want != nil && *body.AccountLink != *want) {
+			t.Errorf("account_link %v, want %v", body.AccountLink, want)
+		}
+	}
+}
+
+func ptr(value string) *string { return &value }
+
 // Whether a hub of one's own is offered reaches the response as a boolean - false included, which
 // is an answer - and is absent for an anonymous caller.
 func TestTheManifestPublishesWhetherAPrivateHubOfOnesOwnIsOffered(t *testing.T) {

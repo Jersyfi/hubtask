@@ -101,6 +101,11 @@ func (w SessionWriter) resolveMfaCaller(
 			if err := lookup.Account.Verify(); err != nil {
 				return err
 			}
+			// The workspace's standing, as every other step asks it: an enrolment ends in a session,
+			// and a paused workspace opens none.
+			if err := lookup.TenantStatus.Verify(); err != nil {
+				return err
+			}
 			caller = mfaCaller{
 				account:  lookup.Account,
 				tenantID: token.TenantID(),

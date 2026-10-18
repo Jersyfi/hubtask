@@ -137,7 +137,12 @@ func (v Values) policyFits(above identity.PolicyLayer) error {
 }
 
 func (v Values) legalFits(above identity.LegalLayer) error {
-	for _, link := range identity.LegalSettingNames() {
+	if v.Legal.Locks[identity.LinkAccount] {
+		// No level below a plan sets the account link, so a plan's lock on it would bind nobody.
+		return shared.ErrValidation.WithDetail("admin.plan_account_link_not_lockable").
+			WithFields(shared.FieldError{Path: "/legal/" + string(identity.LinkAccount), Code: "admin.plan_account_link_not_lockable"})
+	}
+	for _, link := range identity.LevelLegalSettingNames() {
 		if v.Legal.Links.Of(link) == "" {
 			continue
 		}

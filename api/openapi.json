@@ -4162,7 +4162,7 @@
         "operationId": "signIn",
         "security": [],
         "summary": "Sign in with email and password",
-        "description": "The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.\nWhere the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.\nThe tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.\nEvery failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.\n",
+        "description": "The password sign-in: an email, a password, and the answer is an access/refresh pair plus the session row both hang off. The access token lives fifteen minutes and verifies by its signature; the refresh token lives thirty days, rotates on every use, and a rotated-out token replayed later invalidates the whole family, because a replay means two holders.\nWhere the workspace has switched the password off (`sign_in_policy.methods` without `PASSWORD`), every password sign-in is refused with `auth.password_not_offered`, for every address alike and before any account is looked up; the stored password is kept, and works again when the password is switched back on. The one exception is a workspace left with no way in that works - no provider switched on there, whatever the cause - where the password opens as the fallback (`password_fallback` on the sign-in rules), and each sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.\nThe tenant is resolved before the credential is checked - from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never from the request body. A contradiction between an authenticated caller and the host stays `403 tenant_mismatch`.\nEvery failure is one generic refusal, byte for byte the same for a wrong password and an address nobody holds: whether an account exists is exactly what a guessing client is trying to learn. Behind that one answer sit the progressive delay and the lockout, per account and per IP, and the auth rate-limit bucket in front of everything.\nAfter the right password, a workspace that is suspended or pending deletion refuses with `403 access.tenant_suspended` or `access.tenant_pending_deletion`. Where the password is the whole proof - no second step owed - and the account is an owner or administrator there, the problem's `params` carry `account_url`, the provider's account page, where one is set; the second step and the passkey answer the same once they complete the proof.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -17081,9 +17081,10 @@
             "enum": [
               "TIGHTEN",
               "RAISE",
-              "REPLACE"
+              "REPLACE",
+              "PLAN_REPLACE"
             ],
-            "description": "What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. Absent where the key is never locked - a language, a time zone and a week start are defaults only.\n"
+            "description": "What an open key leaves a workspace free to do: `TIGHTEN` choose a stricter value, `RAISE` set a higher limit of its own, `REPLACE` set its own value. `PLAN_REPLACE` is the one key no workspace sets, the provider's account link: open, a plan may set its own. Absent where the key is never locked - a language, a time zone and a week start are defaults only - and wherever the lock binds nobody: the account link in single mode, and in a plan's own document.\n"
           }
         }
       },
@@ -17103,7 +17104,7 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             },
-            "description": "The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).\n"
+            "description": "The four links, by name, and `terms_version`, the version of the terms link. The version is locked exactly when `terms_url` is - its own `locked` is answered as the link's and ignored in a write - and it is refused without a terms link (`auth.terms_version_without_link`).\nAnd `account_url`, the provider's account page: an address where the workspace's owners and administrators manage what they are on. It is set here and per plan, never by a workspace; a plan's own replaces the installation's unless the installation locks it, and a plan cannot lock it (`admin.plan_account_link_not_lockable`). It reaches owners and administrators as `account_link` in `/meta/capabilities`, and never the sign-in rules.\n"
           },
           "localisation": {
             "type": "object",
@@ -28090,6 +28091,11 @@
           "private_hub_offered": {
             "type": "boolean",
             "description": "Whether the caller may create a private hub of their own now, the way `POST /containers` with `private: true` decides it without `STRUCTURE`: a person - never a service account - who holds a role anywhere in the workspace, where the workspace allows private hubs and holds more than one person. Recording nothing, like `workspace_permissions`, and caller-scoped like it: absent for an anonymous caller.\nIt lets a client offer a hub of one's own to somebody who may not shape the workspace, including somebody whose roles sit only on hubs, collections or entries and who cannot read `GET /tenant`. Whoever holds `STRUCTURE` on the workspace creates shared hubs whatever this says.\n"
+          },
+          "account_link": {
+            "type": "string",
+            "format": "uri",
+            "description": "The provider's account page, where the workspace's owners and administrators manage what they are on: the installation's address, or the plan's where it sets one and the installation does not lock it. Answered only to whoever holds `STRUCTURE` on the workspace itself, and only where one is set; absent for everybody else. A client shows it beside \"Not included in your plan\" and at a reached limit, under its own label - the address is the operator's, never a price or an offer.\n"
           },
           "not_included": {
             "type": "array",

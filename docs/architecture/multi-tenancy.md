@@ -316,7 +316,7 @@ never rows — the boundary is a database policy, not a role.
 owner, 2026-10-15). Built so far: plans, their doors and the record, moving a workspace,
 provisioning on a plan, finding a workspace by the platform's reference, the sign-in rule and
 legal links resolved through the plan ([identity.md](./identity.md) §18), what a plan leaves out,
-the limits (§4) with the people limit, and the AI rule. Not built yet: the account link.
+the limits (§4) with the people limit, the AI rule and the account link.
 
 Plans prepare Hubtask for a provider that sells it through its own purchase or billing platform
 (§4.3). Hubtask ships no plan; a workspace without one has every entitlement and the installation's
@@ -372,10 +372,15 @@ save carries the version it read and is refused with `version_conflict` otherwis
 takes a plan. A plan with workspaces on it cannot be removed. Moving a workspace is written to
 `instance_event` and the workspace's trail; changing a plan to `instance_event`.
 
-**The account link.** An operator may set one address, at the installation and per plan, lockable
-and resolved like the legal links ([identity.md](./identity.md) §18). Owners and administrators see
-"Your provider's account page" beside "Not included in your plan", at a reached limit and on the
-suspended page. Hubtask writes the label; no price, no other plan, no offer to upgrade.
+**The account link.** An operator may set one address (`legal.account_url`), at the installation
+and per plan; a plan's replaces the installation's unless the installation locks it, a plan cannot
+lock it, and no workspace sets one ([identity.md](./identity.md) §18). Owners and administrators -
+whoever holds `STRUCTURE` on the workspace itself - see "Your provider's account page" beside "Not
+included in your plan", at a reached limit and on the paused workspace's notice: `/meta/capabilities`
+answers it to them as `account_link`, and a paused workspace's refusal at sign-in carries it as
+`account_url` once they have completed the proof (the password where it is the whole proof, the
+second step, a passkey). Nobody else is answered it. Hubtask writes the label; no price, no other
+plan, no offer to upgrade.
 
 ---
 

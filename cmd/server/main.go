@@ -473,7 +473,15 @@ func run() error {
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
 
+	// Who is told the provider's account link: one decision for the manifest and the sign-in
+	// (multi-tenancy.md §4.2). The resolver is stateless, so this copy reads what the later one does.
+	accountLinks := identity.AccountLinkTeller{Held: authorizer, Links: identity.SignInPolicyResolver{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Instance:   postgres.NewInstanceSettingRepository(),
+		UnitOfWork: unitOfWork,
+	}}
 	sessionWriter := identity.SessionWriter{
+		AccountLinks: accountLinks,
 		// The step-up at the provider (ADR-0075 §2). In the literal rather than assigned later:
 		// every verifier below is a copy of this writer, and a copy taken before an assignment
 		// would neither name PROVIDER nor prove it (Wiring_test.go).
@@ -1350,6 +1358,7 @@ func run() error {
 
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: servingSettings, Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1366,6 +1375,7 @@ func run() error {
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -2635,6 +2645,7 @@ func run() error {
 			// What the caller's plan leaves out, read as the registry's gate reads it.
 			ActionEntitlements: catalogue.ActionEntitlements(),
 			Entitlements:       entitlementGate,
+			AccountLinks:       accountLinks,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and

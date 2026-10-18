@@ -352,9 +352,10 @@ func planCommandFrom(in usecase.Input) (PlanCommand, error) {
 // with one reading.
 func planOutput(view PlanView) usecase.Output {
 	held := view.Plan
-	out := instanceLevelOutput(identityrepo.InstanceLevel{
+	// A plan's own document describes no lock on the account link: nothing below a plan sets one.
+	out := levelOutput(identityrepo.InstanceLevel{
 		Policy: held.Values.Policy, Legal: held.Values.Legal, Quotas: held.Values.Quotas, Ai: held.Values.Ai,
-	})
+	}, false)
 	for _, levelOnly := range []string{areaLocalisation, "source", "is_enforced_from_file", "blocklist_file", "metering"} {
 		delete(out, levelOnly)
 	}
