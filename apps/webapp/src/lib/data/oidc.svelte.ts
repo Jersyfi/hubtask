@@ -21,7 +21,7 @@
  * password form is still on the screen.
  */
 
-import { TransportError } from '@hubtask/sync-engine';
+import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { navigableUrl, startRequest, type AgreedTerms, type Handoff } from './oidc.ts';
@@ -68,6 +68,7 @@ interface LinkOwed {
   readonly email?: string | null;
   readonly provider_name?: string | null;
   readonly terms?: TermsInForce | null;
+  readonly passkey_options?: PasskeyAssertionOptions | null;
 }
 
 class Oidc {
@@ -162,6 +163,8 @@ class Oidc {
           providerName: answer.provider_name ?? undefined,
           // The terms of use in force, where the provider's return ends in the TERMS step.
           terms: answer.terms ?? undefined,
+          // The key's ceremony, where an account a mailbox link connects holds a key here.
+          passkeyOptions: answer.passkey_options ?? undefined,
         });
         return true;
       }

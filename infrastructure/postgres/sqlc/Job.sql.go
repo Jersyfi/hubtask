@@ -186,18 +186,27 @@ UPDATE job SET
   state        = 'SUCCEEDED',
   finished_at  = $1,
   locked_until = NULL,
-  last_error   = NULL
-WHERE id = $2 AND state = 'RUNNING' AND locked_until = $3
+  last_error   = NULL,
+  outcome      = $2
+WHERE id = $3 AND state = 'RUNNING' AND locked_until = $4
 `
 
 type CompleteJobParams struct {
-	Now   pgtype.Timestamptz
-	ID    pgtype.UUID
-	Lease pgtype.Timestamptz
+	Now     pgtype.Timestamptz
+	Outcome *string
+	ID      pgtype.UUID
+	Lease   pgtype.Timestamptz
 }
 
+// The outcome is the handler's message code, or NULL where its kind has none to say (rule 10: a
+// code, never content).
 func (q *Queries) CompleteJob(ctx context.Context, arg CompleteJobParams) (int64, error) {
-	result, err := q.db.Exec(ctx, completeJob, arg.Now, arg.ID, arg.Lease)
+	result, err := q.db.Exec(ctx, completeJob,
+		arg.Now,
+		arg.Outcome,
+		arg.ID,
+		arg.Lease,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -312,7 +321,7 @@ func (q *Queries) EnqueueJob(ctx context.Context, arg EnqueueJobParams) ([]pgtyp
 }
 
 const findJob = `-- name: FindJob :one
-SELECT id, tenant_id, state, last_error, last_error_params, created_at, finished_at, progress
+SELECT id, tenant_id, state, last_error, last_error_params, outcome, created_at, finished_at, progress
 FROM job
 WHERE id = $1 AND tenant_id = $2
 `
@@ -328,6 +337,7 @@ type FindJobRow struct {
 	State           string
 	LastError       *string
 	LastErrorParams []byte
+	Outcome         *string
 	CreatedAt       pgtype.Timestamptz
 	FinishedAt      pgtype.Timestamptz
 	Progress        *float32
@@ -350,6 +360,7 @@ func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, e
 		&i.State,
 		&i.LastError,
 		&i.LastErrorParams,
+		&i.Outcome,
 		&i.CreatedAt,
 		&i.FinishedAt,
 		&i.Progress,

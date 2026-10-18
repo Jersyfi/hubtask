@@ -33,19 +33,23 @@ var _ repository.Marking = RetentionMarkingRepository{}
 
 // Due answers entries whose anchor lies before the cutoff and which are not marked yet.
 func (r RetentionMarkingRepository) Due(
-	ctx context.Context, anchor domain.Anchor, cutoff time.Time, skip, batch int,
+	ctx context.Context, anchor domain.Anchor, cutoff time.Time, after repository.Position, batch int,
 ) ([]repository.Candidate, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
 	size := retentionBatch(batch)
+	afterAt, afterID, err := keysetOf(after)
+	if err != nil {
+		return nil, err
+	}
 
 	switch anchor {
 	case domain.AnchorCompletedAt:
 		rows, err := queries.RetentionCandidatesByCompletedAt(ctx,
 			sqlc.RetentionCandidatesByCompletedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, Skip: pageOffset(skip),
+				Cutoff: timestampOf(cutoff), Batch: size, AfterAt: afterAt, AfterID: afterID,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -59,7 +63,7 @@ func (r RetentionMarkingRepository) Due(
 	case domain.AnchorArchivedAt:
 		rows, err := queries.RetentionCandidatesByArchivedAt(ctx,
 			sqlc.RetentionCandidatesByArchivedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, Skip: pageOffset(skip), OwnChain: false,
+				Cutoff: timestampOf(cutoff), Batch: size, AfterAt: afterAt, AfterID: afterID, OwnChain: false,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -73,7 +77,7 @@ func (r RetentionMarkingRepository) Due(
 	case domain.AnchorDeletedAt:
 		rows, err := queries.RetentionCandidatesByDeletedAt(ctx,
 			sqlc.RetentionCandidatesByDeletedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, Skip: pageOffset(skip), OwnChain: false,
+				Cutoff: timestampOf(cutoff), Batch: size, AfterAt: afterAt, AfterID: afterID, OwnChain: false,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -92,7 +96,8 @@ func (r RetentionMarkingRepository) Due(
 
 // DueInChain is the same question restricted to what a rule's own first stage acted on.
 func (r RetentionMarkingRepository) DueInChain(
-	ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time, skip, batch int,
+	ctx context.Context, anchor domain.Anchor, ruleID shared.ID, cutoff time.Time,
+	after repository.Position, batch int,
 ) ([]repository.Candidate, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -103,12 +108,16 @@ func (r RetentionMarkingRepository) DueInChain(
 		return nil, err
 	}
 	size := retentionBatch(batch)
+	afterAt, afterID, err := keysetOf(after)
+	if err != nil {
+		return nil, err
+	}
 
 	switch anchor {
 	case domain.AnchorArchivedAt:
 		rows, err := queries.RetentionCandidatesByArchivedAt(ctx,
 			sqlc.RetentionCandidatesByArchivedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, Skip: pageOffset(skip), OwnChain: true, RuleID: rule,
+				Cutoff: timestampOf(cutoff), Batch: size, AfterAt: afterAt, AfterID: afterID, OwnChain: true, RuleID: rule,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -122,7 +131,7 @@ func (r RetentionMarkingRepository) DueInChain(
 	case domain.AnchorDeletedAt:
 		rows, err := queries.RetentionCandidatesByDeletedAt(ctx,
 			sqlc.RetentionCandidatesByDeletedAtParams{
-				Cutoff: timestampOf(cutoff), Batch: size, Skip: pageOffset(skip), OwnChain: true, RuleID: rule,
+				Cutoff: timestampOf(cutoff), Batch: size, AfterAt: afterAt, AfterID: afterID, OwnChain: true, RuleID: rule,
 			})
 		if err != nil {
 			return nil, candidateFailure(anchor, err)
@@ -189,14 +198,18 @@ func (r RetentionMarkingRepository) Block(
 
 // MarkedDue answers the entries whose grace period has run out.
 func (r RetentionMarkingRepository) MarkedDue(
-	ctx context.Context, now time.Time, skip, batch int,
+	ctx context.Context, now time.Time, after repository.Position, batch int,
 ) ([]repository.Candidate, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
+	afterAt, afterID, err := keysetOf(after)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := queries.RetentionMarkedItemsDue(ctx, sqlc.RetentionMarkedItemsDueParams{
-		Now: timestampOf(now), Batch: retentionBatch(batch), Skip: pageOffset(skip),
+		Now: timestampOf(now), Batch: retentionBatch(batch), AfterAt: afterAt, AfterID: afterID,
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
@@ -475,4 +488,16 @@ func retentionBatch(batch int) int32 {
 		batch = DefaultRetentionBatch
 	}
 	return int32(batch)
+}
+
+// keysetOf is a position as the candidate statements take it: both NULL for the start.
+func keysetOf(after repository.Position) (pgtype.Timestamptz, pgtype.UUID, error) {
+	if after.IsStart() {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, nil
+	}
+	id, err := uuidOf(after.ID)
+	if err != nil {
+		return pgtype.Timestamptz{}, pgtype.UUID{}, err
+	}
+	return timestampOf(after.At), id, nil
 }

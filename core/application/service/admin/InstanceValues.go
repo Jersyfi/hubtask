@@ -38,7 +38,10 @@ const (
 // leave a screen unable to show that the others exist and are each workspace's; answering them
 // without a kind would leave it guessing how to draw a key nobody decided yet. An unset entry
 // carries no `value` at all rather than a zero somebody would read as a decision.
-func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
+//
+// `plans` is whether plans exist here (multi mode): the account link's lock binds plans, and where
+// there are none, or in a plan's own document, there is no lock to describe.
+func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 	signIn := usecase.Output{}
 	for _, name := range identity.PolicySwitches() {
 		declaration, held := identity.DeclarationOfSwitch(name)
@@ -50,14 +53,18 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 	}
 
 	legal := usecase.Output{}
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		value := level.Legal.Links.Of(link)
 		locked := level.Legal.Locks[link]
 		if link == identity.LinkTermsVersion {
 			// The version is locked exactly when its link is.
 			locked = level.Legal.Locks[identity.LinkTerms]
 		}
-		place(legal, string(link), entryOf(identity.DeclarationOfLink(link), value != "", value, locked))
+		declaration := identity.DeclarationOfLink(link)
+		if link == identity.LinkAccount && !plans {
+			declaration.May = identity.MayNeverLock
+		}
+		place(legal, string(link), entryOf(declaration, value != "", value, locked))
 	}
 
 	localisation := usecase.Output{}
@@ -91,11 +98,18 @@ func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
 		areaAi:                  ai,
 		"source":                level.Source,
 		"is_enforced_from_file": level.IsEnforcedFromFile,
+		"version":               level.Version,
 	}
 	if level.BlocklistFile != "" {
 		out["blocklist_file"] = level.BlocklistFile
 	}
+	out["metering"] = level.Metering
 	return out
+}
+
+// instanceLevelOutput is the level as a multi-mode installation answers it.
+func instanceLevelOutput(level identityrepo.InstanceLevel) usecase.Output {
+	return levelOutput(level, true)
 }
 
 // place puts an entry into its area with its position there: a JSON object has no order, and a
@@ -246,7 +260,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			return nil
 		}},
 		{areaLegal, func(name string) (identity.ValueDeclaration, bool) {
-			for _, link := range identity.LegalSettingNames() {
+			for _, link := range identity.LevelLegalSettingNames() {
 				if string(link) == name {
 					return identity.DeclarationOfLink(link), true
 				}
@@ -339,6 +353,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 	}
 
 	level.BlocklistFile = in.String("blocklist_file")
+	level.Metering = in.Bool("metering")
 	return level, nil
 }
 
@@ -394,6 +409,11 @@ func valueOfKind(area, name string, declaration identity.ValueDeclaration, raw a
 				return nil, false, refused
 			}
 			words = append(words, word)
+		}
+		if len(declaration.OneOf) > 0 && !slices.ContainsFunc(words, func(word string) bool {
+			return slices.Contains(declaration.OneOf, word)
+		}) {
+			return nil, false, refused
 		}
 		return words, true, nil
 	case identity.KindLink, identity.KindText, identity.KindLocale, identity.KindTimeZone:

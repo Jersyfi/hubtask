@@ -109,6 +109,9 @@ type InviteAccount struct {
 	Text text.Normalizer
 	// Links hands the invitation over as a link where no mail goes out; the zero value mails it.
 	Links InvitationLinks
+	// People refuses an invitation past the workspace's people limit; an open invitation holds a
+	// place.
+	People PeopleLimit
 }
 
 // Execute invites the account and returns it, with the link where it is handed over by hand.
@@ -149,6 +152,11 @@ func (h InviteAccount) Execute(
 			return err
 		}
 
+		if h.People != nil {
+			if err := h.People.Accounts(ctx, actor.TenantID.String(), 1); err != nil {
+				return err
+			}
+		}
 		if err := h.Accounts.Insert(ctx, invited); err != nil {
 			return err
 		}

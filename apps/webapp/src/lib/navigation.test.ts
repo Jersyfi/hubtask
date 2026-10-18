@@ -223,11 +223,13 @@ test('on a single-workspace installation the installation is the administration\
 
 // UC-AI-06 check 8: a single-workspace installation has no model to offer anybody, so its
 // installation section has no *AI*; a multi-workspace one keeps it.
-test('the installation offers no AI row where it runs one workspace', () => {
+test('the installation offers no AI, platform or plans row where it runs one workspace', () => {
   const rowsOf = (single: boolean) => instanceSection({ isSingleWorkspace: single }).flatMap((group) => group.rows.map((row) => row.id));
   assert.ok(!rowsOf(true).includes('ai'), 'a private installation is offered an AI row');
-  assert.ok(rowsOf(false).includes('ai'), 'a multi-workspace installation lost its AI row');
-  assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => id !== 'ai'), 'more than the AI row went');
+  assert.ok(!rowsOf(true).includes('platform'), 'a private installation is offered a purchase platform');
+  assert.ok(!rowsOf(true).includes('plans'), 'a private installation is offered plans');
+  assert.ok(['ai', 'platform', 'plans'].every((id) => rowsOf(false).includes(id)), 'a multi-workspace installation lost a row');
+  assert.deepEqual(rowsOf(true), rowsOf(false).filter((id) => !['ai', 'platform', 'plans'].includes(id)), 'more than the three rows went');
 });
 
 test('the jumble is a place only for somebody it is drawn for', () => {

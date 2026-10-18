@@ -135,6 +135,17 @@ rather than a re-render of every deployment.
     secretKeyRef:
       name: {{ include "hubtask.secretName" .root }}
       key: secret-key
+{{- with .root.Values.encryption.keys }}
+- name: HUBTASK_ENCRYPTION_KEYS
+  value: {{ join "," . | quote }}
+{{- range . }}
+- name: HUBTASK_ENCRYPTION_KEY_{{ upper . }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $.root.Values.encryption.existingSecret | default (include "hubtask.secretName" $.root) }}
+      key: encryption-key-{{ lower . }}
+{{- end }}
+{{- end }}
 {{- if .root.Values.smtp.existingSecretKey }}
 - name: HUBTASK_SMTP_PASSWORD
   valueFrom:

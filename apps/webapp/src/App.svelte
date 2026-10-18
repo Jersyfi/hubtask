@@ -35,6 +35,9 @@ import ContainerView from './views/ContainerView.svelte';
   import InstanceProvidersView from './views/InstanceProvidersView.svelte';
   import InstanceAiView from './views/InstanceAiView.svelte';
   import InstanceTargetsView from './views/InstanceTargetsView.svelte';
+  import InstancePlatformView from './views/InstancePlatformView.svelte';
+  import InstancePlanView from './views/InstancePlanView.svelte';
+  import InstancePlansView from './views/InstancePlansView.svelte';
   import InstanceSettingsView from './views/InstanceSettingsView.svelte';
   import InstanceWorkspacesView from './views/InstanceWorkspacesView.svelte';
   import ProfileView from './views/ProfileView.svelte';
@@ -279,6 +282,12 @@ import ContainerView from './views/ContainerView.svelte';
     <InstanceOverviewView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-workspaces'}
     <InstanceWorkspacesView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-plans'}
+    <InstancePlansView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-plan'}
+    {#key route.params.name}
+      <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => router.navigate(path)} />
+    {/key}
   {:else if route.name === 'instance-settings'}
     <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-providers'}
@@ -287,6 +296,8 @@ import ContainerView from './views/ContainerView.svelte';
     <InstanceAiView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-targets'}
     <InstanceTargetsView onnavigate={(path) => router.navigate(path)} />
+  {:else if route.name === 'instance-platform'}
+    <InstancePlatformView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-encryption'}
     <InstanceEncryptionView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-operators'}

@@ -171,9 +171,13 @@ const (
 	SignedInWithPassword         = "PASSWORD"
 	SignedInWithPasswordTotp     = "PASSWORD_TOTP"
 	SignedInWithPasswordRecovery = "PASSWORD_RECOVERY"
-	SignedInWithOidc             = "OIDC"
-	SignedInWithInvitation       = "INVITATION"
-	SignedInWithReset            = "RESET"
+	// SignedInWithPasswordPasskey is the password and a passkey or security key as the second factor.
+	SignedInWithPasswordPasskey = "PASSWORD_PASSKEY"
+	SignedInWithOidc            = "OIDC"
+	SignedInWithInvitation      = "INVITATION"
+	SignedInWithReset           = "RESET"
+	// SignedInWithPasskey is a passkey with the person verified on the device, alone (§23.4).
+	SignedInWithPasskey = "PASSKEY"
 )
 
 // NewSessionInput is what opening a session needs.

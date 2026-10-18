@@ -95,3 +95,40 @@ test('chromium: a deletion a legal hold keeps says so, and counts no days', asyn
   assert.equal(await page.getByText(/Days left/).count(), 1, 'a held deletion counts down to a day it will not go');
   assert.equal(await page.getByText('Days left before it goes for good: 50.').count(), 1, 'the other deletion stopped counting');
 });
+
+// UC-PRV-04 check 8: a deletion a restriction of processing keeps says that it is the restriction,
+// not a legal hold, and counts no days either.
+test('chromium: a deletion a restriction keeps says so, and counts no days', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+
+  const deleted = new Date(Date.now() - 40 * DAY);
+  const row = (id, title, heldBy) => ({
+    kind: 'ITEM', id, trash_batch_id: id.replace(/a(\d)$/, 'b$1'), deleted_at: deleted.toISOString(),
+    purge_after: new Date(deleted.getTime() + 90 * DAY).toISOString(), held: true, held_by: heldBy,
+    deleted_by: { type: 'USER', id: ACCOUNT.id }, title, subtype: 'TASK',
+    hub_id: HUB.id, collection_id: COLLECTION.id, parent_id: null, version: 3,
+  });
+  const restricted = row('01a0e2e0-0000-7000-8000-0000000009a4', 'Shift notes', 'restriction');
+  const held = row('01a0e2e0-0000-7000-8000-0000000009a5', 'Invoices from the builder', 'legal_hold');
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/trash') return route.fulfill({ json: { data: [restricted, held], page: { next_cursor: null, has_more: false } } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/trash`);
+  await page.getByText(restricted.title).waitFor({ timeout: 15_000 });
+
+  const sentence = "Kept because the person's data is restricted.";
+  await page.getByText(sentence).first().waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText(sentence).count(), 1, 'the restriction is said on more than its deletion');
+  assert.equal(await page.getByText('Kept by a legal hold.').count(), 1, 'the hold lost its own sentence');
+  assert.equal(await page.getByText(/Days left/).count(), 0, 'a kept deletion counts down to a day it will not go');
+});

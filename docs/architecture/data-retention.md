@@ -128,7 +128,13 @@ Evaluated in this order; the first that applies wins:
    [data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30).
 2. **A restriction of processing** (GDPR Art. 18) → the object is neither deleted nor changed. The
    **account** carries it (status `RESTRICTED`), not an open case
-   ([data-protection.md](./data-protection.md) §4).
+   ([data-protection.md](./data-protection.md) §4). It reaches what an account hold reaches (item 1):
+   the account and what its person contributed. It binds the automatic runs — the rules, their
+   preview and the automatic trash purge — which read it once per pass, with the holds, through the
+   read automation and the AI exclusion share. A kept entry carries `blocked_by: restriction`, a kept
+   deletion in the trash `held_by: restriction`, and the run counts it under `restriction`. A person
+   emptying the trash or purging an entry is not stopped: a restriction is not a lock
+   ([UC-PRV-04](../usecases/privacy/UC-PRV-04-restrict-the-processing-of-a-persons-data.md)).
 3. **Lower bounds per data kind** (`min_days`) → no accidental immediate deletion; trash at least 7
    days.
 4. **Upper bounds per data kind** (`max_days`, where the operator set one) → exceeding it requires a
@@ -159,8 +165,20 @@ Evaluated in this order; the first that applies wins:
 * **A pass reads past what it cannot act on.** An object a legal hold keeps, one a rule's condition
   excludes, one a narrower rule keeps longer, an announcement, a parent waiting for a retained child:
   each stays where the next read finds it, oldest first. Each phase therefore reads on, page by page
-  in its one transaction, until it holds a batch it can act on or the objects end; it acts on at
-  most one batch. The trash's own pass does the same for a hold and the offline window.
+  in its one transaction, until it holds a batch it can act on, the objects end, or it has judged
+  its **read budget** (ten batches, 10,000 objects by default); it acts on at most one batch. The
+  rule sweep's reads - phase one per kind, a chain's second stage per rule, phase two - each keep
+  their place (`retention_cursor`: a moment and an identifier, no content), so the next pass
+  continues where the last stopped and comes back after the short wait while a read stopped at its
+  budget. Every due object is reached within ceil(N / budget) passes, N being what lies ahead of it;
+  a read that reaches the end forgets its place, and the next cycle starts at the beginning after
+  the interval. A page's entries are read in one statement when a condition names `item`. The
+  bound: the deadline (`HUBTASK_JOB_TIMEOUT`, 60 s) has to hold every read's budget of one pass.
+  Measured with 100,000 objects ahead of the due one, a read's budget takes 0.6–1.0 s, both for
+  objects held and for objects a condition naming `item` excludes. A page's cost still grows with
+  the workspace (11–15 ms per 1,000 objects at 10,000, 64–104 ms at 100,000), because no index
+  serves the read's order yet. The trash's own pass reads past a hold and the offline window too,
+  in one pass and without a place: it judges no condition, about 800,000 rows per deadline.
 * **No marking phase where it would announce nothing actionable:** a kind with a trash (the trash is
   its own grace period), kinds nobody can take out of a period (jumble entries, notifications,
   suggestions) and machine records (sessions, devices, sync log) — §3 says which.
@@ -170,7 +188,9 @@ Evaluated in this order; the first that applies wins:
 * **Completeness:** a hard delete covers every storage location in the data catalogue (row, media,
   search index, vectors, derived counters); a test checks for orphans after a run.
 * **Log:** one `retention_run` per run (scope, duration, result, rule); a summary in the audit,
-  never every object.
+  never every object. A rule set aside because its condition could not be evaluated (§2) is a log
+  line with the rule and the code, and its `last_failure` is written in a transaction of its own
+  beside the pass, so a pass that rolls back afterwards keeps it.
 * **Finished jobs** go seven days after they ended, in every terminal state, dead letters included
   (the data catalogue's period; a payload names people by identifier). The `job` table has no
   tenant, so the scheduler's leader removes them installation-wide, on the first tick of each hour,

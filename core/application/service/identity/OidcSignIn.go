@@ -73,7 +73,9 @@ type OidcWriter struct {
 	Flows    repository.OidcFlows
 	External repository.ExternalAccounts
 	Accounts repository.Accounts
-	Relying  provider.Port
+	// People refuses a newcomer past the workspace's people limit; nil enforces none.
+	People  PeopleLimit
+	Relying provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form.
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
@@ -337,6 +339,21 @@ func (w OidcWriter) passwordShutFor(ctx context.Context, scope persistence.Scope
 	return nil
 }
 
+// workspaceStanding refuses a suspended workspace, or one pending deletion, with the code every
+// authenticated call answers. A build wired without the workspaces reads none.
+func (w OidcWriter) workspaceStanding(ctx context.Context, scope persistence.Scope) error {
+	if w.Workspaces == nil {
+		return nil
+	}
+	return w.Session.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := w.Workspaces.Find(ctx)
+		if err != nil {
+			return err
+		}
+		return found.Status.Verify()
+	})
+}
+
 // connectStands answers whether a CONNECT link may still stand in for the account's password, inside
 // a transaction bound to the link's workspace: a live CONNECT credential, an active account of a
 // workspace in good standing, and no provider switched on there that already lets the account in.
@@ -372,6 +389,8 @@ type CompleteOidcSignInCommand struct {
 	UserAgent    string
 	RemoteAddr   string
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // Execute burns the flow, verifies the token, finds or makes the account, and opens the session.
@@ -426,6 +445,13 @@ func (h CompleteOidcSignIn) Execute(
 	})
 	if err != nil {
 		w.Session.failure(ctx, FailureOidc)
+		return SignInResult{}, err
+	}
+
+	// The workspace's own standing, as every other way in asks it after the proof (UC-INS-08
+	// check 2): a suspended workspace makes no account and opens no session, whoever arrives.
+	// Not counted as a provider's failure: the provider answered, and the workspace is paused.
+	if err := w.workspaceStanding(ctx, scope); err != nil {
 		return SignInResult{}, err
 	}
 
@@ -570,17 +596,11 @@ func (w OidcWriter) settleAccount(
 		// the configured list is refused here - not provisioned a desk of its own, which would
 		// make the mode indistinguishable from ANY.
 		if !configured.MayAdmit(admissionOf(arriving)) {
-			existing, err := w.notAdmitted(ctx, configured, arriving)
-			if err != nil {
-				if !errors.Is(err, shared.ErrForbidden) {
-					return err
-				}
-				return turnedAway(err)
+			err := w.notAdmitted(ctx, configured, arriving)
+			if !errors.Is(err, shared.ErrForbidden) {
+				return err
 			}
-			// An existing member whose provider is not authoritative for the address: the LINK
-			// step, where the account's own proof is asked and nothing is connected without it.
-			account, owed = existing, true
-			return nil
+			return turnedAway(err)
 		}
 
 		// Admitted. If an account here already holds the address the provider vouched for, this is
@@ -664,6 +684,14 @@ func (w OidcWriter) settleAccount(
 		}
 
 		if deferNewcomer {
+			// The people limit is asked before the terms are put, so that nobody agrees to terms
+			// for a place there is not; it is asked again where the account is made.
+			if err := w.roomForANewcomer(ctx, scope); err != nil {
+				if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+					return turnedAway(err)
+				}
+				return err
+			}
 			// Validated now, so that an address or a name the account could not take fails before
 			// the person agrees rather than after.
 			valid, err := domain.ProvisionExternal(
@@ -679,6 +707,9 @@ func (w OidcWriter) settleAccount(
 		}
 		provisioned, err := w.provisionNewcomer(ctx, scope, configured, arriving)
 		account = provisioned
+		if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+			return turnedAway(err)
+		}
 		return err
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
@@ -706,6 +737,9 @@ func (w OidcWriter) provisionNewcomer(
 	provisioned, err := domain.ProvisionExternal(
 		w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
 	if err != nil {
+		return domain.Account{}, err
+	}
+	if err := w.roomForANewcomer(ctx, scope); err != nil {
 		return domain.Account{}, err
 	}
 	if err := w.Accounts.Insert(ctx, provisioned); err != nil {
@@ -909,9 +943,9 @@ func (w OidcWriter) connectByMail(
 		if !arriving.EmailVerified || !w.sameAddress(arriving.Email, held.Email) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.connect_address_differs"))
 		}
-		// Admission as for every arrival that brings its own proof: the mailbox is that proof,
-		// under INVITED_ONLY and under DOMAINS alike - the list decides who comes in new.
-		if !configured.MayAdmitWithProof(admissionOf(arriving)) {
+		// Admission bounds a connection as it bounds a newcomer (identity.md §10.4):
+		// the mailbox proves the person, and the mode and lists decide what may be connected.
+		if !configured.MayAdmit(admissionOf(arriving)) {
 			return turnedAway(shared.ErrForbidden.WithDetail("identity_provider.not_admitted"))
 		}
 		// An identity already connected to somebody else here is that person's, and is never
@@ -935,19 +969,15 @@ func (w OidcWriter) connectByMail(
 		link := domain.LinkIntent{
 			ProviderID: configured.ID, Subject: arriving.Subject, Proof: domain.LinkProofMailbox,
 		}
-		armed := false
-		if s.Enrollments != nil {
-			enrollment, err := s.Enrollments.Find(ctx, held.ID)
-			if err != nil && !errors.Is(err, shared.ErrNotFound) {
-				return err
-			}
-			armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+		factor, err := s.factorHeldAt(ctx, held.ID, cmd.Host)
+		if err != nil {
+			return err
 		}
 		account = held
-		if armed {
+		if factor.any() {
 			next, err := w.handOnToTheFactor(ctx, scope, held, domain.PendingCredential{
 				UserAgent: cmd.UserAgent, IPClass: domain.IPClass(cmd.RemoteAddr), Link: &link,
-			}, now)
+			}, factor, now)
 			if err != nil {
 				return err
 			}
@@ -991,58 +1021,47 @@ type turnedAwayError struct{ cause error }
 func (e turnedAwayError) Error() string { return e.cause.Error() }
 func (e turnedAwayError) Unwrap() error { return e.cause }
 
+// capacityAccounts is the people limit's refusal (quota's `capacity.<quota>`).
+const capacityAccounts = "capacity.accounts"
+
+// roomForANewcomer asks the people limit for one more person, in the arrival's transaction.
+func (w OidcWriter) roomForANewcomer(ctx context.Context, scope persistence.Scope) error {
+	if w.People == nil {
+		return nil
+	}
+	return w.People.Accounts(ctx, scope.TenantID.String(), 1)
+}
+
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
 
-// notAdmitted answers an arrival admission turned away (ADR-0078 §1, §5).
+// notAdmitted answers an arrival admission turned away (identity.md §10.4).
 //
-// Under INVITED_ONLY a provider that is not authoritative for the address - a self-hosted one, a
-// personal Google account at somebody else's domain - and under DOMAINS an address outside the
-// directory or domain list still bring two people to a door they open with their own proof, because
-// authority and the list decide only who comes in new, on the provider's word (MayAdmitWithProof):
-//
-//   - an existing ACTIVE account goes to the LINK step: its password (and its second factor) is
-//     asked, and nothing is connected without it. The account is answered, and owes that proof.
-//     One that cannot give it on this card is refused with the sentence naming the way in it has.
-//     Without this a member of a workspace that chose its provider only would have no way to
-//     connect it (P-16).
-//   - an INVITED account is pointed at its invitation's link, which is the proof it holds.
-//
-// Everybody else is refused, and nothing is created here.
+// The mode and the lists bound who comes in new *and* which identities may be connected to an
+// existing account, so an existing member is not brought to the LINK step here: the member's own
+// proof does not widen what the provider admits. The one arrival pointed somewhere is an INVITED
+// account whose provider would admit it with its invitation's link (MayAdmitInvitation) - that link
+// is not new, and it is the proof the account holds. Everybody else is refused, and nothing is
+// created or connected here. Always an error: ErrForbidden for the refusals, anything else for a
+// read that failed.
 func (w OidcWriter) notAdmitted(
 	ctx context.Context, configured domain.IdentityProvider, arriving provider.Identity,
-) (domain.Account, error) {
+) error {
 	refused := shared.ErrForbidden.WithDetail("identity_provider.not_admitted")
-	if !configured.MayAdmitWithProof(admissionOf(arriving)) {
-		return domain.Account{}, refused
+	if !configured.MayAdmitInvitation(admissionOf(arriving)) {
+		return refused
 	}
 	existing, err := w.Accounts.FindByEmail(ctx, domain.LookupAddress(arriving.Email, w.Domains))
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return domain.Account{}, refused
+			return refused
 		}
-		return domain.Account{}, err
+		return err
 	}
-	switch existing.Status {
-	case domain.AccountInvited:
-		return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
-	case domain.AccountActive:
-		proof, err := w.proofOwed(ctx, existing)
-		if err != nil {
-			return domain.Account{}, err
-		}
-		switch proof {
-		case proofPassword:
-			return existing, nil
-		case proofElsewhere:
-			return domain.Account{}, shared.ErrForbidden.WithDetail("identity_provider.link_needs_own_way_in")
-		}
-		// No credential at all, and a provider that is not authoritative: its word does not stand
-		// in for a proof, and the way back is the mailbox.
-		return domain.Account{}, linkNeedsMailbox()
-	default:
-		return domain.Account{}, refused
+	if existing.Status == domain.AccountInvited {
+		return shared.ErrForbidden.WithDetail("identity_provider.invitation_needs_link")
 	}
+	return refused
 }
 
 // arriveInvited is a first arrival through the invitation's own link (ADR-0078 §1): the invited
@@ -1235,14 +1254,13 @@ func (w OidcWriter) proofOwed(ctx context.Context, existing domain.Account) (lin
 		return proofPassword, nil
 	}
 
-	armed := false
-	if w.Session.Enrollments != nil {
-		enrollment, err := w.Session.Enrollments.Find(ctx, existing.ID)
-		if err != nil && !errors.Is(err, shared.ErrNotFound) {
-			return proofNone, err
-		}
-		armed = err == nil && !enrollment.ConfirmedAt.IsZero()
+	// No host: what is read here matters only for an invited account, which has never signed in and
+	// so holds no key - the app alone decides, through the one helper every door reads.
+	factor, err := w.Session.factorHeldAt(ctx, existing.ID, "")
+	if err != nil {
+		return proofNone, err
 	}
+	armed := factor.any()
 	// An invited account's provider identities were connected on a provider's word alone, before
 	// any second proof: they are not a credential, and activating the account drops them
 	// (ADR-0078 §1).
@@ -1636,6 +1654,7 @@ func (h CompleteOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "The peer's address; only its network class is ever recorded."},
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the state's workspace, never overrule it."},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: OidcSignedInAction, TargetType: sessionTarget,
@@ -1657,6 +1676,7 @@ func (h CompleteOidcSignIn) invoke(
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

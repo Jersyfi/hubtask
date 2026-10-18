@@ -285,5 +285,17 @@ func (c Cases) workable(
 	if text == "" && strings.TrimSpace(material.Content) == "" {
 		return integration.NothingToWorkWith()
 	}
+	if len(choiceSets[promptID]) > 0 && len(material.Choices) == 0 && len(material.Declared) == 0 {
+		// A question that may only choose - labels the collection agreed on, the board's columns,
+		// the closed fields it declared - with nothing to choose from can only answer nothing, and
+		// would spend the workspace's budget to learn it. Refused rather than queued, so that the
+		// client, which reads the same three lists, offers it exactly where it can succeed (P-05).
+		return nothingToChooseFrom
+	}
 	return nil
 }
+
+// nothingToChooseFrom refuses a classification of an entry whose collection offers no label, no
+// column it could move to and no closed field: not "empty" - the entry has words - but nothing to
+// pick, which is a different sentence.
+var nothingToChooseFrom = shared.ErrValidation.WithDetail("ai.nothing_to_choose_from")

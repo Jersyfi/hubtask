@@ -11,6 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceInstanceLevelVersion = `-- name: AdvanceInstanceLevelVersion :one
+INSERT INTO instance_setting (key, value, lock_origin, updated_by, updated_at)
+VALUES ('level.version', '1'::jsonb, 'OPEN', $1, $2)
+ON CONFLICT (key) DO UPDATE
+  SET value = to_jsonb((instance_setting.value #>> '{}')::bigint + 1),
+      updated_by = excluded.updated_by,
+      updated_at = excluded.updated_at
+  WHERE $3::bigint IS NULL
+     OR instance_setting.value = to_jsonb($3::bigint)
+RETURNING (value #>> '{}')::bigint AS version
+`
+
+type AdvanceInstanceLevelVersionParams struct {
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Expected  *int64
+}
+
+// The level's version, moved by one - only from `expected`, when one is named (migration 0184).
+//
+// The guard is this statement and not a read before it: the conflicting row is locked, so a second
+// save made on the same version waits for the first and then compares against what the first
+// committed, which matches nothing. No row back is the refusal. A NULL `expected` moves it
+// whatever it is: the instance file is the source and wins. A row somebody removed by hand is
+// inserted at 1, so the level never becomes unsaveable.
+func (q *Queries) AdvanceInstanceLevelVersion(ctx context.Context, arg AdvanceInstanceLevelVersionParams) (int64, error) {
+	row := q.db.QueryRow(ctx, advanceInstanceLevelVersion, arg.UpdatedBy, arg.UpdatedAt, arg.Expected)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
 const appliedSchemaVersions = `-- name: AppliedSchemaVersions :one
 SELECT applied_schema_versions()::bigint[] AS versions
 `
@@ -189,6 +221,24 @@ func (q *Queries) IsOperator(ctx context.Context, accountID pgtype.UUID) (bool, 
 	var is_operator bool
 	err := row.Scan(&is_operator)
 	return is_operator, err
+}
+
+const isRegisteredServiceAccount = `-- name: IsRegisteredServiceAccount :one
+SELECT EXISTS (
+  SELECT 1 FROM operator_roster($1) r
+  WHERE r.account_id = $1 AND r.kind = 'SERVICE_ACCOUNT'
+)::boolean AS registered
+`
+
+// Whether the register holds the account's own row, and holds it as a service account's - not the
+// empty register's owner, whom `is_operator` admits as well: a purchase platform's service account
+// requests a deletion without a step-up only when it is registered (UC-INS-08 check 7). Through the
+// roster's function, the register's narrow door, so no new grant is needed.
+func (q *Queries) IsRegisteredServiceAccount(ctx context.Context, accountID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, isRegisteredServiceAccount, accountID)
+	var registered bool
+	err := row.Scan(&registered)
+	return registered, err
 }
 
 const issueSetupCode = `-- name: IssueSetupCode :one

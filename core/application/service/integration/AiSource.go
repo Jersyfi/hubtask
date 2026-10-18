@@ -63,6 +63,10 @@ type AiRules struct {
 	// Consents counts who keeps their content out, for the number the screen shows before the
 	// workspace changes its position (P-04). Nil counts nobody.
 	Consents privacyrepo.Consents
+	// Plans reads the workspace's plan's AI layer, between the installation's and the workspace's.
+	// Its own read beside the workspace's: the AI layer cannot ride on the identity workspace, which
+	// this package's domain depends on. Nil reads no plan.
+	Plans repository.PlanAi
 }
 
 // AiState is a workspace's AI at one moment.
@@ -123,8 +127,14 @@ func (r AiRules) Resolve(ctx context.Context, tenantID shared.ID) (AiState, erro
 		workspaceLayer.PersonOptOut = &position
 		workspaceLayer.Basis = domain.AiOptOutBasis(workspace.Settings.AiOptOutBasis)
 	}
+	var plan domain.AiLayer
+	if r.Plans != nil {
+		if plan, err = r.Plans.PlanAi(ctx); err != nil {
+			return AiState{}, err
+		}
+	}
 	state := AiState{
-		Rule:      domain.EffectiveAi(level.Ai, domain.AiLayer{}, workspaceLayer, len(offered) > 0),
+		Rule:      domain.EffectiveAi(level.Ai, plan, workspaceLayer, len(offered) > 0),
 		Choice:    choice,
 		Offered:   offered,
 		Narrowing: narrowing,

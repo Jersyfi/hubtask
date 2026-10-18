@@ -13,7 +13,7 @@ import (
 
 // legalResolved is the part of a resolution applyLegal reads, built the way the resolver builds it.
 func legalResolved(instance domain.LegalLayer, own domain.LegalLinks) ResolvedPolicy {
-	legal, locks := domain.EffectiveLegal(instance, domain.LegalLayer{Links: own})
+	legal, locks := domain.EffectiveLegal(instance, domain.LegalLayer{}, domain.LegalLayer{Links: own})
 	return ResolvedPolicy{Legal: legal, LegalLock: locks, InstanceLegal: instance}
 }
 

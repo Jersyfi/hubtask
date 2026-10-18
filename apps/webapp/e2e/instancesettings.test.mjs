@@ -57,17 +57,22 @@ const LEVEL = {
 async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const sent = [];
+  /** The If-Match each save carried, beside its body. */
+  const preconditions = [];
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/auth/sessions:elevate') {
       return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
     }
-    if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: level });
+    if (path === '/admin/settings' && request.method() === 'GET') {
+      return route.fulfill({ json: level, headers: { ETag: `"${level.version ?? 1}"` } });
+    }
     if (path === '/admin/settings' && request.method() === 'PUT') {
       const body = request.postDataJSON();
       sent.push(body);
-      if (refuse) return route.fulfill({ status: 422, contentType: 'application/problem+json', json: refuse });
+      preconditions.push(request.headers()['if-match']);
+      if (refuse) return route.fulfill({ status: refuse.status, contentType: 'application/problem+json', json: refuse });
       return route.fulfill({ json: level });
     }
     return stub(route);
@@ -79,7 +84,7 @@ async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 }
   const page = await context.newPage();
   await page.goto(`${served.origin}/instance/settings`);
   await page.getByRole('row').filter({ hasText: 'Minimum length' }).waitFor({ timeout: 15_000 });
-  return { page, sent, close: () => context.close() };
+  return { page, sent, preconditions, close: () => context.close() };
 }
 
 test('chromium: every value is named in words, and the lock says what a workspace may still do', async (t) => {
@@ -193,6 +198,32 @@ test('chromium: a refusal lands at the value it is about', async (t) => {
   await field.getByRole('alert').or(field.locator('[aria-invalid="true"]')).first().waitFor({ timeout: 10_000 });
 });
 
+// UC-INS-09 check 8: the save is made on the version the screen read, and when somebody else saved
+// first the screen says so - and keeps what this operator typed, so nothing of theirs vanishes.
+test('chromium: a save on values somebody else saved since says so and keeps the draft', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, preconditions, close } = await open(browser, {
+    level: { ...LEVEL, version: 4 },
+    refuse: {
+      type: 'about:blank', title: 'version_conflict', status: 409, code: 'version_conflict',
+      detail_code: 'admin.instance_settings_version_conflict',
+    },
+  });
+  t.after(close);
+
+  await page.getByRole('button', { name: 'Change these values' }).click();
+  const form = page.locator('form');
+  await form.getByRole('spinbutton', { name: 'Digits, at least' }).fill('3');
+  await form.getByRole('button', { name: 'Save' }).click();
+
+  await page.getByText('Somebody else saved the installation’s defaults first')
+    .or(page.getByText("Somebody else saved the installation's defaults first"))
+    .first().waitFor({ timeout: 10_000 });
+  assert.equal(preconditions.at(-1), '"4"');
+  assert.equal(await form.getByRole('spinbutton', { name: 'Digits, at least' }).inputValue(), '3');
+});
+
 test('chromium: a level a file enforces is shown with its path and no control', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -242,4 +273,25 @@ test('chromium: a language is named and stored files are a size', async (t) => {
   assert.ok(!options.includes('en') && !options.includes('de'), options.join(' | '));
   const field = await form.locator('[data-value="quotas.media_bytes"]').textContent() ?? '';
   assert.match(field, /That is 10\.7\s?GB/, field);
+});
+
+// The provider's account link among the legal links (UC-INS-13 check 11): in multi mode its lock says
+// what plans may, and a level without plans - single mode - answers no lock, so none is offered.
+test('chromium: the account link is drawn with what plans may, and without a lock where there are none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const multi = {
+    ...LEVEL,
+    legal: { ...LEVEL.legal, account_url: { set: true, value: 'https://shop.example/account', locked: false, kind: 'LINK', workspace_may: 'PLAN_REPLACE' } },
+  };
+  const { page, close } = await open(browser, { level: multi });
+  t.after(close);
+  const row = page.getByRole('row').filter({ hasText: 'Provider\'s account page' });
+  assert.match(await row.textContent() ?? '', /shop\.example\/account.*set their own \(plans\)/);
+
+  const single = { ...LEVEL, legal: { ...LEVEL.legal, account_url: { set: false, locked: false, kind: 'LINK' } } };
+  const second = await open(browser, { level: single });
+  t.after(second.close);
+  const plain = (await second.page.getByRole('row').filter({ hasText: 'Provider\'s account page' }).textContent()) ?? '';
+  assert.doesNotMatch(plain, /plans|their own|change it/);
 });

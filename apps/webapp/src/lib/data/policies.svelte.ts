@@ -58,6 +58,12 @@ export interface Policy {
    * than a gap: with nothing to be in force *in*, the question has no answer.
    */
   readonly in_force?: boolean;
+  /**
+   * Present while the last pass that reached the rule set it aside: its condition could not be
+   * evaluated on an entry, so it announced and removed nothing (data-retention.md §2). `code` is a
+   * message code, `at` an instant.
+   */
+  readonly last_failure?: { readonly code: string; readonly at: string } | null;
 }
 
 /** What `:preview` answers. It writes nothing. */

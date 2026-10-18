@@ -27,6 +27,24 @@ ON CONFLICT (key) DO UPDATE
       updated_by = excluded.updated_by,
       updated_at = excluded.updated_at;
 
+-- name: AdvanceInstanceLevelVersion :one
+-- The level's version, moved by one - only from `expected`, when one is named (migration 0184).
+--
+-- The guard is this statement and not a read before it: the conflicting row is locked, so a second
+-- save made on the same version waits for the first and then compares against what the first
+-- committed, which matches nothing. No row back is the refusal. A NULL `expected` moves it
+-- whatever it is: the instance file is the source and wins. A row somebody removed by hand is
+-- inserted at 1, so the level never becomes unsaveable.
+INSERT INTO instance_setting (key, value, lock_origin, updated_by, updated_at)
+VALUES ('level.version', '1'::jsonb, 'OPEN', sqlc.narg('updated_by'), sqlc.arg('updated_at'))
+ON CONFLICT (key) DO UPDATE
+  SET value = to_jsonb((instance_setting.value #>> '{}')::bigint + 1),
+      updated_by = excluded.updated_by,
+      updated_at = excluded.updated_at
+  WHERE sqlc.narg('expected')::bigint IS NULL
+     OR instance_setting.value = to_jsonb(sqlc.narg('expected')::bigint)
+RETURNING (value #>> '{}')::bigint AS version;
+
 -- name: DeleteInstanceSettingsExcept :exec
 -- What the write did not decide stops being decided.
 --
@@ -42,6 +60,16 @@ WHERE split_part(key, '.', 1) = ANY(sqlc.arg('areas')::text[])
 -- Through the function rather than against the table: `operator` carries no policy and no grant, so
 -- the four narrow doors are the only way to it.
 SELECT is_operator(sqlc.arg('account_id'));
+
+-- name: IsRegisteredServiceAccount :one
+-- Whether the register holds the account's own row, and holds it as a service account's - not the
+-- empty register's owner, whom `is_operator` admits as well: a purchase platform's service account
+-- requests a deletion without a step-up only when it is registered (UC-INS-08 check 7). Through the
+-- roster's function, the register's narrow door, so no new grant is needed.
+SELECT EXISTS (
+  SELECT 1 FROM operator_roster(sqlc.arg('account_id')) r
+  WHERE r.account_id = sqlc.arg('account_id') AND r.kind = 'SERVICE_ACCOUNT'
+)::boolean AS registered;
 
 -- name: ResolveOperatorAccount :one
 -- The account an address names inside one workspace, through the register's own narrow door

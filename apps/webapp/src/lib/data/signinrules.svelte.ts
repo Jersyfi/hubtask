@@ -153,6 +153,14 @@ class SignInRulesStore {
     return this.#rules === undefined || this.#rules.methods.includes('PASSWORD');
   }
 
+  /**
+   * Whether a passkey signs in here: the server names it only where a ceremony can finish - switched
+   * on, a relying party, and this very host (identity.md §23.4).
+   */
+  get hasPasskey(): boolean {
+    return this.#rules?.methods.includes('PASSKEY') ?? false;
+  }
+
   get workspaceHost(): string | undefined {
     return this.#rules?.workspace_host;
   }

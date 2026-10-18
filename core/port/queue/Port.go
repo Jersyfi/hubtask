@@ -387,6 +387,16 @@ const (
 	// workspace's operation, because nothing may enumerate tenants - and deduplicated per tenant,
 	// so asking twice before the walk has finished queues nothing new.
 	KindSearchReindex Kind = "search.reindex"
+
+	// KindPlatformSweep removes what the installation keeps for a purchase platform past its 30
+	// days (UC-INS-14): its events and their deliveries. One installation job, without a tenant, seeded when a worker
+	// starts and repeating; the dedupe key keeps it one however many workers start.
+	KindPlatformSweep Kind = "platform.sweep"
+
+	// KindPlatformDeliver sends one installation event to one platform subscription (UC-INS-14):
+	// an installation job without a tenant, queued in the event's own transaction and again for
+	// each retry and redelivery. A workspace's purge removes its jobs, never these.
+	KindPlatformDeliver Kind = "platform.deliver"
 )
 
 func (k Kind) String() string { return string(k) }
@@ -465,6 +475,11 @@ type Result struct {
 	// code and parameters, without a retry and without counting a dead letter: asking again
 	// would meet the same answer, and nobody has to repair anything.
 	Refusal *Refusal
+	// Outcome is how a job that succeeded ended, where its kind says more than that it finished: a
+	// message code a caller polling the job reads (`ai.proposed`, `ai.nothing_to_change`, ...).
+	// Stored on the job row, which has no row level security, so a code and nothing else (rule 10).
+	// Empty where the kind has nothing to say.
+	Outcome string
 }
 
 // Refusal is the code and the parameters of a refusal, as a client renders any other: a message
@@ -619,9 +634,10 @@ type Queue interface {
 	// lose by missing a pull-forward.
 	Hold(ctx context.Context, job Job) error
 
-	// Complete finishes a job for good. Called in the same transaction as the handler's effect,
-	// and refused when the job's lease no longer holds.
-	Complete(ctx context.Context, job Job) error
+	// Complete finishes a job for good, with the outcome its handler answered (Result.Outcome,
+	// empty for none). Called in the same transaction as the handler's effect, and refused when the
+	// job's lease no longer holds.
+	Complete(ctx context.Context, job Job, outcome string) error
 
 	// Repeat returns a job to the queue for another round at runAt, with its attempt count
 	// cleared: a poller's next round is not a retry of the last one.

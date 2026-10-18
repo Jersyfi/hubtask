@@ -68,10 +68,16 @@ var PublicRoutes = map[string]bool{
 	// and a signed-in caller's bearer is verified exactly as on any public route.
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify": true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":   true,
+	// A passkey sign-in: the ceremony's answer is its whole proof, as the password is the sign-in's.
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:passkey-options": true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:passkey":         true,
 	// The terms step (UC-ID-19) likewise: the pending credential is the call's whole proof.
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:agree-terms": true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":      true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm":     true,
+	// Setting up a passkey or security key instead of the app: the same pending credential.
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/passkey:enroll-options": true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/passkey:enroll":         true,
 	// The relying-party flow is public for the same reason again: a person signing in
 	// through their company's provider has no credential here yet, and the flow's own handle -
 	// the single-use `state`, minted by :start and spent at :callback - is the whole of what

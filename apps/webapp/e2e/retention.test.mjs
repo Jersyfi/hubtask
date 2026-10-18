@@ -173,3 +173,38 @@ test('chromium: the rules and the form name each class of data in words', async 
     await browser.close();
   }
 });
+
+// UC-LIF-04 check 10: a rule the last pass set aside is shown as failing, with the reason in words -
+// the code's own sentence, never the code - and a rule that evaluated cleanly is not.
+test('chromium: a rule whose condition failed is shown as failing, with the reason', async () => {
+  const browser = await chromium.launch();
+  try {
+    const kinds = [{ data_kind: 'COMPLETED_ITEM', anchor: 'completed_at', actions: ['ARCHIVE', 'TRASH', 'NOTIFY_ONLY'] }];
+    const policies = [
+      {
+        id: '01a0e2e0-0000-7000-8000-0000000003c1', scope: { kind: 'TENANT' }, data_kind: 'COMPLETED_ITEM',
+        retain_days: 365, action: 'ARCHIVE', enabled: true, condition: "item.labels[0] == 'x'",
+        last_failure: { code: 'expression.evaluation_failed', at: '2026-10-15T08:00:00Z' },
+      },
+      {
+        id: '01a0e2e0-0000-7000-8000-0000000003c2', scope: { kind: 'COLLECTION', id: HUB.id }, data_kind: 'COMPLETED_ITEM',
+        retain_days: 90, action: 'TRASH', enabled: true,
+      },
+    ];
+    const { page, failures, close } = await open(browser, 'OWNER', { policies, kinds });
+    await page.getByText("This rule's condition failed").waitFor();
+    const panels = page.locator('section.panel');
+    const failing = panels.filter({ hasText: 'Days it is kept: 365' });
+    assert.equal(await failing.getByText('Failing', { exact: true }).count(), 1);
+    const said = await failing.innerText();
+    assert.ok(said.includes('announces and removes nothing until a pass evaluates it again'), said);
+    assert.ok(said.includes('failed on the values it was given'), said);
+    assert.ok(!said.includes('expression.evaluation_failed'), 'the code is on the screen');
+    const clean = panels.filter({ hasText: 'Days it is kept: 90' });
+    assert.equal(await clean.getByText('Failing', { exact: true }).count(), 0);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});

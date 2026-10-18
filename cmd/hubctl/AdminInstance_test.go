@@ -122,6 +122,35 @@ func TestSettingOneKeySendsTheRestBack(t *testing.T) {
 	}
 }
 
+// The change is made on the version the read answered, and a level somebody saved in between
+// refuses it: the terminal says so and exits non-zero (UC-INS-09 check 8).
+func TestSettingAKeySendsTheVersionReadAndSaysWhenSomebodySavedFirst(t *testing.T) {
+	versioned := strings.Replace(wholeLevel, `"source": "database",`, `"source": "database", "version": 4,`, 1)
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(versioned))
+			return
+		}
+		problemJSON(w, http.StatusConflict, map[string]any{
+			"status": 409, "code": "version_conflict",
+			"detail_code": "admin.instance_settings_version_conflict",
+		})
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "sign_in.min_digits", "2")
+	if code == exitOK {
+		t.Fatal("a refused save exited 0")
+	}
+	if got := stub.request.Header.Get("If-Match"); got != `"4"` {
+		t.Errorf("the save carried If-Match %q, want the version read", got)
+	}
+	if !strings.Contains(errOut, "Somebody else saved the installation's defaults first") {
+		t.Errorf("the refusal does not say somebody else saved first: %q", errOut)
+	}
+}
+
 // `clear` is how the installation stops deciding a switch: the key leaves the body, and `PUT`
 // replacing the level is what makes the absence mean something.
 func TestClearingAKeyRemovesItFromTheBody(t *testing.T) {
@@ -348,5 +377,31 @@ func TestThePersonOptOutIsLockedFromTheTerminal(t *testing.T) {
 	}
 	if sources, _ := ai["sources"].(map[string]any); sources["value"] != "EITHER" {
 		t.Errorf("the rest of the area was not sent back: %v", ai)
+	}
+}
+
+// UC-INS-14 checks 7 and 8: the metering switch is set from the terminal, beside the areas, and the
+// rest of the level goes back untouched.
+func TestMeteringIsSwitchedOnFromTheTerminal(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(wholeLevel))
+	})
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "metering", "on")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if stub.request.Method != http.MethodPut || sent["metering"] != true {
+		t.Errorf("sent %s %v", stub.request.Method, sent["metering"])
+	}
+	if _, held := sent["sign_in"]; !held {
+		t.Error("switching metering dropped the sign-in area")
+	}
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "metering", "maybe"); code == exitOK {
+		t.Error("a value that is neither on nor off was taken")
 	}
 }

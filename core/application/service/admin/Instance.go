@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -62,7 +63,9 @@ const (
 
 // InstanceWriter is what the control plane's instance use cases share.
 type InstanceWriter struct {
-	Settings   identityrepo.InstanceSettings
+	Settings identityrepo.InstanceSettings
+	// Tenancy is the mode: in multi mode plans exist, and the account link's lock binds them.
+	Tenancy    env.TenancyMode
 	Operators  identityrepo.Operators
 	Journal    adminrepo.Journal
 	UnitOfWork persistence.UnitOfWork
@@ -70,14 +73,19 @@ type InstanceWriter struct {
 	IDs        clock.IDGenerator
 }
 
-// authorize is the pair every operation here demands: the scope, then the register.
+// authorize is the pair every operation here demands: the scope, then the register. The scopes are
+// adminTenantsScope where none are named, or the operation's declared one followed by the narrower
+// one that admits it as well (platformScopes).
 //
 // The register is checked again although the credential could only carry the scope by passing it at
 // minting time, and that is the point: a token minted last month by somebody who has since been
 // removed still carries the scope, and the second check is what makes the removal mean something
 // (ADR-0070 §1).
-func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext) error {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+func (w InstanceWriter) authorize(ctx context.Context, actor appshared.ActorContext, scopes ...string) error {
+	if len(scopes) == 0 {
+		scopes = []string{adminTenantsScope}
+	}
+	if err := actor.RequireAnyScope(scopes...); err != nil {
 		return err
 	}
 	if w.Operators == nil {
@@ -140,24 +148,31 @@ type WriteInstanceSettings struct{ Writer InstanceWriter }
 // session yet, and the journal records the source rather than a name. Everything else about it is
 // the same write, including the entry in the journal, which is what makes a change that arrived
 // from a repository as visible as one somebody clicked.
+//
+// It compares no version: the file is the source and wins. In `enforce` every replica writes it at
+// start, and a refusal here would stop a start over a race between two copies of the same file.
 func (h WriteInstanceSettings) ExecuteAsFile(
 	ctx context.Context, level identityrepo.InstanceLevel, source string,
 ) (identityrepo.InstanceLevel, error) {
-	return h.write(ctx, appshared.ActorContext{AccountName: source}, level)
+	return h.write(ctx, appshared.ActorContext{AccountName: source}, level, 0, false)
 }
 
+// Execute writes the level on a person's behalf, made on the version `expected` (UC-INS-09 check
+// 8). Zero means the caller named none, and the level is compared with the version read in the
+// same transaction - so two saves at once still refuse the second, as the workspace's own does.
 func (h WriteInstanceSettings) Execute(
-	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
+	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel, expected int,
 ) (identityrepo.InstanceLevel, error) {
 	w := h.Writer
 	if err := w.authorize(ctx, actor); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}
-	return h.write(ctx, actor, level)
+	return h.write(ctx, actor, level, expected, true)
 }
 
 func (h WriteInstanceSettings) write(
 	ctx context.Context, actor appshared.ActorContext, level identityrepo.InstanceLevel,
+	expected int, compared bool,
 ) (identityrepo.InstanceLevel, error) {
 	w := h.Writer
 
@@ -179,8 +194,19 @@ func (h WriteInstanceSettings) write(
 				WithDetail("admin.instance_enforced_from_file").
 				WithParams(map[string]string{"source": before.Source})
 		}
-		if err := w.Settings.Write(ctx, level, actor.AccountID, w.Clock.Now()); err != nil {
+		// Compared after the file's refusal: reading the level again does not help while a file
+		// enforces it, and changing the file does.
+		if compared && expected == 0 {
+			expected = before.Version
+		}
+		stored, err := w.Settings.Write(ctx, level, expected, actor.AccountID, w.Clock.Now())
+		if err != nil {
 			return err
+		}
+		if !stored {
+			// Either the caller's screen was stale, or somebody committed between the read and the
+			// write. Both are the same fact to the caller: somebody else saved first (ADR-0025).
+			return shared.ErrVersionConflict.WithDetail("admin.instance_settings_version_conflict")
 		}
 		read, err := w.Settings.Read(ctx)
 		if err != nil {
@@ -218,7 +244,7 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 			moved = append(moved, string(name))
 		}
 	}
-	for _, link := range identity.LegalSettingNames() {
+	for _, link := range identity.LevelLegalSettingNames() {
 		if before.Legal.Links.Of(link) != after.Legal.Links.Of(link) ||
 			before.Legal.Locks[link] != after.Legal.Locks[link] {
 			moved = append(moved, string(link))
@@ -245,6 +271,9 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	}
 	if before.BlocklistFile != after.BlocklistFile {
 		moved = append(moved, "blocklist_file")
+	}
+	if before.Metering != after.Metering {
+		moved = append(moved, "metering")
 	}
 	return moved
 }
@@ -480,7 +509,7 @@ func (h ReadInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(level), nil
+	return levelOutput(level, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.
@@ -531,6 +560,17 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 					"offline. Instance-only: the file is on the operator's disk, so there is " +
 					"nothing for a workspace to point at.",
 			},
+			{
+				Name: "metering", Kind: usecase.KindBool,
+				Description: "Whether the use per workspace and day is offered for billing " +
+					"(GET /admin/usage). Off by default; the counts are recorded either way.",
+			},
+			{
+				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
+				Description: "The version of the level the save was made on. A level somebody " +
+					"saved since refuses it with `version_conflict`. Omitted, the save is compared " +
+					"with the level as it is read.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: instanceSettingsChangedAction, TargetType: instanceTarget,
@@ -550,11 +590,16 @@ func (h WriteInstanceSettings) invoke(
 	if err != nil {
 		return nil, err
 	}
-	written, err := h.Execute(ctx, actor, level)
+	if h.Writer.Tenancy != env.TenancyMulti {
+		// The account link's lock binds plans, and there are none here: a lock stored now would
+		// bind them unseen the day the installation turns multi.
+		delete(level.Legal.Locks, identity.LinkAccount)
+	}
+	written, err := h.Execute(ctx, actor, level, in.Int("expected_version"))
 	if err != nil {
 		return nil, err
 	}
-	return instanceLevelOutput(written), nil
+	return levelOutput(written, h.Writer.Tenancy == env.TenancyMulti), nil
 }
 
 // Descriptor is the catalogue entry.

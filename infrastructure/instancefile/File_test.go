@@ -91,7 +91,8 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	  "localisation": {"locale": {"value": "de"}},
 	  "quotas": {"export_jobs": {"value": 9}},
 	  "ai": {"sources": {"value": "OFFERED", "locked": true}},
-	  "blocklist_file": "/etc/hubtask/passwords.txt"
+	  "blocklist_file": "/etc/hubtask/passwords.txt",
+	  "metering": true
 	}`
 	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
 		t.Fatalf("writing the fixture: %v", err)
@@ -101,7 +102,7 @@ func TestAKnownFileBecomesTheRequestBody(t *testing.T) {
 	if err != nil || !found {
 		t.Fatalf("a well-formed file answered %v (found %v)", err, found)
 	}
-	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "blocklist_file"} {
+	for _, area := range []string{"sign_in", "legal", "localisation", "quotas", "ai", "blocklist_file", "metering"} {
 		if _, held := body[area]; !held {
 			t.Errorf("%s did not survive the read", area)
 		}
@@ -141,5 +142,71 @@ func TestTheFilesAiModelsTakeTheirKeyFromTheEnvironment(t *testing.T) {
 	}
 	if _, present, _ := AiModels(map[string]any{}, lookup, "instance.json"); present {
 		t.Error("a file without the key claims to name models")
+	}
+}
+
+// Plans are rows of their own, each the document the API takes; a file without the key leaves
+// plans to the other doors, and a plan without a name is a malformed file.
+func TestPlansAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	const document = `{"plans": [{"name": "family", "display_name": "Family",
+	  "quotas": {"items": {"value": 5000, "locked": true}}, "left_out": ["WEBHOOKS"]}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, _, err := Read(path)
+	if err != nil {
+		t.Fatalf("a file with plans answered %v", err)
+	}
+	plans, present, err := Plans(body, path)
+	if err != nil || !present || len(plans) != 1 || plans[0]["name"] != "family" {
+		t.Fatalf("read %v (present %t, %v)", plans, present, err)
+	}
+	if _, present, _ := Plans(map[string]any{}, path); present {
+		t.Error("a file without plans answered them present")
+	}
+	if _, _, err := Plans(map[string]any{"plans": []any{map[string]any{"display_name": "Nameless"}}}, path); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a plan without a name answered %v", err)
+	}
+}
+
+// A subscription names its target and the file its secret is in - never the secret itself; a file
+// without the key leaves the subscriptions to the other doors.
+func TestPlatformSubscriptionsAreReadWithTheirSecretFromItsOwnFile(t *testing.T) {
+	dir := t.TempDir()
+	secretPath := filepath.Join(dir, "platform.secret")
+	if err := os.WriteFile(secretPath, []byte("  the-platform-secret\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "instance.json")
+	document := `{"platform_subscriptions": [{"target_url": "https://shop.example/hubtask", "secret_file": "` + secretPath + `"}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body, _, err := Read(path)
+	if err != nil {
+		t.Fatalf("a file with subscriptions answered %v", err)
+	}
+	subscriptions, present, err := PlatformSubscriptions(body, os.ReadFile, path)
+	if err != nil || !present || len(subscriptions) != 1 ||
+		subscriptions[0].TargetURL != "https://shop.example/hubtask" || subscriptions[0].Secret != "the-platform-secret" {
+		t.Fatalf("read %+v (present %t, %v)", subscriptions, present, err)
+	}
+	if _, present, _ := PlatformSubscriptions(map[string]any{}, os.ReadFile, path); present {
+		t.Error("a file without subscriptions answered them present")
+	}
+	for name, entry := range map[string]map[string]any{
+		"no secret file": {"target_url": "https://shop.example"},
+		"no target":      {"secret_file": secretPath},
+	} {
+		if _, _, err := PlatformSubscriptions(map[string]any{"platform_subscriptions": []any{entry}}, os.ReadFile, path); !errors.Is(err, shared.ErrValidation) {
+			t.Errorf("%s answered %v", name, err)
+		}
+	}
+	missing := map[string]any{"platform_subscriptions": []any{map[string]any{
+		"target_url": "https://shop.example", "secret_file": filepath.Join(dir, "absent"),
+	}}}
+	if _, _, err := PlatformSubscriptions(missing, os.ReadFile, path); err == nil {
+		t.Error("a secret file that is not there was read")
 	}
 }

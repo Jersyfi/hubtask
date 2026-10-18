@@ -194,7 +194,7 @@ func (q Queue) Hold(ctx context.Context, job queue.Job) error {
 }
 
 // Complete finishes a job for good, in the transaction that carries its effect.
-func (q Queue) Complete(ctx context.Context, job queue.Job) error {
+func (q Queue) Complete(ctx context.Context, job queue.Job, outcome string) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -204,11 +204,15 @@ func (q Queue) Complete(ctx context.Context, job queue.Job) error {
 		return err
 	}
 
-	affected, err := queries.CompleteJob(ctx, sqlc.CompleteJobParams{
+	completion := sqlc.CompleteJobParams{
 		Now:   timestampOf(q.now.Now()),
 		ID:    id,
 		Lease: lease,
-	})
+	}
+	if outcome != "" {
+		completion.Outcome = &outcome
+	}
+	affected, err := queries.CompleteJob(ctx, completion)
 	if err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

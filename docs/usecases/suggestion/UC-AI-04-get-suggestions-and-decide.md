@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6]
 serves: [P-03, P-11, P-14]
 state: built
 tasks: [J-03, J-04, J-05, J-06, J-07]
-checked_by: [core/application/service/suggestion/Producing_test.go, core/application/service/suggestion/Actions_test.go, core/application/service/suggestion/Duplicates_test.go]
+checked_by: [core/application/service/suggestion/Producing_test.go, core/application/service/suggestion/Actions_test.go, core/application/service/suggestion/Duplicates_test.go, apps/webapp/e2e/aiask.test.mjs]
 ---
 
 # Get suggestions and decide on each one

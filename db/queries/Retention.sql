@@ -30,7 +30,8 @@ INSERT INTO retention_rule (
 -- whose tenant is zero.
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 ORDER BY data_kind,
          CASE scope_kind WHEN 'COLLECTION' THEN 1 WHEN 'HUB' THEN 2 ELSE 3 END,
@@ -39,7 +40,8 @@ ORDER BY data_kind,
 -- name: FindRetentionRule :one
 SELECT id, tenant_id, scope_kind, scope_id, data_kind, condition, retain_days, action,
        then_after_days, then_action, grace_days, notify, justification, enabled,
-       export_target_id, created_by, created_at, updated_at, version
+       export_target_id, created_by, created_at, updated_at, version,
+       last_failure_code, last_failure_at
 FROM retention_rule
 WHERE id = sqlc.arg('id');
 
@@ -66,9 +68,12 @@ ON CONFLICT DO NOTHING;
 -- business, and a row in the trash is the trash's. The hub is joined in because the scope of a rule
 -- can be a hub and an entry three levels down does not know which hub it is under.
 --
--- `skip` pages past rows the caller read and could not act on - a legal hold, a condition, a
--- narrower rule's period - which stay in this set and would otherwise fill every batch ahead of a
--- due row. The order ends in the identifier, so a page boundary is stable within the pass.
+-- `after_at` and `after_id` continue the read after a row the caller already judged (keyset, both
+-- NULL for the start): rows the caller could not act on - a legal hold, a condition, a narrower
+-- rule's period - stay in this set and would otherwise fill every batch ahead of a due row. The
+-- order ends in the identifier, so a position names one place; and unlike an offset, a page costs a
+-- page however far into the rows it starts, and a position kept across passes stays where it was
+-- when rows before it are marked or removed (data-retention.md §5).
 
 -- name: RetentionCandidatesByCompletedAt :many
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
@@ -80,8 +85,10 @@ WHERE w.completed_at IS NOT NULL
   AND w.deleted_at IS NULL
   AND w.archived_at IS NULL
   AND w.retention_pending_until IS NULL
+  AND (sqlc.narg('after_at')::timestamptz IS NULL
+       OR (w.completed_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.completed_at, w.id
-LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
+LIMIT sqlc.arg('batch')::int;
 
 -- name: RetentionCandidatesByArchivedAt :many
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
@@ -96,8 +103,10 @@ WHERE w.archived_at IS NOT NULL
   -- `retention_rule_id` survives the act for: an entry somebody archived by hand is not part of
   -- anybody's chain, and a rule that swept it up would be a rule acting outside what it matched.
   AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
+  AND (sqlc.narg('after_at')::timestamptz IS NULL
+       OR (w.archived_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.archived_at, w.id
-LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
+LIMIT sqlc.arg('batch')::int;
 
 -- name: RetentionCandidatesByDeletedAt :many
 -- The trash: what the trash's own rule governs, and what a chain whose first stage put it there
@@ -110,8 +119,10 @@ WHERE w.deleted_at IS NOT NULL
   AND w.deleted_at < sqlc.arg('cutoff')::timestamptz
   AND w.retention_pending_until IS NULL
   AND (NOT sqlc.arg('own_chain')::boolean OR w.retention_rule_id = sqlc.arg('rule_id')::uuid)
+  AND (sqlc.narg('after_at')::timestamptz IS NULL
+       OR (w.deleted_at, w.id) > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.deleted_at, w.id
-LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
+LIMIT sqlc.arg('batch')::int;
 
 -- name: MarkItemsForRetention :execrows
 -- Phase one: what is coming, when, and under which rule (§5, §6).
@@ -148,15 +159,19 @@ WHERE id = ANY(sqlc.arg('ids')::uuid[])
 
 -- name: RetentionMarkedItemsDue :many
 -- Phase two: what the grace period has run out on.
--- `skip` pages past marked rows a hold or a retained descendant keeps, as the candidates above do.
+-- `after_at` and `after_id` continue past marked rows a hold or a retained descendant keeps, as the
+-- candidates above do.
 SELECT w.id, w.type, w.path, w.collection_id, c.parent_id AS hub_id,
        w.retention_pending_until, w.retention_rule_id, w.retention_action, w.title
 FROM work_item w
 JOIN container c ON c.id = w.collection_id
 WHERE w.retention_pending_until IS NOT NULL
   AND w.retention_pending_until <= sqlc.arg('now')::timestamptz
+  AND (sqlc.narg('after_at')::timestamptz IS NULL
+       OR (w.retention_pending_until, w.id)
+          > (sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid))
 ORDER BY w.retention_pending_until, w.id
-LIMIT sqlc.arg('batch')::int OFFSET sqlc.arg('skip')::int;
+LIMIT sqlc.arg('batch')::int;
 
 -- name: FindItemRetention :one
 -- What one entry's marking says, which is what `:retain` reads and what the object carries.
@@ -308,3 +323,48 @@ UPDATE work_item SET
   updated_at              = sqlc.arg('now')::timestamptz,
   version                 = version + 1
 WHERE retention_rule_id = sqlc.arg('rule_id');
+
+-- name: RecordRuleFailure :execrows
+-- A pass set the rule aside: its condition could not be evaluated on a candidate. The code and the
+-- moment (data-retention.md §2). Written in a transaction of its own beside the pass, so that it
+-- outlives the pass's rollback; it touches the rule's row only, which the pass reads and never
+-- locks.
+UPDATE retention_rule
+SET last_failure_code = sqlc.arg('code'), last_failure_at = sqlc.arg('at')
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
+
+-- name: ClearRuleFailures :execrows
+-- The rules a pass evaluated cleanly stop showing a failure.
+UPDATE retention_rule
+SET last_failure_code = NULL, last_failure_at = NULL
+WHERE id = ANY(sqlc.arg('ids')::uuid[]) AND tenant_id = current_tenant_id()
+  AND last_failure_code IS NOT NULL;
+
+-- Where a read of the rule sweep stopped (data-retention.md §5). A reader is named by its phase and,
+-- for phase one, its kind, or for a chain, its rule; the other column stays NULL, and `IS NOT
+-- DISTINCT FROM` matches the NULL the unique index treats as one value.
+
+-- name: FindRetentionCursor :one
+SELECT after_at, after_id
+FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = sqlc.arg('reader')
+  AND data_kind IS NOT DISTINCT FROM sqlc.narg('data_kind')::text
+  AND rule_id IS NOT DISTINCT FROM sqlc.narg('rule_id')::uuid;
+
+-- name: SetRetentionCursor :exec
+-- One row per reader; a second pass at the same place overwrites rather than fails. One retention job
+-- runs per tenant at a time, so there is no second writer in practice.
+INSERT INTO retention_cursor (tenant_id, reader, data_kind, rule_id, after_at, after_id)
+VALUES (current_tenant_id(), sqlc.arg('reader'), sqlc.narg('data_kind')::text,
+        sqlc.narg('rule_id')::uuid, sqlc.arg('after_at'), sqlc.arg('after_id'))
+ON CONFLICT (tenant_id, reader, data_kind, rule_id) DO UPDATE
+  SET after_at = EXCLUDED.after_at, after_id = EXCLUDED.after_id;
+
+-- name: ClearRetentionCursor :exec
+-- The read reached the end of its rows: the next pass starts at the beginning.
+DELETE FROM retention_cursor
+WHERE tenant_id = current_tenant_id()
+  AND reader = sqlc.arg('reader')
+  AND data_kind IS NOT DISTINCT FROM sqlc.narg('data_kind')::text
+  AND rule_id IS NOT DISTINCT FROM sqlc.narg('rule_id')::uuid;

@@ -14,7 +14,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -43,6 +45,31 @@ type TenantRecord struct {
 	// on a cancel is refused, because the bytes are already going.
 	PurgeStartedAt time.Time
 	Version        int
+	// PlanName is the short name of the workspace's plan, empty for none (multi-tenancy.md §4.2).
+	PlanName string
+	// ExternalReference is a purchase platform's own reference for the workspace, empty for none
+	// (multi-tenancy.md §4.3). It may name a customer: it goes into no log, metric or journal.
+	ExternalReference string
+}
+
+// TenantQuery is the control plane's filters over the workspaces; an empty field filters nothing.
+type TenantQuery struct {
+	ID          shared.ID
+	Slug        string
+	Reference   string
+	Plan        string
+	WithoutPlan bool
+	Status      identity.TenantStatus
+	Cursor      string
+	Size        int
+}
+
+// TenantFinder finds workspaces across the installation (multi-tenancy.md §4.3), through the one
+// narrow door that filters and pages across tenant_self.
+type TenantFinder interface {
+	// Query answers one page of the matching workspaces, oldest first. A cursor this server did not
+	// produce is a validation error with code `shared.cursor_invalid`.
+	Query(ctx context.Context, query TenantQuery) ([]TenantRecord, PageInfo, error)
 }
 
 // Tenants is the lifecycle of the tenant row.
@@ -80,6 +107,16 @@ type Tenants interface {
 	// replacing one that stands (ADR-0078 §3). False means the workspace is not active - suspended,
 	// leaving, or gone.
 	OpenPassword(ctx context.Context, opening identity.PasswordOpening, now time.Time) (bool, error)
+
+	// SetReference sets a platform's reference on the transaction's own tenant, or clears it where
+	// reference is empty, raising its version. False means the version moved since `version` was
+	// read, or the purge has begun. A reference another workspace holds is a conflict error with code
+	// `admin.reference_taken`, carrying neither the value nor the database's detail.
+	SetReference(ctx context.Context, reference string, version int, now time.Time) (bool, error)
+
+	// SetPlan puts the transaction's own tenant on a plan, or none where planID is zero, raising its
+	// version. False means the version moved since `version` was read, or the purge has begun.
+	SetPlan(ctx context.Context, planID shared.ID, version int, now time.Time) (bool, error)
 
 	// ClosePassword ends the opening on the transaction's own tenant: whatever stands where `due` is
 	// zero, and only one whose end has come by `due` otherwise - so a close at the old end leaves a
@@ -124,6 +161,42 @@ type Journal interface {
 	// Page walks the journal backwards from `cursor`, empty for the first page. The entries and
 	// whether there is another page behind them.
 	Page(ctx context.Context, cursor string, size int) ([]InstanceEvent, PageInfo, error)
+}
+
+// PlatformEvent is one installation event as it is kept: the envelope and its number, which is
+// the feed's order.
+type PlatformEvent struct {
+	Number   int64
+	Envelope event.Envelope
+}
+
+// PlatformPosition is where a reader of the installation's events stands: after the event numbered
+// Number, having read up to the moment At. The moment is what decides whether events after the
+// position may already have been swept.
+type PlatformPosition struct {
+	Number int64
+	At     time.Time
+}
+
+// PlatformEvents are the installation's events for a purchase platform (multi-tenancy.md §4.3).
+// Like the journal they belong to no tenant and carry no policy: written beside a workspace's
+// change, in that workspace's transaction, and read under the installation's scope.
+type PlatformEvents interface {
+	// Append writes the event in the running transaction, numbered after every event whose
+	// transaction committed before this one does: it takes the installation's numbering lock,
+	// held until the transaction ends. A non-empty dedupe key writes the event once however often
+	// it is appended, and Append reports whether this call wrote it.
+	Append(ctx context.Context, envelope event.Envelope, dedupeKey string) (bool, error)
+
+	// After reads up to `limit` events numbered after `after`, in their order.
+	After(ctx context.Context, after int64, limit int) ([]PlatformEvent, error)
+
+	// ForgetReference removes the platform's reference from the kept events of the transaction's
+	// own workspace, as its purge removes it from the workspace.
+	ForgetReference(ctx context.Context) error
+
+	// Sweep removes up to `batch` events that occurred before `cutoff`, and answers how many.
+	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
 
 // PageInfo is the walk's state, as every other listing in this product reports it.
@@ -185,6 +258,11 @@ type Purge interface {
 	// DeleteIdempotency clears the replay guards; no foreign key reaches them either.
 	DeleteIdempotency(ctx context.Context) (int, error)
 
+	// ArchiveUsage moves the workspace's daily counts to the installation's ledger, keyed by the
+	// bare id with no name and no reference, before the row goes and the cascade takes them
+	// (multi-tenancy.md §4.3). It reports how many counts moved.
+	ArchiveUsage(ctx context.Context) (int64, error)
+
 	// DeleteJobs removes the tenant's queue rows except the one running this purge - the job
 	// table has no policy, so the adapter writes the transaction's own tenant as an explicit
 	// predicate.
@@ -204,4 +282,60 @@ type Purge interface {
 	// cancel can no longer land. False means the workspace is not pending or its deadline lies
 	// ahead - a cancel came first, and nothing may be removed.
 	MarkStarted(ctx context.Context, now time.Time) (bool, error)
+}
+
+// PlatformSecret is a subscription's signing secret as it is stored: sealed under the installation's
+// key, never in clear.
+type PlatformSecret struct {
+	Ciphertext []byte
+	KeyID      string
+}
+
+// StoredPlatformSubscription is a subscription with its sealed secret, for the one reader that
+// opens it - the delivery.
+type StoredPlatformSubscription struct {
+	Subscription integration.PlatformSubscription
+	Secret       PlatformSecret
+}
+
+// PlatformSubscriptions are the installation's subscriptions for a purchase platform
+// (multi-tenancy.md §4.3). They belong to no tenant and are read and written under the
+// installation's or the system's scope.
+type PlatformSubscriptions interface {
+	Insert(ctx context.Context, subscription integration.PlatformSubscription, secret PlatformSecret) error
+	// List answers every subscription, oldest first, with its dead letters counted.
+	List(ctx context.Context) ([]integration.PlatformSubscription, error)
+	// Find answers one with its sealed secret; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (StoredPlatformSubscription, error)
+	// Update writes the target and the state, guarded on the version read.
+	Update(ctx context.Context, subscription integration.PlatformSubscription, expectedVersion int, at time.Time) (bool, error)
+	Rotate(ctx context.Context, id shared.ID, secret PlatformSecret, at time.Time) (bool, error)
+	Delete(ctx context.Context, id shared.ID) (bool, error)
+	// Active answers the subscriptions an event is sent to.
+	Active(ctx context.Context) ([]shared.ID, error)
+	// Outcome records the last attempt for the screen: the moment of an arrival, or a failure's code.
+	Outcome(ctx context.Context, id shared.ID, deliveredAt time.Time, lastError string) error
+	// MarkFromFile records that an enforcing instance file decides the subscription.
+	MarkFromFile(ctx context.Context, id shared.ID) error
+}
+
+// PlatformDeliveries are the deliveries of the installation's subscriptions: one per event and
+// subscription, across its attempts.
+type PlatformDeliveries interface {
+	// Insert queues a delivery, and reports whether it was new: a repeated fan-out writes nothing.
+	Insert(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Find answers one; ErrNotFound when there is none.
+	Find(ctx context.Context, id shared.ID) (integration.PlatformDelivery, error)
+	// Page answers a subscription's deliveries newest first, before `before` when it is set, of
+	// one status when it is set.
+	Page(ctx context.Context, subscriptionID shared.ID, status string, before shared.ID, size int) ([]integration.PlatformDelivery, error)
+	// Record writes one attempt's outcome, only while the delivery is still at the attempt before:
+	// a repeated job writes nothing, and the answer says so.
+	Record(ctx context.Context, delivery integration.PlatformDelivery) (bool, error)
+	// Requeue returns up to `batch` of a subscription's dead letters to pending, and answers which.
+	Requeue(ctx context.Context, subscriptionID shared.ID, at time.Time, batch int) ([]shared.ID, error)
+	// DeadLetters counts the installation's dead letters waiting.
+	DeadLetters(ctx context.Context) (int64, error)
+	// Sweep removes up to `batch` settled deliveries untouched since `cutoff`, and answers how many.
+	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }

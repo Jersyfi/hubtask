@@ -1,6 +1,6 @@
 # ADR-0085 — Passkeys, verified in-house
 
-**Status:** proposed · **Date:** 2026-10-15
+**Status:** accepted · **Date:** 2026-10-15
 
 **Rule lives in:** [identity.md](../architecture/identity.md) §23
 

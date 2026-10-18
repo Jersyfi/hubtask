@@ -13,6 +13,7 @@ package admin
 import (
 	"context"
 	"encoding/base32"
+	"errors"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/application/repository/outbox"
 	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -42,6 +44,9 @@ const (
 	ProvisionTenantName = "ProvisionTenant"
 	tenantTarget        = "tenant"
 	adminTenantsScope   = "admin:tenants"
+	// provisioningScope is the purchase platform's subset of adminTenantsScope (api-guidelines.md
+	// §7, UC-INS-06 check 6): the verbs that declare it as their AlsoScope admit it, nothing else.
+	provisioningScope = "admin:provisioning"
 
 	// TenantProvisionedAction is the audit code, written into the new tenant's own trail: its
 	// members are entitled to see how their workspace began (audit.md §6).
@@ -92,12 +97,22 @@ type ProvisionTenantCommand struct {
 	// OwnerDisplayName may be empty; the address stands in until the person introduces
 	// themselves.
 	OwnerDisplayName string
+	// Plan is the short name of the plan the workspace starts on, empty for none
+	// (multi-tenancy.md §4.2).
+	Plan string
+	// ExternalReference is a purchase platform's own reference for the workspace, empty for none
+	// (multi-tenancy.md §4.3).
+	ExternalReference string
 }
 
 // ProvisionedTenant is what the one answer carries - including the owner's redemption token,
 // shown for the only time (T-18's "shown once").
 type ProvisionedTenant struct {
-	Tenant              domain.Tenant
+	Tenant domain.Tenant
+	// Plan is the plan the workspace started on, and Version the row's version once it is there.
+	Plan                string
+	ExternalReference   string
+	Version             int
 	OwnerAccountID      shared.ID
 	OwnerRedemption     secret.Secret
 	DefaultHubID        shared.ID
@@ -110,7 +125,10 @@ type ProvisionedTenant struct {
 // exists whole or not at all. Idempotent under `Idempotency-Key` through the middleware every
 // POST already has.
 type ProvisionTenant struct {
-	Tenants  adminrepo.Tenants
+	Tenants adminrepo.Tenants
+	// Plans holds the plan a workspace starts on. Nil provisions on none, as an installation
+	// without plans does.
+	Plans    adminrepo.Plans
 	Journal  adminrepo.Journal
 	Accounts AccountSeeder
 	// Domains brings the owner's address to its stored form.
@@ -127,6 +145,8 @@ type ProvisionTenant struct {
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
 	Audit      audit.Sink
+	// Platform tells a purchase platform the workspace exists (UC-INS-14).
+	Platform platform.Recorder
 	// Renderer names the seeded structure in the workspace's own locale: the names are content
 	// once created, so they are written in the language the workspace declared, not in a code
 	// (i18n-l10n.md §2, rule 8 - the backend renders here because creation is the boundary).
@@ -163,11 +183,16 @@ type ProvisionTenant struct {
 func (h ProvisionTenant) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd ProvisionTenantCommand,
 ) (ProvisionedTenant, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return ProvisionedTenant{}, err
 	}
 	if h.Tenancy != env.TenancyMulti {
 		return ProvisionedTenant{}, shared.ErrForbidden.WithDetail("admin.multi_mode_required")
+	}
+	if cmd.ExternalReference != "" {
+		if err := domain.ValidTenantReference(cmd.ExternalReference); err != nil {
+			return ProvisionedTenant{}, err
+		}
 	}
 
 	locale, zone, err := startingLocalisation(ctx, h.UnitOfWork, h.Instance, cmd.DefaultLocale, cmd.DefaultTimeZone)
@@ -213,26 +238,71 @@ func (h ProvisionTenant) Execute(
 	// the tenant_self policy's WITH CHECK is what lets the row land (migration 0067).
 	scope := persistence.Scope{TenantID: tenant.ID, ActorID: actor.AccountID}
 	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		// The plan first: an unknown one is refused before anything is written, and the one named
+		// is held against a removal until the workspace is on it.
+		var planID shared.ID
+		if cmd.Plan != "" {
+			if h.Plans == nil {
+				return unknownPlan(cmd.Plan)
+			}
+			held, err := h.Plans.Hold(ctx, cmd.Plan)
+			if errors.Is(err, shared.ErrNotFound) {
+				return unknownPlan(cmd.Plan)
+			}
+			if err != nil {
+				return err
+			}
+			planID = held
+		}
+
 		hubID, collectionID, err := h.SeedWorkspace(ctx, actor, tenant, owner, now)
 		if err != nil {
 			return err
 		}
 		result.DefaultHubID = hubID
 		result.ExampleCollectionID = collectionID
+		result.Version = 1
+		// The row was written in this transaction at its first version, so nothing can have moved
+		// it: a refused guard here is a defect, never a race. A reference another workspace holds is
+		// the index's refusal, and rolls the whole workspace back.
+		if cmd.ExternalReference != "" {
+			written, err := h.Tenants.SetReference(ctx, cmd.ExternalReference, result.Version, now)
+			if err != nil {
+				return err
+			}
+			if !written {
+				return shared.ErrInternal.WithDetail("admin.provisioning_incomplete")
+			}
+			result.ExternalReference, result.Version = cmd.ExternalReference, result.Version+1
+		}
+		if !planID.IsZero() {
+			written, err := h.Tenants.SetPlan(ctx, planID, result.Version, now)
+			if err != nil {
+				return err
+			}
+			if !written {
+				return shared.ErrInternal.WithDetail("admin.provisioning_incomplete")
+			}
+			result.Plan, result.Version = cmd.Plan, result.Version+1
+		}
 
 		if _, err := h.Redemption.SetRedemptionToken(
 			ctx, owner.ID, redemption, now.Add(domain.RedemptionLifetime).UTC(), now,
 		); err != nil {
 			return err
 		}
-		return h.Journal.Record(ctx, adminrepo.InstanceEvent{
+		if err := h.Journal.Record(ctx, adminrepo.InstanceEvent{
 			ID: h.IDs.NewID(), OccurredAt: now, Action: journalProvisioned,
 			TenantID: tenant.ID, TenantSlug: tenant.Slug, ActorLabel: actor.AccountName,
 			Details: map[string]any{
 				"owner_account_id": owner.ID.String(),
 				"default_hub_id":   hubID.String(),
+				"plan":             cmd.Plan,
 			},
-		})
+		}); err != nil {
+			return err
+		}
+		return h.Platform.Record(ctx, event.WorkspaceCreated, event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now, nil)
 	})
 	if err != nil {
 		return ProvisionedTenant{}, err
@@ -480,6 +550,7 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 			"events, records the provisioning in the new tenant's audit trail and in the " +
 			"instance journal.",
 		TokenScope: adminTenantsScope,
+		AlsoScope:  provisioningScope,
 		Input: []usecase.Field{
 			{
 				Name: "slug", Kind: usecase.KindString, Required: true,
@@ -497,6 +568,10 @@ func (h ProvisionTenant) Descriptor() usecase.Descriptor {
 			},
 			{Name: "owner_email", Kind: usecase.KindString, Required: true},
 			{Name: "owner_display_name", Kind: usecase.KindString},
+			{Name: "plan", Kind: usecase.KindString,
+				Description: "The short name of the plan the workspace starts on; absent for none."},
+			{Name: "external_reference", Kind: usecase.KindString,
+				Description: "A purchase platform's own reference for the workspace, unique on the installation."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: TenantProvisionedAction, TargetType: tenantTarget,
@@ -515,12 +590,14 @@ func (h ProvisionTenant) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
 	provisioned, err := h.Execute(ctx, actor, ProvisionTenantCommand{
-		Slug:             in.String("slug"),
-		DisplayName:      in.String("display_name"),
-		DefaultLocale:    in.String("default_locale"),
-		DefaultTimeZone:  in.String("default_time_zone"),
-		OwnerEmail:       in.String("owner_email"),
-		OwnerDisplayName: in.String("owner_display_name"),
+		Slug:              in.String("slug"),
+		DisplayName:       in.String("display_name"),
+		DefaultLocale:     in.String("default_locale"),
+		DefaultTimeZone:   in.String("default_time_zone"),
+		OwnerEmail:        in.String("owner_email"),
+		OwnerDisplayName:  in.String("owner_display_name"),
+		Plan:              in.String("plan"),
+		ExternalReference: in.String("external_reference"),
 	})
 	if err != nil {
 		return nil, err
@@ -532,6 +609,8 @@ func (h ProvisionTenant) invoke(
 		DefaultLocale:   provisioned.Tenant.DefaultLocale,
 		DefaultTimeZone: provisioned.Tenant.DefaultTimeZone,
 		CreatedAt:       provisioned.Tenant.CreatedAt,
+		PlanName:        provisioned.Plan, Version: provisioned.Version,
+		ExternalReference: provisioned.ExternalReference,
 	})
 	out["owner_account_id"] = provisioned.OwnerAccountID.String()
 	// The one appearance of the owner's way in (T-18's "shown once").
@@ -554,6 +633,16 @@ func adminTenantOutput(record adminrepo.TenantRecord) usecase.Output {
 		"created_at":        record.CreatedAt,
 		"purge_after":       nil,
 		"legal_hold":        record.LegalHold,
+		"plan":              nil,
+	}
+	if record.PlanName != "" {
+		out["plan"] = record.PlanName
+	}
+	if record.ExternalReference != "" {
+		out["external_reference"] = record.ExternalReference
+	}
+	if record.Version > 0 {
+		out["version"] = record.Version
 	}
 	if !record.PurgeAfter.IsZero() {
 		out["purge_after"] = record.PurgeAfter
@@ -647,3 +736,15 @@ func startingLocalisation(
 	}
 	return locale, zone, nil
 }
+
+// unknownPlan is the refusal of a plan that does not exist or was removed, at the field that named
+// it - the move and provisioning say it alike.
+func unknownPlan(name string) error {
+	return shared.ErrValidation.WithDetail("admin.plan_unknown").
+		WithParams(map[string]string{"plan": name}).
+		WithFields(shared.FieldError{Path: "/plan", Code: "admin.plan_unknown"})
+}
+
+// platformScopes are what an operation open to a purchase platform accepts: the control plane's
+// whole scope and the platform's subset of it.
+var platformScopes = []string{adminTenantsScope, provisioningScope}

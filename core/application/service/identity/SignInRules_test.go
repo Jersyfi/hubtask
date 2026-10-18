@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -26,10 +27,10 @@ func (s *instanceSettings) Read(context.Context) (repository.InstanceLevel, erro
 }
 
 func (s *instanceSettings) Write(
-	_ context.Context, level repository.InstanceLevel, _ shared.ID, _ time.Time,
-) error {
+	_ context.Context, level repository.InstanceLevel, _ int, _ shared.ID, _ time.Time,
+) (bool, error) {
 	s.written = append(s.written, level)
-	return nil
+	return true, nil
 }
 
 func newRulesFixture() (GetSignInRules, *workspaceStore, *instanceSettings) {
@@ -328,5 +329,54 @@ func TestAnInstallationsProviderIsNotAButtonUntilTheWorkspaceTakesIt(t *testing.
 	}
 	if scopes["id.acme.example"] != ProviderScopeWorkspace {
 		t.Errorf("the workspace's own row is %q", scopes["id.acme.example"])
+	}
+}
+
+// UC-ID-21 check 1, P-05: the rules name passkeys only where a ceremony can finish - the switch on,
+// a relying party, and the request at its very host.
+func TestTheRulesNamePasskeysOnlyWhereACeremonyCanFinish(t *testing.T) {
+	handler, workspace, _ := newRulesFixture()
+	handler.Party = &PasskeyParty{
+		Workspaces:   workspace,
+		Installation: PasskeyInstallation{Host: "hubtask.example", Scheme: "https", Multi: true},
+	}
+	ask := func(host string) []string {
+		t.Helper()
+		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: host, TenantSlug: "acme"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rules.Methods
+	}
+	has := func(methods []string) bool { return slices.Contains(methods, domain.MethodPasskey) }
+
+	if got := ask("acme.hubtask.example"); !has(got) {
+		t.Errorf("at the workspace's own host: %v", got)
+	}
+	if got := ask("acme.hubtask.example:443"); !has(got) {
+		t.Errorf("with the port beside the host: %v", got)
+	}
+	if got := ask("hubtask.example"); has(got) {
+		t.Errorf("at the installation's host, where the browser would refuse the ceremony: %v", got)
+	}
+
+	handler.Party.Installation = PasskeyInstallation{Multi: true}
+	if got := ask("acme.hubtask.example"); has(got) {
+		t.Errorf("without a public address: %v", got)
+	}
+
+	handler.Party = nil
+	if got := ask("acme.hubtask.example"); has(got) {
+		t.Errorf("without a relying party wired: %v", got)
+	}
+
+	// Switched off at the workspace.
+	handler.Party = &PasskeyParty{
+		Workspaces:   workspace,
+		Installation: PasskeyInstallation{Host: "hubtask.example", Scheme: "https", Multi: true},
+	}
+	workspace.row.Settings.SignIn = domain.PolicyPatch{Methods: &[]string{domain.MethodDirect}}
+	if got := ask("acme.hubtask.example"); has(got) {
+		t.Errorf("switched off: %v", got)
 	}
 }

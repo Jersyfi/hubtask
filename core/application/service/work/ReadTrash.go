@@ -9,12 +9,14 @@ import (
 	"time"
 
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -57,6 +59,9 @@ type ListTrash struct {
 	// own answer rather than a second rule.
 	Holds        lifecyclerepo.HoldList
 	Contributors lifecyclerepo.ContributorReader
+	// Restrictions is whose processing is restricted: the automatic pass keeps what such a person
+	// contributed as it keeps a held account's (data-retention.md §4 item 2), so the listing says so.
+	Restrictions privacyrepo.Restrictions
 }
 
 // TrashListing is one page of the trash, when the automatic pass may take each entry, and which a
@@ -65,12 +70,18 @@ type TrashListing struct {
 	repository.TrashPage
 	policy lifecycle.Policy
 	window time.Duration
-	held   map[shared.ID]bool
+	held   map[shared.ID]string
 }
 
-// Held reports whether a legal hold keeps the entry's deletion: a hold blocks one of its rows, and
-// the pass keeps a root while anything below it stays (data-retention.md §4 item 6).
+// Held reports whether a legal hold or a restriction keeps the entry's deletion: one blocks one of
+// its rows, and the pass keeps a root while anything below it stays (data-retention.md §4 item 6).
 func (l TrashListing) Held(entry domain.TrashEntry) bool {
+	return l.held[entry.BatchID] != ""
+}
+
+// HeldBy is what keeps it - `legal_hold` before `restriction`, §4's order - and empty when nothing
+// does.
+func (l TrashListing) HeldBy(entry domain.TrashEntry) string {
 	return l.held[entry.BatchID]
 }
 
@@ -122,17 +133,17 @@ func (h ListTrash) Execute(
 	return listing, nil
 }
 
-// heldBatches answers which of these deletions a legal hold keeps.
+// heldBatches answers which of these deletions a legal hold or a restriction keeps, and by which.
 //
 // Every row of each deletion is judged, as the retention pass judges it: an entry by its hub, its
 // collection, its path and whose data it carries, a container by itself and its hub. One row held
 // keeps the whole deletion, because the pass removes a row only with everything below it and the
 // root is above every other row of its batch. No statement beyond the hold list while no hold is
-// in force, and none for the contributors while no hold names a person.
+// in force, and none for the contributors while no hold names a person and nobody is restricted.
 func (h ListTrash) heldBatches(
 	ctx context.Context, actor appshared.ActorContext, entries []domain.TrashEntry,
-) (map[shared.ID]bool, error) {
-	held := map[shared.ID]bool{}
+) (map[shared.ID]string, error) {
+	held := map[shared.ID]string{}
 	if len(entries) == 0 {
 		return held, nil
 	}
@@ -142,7 +153,15 @@ func (h ListTrash) heldBatches(
 			return err
 		}
 		holds := lifecycle.Holds(listed)
-		if len(holds) == 0 {
+		restricted := privacy.Restricted{}
+		if h.Restrictions != nil {
+			people, err := h.Restrictions.RestrictedPeople(ctx)
+			if err != nil {
+				return err
+			}
+			restricted = privacy.NewRestricted(people)
+		}
+		if len(holds) == 0 && restricted.Empty() {
 			return nil
 		}
 
@@ -156,7 +175,7 @@ func (h ListTrash) heldBatches(
 		}
 
 		contributors := map[shared.ID][]shared.ID{}
-		if holds.AnyOnAccounts() {
+		if holds.AnyOnAccounts() || !restricted.Empty() {
 			items := make([]shared.ID, 0, len(members))
 			for _, member := range members {
 				if member.Kind == domain.TrashItemKind {
@@ -169,7 +188,7 @@ func (h ListTrash) heldBatches(
 		}
 
 		for _, member := range members {
-			if held[member.BatchID] {
+			if held[member.BatchID] == lifecycle.BlockedByLegalHold {
 				continue
 			}
 			target := lifecycle.Target{ContainerIDs: presentIDs(member.HubID, member.ID)}
@@ -182,7 +201,14 @@ func (h ListTrash) heldBatches(
 				}
 			}
 			if _, blocked := holds.Blocking(target); blocked {
-				held[member.BatchID] = true
+				held[member.BatchID] = lifecycle.BlockedByLegalHold
+				continue
+			}
+			for _, account := range target.Contributors {
+				if restricted.Has(account) {
+					held[member.BatchID] = lifecycle.BlockedByRestriction
+					break
+				}
 			}
 		}
 		return nil
@@ -323,6 +349,9 @@ func (h ListTrash) invoke(
 		output := trashEntryOutput(entry)
 		output["purge_after"] = page.PurgeAfter(entry)
 		output["held"] = page.Held(entry)
+		if by := page.HeldBy(entry); by != "" {
+			output["held_by"] = by
+		}
 		entries = append(entries, output)
 	}
 	return pageOutput(entries, page.Info), nil

@@ -5,16 +5,19 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	syncrepo "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	notification "github.com/Jersyfi/hubtask/core/application/service/notification"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -57,7 +60,14 @@ type Sweeper struct {
 	Rules   repository.Rules
 	Marking repository.Marking
 	Holds   repository.LegalHolds
-	Items   workrepo.Items
+	// Restrictions is whose processing is restricted (data-retention.md §4 item 2): what they
+	// contributed is kept back as a legal hold on their account would keep it.
+	Restrictions privacyrepo.Restrictions
+	Items        workrepo.Items
+	// Entries reads a page's entries in one statement, the first time a condition on that page
+	// asks for `item`. Optional: without it every candidate is read on its own through Items, which
+	// is what a page of a thousand candidates costs a thousand statements for (data-retention.md §5).
+	Entries workrepo.ItemBatch
 	// Purger is the one engine behind every removal, which is what keeps a retention hard delete
 	// owing exactly what a person's purge owes: a journal entry, a tombstone, and an event per row.
 	Purger Purger
@@ -80,6 +90,14 @@ type Sweeper struct {
 	HLC    clock.HLCSource
 	// Batch is how many objects one pass judges. A thousand by default (§5).
 	Batch int
+	// Cursors keeps where each read stopped, so the next pass continues there (§5). Optional: a
+	// build without it reads from the start on every pass and without a budget, which is what it
+	// did before - a budget without a place to continue from would starve what lies past it.
+	Cursors repository.Cursors
+	// ReadBudget is how many rows one read judges in a pass before it stops and keeps its place:
+	// what keeps a pass inside the job's deadline however many entries the read has to pass over.
+	// DefaultReadBudgetPages batches by default.
+	ReadBudget int
 }
 
 // Pass runs one pass of both phases for the tenant the transaction is bound to.
@@ -99,6 +117,13 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 	if err != nil {
 		return Outcome{}, err
 	}
+	// Once per pass, like the holds: a restriction placed or lifted while the pass runs counts
+	// from the next one.
+	restricted, err := restrictionsOf(ctx, s.Restrictions)
+	if err != nil {
+		return Outcome{}, err
+	}
+	safeguards := passSafeguards{holds: holds, restricted: restricted}
 
 	outcome := Outcome{Blocked: map[string]int{}}
 	for _, kind := range domain.SweptKinds() {
@@ -107,20 +132,20 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 			// phase on top would be a second grace period on a grace period.
 			continue
 		}
-		marked, err := s.announce(ctx, actor, rules, holds, kind, now)
+		marked, err := s.announce(ctx, actor, rules, safeguards, kind, now)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.add(marked)
 
-		chained, err := s.announceChains(ctx, rules, holds, kind, now)
+		chained, err := s.announceChains(ctx, rules, safeguards, kind, now, outcome.SetAside)
 		if err != nil {
 			return outcome, err
 		}
 		outcome.add(chained)
 	}
 
-	acted, err := s.act(ctx, actor, holds, now)
+	acted, err := s.act(ctx, actor, safeguards, now, outcome.SetAside)
 	if err != nil {
 		return outcome, err
 	}
@@ -130,7 +155,7 @@ func (s Sweeper) Pass(ctx context.Context, actor appshared.ActorContext) (Outcom
 
 // announce is phase one: what is due, what may not go, and what is now on notice.
 func (s Sweeper) announce(
-	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, holds domain.Holds,
+	ctx context.Context, actor appshared.ActorContext, rules []domain.Rule, safeguards passSafeguards,
 	kind domain.Kind, now time.Time,
 ) (Outcome, error) {
 	applicable := rulesFor(rules, kind.Name)
@@ -161,39 +186,59 @@ func (s Sweeper) announce(
 	// condition or a narrower rule's period keeps stays in the set the read answers, oldest first,
 	// so a batch-full of them read alone would hide every due entry behind it on every pass. Nothing
 	// read here leaves the set before the marking below, so the pages stay where they were.
-	for skip := 0; ; {
-		candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, skip, s.batch())
+	place, err := s.begin(ctx, repository.Reader{Phase: repository.ReaderAnnounce, DataKind: kind.Name})
+	if err != nil {
+		return Outcome{}, err
+	}
+	ended := false
+	for after := place.start; ; {
+		candidates, err := s.Marking.Due(ctx, kind.Anchor, loosest, after, s.batch())
 		if err != nil {
 			return Outcome{}, err
 		}
-		contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+		contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, candidateIDs(candidates))
 		if err != nil {
 			return Outcome{}, err
 		}
 		blocks := pageBlocks{}
+		entries := &pageEntries{batch: s.Entries, ids: candidateIDs(candidates)}
 
 		for _, candidate := range candidates {
 			if markable >= s.batch() {
 				break
 			}
 			outcome.Read++
+			place.judged(candidate)
 			rule, found := domain.Effective(applicable, kind.Name, candidate.HubID, candidate.CollectionID)
 			if !found || !candidate.AnchoredAt.Before(rule.Cutoff(now)) {
 				// Caught by the loosest cutoff and not by its own rule's. Not a block - nothing is
 				// keeping it, its period simply has not run out - and not matched either.
 				continue
 			}
-			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs)
-			if err != nil {
-				return Outcome{}, err
+			if _, aside := outcome.SetAside[rule.ID]; aside {
+				continue
 			}
+			matches, err := s.matchesCondition(ctx, rule, candidate, now, programs, entries)
+			if err != nil {
+				code, rulesFault := conditionFailure(err)
+				if !rulesFault {
+					return Outcome{}, err
+				}
+				// The rule is set aside for this pass: what it collected so far is dropped, so it
+				// announces nothing, and every other rule goes on (data-retention.md §2).
+				outcome.setAside(rule.ID, domain.RuleFailure{Code: code, At: now})
+				markable -= len(byRule[rule.ID])
+				delete(byRule, rule.ID)
+				continue
+			}
+			outcome.judged(rule.ID)
 			if !matches {
 				// Not a block and not a hold: the rule simply does not apply to this entry, and it
 				// is not matched, for the same reason as the cutoff case above.
 				continue
 			}
 			outcome.Matched++
-			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+			if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 				outcome.blocked(reason)
 				// Held as well as matched: a block sets no due moment, so the next pass reads this
 				// entry again, and a batch of them is no reason to come straight back (Exhausted).
@@ -215,13 +260,26 @@ func (s Sweeper) announce(
 		if err := blocks.flush(ctx, s.Marking); err != nil {
 			return outcome, err
 		}
-		if markable >= s.batch() || lastPage(s.batch(), candidates) {
+		if markable >= s.batch() {
 			break
 		}
-		skip += len(candidates)
+		if lastPage(s.batch(), candidates) {
+			ended = true
+			break
+		}
+		if s.atBudget(place) {
+			break
+		}
+		after = place.last
+	}
+	if outcome.Unfinished, err = s.settle(ctx, place, ended); err != nil {
+		return outcome, err
 	}
 
 	for _, ruleID := range order {
+		if _, aside := outcome.SetAside[ruleID]; aside {
+			continue
+		}
 		rule := ruleByID(applicable, ruleID)
 		group := byRule[ruleID]
 		ids := make([]shared.ID, 0, len(group))
@@ -323,13 +381,17 @@ func (s Sweeper) warn(
 // chain from sweeping up an entry somebody archived by hand - that entry is not part of anybody's
 // chain, and a rule acting on it would be acting outside what it matched.
 func (s Sweeper) announceChains(
-	ctx context.Context, rules []domain.Rule, holds domain.Holds,
-	kind domain.Kind, now time.Time,
+	ctx context.Context, rules []domain.Rule, safeguards passSafeguards,
+	kind domain.Kind, now time.Time, setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
 
 	for _, rule := range rulesFor(rules, kind.Name) {
 		if !rule.Chained() {
+			continue
+		}
+		if _, aside := setAside[rule.ID]; aside {
+			// A rule set aside announces nothing in this pass, its second stage included.
 			continue
 		}
 		anchor, ok := rule.StageAnchor(kind, true)
@@ -342,13 +404,18 @@ func (s Sweeper) announceChains(
 		// Read past held entries as announce does, and for its reason: they stay in the set.
 		var ids []shared.ID
 		var kept []repository.Candidate
-		for skip := 0; ; {
+		place, err := s.begin(ctx, repository.Reader{Phase: repository.ReaderChain, RuleID: rule.ID})
+		if err != nil {
+			return outcome, err
+		}
+		ended := false
+		for after := place.start; ; {
 			candidates, err := s.Marking.DueInChain(
-				ctx, anchor, rule.ID, rule.ThenCutoff(now), skip, s.batch())
+				ctx, anchor, rule.ID, rule.ThenCutoff(now), after, s.batch())
 			if err != nil {
 				return outcome, err
 			}
-			contributors, err := contributorsOf(ctx, s.Holds, holds, candidateIDs(candidates))
+			contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, candidateIDs(candidates))
 			if err != nil {
 				return outcome, err
 			}
@@ -357,8 +424,9 @@ func (s Sweeper) announceChains(
 					break
 				}
 				outcome.Read++
+				place.judged(candidate)
 				outcome.Matched++
-				if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+				if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 					outcome.blocked(reason)
 					outcome.Held++
 					continue
@@ -366,11 +434,23 @@ func (s Sweeper) announceChains(
 				ids = append(ids, candidate.ID)
 				kept = append(kept, candidate)
 			}
-			if len(ids) >= s.batch() || lastPage(s.batch(), candidates) {
+			if len(ids) >= s.batch() {
 				break
 			}
-			skip += len(candidates)
+			if lastPage(s.batch(), candidates) {
+				ended = true
+				break
+			}
+			if s.atBudget(place) {
+				break
+			}
+			after = place.last
 		}
+		unfinished, err := s.settle(ctx, place, ended)
+		if err != nil {
+			return outcome, err
+		}
+		outcome.Unfinished = outcome.Unfinished || unfinished
 		if len(ids) == 0 {
 			continue
 		}
@@ -390,7 +470,8 @@ func (s Sweeper) announceChains(
 
 // act is phase two: what the grace period has run out on.
 func (s Sweeper) act(
-	ctx context.Context, actor appshared.ActorContext, holds domain.Holds, now time.Time,
+	ctx context.Context, actor appshared.ActorContext, safeguards passSafeguards, now time.Time,
+	setAside map[shared.ID]domain.RuleFailure,
 ) (Outcome, error) {
 	outcome := Outcome{Blocked: map[string]int{}}
 	byAction := map[domain.Action][]repository.Candidate{}
@@ -399,8 +480,13 @@ func (s Sweeper) act(
 	// Page by page, as phase one reads: an announcement, a held entry and a parent waiting for its
 	// child all keep their marking and stay first in the read, so a batch-full of them read alone
 	// would hide every due entry behind it. Nothing leaves the set before the acts below.
-	for skip := 0; ; {
-		due, err := s.Marking.MarkedDue(ctx, now, skip, s.batch())
+	place, err := s.begin(ctx, repository.Reader{Phase: repository.ReaderAct})
+	if err != nil {
+		return outcome, err
+	}
+	ended := false
+	for after := place.start; ; {
+		due, err := s.Marking.MarkedDue(ctx, now, after, s.batch())
 		if err != nil {
 			return outcome, err
 		}
@@ -417,7 +503,7 @@ func (s Sweeper) act(
 		if err != nil {
 			return outcome, err
 		}
-		contributors, err := contributorsOf(ctx, s.Holds, holds, going)
+		contributors, err := contributorsOf(ctx, s.Holds, safeguards.holds, safeguards.restricted, going)
 		if err != nil {
 			return outcome, err
 		}
@@ -427,6 +513,12 @@ func (s Sweeper) act(
 				break
 			}
 			outcome.Read++
+			place.judged(candidate)
+			if _, aside := setAside[candidate.Rule]; aside {
+				// Marked by a rule this pass set aside: its entries are neither announced nor
+				// removed until it evaluates again (data-retention.md §2). The marking stands.
+				continue
+			}
 			if candidate.Action == domain.ActionNotifyOnly {
 				// An announcement acts on nothing. The marking stands so the object keeps saying
 				// what the rule would do, and `:retain` is how somebody takes it off.
@@ -437,7 +529,7 @@ func (s Sweeper) act(
 			// come straight back (Exhausted). The descendant counts here though the trash pass does
 			// not count it, because here the parent is read again on every pass until its child
 			// goes.
-			if reason, blocked := s.blocked(holds, contributors, candidate); blocked {
+			if reason, blocked := s.blocked(safeguards, contributors, candidate); blocked {
 				outcome.blocked(reason)
 				outcome.Held++
 				continue
@@ -450,10 +542,20 @@ func (s Sweeper) act(
 			byAction[candidate.Action] = append(byAction[candidate.Action], candidate)
 			acting++
 		}
-		if acting >= s.batch() || lastPage(s.batch(), due) {
+		if acting >= s.batch() {
 			break
 		}
-		skip += len(due)
+		if lastPage(s.batch(), due) {
+			ended = true
+			break
+		}
+		if s.atBudget(place) {
+			break
+		}
+		after = place.last
+	}
+	if outcome.Unfinished, err = s.settle(ctx, place, ended); err != nil {
+		return outcome, err
 	}
 
 	for _, action := range []domain.Action{
@@ -574,11 +676,6 @@ func (s Sweeper) remove(
 	return removed, nil
 }
 
-// blocked is data-retention.md §4, in its order, against one object.
-//
-// Only the legal hold is consulted: the restriction of processing (§4 item 2) has no source this
-// sweep reads. Its place in the order is here, after the hold.
-
 // matchesCondition answers whether this rule's condition holds for this entry.
 //
 // A rule with no condition matches everything its scope and period already selected, which is what a
@@ -588,13 +685,13 @@ func (s Sweeper) remove(
 // That is the whole point of the port's lazy activation: `item` is a query, and a pass over a
 // thousand candidates must not make a thousand of them for rules that never ask.
 //
-// A condition that cannot be evaluated stops the pass rather than defaulting either way. Defaulting
-// to true would delete what the condition was written to protect; defaulting to false would quietly
-// retain everything and look like a working rule. Neither is an answer, so the failure is reported
-// and the run's own error handling decides.
+// A condition that cannot be evaluated does not default either way. Defaulting to true would delete
+// what the condition was written to protect; defaulting to false would quietly retain everything
+// and look like a working rule. The error goes back, and the caller sets the rule aside for the pass
+// where it is the condition's own (conditionFailure).
 func (s Sweeper) matchesCondition(
 	ctx context.Context, rule domain.Rule, candidate repository.Candidate, now time.Time,
-	programs map[shared.ID]expression.Program,
+	programs map[shared.ID]expression.Program, entries *pageEntries,
 ) (bool, error) {
 	if rule.Condition == "" {
 		return true, nil
@@ -617,7 +714,9 @@ func (s Sweeper) matchesCondition(
 		programs[rule.ID] = program
 	}
 
-	out, err := program.Evaluate(ctx, &candidateValues{sweeper: s, candidate: candidate, now: now})
+	out, err := program.Evaluate(ctx, &candidateValues{
+		sweeper: s, candidate: candidate, now: now, entries: entries,
+	})
 	if err != nil {
 		return false, err
 	}
@@ -630,6 +729,7 @@ type candidateValues struct {
 	sweeper   Sweeper
 	candidate repository.Candidate
 	now       time.Time
+	entries   *pageEntries
 }
 
 func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, error) {
@@ -639,9 +739,16 @@ func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, 
 		// sees one moment (automation.md §1.2).
 		return v.now, true, nil
 	case condition.VarItem:
-		item, err := v.sweeper.Items.Find(ctx, v.candidate.ID)
+		item, found, err := v.entries.find(ctx, v.candidate.ID)
 		if err != nil {
 			return nil, false, err
+		}
+		if !found {
+			// No batch reader, or the entry left the page's answer: one read, and its not-found
+			// is the answer it always was.
+			if item, err = v.sweeper.Items.Find(ctx, v.candidate.ID); err != nil {
+				return nil, false, err
+			}
 		}
 		return condition.ItemDocument(item), true, nil
 	case condition.VarTenant:
@@ -654,12 +761,48 @@ func (v *candidateValues) Resolve(ctx context.Context, name string) (any, bool, 
 	}
 }
 
-// Until then nothing sets it, which is the honest state rather than a silent gap.
+// pageEntries is one page's entries, read in one statement the first time a condition asks for one,
+// and never for a page whose conditions do not name `item`.
+type pageEntries struct {
+	batch  workrepo.ItemBatch
+	ids    []shared.ID
+	loaded map[shared.ID]work.WorkItem
+}
+
+func (p *pageEntries) find(ctx context.Context, id shared.ID) (work.WorkItem, bool, error) {
+	if p == nil || p.batch == nil {
+		return work.WorkItem{}, false, nil
+	}
+	if p.loaded == nil {
+		items, err := p.batch.FindMany(ctx, p.ids)
+		if err != nil {
+			return work.WorkItem{}, false, err
+		}
+		p.loaded = make(map[shared.ID]work.WorkItem, len(items))
+		for _, item := range items {
+			p.loaded[item.ID] = item
+		}
+	}
+	item, found := p.loaded[id]
+	return item, found, nil
+}
+
+// passSafeguards is what one pass judges every object against, read once at its start.
+type passSafeguards struct {
+	holds      domain.Holds
+	restricted privacy.Restricted
+}
+
+// blocked is data-retention.md §4, in its order, against one object: a legal hold, then a
+// restriction of processing on a person whose own data the object carries.
 func (s Sweeper) blocked(
-	holds domain.Holds, contributors map[shared.ID][]shared.ID, candidate repository.Candidate,
+	safeguards passSafeguards, contributors map[shared.ID][]shared.ID, candidate repository.Candidate,
 ) (string, bool) {
 	found := map[string]bool{}
-	if _, held := holds.Blocking(domain.Target{
+	if restrictedAmong(safeguards.restricted, contributors[candidate.ID]) {
+		found[domain.BlockedByRestriction] = true
+	}
+	if _, held := safeguards.holds.Blocking(domain.Target{
 		ItemID:          candidate.ID,
 		ContainerIDs:    nonZero(candidate.HubID, candidate.CollectionID),
 		AncestorItemIDs: work.PathIDs(candidate.Path),
@@ -693,6 +836,77 @@ func (s Sweeper) dueAt(rule domain.Rule, now time.Time) time.Time {
 	return now.AddDate(0, 0, rule.GraceDays)
 }
 
+// place follows one read across a pass: where it began, the last row it judged and how many it
+// judged.
+type place struct {
+	reader repository.Reader
+	start  repository.Position
+	last   repository.Position
+	read   int
+}
+
+func (p *place) judged(candidate repository.Candidate) {
+	p.read++
+	p.last = repository.PositionOf(candidate)
+}
+
+// begin answers where a read starts: where the last pass left it, or the start.
+func (s Sweeper) begin(ctx context.Context, reader repository.Reader) (*place, error) {
+	p := &place{reader: reader}
+	if s.Cursors == nil {
+		return p, nil
+	}
+	at, found, err := s.Cursors.Find(ctx, reader)
+	if err != nil {
+		return nil, err
+	}
+	if found {
+		p.start, p.last = at, at
+	}
+	return p, nil
+}
+
+// atBudget reports whether a read has judged what one pass may: it stops between pages, so a read
+// judges at most its budget and one page more.
+func (s Sweeper) atBudget(p *place) bool {
+	return s.Cursors != nil && p.read >= s.readBudget()
+}
+
+// settle records where a read stopped, in the pass's own transaction - a pass that rolls back
+// leaves the place it started from, as it leaves its work undone - and reports whether the read is
+// unfinished: stopped at its budget. A read that reached the end has gone through its rows once -
+// the rows before its place were read by the passes that brought it there - so it forgets its place
+// and the next cycle starts at the beginning, after the long interval; a row before the place that
+// became actionable since is found then. A read that stopped at a full batch keeps its place, after
+// the last row it judged.
+func (s Sweeper) settle(ctx context.Context, p *place, ended bool) (bool, error) {
+	if s.Cursors == nil {
+		return false, nil
+	}
+	if ended {
+		if p.start.IsStart() {
+			return false, nil
+		}
+		return false, s.Cursors.Clear(ctx, p.reader)
+	}
+	if p.read == 0 {
+		return false, nil
+	}
+	return s.atBudget(p), s.Cursors.Set(ctx, p.reader, p.last)
+}
+
+func (s Sweeper) readBudget() int {
+	if s.ReadBudget > 0 {
+		return s.ReadBudget
+	}
+	return DefaultReadBudgetPages * s.batch()
+}
+
+// DefaultReadBudgetPages is how many batches one read judges per pass by default: ten thousand
+// rows, which the slowest read measured (a condition naming `item`) judges in a few seconds - well
+// inside the job's deadline with every reader of a pass beside it.
+const DefaultReadBudgetPages = 10
+
 func (s Sweeper) batch() int {
 	if s.Batch > 0 {
 		return s.Batch
@@ -722,8 +936,56 @@ func ruleByID(rules []domain.Rule, id shared.ID) domain.Rule {
 	return domain.Rule{}
 }
 
+// conditionFailure answers whether an error from a condition is the condition's own - it does not
+// compile in this build, or it failed on this entry's values - and its code. Those set the rule
+// aside. Anything else - the database unreadable while resolving `item`, an engine not wired - is
+// nobody's rule, and fails the pass as before, to be tried again.
+func conditionFailure(err error) (string, bool) {
+	var coded *shared.Error
+	if !errors.Is(err, shared.ErrValidation) || !errors.As(err, &coded) || coded.DetailCode == "" {
+		return "", false
+	}
+	return coded.DetailCode, true
+}
+
+// setAside records that a rule is set aside for this pass, the first failure being the one shown.
+func (o *Outcome) setAside(ruleID shared.ID, failure domain.RuleFailure) {
+	if o.SetAside == nil {
+		o.SetAside = map[shared.ID]domain.RuleFailure{}
+	}
+	if _, already := o.SetAside[ruleID]; !already {
+		o.SetAside[ruleID] = failure
+	}
+}
+
+// judged records that a rule's condition held or not on a candidate without failing.
+func (o *Outcome) judged(ruleID shared.ID) {
+	if o.Judged == nil {
+		o.Judged = map[shared.ID]bool{}
+	}
+	o.Judged[ruleID] = true
+}
+
+// Clean is the rules the pass judged and did not set aside.
+func (o Outcome) Clean() []shared.ID {
+	clean := make([]shared.ID, 0, len(o.Judged))
+	for ruleID := range o.Judged {
+		if _, aside := o.SetAside[ruleID]; !aside {
+			clean = append(clean, ruleID)
+		}
+	}
+	return clean
+}
+
 // add folds one phase's outcome into the pass's.
 func (o *Outcome) add(other Outcome) {
+	for ruleID, failure := range other.SetAside {
+		o.setAside(ruleID, failure)
+	}
+	for ruleID := range other.Judged {
+		o.judged(ruleID)
+	}
+	o.Unfinished = o.Unfinished || other.Unfinished
 	o.Matched += other.Matched
 	o.Held += other.Held
 	o.Read += other.Read

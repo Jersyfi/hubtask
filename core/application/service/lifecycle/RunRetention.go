@@ -5,15 +5,18 @@ package lifecycle
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	privacy "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
 // RunRetention removes what one tenant's periods say may go.
@@ -84,6 +87,12 @@ type RunRetention struct {
 	// before, which is what makes the two halves independently deployable.
 	Rules   repository.Rules
 	Sweeper Sweeper
+	// RuleFailures is where a pass leaves the rules it set aside and the ones it evaluated cleanly
+	// (data-retention.md §2), written by Independent in a transaction of its own: the record has to
+	// outlive a pass that rolls back afterwards. Optional together: wired without them, the rules
+	// are set aside all the same and only the log line says so.
+	RuleFailures repository.RuleFailures
+	Independent  persistence.Independent
 	// Remainders seeds the rest of an erasure kept under a hold no longer in force that nothing
 	// seeded (data-protection.md §4.1). Optional: wired without it, a release still seeds its own.
 	Remainders ErasureRemainders
@@ -249,6 +258,9 @@ func (h RunRetention) Execute(
 		// once every known device has had the chance to learn of the deletion, and nobody asked for
 		// this to happen today (offline-sync.md §7).
 		ObserveTombstoneWindow: true,
+		// And for the same reason a restriction of processing keeps what its person contributed
+		// (UC-PRV-04 check 8): nobody asked the system to remove it.
+		ObserveRestrictions: true,
 	}, started)
 
 	// The log is closed either way. A failed pass that left no trace would be indistinguishable from
@@ -425,7 +437,9 @@ func (h RunRetention) sweepKeptTexts(ctx context.Context, started time.Time) (Ou
 		for _, text := range page {
 			items = append(items, text.ItemID)
 		}
-		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, items)
+		// A kept text is cleared once its hold ends: the comment was already deleted by a person,
+		// and a restriction does not undo a person's own act.
+		contributors, err := contributorsOf(ctx, h.Purger.Holds, holds, privacy.Restricted{}, items)
 		if err != nil {
 			return outcome, err
 		}
@@ -995,6 +1009,7 @@ func (h RunRetention) sweepRules(
 	}
 
 	outcome, sweepErr := h.Sweeper.Pass(ctx, actor)
+	h.recordFailures(ctx, actor, outcome)
 
 	finished := h.Clock.Now()
 	status := repository.RunSucceeded
@@ -1016,6 +1031,33 @@ func (h RunRetention) sweepRules(
 		h.Signals.RetentionRead(ctx, string(domain.KindCompletedItem), int64(outcome.Read))
 	}
 	return outcome, nil
+}
+
+// recordFailures leaves on the rules what the pass found: the failure of each it set aside, and the
+// end of the failure of each it evaluated cleanly. Beside the pass's transaction, which may still roll
+// back; the rows are the rules', which the pass reads and never locks. A write that fails is logged
+// and the next pass writes again: the failure is a display, not a guard.
+func (h RunRetention) recordFailures(ctx context.Context, actor appshared.ActorContext, outcome Outcome) {
+	for ruleID, failure := range outcome.SetAside {
+		// The rule and the code only: never the condition or a value it failed on (rule 10).
+		slog.WarnContext(ctx, "a retention rule was set aside for this pass: its condition could not be evaluated",
+			slog.String("rule_id", ruleID.String()), slog.String("code", failure.Code))
+	}
+	if h.RuleFailures == nil || h.Independent == nil || (len(outcome.SetAside) == 0 && len(outcome.Judged) == 0) {
+		return
+	}
+	err := h.Independent.WithinIndependent(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		for ruleID, failure := range outcome.SetAside {
+			if err := h.RuleFailures.RecordFailure(ctx, ruleID, failure); err != nil {
+				return err
+			}
+		}
+		return h.RuleFailures.ClearFailures(ctx, outcome.Clean())
+	})
+	if err != nil {
+		slog.WarnContext(ctx, "the retention rules' failures could not be recorded",
+			slog.String("error", shared.AsError(err).Code))
+	}
 }
 
 // report publishes what the pass did.
@@ -1050,13 +1092,16 @@ func (h RunRetention) report(
 // Exhausted reports whether this pass found less than a full batch, which is how the job knows there
 // is nothing left to come back for straight away.
 //
+// Not while a read of the rule sweep is unfinished (Outcome.Unfinished): it continues where it
+// stopped, and a cycle through the workspace's rows runs back to back (data-retention.md §5).
+//
 // Read off what was matched rather than off what was removed, less what is held: a row a legal
 // hold or the offline window keeps would be found again by a pass that came straight back, so a
 // batch of them is the end for now - the trash pass reads past held rows to the due ones behind
 // them, so a full batch is never made of held rows while due ones wait. A matched row that went
 // or could have gone still counts: a pass that filled its batch with them has not reached the end.
 func (h RunRetention) Exhausted(outcome Outcome) bool {
-	return outcome.Matched-outcome.Held < h.Purger.BatchSize
+	return !outcome.Unfinished && outcome.Matched-outcome.Held < h.Purger.BatchSize
 }
 
 // RetentionRunAction is the audit code of a run that removed something.

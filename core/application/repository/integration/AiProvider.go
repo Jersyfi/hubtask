@@ -98,6 +98,12 @@ type OfferedAiSealings interface {
 	RewrapKey(ctx context.Context, providerID shared.ID, sealed crypto.Sealed, expectedKeyID string) (bool, error)
 }
 
+// PlanAi answers what the workspace's plan decides about AI (multi-tenancy.md §4.2), read in the
+// transaction's own scope: the zero layer for a workspace on no plan.
+type PlanAi interface {
+	PlanAi(ctx context.Context) (integration.AiLayer, error)
+}
+
 // AiChoices is the workspace's choice of AI source. No method takes a tenant: the workspace is the
 // row's key, under row level security.
 type AiChoices interface {

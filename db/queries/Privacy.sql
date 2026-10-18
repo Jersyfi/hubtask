@@ -272,6 +272,11 @@ DELETE FROM calendar_feed WHERE account_id = sqlc.arg('account_id');
 -- name: DeleteDevicesOfAccount :execrows
 DELETE FROM sync_device WHERE account_id = sqlc.arg('account_id');
 
+-- name: DeletePasskeysOfAccount :execrows
+-- A passkey is a way in like a token: an anonymised account keeps its row and none of its
+-- credentials (identity.md §23.5).
+DELETE FROM webauthn_credential WHERE account_id = sqlc.arg('account_id');
+
 -- name: DeleteNotificationsOfAccount :execrows
 -- What was sent to them, and what was about to be. A notification carries a person's name in the
 -- rendering rather than in the row, but the row says who was told what and when.

@@ -224,6 +224,19 @@ export const CONSENT_REGISTER = { data: [{ account_id: '01a0e2e0-0000-7000-8000-
  * any more, and a key the ring no longer holds that a sign-in provider's secret and two webhook
  * secrets still name - the census by kind, never by workspace.
  */
+/** A purchase platform's subscription that could not be reached: four events wait (UC-INS-14). */
+export const PLATFORM_SUBSCRIPTIONS = [{
+  id: '01a0e2e0-0000-7000-8000-0000000007a1',
+  target_url: 'https://shop.anbieter.example/hubtask',
+  state: 'ACTIVE',
+  dead_letters: 4,
+  last_delivery_at: new Date(Date.now() - 3 * 3_600_000).toISOString(),
+  last_error: 'webhooks.target_unavailable',
+  from_file: false,
+  created_at: '2026-10-16T08:00:00Z',
+  version: 1,
+}];
+
 export const ENCRYPTION_STATUS = {
   active_key_id: 'k2',
   keys: [
@@ -236,6 +249,9 @@ export const ENCRYPTION_STATUS = {
     ] },
   ],
 };
+
+/** The passkeys of `ACCOUNT` as *Password and sign-in* reads them (identity.md §23). */
+export const PASSKEYS = { passkeys: [], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' };
 
 export function stub(route) {
   const request = route.request();
@@ -255,6 +271,9 @@ export function stub(route) {
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
   if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
   if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
+  // The reader's passkeys: none yet, and another can be added - at `localhost`, the host a walk opens
+  // the bundle at when it needs a browser to make one (an address is no relying party).
+  if (path.endsWith('/api/v1/accounts/me/passkeys')) return route.fulfill({ json: PASSKEYS });
   if (path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) return route.fulfill({ json: ACCOUNT });
   if (path.endsWith(`/api/v1/accounts/${OTHER.id}`)) return route.fulfill({ json: OTHER });
   if (path.endsWith(`/api/v1/accounts/${INVITED.id}`)) return route.fulfill({ json: INVITED });
@@ -322,6 +341,7 @@ export function stub(route) {
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
+  if (path.endsWith('/api/v1/admin/subscriptions') && request.method() === 'GET') return route.fulfill({ json: PLATFORM_SUBSCRIPTIONS });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {

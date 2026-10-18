@@ -340,6 +340,13 @@ var entities = []Entity{
 	// something to fill in (backup-restore.md §8.2).
 	{Name: "tenants", Table: "tenant", Keys: []string{"id"}},
 	{Name: "accounts", Table: "account", Keys: []string{"id"}},
+	// An account's passkeys (identity.md §23.5): a data backup keeps them, so a restore leaves
+	// people their way in; the exports lose the credential columns (tenant-export.md §9). Not
+	// duplicable: a passkey belongs to its account and its workspace's host.
+	{
+		Name: "webauthn_credentials", Table: "webauthn_credential", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "account_id", Table: "account"}},
+	},
 	{Name: "account_groups", Table: "account_group", Keys: []string{"id"}, Whole: true},
 	{
 		Name: "account_group_members", Table: "account_group_member", Whole: true,
@@ -676,6 +683,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"idempotency_key": "a replay guard for requests that were over before the archive was written",
 	"sync_op_log":     "the same, for the sync push - a 30-day window, not data",
 	"usage_record":    "the operator's billing ledger rather than the tenant's data",
+	"quota_reached":   "the mark that a crossing was told to the installation's platform, about the live system rather than the tenant's data",
 	// The cursor and the markers of the live system. Restoring them would hand devices numbers
 	// that no longer mean anything.
 	"change_log": "the offline cursor; its sequence numbers belong to the database that issued them",
@@ -694,12 +702,13 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"privacy_incident":     "the same reasoning: an incident is handled once",
 	// The backup system's own bookkeeping. An archive describing the runs that produced it would
 	// be a mirror facing a mirror.
-	"backup_target":   "an egress channel and a sealed credential; a restore must not silently recreate one",
-	"backup_schedule": "the backup system's own bookkeeping",
-	"backup_run":      "the backup system's own bookkeeping",
-	"restore_run":     "the backup system's own bookkeeping",
-	"import_run":      "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
-	"retention_run":   "the retention engine's own bookkeeping",
+	"backup_target":    "an egress channel and a sealed credential; a restore must not silently recreate one",
+	"backup_schedule":  "the backup system's own bookkeeping",
+	"backup_run":       "the backup system's own bookkeeping",
+	"restore_run":      "the backup system's own bookkeeping",
+	"import_run":       "the import's own bookkeeping: what was asked and reported, never what landed - that is in the rows",
+	"retention_run":    "the retention engine's own bookkeeping",
+	"retention_cursor": "the retention engine's place in its reads; a restore starts again from the beginning",
 	// A rule that says EXPORT_THEN_DELETE names a backup target, and a backup target is
 	// deliberately not restored - "an egress channel and a sealed credential; a restore must not
 	// silently recreate one". A rule carried back without it would either refuse the insert or,

@@ -41,6 +41,7 @@ import (
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 )
 
 // Descriptors is every use case, in the order the composition root registers them.
@@ -232,6 +233,7 @@ func Descriptors() []usecase.Descriptor {
 		identity.ConfirmAuthenticatorReplacement{}.Descriptor(),
 		identity.StepUp{}.Descriptor(),
 		identity.StartProviderStepUp{}.Descriptor(),
+		identity.StartPasskeyStepUp{}.Descriptor(),
 		identity.RegisterOauthClient{}.Descriptor(),
 		identity.ListOauthClients{}.Descriptor(),
 		identity.ReadOauthClient{}.Descriptor(),
@@ -287,6 +289,15 @@ func Descriptors() []usecase.Descriptor {
 		identity.StartProviderConnect{}.Descriptor(),
 		identity.CompleteProviderConnect{}.Descriptor(),
 		identity.ListOwnIdentities{}.Descriptor(),
+		identity.ListOwnPasskeys{}.Descriptor(),
+		identity.StartPasskeyRegistration{}.Descriptor(),
+		identity.CompletePasskeyRegistration{}.Descriptor(),
+		identity.StartPasskeySignIn{}.Descriptor(),
+		identity.CompletePasskeySignIn{}.Descriptor(),
+		identity.StartPasskeyEnrollment{}.Descriptor(),
+		identity.CompletePasskeyEnrollment{}.Descriptor(),
+		identity.RenameOwnPasskey{}.Descriptor(),
+		identity.RemoveOwnPasskey{}.Descriptor(),
 		identity.AgreeToTerms{}.Descriptor(),
 		identity.InspectInvitation{}.Descriptor(),
 		identity.CreateAccessToken{}.Descriptor(),
@@ -330,8 +341,27 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.ListOperators{}.Descriptor(),
 		adminservice.ReadInstanceOverview{}.Descriptor(),
 		adminservice.ListInstanceJournal{}.Descriptor(),
+		adminservice.ListPlatformEvents{}.Descriptor(),
+		adminservice.ListPlatformSubscriptions{}.Descriptor(),
+		adminservice.CreatePlatformSubscription{}.Descriptor(),
+		adminservice.ReadPlatformSubscription{}.Descriptor(),
+		adminservice.UpdatePlatformSubscription{}.Descriptor(),
+		adminservice.DeletePlatformSubscription{}.Descriptor(),
+		adminservice.RotatePlatformSubscriptionSecret{}.Descriptor(),
+		adminservice.ListPlatformDeliveries{}.Descriptor(),
+		adminservice.RedeliverPlatformSubscription{}.Descriptor(),
+		adminservice.ReadUsage{}.Descriptor(),
 		adminservice.AddOperator{}.Descriptor(),
 		adminservice.RemoveOperator{}.Descriptor(),
+		adminservice.ListPlans{}.Descriptor(),
+		adminservice.ReadPlan{}.Descriptor(),
+		adminservice.CreatePlan{}.Descriptor(),
+		adminservice.ChangePlan{}.Descriptor(),
+		adminservice.RemovePlan{}.Descriptor(),
+		adminservice.MoveTenantPlan{}.Descriptor(),
+		adminservice.UpdateTenant{}.Descriptor(),
+		adminservice.ReadTenant{}.Descriptor(),
+		adminservice.QueryTenants{}.Descriptor(),
 		adminservice.ProvisionTenant{}.Descriptor(),
 		adminservice.ListTenants{}.Descriptor(),
 		adminservice.SuspendTenant{}.Descriptor(),
@@ -361,11 +391,13 @@ func Scopes() []string {
 	seen := make(map[string]bool)
 	scopes := make([]string, 0, len(Descriptors()))
 	for _, descriptor := range Descriptors() {
-		if descriptor.TokenScope == "" || seen[descriptor.TokenScope] {
-			continue
+		for _, scope := range []string{descriptor.TokenScope, descriptor.AlsoScope} {
+			if scope == "" || seen[scope] {
+				continue
+			}
+			seen[scope] = true
+			scopes = append(scopes, scope)
 		}
-		seen[descriptor.TokenScope] = true
-		scopes = append(scopes, descriptor.TokenScope)
 	}
 	// And the one scope that is not an operation's. `agent:destructive` is a *capability*:
 	// it says an agent token may reach the destructive use cases at all, and no descriptor declares
@@ -390,6 +422,19 @@ func AutomationActions() []string {
 	}
 	slices.Sort(actions)
 	return actions
+}
+
+// ActionEntitlements is, for every action kind whose use case uses a feature a plan may leave out,
+// that feature (usecase.Descriptor.Entitlement): what the manifest leaves out of the actions it
+// offers where the plan leaves the feature out.
+func ActionEntitlements() map[string]entitlement.Feature {
+	uses := map[string]entitlement.Feature{}
+	for _, descriptor := range Descriptors() {
+		if descriptor.Entitlement != "" {
+			uses[descriptor.AutomationAction()] = descriptor.Entitlement
+		}
+	}
+	return uses
 }
 
 // AutomationActionFields is, for every action kind AutomationActions names, the fields the use

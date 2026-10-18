@@ -1,0 +1,31 @@
+# The restore drill's Role and RoleBinding (k8s/templates/job-restore-drill.yaml), created once by
+# bootstrap.sh rather than by the release: the deploy identity in GitHub may not create RBAC
+# objects (deployer-rbac.yaml), which is production's arrangement too
+# (deploy/production/PLATFORM-INTERFACE.md). The verbs are exactly the drill's: a temporary
+# Cluster to create and remove, and its record to write.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hubtask-restore-drill
+  namespace: hubtask
+rules:
+  - apiGroups: [postgresql.cnpg.io]
+    resources: [clusters]
+    verbs: [create, get, list, watch, delete]
+  - apiGroups: [""]
+    resources: [configmaps]
+    verbs: [get, create, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hubtask-restore-drill
+  namespace: hubtask
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hubtask-restore-drill
+subjects:
+  - kind: ServiceAccount
+    name: hubtask-restore-drill
+    namespace: hubtask

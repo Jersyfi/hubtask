@@ -44,6 +44,7 @@ import { platform } from '../platform/index.ts';
 import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
 import { engine } from './engine.ts';
 import { identityProviderPresetPath } from './identityprovider.svelte.ts';
+import { platformSubscriptions } from './platformsubscriptions.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ELEVATE = '/auth/sessions:elevate';
@@ -61,7 +62,9 @@ const AI_PROVIDERS = '/admin/ai-providers';
 const TARGETS = '/admin/backup-targets';
 
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
-const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS];
+// The plans too: a workspace provisioned on a plan, deleted or purged changes its plan's count, and
+// a plan whose count is stale offers a removal the server refuses.
+const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS, '/admin/plans'];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -182,6 +185,7 @@ class Instance {
     this.#encryption = { status: 'idle' };
     this.#offeredAi = { status: 'idle' };
     this.#targets = { status: 'idle' };
+    platformSubscriptions.forget();
   }
 
   /**
@@ -463,10 +467,16 @@ class Instance {
    * Refused while a file enforces them, which the answer says with `is_enforced_from_file` — the
    * screen reads that and offers no controls rather than offering a refusal (ADR-0070 §5: one API,
    * three doors, and one source per mode).
+   *
+   * The `ETag` the read carried is presented as `If-Match`: two operators on this screen is the
+   * ordinary case, and a save made on values somebody else saved since is refused with
+   * `version_conflict` rather than quietly replacing theirs (UC-INS-09 check 8).
    */
   async writeSettings(settings: InstanceSettings): Promise<InstanceSettings> {
+    const etag = this.#settings.status === 'ready' ? this.#settings.etag : undefined;
     return stepUp.around((stepUpToken) =>
       engine.mutate<InstanceSettings>('PUT', SETTINGS, settings, {
+        ifMatch: etag,
         stepUpToken,
         invalidates: EVERYTHING,
       }),

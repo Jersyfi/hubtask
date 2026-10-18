@@ -148,9 +148,11 @@ func (pending) ResetPassword(w http.ResponseWriter, r *http.Request) { notAvaila
 func (pending) SetPasswordAndSignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // The instance layer of ADR-0070.
-func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
-func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
-func (pending) ListOperators(w http.ResponseWriter, r *http.Request)         { notAvailable(w, r) }
+func (pending) ReadInstanceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) WriteInstanceSettings(w http.ResponseWriter, r *http.Request, _ openapi.WriteInstanceSettingsParams) {
+	notAvailable(w, r)
+}
+func (pending) ListOperators(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ElevateSession(w http.ResponseWriter, r *http.Request, _ openapi.ElevateSessionParams) {
 	notAvailable(w, r)
@@ -207,6 +209,40 @@ func (pending) ResealSecrets(w http.ResponseWriter, r *http.Request) { notAvaila
 func (pending) ListTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) ProvisionTenant(w http.ResponseWriter, r *http.Request, _ openapi.ProvisionTenantParams) {
+	notAvailable(w, r)
+}
+
+// One workspace, its reference, and the query a platform finds workspaces with (§4.3).
+func (pending) ReadTenant(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdateTenant(
+	w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.UpdateTenantParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) QueryTenants(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The plans (multi-tenancy.md §4.2).
+func (pending) ListPlans(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePlan(w http.ResponseWriter, r *http.Request, _ openapi.CreatePlanParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPlan(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) ChangePlan(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangePlanParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemovePlan(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) MoveTenantPlan(
+	w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.MoveTenantPlanParams,
+) {
 	notAvailable(w, r)
 }
 
@@ -1138,6 +1174,51 @@ func (pending) ReadInstanceOverview(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) ListPlatformEvents(
+	w http.ResponseWriter, r *http.Request, _ openapi.ListPlatformEventsParams,
+) {
+	notAvailable(w, r)
+}
+
+// The installation's subscriptions for a purchase platform (UC-INS-14).
+func (pending) ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreatePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, _ openapi.CreatePlatformSubscriptionParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) DeletePlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadPlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) UpdatePlatformSubscription(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.UpdatePlatformSubscriptionParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ListPlatformDeliveries(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListPlatformDeliveriesParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) RedeliverPlatformSubscription(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RotatePlatformSubscriptionSecret(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.RotatePlatformSubscriptionSecretParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) ListInstanceJournal(
 	w http.ResponseWriter, r *http.Request, _ openapi.ListInstanceJournalParams,
 ) {
@@ -1347,6 +1428,51 @@ func (pending) StartProviderConnect(
 // CompleteProviderConnect is overridden by RestController, for the reason given at CreateContainer.
 func (pending) CompleteProviderConnect(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// Signing in with a passkey (identity.md §23.4). Both are overridden by RestController, for the
+// reason given at CreateContainer.
+func (pending) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// A passkey or security key as the second factor and the fresh proof (identity.md §23).
+// StartPasskeyStepUp is overridden by RestController, for the reason given at CreateContainer.
+func (pending) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// StartPasskeyEnrollment and CompletePasskeyEnrollment are overridden by RestController, for the
+// reason given at CreateContainer.
+func (pending) StartPasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CompletePasskeyEnrollment(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// The passkeys of the caller's own account (identity.md §23).
+
+// ListOwnPasskeys is overridden by RestController, for the reason given at CreateContainer.
+func (pending) ListOwnPasskeys(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// StartPasskeyRegistration is overridden by RestController, for the reason given at CreateContainer.
+func (pending) StartPasskeyRegistration(
+	w http.ResponseWriter, r *http.Request, _ openapi.StartPasskeyRegistrationParams,
+) {
+	notAvailable(w, r)
+}
+
+// CompletePasskeyRegistration is overridden by RestController, for the reason given at CreateContainer.
+func (pending) CompletePasskeyRegistration(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+// RenameOwnPasskey is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RenameOwnPasskey(w http.ResponseWriter, r *http.Request, _ openapi.PasskeyId) {
+	notAvailable(w, r)
+}
+
+// RemoveOwnPasskey is overridden by RestController, for the reason given at CreateContainer.
+func (pending) RemoveOwnPasskey(
+	w http.ResponseWriter, r *http.Request, _ openapi.PasskeyId, _ openapi.RemoveOwnPasskeyParams,
+) {
+	notAvailable(w, r)
+}
+
 // The installation's own backup targets (backup-restore.md §2).
 func (pending) ListInstanceBackupTargets(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
@@ -1370,3 +1496,8 @@ func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, 
 
 // LocateOidcFlow is overridden by RestController, for the reason given at CreateContainer.
 func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+// ReadUsage is the control plane's use read (multi-tenancy.md §4.3).
+func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadUsageParams) {
+	notAvailable(w, r)
+}

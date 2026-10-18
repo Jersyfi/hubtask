@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -23,7 +24,8 @@ import (
 // Descriptor is the catalogue entry.
 func (h CreateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: CreateRuleName,
+		Name:        CreateRuleName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Writes an automation rule, switched off. Enabling it is a separate call, so " +
 			"that what a rule would do can be read back before it acts. Writing one needs the " +
 			"automation permission at its scope and the rights its own actions need: a rule may " +
@@ -118,7 +120,8 @@ func (h ListRules) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h UpdateRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: UpdateRuleName,
+		Name:        UpdateRuleName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Changes what a rule does. An omitted field is left alone. `enabled` is not " +
 			"among the fields: switching a rule on or off is its own call, so the trail says " +
 			"which of the two somebody did. The same two-sided permission check as writing one, " +
@@ -157,7 +160,8 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 // Descriptor is the catalogue entry.
 func (h EnableRule) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: EnableRuleName,
+		Name:        EnableRuleName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Switches a rule on, and clears its failure count. Its own call and its own " +
 			"audit entry, because letting a rule act on the workspace is the decision worth " +
 			"recording - and the permission is asked again here rather than trusted from " +

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -88,6 +89,9 @@ type IdentityConnector interface {
 // SessionWriter is what the session use cases share, AccessTokenWriter's shape: one dependency
 // set, because the rules about one credential pair belong in one place.
 type SessionWriter struct {
+	// AccountLinks tells an owner or administrator of a paused workspace the provider's account
+	// link with the refusal, once the proof is complete (multi-tenancy.md §4.2). Nil tells nobody.
+	AccountLinks AccountLinkTold
 	// Connector finishes a provider link at the end of the second factor's step (E2). Nil where
 	// nothing links - a sign-in that never began at a provider carries no link to finish.
 	Connector IdentityConnector
@@ -127,7 +131,14 @@ type SessionWriter struct {
 	// The second factor's stores. Nil switches the second step off wholesale.
 	Enrollments repository.MfaEnrollments
 	Recovery    repository.RecoveryCodes
-	Pending     repository.PendingCredentials
+	// Keys counts the account's passkeys as second factors (identity.md §23.2) where turning the app
+	// off and the codes ask. Set in the literal, the step-up's reason below: every writer is a copy.
+	// Nil holds none.
+	Keys FactorKeys
+	// KeyProofs asks for a key at the factor's step, the step-up and the setup during sign-in
+	// (identity.md §23.2). Nil asks for none.
+	KeyProofs *KeyProofs
+	Pending   repository.PendingCredentials
 	// Encryptor opens and seals the TOTP secret: verification needs the plaintext for
 	// thirty lines of arithmetic, storage never does.
 	Encryptor cryptoport.Encryptor
@@ -208,6 +219,10 @@ type SignInChallenge struct {
 	// Terms travels with a TERMS challenge and with no other: the terms of use the person is asked
 	// to agree to, and who set them (UC-ID-19).
 	Terms *domain.TermsInForce
+	// KeyOptions travel with a factor's step that offers PASSKEY: the ceremony's options.
+	KeyOptions *KeyOptions
+	// KeySetup says, with ENROLL, that a key can be set up here instead of the app.
+	KeySetup bool
 }
 
 // SignInResult is one of two answers: the pair, or the challenge that stands between the
@@ -245,6 +260,8 @@ type SignInCommand struct {
 	// TenantHeader is the X-Hubtask-Tenant header, when the caller sent one. It may confirm the
 	// resolution, never overrule it.
 	TenantHeader string
+	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	Host string
 }
 
 // SignIn is the password sign-in: email and password in, an access/refresh pair and a
@@ -346,20 +363,39 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 	}
 	// The workspace's own standing: a suspended tenant refuses sign-in with the same
 	// code every authenticated call answers, after the password so the refusal leaks nothing.
-	if err := found.TenantStatus.Verify(); err != nil {
-		return SignInResult{}, err
+	// Where a second factor completes the proof, the refusal waits for it: the second step
+	// answers it, so that an owner or administrator is told the provider's account link only
+	// once they have proved who they are (multi-tenancy.md §4.2).
+	paused := found.TenantStatus.Verify()
+	if paused != nil {
+		whole, err := w.passwordIsTheWholeProof(ctx, scope, found.Account, cmd)
+		if err != nil {
+			// Unreadable: the paused sentence, without the link - never a step that might open.
+			return SignInResult{}, paused
+		}
+		if whole {
+			return SignInResult{}, w.paused(ctx, tenantID, found.Account.ID, paused)
+		}
 	}
-	// Only now, with the caller let in: a further step owed below does not undo the proof.
-	w.upgradeHash(ctx, scope, found.Account.ID, found.PasswordHash, cmd.Password)
+	if paused == nil {
+		// Only now, with the caller let in: a further step owed below does not undo the proof.
+		w.upgradeHash(ctx, scope, found.Account.ID, found.PasswordHash, cmd.Password)
+	}
 
 	challenge, verdict, err := w.challengeFor(ctx, scope, found.Account, cmd, subjects)
 	if err != nil {
 		return SignInResult{}, err
 	}
+	if paused != nil && (challenge == nil || slices.Contains(challenge.Methods, methodEnroll) ||
+		slices.Contains(challenge.Methods, methodPasswordChange)) {
+		// Nothing but the second factor's step may follow a paused workspace's password: an
+		// enrolment or a password change would lead on to a session.
+		return SignInResult{}, paused
+	}
 	// The password was right and opened the door only as ADR-0076 §4's fallback: the workspace's
 	// trail says so, whichever step follows - its administrators are to see that no way in they
 	// switched on works.
-	if fallback.Opens() {
+	if fallback.Opens() && paused == nil {
 		if err := w.recordFallback(ctx, scope, found.Account, fallback); err != nil {
 			return SignInResult{}, err
 		}
@@ -937,6 +973,7 @@ func (h SignIn) Descriptor() usecase.Descriptor {
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"resolution, never overrule it.",
 			},
+			hostField,
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SignedInAction, TargetType: sessionTarget,
@@ -960,6 +997,7 @@ func (h SignIn) invoke(
 		RemoteAddr:   in.String("remote_addr"),
 		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"),
 	})
 	if err != nil {
 		return nil, err

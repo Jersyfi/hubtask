@@ -39,6 +39,7 @@ type quotasDocument struct {
 	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
 	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
 	ExportJobs            *int64 `json:"export_jobs,omitempty"`
+	Accounts              *int64 `json:"accounts,omitempty"`
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 }
 
@@ -113,6 +114,31 @@ func (QuotaRepository) InstanceLocks(ctx context.Context) (map[string]bool, erro
 		}
 	}
 	return locked, nil
+}
+
+// PlanLimits answers the transaction's workspace's plan's ceilings and locks, through the plan read
+// the sign-in rule uses. The plan's map is reassembled by the same document as the installation's
+// rows, so a name this build does not know is dropped in both.
+func (QuotaRepository) PlanLimits(ctx context.Context) (repository.PlanLimits, error) {
+	held, on, err := PlanRepository{}.OfWorkspace(ctx)
+	if err != nil || !on {
+		return repository.PlanLimits{}, err
+	}
+	encoded, err := json.Marshal(held.Values.Quotas.Limits)
+	if err != nil {
+		return repository.PlanLimits{}, shared.Internalf("postgres: encoding the plan's quotas: %w", err)
+	}
+	var document quotasDocument
+	if err := json.Unmarshal(encoded, &document); err != nil {
+		return repository.PlanLimits{}, nil
+	}
+	locks := map[string]bool{}
+	for name, locked := range held.Values.Quotas.Locks {
+		if locked {
+			locks[name] = true
+		}
+	}
+	return repository.PlanLimits{Overrides: fromDocument(document), Locks: locks}, nil
 }
 
 // Overrides answers what the transaction's tenant configured.
@@ -201,6 +227,7 @@ func fromDocument(document quotasDocument) repository.Overrides {
 		AutomationRunsPerHour: document.AutomationRunsPerHour,
 		WebhookTargets:        document.WebhookTargets,
 		ExportJobs:            document.ExportJobs,
+		Accounts:              document.Accounts,
 		AiTokensPerDay:        document.AiTokensPerDay,
 	}
 }
@@ -213,6 +240,7 @@ func toDocument(overrides repository.Overrides) quotasDocument {
 		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
 		WebhookTargets:        overrides.WebhookTargets,
 		ExportJobs:            overrides.ExportJobs,
+		Accounts:              overrides.Accounts,
 		AiTokensPerDay:        overrides.AiTokensPerDay,
 	}
 }
@@ -264,6 +292,46 @@ func (QuotaRepository) WebhookTargets(ctx context.Context) (int64, error) {
 	return count(ctx, "counting the webhook targets", func(q *sqlc.Queries) (int64, error) {
 		return q.CountWebhookTargets(ctx)
 	})
+}
+
+// Accounts counts the people the workspace holds (multi-tenancy.md §4.2).
+func (QuotaRepository) Accounts(ctx context.Context) (int64, error) {
+	return count(ctx, "counting the people", func(q *sqlc.Queries) (int64, error) {
+		return q.CountTenantPeople(ctx)
+	})
+}
+
+// InvitationOpen answers whether the people count holds the invitation.
+func (QuotaRepository) InvitationOpen(ctx context.Context, account string) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(shared.ID(account))
+	if err != nil {
+		return false, err
+	}
+	open, err := queries.InvitationIsOpen(ctx, id)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading whether the invitation is open: %w", err))
+	}
+	return open, nil
+}
+
+// LockPeople serialises the creations of people in the transaction's workspace until it ends.
+func (QuotaRepository) LockPeople(ctx context.Context) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	if err := queries.LockTenantPeople(ctx); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking the people count: %w", err))
+	}
+	return nil
 }
 
 // AutomationRunsSince counts the runs that actually ran since the instant.

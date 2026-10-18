@@ -30,8 +30,8 @@ type SessionCredential struct {
 	// TenantSlug and TenantStatus ride with every credential read, Credential's reason.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
-	// TokenRatePerMinute is the workspace's own request-rate ceiling, Credential's
-	// reason. 0 means the installation's default applies.
+	// TokenRatePerMinute is the workspace's request-rate ceiling per credential, resolved as
+	// Credential's is. 0 means none is set and only the credential level applies.
 	TokenRatePerMinute int64
 	// RotationFrom is the workspace's rotation cutoff (ADR-0068 §3), read off the tenant row this
 	// credential already joins. A session opened before it is refused on its next request - which
@@ -277,7 +277,8 @@ type MfaEnrollments interface {
 	// the same or an older code presented again.
 	RecordStep(ctx context.Context, accountID shared.ID, step int64, now time.Time) (bool, error)
 
-	// Disable removes the enrolment whole. False means there was none.
+	// Disable removes the enrolment whole, and leaves the recovery codes to
+	// RecoveryCodes.DiscardUnbacked. False means there was none.
 	Disable(ctx context.Context, accountID shared.ID) (bool, error)
 
 	// StartReplacement puts a new secret beside an armed one, replacing a replacement begun
@@ -308,6 +309,10 @@ type RecoveryCodes interface {
 
 	// Remaining counts what is left, for the answer that tells a person to re-enrol in time.
 	Remaining(ctx context.Context, accountID shared.ID) (int, error)
+
+	// DiscardUnbacked burns every code of an account that holds no second factor any more - no
+	// authenticator app, armed or begun, and no passkey - and leaves them where it still does.
+	DiscardUnbacked(ctx context.Context, accountID shared.ID) error
 }
 
 // PendingLookup is what presenting a pending credential yields: the row, its account, and the

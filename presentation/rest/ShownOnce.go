@@ -20,6 +20,7 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/sessions":              true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:refresh":      true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:verify":       true,
+	http.MethodPost + " " + APIBasePath + "/auth/sessions:passkey":      true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:link":         true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:agree-terms":  true,
 	http.MethodPost + " " + APIBasePath + "/auth/sessions:set-password": true,
@@ -27,6 +28,7 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/auth/installation:set-up":   true,
 	http.MethodPost + " " + APIBasePath + "/auth/password:reset":        true,
 	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:confirm":      true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/passkey:enroll":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:callback":         true,
 	http.MethodPost + " " + APIBasePath + "/oauth/token":                true,
 	http.MethodPost + " " + APIBasePath + "/auth/step-up":               true,
@@ -37,13 +39,15 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/jumble/intake:rotate-token":                     true,
 	http.MethodPost + " " + APIBasePath + "/integrations/calendar-feeds":                    true,
 	// Secrets and second-factor material.
-	http.MethodPost + " " + APIBasePath + "/integrations/webhooks":                           true,
-	http.MethodPost + " " + APIBasePath + "/integrations/webhooks/{webhookId}:rotate-secret": true,
-	http.MethodPost + " " + APIBasePath + "/oauth/clients":                                   true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":                            true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:replace":                           true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp/replacement:confirm":               true,
-	http.MethodPost + " " + APIBasePath + "/auth/mfa/recovery:regenerate":                    true,
+	http.MethodPost + " " + APIBasePath + "/integrations/webhooks":                              true,
+	http.MethodPost + " " + APIBasePath + "/integrations/webhooks/{webhookId}:rotate-secret":    true,
+	http.MethodPost + " " + APIBasePath + "/admin/subscriptions":                                true,
+	http.MethodPost + " " + APIBasePath + "/admin/subscriptions/{subscriptionId}:rotate-secret": true,
+	http.MethodPost + " " + APIBasePath + "/oauth/clients":                                      true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:enroll":                               true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp:replace":                              true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/totp/replacement:confirm":                  true,
+	http.MethodPost + " " + APIBasePath + "/auth/mfa/recovery:regenerate":                       true,
 	// Start passwords.
 	http.MethodPost + " " + APIBasePath + "/accounts:create-managed":                   true,
 	http.MethodPost + " " + APIBasePath + "/accounts/{accountId}:issue-start-password": true,
@@ -55,6 +59,7 @@ var ShownOnceRoutes = map[string]bool{
 var ShownOnceByHandler = map[string]string{
 	http.MethodPost + " " + APIBasePath + "/accounts:invite":                       "the link only where no mail is sent",
 	http.MethodPost + " " + APIBasePath + "/accounts/{accountId}:renew-invitation": "the link only where no mail is sent",
+	http.MethodPost + " " + APIBasePath + "/accounts/me/passkeys:complete":         "the recovery codes only for the account's first factor",
 }
 
 // ShownOnceKept are the operations whose answer carries a credential and whose replay record still

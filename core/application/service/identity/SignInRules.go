@@ -58,6 +58,8 @@ type ResolvedPolicy struct {
 	// InstallationEffective is the level above with who decided each switch of it, so a screen can
 	// say "set by the installation" only where the installation set something (P-06, P-10).
 	InstallationEffective domain.EffectivePolicy
+	// AccountLink is the provider's account link in force: installation, then plan (§4.2 there).
+	AccountLink string
 	// InstanceLegal is the installation's own layer of the four links, for where a link came from.
 	InstanceLegal domain.LegalLayer
 	// Workspace is the row the rule was resolved for. Zero where none was.
@@ -116,12 +118,16 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		return ResolvedPolicy{}, err
 	}
 
-	installation := domain.Effective(instance.Policy, domain.PolicyLayer{}, domain.PolicyLayer{})
-	legal, legalLocks := domain.EffectiveLegal(instance.Legal, workspace.Settings.LegalLayer())
-	above, _ := domain.EffectiveLegal(instance.Legal, domain.LegalLayer{})
+	// The level above the workspace is the installation and the workspace's plan together
+	// (multi-tenancy.md §4.2): what a workspace may tighten, and what its screen shows beside its
+	// own values.
+	plan := workspace.Plan
+	installation := domain.Effective(instance.Policy, plan.Policy, domain.PolicyLayer{})
+	legal, legalLocks := domain.EffectiveLegal(instance.Legal, plan.Legal, workspace.Settings.LegalLayer())
+	above, _ := domain.EffectiveLegal(instance.Legal, plan.Legal, domain.LegalLayer{})
 	return ResolvedPolicy{
 		Effective: domain.Effective(
-			instance.Policy, domain.PolicyLayer{}, workspace.Settings.SignInLayer()),
+			instance.Policy, plan.Policy, workspace.Settings.SignInLayer()),
 		Legal:     legal,
 		LegalLock: legalLocks,
 		// The same two levels without the workspace's, which is the default it may tighten.
@@ -129,6 +135,7 @@ func (r SignInPolicyResolver) Resolve(ctx context.Context, tenantID shared.ID) (
 		InstallationLegal:     above,
 		InstallationEffective: installation,
 		InstanceLegal:         instance.Legal,
+		AccountLink:           domain.EffectiveAccountLink(instance.Legal, plan.Legal),
 		Workspace:             workspace,
 		BlocklistFile:         instance.BlocklistFile,
 
@@ -269,6 +276,9 @@ type GetSignInRules struct {
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
 	// mode there is one workspace and no subdomain to read.
 	Multi bool
+	// Party is the workspace's relying party for passkeys. Nil offers no passkey: the card would
+	// draw a button whose ceremony no browser can finish.
+	Party *PasskeyParty
 }
 
 // now is the moment the offer is read at.
@@ -305,6 +315,17 @@ func (h GetSignInRules) Execute(
 		// leads to a flow with no provider behind it is a button that answers an error.
 		if method == domain.MethodOidc && len(providers) == 0 {
 			continue
+		}
+		// A passkey only where a ceremony can finish: a workspace this host names, a relying party,
+		// and the page at its very host - a browser refuses any other (P-05).
+		if method == domain.MethodPasskey {
+			at, err := h.passkeysServedAt(ctx, tenantID, cmd.Host)
+			if err != nil {
+				return SignInRules{}, err
+			}
+			if !at {
+				continue
+			}
 		}
 		methods = append(methods, method)
 	}
@@ -554,4 +575,18 @@ func (h GetSignInRules) invoke(
 		return nil, err
 	}
 	return rulesOutput(rules), nil
+}
+
+// passkeysServedAt answers whether a passkey ceremony can finish at this host for this workspace.
+func (h GetSignInRules) passkeysServedAt(ctx context.Context, tenantID shared.ID, host string) (bool, error) {
+	if h.Party == nil || tenantID.IsZero() {
+		return false, nil
+	}
+	var served bool
+	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) error {
+		party, ok, err := h.Party.of(ctx)
+		served = ok && party.servesAt(host)
+		return err
+	})
+	return served, err
 }

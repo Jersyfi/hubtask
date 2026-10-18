@@ -36,9 +36,9 @@ type Credential struct {
 	// authentication itself rather than each use case separately.
 	TenantSlug   string
 	TenantStatus identity.TenantStatus
-	// TokenRatePerMinute is the workspace's own request-rate ceiling, riding with the
-	// read so the limiter needs no lookup of its own. 0 means none is configured and the
-	// installation's default applies.
+	// TokenRatePerMinute is the workspace's request-rate ceiling per credential - the operator's
+	// exception, its plan's, or the installation's default - riding with the read so the limiter
+	// needs no lookup of its own. 0 means none is set and only the credential level applies.
 	TokenRatePerMinute int64
 }
 

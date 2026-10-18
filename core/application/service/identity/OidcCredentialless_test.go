@@ -61,8 +61,15 @@ func TestACredentiallessAccountIsConnectedOnlyByAnAuthoritativeProvider(t *testi
 					return
 				}
 
-				if detailOf(err) != "identity_provider.link_needs_mailbox" {
-					t.Fatalf("the arrival answered %v, want the way back by mail", err)
+				// Under INVITED_ONLY a provider not authoritative for the address admits nobody, and
+				// the mailbox cannot widen that (identity.md §10.4); under the other modes the member
+				// is admitted and owes its proof, which is the way back by mail.
+				want := "identity_provider.link_needs_mailbox"
+				if mode == domain.ProvisionInvitedOnly {
+					want = "identity_provider.not_admitted"
+				}
+				if detailOf(err) != want {
+					t.Fatalf("the arrival answered %v, want %s", err, want)
 				}
 				if result.Pair != nil || result.Challenge != nil {
 					t.Errorf("a refused arrival answered %+v", result)

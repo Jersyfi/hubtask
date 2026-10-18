@@ -26,9 +26,10 @@
  * one action it is for takes it. That is the only grant ever stored, and only for its few minutes.
  */
 
-import { TransportError } from '@hubtask/sync-engine';
+import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { ceremonyEndOf, keyAnswerOf, keyRequestOptionsOf, type AssertedCredential } from './passkeys.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 import type { Handoff } from './oidc.ts';
@@ -48,6 +49,8 @@ import {
 
 const STEP_UP = '/auth/step-up';
 const STEP_UP_PROVIDER = '/auth/step-up:provider';
+/** The options for a fresh proof with a passkey or security key (identity.md §16.1, §23.2). */
+const STEP_UP_PASSKEY = '/auth/step-up:passkey-options';
 
 /** The tab's own storage, or a map where a browser refuses it - private windows, embedded views. */
 function tabStore(): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
@@ -201,6 +204,56 @@ class StepUp {
       location.assign(url);
     } catch (cause) {
       this.#failure = problemOf(cause);
+    } finally {
+      this.#working = false;
+    }
+  }
+
+  /**
+   * Proves it with a key: the options bound to this session, the device, the answer. A prompt the
+   * person closes says nothing (P-11) - `'cancelled'`, so the dialog can keep the focus. Where no key
+   * can be asked at this page's host, the key is taken off the prompt and the other ways remain.
+   * `get` is the browser's `navigator.credentials.get`, handed in so a test can stand in for it.
+   */
+  async proveWithKey(
+    get: (options: CredentialRequestOptions) => Promise<Credential | null>,
+  ): Promise<'proved' | 'cancelled' | 'refused'> {
+    const waiting = this.#pending;
+    if (!waiting) return 'refused';
+    this.#working = true;
+    this.#failure = undefined;
+    try {
+      let options: PasskeyAssertionOptions;
+      try {
+        options = await engine.mutate<PasskeyAssertionOptions>('POST', STEP_UP_PASSKEY, undefined, {
+          timeoutMs: TIMEOUT_MS,
+        });
+      } catch (cause) {
+        if (cause instanceof TransportError && cause.detailCode === 'auth.passkey_unavailable') {
+          this.#pending = { ...waiting, methods: waiting.methods.filter((method) => method !== 'PASSKEY') };
+          this.#failure = ownCode('app.step_up.key_elsewhere');
+          return 'refused';
+        }
+        throw cause;
+      }
+      let credential: Credential | null;
+      try {
+        credential = await get(keyRequestOptionsOf(options));
+      } catch (cause) {
+        if (ceremonyEndOf(cause) === 'cancelled') return 'cancelled';
+        this.#failure = ownCode('app.sign_in.key_failed');
+        return 'refused';
+      }
+      if (credential === null) return 'cancelled';
+      const grant = await engine.mutate<Grant>(
+        'POST', STEP_UP, keyAnswerOf(credential as unknown as AssertedCredential), { timeoutMs: TIMEOUT_MS },
+      );
+      this.#pending = undefined;
+      waiting.settle(grant.step_up_token);
+      return 'proved';
+    } catch (cause) {
+      this.#failure = problemOf(cause);
+      return 'refused';
     } finally {
       this.#working = false;
     }

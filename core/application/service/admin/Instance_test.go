@@ -27,7 +27,7 @@ func newInstanceStore() *instanceStore {
 	return &instanceStore{level: identityrepo.InstanceLevel{
 		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
 		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
-		Source: "database",
+		Source: "database", Version: 1,
 	}}
 }
 
@@ -36,14 +36,19 @@ func (s *instanceStore) Read(context.Context) (identityrepo.InstanceLevel, error
 }
 
 func (s *instanceStore) Write(
-	_ context.Context, level identityrepo.InstanceLevel, by shared.ID, _ time.Time,
-) error {
+	_ context.Context, level identityrepo.InstanceLevel, expected int, by shared.ID, _ time.Time,
+) (bool, error) {
+	// The statement's guard, in memory: zero compares with nothing.
+	if expected != 0 && expected != s.level.Version {
+		return false, nil
+	}
 	s.writes = append(s.writes, level)
 	s.writtenBy = append(s.writtenBy, by)
 	kept := level
 	kept.Source = s.level.Source
+	kept.Version = s.level.Version + 1
 	s.level = kept
-	return nil
+	return true, nil
 }
 
 // registerStore is the operator register, in memory. An empty one answers true, which is the
@@ -198,7 +203,7 @@ func TestWritingTheLevelReplacesItAndNamesWhatMoved(t *testing.T) {
 				Locks: map[identity.LegalLink]bool{identity.LinkImprint: true},
 			},
 			BlocklistFile: "/etc/hubtask/passwords.txt",
-		})
+		}, 0)
 	if err != nil {
 		t.Fatalf("the write was refused: %v", err)
 	}
@@ -546,11 +551,12 @@ func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 		t.Errorf("an undecided switch carries a value: %v", undecided)
 	}
 
-	// The four legal links and the terms' version, for the same reason: a screen drawing only what
-	// somebody filled in never mentions terms or an accessibility statement.
+	// The four legal links, the terms' version and the provider's account link, for the same
+	// reason: a screen drawing only what somebody filled in never mentions terms or an
+	// accessibility statement.
 	legal, _ := out["legal"].(usecase.Output)
-	if len(legal) != len(identity.LegalSettingNames()) {
-		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LegalSettingNames()))
+	if len(legal) != len(identity.LevelLegalSettingNames()) {
+		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LevelLegalSettingNames()))
 	}
 	// The version is drawn beside the link it belongs to, not after an unrelated one.
 	positionOf := func(key identity.LegalLink) any {

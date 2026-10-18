@@ -25,6 +25,13 @@ export function formatDateTime(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(at);
 }
 
+/** The reader's day of an instant - when a thing was added, not the minute - or the raw text. */
+export function formatDay(iso: string, locale: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(at);
+}
+
 /**
  * A due date, drawn as what it is.
  *

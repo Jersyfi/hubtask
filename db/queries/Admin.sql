@@ -18,7 +18,9 @@ SELECT id::uuid, slug::text, display_name::text, status::text,
        coalesce(password_opened_requester, '')::text AS password_opened_requester,
        coalesce(password_opened_reason, '')::text AS password_opened_reason,
        legal_hold::boolean AS legal_hold,
-       purge_started_at::timestamptz AS purge_started_at
+       purge_started_at::timestamptz AS purge_started_at,
+       coalesce(plan_name, '')::text AS plan_name,
+       version::integer AS version
 FROM admin_tenants();
 
 -- name: InsertTenant :exec
@@ -33,12 +35,54 @@ VALUES (
 );
 
 -- name: FindTenantForAdmin :one
-SELECT id, slug, display_name, status, default_locale, default_time_zone,
-       created_at, purge_after, version,
-       password_opened_until, password_opened_requester, password_opened_reason,
-       status_before_deletion, purge_started_at
-FROM tenant
-WHERE id = current_tenant_id() AND deleted_at IS NULL;
+-- The plan's short name through a join: `plan` carries no policy, so it reads inside the tenant's
+-- own transaction (migration 0164).
+SELECT t.id, t.slug, t.display_name, t.status, t.default_locale, t.default_time_zone,
+       t.created_at, t.purge_after, t.version,
+       t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
+       t.status_before_deletion, t.purge_started_at,
+       coalesce(p.name, '')::text AS plan_name,
+       coalesce(t.external_reference, '')::text AS external_reference
+FROM tenant t
+LEFT JOIN plan p ON p.id = t.plan_id
+WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL;
+
+-- name: SetTenantReference :execrows
+-- A platform's reference on the workspace, or none (multi-tenancy.md §4.3). Guarded on the version
+-- read, and refused once the purge has begun; a reference another workspace holds is the unique
+-- index's refusal.
+UPDATE tenant
+SET external_reference = sqlc.narg('external_reference'), version = version + 1, updated_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
+  AND version = sqlc.arg('version');
+
+-- name: QueryTenants :many
+-- The control plane's filtered, paged read, through the one narrow door that filters and pages
+-- across tenant_self (migration 0165). The casts are for the generator.
+SELECT id::uuid, slug::text, display_name::text, status::text,
+       default_locale::text, default_time_zone::text,
+       created_at::timestamptz, purge_after::timestamptz AS purge_after,
+       password_opened_until::timestamptz AS password_opened_until,
+       coalesce(password_opened_requester, '')::text AS password_opened_requester,
+       coalesce(password_opened_reason, '')::text AS password_opened_reason,
+       legal_hold::boolean AS legal_hold,
+       purge_started_at::timestamptz AS purge_started_at,
+       coalesce(plan_name, '')::text AS plan_name,
+       version::integer AS version,
+       coalesce(external_reference, '')::text AS external_reference
+FROM admin_tenants_query(
+  sqlc.narg('want_id')::uuid, sqlc.narg('want_slug')::text, sqlc.narg('want_reference')::text,
+  sqlc.narg('want_plan')::text, sqlc.narg('want_without_plan')::boolean, sqlc.narg('want_status')::text,
+  sqlc.narg('after_at')::timestamptz, sqlc.narg('after_id')::uuid, sqlc.arg('page_size')::integer
+);
+
+-- name: SetTenantPlan :execrows
+-- A workspace onto another plan, or none (multi-tenancy.md §4.2). Guarded on the version read, so a
+-- move cannot land on a workspace that changed meanwhile, and refused once the purge has begun.
+UPDATE tenant
+SET plan_id = sqlc.narg('plan_id'), version = version + 1, updated_at = sqlc.arg('now')
+WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
+  AND version = sqlc.arg('version');
 
 -- name: OpenTenantPassword :execrows
 -- An operator opens the password for this one workspace (ADR-0078 §3). A second opening

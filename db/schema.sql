@@ -140,9 +140,13 @@ CREATE TABLE tenant (
   -- The synchronisation epoch (0087): every cursor carries the epoch it was minted under,
   -- and a restore into the workspace advances it, so that a cursor minted before is refused.
   sync_epoch         bigint NOT NULL DEFAULT 0,
-  -- The plan this workspace is on (ADR-0070 §3, migration 0099). Nullable and unread: the column
-  -- exists so that plans need no migration through the sign-in path.
+  -- The plan this workspace is on (ADR-0070 §3, migration 0099), NULL for none; the reference
+  -- (tenant_plan_fk) is added with the plan table below (0164).
   plan_id            uuid,
+  -- A purchase platform's own reference for the workspace (multi-tenancy.md §4.3, 0165), unique
+  -- among the workspaces that have one (tenant_external_reference_key, 0166).
+  external_reference text CONSTRAINT tenant_external_reference_length
+                     CHECK (external_reference IS NULL OR char_length(external_reference) BETWEEN 1 AND 200),
   -- An operator's opening of the password for this workspace (0118, ADR-0078 §3): when it
   -- ends, who asked and why. Honoured where it is read - past the end it is over, whatever the row
   -- still says - and cleared with the opening. Not in `settings`, so the workspace's own PATCH cannot
@@ -326,7 +330,7 @@ CREATE TABLE session (
   -- what every row means again an hour later.
   elevated_until  timestamptz,
   -- How this session was opened (ADR-0068 §3, migration 0098): PASSWORD, PASSWORD_TOTP,
-  -- PASSWORD_RECOVERY, OIDC, INVITATION, RESET - and PASSKEY when there is one. Answered in the
+  -- PASSWORD_RECOVERY, PASSWORD_PASSKEY, OIDC, INVITATION, RESET, PASSKEY. Answered in the
   -- session list, so that a person reading their own sessions can tell them apart. NULL is a
   -- session opened before the column existed.
   signed_in_with text,
@@ -415,12 +419,39 @@ CREATE TABLE account_password_history (
 CREATE INDEX account_password_history_account_idx
   ON account_password_history (tenant_id, account_id, set_at DESC);
 
+-- Passkeys and security keys: an account's WebAuthn credentials, up to ten (identity.md §23).
+-- The name is user content (rule 10); the public key is the COSE bytes the authenticator sent.
+CREATE TABLE webauthn_credential (
+  id              uuid PRIMARY KEY,
+  tenant_id       uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  account_id      uuid NOT NULL,
+  credential_id   bytea NOT NULL CHECK (octet_length(credential_id) BETWEEN 1 AND 1023),
+  public_key      bytea NOT NULL CHECK (octet_length(public_key) BETWEEN 1 AND 2048),
+  algorithm       integer NOT NULL CHECK (algorithm IN (-7, -8, -257)),
+  sign_count      bigint NOT NULL DEFAULT 0 CHECK (sign_count BETWEEN 0 AND 4294967295),
+  user_handle     bytea NOT NULL CHECK (octet_length(user_handle) = 32),
+  backup_eligible boolean NOT NULL,
+  backed_up       boolean NOT NULL,
+  transports      text[] NOT NULL DEFAULT '{}' CHECK (cardinality(transports) <= 6),
+  name            text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 64),
+  created_at      timestamptz NOT NULL,
+  last_used_at    timestamptz,
+  -- The host it was made for; NULL for one made before the column (migration 0163).
+  rp_id           text CHECK (rp_id IS NULL OR char_length(rp_id) BETWEEN 1 AND 253),
+  CONSTRAINT webauthn_credential_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT webauthn_credential_backup_state CHECK (backup_eligible OR NOT backed_up)
+);
+CREATE UNIQUE INDEX webauthn_credential_credential_uq ON webauthn_credential (tenant_id, credential_id);
+CREATE INDEX webauthn_credential_account_idx ON webauthn_credential (tenant_id, account_id, created_at);
+
 -- The pending credential of a two-step sign-in: short-lived, single-use, hashed under
 -- its own purpose label - a row with the session machinery's discipline, not a session.
 CREATE TABLE auth_pending (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  account_id  uuid NOT NULL,
+  -- NULL only on a TERMS row carrying a provider's arrival, which has no account yet (migration 0142).
+  account_id  uuid,
   -- NULL only on an ADDRESS row whose mail has not gone out yet: the token is minted at delivery
   -- (migration 0131), and a NULL never matches a presented token.
   token_hash  bytea,
@@ -430,7 +461,11 @@ CREATE TABLE auth_pending (
   -- for the account's own proof (migration 0110), CONNECT is the link a workspace without
   -- the password mails to connect its provider (migration 0117), ADDRESS is the link that
   -- confirms a managed account's new address (migration 0131), and TERMS is the step a
-  -- sign-in ends in while the account has not agreed to the terms of use in force (migration 0140).
+  -- sign-in ends in while the account has not agreed to the terms of use in force (migration 0140),
+  -- PASSKEY_REGISTER is a passkey registration's challenge (migration 0161), PASSKEY_SIGN_IN a
+  -- passkey sign-in's (migration 0168), and PASSKEY_FACTOR, PASSKEY_ENROLL and PASSKEY_STEP_UP the
+  -- challenges of a key as the second factor, its setup during sign-in and a fresh proof
+  -- (migration 0176).
   purpose     text NOT NULL,
   user_agent  text,
   ip_class    text,
@@ -454,15 +489,44 @@ CREATE TABLE auth_pending (
   -- provider that did (migration 0140).
   session_method text CONSTRAINT auth_pending_session_method_check CHECK (char_length(session_method) <= 32),
   session_via    uuid,
+  -- How the steps before a change step were proven, for the session it opens (migration 0139).
+  signed_in_with text,
+  -- A provider's newcomer waiting for the terms of use on a row without an account (migration 0142).
+  arrival_email        text CONSTRAINT auth_pending_arrival_email_length
+    CHECK (char_length(arrival_email) BETWEEN 3 AND 254),
+  arrival_display_name text CONSTRAINT auth_pending_arrival_display_name_length
+    CHECK (char_length(arrival_display_name) <= 200),
+  arrival_directory    text CONSTRAINT auth_pending_arrival_directory_length
+    CHECK (char_length(arrival_directory) <= 255),
+  -- A passkey registration's session, which alone may finish it, and the user handle the new
+  -- credential will carry (migration 0161).
+  session_id  uuid,
+  user_handle bytea,
+  CONSTRAINT auth_pending_session_fkey FOREIGN KEY (tenant_id, session_id)
+    REFERENCES session (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_account_fkey FOREIGN KEY (tenant_id, account_id)
     REFERENCES account (tenant_id, id) ON DELETE CASCADE,
   CONSTRAINT auth_pending_purpose_check
-    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS')),
+    CHECK (purpose IN ('TOTP', 'ENROLL', 'RESET', 'PASSWORD', 'LINK', 'CONNECT', 'ADDRESS', 'TERMS',
+                       'PASSKEY_REGISTER', 'PASSKEY_SIGN_IN', 'PASSKEY_FACTOR', 'PASSKEY_ENROLL',
+                       'PASSKEY_STEP_UP')),
   CONSTRAINT auth_pending_address_purpose
     CHECK ((purpose = 'ADDRESS') = (address IS NOT NULL)
            AND (purpose = 'ADDRESS' OR token_hash IS NOT NULL)),
   CONSTRAINT auth_pending_link_whole CHECK ((link_provider_id IS NULL) = (link_subject IS NULL)),
-  CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL)
+  CONSTRAINT auth_pending_link_purpose CHECK (purpose <> 'LINK' OR link_provider_id IS NOT NULL),
+  -- No account exactly where a TERMS arrival or a passkey sign-in's challenge stands (migration 0174).
+  CONSTRAINT auth_pending_arrival_whole
+    CHECK (CASE WHEN purpose = 'PASSKEY_SIGN_IN'
+                THEN account_id IS NULL AND arrival_email IS NULL
+                ELSE (account_id IS NULL) = (arrival_email IS NOT NULL) END),
+  CONSTRAINT auth_pending_arrival_terms
+    CHECK (account_id IS NOT NULL OR purpose = 'PASSKEY_SIGN_IN'
+           OR (purpose = 'TERMS' AND link_provider_id IS NOT NULL)),
+  CONSTRAINT auth_pending_passkey_whole
+    CHECK ((session_id IS NOT NULL) = (purpose IN ('PASSKEY_REGISTER', 'PASSKEY_STEP_UP'))
+           AND (user_handle IS NOT NULL) = (purpose IN ('PASSKEY_REGISTER', 'PASSKEY_ENROLL'))
+           AND (user_handle IS NULL OR octet_length(user_handle) = 32))
 );
 CREATE UNIQUE INDEX auth_pending_token_uq ON auth_pending (token_hash);
 -- What a sign-in flow's key to its CONNECT link points at (migration 0117).
@@ -1725,6 +1789,9 @@ CREATE TABLE usage_record (
   period     date NOT NULL,
   metric     text NOT NULL,
   value      bigint NOT NULL DEFAULT 0,
+  -- The day's closing count for the counts kept as the day's highest (`value`): entries, stored
+  -- bytes, people (migration 0183). NULL for the sums.
+  closing    bigint,
   PRIMARY KEY (tenant_id, period, metric)
 );
 
@@ -2114,8 +2181,14 @@ CREATE TABLE retention_rule (
   created_at      timestamptz NOT NULL DEFAULT now(),
   updated_at      timestamptz NOT NULL DEFAULT now(),
   version         integer NOT NULL DEFAULT 1,
+  -- Why a pass set the rule aside: its condition could not be evaluated on a candidate. The code
+  -- and the moment, until a pass evaluates it cleanly (migration 0170, data-retention.md §2).
+  last_failure_code text,
+  last_failure_at   timestamptz,
   CONSTRAINT retention_rule_scope_check CHECK ((scope_kind = 'TENANT') = (scope_id IS NULL)),
   CONSTRAINT retention_rule_chain_check CHECK ((then_after_days IS NULL) = (then_action IS NULL)),
+  CONSTRAINT retention_rule_last_failure_whole
+    CHECK ((last_failure_code IS NULL) = (last_failure_at IS NULL)),
   UNIQUE (tenant_id, id)
 );
 CREATE UNIQUE INDEX retention_rule_scope_idx ON retention_rule
@@ -2141,6 +2214,33 @@ CREATE TABLE retention_run (
                   CHECK (status IN ('RUNNING','SUCCEEDED','FAILED'))
 );
 CREATE INDEX retention_run_idx ON retention_run (tenant_id, data_kind, started_at DESC);
+
+-- The key a tenant-scoped reference to a rule points at (ADR-0024, migration 0172).
+CREATE UNIQUE INDEX retention_rule_tenant_id_uq ON retention_rule (tenant_id, id);
+
+-- Where each read of the rule sweep stopped, so the next pass continues there (data-retention.md §5,
+-- migration 0173): phase one of a kind, a chain's second stage by its rule, phase two. A position
+-- in the candidates' order and nothing else (rule 10); not in an archive.
+CREATE TABLE retention_cursor (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  reader     text NOT NULL CHECK (reader IN ('ANNOUNCE','CHAIN','ACT')),
+  data_kind  text,
+  rule_id    uuid,
+  after_at   timestamptz NOT NULL,
+  after_id   uuid NOT NULL,
+  CONSTRAINT retention_cursor_reader_shape CHECK (
+    (reader = 'ANNOUNCE' AND data_kind IS NOT NULL AND rule_id IS NULL)
+    OR (reader = 'CHAIN' AND data_kind IS NULL AND rule_id IS NOT NULL)
+    OR (reader = 'ACT' AND data_kind IS NULL AND rule_id IS NULL)
+  ),
+  -- On the workspace and the rule together, so no row can name another workspace's rule (ADR-0024;
+  -- the key is 0172's index).
+  CONSTRAINT retention_cursor_rule_fkey FOREIGN KEY (tenant_id, rule_id)
+    REFERENCES retention_rule (tenant_id, id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX retention_cursor_reader_uq
+  ON retention_cursor (tenant_id, reader, data_kind, rule_id) NULLS NOT DISTINCT;
+CREATE INDEX retention_cursor_rule_idx ON retention_cursor (tenant_id, rule_id) WHERE rule_id IS NOT NULL;
 
 CREATE TABLE legal_hold (
   id           uuid PRIMARY KEY,
@@ -2418,6 +2518,19 @@ $$
       ''::bytea))
 $$;
 
+-- ============ A limit reached, once per crossing ====================
+-- The mark that makes `limit_reached` and `ai_budget_spent` told once per crossing (UC-INS-14
+-- check 2): one per quota at one period - the limit's value, or the AI budget's day. See
+-- db/migrations/0181_quota_reached.sql.
+CREATE TABLE quota_reached (
+  tenant_id  uuid NOT NULL REFERENCES tenant (id) ON DELETE CASCADE,
+  quota      text NOT NULL CHECK (quota ~ '^[a-z][a-z0-9_]*$'),
+  period     text NOT NULL DEFAULT '',
+  reached_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, quota, period)
+);
+GRANT SELECT, INSERT, DELETE ON quota_reached TO hubtask_app;
+
 -- ============================ Row Level Security ===========================
 -- For every tenant-scoped table: a policy on current_tenant_id().
 DO $$
@@ -2426,7 +2539,8 @@ BEGIN
   FOREACH t IN ARRAY ARRAY[
     'account','account_group','account_group_member','membership','access_token',
     'session','session_refresh_token','auth_attempt',
-    'account_mfa','account_recovery_code','account_password_history','auth_pending',
+    'account_mfa','account_recovery_code','account_password_history','webauthn_credential',
+    'auth_pending',
     'oauth_client','oauth_grant','oauth_code',
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
@@ -2441,9 +2555,9 @@ BEGIN
     'ai_objection_notice',
     'erasure_kept',
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
-    'retention_rule',
+    'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run'
+    'import_run','quota_reached'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
@@ -2736,6 +2850,39 @@ CREATE TABLE instance_setting (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Plans, between the installation and its workspaces (multi-tenancy.md §4.2, ADR-0086,
+-- migration 0164). No row level security, for instance_setting's reason: every workspace reads
+-- its plan, and the tables hold configuration. A removed plan keeps its row, and the application
+-- role holds no DELETE on `plan`, so a short name is never reused.
+CREATE TABLE plan (
+  id           uuid PRIMARY KEY,
+  name         text NOT NULL CHECK (name ~ '^[a-z0-9][a-z0-9-]{1,39}$'),
+  display_name text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 200),
+  version      integer NOT NULL DEFAULT 1,
+  created_at   timestamptz NOT NULL,
+  updated_at   timestamptz NOT NULL,
+  updated_by   uuid,
+  removed_at   timestamptz,
+  CONSTRAINT plan_name_key UNIQUE (name)
+);
+
+-- What a plan decides, in the installation level's key shape, and `entitlement.<feature>` for a
+-- feature it leaves out.
+CREATE TABLE plan_setting (
+  plan_id uuid NOT NULL REFERENCES plan (id) ON DELETE RESTRICT,
+  key     text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'),
+  value   jsonb NOT NULL,
+  locked  boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (plan_id, key)
+);
+
+ALTER TABLE tenant ADD CONSTRAINT tenant_plan_fk
+  FOREIGN KEY (plan_id) REFERENCES plan (id) ON DELETE RESTRICT;
+
+-- A platform's reference names one workspace (multi-tenancy.md §4.3, 0166).
+CREATE UNIQUE INDEX tenant_external_reference_key
+  ON tenant (external_reference) WHERE external_reference IS NOT NULL;
+
 -- The installation at a glance (migrations 0105, 0128). Counts, states and limits - never rows,
 -- which is ADR-0070 §5 in its own words. SECURITY DEFINER for `is_operator`'s reason: `account` is
 -- behind row level security and FORCE, so the application role cannot count across workspaces at
@@ -2815,7 +2962,72 @@ CREATE INDEX instance_event_occurred_idx ON instance_event (occurred_at);
 -- or removed afterwards would not be evidence.
 REVOKE UPDATE, DELETE, TRUNCATE ON instance_event FROM hubtask_app;
 GRANT SELECT, INSERT ON instance_event TO hubtask_app;
+
+-- ============ The installation's events =============================
+-- What a provider's purchase platform learns about the workspaces (UC-INS-14, multi-tenancy.md
+-- §4.3). Numbered in commit order: `number` is drawn while the writer holds the advisory lock
+-- 8_010_002 until its transaction ends. No row-level-security policy, the journal's
+-- reasoning; `tenant_id` is a bare identifier, since the `deleted` event outlives its workspace. See
+-- db/migrations/0180_platform_event.sql.
+CREATE SEQUENCE platform_event_number AS bigint;
+CREATE TABLE platform_event (
+  number      bigint PRIMARY KEY,
+  id          uuid NOT NULL,
+  event_type  text NOT NULL CHECK (event_type ~ '^de\.hubtask\.installation\.[a-z_.]+\.v[0-9]+$'),
+  tenant_id   uuid NOT NULL,
+  occurred_at timestamptz NOT NULL,
+  actor_type  text NOT NULL,
+  actor_id    uuid,
+  payload     jsonb NOT NULL,
+  dedupe_key  text,
+  CONSTRAINT platform_event_id_key UNIQUE (id),
+  CONSTRAINT platform_event_dedupe_key UNIQUE (dedupe_key)
+);
+CREATE INDEX platform_event_tenant_idx ON platform_event (tenant_id);
+CREATE INDEX platform_event_occurred_idx ON platform_event (occurred_at);
+GRANT SELECT, INSERT, DELETE ON platform_event TO hubtask_app;
+GRANT UPDATE (payload) ON platform_event TO hubtask_app;
+GRANT USAGE ON SEQUENCE platform_event_number TO hubtask_app;
+
+-- The installation's subscriptions for a purchase platform and their deliveries, one row per event
+-- and subscription across its attempts; never switched off for being unreachable. No tenant column:
+-- they are the installation's. See db/migrations/0182_platform_subscription.sql.
+CREATE TABLE platform_subscription (
+  id               uuid PRIMARY KEY,
+  target_url       text NOT NULL CHECK (char_length(target_url) BETWEEN 1 AND 2000),
+  secret_enc       bytea NOT NULL,
+  secret_key_id    text NOT NULL,
+  state            text NOT NULL DEFAULT 'ACTIVE' CHECK (state IN ('ACTIVE', 'PAUSED')),
+  last_error       text,
+  last_delivery_at timestamptz,
+  from_file        boolean NOT NULL DEFAULT false,
+  created_at       timestamptz NOT NULL,
+  created_by       uuid,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1
+);
+CREATE TABLE platform_delivery (
+  id              uuid PRIMARY KEY,
+  subscription_id uuid NOT NULL REFERENCES platform_subscription (id) ON DELETE CASCADE,
+  event_id        uuid NOT NULL,
+  event_type      text NOT NULL,
+  attempt         integer NOT NULL DEFAULT 0,
+  status          text NOT NULL DEFAULT 'PENDING'
+    CHECK (status IN ('PENDING', 'SUCCEEDED', 'FAILED', 'DEAD_LETTER')),
+  response_status integer,
+  error_code      text,
+  next_attempt_at timestamptz,
+  created_at      timestamptz NOT NULL,
+  updated_at      timestamptz NOT NULL,
+  CONSTRAINT platform_delivery_event_key UNIQUE (subscription_id, event_id)
+);
+CREATE INDEX platform_delivery_status_idx ON platform_delivery (subscription_id, status);
+CREATE INDEX platform_delivery_updated_idx ON platform_delivery (updated_at);
+GRANT SELECT, INSERT, UPDATE, DELETE ON platform_subscription TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON platform_delivery TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE ON plan TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON plan_setting TO hubtask_app;
 
 -- The operator register's four doors (migration 0101). SECURITY DEFINER for resolve_tenant's
 -- reason: reading a table that belongs to no tenant is the owner's right and the application role
@@ -3130,13 +3342,15 @@ GRANT EXECUTE ON FUNCTION move_provider_offer(uuid, integer) TO hubtask_app;
 -- their own switches - a number, never which, and only outside a workspace. The column and the
 -- function above stay for one release. Since 0133 an invite-only offer the installation's lock on the
 -- ways in turns on (identity.md §18) counts every live workspace, whatever their own switches say.
+-- Since 0167 a plan's lock does the same for every live workspace on that plan, where the
+-- installation does not lock the ways in itself (multi-tenancy.md §4.2).
 CREATE OR REPLACE FUNCTION count_provider_offers(provider uuid) RETURNS integer
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
-  SELECT count(*)::integer FROM tenant
+  SELECT count(*)::integer FROM tenant t
   WHERE current_tenant_id() IS NULL
-    AND deleted_at IS NULL
+    AND t.deleted_at IS NULL
     AND (
-      coalesce(settings -> 'offered_providers', '[]'::jsonb) ? provider::text
+      coalesce(t.settings -> 'offered_providers', '[]'::jsonb) ? provider::text
       OR EXISTS (
         SELECT 1 FROM identity_provider p
         JOIN instance_setting s ON s.key = 'sign_in.methods'
@@ -3148,6 +3362,21 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
           AND s.lock_origin <> 'OPEN'
           AND jsonb_typeof(s.value) = 'array'
           AND (s.value ? 'OIDC' OR NOT s.value ?| ARRAY['PASSWORD', 'OIDC'])
+      )
+      OR EXISTS (
+        SELECT 1 FROM identity_provider p
+        JOIN plan_setting ps ON ps.plan_id = t.plan_id AND ps.key = 'sign_in.methods'
+        WHERE p.id = provider
+          AND p.tenant_id IS NULL
+          AND p.provisioning = 'INVITED_ONLY'
+          AND p.enabled
+          AND (p.withdraw_at IS NULL OR p.withdraw_at > now())
+          AND ps.locked
+          AND jsonb_typeof(ps.value) = 'array'
+          AND (ps.value ? 'OIDC' OR NOT ps.value ?| ARRAY['PASSWORD', 'OIDC'])
+          AND NOT EXISTS (
+            SELECT 1 FROM instance_setting s WHERE s.key = 'sign_in.methods' AND s.lock_origin <> 'OPEN'
+          )
       )
     )
 $$;
@@ -3169,21 +3398,87 @@ RETURNS TABLE (
   default_locale text, default_time_zone text,
   created_at timestamptz, purge_after timestamptz,
   password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
-  legal_hold boolean, purge_started_at timestamptz
+  legal_hold boolean, purge_started_at timestamptz,
+  plan_name text, version integer
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT t.id, t.slug, t.display_name, t.status::text,
          t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
          t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
          EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL),
-         t.purge_started_at
+         t.purge_started_at,
+         p.name, t.version
   FROM tenant t
+  LEFT JOIN plan p ON p.id = t.plan_id
   WHERE t.deleted_at IS NULL
   ORDER BY t.created_at, t.id
 $$;
 
 REVOKE ALL ON FUNCTION admin_tenants() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION admin_tenants() TO hubtask_app;
+
+-- The control plane's filtered, paged read of the workspaces (migration 0165): the filters and the
+-- keyset inside, so a page reads its own rows. Answers what admin_tenants() answers, and the
+-- platform's reference.
+CREATE OR REPLACE FUNCTION admin_tenants_query(
+  want_id uuid, want_slug text, want_reference text, want_plan text, want_without_plan boolean,
+  want_status text, after_at timestamptz, after_id uuid, page_size integer
+)
+RETURNS TABLE (
+  id uuid, slug text, display_name text, status text,
+  default_locale text, default_time_zone text,
+  created_at timestamptz, purge_after timestamptz,
+  password_opened_until timestamptz, password_opened_requester text, password_opened_reason text,
+  legal_hold boolean, purge_started_at timestamptz,
+  plan_name text, version integer, external_reference text
+)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT t.id, t.slug, t.display_name, t.status::text,
+         t.default_locale, t.default_time_zone, t.created_at, t.purge_after,
+         t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
+         EXISTS (SELECT 1 FROM legal_hold h WHERE h.tenant_id = t.id AND h.released_at IS NULL),
+         t.purge_started_at,
+         p.name, t.version, t.external_reference
+  FROM tenant t
+  LEFT JOIN plan p ON p.id = t.plan_id
+  WHERE t.deleted_at IS NULL
+    AND (want_id IS NULL OR t.id = want_id)
+    AND (want_slug IS NULL OR t.slug = want_slug)
+    AND (want_reference IS NULL OR t.external_reference = want_reference)
+    AND (want_plan IS NULL OR p.name = want_plan)
+    AND (NOT coalesce(want_without_plan, false) OR t.plan_id IS NULL)
+    AND (want_status IS NULL OR t.status::text = want_status)
+    AND (after_at IS NULL OR (t.created_at, t.id) > (after_at, after_id))
+  ORDER BY t.created_at, t.id
+  LIMIT page_size
+$$;
+
+REVOKE ALL ON FUNCTION admin_tenants_query(uuid, text, text, text, boolean, text, timestamptz, uuid, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_tenants_query(uuid, text, text, text, boolean, text, timestamptz, uuid, integer) TO hubtask_app;
+
+-- Removing a plan, refused while a workspace is on it (migration 0164). `tenant` is behind
+-- tenant_self, so only the owner sees which workspaces are on a plan: the plan row is locked first,
+-- then counted in a statement of its own, so a move that committed meanwhile is counted and a later
+-- one finds the plan gone. One word, never a row.
+CREATE OR REPLACE FUNCTION remove_plan(removed_plan uuid, at timestamptz, actor uuid)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM 1 FROM plan WHERE id = removed_plan AND removed_at IS NULL FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN 'NOT_FOUND';
+  END IF;
+  IF EXISTS (SELECT 1 FROM tenant WHERE plan_id = removed_plan AND deleted_at IS NULL) THEN
+    RETURN 'IN_USE';
+  END IF;
+  UPDATE plan
+     SET removed_at = at, updated_at = at, updated_by = actor, version = version + 1
+   WHERE id = removed_plan;
+  RETURN 'REMOVED';
+END $$;
+
+REVOKE ALL ON FUNCTION remove_plan(uuid, timestamptz, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION remove_plan(uuid, timestamptz, uuid) TO hubtask_app;
 
 -- The trail that dies with its tenant: audit_log rows carry no foreign key to tenant and the
 -- application role deliberately holds no DELETE on them (T-15) - both correct for a living
@@ -3454,5 +3749,235 @@ CREATE TABLE restore_drill_marker (
   PRIMARY KEY (run_id, seq)
 );
 REVOKE ALL ON restore_drill_marker FROM hubtask_app;
+
+-- ============ Use the platform can bill by (multi-tenancy.md §4.3, migration 0183) ============
+-- Each workspace's entries, stored bytes and people per UTC day, the day's highest and closing count,
+-- kept by statement-level triggers where the count changes; the purged workspaces' counts in the
+-- installation's ledger; the control plane's read and the 13-month sweep.
+-- The people limit's count (PL-04) and the billing count are one definition.
+CREATE OR REPLACE FUNCTION count_people() RETURNS bigint
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT count(*) FROM account
+  WHERE kind = 'USER' AND deleted_at IS NULL
+    AND (status IN ('ACTIVE', 'RESTRICTED')
+         OR (status = 'INVITED' AND (redemption_expires_at IS NULL OR redemption_expires_at > now())))
+$$;
+
+-- Whether one account row counts as a person: the same condition, for a transition table's rows.
+CREATE OR REPLACE FUNCTION counts_as_person(
+  kind account_kind, status account_status, deleted_at timestamptz, expires timestamptz
+) RETURNS integer
+LANGUAGE sql STABLE SET search_path = public, pg_temp AS $$
+  SELECT CASE WHEN kind = 'USER' AND deleted_at IS NULL
+                   AND (status IN ('ACTIVE', 'RESTRICTED')
+                        OR (status = 'INVITED' AND (expires IS NULL OR expires > now())))
+              THEN 1 ELSE 0 END
+$$;
+
+-- keep_usage adds one statement's delta to the workspace's day row, or starts the day with a fresh
+-- count. Runs as the writer, under the writer's own row policy.
+CREATE OR REPLACE FUNCTION keep_usage(kept text, delta bigint) RETURNS void
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+DECLARE
+  workspace uuid := current_tenant_id();
+  today date := (now() AT TIME ZONE 'UTC')::date;
+  counted bigint;
+BEGIN
+  IF delta = 0 OR workspace IS NULL THEN
+    RETURN;
+  END IF;
+  -- Only while the workspace's row stands and its purge has not begun: the purge's own deletes,
+  -- and the cascade from the row itself, record nothing.
+  IF NOT EXISTS (SELECT 1 FROM tenant WHERE id = workspace AND purge_started_at IS NULL) THEN
+    RETURN;
+  END IF;
+  UPDATE usage_record
+     SET closing = closing + delta, value = greatest(value, closing + delta)
+   WHERE tenant_id = workspace AND period = today AND metric = kept AND closing IS NOT NULL;
+  IF FOUND THEN
+    RETURN;
+  END IF;
+  counted := CASE kept
+    WHEN 'items' THEN (SELECT count(*) FROM work_item)
+    WHEN 'media_bytes' THEN (SELECT coalesce(sum(byte_size), 0)::bigint FROM media_object WHERE deleted_at IS NULL)
+    WHEN 'accounts' THEN count_people()
+  END;
+  -- The count before this statement is how the day began.
+  INSERT INTO usage_record (tenant_id, period, metric, value, closing)
+  VALUES (workspace, today, kept, greatest(counted - delta, counted), counted)
+  ON CONFLICT (tenant_id, period, metric) DO UPDATE
+     SET closing = coalesce(usage_record.closing, 0) + delta,
+         value = greatest(usage_record.value, coalesce(usage_record.closing, 0) + delta);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION keep_items_inserted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('items', (SELECT count(*) FROM inserted));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_items_deleted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('items', -(SELECT count(*) FROM deleted));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_media_inserted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('media_bytes',
+    (SELECT coalesce(sum(byte_size), 0)::bigint FROM inserted WHERE deleted_at IS NULL));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_media_deleted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('media_bytes',
+    -(SELECT coalesce(sum(byte_size), 0)::bigint FROM deleted WHERE deleted_at IS NULL));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_media_updated() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('media_bytes',
+    (SELECT coalesce(sum(byte_size), 0)::bigint FROM inserted WHERE deleted_at IS NULL)
+    - (SELECT coalesce(sum(byte_size), 0)::bigint FROM deleted WHERE deleted_at IS NULL));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_people_inserted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('accounts', (SELECT coalesce(sum(counts_as_person(
+    kind, status, deleted_at, redemption_expires_at)), 0)::bigint FROM inserted));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_people_deleted() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('accounts', -(SELECT coalesce(sum(counts_as_person(
+    kind, status, deleted_at, redemption_expires_at)), 0)::bigint FROM deleted));
+  RETURN NULL;
+END
+$$;
+CREATE OR REPLACE FUNCTION keep_people_updated() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN
+  PERFORM keep_usage('accounts',
+    (SELECT coalesce(sum(counts_as_person(kind, status, deleted_at, redemption_expires_at)), 0) FROM inserted)
+    - (SELECT coalesce(sum(counts_as_person(kind, status, deleted_at, redemption_expires_at)), 0)::bigint FROM deleted));
+  RETURN NULL;
+END
+$$;
+
+DROP TRIGGER IF EXISTS work_item_usage_inserted ON work_item;
+CREATE TRIGGER work_item_usage_inserted AFTER INSERT ON work_item
+  REFERENCING NEW TABLE AS inserted FOR EACH STATEMENT EXECUTE FUNCTION keep_items_inserted();
+DROP TRIGGER IF EXISTS work_item_usage_deleted ON work_item;
+CREATE TRIGGER work_item_usage_deleted AFTER DELETE ON work_item
+  REFERENCING OLD TABLE AS deleted FOR EACH STATEMENT EXECUTE FUNCTION keep_items_deleted();
+DROP TRIGGER IF EXISTS media_object_usage_inserted ON media_object;
+CREATE TRIGGER media_object_usage_inserted AFTER INSERT ON media_object
+  REFERENCING NEW TABLE AS inserted FOR EACH STATEMENT EXECUTE FUNCTION keep_media_inserted();
+DROP TRIGGER IF EXISTS media_object_usage_deleted ON media_object;
+CREATE TRIGGER media_object_usage_deleted AFTER DELETE ON media_object
+  REFERENCING OLD TABLE AS deleted FOR EACH STATEMENT EXECUTE FUNCTION keep_media_deleted();
+DROP TRIGGER IF EXISTS media_object_usage_updated ON media_object;
+CREATE TRIGGER media_object_usage_updated AFTER UPDATE ON media_object
+  REFERENCING OLD TABLE AS deleted NEW TABLE AS inserted FOR EACH STATEMENT EXECUTE FUNCTION keep_media_updated();
+DROP TRIGGER IF EXISTS account_usage_inserted ON account;
+CREATE TRIGGER account_usage_inserted AFTER INSERT ON account
+  REFERENCING NEW TABLE AS inserted FOR EACH STATEMENT EXECUTE FUNCTION keep_people_inserted();
+DROP TRIGGER IF EXISTS account_usage_deleted ON account;
+CREATE TRIGGER account_usage_deleted AFTER DELETE ON account
+  REFERENCING OLD TABLE AS deleted FOR EACH STATEMENT EXECUTE FUNCTION keep_people_deleted();
+DROP TRIGGER IF EXISTS account_usage_updated ON account;
+CREATE TRIGGER account_usage_updated AFTER UPDATE ON account
+  REFERENCING OLD TABLE AS deleted NEW TABLE AS inserted FOR EACH STATEMENT EXECUTE FUNCTION keep_people_updated();
+
+CREATE TABLE IF NOT EXISTS usage_archive (
+  tenant_id uuid   NOT NULL,
+  period    date   NOT NULL,
+  metric    text   NOT NULL,
+  value     bigint NOT NULL,
+  closing   bigint,
+  PRIMARY KEY (tenant_id, period, metric)
+);
+GRANT INSERT, SELECT, UPDATE, DELETE ON usage_archive TO hubtask_app;
+
+DO $owner$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'usage_record' AND policyname = 'doors_read') THEN
+    CREATE POLICY doors_read ON usage_record FOR SELECT TO CURRENT_USER USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'usage_record' AND policyname = 'doors_sweep') THEN
+    CREATE POLICY doors_sweep ON usage_record FOR DELETE TO CURRENT_USER USING (true);
+  END IF;
+END $owner$;
+
+-- The control plane's read of every workspace's counts, live and purged, a page of workspaces at a
+-- time; for each workspace and metric the last row before the range rides along, so the reader can
+-- carry its closing value into the range's first days.
+CREATE OR REPLACE FUNCTION admin_usage(
+  from_day date, to_day date, want_metric text, want_tenant uuid, after_tenant uuid, page_size integer
+)
+RETURNS TABLE (tenant_id uuid, period date, metric text, value bigint, closing bigint, purged boolean)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  WITH counts AS (
+    SELECT r.tenant_id, r.period, r.metric, r.value, r.closing, false AS purged FROM usage_record r
+    UNION ALL
+    SELECT a.tenant_id, a.period, a.metric, a.value, a.closing, true FROM usage_archive a
+  ),
+  wanted AS (
+    SELECT * FROM counts c
+    WHERE current_tenant_id() IS NULL
+      AND c.period <= to_day
+      AND (want_metric IS NULL OR c.metric = want_metric)
+      AND (want_tenant IS NULL OR c.tenant_id = want_tenant)
+      AND (after_tenant IS NULL OR c.tenant_id > after_tenant)
+  ),
+  page AS (
+    SELECT DISTINCT w.tenant_id FROM wanted w ORDER BY w.tenant_id LIMIT page_size
+  ),
+  before_range AS (
+    SELECT DISTINCT ON (w.tenant_id, w.metric) w.*
+    FROM wanted w JOIN page p ON p.tenant_id = w.tenant_id
+    WHERE w.period < from_day
+    ORDER BY w.tenant_id, w.metric, w.period DESC
+  )
+  SELECT * FROM before_range
+  UNION ALL
+  SELECT w.* FROM wanted w JOIN page p ON p.tenant_id = w.tenant_id WHERE w.period >= from_day
+  ORDER BY 1, 3, 2
+$$;
+
+-- Counts older than the given day go, inside workspaces and in the installation's ledger.
+CREATE OR REPLACE FUNCTION sweep_usage(before_day date) RETURNS bigint
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+DECLARE
+  swept bigint;
+  archived bigint;
+BEGIN
+  IF current_tenant_id() IS NOT NULL THEN
+    RETURN 0;
+  END IF;
+  DELETE FROM usage_record WHERE period < before_day;
+  GET DIAGNOSTICS swept = ROW_COUNT;
+  DELETE FROM usage_archive WHERE period < before_day;
+  GET DIAGNOSTICS archived = ROW_COUNT;
+  RETURN swept + archived;
+END
+$$;
+
+REVOKE ALL ON FUNCTION admin_usage(date, date, text, uuid, uuid, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_usage(date, date, text, uuid, uuid, integer) TO hubtask_app;
+REVOKE ALL ON FUNCTION sweep_usage(date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sweep_usage(date) TO hubtask_app;
 
 COMMIT;

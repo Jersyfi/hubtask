@@ -12,6 +12,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
@@ -337,6 +338,57 @@ func TestAnEmptyTargetIsNotAsked(t *testing.T) {
 	}
 	if len(world.asked) != 0 || len(world.store.proposals) != 0 {
 		t.Error("an empty entry was sent to a provider")
+	}
+}
+
+// keptReader answers one exclusion, as the consent register would.
+type keptReader struct{ kept integration.KeptOut }
+
+func (k keptReader) Read(context.Context, shared.ID) (integration.KeptOut, error) { return k.kept, nil }
+
+// Every question that runs to its end says how it ended, so that the person who follows the job is
+// told - a question that proposed nothing must not read like one still on its way.
+func TestEveryQuestionThatEndsSaysHowItEnded(t *testing.T) {
+	for _, testCase := range []struct {
+		name    string
+		answer  string
+		empty   bool
+		kept    integration.KeptOutReason
+		want    string
+		sentAny bool
+	}{
+		{name: "a proposal", answer: `{"title":"A"}`, want: OutcomeProposed, sentAny: true},
+		{name: "an unreadable answer", answer: "I cannot help with that.", want: OutcomeNothingToChange, sentAny: true},
+		{name: "nothing worth proposing", answer: `{"title":"   "}`, want: OutcomeNothingToChange, sentAny: true},
+		{name: "nothing to describe", answer: `{"title":"A"}`, empty: true, want: OutcomeNothingToWorkWith},
+		{name: "the asker keeps their content out since", answer: `{"title":"A"}`, kept: integration.KeptOutObjected, want: "ai.kept_out"},
+		{name: "the asker's processing is restricted since", answer: `{"title":"A"}`,
+			kept: integration.KeptOutRestricted, want: "ai.processing_restricted"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			produce, world := producer(testCase.answer)
+			if testCase.empty {
+				world.subject, world.body = "", ""
+			}
+			if testCase.kept != "" {
+				produce.Sources = CatalogueSources{Catalogue: world, Kept: keptReader{integration.NewKeptOut(
+					[]integration.KeptPerson{{AccountID: accountID, Reason: testCase.kept}},
+				)}}
+			}
+
+			outcome, err := produce.Ask(context.Background(), person(), Request{
+				TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+			})
+			if err != nil {
+				t.Fatalf("producing: %v", err)
+			}
+			if outcome.Code != testCase.want {
+				t.Errorf("the outcome is %q, want %q", outcome.Code, testCase.want)
+			}
+			if sent := len(world.asked) > 0; sent != testCase.sentAny {
+				t.Errorf("sent to the provider = %v, want %v", sent, testCase.sentAny)
+			}
+		})
 	}
 }
 

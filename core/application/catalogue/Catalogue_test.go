@@ -4,6 +4,7 @@
 package catalogue_test
 
 import (
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	automationservice "github.com/Jersyfi/hubtask/core/application/service/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -347,5 +349,34 @@ func TestRenamedActionsAgreeWithTheCatalogue(t *testing.T) {
 		if declared[former] {
 			t.Errorf("%s was renamed to %s, and a use case still writes the old name", former, current)
 		}
+	}
+}
+
+// What a plan can leave out reaches exactly the operations that create, change, switch on, run or
+// send its feature (multi-tenancy.md §4.2) - a rule's dry run among them, which reads nothing it
+// keeps but runs the rule - never an act that removes, and nothing outside the three features
+// (UC-INS-13 checks 4 and 5).
+func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
+	want := map[string]entitlement.Feature{
+		"CreateRule": entitlement.AutomationRules, "UpdateRule": entitlement.AutomationRules,
+		"EnableRule": entitlement.AutomationRules, "TriggerRuleManually": entitlement.AutomationRules,
+		"ReplayRuleRun": entitlement.AutomationRules, "TestRule": entitlement.AutomationRules,
+		"CreateWebhookSubscription": entitlement.Webhooks, "SendWebhook": entitlement.Webhooks,
+		"ReplayWebhookDelivery":          entitlement.Webhooks,
+		"ConfigureIdentityProvider":      entitlement.OwnSignInProviders,
+		"ConfigureFirstIdentityProvider": entitlement.OwnSignInProviders,
+	}
+	got := map[string]entitlement.Feature{}
+	for _, descriptor := range catalogue.Descriptors() {
+		if descriptor.Entitlement == "" {
+			continue
+		}
+		got[descriptor.Name] = descriptor.Entitlement
+		if descriptor.Destructive {
+			t.Errorf("%s removes, and a plan cannot reach that", descriptor.Name)
+		}
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("the operations a plan leaves out are %v, want %v", got, want)
 	}
 }

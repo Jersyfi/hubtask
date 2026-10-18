@@ -33,6 +33,7 @@ const (
 	TermsByWorkspace    TermsSetBy = "WORKSPACE"
 )
 
+// A plan's terms are the provider's, as the installation's are: whom a person asks is the same.
 func termsSetByOf(source PolicySource) TermsSetBy {
 	if source == SourceWorkspace {
 		return TermsByWorkspace

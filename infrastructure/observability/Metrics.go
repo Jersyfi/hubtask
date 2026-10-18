@@ -88,7 +88,11 @@ type Metrics struct {
 	busPublications   metric.Int64Counter
 	secretReseals     metric.Int64Counter
 	webhookBacklog    metric.Int64Gauge
-	tenantLabelActive bool
+	// The installation's deliveries to a purchase platform (UC-INS-14): settled attempts, and the
+	// dead letters waiting - alert A-21's number.
+	platformDeliveries  metric.Int64Counter
+	platformDeadLetters metric.Int64Gauge
+	tenantLabelActive   bool
 }
 
 // NewMetrics builds the meter and registers what the process needs from the first second: the
@@ -448,6 +452,20 @@ func (m *Metrics) queueInstruments(meter metric.Meter) error {
 			"Reported by the scheduler leader only, like the queue depth."),
 	); err != nil {
 		return fmt.Errorf("webhook backlog gauge: %w", err)
+	}
+	if m.platformDeliveries, err = meter.Int64Counter(
+		namespace+"_platform_deliveries_total",
+		metric.WithDescription("Settled attempts to deliver the installation's events to a purchase "+
+			"platform, by result (ok/retry/dead) and answer class."),
+	); err != nil {
+		return fmt.Errorf("platform delivery counter: %w", err)
+	}
+	if m.platformDeadLetters, err = meter.Int64Gauge(
+		namespace+"_platform_dead_letters",
+		metric.WithDescription("Deliveries of the installation's events that ended without arriving and "+
+			"wait to be redelivered. Reported by the scheduler leader only, like the queue depth."),
+	); err != nil {
+		return fmt.Errorf("platform dead letter gauge: %w", err)
 	}
 	if err := m.retentionInstruments(meter); err != nil {
 		return err
@@ -1091,6 +1109,18 @@ func (m *Metrics) SecretResealed(ctx context.Context, store, outcome string, cou
 func (m *Metrics) BusRefused(ctx context.Context, reason string) {
 	m.busPublications.Add(ctx, 1, metric.WithAttributes(
 		attribute.String("outcome", "refused"), attribute.String("reason", reason)))
+}
+
+// PlatformDelivery counts one settled attempt to deliver an installation event. No subscription
+// and no target as a label: the result and the class are what the alert and the dashboard read.
+func (m *Metrics) PlatformDelivery(ctx context.Context, result, statusClass string) {
+	m.platformDeliveries.Add(ctx, 1, metric.WithAttributes(
+		attribute.String("result", result), attribute.String("status_class", statusClass)))
+}
+
+// PlatformDeadLetters publishes how many deliveries to a purchase platform wait to be redelivered.
+func (m *Metrics) PlatformDeadLetters(ctx context.Context, waiting int64) {
+	m.platformDeadLetters.Record(ctx, waiting)
 }
 
 // WebhookRetryBacklog publishes how many deliveries wait for their next rung of the ladder.

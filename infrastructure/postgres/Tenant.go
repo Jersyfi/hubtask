@@ -33,6 +33,7 @@ var (
 	_ persistence.ScopeSource = (*UnitOfWork)(nil)
 	_ persistence.Snapshot    = (*UnitOfWork)(nil)
 	_ persistence.Writable    = (*UnitOfWork)(nil)
+	_ persistence.Independent = (*UnitOfWork)(nil)
 )
 
 // contextKey is unexported, so nothing outside this package can put a transaction into a
@@ -70,6 +71,13 @@ func (u *UnitOfWork) WithinWritable(ctx context.Context, scope persistence.Scope
 	return u.Within(ctx, scope, fn)
 }
 
+// WithinIndependent runs fn in a read-write transaction of its own, beside any the context carries.
+func (u *UnitOfWork) WithinIndependent(
+	ctx context.Context, scope persistence.Scope, fn func(context.Context) error,
+) error {
+	return u.run(outsideTransaction(ctx), scope, pgx.ReadWrite, fn)
+}
+
 // WithinSnapshot runs fn against one consistent point in time (backup-restore.md §5).
 //
 // REPEATABLE READ and read-only together. The isolation level is what makes the archive one point
@@ -88,6 +96,10 @@ func (u *UnitOfWork) WithinSnapshot(
 	if _, joined := txFromContext(ctx); joined {
 		return shared.ErrInternal.WithDetail("postgres.snapshot_in_transaction")
 	}
+
+	// An outermost transaction as run's is: what has to wait for its end waits for it here too.
+	ctx, held := persistence.HoldAfterwards(ctx)
+	defer held.Run(ctx)
 
 	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel:   pgx.RepeatableRead,
@@ -153,6 +165,12 @@ func (u *UnitOfWork) run(
 	if existing, ok := txFromContext(ctx); ok {
 		return u.joinExisting(ctx, existing, scope, fn)
 	}
+
+	// The outermost transaction holds the work that has to wait for its end (persistence.After) and
+	// runs it once the transaction has ended - deferred before the rollback below, so it runs after
+	// it, on a context that carries no transaction.
+	ctx, held := persistence.HoldAfterwards(ctx)
+	defer held.Run(ctx)
 
 	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{AccessMode: access})
 	if err != nil {

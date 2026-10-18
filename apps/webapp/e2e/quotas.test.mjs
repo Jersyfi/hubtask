@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { MANIFEST, stub } from './fixture.mjs';
+import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -95,7 +95,11 @@ test('chromium: attachment storage reads as a size', async (t) => {
 test('chromium: a single installation is told where a limit changes without the operator', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const standings = [{ quota: 'items', limit: 5000, used: 12, configured: false, locked: false }];
+  const standings = [
+    { quota: 'items', limit: 5000, used: 12, configured: false, locked: false },
+    // The workspace's own ceiling, as a server that names the level answers it: no operator either.
+    { quota: 'export_jobs', limit: 3, used: 0, configured: true, locked: false, source: 'EXCEPTION', lock: null },
+  ];
 
   const single = await openLimits(browser, standings, { tenancy: 'single' });
   const said = (await single.page.locator('main').textContent()) ?? '';
@@ -108,4 +112,71 @@ test('chromium: a single installation is told where a limit changes without the 
   const many = (await multi.page.locator('main').textContent()) ?? '';
   await multi.close();
   assert.match(many, /the operator of this installation/, many);
+});
+
+// UC-INS-10 check 1, UC-INS-13 check 3: on a plan, *Limits* names it and every row says who set it -
+// the plan, its lock, the installation, or the operator's exception.
+test('chromium: a workspace on a plan names it, and each limit says who set it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: 'multi' } });
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: { plan: 'Family' } } });
+    if (path === '/quotas') {
+      return route.fulfill({ json: [
+        { quota: 'items', limit: 5000, used: 4210, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
+        { quota: 'export_jobs', limit: 3, used: 0, configured: false, locked: false, source: 'PLAN', lock: null },
+        { quota: 'media_bytes', limit: 20000000000, used: 0, configured: true, locked: false, source: 'EXCEPTION', lock: null },
+        { quota: 'webhook_targets', limit: 10, used: 1, configured: false, locked: true, source: 'INSTANCE', lock: 'INSTANCE' },
+        { quota: 'automation_runs_per_hour', limit: 1000, used: 0, configured: false, locked: false, source: 'DEFAULT', lock: null },
+      ] });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/quotas`);
+  const row = (name) => page.getByRole('row').filter({ hasText: name });
+  await row('Entries').waitFor({ timeout: 15_000 });
+
+  assert.equal((await page.getByTestId('limits-plan').textContent())?.trim(), 'Plan: Family');
+  assert.match(await row('Entries').textContent() ?? '', /Set by your plan/);
+  assert.match(await row('Export jobs').textContent() ?? '', /Your plan/);
+  assert.match(await row('Webhook').textContent() ?? '', /Set by the installation/);
+  const storage = await page.getByRole('row').filter({ hasText: /storage/i }).textContent() ?? '';
+  assert.match(storage, /operator's exception for this workspace/, storage);
+  const runs = await page.getByRole('row').filter({ hasText: /Automation/i }).textContent() ?? '';
+  assert.match(runs, /Hubtask's default/, runs);
+});
+
+// UC-INS-10 check 5: the people limit is a row like any other; reached, the screen says nobody new
+// comes in and nobody here goes, and what is counted.
+test('chromium: a reached people limit says nobody new comes in and nobody here goes', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const reached = await openLimits(browser, [
+    { quota: 'items', limit: 5000, used: 12, configured: false, locked: false, source: 'PLAN', lock: null },
+    { quota: 'accounts', limit: 6, used: 6, ratio: 1, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
+  ], { tenancy: 'multi' });
+  const said = (await reached.page.locator('main').textContent()) ?? '';
+  const row = (await reached.page.getByRole('row').filter({ hasText: 'People' }).textContent()) ?? '';
+  await reached.close();
+  assert.match(row, /6/, row);
+  assert.match(row, /Set by your plan/, row);
+  assert.match(said, /The limit for people is reached\./, said);
+  assert.match(said, /Everybody here stays as they are\./, said);
+  assert.match(said, /service accounts and invitations whose link ran out are not counted/, said);
+
+  const room = await openLimits(browser, [
+    { quota: 'accounts', limit: 6, used: 4, configured: false, locked: false, source: 'PLAN', lock: null },
+  ], { tenancy: 'multi' });
+  const roomy = (await room.page.locator('main').textContent()) ?? '';
+  await room.close();
+  assert.doesNotMatch(roomy, /limit for people is reached/, roomy);
 });

@@ -103,6 +103,11 @@ export interface SignInPolicy {
   readonly private_hubs?: Setting<boolean>;
   /** When everybody was last asked for a new password, or `null`. Set by the action, never typed. */
   readonly rotation_from: string | null;
+  /**
+   * The name of the plan the workspace is on, as its provider named it - what "Set by your plan"
+   * refers to. `null` on no plan; absent from an older server.
+   */
+  readonly plan?: string | null;
 }
 
 interface Workspace {

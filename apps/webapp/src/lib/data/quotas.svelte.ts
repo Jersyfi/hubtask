@@ -37,6 +37,10 @@ export interface Standing {
   readonly configured?: boolean;
   /** The installation locked this ceiling for every workspace (UC-INS-09 check 5). */
   readonly locked?: boolean;
+  /** Which level set the ceiling in force; absent from an older server. */
+  readonly source?: 'DEFAULT' | 'INSTANCE' | 'PLAN' | 'EXCEPTION' | 'WORKSPACE';
+  /** Which level locked it, or `null`; absent from an older server. */
+  readonly lock?: 'INSTANCE' | 'PLAN' | null;
 }
 
 class Quotas {

@@ -237,6 +237,9 @@ type UpdateGroup struct {
 	// StepUp judges the fresh proof a member change of a group holding OWNER demands. Nil refuses
 	// rather than permits, the seam's own rule.
 	StepUp stepup.Verifier
+	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
+	// nobody.
+	Platform OwnerChanges
 }
 
 // Execute applies the change and returns the group.
@@ -320,13 +323,24 @@ func (h UpdateGroup) Execute(
 			if err != nil {
 				return err
 			}
+			ownersMove := false
 			if holdsWorkspaceOwner(held) {
 				if err := keepsAnOwner(ctx, h.Owners, true, h.ownerChange(group.ID, cmd.Members)); err != nil {
 					return err
 				}
+				were, err := h.Groups.Members(ctx, group.ID)
+				if err != nil {
+					return err
+				}
+				ownersMove = !sameMembers(were, cmd.Members)
 			}
 			if err := h.replaceMembers(ctx, group, cmd.Members); err != nil {
 				return err
+			}
+			if ownersMove {
+				if err := ownersChanged(ctx, h.Platform, actor, h.Clock.Now()); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -670,6 +684,9 @@ type DeleteGroup struct {
 	Owners repository.Owners
 	// StepUp judges the fresh proof deleting a group holding OWNER demands.
 	StepUp stepup.Verifier
+	// Platform tells a purchase platform the workspace's owners changed (UC-INS-14). Nil tells
+	// nobody.
+	Platform OwnerChanges
 }
 
 // Execute deletes the group.
@@ -758,6 +775,11 @@ func (h DeleteGroup) Execute(
 		}
 		if err := h.Groups.Delete(ctx, group.ID); err != nil {
 			return err
+		}
+		if holdsWorkspaceOwner(now) && len(members) > 0 {
+			if err := ownersChanged(ctx, h.Platform, actor, h.Clock.Now()); err != nil {
+				return err
+			}
 		}
 		if err := h.Revocations.Announce(ctx, group.TenantID, losses...); err != nil {
 			return err

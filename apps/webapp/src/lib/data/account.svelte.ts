@@ -85,8 +85,22 @@ class Actor {
     return this.account?.has_access === false;
   }
 
+  /** Whether a second factor stands: the authenticator app armed, or a passkey (identity.md §23.2). */
   get hasSecondFactor(): boolean | undefined {
     return this.account?.has_second_factor;
+  }
+
+  /** Whether the authenticator app itself is armed - what its own controls hang off. */
+  get hasAuthenticatorApp(): boolean {
+    return this.account?.has_authenticator_app === true;
+  }
+
+  /**
+   * Whether turning the app off would pass the workspace's rule: the server's own condition, so the
+   * control is drawn exactly where it works (P-05, UC-ID-03 check 5).
+   */
+  get authenticatorAppRemovable(): boolean {
+    return this.account?.authenticator_app_removable === true;
   }
 
   /**

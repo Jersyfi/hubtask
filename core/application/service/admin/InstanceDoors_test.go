@@ -43,6 +43,9 @@ func doorRows() []doorRow {
 		{area: "sign_in", key: "mfa_required_for", value: "SOMETIMES", code: "auth.policy_value_invalid", path: "/sign_in/mfa_required_for"},
 		{area: "sign_in", key: "methods", value: []any{"PASSWORD", "CARRIER_PIGEON"}, code: "auth.policy_value_invalid", path: "/sign_in/methods"},
 		{area: "sign_in", key: "methods", value: []any{"PASSWORD"}},
+		// Passkeys are a way among the others, never the only one (identity.md §23.4).
+		{area: "sign_in", key: "methods", value: []any{"PASSWORD", "PASSKEY"}},
+		{area: "sign_in", key: "methods", value: []any{"PASSKEY"}, code: "auth.policy_value_invalid", path: "/sign_in/methods"},
 		{area: "legal", key: "accessibility_url", value: "https://example.org/a11y"},
 		{area: "legal", key: "accessibility_url", value: "ftp://example.org/a11y", code: "auth.legal_url_scheme", path: "/legal/accessibility_url"},
 		{area: "localisation", key: "locale", value: "de"},
@@ -195,7 +198,7 @@ func isEmptyLevel(level identityrepo.InstanceLevel) bool {
 // A refused value never reaches the store, whichever door it came through.
 func TestARefusedValueIsNotWritten(t *testing.T) {
 	writer, store, _ := newInstanceWriter(newRegister(operatorID))
-	_, err := WriteInstanceSettings{Writer: writer}.Execute(t.Context(), operator(), identityrepo.InstanceLevel{})
+	_, err := WriteInstanceSettings{Writer: writer}.Execute(t.Context(), operator(), identityrepo.InstanceLevel{}, 0)
 	if err != nil {
 		t.Fatalf("writing an empty level: %v", err)
 	}

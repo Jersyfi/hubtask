@@ -142,6 +142,9 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 			map[bool]string{true: " and a value", false: ""}[setting])
 	}
 
+	if rest[0] == "metering" {
+		return adminSettingsMetering(ctx, cli, setting, rest)
+	}
 	area, name, split := strings.Cut(rest[0], ".")
 	if !split || area == "" || name == "" {
 		return usagef("%q is not an <area>.<name> key - try `admin settings show`", rest[0])
@@ -176,8 +179,16 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 		delete(*target, name)
 	}
 
+	// The version read goes back as If-Match: a level somebody saved between this read and this
+	// write refuses the save rather than losing theirs (UC-INS-09 check 8).
+	read := 0
+	if settings.Version != nil {
+		read = *settings.Version
+	}
 	var written openapi.InstanceSettings
-	if err := client.Put(ctx, adminSettingsPath, settings, &written); err != nil {
+	if err := client.PutVersioned(
+		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,
+	); err != nil {
 		return err
 	}
 	return cli.Emit(written, settingsTable(written))
@@ -588,4 +599,34 @@ func commaList(raw string) *[]string {
 		}
 	}
 	return &list
+}
+
+// adminSettingsMetering sets or clears the installation's metering switch, which offers the use for
+// billing (`GET /admin/usage`): `set metering on|off`, and `clear metering` for off. It is the
+// installation's alone, beside the areas, so it has no lock.
+func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []string) error {
+	on := false
+	if setting {
+		switch strings.ToLower(rest[1]) {
+		case "on", "true", "yes":
+			on = true
+		case "off", "false", "no":
+		default:
+			return usagef("metering is on or off, not %q", rest[1])
+		}
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var settings openapi.InstanceSettings
+	if err := client.Get(ctx, adminSettingsPath, nil, &settings); err != nil {
+		return err
+	}
+	settings.Metering = &on
+	var written openapi.InstanceSettings
+	if err := client.Put(ctx, adminSettingsPath, settings, &written); err != nil {
+		return err
+	}
+	return cli.Emit(written, settingsTable(written))
 }

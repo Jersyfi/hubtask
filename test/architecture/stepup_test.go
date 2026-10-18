@@ -28,6 +28,8 @@ var privilegedUseCases = map[string]string{
 	"CreateManagedAccount":                     "placing the account as OWNER is granting OWNER",
 	"IssueStartPassword":                       "an administrator replaces somebody else's password (identity.md §13)",
 	"StartProviderConnect":                     "a provider connected from a session is a new way into the account (identity.md §11)",
+	"StartPasskeyRegistration":                 "a passkey added from a session is a new way into the account (identity.md §23.2)",
+	"RemoveOwnPasskey":                         "a stolen session removing a factor is the attack the factor exists against (identity.md §23.2)",
 	"RevokeMembership":                         "revoking an OWNER membership is changing the OWNER role",
 	"UpdateGroup":                              "changing who is in a group holding OWNER places or takes the OWNER role",
 	"DeleteGroup":                              "deleting a group holding OWNER takes the OWNER role",
@@ -41,6 +43,9 @@ var privilegedUseCases = map[string]string{
 	"CancelInstanceIdentityProviderWithdrawal": "offers a way in to every workspace again (ADR-0076 §2)",
 	"CreateInstanceBackupTarget":               "a storage credential every workspace's export may be written with (backup-restore.md §2)",
 	"DeleteInstanceBackupTarget":               "removes where the operator's exports go (backup-restore.md §2)",
+	"CreatePlatformSubscription":               "sends every workspace's reference and state to an address outside the installation (multi-tenancy.md §4.3)",
+	"UpdatePlatformSubscription":               "may send every workspace's reference and state to another address (multi-tenancy.md §4.3)",
+	"RotatePlatformSubscriptionSecret":         "issues the secret a platform trusts the installation's events by (multi-tenancy.md §4.3)",
 }
 
 func TestEveryPrivilegedOperationDeclaresItsStepUp(t *testing.T) {

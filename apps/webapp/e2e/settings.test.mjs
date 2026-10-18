@@ -193,7 +193,7 @@ test('chromium: 1280 px — the profile does not offer to turn off a factor the 
     await context.route('**/api/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
       if (path === '/accounts/me') {
-        return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, recovery_codes_remaining: 8, second_factor_required: required } });
+        return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: !required, recovery_codes_remaining: 8, second_factor_required: required } });
       }
       return answer(route);
     });
@@ -264,7 +264,7 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
       return route.fulfill({ json: { armed: true } });
     }
     if (path === '/accounts/me') {
-      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: armed, ...(armed ? { recovery_codes_remaining: 10 } : {}) } });
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: armed, has_authenticator_app: armed, authenticator_app_removable: armed, ...(armed ? { recovery_codes_remaining: 10 } : {}) } });
     }
     return answer(route);
   });
@@ -309,7 +309,7 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
   await context.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') {
-      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: true, recovery_codes_remaining: 4 } });
+      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: true, recovery_codes_remaining: 4 } });
     }
     if (path === '/auth/mfa/recovery:regenerate') {
       return route.fulfill({ status: 403, json: { code: 'errors.forbidden', detail_code: 'auth.step_up_required', status: 403, params: { methods: 'TOTP' }, request_id: 'req_s' } });
@@ -352,7 +352,7 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') {
-      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: armed, second_factor_required: false, ...(armed ? { recovery_codes_remaining: 6 } : {}) } });
+      return route.fulfill({ json: { ...ACCOUNT, has_password: false, has_second_factor: armed, has_authenticator_app: armed, authenticator_app_removable: armed, second_factor_required: false, ...(armed ? { recovery_codes_remaining: 6 } : {}) } });
     }
     if (path === '/auth/mfa:disable') {
       const proof = request.headers()['x-hubtask-step-up'] ?? null;
@@ -491,7 +491,7 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/accounts/me') {
-      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, recovery_codes_remaining: 7, second_factor_required: true } });
+      return route.fulfill({ json: { ...ACCOUNT, has_second_factor: true, has_authenticator_app: true, authenticator_app_removable: false, recovery_codes_remaining: 7, second_factor_required: true } });
     }
     if (path === '/auth/mfa/totp:replace') {
       const proof = request.headers()['x-hubtask-step-up'] ?? null;
