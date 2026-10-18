@@ -157,7 +157,7 @@
 
   {#if lockOpen && lockClosed}
     <Select
-      label={t('app.instance.workspaces_may')}
+      label={t(declared.workspace_may === 'PLAN_REPLACE' ? 'app.instance.plans_may' : 'app.instance.workspaces_may')}
       value={locked ? 'locked' : 'open'}
       options={[
         { value: 'open', label: t(lockOpen) },
