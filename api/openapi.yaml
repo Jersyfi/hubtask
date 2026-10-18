@@ -2694,7 +2694,8 @@ paths:
       summary: Invite a person into this workspace
       description: |
         Creates an account in `INVITED` status. Permissions can be granted to it immediately;
-        it cannot act until the invitation is accepted.
+        it cannot act until the invitation is accepted. An open invitation holds a place under the
+        workspace's people limit: at the limit the answer is `422 capacity.accounts`.
 
         **Where this installation sends mail** (`features.mail` in `/meta/capabilities`), the
         invitation mail is queued as a job - this call does not wait for it - and the answer
@@ -2737,7 +2738,8 @@ paths:
       summary: Give an invitation not yet accepted a new link
       description: |
         For an invitation whose link was lost, or ran out. The account must still be `INVITED`;
-        any other is `409 accounts.not_invited`.
+        any other is `409 accounts.not_invited`. A link that ran out had freed its place under the
+        people limit; renewing it at the limit is `422 capacity.accounts`.
 
         **Where this installation sends mail**, the invitation mail is queued again and the answer
         carries no link; the earlier link stops working when the new mail goes out. **Where it sends
@@ -2766,7 +2768,8 @@ paths:
       description: |
         Creates a managed account: a person who signs in with a sign-in name instead of an address,
         and the role they hold at one scope, in one step. The account is active at once - there is
-        no invitation to redeem, because there is no mailbox to send one to.
+        no invitation to redeem, because there is no mailbox to send one to. At the workspace's
+        people limit the answer is `422 capacity.accounts`.
 
         **The start password is drawn here and answered once**, as `start_password`. Nobody chooses
         it and nothing can read it again: only its hash is kept. The first sign-in with it leads into
@@ -13363,7 +13366,7 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, accounts]
           description: >
             The two AI rows are counted per source and per day in the workspace's time zone:
             `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
@@ -13415,6 +13418,14 @@ components:
         automation_runs_per_hour: { type: [integer, "null"], format: int64, minimum: 0 }
         webhook_targets: { type: [integer, "null"], format: int64, minimum: 0 }
         export_jobs: { type: [integer, "null"], format: int64, minimum: 0 }
+        accounts:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            The people the workspace may hold: active, restricted and managed accounts and open
+            invitations - never service accounts, nor an invitation whose link ran out. Nobody here
+            is disabled below it; the next is refused.
         ai_tokens_per_day:
           type: [integer, "null"]
           format: int64
