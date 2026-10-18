@@ -98,6 +98,7 @@ func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 		areaAi:                  ai,
 		"source":                level.Source,
 		"is_enforced_from_file": level.IsEnforcedFromFile,
+		"version":               level.Version,
 	}
 	if level.BlocklistFile != "" {
 		out["blocklist_file"] = level.BlocklistFile

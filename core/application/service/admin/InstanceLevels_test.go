@@ -144,7 +144,7 @@ func TestAWriteIsRefusedWhileAFileEnforcesTheLevel(t *testing.T) {
 	settings.level.IsEnforcedFromFile = true
 
 	_, err := (WriteInstanceSettings{Writer: writer}).
-		Execute(t.Context(), operator(), identityrepo.InstanceLevel{})
+		Execute(t.Context(), operator(), identityrepo.InstanceLevel{}, 0)
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("a write under an enforcing file answered %v", err)
 	}

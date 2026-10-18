@@ -304,6 +304,11 @@ do (tighten it, go higher, use its own; nothing for a language, a zone or a week
 the domain beside the switch, so a screen draws every key with the control of its kind and keeps no
 list of its own. The three doors read a document through one mapping in the use case and refuse
 the same values ([UC-INS-09](../usecases/admin/UC-INS-09-set-defaults-and-locks-for-every-workspace.md)).
+The level has one version, the reserved row `level.version` of `instance_setting`, answered as the
+`ETag`: a save presents it in `If-Match`, and one made on a level somebody saved since is refused
+with `version_conflict` ([api-guidelines.md](./api-guidelines.md) §5). The screen and `hubctl` send
+it; a save without one is compared with the level as the server reads it. The file compares none:
+it is the source, and in `enforce` every replica writes it at start.
 
 **What it never shows** is a workspace's contents: counts, states and limits (`instance_census()`),
 never rows — the boundary is a database policy, not a role.

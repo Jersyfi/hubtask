@@ -7260,6 +7260,9 @@ type InstanceSettings struct {
 
 	// Source Where the values in force came from - the database, or the path of the file enforcing them.
 	Source *string `json:"source,omitempty"`
+
+	// Version The level's version, the same value as the `ETag`. It moves with every save, and a write ignores it: the version a save was made on travels in `If-Match`.
+	Version *int `json:"version,omitempty"`
 }
 
 // InvitationInspection defines model for InvitationInspection.
@@ -11400,6 +11403,12 @@ type ChangePlanParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// WriteInstanceSettingsParams defines parameters for WriteInstanceSettings.
+type WriteInstanceSettingsParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // CreatePlatformSubscriptionParams defines parameters for CreatePlatformSubscription.
 type CreatePlatformSubscriptionParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13858,6 +13867,7 @@ type ClientInterface interface {
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
 	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
 	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	// The `ETag` is the level's version, which a save presents in `If-Match`.
 	//
 	// Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
 	ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -13867,22 +13877,24 @@ type ClientInterface interface {
 	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-	WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	WriteInstanceSettingsWithBody(ctx context.Context, params *WriteInstanceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// WriteInstanceSettings Replace the installation's level
 	//
 	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-	WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	WriteInstanceSettings(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPlatformSubscriptions The installation's subscriptions for a purchase platform
 	//
@@ -19335,6 +19347,7 @@ func (c *Client) ChangePlan(ctx context.Context, planName string, params *Change
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
 // Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
 // Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+// The `ETag` is the level's version, which a save presents in `If-Match`.
 //
 // Corresponds with GET /admin/settings (the `ReadInstanceSettings` operationId).
 func (c *Client) ReadInstanceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -19354,12 +19367,13 @@ func (c *Client) ReadInstanceSettings(ctx context.Context, reqEditors ...Request
 // A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 // A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 // One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 //
 // Takes any type of body and a specified content type.
 //
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewWriteInstanceSettingsRequestWithBody(c.Server, contentType, body)
+func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, params *WriteInstanceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -19375,12 +19389,13 @@ func (c *Client) WriteInstanceSettingsWithBody(ctx context.Context, contentType 
 // A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 // A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 // One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-func (c *Client) WriteInstanceSettings(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewWriteInstanceSettingsRequest(c.Server, body)
+func (c *Client) WriteInstanceSettings(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWriteInstanceSettingsRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -29665,18 +29680,18 @@ func NewReadInstanceSettingsRequest(server string) (*http.Request, error) {
 }
 
 // NewWriteInstanceSettingsRequest calls the generic WriteInstanceSettings builder with application/json body
-func NewWriteInstanceSettingsRequest(server string, body WriteInstanceSettingsJSONRequestBody) (*http.Request, error) {
+func NewWriteInstanceSettingsRequest(server string, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewWriteInstanceSettingsRequestWithBody(server, "application/json", bodyReader)
+	return NewWriteInstanceSettingsRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewWriteInstanceSettingsRequestWithBody constructs an http.Request for the WriteInstanceSettings method, with any body, and a specified content type
-func NewWriteInstanceSettingsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewWriteInstanceSettingsRequestWithBody(server string, params *WriteInstanceSettingsParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -29700,6 +29715,21 @@ func NewWriteInstanceSettingsRequestWithBody(server string, contentType string, 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -44921,6 +44951,7 @@ type ClientWithResponsesInterface interface {
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
 	// Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
 	// Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+	// The `ETag` is the level's version, which a save presents in `If-Match`.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -44932,22 +44963,24 @@ type ClientWithResponsesInterface interface {
 	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-	WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+	WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, params *WriteInstanceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
 
 	// WriteInstanceSettingsWithResponse Replace the installation's level
 	//
 	// A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 	// A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 	// One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+	// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-	WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
+	WriteInstanceSettingsWithResponse(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error)
 
 	// ListPlatformSubscriptionsWithResponse The installation's subscriptions for a purchase platform
 	//
@@ -51528,6 +51561,11 @@ func (r ChangePlanResult) ContentType() string {
 	return ""
 }
 
+// ReadInstanceSettingsResult200Headers the declared response headers of an HTTP 200 response for ReadInstanceSettings
+type ReadInstanceSettingsResult200Headers struct {
+	ETag *string
+}
+
 type ReadInstanceSettingsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -51535,6 +51573,8 @@ type ReadInstanceSettingsResult struct {
 	JSON200 *InstanceSettings
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ReadInstanceSettingsResult200Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -51576,6 +51616,11 @@ func (r ReadInstanceSettingsResult) ContentType() string {
 	return ""
 }
 
+// WriteInstanceSettingsResult200Headers the declared response headers of an HTTP 200 response for WriteInstanceSettings
+type WriteInstanceSettingsResult200Headers struct {
+	ETag *string
+}
+
 type WriteInstanceSettingsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -51583,6 +51628,8 @@ type WriteInstanceSettingsResult struct {
 	JSON200 *InstanceSettings
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *WriteInstanceSettingsResult200Headers
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
@@ -67487,6 +67534,7 @@ func (c *ClientWithResponses) ChangePlanWithResponse(ctx context.Context, planNa
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
 // Only what was decided. A level that answered the product's defaults for everything else would be one nobody could tell apart from an operator who had chosen them - and "the operator decided nothing here" is a value the resolver acts on.
 // Behind `admin:tenants` **and** the operator register, both checked: the scope says what a credential may reach and the register says whose credential it may be, and either alone is a hole.
+// The `ETag` is the level's version, which a save presents in `If-Match`.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -67504,12 +67552,13 @@ func (c *ClientWithResponses) ReadInstanceSettingsWithResponse(ctx context.Conte
 // A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 // A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 // One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-func (c *ClientWithResponses) WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
-	rsp, err := c.WriteInstanceSettingsWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) WriteInstanceSettingsWithBodyWithResponse(ctx context.Context, params *WriteInstanceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettingsWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -67521,12 +67570,13 @@ func (c *ClientWithResponses) WriteInstanceSettingsWithBodyWithResponse(ctx cont
 // A `PUT` rather than a merge: a merge over eighteen switches that can each be absent has no way to say "unset this one", and being able to say it is the whole point of a level that distinguishes a decision from a default.
 // A locked switch applies to every workspace and switches that workspace's control **off** - with the reason and with who set it, rather than hiding it. A setting that simply is not there is a setting somebody opens a support ticket about.
 // One journal entry, naming the switches that moved and never their values: a journal carrying a blocklist's path or a legal URL would be configuration written into a place nothing ever deletes from.
+// A save presents the version it read in `If-Match`. One made on values somebody else saved since is refused with `409 version_conflict`, and nothing of it is stored: two operators on the same screen is the ordinary case, and the second save must not quietly replace the first. Without `If-Match` the save is compared with the level as the server reads it. While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with PUT /admin/settings (the `WriteInstanceSettings` operationId).
-func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Context, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
-	rsp, err := c.WriteInstanceSettings(ctx, body, reqEditors...)
+func (c *ClientWithResponses) WriteInstanceSettingsWithResponse(ctx context.Context, params *WriteInstanceSettingsParams, body WriteInstanceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*WriteInstanceSettingsResult, error) {
+	rsp, err := c.WriteInstanceSettings(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -76047,6 +76097,19 @@ func ParseReadInstanceSettingsResult(rsp *http.Response) (*ReadInstanceSettingsR
 
 	}
 
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ReadInstanceSettingsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
 	return response, nil
 }
 
@@ -76078,6 +76141,19 @@ func ParseWriteInstanceSettingsResult(rsp *http.Response) (*WriteInstanceSetting
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers WriteInstanceSettingsResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

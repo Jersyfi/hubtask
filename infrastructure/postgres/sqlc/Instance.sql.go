@@ -11,6 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const advanceInstanceLevelVersion = `-- name: AdvanceInstanceLevelVersion :one
+INSERT INTO instance_setting (key, value, lock_origin, updated_by, updated_at)
+VALUES ('level.version', '1'::jsonb, 'OPEN', $1, $2)
+ON CONFLICT (key) DO UPDATE
+  SET value = to_jsonb((instance_setting.value #>> '{}')::bigint + 1),
+      updated_by = excluded.updated_by,
+      updated_at = excluded.updated_at
+  WHERE $3::bigint IS NULL
+     OR instance_setting.value = to_jsonb($3::bigint)
+RETURNING (value #>> '{}')::bigint AS version
+`
+
+type AdvanceInstanceLevelVersionParams struct {
+	UpdatedBy pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+	Expected  *int64
+}
+
+// The level's version, moved by one - only from `expected`, when one is named (migration 0184).
+//
+// The guard is this statement and not a read before it: the conflicting row is locked, so a second
+// save made on the same version waits for the first and then compares against what the first
+// committed, which matches nothing. No row back is the refusal. A NULL `expected` moves it
+// whatever it is: the instance file is the source and wins. A row somebody removed by hand is
+// inserted at 1, so the level never becomes unsaveable.
+func (q *Queries) AdvanceInstanceLevelVersion(ctx context.Context, arg AdvanceInstanceLevelVersionParams) (int64, error) {
+	row := q.db.QueryRow(ctx, advanceInstanceLevelVersion, arg.UpdatedBy, arg.UpdatedAt, arg.Expected)
+	var version int64
+	err := row.Scan(&version)
+	return version, err
+}
+
 const appliedSchemaVersions = `-- name: AppliedSchemaVersions :one
 SELECT applied_schema_versions()::bigint[] AS versions
 `

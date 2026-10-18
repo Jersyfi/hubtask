@@ -4884,9 +4884,14 @@ paths:
         Behind `admin:tenants` **and** the operator register, both checked: the scope says what a
         credential may reach and the register says whose credential it may be, and either alone is a
         hole.
+
+        The `ETag` is the level's version, which a save presents in `If-Match`.
       responses:
         "200":
           description: The level
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -4909,6 +4914,14 @@ paths:
         One journal entry, naming the switches that moved and never their values: a journal carrying
         a blocklist's path or a legal URL would be configuration written into a place nothing ever
         deletes from.
+
+        A save presents the version it read in `If-Match`. One made on values somebody else saved
+        since is refused with `409 version_conflict`, and nothing of it is stored: two operators
+        on the same screen is the ordinary case, and the second save must not quietly replace the
+        first. Without `If-Match` the save is compared with the level as the server reads it.
+        While a file enforces the level, the refusal is the file's, whatever `If-Match` says.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
       requestBody:
         required: true
         content:
@@ -4918,6 +4931,9 @@ paths:
       responses:
         "200":
           description: The level as it now stands
+          headers:
+            ETag:
+              schema: { type: string }
           content:
             application/json:
               schema:
@@ -12862,6 +12878,12 @@ components:
           description: >
             Whether a file is the source. The writing routes refuse while it is, because a write
             through the API would be overwritten at the next start.
+        version:
+          type: integer
+          readOnly: true
+          description: >
+            The level's version, the same value as the `ETag`. It moves with every save, and a
+            write ignores it: the version a save was made on travels in `If-Match`.
 
     Operator:
       type: object

@@ -747,9 +747,9 @@ class Client:
         """What this installation has decided for every workspace on it"""
         return self._call("GET", "/admin/settings", {}, None, {}, None, "none", None, "json")
 
-    def write_instance_settings(self, body: "InstanceSettings") -> "InstanceSettings":
+    def write_instance_settings(self, body: "InstanceSettings", *, if_match: str | None = None) -> "InstanceSettings":
         """Replace the installation's level"""
-        return self._call("PUT", "/admin/settings", {}, None, {}, body, "json", "application/json", "json")
+        return self._call("PUT", "/admin/settings", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_plans(self) -> dict[str, Any]:
         """The installation's plans"""

@@ -35,12 +35,18 @@ func TestTheAccountLinkResolvesFromStoredLevels(t *testing.T) {
 		return err
 	})
 	t.Cleanup(func() {
-		inSystem(ctx, t, uow, func(ctx context.Context) error { return instance.Write(ctx, before, "", time.Now()) })
+		inSystem(ctx, t, uow, func(ctx context.Context) error {
+			_, err := instance.Write(ctx, before, 0, "", time.Now())
+			return err
+		})
 	})
 	const installation, family = "https://provider.example/account", "https://shop.example/family"
 	extended := before
 	extended.Legal.Links = extended.Legal.Links.With(identity.LinkAccount, installation)
-	inSystem(ctx, t, uow, func(ctx context.Context) error { return instance.Write(ctx, extended, "", time.Now()) })
+	inSystem(ctx, t, uow, func(ctx context.Context) error {
+		_, err := instance.Write(ctx, extended, 0, "", time.Now())
+		return err
+	})
 
 	withLink := newPlan(t, planName("acct"))
 	withLink.Values.Legal = identity.LegalLayer{

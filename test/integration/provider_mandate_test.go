@@ -96,7 +96,8 @@ func TestALockWithProvidersTurnsTheInviteOnlyOfferOnEverywhere(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		if err := uow.Within(context.Background(), persistence.SystemScope(), func(ctx context.Context) error {
-			return instance.Write(ctx, before, "", time.Now().UTC())
+			_, err := instance.Write(ctx, before, 0, "", time.Now().UTC())
+			return err
 		}); err != nil {
 			t.Errorf("restoring the installation's level: %v", err)
 		}

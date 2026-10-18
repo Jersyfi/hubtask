@@ -122,6 +122,35 @@ func TestSettingOneKeySendsTheRestBack(t *testing.T) {
 	}
 }
 
+// The change is made on the version the read answered, and a level somebody saved in between
+// refuses it: the terminal says so and exits non-zero (UC-INS-09 check 8).
+func TestSettingAKeySendsTheVersionReadAndSaysWhenSomebodySavedFirst(t *testing.T) {
+	versioned := strings.Replace(wholeLevel, `"source": "database",`, `"source": "database", "version": 4,`, 1)
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(versioned))
+			return
+		}
+		problemJSON(w, http.StatusConflict, map[string]any{
+			"status": 409, "code": "version_conflict",
+			"detail_code": "admin.instance_settings_version_conflict",
+		})
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "sign_in.min_digits", "2")
+	if code == exitOK {
+		t.Fatal("a refused save exited 0")
+	}
+	if got := stub.request.Header.Get("If-Match"); got != `"4"` {
+		t.Errorf("the save carried If-Match %q, want the version read", got)
+	}
+	if !strings.Contains(errOut, "Somebody else saved the installation's defaults first") {
+		t.Errorf("the refusal does not say somebody else saved first: %q", errOut)
+	}
+}
+
 // `clear` is how the installation stops deciding a switch: the key leaves the body, and `PUT`
 // replacing the level is what makes the absence mean something.
 func TestClearingAKeyRemovesItFromTheBody(t *testing.T) {
