@@ -5,9 +5,9 @@ context: identity
 actors: [PE-member, PE-guest, PE-child, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-02, P-10, P-12, P-13]
-state: partial
-tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10]
-checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md]
+state: built
+tasks: [H-01, SI-14, SI-15, SC-13, SC-24, SC-32, SC-10, CP-14]
+checked_by: [apps/webapp/e2e/signin.test.mjs, apps/webapp/e2e/terms.test.mjs, core/application/service/identity/OidcInvitation_test.go, core/application/service/identity/OidcInvitationStart_test.go, core/application/service/identity/TermsInvitation_test.go, core/application/service/identity/InspectInvitation_test.go, test/integration/invitation_by_provider_test.go, test/integration/oidc_flow_invitation_test.go, test/integration/invitation_link_test.go, test/integration/terms_flow_test.go, docs/evidence/SC-15-D5-terms-2026-10-13.md, core/domain/model/identity/Session_test.go, core/application/service/identity/InvitationLink_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/identity/LocateOidcFlow_test.go, presentation/rest/OidcLocate_test.go, test/integration/identity_provider_test.go, apps/webapp/src/lib/data/oidc.test.ts, docs/evidence/CP-14-2026-10-16.md]
 ---
 
 # Accept an invitation and set up my account
@@ -47,7 +47,3 @@ invitation used twice, or after it expired, gets one plain sentence and the name
 * Handing an invitation over without mail is its own use case (UC-ID-14 check 5).
 * No self-registration: somebody gets in because somebody invited them, or because a provider
   admits them.
-
-## Today
-
-* Check 7: not met — both lead to the installation's host (#1337).

@@ -290,6 +290,9 @@ func isAuthRoute(r *http.Request) bool {
 		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
 		APIBasePath + "/auth/oidc:callback",
+		// Anonymous too, and a read keyed on a presented state: unbounded, it would be a way to try
+		// states at the speed of the network.
+		APIBasePath + "/auth/oidc:locate",
 		// A passkey sign-in: an anonymous challenge row, and a guess at a signature.
 		APIBasePath + "/auth/sessions:passkey-options",
 		APIBasePath + "/auth/sessions:passkey":

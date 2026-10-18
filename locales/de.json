@@ -119,6 +119,7 @@
   "auth.session_rotated": "Dieser Arbeitsbereich hat alle um ein neues Passwort gebeten, deshalb wurde diese Sitzung beendet. Melde dich erneut an.",
   "auth.session_not_found": "Diese Sitzung gibt es nicht.",
   "auth.oidc_failed": "Diese Anmeldung konnte nicht abgeschlossen werden. Beginne von vorn.",
+  "auth.oidc_flow_not_found": "Diese Anmeldung lässt sich nicht mehr abschließen. Beginne sie noch einmal.",
   "auth.provider_unreachable": "Der Anmeldedienst deiner Organisation war nicht erreichbar. Versuche es gleich noch einmal oder melde dich mit einem Passwort an, falls du eines hast.",
   "auth.provider_exchange_failed": "Der Anmeldedienst deiner Organisation hat die Anmeldung nicht abgeschlossen. Beginne von vorn.",
   "auth.identity_token_missing": "Der Anmeldedienst deiner Organisation hat ohne Identitätstoken geantwortet. Bitte eine Administratorin oder einen Administrator, die Konfiguration zu prüfen.",

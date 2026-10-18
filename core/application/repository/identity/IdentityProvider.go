@@ -81,6 +81,11 @@ type OidcFlows interface {
 	// session is a step-up and is not found here.
 	Consume(ctx context.Context, presented identity.Token, now time.Time) (identity.OidcFlow, bool, error)
 
+	// Live answers whether a flow of any kind is still live for this state - unexpired and
+	// unspent - without spending it: where a provider's return belongs is asked before it is
+	// finished (multi-tenancy.md §3).
+	Live(ctx context.Context, presented identity.Token, now time.Time) (bool, error)
+
 	// ConsumeForStepUp is Consume for a step-up at the provider (ADR-0075 §2): only a flow bound to
 	// this very session is found, so another session's state, and a sign-in's, finish nothing.
 	ConsumeForStepUp(ctx context.Context, presented identity.Token, sessionID shared.ID, now time.Time) (identity.OidcFlow, bool, error)

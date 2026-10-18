@@ -84,6 +84,9 @@ var PublicRoutes = map[string]bool{
 	// authenticates the second call. The auth bucket stands in front of both.
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:start":    true,
 	http.MethodPost + " " + APIBasePath + "/auth/oidc:callback": true,
+	// Where the return belongs is asked by the same signed-out browser, before :callback, with the
+	// same handle; it reads and spends nothing (multi-tenancy.md §3).
+	http.MethodPost + " " + APIBasePath + "/auth/oidc:locate": true,
 	// The token endpoint is public the way sign-in is: the single-use code, the PKCE
 	// verifier and - for a confidential client - the secret travel in the body and are the
 	// whole of what authenticates the exchange.

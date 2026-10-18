@@ -671,6 +671,10 @@ class Client:
         """Finish the sign-in with the code the provider issued"""
         return self._call("POST", "/auth/oidc:callback", {}, None, {}, body, "json", "application/json", "json")
 
+    def locate_oidc_flow(self, body: "OidcLocate") -> "OidcLocated":
+        """Where a provider's return belongs"""
+        return self._call("POST", "/auth/oidc:locate", {}, None, {}, body, "json", "application/json", "json")
+
     def list_tenants(self) -> dict[str, Any]:
         """The installation's workspaces"""
         return self._call("GET", "/admin/tenants", {}, None, {}, None, "none", None, "json")

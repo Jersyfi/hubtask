@@ -120,6 +120,7 @@
   "auth.session_rotated": "This workspace asked everyone for a new password, so this session ended. Sign in again.",
   "auth.session_not_found": "There is no such session.",
   "auth.oidc_failed": "That sign-in could not be completed. Start again.",
+  "auth.oidc_flow_not_found": "This sign-in cannot be finished any more. Start it again.",
   "identity_provider.not_configured": "This workspace has no sign-in provider configured.",
   "identity_provider.disabled": "Signing in through the provider is switched off for this workspace.",
   "identity_provider.account_taken": "An account here already belongs to a different provider identity. An administrator has to sort this out.",

@@ -1,0 +1,30 @@
+CP-14 walk, 2026-10-16. Server built from claude/cp-14-workspace-address (web app embedded),
+HUBTASK_TENANCY_MODE=multi, HUBTASK_BASE_URL=http://hubtask.localhost:18545, a throwaway
+PostgreSQL 16 container, removed after the walk. States are shortened here; none is live any more.
+
+-- POST /auth/oidc:start on anna.hubtask.localhost (the workspace's host), body {}
+201; authorization endpoint accounts.google.com
+redirect_uri = http://hubtask.localhost:18545/auth/callback   (the installation's one address)
+state in the URL = state answered                              (true)
+
+-- POST /auth/oidc:locate on hubtask.localhost (the installation's host)
+live       200 {"base_url": "http://anna.hubtask.localhost:18545"}
+unknown    404 detail_code auth.oidc_flow_not_found   (same tenant prefix, last 8 characters changed)
+malformed  404 detail_code auth.oidc_flow_not_found   ("not-a-state")
+
+-- The browser at http://hubtask.localhost:18545/auth/callback?code=walk-code&state=<live>&scope=openid
+POST http://hubtask.localhost:18545/api/v1/auth/oidc:locate        200
+POST http://anna.hubtask.localhost:18545/api/v1/auth/oidc:locate   200   (answers its own origin: finish here)
+POST http://anna.hubtask.localhost:18545/api/v1/auth/oidc:callback 503   request 5da53cf8c0e4abc518543a3745027d9b
+server: CompleteOidcSignIn ... auth.provider_exchange_failed: exchanging the authorization code:
+        oauth2: "invalid_request" (the provider refused the made-up client and code)
+address bar afterwards: http://anna.hubtask.localhost:18545/auth/callback (no query)
+
+-- The browser at http://hubtask.localhost:18545/auth/callback?code=walk-code&state=<unknown>
+POST http://hubtask.localhost:18545/api/v1/auth/oidc:locate        404
+POST http://hubtask.localhost:18545/api/v1/auth/oidc:callback      401   (the existing refusal, on the base host)
+no navigation to another host
+
+-- Found by this walk and fixed before it was finished: the first build answered 401
+access.credential_required for :locate, because the route was missing from PublicRoutes
+(presentation/rest/Auth.go). gate-contract compares that list with the specification.

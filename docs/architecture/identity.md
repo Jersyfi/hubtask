@@ -298,6 +298,16 @@ hourly (T-13, [security.md](./security.md) §4).
   metadata, or without an accepted signing algorithm.
 * No installation-wide provider health probe: it would enumerate every workspace's providers.
 * The client secret is sealed and write-only; a provider session follows §14.
+* **One redirect per installation**, `<base>/auth/callback`, registered once at every provider, for
+  a sign-in, a connection and a step-up alike. In multi-tenant operation a flow begins on the
+  workspace's own host ([multi-tenancy.md](./multi-tenancy.md) §3), where the tab's session and its
+  note of a connection or step-up live. The web app at the installation's callback therefore asks
+  `POST /auth/oidc:locate` where the return belongs. The answer is the workspace's address, built
+  from the workspace the state names and the configured base, never from the request. The app then
+  forwards the return there whole, and it is finished there. The lookup is anonymous, in the auth
+  bucket, and spends nothing. A state that names no live flow (unknown, expired, spent or
+  malformed) is one `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards
+  only to a host beneath its own, by the same scheme.
 
 ### 10.2 Providers in the plural, at two levels
 

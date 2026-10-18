@@ -30,12 +30,18 @@
   // **And where a connection comes back** (ADR-0078 §1): a signed-in person who chose *Connect* for
   // a provider in their security settings. The tab noted that too; such a return finishes the
   // connection and goes back to those settings.
+  //
+  // **In multi-tenant operation the return is finished on the workspace's own host**
+  // (multi-tenancy.md §3). The provider knows the installation's one address; the flow began on the
+  // workspace's host, where its session and the tab's notes are. A return that arrives here asks the
+  // server where it belongs and goes there whole, replacing this history entry, so the code is in
+  // no address but the one that removes it again. In single-tenant operation the answer is here.
 
   import { Banner, Button, Spinner } from '@hubtask/design-system/components';
 
   import SignInCard from '../lib/signin/SignInCard.svelte';
   import { oidc } from '../lib/data/oidc.svelte.ts';
-  import { readArrival } from '../lib/data/oidc.ts';
+  import { forwardTo, readArrival, returnState } from '../lib/data/oidc.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { stepUp } from '../lib/data/stepup.svelte.ts';
   import { identities, SECURITY_PATH } from '../lib/data/identities.svelte.ts';
@@ -55,6 +61,8 @@
    * `$state` rather than a derivation over `location`: the value has to survive the very
    * `replaceState` that removes it.
    */
+  /** The query as the provider wrote it, for a return finished on the workspace's own host. */
+  const returned = location.search;
   const arrival = $state(takeArrival());
 
   /**
@@ -80,6 +88,17 @@
   /** Where the person was before they left for the provider, once known. */
   let returnTo = $state('/');
   const failure = $derived(isConnect ? identities.failure : isStepUp ? stepUp.failure : oidc.failure);
+
+  function finishHere(): void {
+    if (arrival.kind === 'handoff') {
+      void oidc.complete(arrival.handoff).then((ok) => ok && onnavigate?.('/'));
+    } else {
+      // The provider refused, or there is no flow in this address at all. Both end here, and
+      // saying which would tell somebody standing at the callback whether a handle they do not
+      // hold was ever real.
+      oidc.refuse();
+    }
+  }
 
   function takeArrival() {
     const read = readArrival(location.search);
@@ -110,13 +129,17 @@
       }
       return;
     }
-    if (arrival.kind === 'handoff') {
-      void oidc.complete(arrival.handoff).then((ok) => ok && onnavigate?.('/'));
+    // A connection's or a step-up's return is noted on the workspace's host, so it never arrives
+    // here having been one; every other return with a state asks first where it belongs.
+    const state = returnState(returned);
+    if (state === '') {
+      finishHere();
     } else {
-      // The provider refused, or there is no flow in this address at all. Both end here, and
-      // saying which would tell somebody standing at the callback whether a handle they do not
-      // hold was ever real.
-      oidc.refuse();
+      void oidc.locate(state).then((base) => {
+        const target = base === undefined ? undefined : forwardTo(base, location, returned);
+        if (target === undefined) finishHere();
+        else location.replace(target);
+      });
     }
     return () => oidc.forget();
   });
