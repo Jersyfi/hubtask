@@ -118,3 +118,16 @@ func (q *Queries) CloseArchivedUsage(ctx context.Context) (int64, error) {
 	}
 	return result.RowsAffected(), nil
 }
+
+const sweepUsage = `-- name: SweepUsage :one
+SELECT sweep_usage($1::date)::bigint AS swept
+`
+
+// The scheduler leader's daily sweep (migration 0183): counts older than the day go, inside
+// workspaces and in the installation's ledger.
+func (q *Queries) SweepUsage(ctx context.Context, beforeDay pgtype.Date) (int64, error) {
+	row := q.db.QueryRow(ctx, sweepUsage, beforeDay)
+	var swept int64
+	err := row.Scan(&swept)
+	return swept, err
+}

@@ -6,6 +6,11 @@ SELECT tenant_id, period, metric, value, closing FROM usage_record
 WHERE tenant_id = current_tenant_id()
 ON CONFLICT (tenant_id, period, metric) DO NOTHING;
 
+-- name: SweepUsage :one
+-- The scheduler leader's daily sweep (migration 0183): counts older than the day go, inside
+-- workspaces and in the installation's ledger.
+SELECT sweep_usage(sqlc.arg('before_day')::date)::bigint AS swept;
+
 -- name: CloseArchivedUsage :execrows
 -- The purge day closes each count kept as the day's highest at 0, so a read after it carries no
 -- count of a workspace that is gone; the day's highest stays what it was - its last closing count,

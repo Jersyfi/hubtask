@@ -85,3 +85,19 @@ func (r UsageRepository) Read(ctx context.Context, query repository.UsageQuery) 
 	}
 	return read, nil
 }
+
+// SweepUsage removes the counts older than the day, through `sweep_usage()`, which answers 0 inside
+// a workspace's scope.
+func (UsageRepository) SweepUsage(ctx context.Context, before time.Time) (int64, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	swept, err := queries.SweepUsage(ctx, pgtype.Date{Time: before, Valid: true})
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("sweeping the use counts: %w", err))
+	}
+	return swept, nil
+}
