@@ -32,9 +32,15 @@ func TestTheMigrationEmptiesTheStoredCredentials(t *testing.T) {
 		{"POST /api/v1/accounts:invite", `{"id":"q"}`, false},
 		{"POST /api/v1/items", `{"id":"i","title":"kept"}`, false},
 	}
-	// Every route the code marks today is one the migration empties - the table may grow after it,
-	// but on the day it was written the two were the same.
+	// Every route the code marks today is one the migration empties - except the routes marked after
+	// it, which did not exist then and so have no kept bodies for it to empty.
+	markedLater := map[string]bool{
+		"POST /api/v1/auth/sessions:passkey": true,
+	}
 	for route := range rest.ShownOnceRoutes {
+		if markedLater[route] {
+			continue
+		}
 		rows = append(rows, struct {
 			endpoint, body string
 			emptied        bool

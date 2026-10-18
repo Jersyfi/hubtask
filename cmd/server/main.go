@@ -1429,6 +1429,13 @@ func run() error {
 		StepUp:       stepUpVerifier,
 		WayIn:        wayInNotices,
 	}
+	// Signing in with a passkey alone (identity.md §23.4): the session writer's copy, taken here for
+	// the rule it must know - a passkey's session is bounded by it as every session is.
+	passkeySignInWriter := identity.PasskeySignInWriter{
+		Session:  sessionWriter,
+		SignIns:  postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+		Verifier: webauthn.Verifier{}, Party: passkeyWriter.Party(), Resolver: signInPolicyResolver,
+	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
@@ -1445,6 +1452,7 @@ func run() error {
 		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
 		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
 		"the passkeys' session writer":      passkeyWriter.Session,
+		"the passkey sign-in's writer":      passkeySignInWriter.Session,
 	}); err != nil {
 		return err
 	}
@@ -1633,6 +1641,12 @@ func run() error {
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			// Whether the card asks for a sign-in name too (ADR-0074 §3).
 			Managed: postgres.NewAccountRepository(),
+			// Where a passkey ceremony can finish (identity.md §23.3).
+			Party: &identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
@@ -1763,6 +1777,8 @@ func run() error {
 		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
 		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
 		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
+		identity.CompletePasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
 		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
 		identity.RemoveOwnPasskey{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),

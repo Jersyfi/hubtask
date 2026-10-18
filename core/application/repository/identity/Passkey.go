@@ -54,3 +54,33 @@ type PasskeyChallenges interface {
 		ctx context.Context, presented identity.Token, sessionID, accountID shared.ID, now time.Time,
 	) (identity.PasskeyChallenge, bool, error)
 }
+
+// PasskeyHolder is a credential a browser named, with its holder as a sign-in needs them.
+type PasskeyHolder struct {
+	Credential   identity.PasskeyCredential
+	Account      identity.Account
+	TenantStatus identity.TenantStatus
+	// StartPasswordAt is when Hubtask drew the password the account holds; zero for one the person
+	// chose. A start password owes the change at the next sign-in, by any door (identity.md §13).
+	StartPasswordAt time.Time
+}
+
+// PasskeySignIns is what signing in with a passkey reads and writes (identity.md §23.4): the
+// challenge that names nobody, the credential the browser names, and its counter.
+type PasskeySignIns interface {
+	// IssueChallenge writes a sign-in's challenge with no account.
+	IssueChallenge(ctx context.Context, challenge identity.PendingCredential, presented identity.Token) error
+
+	// SpendChallenge spends it in one statement - only under its purpose, unspent and in time - and
+	// answers false where nothing matched.
+	SpendChallenge(ctx context.Context, presented identity.Token, now time.Time) (bool, error)
+
+	// HolderOf answers the credential with this identifier in the transaction's workspace and its
+	// holder, or ErrNotFound.
+	HolderOf(ctx context.Context, credentialID []byte) (PasskeyHolder, error)
+
+	// MarkUsed records a verified sign-in: the counter, never lowered, the moment and the backup
+	// state - and answers false, writing nothing, where the counter is not above a non-zero stored
+	// one.
+	MarkUsed(ctx context.Context, id shared.ID, signCount uint32, backedUp bool, at time.Time) (bool, error)
+}

@@ -452,8 +452,8 @@ WHERE p.token_hash = sqlc.arg('token_hash') AND a.deleted_at IS NULL;
 
 -- name: FindArrivalPendingByHash :one
 -- A TERMS step that carries a provider's newcomer rather than an account (migration 0142): the row
--- and the workspace, nothing to join an account from. Read only by the agreement, so no other step
--- ever meets a credential without an account.
+-- and the workspace, nothing to join an account from. Read only by the agreement, and only under its
+-- purpose: a passkey sign-in's challenge has no account either (migration 0174).
 SELECT p.id, p.purpose, p.user_agent, p.ip_class,
        p.created_at, p.expires_at, p.consumed_at, p.link_provider_id, p.link_subject,
        p.session_method, p.session_via,
@@ -462,7 +462,7 @@ SELECT p.id, p.purpose, p.user_agent, p.ip_class,
        n.slug AS tenant_slug, n.status::text AS tenant_status
 FROM auth_pending p
 JOIN tenant n ON n.id = p.tenant_id
-WHERE p.token_hash = sqlc.arg('token_hash') AND p.account_id IS NULL;
+WHERE p.token_hash = sqlc.arg('token_hash') AND p.account_id IS NULL AND p.purpose = 'TERMS';
 
 -- name: FindPendingByID :one
 -- FindPendingByHash for a credential the server itself remembered rather than one a caller

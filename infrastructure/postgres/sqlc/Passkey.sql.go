@@ -55,6 +55,26 @@ func (q *Queries) ConsumePasskeyChallenge(ctx context.Context, arg ConsumePasske
 	return i, err
 }
 
+const consumePasskeySignInChallenge = `-- name: ConsumePasskeySignInChallenge :execrows
+UPDATE auth_pending SET consumed_at = $1
+WHERE token_hash = $2 AND purpose = 'PASSKEY_SIGN_IN'
+  AND consumed_at IS NULL AND expires_at > $1
+`
+
+type ConsumePasskeySignInChallengeParams struct {
+	Now       pgtype.Timestamptz
+	TokenHash []byte
+}
+
+// One statement, so two completions of one challenge let exactly one through.
+func (q *Queries) ConsumePasskeySignInChallenge(ctx context.Context, arg ConsumePasskeySignInChallengeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, consumePasskeySignInChallenge, arg.Now, arg.TokenHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countPasskeys = `-- name: CountPasskeys :one
 SELECT count(*) FROM webauthn_credential WHERE account_id = $1
 `
@@ -64,6 +84,86 @@ func (q *Queries) CountPasskeys(ctx context.Context, accountID pgtype.UUID) (int
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const findPasskeyHolder = `-- name: FindPasskeyHolder :one
+SELECT w.id, w.tenant_id, w.account_id, w.credential_id, w.public_key, w.algorithm, w.sign_count,
+       w.user_handle, w.backup_eligible, w.backed_up, w.transports, w.name, w.created_at,
+       w.last_used_at, w.rp_id,
+       a.kind, a.email, a.sign_in_name, a.display_name, a.status,
+       a.locale AS account_locale, a.time_zone AS account_time_zone, a.start_password_at,
+       n.default_locale, n.default_time_zone, n.slug AS tenant_slug, n.status::text AS tenant_status
+FROM webauthn_credential w
+JOIN account a ON a.tenant_id = w.tenant_id AND a.id = w.account_id
+JOIN tenant n ON n.id = w.tenant_id
+WHERE w.credential_id = $1 AND a.deleted_at IS NULL
+`
+
+type FindPasskeyHolderRow struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	AccountID       pgtype.UUID
+	CredentialID    []byte
+	PublicKey       []byte
+	Algorithm       int32
+	SignCount       int64
+	UserHandle      []byte
+	BackupEligible  bool
+	BackedUp        bool
+	Transports      []string
+	Name            string
+	CreatedAt       pgtype.Timestamptz
+	LastUsedAt      pgtype.Timestamptz
+	RpID            *string
+	Kind            AccountKind
+	Email           *string
+	SignInName      *string
+	DisplayName     string
+	Status          AccountStatus
+	AccountLocale   *string
+	AccountTimeZone *string
+	StartPasswordAt pgtype.Timestamptz
+	DefaultLocale   string
+	DefaultTimeZone string
+	TenantSlug      string
+	TenantStatus    string
+}
+
+// The credential a browser named and everything the session will need of its holder, in one round
+// trip - the password door's read, keyed on the credential instead of an identifier.
+func (q *Queries) FindPasskeyHolder(ctx context.Context, credentialID []byte) (FindPasskeyHolderRow, error) {
+	row := q.db.QueryRow(ctx, findPasskeyHolder, credentialID)
+	var i FindPasskeyHolderRow
+	err := row.Scan(
+		&i.ID,
+		&i.TenantID,
+		&i.AccountID,
+		&i.CredentialID,
+		&i.PublicKey,
+		&i.Algorithm,
+		&i.SignCount,
+		&i.UserHandle,
+		&i.BackupEligible,
+		&i.BackedUp,
+		&i.Transports,
+		&i.Name,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+		&i.RpID,
+		&i.Kind,
+		&i.Email,
+		&i.SignInName,
+		&i.DisplayName,
+		&i.Status,
+		&i.AccountLocale,
+		&i.AccountTimeZone,
+		&i.StartPasswordAt,
+		&i.DefaultLocale,
+		&i.DefaultTimeZone,
+		&i.TenantSlug,
+		&i.TenantStatus,
+	)
+	return i, err
 }
 
 const insertPasskey = `-- name: InsertPasskey :execrows
@@ -151,6 +251,36 @@ func (q *Queries) InsertPasskeyChallenge(ctx context.Context, arg InsertPasskeyC
 	return err
 }
 
+const insertPasskeySignInChallenge = `-- name: InsertPasskeySignInChallenge :exec
+INSERT INTO auth_pending (id, tenant_id, token_hash, purpose, user_agent, ip_class, created_at, expires_at)
+VALUES (
+  $1, current_tenant_id(), $2, 'PASSKEY_SIGN_IN',
+  $3, $4, $5, $6
+)
+`
+
+type InsertPasskeySignInChallengeParams struct {
+	ID        pgtype.UUID
+	TokenHash []byte
+	UserAgent *string
+	IpClass   *string
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
+// A sign-in's challenge names nobody yet (migration 0174).
+func (q *Queries) InsertPasskeySignInChallenge(ctx context.Context, arg InsertPasskeySignInChallengeParams) error {
+	_, err := q.db.Exec(ctx, insertPasskeySignInChallenge,
+		arg.ID,
+		arg.TokenHash,
+		arg.UserAgent,
+		arg.IpClass,
+		arg.CreatedAt,
+		arg.ExpiresAt,
+	)
+	return err
+}
+
 const listPasskeys = `-- name: ListPasskeys :many
 
 SELECT id, tenant_id, account_id, credential_id, public_key, algorithm, sign_count, user_handle,
@@ -208,6 +338,37 @@ func (q *Queries) LockAccountForPasskeys(ctx context.Context, accountID pgtype.U
 	var id pgtype.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const markPasskeyUsed = `-- name: MarkPasskeyUsed :execrows
+UPDATE webauthn_credential
+SET sign_count = GREATEST(sign_count, $1::bigint),
+    last_used_at = $2, backed_up = $3
+WHERE id = $4
+  AND ($1::bigint = 0 OR sign_count = 0 OR $1::bigint > sign_count)
+`
+
+type MarkPasskeyUsedParams struct {
+	SignCount int64
+	UsedAt    pgtype.Timestamptz
+	BackedUp  bool
+	ID        pgtype.UUID
+}
+
+// The counter only goes up: a counter not above a non-zero stored one is refused here, in the
+// statement, so two sign-ins with one credential cannot both pass a comparison; a synchronised
+// passkey's zero passes and never lowers the stored value (identity.md §23.3).
+func (q *Queries) MarkPasskeyUsed(ctx context.Context, arg MarkPasskeyUsedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markPasskeyUsed,
+		arg.SignCount,
+		arg.UsedAt,
+		arg.BackedUp,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const removePasskey = `-- name: RemovePasskey :execrows

@@ -5,6 +5,7 @@ package identity
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -208,8 +209,18 @@ func TestTheProductsBoundsHoldAgainstTheOperator(t *testing.T) {
 func TestTheMethodsAreNeverEmptyAndKeepTheContractsOrder(t *testing.T) {
 	resolved := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf("SEMAPHORE")}},
 		PolicyLayer{}, PolicyLayer{})
-	if len(resolved.Policy.Methods) != 2 {
-		t.Errorf("methods %v, want both back", resolved.Policy.Methods)
+	if !slices.Equal(resolved.Policy.Methods, DefaultSignInPolicy().Methods) {
+		t.Errorf("methods %v, want the product's default back", resolved.Policy.Methods)
+	}
+
+	// A passkey alone is no way a person first arrives by: the list reads as the default.
+	alone := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf(MethodPasskey)}}, PolicyLayer{}, PolicyLayer{})
+	if !slices.Equal(alone.Policy.Methods, DefaultSignInPolicy().Methods) {
+		t.Errorf("a passkey alone resolved to %v", alone.Policy.Methods)
+	}
+	kept := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf(MethodPasskey, MethodOidc)}}, PolicyLayer{}, PolicyLayer{})
+	if !slices.Equal(kept.Policy.Methods, []string{MethodOidc, MethodPasskey}) {
+		t.Errorf("a provider and passkeys resolved to %v", kept.Policy.Methods)
 	}
 
 	ordered := Effective(PolicyLayer{Patch: PolicyPatch{Methods: methodsOf(MethodOidc, MethodDirect)}},
@@ -676,5 +687,35 @@ func TestAValuePastTheProductsBoundIsRefusedAtItsRule(t *testing.T) {
 	// At the bound itself it is accepted.
 	if _, _, err := resolved.Tightened(DefaultSignInPolicy(), PolicyPatch{MinLength: intOf(CeilingMinLength)}); err != nil {
 		t.Errorf("the bound itself was refused: %v", err)
+	}
+}
+
+func TestOnlyThePasswordOrAProviderIsAWayIn(t *testing.T) {
+	for _, c := range []struct {
+		methods []string
+		want    bool
+	}{
+		{[]string{MethodDirect}, true}, {[]string{MethodOidc, MethodPasskey}, true},
+		{[]string{MethodPasskey}, false}, {nil, false},
+	} {
+		if got := KeepsAWayIn(c.methods); got != c.want {
+			t.Errorf("%v: %v", c.methods, got)
+		}
+	}
+	if !slices.Contains(DefaultSignInPolicy().Methods, MethodPasskey) {
+		t.Error("the product's default leaves passkeys out (milestone PK, Decision 7)")
+	}
+	declaration, _ := DeclarationOfSwitch(SwitchMethods)
+	if !slices.Contains(declaration.Options, MethodPasskey) || !slices.Equal(declaration.OneOf, []string{MethodDirect, MethodOidc}) {
+		t.Errorf("the declaration %+v", declaration)
+	}
+	// A workspace switches passkeys off freely, and on only where the level above has them.
+	inForce := DefaultSignInPolicy()
+	if err := Tighten(SwitchMethods, inForce, PolicyPatch{Methods: methodsOf(MethodDirect, MethodOidc)}); err != nil {
+		t.Errorf("switching passkeys off: %v", err)
+	}
+	inForce.Methods = []string{MethodDirect}
+	if err := Tighten(SwitchMethods, inForce, PolicyPatch{Methods: methodsOf(MethodDirect, MethodPasskey)}); err == nil {
+		t.Error("passkeys switched on where the level above has none")
 	}
 }

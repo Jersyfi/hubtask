@@ -290,6 +290,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.ListOwnPasskeys{}.Descriptor(),
 		identity.StartPasskeyRegistration{}.Descriptor(),
 		identity.CompletePasskeyRegistration{}.Descriptor(),
+		identity.StartPasskeySignIn{}.Descriptor(),
+		identity.CompletePasskeySignIn{}.Descriptor(),
 		identity.RenameOwnPasskey{}.Descriptor(),
 		identity.RemoveOwnPasskey{}.Descriptor(),
 		identity.AgreeToTerms{}.Descriptor(),

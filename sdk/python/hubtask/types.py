@@ -229,7 +229,7 @@ class Session(TypedDict, total=False):
     user_agent: str | None
     ip_class: str | None
     current: Required[bool]
-    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET"] | None
+    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET", "PASSKEY"] | None
     signed_in_provider: str | None
 
 class SessionTokens(TypedDict, total=False):
@@ -501,7 +501,7 @@ class SignInPolicyText(TypedDict, total=False):
     source: Required["PolicySource"]
     installation_source: Required["PolicySource"]
 
-SignInMethod = Literal["PASSWORD", "OIDC"]
+SignInMethod = Literal["PASSWORD", "OIDC", "PASSKEY"]
 
 class SignInPolicyMethods(TypedDict, total=False):
     value: Required[list["SignInMethod"]]
@@ -1177,6 +1177,19 @@ class PasskeyList(TypedDict, total=False):
     can_remove: Required[bool]
     cannot_remove_reason: Literal["auth.mfa_required_by_tenant", "auth.step_up_no_method"]
     rp_id: Required[str | None]
+
+class PasskeySignInOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
+    public_key: Required[dict[str, Any]]
+    expires_at: Required[str]
+
+class PasskeyAssertion(TypedDict, total=False):
+    """What `navigator.credentials.get()` answered, base64url without padding."""
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    authenticator_data: Required[str]
+    signature: Required[str]
+    user_handle: Required[str]
 
 class PasskeyRegistrationOptions(TypedDict, total=False):
     """The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""

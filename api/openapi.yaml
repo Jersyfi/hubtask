@@ -3354,6 +3354,72 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/sessions:passkey-options:
+    post:
+      tags: [auth]
+      operationId: startPasskeySignIn
+      security: []
+      summary: Begin a sign-in with a passkey
+      description: |
+        The options to pass to `navigator.credentials.get()` for signing in to the workspace the
+        request's host names, with no identifier: the relying party, a single-use challenge that
+        lives five minutes, and `userVerification: required` - a passkey opens the account alone only
+        when the person was verified on the device. No credential is named; the device offers the
+        ones it holds for this workspace.
+
+        Refused with `auth.passkey_not_offered` where the workspace's rules do not offer passkeys,
+        with `auth.passkey_unavailable` where the installation has no public address or the request
+        did not arrive at the workspace's own host, and with `auth.tenant_unresolved` where no
+        workspace answers at it.
+      responses:
+        "200":
+          description: The options for the browser's ceremony
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PasskeySignInOptions"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /auth/sessions:passkey:
+    post:
+      tags: [auth]
+      operationId: completePasskeySignIn
+      security: []
+      summary: Sign in with a passkey and receive the pair
+      description: |
+        What `navigator.credentials.get()` answered. The challenge inside the client data must be one
+        this workspace issued within five minutes and not yet used; otherwise
+        `auth.passkey_challenge_stale`, and a client asks for new options. Every other refusal - an
+        unknown or removed passkey, one made at another address, an account that cannot sign in, a
+        device that did not verify the person, a signature or counter that does not hold - is the one
+        answer a wrong password gives, `auth.sign_in_failed`, and counts against the attempt ledger.
+
+        A verified passkey is the whole proof: no second factor is asked, also where the workspace
+        requires one. The answer is `201` with the pair, or `202` where the account still owes a step -
+        replacing a start password Hubtask drew, or agreeing to the terms of use.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasskeyAssertion"
+      responses:
+        "201":
+          description: Signed in, with the pair shown for the only time
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionTokens"
+        "202":
+          description: The passkey was right and a step is still owed, named in `methods`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MfaChallenge"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/sessions:link:
     post:
       tags: [auth]
@@ -10470,7 +10536,7 @@ components:
           description: Whether this session is the one answering the call.
         signed_in_with:
           type: [string, "null"]
-          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, OIDC, INVITATION, RESET, null]
+          enum: [PASSWORD, PASSWORD_TOTP, PASSWORD_RECOVERY, OIDC, INVITATION, RESET, PASSKEY, null]
           description: >
             How this session was opened. Null for one opened before this was
             recorded, which is not "unknown method" so much as "before this existed" - a client
@@ -11350,7 +11416,7 @@ components:
 
     SignInMethod:
       type: string
-      enum: [PASSWORD, OIDC]
+      enum: [PASSWORD, OIDC, PASSKEY]
       description: One way into a workspace. A named schema, so that every reader of one shares a type.
 
     SignInPolicyMethods:
@@ -13574,6 +13640,52 @@ components:
           description: >
             The host this workspace's passkeys belong to; null where the installation has no
             public address. A page served at another host cannot add or use one.
+
+    PasskeySignInOptions:
+      type: object
+      description: >
+        The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every
+        binary value is base64url without padding.
+      required: [public_key, expires_at]
+      properties:
+        public_key:
+          type: object
+          required: [rpId, challenge, timeout, userVerification]
+          properties:
+            rpId: { type: string, description: The workspace's host. }
+            challenge: { type: string, description: Thirty-two random bytes, base64url. }
+            timeout: { type: integer, description: Milliseconds. }
+            userVerification: { type: string, enum: [required] }
+        expires_at:
+          type: string
+          format: date-time
+          description: When the challenge stops being accepted.
+
+    PasskeyAssertion:
+      type: object
+      description: What `navigator.credentials.get()` answered, base64url without padding.
+      required: [raw_id, client_data_json, authenticator_data, signature, user_handle]
+      properties:
+        raw_id:
+          type: string
+          maxLength: 1400
+          description: The credential's `rawId`.
+        client_data_json:
+          type: string
+          maxLength: 5600
+          description: The response's `clientDataJSON`.
+        authenticator_data:
+          type: string
+          maxLength: 87400
+          description: The response's `authenticatorData`.
+        signature:
+          type: string
+          maxLength: 1400
+          description: The response's `signature`.
+        user_handle:
+          type: string
+          maxLength: 88
+          description: The response's `userHandle`, which a passkey signing in without an identifier always gives.
 
     PasskeyRegistrationOptions:
       type: object

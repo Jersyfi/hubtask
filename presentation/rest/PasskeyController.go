@@ -185,3 +185,70 @@ func (c *RestController) RemoveOwnPasskey(
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// The passkey sign-in (identity.md §23.4). Written out, SignIn's reasoning: the routes are public, so
+// there is no actor to resolve - the call exists to produce one - and the request's host, client and
+// workspace sources travel as declared inputs, because only this adapter has the request.
+
+const (
+	startPasskeySignInUseCase    = "StartPasskeySignIn"
+	completePasskeySignInUseCase = "CompletePasskeySignIn"
+)
+
+func (c *RestController) passkeySignInInput(r *http.Request) usecase.Input {
+	return usecase.Input{
+		"host": r.Host, "tenant_slug": c.tenantSlug(r), "tenant_header": r.Header.Get(TenantHeader),
+		"user_agent": r.UserAgent(), "remote_addr": r.RemoteAddr,
+	}
+}
+
+// StartPasskeySignIn answers POST /auth/sessions:passkey-options.
+func (c *RestController) StartPasskeySignIn(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startPasskeySignInUseCase, actorOf(r), c.passkeySignInInput(r))
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	var answer openapi.PasskeySignInOptions
+	encoded, err := json.Marshal(out)
+	if err == nil {
+		err = json.Unmarshal(encoded, &answer)
+	}
+	if err != nil {
+		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// CompletePasskeySignIn answers POST /auth/sessions:passkey.
+func (c *RestController) CompletePasskeySignIn(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PasskeyAssertion
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := c.passkeySignInInput(r)
+	in["raw_id"], in["client_data_json"] = body.RawId, body.ClientDataJson
+	in["authenticator_data"], in["signature"], in["user_handle"] = body.AuthenticatorData, body.Signature, body.UserHandle
+	out, err := c.UseCases.Invoke(r.Context(), completePasskeySignInUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	if required, _ := out["mfa_required"].(bool); required {
+		writeJSON(w, r, http.StatusAccepted, mfaChallengeResponse(out))
+		return
+	}
+	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
+}
