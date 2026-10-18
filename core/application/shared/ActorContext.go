@@ -156,6 +156,31 @@ func (a ActorContext) RequireScope(scope string) error {
 	return nil
 }
 
+// RequireAnyScope admits a credential carrying any of the scopes, the first being the one an
+// operation is declared under and the rest narrower ones that admit it as well
+// (usecase.Descriptor.AlsoScope). A refusal names the last - the narrowest that would do - unless
+// the register withheld one of them, which is then the reason given.
+func (a ActorContext) RequireAnyScope(scopes ...string) error {
+	if !a.IsAuthenticated() {
+		return shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	// Closed rather than open: an operation that names no scope here asked for nothing to check.
+	if len(scopes) == 0 {
+		return shared.ErrInternal.WithDetail("access.no_scope_named")
+	}
+	for _, scope := range scopes {
+		if a.HasScope(scope) {
+			return nil
+		}
+	}
+	for _, scope := range scopes {
+		if slices.Contains(a.Withheld.Scopes, scope) {
+			return a.RequireScope(scope)
+		}
+	}
+	return a.RequireScope(scopes[len(scopes)-1])
+}
+
 // PersistenceScope is what bounds a unit of work. It exists here so that the translation from
 // "who is acting" to "which tenant the transaction runs as" happens once, rather than in every
 // use case that opens one.

@@ -274,3 +274,24 @@ test('chromium: a language is named and stored files are a size', async (t) => {
   const field = await form.locator('[data-value="quotas.media_bytes"]').textContent() ?? '';
   assert.match(field, /That is 10\.7\s?GB/, field);
 });
+
+// The provider's account link among the legal links (UC-INS-13 check 11): in multi mode its lock says
+// what plans may, and a level without plans - single mode - answers no lock, so none is offered.
+test('chromium: the account link is drawn with what plans may, and without a lock where there are none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const multi = {
+    ...LEVEL,
+    legal: { ...LEVEL.legal, account_url: { set: true, value: 'https://shop.example/account', locked: false, kind: 'LINK', workspace_may: 'PLAN_REPLACE' } },
+  };
+  const { page, close } = await open(browser, { level: multi });
+  t.after(close);
+  const row = page.getByRole('row').filter({ hasText: 'Provider\'s account page' });
+  assert.match(await row.textContent() ?? '', /shop\.example\/account.*set their own \(plans\)/);
+
+  const single = { ...LEVEL, legal: { ...LEVEL.legal, account_url: { set: false, locked: false, kind: 'LINK' } } };
+  const second = await open(browser, { level: single });
+  t.after(second.close);
+  const plain = (await second.page.getByRole('row').filter({ hasText: 'Provider\'s account page' }).textContent()) ?? '';
+  assert.doesNotMatch(plain, /plans|their own|change it/);
+});

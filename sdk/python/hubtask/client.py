@@ -551,6 +551,14 @@ class Client:
         """Present the second factor and receive the pair"""
         return self._call("POST", "/auth/sessions:verify", {}, None, {}, body, "json", "application/json", "json")
 
+    def start_passkey_sign_in(self) -> "PasskeySignInOptions":
+        """Begin a sign-in with a passkey"""
+        return self._call("POST", "/auth/sessions:passkey-options", {}, None, {}, None, "none", None, "json")
+
+    def complete_passkey_sign_in(self, body: "PasskeyAssertion") -> "SessionTokens":
+        """Sign in with a passkey and receive the pair"""
+        return self._call("POST", "/auth/sessions:passkey", {}, None, {}, body, "json", "application/json", "json")
+
     def complete_link(self, body: "LinkCompletion") -> "SessionTokens":
         """Prove the account before a provider is connected to it"""
         return self._call("POST", "/auth/sessions:link", {}, None, {}, body, "json", "application/json", "json")
@@ -602,6 +610,18 @@ class Client:
     def step_up(self, body: "StepUpRequest") -> "StepUpGrant":
         """Prove yourself again, for the irreversible"""
         return self._call("POST", "/auth/step-up", {}, None, {}, body, "json", "application/json", "json")
+
+    def start_passkey_step_up(self) -> "PasskeyAssertionOptions":
+        """The options for a fresh proof with a passkey or security key"""
+        return self._call("POST", "/auth/step-up:passkey-options", {}, None, {}, None, "none", None, "json")
+
+    def start_passkey_enrollment(self, body: "PasskeyEnrollmentStart") -> "PasskeyRegistrationOptions":
+        """Begin setting up a passkey or security key during sign-in"""
+        return self._call("POST", "/auth/mfa/passkey:enroll-options", {}, None, {}, body, "json", "application/json", "json")
+
+    def complete_passkey_enrollment(self, body: "PasskeyEnrollment") -> "PasskeyEnrolled":
+        """Finish setting up a passkey or security key during sign-in"""
+        return self._call("POST", "/auth/mfa/passkey:enroll", {}, None, {}, body, "json", "application/json", "json")
 
     def start_provider_step_up(self) -> "ProviderStepUpAuthorization":
         """Begin a step-up at the provider this account is connected to"""
@@ -658,6 +678,18 @@ class Client:
     def provision_tenant(self, body: "TenantProvision", *, idempotency_key: str | None = None) -> "ProvisionedTenant":
         """Provision a workspace"""
         return self._call("POST", "/admin/tenants", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_tenant(self, tenant_id: str) -> "AdminTenant":
+        """One workspace"""
+        return self._call("GET", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {}, None, "none", None, "json")
+
+    def update_tenant(self, tenant_id: str, body: "TenantUpdate", *, if_match: str | None = None) -> "AdminTenant":
+        """Set or clear the platform's reference on a workspace"""
+        return self._call("PATCH", "/admin/tenants/{tenantId}", {"tenantId": tenant_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def query_tenants(self, body: "TenantQuery") -> "AdminTenantPage":
+        """Find workspaces"""
+        return self._call("POST", "/admin/tenants:query", {}, None, {}, body, "json", "application/json", "json")
 
     def suspend_tenant(self, tenant_id: str) -> None:
         """Suspend a workspace"""
@@ -719,6 +751,30 @@ class Client:
         """Replace the installation's level"""
         return self._call("PUT", "/admin/settings", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def list_plans(self) -> dict[str, Any]:
+        """The installation's plans"""
+        return self._call("GET", "/admin/plans", {}, None, {}, None, "none", None, "json")
+
+    def create_plan(self, body: "PlanCreate", *, idempotency_key: str | None = None) -> "Plan":
+        """Create a plan"""
+        return self._call("POST", "/admin/plans", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def read_plan(self, plan_name: str) -> "Plan":
+        """One plan"""
+        return self._call("GET", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "json")
+
+    def change_plan(self, plan_name: str, body: "PlanChange", *, if_match: str | None = None) -> "Plan":
+        """Replace a plan's values"""
+        return self._call("PUT", "/admin/plans/{planName}", {"planName": plan_name}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def remove_plan(self, plan_name: str) -> None:
+        """Remove a plan"""
+        return self._call("DELETE", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "void")
+
+    def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
+        """Put a workspace on another plan"""
+        return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def list_operators(self) -> dict[str, Any]:
         """Who operates this installation"""
         return self._call("GET", "/admin/operators", {}, None, {}, None, "none", None, "json")
@@ -738,6 +794,46 @@ class Client:
     def list_instance_journal(self, *, query: dict[str, Any] | None = None) -> "InstanceJournalPage":
         """The installation's own record"""
         return self._call("GET", "/admin/journal", {}, query, {}, None, "none", None, "json")
+
+    def list_platform_events(self, *, query: dict[str, Any] | None = None) -> "PlatformEventPage":
+        """The installation's events, read forward"""
+        return self._call("GET", "/admin/events", {}, query, {}, None, "none", None, "json")
+
+    def list_platform_subscriptions(self) -> dict[str, Any]:
+        """The installation's subscriptions for a purchase platform"""
+        return self._call("GET", "/admin/subscriptions", {}, None, {}, None, "none", None, "json")
+
+    def create_platform_subscription(self, body: "PlatformSubscriptionCreate", *, idempotency_key: str | None = None, step_up: str | None = None) -> "PlatformSubscriptionSecret":
+        """Subscribe a purchase platform to the installation's events"""
+        return self._call("POST", "/admin/subscriptions", {}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def read_platform_subscription(self, subscription_id: str) -> "PlatformSubscription":
+        """One subscription of the installation"""
+        return self._call("GET", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
+
+    def update_platform_subscription(self, subscription_id: str, body: "PlatformSubscriptionUpdate", *, if_match: str | None = None, step_up: str | None = None) -> "PlatformSubscription":
+        """Change a subscription's target, or pause and resume it"""
+        return self._call("PATCH", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_platform_subscription(self, subscription_id: str) -> None:
+        """Unsubscribe"""
+        return self._call("DELETE", "/admin/subscriptions/{subscriptionId}", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "void")
+
+    def rotate_platform_subscription_secret(self, subscription_id: str, *, idempotency_key: str | None = None, step_up: str | None = None) -> "PlatformSubscriptionSecret":
+        """Issue a new signing secret"""
+        return self._call("POST", "/admin/subscriptions/{subscriptionId}:rotate-secret", {"subscriptionId": subscription_id}, None, {"Idempotency-Key": idempotency_key, "X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def list_platform_deliveries(self, subscription_id: str, *, query: dict[str, Any] | None = None) -> "PlatformDeliveryPage":
+        """What was sent to the subscription, and what became of it"""
+        return self._call("GET", "/admin/subscriptions/{subscriptionId}/deliveries", {"subscriptionId": subscription_id}, query, {}, None, "none", None, "json")
+
+    def redeliver_platform_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Send the subscription's dead letters again"""
+        return self._call("POST", "/admin/subscriptions/{subscriptionId}:redeliver", {"subscriptionId": subscription_id}, None, {}, None, "none", None, "json")
+
+    def read_usage(self, *, query: dict[str, Any] | None = None) -> "UsagePage":
+        """The use per workspace, metric and day, for billing"""
+        return self._call("GET", "/admin/usage", {}, query, {}, None, "none", None, "json")
 
     def list_instance_ai_providers(self) -> dict[str, Any]:
         """The AI models this installation offers every workspace"""
@@ -826,6 +922,26 @@ class Client:
     def complete_provider_connect(self, body: "ProviderConnectReturn") -> "ConnectedIdentity":
         """Finish connecting a sign-in provider to the caller's account"""
         return self._call("POST", "/accounts/me/identities:complete", {}, None, {}, body, "json", "application/json", "json")
+
+    def list_own_passkeys(self) -> "PasskeyList":
+        """The passkeys and security keys the caller's account holds"""
+        return self._call("GET", "/accounts/me/passkeys", {}, None, {}, None, "none", None, "json")
+
+    def start_passkey_registration(self, *, step_up: str | None = None) -> "PasskeyRegistrationOptions":
+        """Begin adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:start", {}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "json")
+
+    def complete_passkey_registration(self, body: "PasskeyRegistration") -> "PasskeyRegistered":
+        """Finish adding a passkey or a security key to the caller's account"""
+        return self._call("POST", "/accounts/me/passkeys:complete", {}, None, {}, body, "json", "application/json", "json")
+
+    def rename_own_passkey(self, passkey_id: str, body: "PasskeyRename") -> "Passkey":
+        """Rename one of the caller's passkeys or security keys"""
+        return self._call("PATCH", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {}, body, "json", "application/json", "json")
+
+    def remove_own_passkey(self, passkey_id: str, *, step_up: str | None = None) -> None:
+        """Remove one of the caller's passkeys or security keys"""
+        return self._call("DELETE", "/accounts/me/passkeys/{passkeyId}", {"passkeyId": passkey_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""

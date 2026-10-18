@@ -64,6 +64,8 @@ class Account(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -121,6 +123,8 @@ class InvitedAccount(TypedDict, total=False):
     onboarding_completed_at: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
+    has_authenticator_app: bool
+    authenticator_app_removable: bool
     second_factor_required: bool
     has_password: bool
     has_access: bool
@@ -225,7 +229,7 @@ class Session(TypedDict, total=False):
     user_agent: str | None
     ip_class: str | None
     current: Required[bool]
-    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "OIDC", "INVITATION", "RESET"] | None
+    signed_in_with: Literal["PASSWORD", "PASSWORD_TOTP", "PASSWORD_RECOVERY", "PASSWORD_PASSKEY", "OIDC", "INVITATION", "RESET", "PASSKEY"] | None
     signed_in_provider: str | None
 
 class SessionTokens(TypedDict, total=False):
@@ -476,7 +480,7 @@ class WorkspaceHost(TypedDict, total=False):
     created_at: Required[str]
 
 class SignInPolicyNumber(TypedDict, total=False):
-    """One numeric switch, at the three levels that decide it. Zero is off for every one of them."""
+    """One numeric switch, at the levels that decide it. Zero is off for every one of them."""
     value: Required[int]
     installation: Required[int]
     lock: Required["PolicyLock"]
@@ -497,7 +501,7 @@ class SignInPolicyText(TypedDict, total=False):
     source: Required["PolicySource"]
     installation_source: Required["PolicySource"]
 
-SignInMethod = Literal["PASSWORD", "OIDC"]
+SignInMethod = Literal["PASSWORD", "OIDC", "PASSKEY"]
 
 class SignInPolicyMethods(TypedDict, total=False):
     value: Required[list["SignInMethod"]]
@@ -511,12 +515,13 @@ PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
 PolicyLock = Literal["INSTANCE", "PLAN"] | None
 
 class SignInPolicy(TypedDict, total=False):
-    """The workspace's sign-in rule, every switch at the three levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
+    """The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
     password: Required["PasswordPolicySettings"]
     mfa_required_for: Required["SignInPolicyText"]
     methods: Required["SignInPolicyMethods"]
     session: Required["SessionPolicySettings"]
     legal: Required["LegalPolicySettings"]
+    plan: str | None
     managed_accounts: "SignInPolicyFlag"
     private_hubs: "SignInPolicyFlag"
     rotation_from: Required[str | None]
@@ -688,6 +693,84 @@ class InstanceJournalPage(TypedDict, total=False):
     data: Required[list["InstanceJournalEntry"]]
     page: Required["PageInfo"]
 
+class PlatformSubscription(TypedDict, total=False):
+    """One address the installation's events are pushed to. The signing secret is not a member: it is answered once, at creation and at each rotation, and stored sealed."""
+    id: Required[str]
+    target_url: Required[str]
+    state: Required[Literal["ACTIVE", "PAUSED"]]
+    dead_letters: Required[int]
+    last_delivery_at: str | None
+    last_error: str | None
+    from_file: Required[bool]
+    created_at: Required[str]
+    version: Required[int]
+
+class PlatformSubscriptionCreate(TypedDict, total=False):
+    target_url: Required[str]
+
+class PlatformSubscriptionUpdate(TypedDict, total=False):
+    """Every field optional; an omitted one is left alone."""
+    target_url: str | None
+    state: Literal["ACTIVE", "PAUSED"] | None
+
+class PlatformSubscriptionSecret(TypedDict, total=False):
+    id: Required[str]
+    target_url: Required[str]
+    state: Required[Literal["ACTIVE", "PAUSED"]]
+    dead_letters: Required[int]
+    last_delivery_at: str | None
+    last_error: str | None
+    from_file: Required[bool]
+    created_at: Required[str]
+    version: Required[int]
+    secret: Required[str]
+
+class PlatformDelivery(TypedDict, total=False):
+    """One event sent to one subscription, across its attempts."""
+    id: Required[str]
+    subscription_id: Required[str]
+    event_id: Required[str]
+    event_type: Required[str]
+    attempt: Required[int]
+    status: Required[Literal["PENDING", "SUCCEEDED", "FAILED", "DEAD_LETTER"]]
+    response_status: int | None
+    error_code: str | None
+    next_attempt_at: str | None
+    created_at: Required[str]
+    updated_at: str
+
+class PlatformDeliveryPage(TypedDict, total=False):
+    data: Required[list["PlatformDelivery"]]
+    page: Required["PageInfo"]
+
+UsageMetricName = str
+
+class UsageMetric(TypedDict, total=False):
+    name: Required["UsageMetricName"]
+    aggregate: Required[Literal["HIGHEST", "SUM"]]
+    day: Required[Literal["UTC", "WORKSPACE"]]
+
+class UsageDay(TypedDict, total=False):
+    day: Required[str]
+    value: Required[int]
+
+class WorkspaceUsage(TypedDict, total=False):
+    workspace_id: Required[str]
+    purged: Required[bool]
+    metrics: Required[dict[str, Any]]
+
+class UsagePage(TypedDict, total=False):
+    data: Required[list["WorkspaceUsage"]]
+    page: Required["PageInfo"]
+    metrics: Required[list["UsageMetric"]]
+    final_through: Required[str]
+
+class PlatformEventPage(TypedDict, total=False):
+    data: Required[list["PlatformEvent"]]
+    page: Required["PageInfo"]
+
+PlatformEvent = dict[str, Any]
+
 class SessionElevation(TypedDict, total=False):
     """How long this session carries the control plane's scope."""
     elevated_until: Required[str]
@@ -729,7 +812,7 @@ class InstanceSetting(TypedDict, total=False):
     minimum: int
     maximum: int
     position: int
-    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE"]
+    workspace_may: Literal["TIGHTEN", "RAISE", "REPLACE", "PLAN_REPLACE"]
 
 class InstanceSettings(TypedDict, total=False):
     """The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use."""
@@ -739,6 +822,7 @@ class InstanceSettings(TypedDict, total=False):
     quotas: dict[str, Any]
     ai: dict[str, Any]
     blocklist_file: str
+    metering: bool
     source: str
     is_enforced_from_file: bool
     version: int
@@ -815,7 +899,9 @@ class MfaChallenge(TypedDict, total=False):
     """The second step a two-step sign-in owes. The pending credential is a row with the session machinery's discipline - short-lived, single-use, revoked by the clock - and it can do nothing but complete this sign-in."""
     pending_token: Required[str]
     expires_at: Required[str]
-    methods: Required[list[Literal["TOTP", "RECOVERY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
+    methods: Required[list[Literal["TOTP", "RECOVERY", "PASSKEY", "ENROLL", "PASSWORD_CHANGE", "LINK", "TERMS"]]]
+    passkey_options: "PasskeyAssertionOptions"
+    passkey_setup: bool
     password_rules: "PasswordRules"
     email: str | None
     provider_name: str | None
@@ -840,6 +926,10 @@ class SignInCompletion(TypedDict, total=False):
     pending_token: Required[str]
     code: str | None
     recovery_code: str | None
+    raw_id: str | None
+    client_data_json: str | None
+    authenticator_data: str | None
+    signature: str | None
 
 class TotpEnrollmentStart(TypedDict, total=False):
     """Empty for a signed-in caller; the pending credential for an enforcement sign-in. A body because the credential authenticates the call and travels nowhere else."""
@@ -877,6 +967,9 @@ class AdminTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    external_reference: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
@@ -960,6 +1053,71 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
+PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
+
+class PlanChange(TypedDict, total=False):
+    """What a plan decides, in the installation level's shape: each area maps a key to `{value, locked}`, and a key the plan does not name falls through to the installation. A lock here holds every workspace on the plan to the value ("Set by your plan")."""
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class PlanCreate(TypedDict, total=False):
+    """A new plan - its short name and what it decides, as PlanChange."""
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+
+class Plan(TypedDict, total=False):
+    name: Required[str]
+    display_name: Required[str]
+    sign_in: dict[str, Any]
+    legal: dict[str, Any]
+    quotas: dict[str, Any]
+    ai: dict[str, Any]
+    left_out: list["PlanFeature"]
+    version: Required[int]
+    workspaces: Required[int]
+    created_at: Required[str]
+    updated_at: Required[str]
+
+class TenantPlanMove(TypedDict, total=False):
+    plan: Required[str | None]
+    expected_version: int
+
+class TenantPlanMoved(TypedDict, total=False):
+    tenant: Required["AdminTenant"]
+    features_resting: Required[list["PlanFeature"]]
+    exceptions_kept: Required[list[str]]
+    limits_exceeded: list["LimitExceeded"]
+
+class LimitExceeded(TypedDict, total=False):
+    quota: Required[str]
+    limit: Required[int]
+    used: Required[int]
+
+class TenantUpdate(TypedDict, total=False):
+    external_reference: Required[str | None]
+
+class TenantQuery(TypedDict, total=False):
+    slug: str
+    external_reference: str
+    plan: str
+    without_plan: bool
+    status: Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]
+    size: int
+    cursor: str | None
+
+class AdminTenantPage(TypedDict, total=False):
+    data: Required[list["AdminTenant"]]
+    page: Required["PageInfo"]
+
 class TenantProvision(TypedDict, total=False):
     slug: Required[str]
     display_name: Required[str]
@@ -967,6 +1125,8 @@ class TenantProvision(TypedDict, total=False):
     default_time_zone: str | None
     owner_email: Required[str]
     owner_display_name: str | None
+    plan: str | None
+    external_reference: str | None
 
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
@@ -976,6 +1136,9 @@ class ProvisionedTenant(TypedDict, total=False):
     default_locale: str
     default_time_zone: str
     created_at: Required[str]
+    plan: str | None
+    external_reference: str | None
+    version: int
     purge_after: str | None
     legal_hold: bool
     purge_started_at: str | None
@@ -992,12 +1155,16 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "accounts"]]
     limit: Required[int]
     used: int | None
     ratio: float | None
     configured: bool
     locked: bool
+    source: "QuotaSource"
+    lock: "PolicyLock"
+
+QuotaSource = Literal["DEFAULT", "INSTANCE", "PLAN", "EXCEPTION", "WORKSPACE"]
 
 class TenantQuotas(TypedDict, total=False):
     """Partial by design - each quota, settable per workspace. A provided value becomes the ceiling (0 = unlimited), an explicit null clears the override, an absent key changes nothing."""
@@ -1007,6 +1174,7 @@ class TenantQuotas(TypedDict, total=False):
     automation_runs_per_hour: int | None
     webhook_targets: int | None
     export_jobs: int | None
+    accounts: int | None
     ai_tokens_per_day: int | None
 
 class TenantDeletionScheduled(TypedDict, total=False):
@@ -1068,18 +1236,113 @@ class OauthGrant(TypedDict, total=False):
     last_used_at: str | None
 
 class StepUpRequest(TypedDict, total=False):
-    """Exactly one method: the password; the authenticator's current code; a recovery code; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
+    """Exactly one method: the password; the authenticator's current code; a recovery code; a passkey or security key's answer to the options of `POST /auth/step-up:passkey-options`; or, for `PROVIDER`, the `state` and `authorization_code` the provider sent the browser back with after `POST /auth/step-up:provider`. Each proves the person holding the session is still the person who opened it."""
     password: str | None
     code: str | None
     recovery_code: str | None
     state: str | None
     authorization_code: str | None
+    raw_id: str | None
+    client_data_json: str | None
+    authenticator_data: str | None
+    signature: str | None
 
 class ConnectedIdentity(TypedDict, total=False):
     """One provider identity connected to the caller's account."""
     provider_id: Required[str]
     provider_name: Required[str]
     linked_at: Required[str]
+
+class Passkey(TypedDict, total=False):
+    """One passkey or security key of the caller's account."""
+    id: Required[str]
+    name: Required[str]
+    created_at: Required[str]
+    last_used_at: Required[str | None]
+    rp_id: Required[str | None]
+
+class PasskeyRename(TypedDict, total=False):
+    name: Required[str]
+
+class PasskeyList(TypedDict, total=False):
+    passkeys: Required[list["Passkey"]]
+    limit: Required[int]
+    can_add: Required[bool]
+    cannot_add_reason: Literal["auth.passkey_limit_reached", "auth.passkey_unavailable", "auth.step_up_no_method"]
+    can_remove: Required[bool]
+    cannot_remove_reason: Literal["auth.mfa_required_by_tenant", "auth.step_up_no_method"]
+    rp_id: Required[str | None]
+
+class PasskeySignInOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.get({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
+    public_key: Required[dict[str, Any]]
+    expires_at: Required[str]
+
+class PasskeyAssertion(TypedDict, total=False):
+    """What `navigator.credentials.get()` answered, base64url without padding."""
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    authenticator_data: Required[str]
+    signature: Required[str]
+    user_handle: Required[str]
+
+class PasskeyAssertionOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.get({ publicKey })` when a passkey or security key is the second factor or the fresh proof, in the WebAuthn JSON form."""
+    public_key: Required[dict[str, Any]]
+    expires_at: Required[str]
+
+class PasskeyEnrollmentStart(TypedDict, total=False):
+    pending_token: Required[str]
+
+class PasskeyEnrollment(TypedDict, total=False):
+    """The `ENROLL` step's credential, what the ceremony answered, and the name."""
+    pending_token: Required[str]
+    name: Required[str]
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    attestation_object: Required[str]
+    transports: list["PasskeyTransport"]
+
+class PasskeyRegistrationOptions(TypedDict, total=False):
+    """The options for `navigator.credentials.create({ publicKey })`, in the WebAuthn JSON form: every binary value is base64url without padding."""
+    public_key: Required["PasskeyCreationOptions"]
+    expires_at: Required[str]
+
+class PasskeyCreationOptions(TypedDict, total=False):
+    rp: Required[dict[str, Any]]
+    user: Required[dict[str, Any]]
+    challenge: Required[str]
+    pubKeyCredParams: Required[list[dict[str, Any]]]
+    timeout: Required[int]
+    excludeCredentials: Required[list["PasskeyDescriptor"]]
+    authenticatorSelection: Required[dict[str, Any]]
+    attestation: Required[Literal["none"]]
+
+class PasskeyDescriptor(TypedDict, total=False):
+    type: Required[Literal["public-key"]]
+    id: Required[str]
+    transports: list["PasskeyTransport"]
+
+PasskeyTransport = Literal["usb", "nfc", "ble", "hybrid", "internal", "smart-card"]
+
+class PasskeyRegistration(TypedDict, total=False):
+    """What `navigator.credentials.create()` answered, base64url without padding, and the name."""
+    name: Required[str]
+    raw_id: Required[str]
+    client_data_json: Required[str]
+    attestation_object: Required[str]
+    transports: list["PasskeyTransport"]
+
+class PasskeyRegistered(TypedDict, total=False):
+    passkey: Required["Passkey"]
+    recovery_codes: list[str]
+
+class PasskeyEnrolled(TypedDict, total=False):
+    """A passkey or security key set up during sign-in, and what the sign-in does next: the pair, or the `PASSWORD_CHANGE` step still owed."""
+    passkey: Required["Passkey"]
+    recovery_codes: list[str]
+    tokens: "SessionTokens" | Any
+    challenge: "MfaChallenge" | Any
 
 class ProviderConnectStart(TypedDict, total=False):
     provider_id: Required[str]
@@ -1105,7 +1368,7 @@ class ProviderStepUpAuthorization(TypedDict, total=False):
 class StepUpGrant(TypedDict, total=False):
     step_up_token: Required[str]
     expires_at: Required[str]
-    method: Required[Literal["PASSWORD", "TOTP", "RECOVERY", "PROVIDER"]]
+    method: Required[Literal["PASSWORD", "TOTP", "PASSKEY", "RECOVERY", "PROVIDER"]]
 
 class MfaDisable(TypedDict, total=False):
     password: str
@@ -2447,6 +2710,7 @@ class RetentionPolicy(TypedDict, total=False):
     enabled: bool
     export_target_id: str | None
     in_force: bool
+    last_failure: dict[str, Any] | None
 
 class RetentionPolicyUpdate(TypedDict, total=False):
     """Every field optional; an omitted one is left alone. The kind and the scope are not among them: a rule that changed either would be a different rule under an old identifier."""
@@ -2581,6 +2845,7 @@ class Job(TypedDict, total=False):
     result_url: Required[str | None]
     error_code: Required[str | None]
     error_params: dict[str, Any]
+    outcome_code: str
     created_at: Required[str]
     finished_at: Required[str | None]
 
@@ -2652,6 +2917,8 @@ class Capabilities(TypedDict, total=False):
     instance: "InstanceReach"
     workspace_permissions: list[Literal["READ", "WRITE_ITEMS", "STRUCTURE", "MANAGE_MEMBERS", "AUTOMATION", "DELETE_CONTAINER", "READ_CONFIGURATION", "AUDIT_READ"]]
     private_hub_offered: bool
+    account_link: str
+    not_included: list["PlanFeature"]
     deprecations: list["DeprecatedField"]
 
 class DeprecatedField(TypedDict, total=False):

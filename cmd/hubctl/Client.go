@@ -171,7 +171,17 @@ func (c *Client) PostWithHeader(
 // take: a data subject request is advanced by naming the field that changes rather than by sending
 // the whole case back (api-guidelines.md).
 func (c *Client) Patch(ctx context.Context, path string, body, into any) error {
-	return c.call(ctx, http.MethodPatch, path, nil, body, nil, into)
+	return c.PatchVersioned(ctx, path, body, "", into)
+}
+
+// PatchVersioned is Patch with the version the caller read as a precondition; an empty version
+// sends no If-Match, as PutVersioned does.
+func (c *Client) PatchVersioned(ctx context.Context, path string, body any, ifMatch string, into any) error {
+	header := map[string][]string{}
+	if ifMatch != "" {
+		header["If-Match"] = []string{ifMatch}
+	}
+	return c.call(ctx, http.MethodPatch, path, nil, body, header, into)
 }
 
 // Put writes one addressed resource - a custom field's value, an attachment's membership. The

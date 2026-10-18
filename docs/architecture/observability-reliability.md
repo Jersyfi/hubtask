@@ -210,7 +210,7 @@ Alerts are symptom-based, each with a runbook. **The rule files and the runbooks
 catalogue**: condition, threshold and severity live in
 [`deploy/observability/alerts/`](../../deploy/observability/alerts/), meaning and action in
 [`deploy/observability/runbooks/`](../../deploy/observability/runbooks/). Every rule carries its
-catalogue ID (A-01…A-20) as the label `alert_id` and its runbook as the annotation `runbook`;
+catalogue ID (A-01…A-21) as the label `alert_id` and its runbook as the annotation `runbook`;
 thresholds are starting values an operator tunes in their own copy.
 
 **Which file an alert is in is a decision about who is paged** (§11):
@@ -310,8 +310,10 @@ routing by `severity`, the SMTP delivery into a mail catcher and the retention.
   hours; every other alert's silence means nothing until it has arrived.
 * The watchdog and the scrape check (`up{job="hubtask"} == 0`) carry no `alert_id`: they are this
   cluster watching itself, not the product's catalogue.
-* A-12 fires permanently on an environment that keeps no backups by decision; it is routed to a
-  receiver that sends nothing rather than silenced by hand.
+* A-12's backup half (`HubtaskBackupStale`) fires permanently on an environment that runs no
+  application backups by decision; it is routed to a receiver that sends nothing rather than
+  silenced by hand. Its recovery half - the WAL archive, the base backup, the recoverability
+  point - routes like every other alert where the database is in production's shape.
 
 ### 13.2 Capacity
 

@@ -45,6 +45,20 @@ func (q *Queries) CountTenantItems(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countTenantPeople = `-- name: CountTenantPeople :one
+SELECT count_people()::bigint
+`
+
+// The people limit's count (multi-tenancy.md §4.2): active, restricted and managed accounts and the
+// invitations still open. A service account is no person, and an invitation whose link ran out has
+// freed its place until it is renewed.
+func (q *Queries) CountTenantPeople(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countTenantPeople)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countTenantRunsSince = `-- name: CountTenantRunsSince :one
 SELECT count(*) FROM rule_run
 WHERE started_at >= $1 AND status <> 'THROTTLED'
@@ -68,6 +82,34 @@ func (q *Queries) CountWebhookTargets(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const invitationIsOpen = `-- name: InvitationIsOpen :one
+SELECT EXISTS (
+  SELECT 1 FROM account
+  WHERE id = $1 AND kind = 'USER' AND deleted_at IS NULL AND status = 'INVITED'
+    AND (redemption_expires_at IS NULL OR redemption_expires_at > now())
+)
+`
+
+// Whether the people count holds this invitation: the same condition CountTenantPeople reads.
+func (q *Queries) InvitationIsOpen(ctx context.Context, id pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, invitationIsOpen, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const lockTenantPeople = `-- name: LockTenantPeople :exec
+SELECT pg_advisory_xact_lock(hashtext('people:' || current_tenant_id()::text))
+`
+
+// Taken by the people limit's guard, inside the transaction that creates a person and before it
+// counts: two creations at the last place would otherwise each see room. Transaction-scoped, per
+// tenant, like the owners' lock (Identity.sql); taken before the audit chain's, never after it.
+func (q *Queries) LockTenantPeople(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockTenantPeople)
+	return err
 }
 
 const setTenantOwnAiBudget = `-- name: SetTenantOwnAiBudget :execrows

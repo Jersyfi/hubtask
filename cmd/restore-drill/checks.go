@@ -139,12 +139,26 @@ var rlsExceptions = map[string]string{
 	"item_capability_profile": "the system defaults (tenant_id IS NULL) are the owner's to seed and " +
 		"nobody else's to write, and FORCE would bind the owner too (ADR-0052). The policy still " +
 		"applies in full to every role that is not the owner, hubtask_app among them",
+	"restore_drill_marker": "the restore drill's two marker rows per run (migration 0071): " +
+		"installation-scoped, no tenant column, and the application role has no access at all",
 	"operator": "the installation's operator register (ADR-0070 §1): reachable only through " +
 		"SECURITY DEFINER functions, and the application role has no direct grant on it",
 	"instance_setup_code": "the first start's one-time setup code (UC-INS-01): it exists before " +
 		"any workspace does, and the application role has no direct grant on it",
 	"instance_setting": "the installation's own configuration (ADR-0070 §2): every workspace has " +
 		"to read it, and it holds configuration rather than a person's data",
+	"plan": "the installation's plans (multi-tenancy.md §4.2): every workspace reads its plan, and " +
+		"it holds configuration rather than a person's data",
+	"platform_event": "the installation's events for a purchase platform (multi-tenancy.md §4.3): " +
+		"read across every workspace by the control plane, and they outlive the workspaces they name",
+	"platform_subscription": "the installation's subscriptions for a purchase platform (multi-tenancy.md §4.3): " +
+		"no tenant column, reached only by the control plane and its delivery jobs",
+	"platform_delivery": "the deliveries of the installation's subscriptions: no tenant column, " +
+		"reached with their subscription",
+	"usage_archive": "a purged workspace's daily counts (multi-tenancy.md §4.3): kept after the " +
+		"workspace's row is gone, counts only, no name and no reference",
+	"plan_setting": "what a plan decides (multi-tenancy.md §4.2): read with its plan, configuration " +
+		"rather than a person's data",
 }
 
 // rowLevelSecurityForced is T-20's structural half: every table carrying a tenant column has row

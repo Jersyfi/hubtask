@@ -138,11 +138,15 @@ func (s *suite) engineAt(at time.Time) lifecycle.RunRetention {
 		Clock:     clock.Fixed(at),
 		IDs:       ids,
 		Rules:     postgres.NewRetentionRuleRepository(),
+		// A rule set aside shows why, written beside the pass, as the server wires it.
+		RuleFailures: postgres.NewRetentionRuleRepository(), Independent: s.uow.(persistence.Independent),
 		Sweeper: lifecycle.Sweeper{
 			Rules:   postgres.NewRetentionRuleRepository(),
 			Marking: postgres.NewRetentionMarkingRepository(),
 			Holds:   store,
 			Items:   postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
+			Entries: postgres.NewItemRepository(security.NewCursorCodec(installationSecret)),
+			Cursors: postgres.NewRetentionCursorRepository(),
 			Purger:  purger,
 			Changes: postgres.NewChangeLog(),
 			// The expression engine, so that a conditioned rule is evaluated here as it is in
@@ -182,7 +186,7 @@ type noJobs struct{}
 func (noJobs) Enqueue(context.Context, queue.Request) (shared.ID, error) { return "", nil }
 func (noJobs) Claim(context.Context, queue.Lease) ([]queue.Job, error)   { return nil, nil }
 func (noJobs) Hold(context.Context, queue.Job) error                     { return nil }
-func (noJobs) Complete(context.Context, queue.Job) error                 { return nil }
+func (noJobs) Complete(context.Context, queue.Job, string) error         { return nil }
 func (noJobs) Repeat(context.Context, queue.Job, time.Time) error        { return nil }
 func (noJobs) Fail(context.Context, queue.Failure) error                 { return nil }
 func (noJobs) Depth(context.Context) ([]queue.Depth, error)              { return nil, nil }

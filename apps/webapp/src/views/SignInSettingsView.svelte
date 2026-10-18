@@ -61,9 +61,9 @@
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
-  import { signInPolicy, type LockOrigin, type Setting } from '../lib/data/signinpolicy.svelte.ts';
+  import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { workspaceRefusal } from '../lib/data/capability.svelte.ts';
+  import { includedHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -148,6 +148,13 @@
     return setting.source === 'WORKSPACE' ? setting.value : '';
   }
 
+  /** The level above's value in a sentence, naming the plan where the plan decided it. */
+  function aboveValue(source: PolicySource, value: string): string {
+    return source === 'PLAN'
+      ? t('app.signin_settings.plan_default', { value })
+      : t('app.signin_settings.installation_default', { value });
+  }
+
   /**
    * Where a link comes from, said under its field: nothing where it is locked (the field says who
    * locked it), the installation's where this workspace set none, the installation's beside the
@@ -159,12 +166,13 @@
     const inherited = setting.installation_source !== 'DEFAULT' && setting.installation !== '';
     if (own.trim() !== '') {
       return inherited
-        ? `${t('app.signin_settings.source_workspace')} ${t('app.signin_settings.installation_default', { value: setting.installation })}`
+        ? `${t('app.signin_settings.source_workspace')} ${aboveValue(setting.installation_source, setting.installation)}`
         : t('app.signin_settings.source_workspace');
     }
-    return inherited
-      ? t('app.signin_settings.link_inherited', { value: setting.installation })
-      : t('app.signin_settings.link_none');
+    if (!inherited) return t('app.signin_settings.link_none');
+    return setting.installation_source === 'PLAN'
+      ? t('app.signin_settings.link_inherited_plan', { value: setting.installation })
+      : t('app.signin_settings.link_inherited', { value: setting.installation });
   }
 
   /** The rows that moved, in the shape the contract takes. Empty means there is nothing to save. */
@@ -194,8 +202,9 @@
     // The level above is the installation over Hubtask's default: where the installation decided
     // nothing, it is Hubtask's default that the workspace may not go below, and saying "the
     // installation" there would contradict the origin line beside it.
-    return setting.installation_source === 'DEFAULT'
-      ? t('app.signin_settings.required_default')
+    if (setting.installation_source === 'DEFAULT') return t('app.signin_settings.required_default');
+    return setting.installation_source === 'PLAN'
+      ? t('app.signin_settings.required_plan')
       : t('app.signin_settings.required_above');
   }
 
@@ -204,7 +213,7 @@
     if (setting.lock !== null) return '';
     const above = setting.installation_source === 'DEFAULT'
       ? ''
-      : ` ${t('app.signin_settings.installation_default', { value: shown(setting.installation) })}`;
+      : ` ${aboveValue(setting.installation_source, shown(setting.installation))}`;
     switch (setting.source) {
       case 'WORKSPACE': return `${t('app.signin_settings.source_workspace')}${above}`;
       case 'INSTANCE': return t('app.signin_settings.source_installation');
@@ -280,11 +289,16 @@
     return untrack(() => signInRules.read());
   });
   const fallback = $derived(signInRules.rules?.password_fallback === true);
+  /** Whether the plan leaves the workspace's own sign-in providers out. */
+  const ownResting = $derived(includedHere('OWN_SIGN_IN_PROVIDERS') === false);
   // The installation operator's opening of the password (ADR-0078 §3), while it stands. It is the
   // fallback too, as the sign-in card sees it - but a different sentence: a person opened it, for a
   // reason and until a moment, rather than this workspace's settings leaving no way in.
   const opening = $derived(signInPolicy.opening);
   const passwordOn = $derived(policy?.methods.value.includes('PASSWORD') ?? false);
+  // Passkeys are a way in beside the others and never the last one (identity.md §23.4), so they do
+  // not count in `waysOn`.
+  const passkeyOn = $derived(policy?.methods.value.includes('PASSKEY') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
   /** The last refusal of a provider's switch, with the row it belongs to. */
@@ -315,6 +329,31 @@
     const methods = [
       ...(on ? ['PASSWORD'] : []),
       ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
+      // Kept as it is: switching the password must not switch passkeys off with it.
+      ...(passkeyOn ? ['PASSKEY'] : []),
+    ];
+    await signInPolicy.save({ methods });
+    switching = undefined;
+  }
+
+  /** Why passkeys cannot be switched here, where they cannot. */
+  function passkeyFixed(): string | undefined {
+    if (!policy) return undefined;
+    const locked = lockedBecause(policy.methods.lock);
+    if (locked) return locked;
+    if (!passkeyOn && !policy.methods.installation.includes('PASSKEY')) return t('app.signin_settings.not_offered_above');
+    return undefined;
+  }
+
+  /** Signing in with a passkey alone on or off, through the rule's `methods`. */
+  async function setPasskey(on: boolean): Promise<void> {
+    if (!policy) return;
+    switching = 'passkey';
+    wayFailure = undefined;
+    const methods = [
+      ...(passwordOn ? ['PASSWORD'] : []),
+      ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
+      ...(on ? ['PASSKEY'] : []),
     ];
     await signInPolicy.save({ methods });
     switching = undefined;
@@ -417,7 +456,15 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  />
+  >
+    {#snippet notices()}
+      {#if policy?.plan}
+        <!-- The plan a workspace is on, so "Set by your plan" refers to something a person can
+             name to their provider. A note, not an offer: no price, no other plan. -->
+        <p class="plan" data-testid="sign-in-plan"><Badge tone="info">{t('app.signin_settings.plan', { name: policy.plan })}</Badge></p>
+      {/if}
+    {/snippet}
+  </PageHeader>
 
   {#if unreadable && !policy}
     <!-- Never a spinner for a read that failed (check 8, P-11): the server's sentence, and a way to
@@ -540,6 +587,16 @@
                     {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
                     {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
                   </li>
+                  <li class="way" data-rule>
+                    <Switch
+                      label={t('app.signin_settings.way_passkey')}
+                      hint={t('app.signin_settings.way_passkey_hint')}
+                      checked={passkeyOn}
+                      onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
+                      disabledReason={switching === 'passkey' ? t('app.signin_settings.switching') : passkeyFixed()}
+                    />
+                    {@render origin(originOf(policy.methods, (value) => (value.includes('PASSKEY') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+                  </li>
                   {#each providers as one (one.id)}
                     <li class="way" data-rule>
                       <ProviderMark kind={one.kind} name={one.display_name} />
@@ -548,19 +605,37 @@
                              this workspace has, so no switch - a sentence saying so. -->
                         <span class="name">{one.display_name}</span>
                         <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+                      {:else if one.scope === 'workspace' && ownResting && one.enabled}
+                        <!-- The plan leaves the workspace's own providers out: this one signs nobody
+                             in and is not switched on here (multi-tenancy.md §4.2). Switching it off
+                             stays, so that it stays off when the plan includes it again; nothing
+                             else is offered. -->
+                        <Switch
+                          label={one.display_name}
+                          hint={t('app.plan.provider_resting_hint')}
+                          checked
+                          onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
+                          disabledReason={offerRefusal ?? (switching === one.id ? t('app.signin_settings.switching') : undefined)}
+                        />
+                        {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+                      {:else if one.scope === 'workspace' && ownResting}
+                        <!-- Resting and off: a sentence, no switch - switching it on is refused. -->
+                        <span class="name">{one.display_name}</span>
+                        <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
                       {:else}
                         {@const mandated = one.installation_lock === 'TURNS_ON'}
+                        {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
                         <Switch
                           label={one.display_name}
                           hint={mandated
-                            ? t('app.signin_settings.way_mandated')
+                            ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
                             : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
                           checked={one.offered_here === true}
                           onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
                           disabledReason={offerRefusal ??
                             (switching === one.id
                               ? t('app.signin_settings.switching')
-                              : mandated ? t('app.signin_settings.locked_installation') : lastWay(one.offered_here === true))}
+                              : mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true))}
                         />
                         {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
                           <!-- Said under the switch it is about, while there is still time to act. -->
@@ -701,6 +776,7 @@
   }
 
   .lead { margin: 0; color: var(--text-secondary); }
+  .plan { margin: 0; }
 
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 

@@ -290,6 +290,33 @@ SELECT
 FROM work_item wi
 WHERE wi.id = $1;
 
+-- name: FindWorkItems :many
+-- FindWorkItem for many entries in one statement: the retention sweep reads a page's entries at
+-- once when a rule's condition names `item`, rather than one statement per candidate. The same
+-- columns and the same hiding of a deleted definition's values, so a condition sees what Find
+-- would have shown it. An identifier of another tenant is simply absent (row level security).
+SELECT
+  wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
+  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
+  wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
+  (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
+     FROM jsonb_each(wi.custom_fields) AS kv
+    WHERE EXISTS (
+      SELECT 1 FROM custom_field_definition cfd
+       WHERE cfd.deleted_at IS NULL
+         AND cfd.id = (wi.custom_field_refs ->> kv.key)::uuid
+         AND (cfd.collection_id = wi.collection_id OR cfd.collection_id IS NULL)
+    ))::jsonb AS custom_fields,
+  wi.content_language, wi.calendar_uid, wi.recurrence_rule_id, wi.recurrence_source_id,
+  wi.origin_jumble_id,
+  wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
+  wi.retention_blocked_by,
+  wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
+  wi.version
+FROM work_item wi
+WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
+
 -- name: LastWorkItemOrderKey :one
 -- The highest rank among the siblings of a new item: same collection, same parent. A NULL parent
 -- is the level directly under the collection, which is why the comparison is IS NOT DISTINCT FROM

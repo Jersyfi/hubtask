@@ -55,4 +55,3 @@ See [backup-restore.md](../../architecture/backup-restore.md) §8.5–8.6 and
 ## Today
 
 * Check 5: not met on Compose — the 35 days are enforced by the platform's database cluster policy and object lock only; on Compose they are the operator's own rotation of the dump.
-* Check 6: not met — `docs/evidence/` holds no restore-drill record; the first real drill is blocked on the production namespace.

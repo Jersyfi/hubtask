@@ -29,11 +29,13 @@
  * every entry screen draws as though no type carried anything.
  */
 
-import { TransportError, type InstallationSetUp } from '@hubtask/sync-engine';
+import { TransportError, type InstallationSetUp, type PasskeyAssertion, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
+
+import type { KeyAnswer } from './data/passkeys.ts';
 
 import { manifest } from './data/capabilities.svelte.ts';
 import { instance } from './data/instance.svelte.ts';
-import { engine, whenCredentialRefused } from './data/engine.ts';
+import { engine, isPaused, whenCredentialRefused, whenWorkspacePaused } from './data/engine.ts';
 import { live } from './data/live.svelte.ts';
 import { messages } from './i18n/i18n.svelte.ts';
 import { platform } from './platform/index.ts';
@@ -52,6 +54,8 @@ const SET_PASSWORD = '/auth/sessions:set-password';
 const LINK = '/auth/sessions:link';
 /** The step a sign-in ends in while the terms of use in force are not agreed (UC-ID-19). */
 const AGREE_TERMS = '/auth/sessions:agree-terms';
+/** A passkey sign-in's finish (identity.md §23.4). */
+const PASSKEY_SIGN_IN = '/auth/sessions:passkey';
 
 /**
  * The terms of use a person is asked to agree to: where they are kept, their version where they
@@ -114,6 +118,10 @@ export interface SecondFactorOwed {
   readonly afterReset?: boolean;
   /** The terms of use to agree to, where the step is `TERMS`. */
   readonly terms?: TermsInForce;
+  /** The key's ceremony, where the step offers `PASSKEY` (identity.md §23.2). */
+  readonly passkeyOptions?: PasskeyAssertionOptions;
+  /** Whether a key can be set up here instead of the app, where the step is `ENROLL`. */
+  readonly passkeySetup?: boolean;
 }
 
 class Session {
@@ -147,6 +155,12 @@ class Session {
   #signingIn = false;
   /** Set when a session ended under somebody rather than when a sign-in was refused. */
   #ended = $state(false);
+  /**
+   * Set when the workspace answered that it is paused - at sign-in, or under a session - with the
+   * provider's account link where the server sent one: only to an owner or administrator who
+   * completed the proof (UC-INS-13 check 11). Cleared by the next attempt.
+   */
+  #paused = $state<{ readonly accountUrl?: string } | undefined>(undefined);
   /** Set when the second step's time ran out, so step one can say why it is back (UC-ID-02 check 2). */
   #waitedTooLong = $state(false);
   /**
@@ -207,6 +221,23 @@ class Session {
     return this.#ended;
   }
 
+  /** Whether the workspace is paused, and the provider's account link where the server sent one. */
+  get paused(): { readonly accountUrl?: string } | undefined {
+    return this.#paused;
+  }
+
+  /**
+   * The workspace was paused under the session: every request is refused, so the session ends here
+   * and the sign-in screen says why. No link - a refusal to a session is no proof of a role; the
+   * next sign-in that completes the proof answers it to whom it is for.
+   */
+  pausedUnder(): void {
+    if (this.#signingIn || this.#status === 'signed-out') return;
+    this.#paused = {};
+    this.#problem = undefined;
+    this.#discard();
+  }
+
   /** Whether step one is back because the second step's time ran out. Cleared by the next attempt. */
   get waitedTooLong(): boolean {
     return this.#waitedTooLong;
@@ -233,6 +264,7 @@ class Session {
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#email = undefined;
     this.#declinedTermsOf = undefined;
     this.#status = 'signed-out';
@@ -307,6 +339,8 @@ class Session {
       afterReset?: boolean;
       passwordRules?: unknown;
       terms?: TermsInForce;
+      passkeyOptions?: PasskeyAssertionOptions;
+      passkeySetup?: boolean;
     } = {},
   ): void {
     this.#pending = pendingToken;
@@ -318,6 +352,8 @@ class Session {
       afterReset: context.afterReset,
       passwordRules: context.passwordRules,
       terms: context.terms,
+      passkeyOptions: context.passkeyOptions,
+      passkeySetup: context.passkeySetup,
     };
     // A provider arrival and a reset link typed no address, so the identity line takes the one the
     // server names.
@@ -363,6 +399,26 @@ class Session {
   }
 
   /**
+   * Signs in with what a passkey ceremony answered (identity.md §23.4). Nobody typed a name, so the
+   * identity line of a step still owed takes the one the server names. A challenge that ran out is
+   * not a refusal anybody should read: `'stale'` lets the caller ask for new options quietly.
+   */
+  async signInWithPasskey(assertion: PasskeyAssertion): Promise<'signed-in' | 'owed' | 'stale' | 'refused'> {
+    this.#email = '';
+    let stale = false;
+    const opened = await this.#open(
+      () => engine.mutate<SessionTokens | SecondFactorAnswer>('POST', PASSKEY_SIGN_IN, assertion),
+      { onRefusal: (error) => { stale = error.detailCode === 'auth.passkey_challenge_stale'; } },
+    );
+    if (opened) return 'signed-in';
+    if (stale) {
+      this.#problem = undefined;
+      return 'stale';
+    }
+    return this.#owed ? 'owed' : 'refused';
+  }
+
+  /**
    * Sets the password the enforcement step asked for, and signs in with it.
    *
    * The pending credential is the proof, exactly as it is for a code: one credential, one step,
@@ -399,6 +455,19 @@ class Session {
   }
 
   /**
+   * Presents a passkey or security key's answer to the step's options (identity.md §23.2). A refused
+   * key is a retry, as a wrong code is: the credential stays.
+   */
+  async completeWithKey(answer: KeyAnswer): Promise<boolean> {
+    const pending = this.#pending;
+    if (pending === undefined) return false;
+    return this.#open(
+      () => engine.mutate<SessionTokens>('POST', VERIFY, { pending_token: pending, ...answer }),
+      { keepPending: true },
+    );
+  }
+
+  /**
    * The pending credential, for the one caller entitled to it: the enrolment an enforcement
    * sign-in routes into. It is presented to `:enroll` and `:confirm` and travels nowhere else.
    */
@@ -414,6 +483,7 @@ class Session {
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#status = 'signed-in';
     void manifest.refresh();
   }
@@ -454,6 +524,7 @@ class Session {
     options: { keepPending?: boolean; onRefusal?: (error: TransportError) => void } = {},
   ): Promise<boolean> {
     this.#problem = undefined;
+    this.#paused = undefined;
     this.#ended = false;
     this.#waitedTooLong = false;
     this.#declinedTermsOf = undefined;
@@ -473,6 +544,8 @@ class Session {
           passwordRules: answer.password_rules,
           // The terms to agree to, where the step is `TERMS`.
           ...(answer.terms ? { terms: answer.terms } : {}),
+          ...(answer.passkey_options ? { passkeyOptions: answer.passkey_options } : {}),
+          ...(answer.passkey_setup ? { passkeySetup: true } : {}),
         };
         this.#pending = answer.pending_token;
         // An invitation card typed no address, so the identity line takes the one the server names.
@@ -498,9 +571,20 @@ class Session {
     } catch (error) {
       // Everything the engine throws is a `TransportError`; anything else would be a defect in
       // the seam rather than an answer, and `errors.internal` is what a reader is owed for one.
-      this.#problem = error instanceof TransportError
-        ? renderProblem(error, messages)
-        : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      if (isPaused(error)) {
+        // Not a refusal of what the person typed: the workspace is paused, and the screen says so
+        // in its own words rather than as a red sentence beside the form.
+        const accountUrl = error.params?.['account_url'];
+        this.#paused = accountUrl ? { accountUrl } : {};
+        this.#problem = undefined;
+        // A second step a paused workspace refused is over: its form does not stay to be retried.
+        this.#pending = undefined;
+        this.#owed = undefined;
+      } else {
+        this.#problem = error instanceof TransportError
+          ? renderProblem(error, messages)
+          : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+      }
       if (error instanceof TransportError) options.onRefusal?.(error);
       this.#discard();
       return false;
@@ -610,6 +694,8 @@ interface SecondFactorAnswer {
   readonly password_rules?: unknown;
   readonly terms?: TermsInForce;
   readonly email?: string;
+  readonly passkey_options?: PasskeyAssertionOptions;
+  readonly passkey_setup?: boolean;
 }
 
 /**
@@ -631,3 +717,4 @@ export const session = new Session();
 // Registered at module load so that a `401` from a request nobody is watching still ends the
 // session.
 whenCredentialRefused(() => session.refused(location.pathname + location.search));
+whenWorkspacePaused(() => session.pausedUnder());

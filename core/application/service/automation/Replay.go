@@ -10,6 +10,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -188,7 +189,8 @@ func (h ReplayRuleRun) record(
 // Descriptor is the catalogue entry.
 func (h ReplayRuleRun) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: ReplayRuleRunName,
+		Name:        ReplayRuleRunName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Completes a failed run: re-executes its remaining actions under the same " +
 			"idempotency keys, so an action the original run finished does nothing again and " +
 			"only what never happened happens now. Only a FAILED run, and only while its rule " +

@@ -243,7 +243,7 @@ expect_contains "auth status" "$status" '"signed_in": true'
 # a field error, so the list is checked by being used rather than by being maintained.
 SESSION_SCOPES='accounts:read,accounts:write,audit:export,audit:read,backup:manage,backup:read'
 SESSION_SCOPES="$SESSION_SCOPES,comments:write,containers:read,containers:write,items:read,items:write"
-SESSION_SCOPES="$SESSION_SCOPES,jobs:cancel,jobs:read,media:read,media:write,members:write"
+SESSION_SCOPES="$SESSION_SCOPES,jobs:cancel,jobs:read,media:read,media:write,members:read,members:write"
 SESSION_SCOPES="$SESSION_SCOPES,privacy:manage,privacy:read,recurrence:write,reminders:write"
 SESSION_SCOPES="$SESSION_SCOPES,retention:manage,retention:read,templates:read,templates:write,trash:read"
 # The automation surface, which the mail demo below needs: minting the jumble's intake address is
@@ -933,6 +933,30 @@ expect_contains "the JSON page" "$page" '"has_more"'
 if [ "$(head -c 1 <<< "$page")" != "{" ]; then
 	fail "the JSON output does not begin with a document: $page"
 fi
+
+echo "--- people: an invitation, a role, an account without an address ---"
+# UC-ID-14 check 7 and UC-ID-20 check 9 at the terminal, against the real use cases: the invitation
+# and its grant are the web app's two calls, a role is taken away again, and a managed account's
+# start password is shown once - on standard output, with the warning on standard error.
+invited="$(hubctl people invite --email newcomer@example.org --name 'A newcomer' --role MEMBER 2>/dev/null)"
+INVITED_ID="$(printf '%s\n' "$invited" | first_id)"
+[ -n "$INVITED_ID" ] || { echo "FAILED: the invitation produced no account"; echo "$invited"; exit 1; }
+roles="$(hubctl people ls)"
+expect_contains "people ls" "$roles" "account $INVITED_ID"
+MEMBERSHIP_ID="$(printf '%s\n' "$roles" | grep "account $INVITED_ID" | awk '{print $1}')"
+hubctl people revoke "$MEMBERSHIP_ID" 2>/dev/null
+expect_missing "people ls after revoke" "$(hubctl people ls)" "account $INVITED_ID"
+
+managed_err="$(mktemp)"
+managed="$(hubctl people add-managed --name 'Lena' --sign-in lena-e2e --role MEMBER 2>"$managed_err")"
+expect_contains "the managed account's warning" "$(cat "$managed_err")" "shown once"
+START_PASSWORD="$(printf '%s\n' "$managed" | tail -1)"
+[ -n "$START_PASSWORD" ] || { echo "FAILED: no start password was printed"; exit 1; }
+expect_missing "the warning" "$(cat "$managed_err")" "$START_PASSWORD"
+rm -f "$managed_err"
+# And a refusal reaches the terminal as the server's sentence: the sign-in name is taken now.
+taken="$(hubctl people add-managed --name 'Lena again' --sign-in lena-e2e --role MEMBER 2>&1 || true)"
+expect_contains "a sign-in name taken" "$taken" "already signs in with that name"
 
 echo "--- what the credentials still owed ---"
 # The credential is answered once and nowhere else. A listing that carried it would make "shown

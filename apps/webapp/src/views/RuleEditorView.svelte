@@ -35,7 +35,8 @@
   import { REFERENCE, eventWords, generatedName, kindWord, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { review, type Note } from '../lib/automation/review.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -666,6 +667,13 @@
 
   /** Whether the reader may change the workspace's automation (`AUTOMATION`), as the server asks. */
   const mayAutomate = $derived(mayHere('AUTOMATION').status === 'permitted');
+  /**
+   * Where the plan leaves the rules out the editor reads only: no save, no switching on, no dry run
+   * and no manual start - switching off, deleting and a new inbound address stay
+   * (multi-tenancy.md §4.2, P-05).
+   */
+  const rulesIncluded = $derived(includedHere('AUTOMATION_RULES') === true);
+  const resting = $derived(includedHere('AUTOMATION_RULES') === false);
 </script>
 
 <div class="editor">
@@ -691,17 +699,22 @@
         {/if}
         {#if isBroken}<Badge tone="danger" icon="circle-alert">{t('app.flow.health_broken')}</Badge>{:else if findings.length > 0}<Badge tone="warning" icon="triangle-alert">{t('app.flow.health_attention')}</Badge>{/if}
         {#if dirty}<Badge tone="warning">{t('app.flow.unsaved')}</Badge>{/if}
-        {#if mayAutomate}
+        {#if mayAutomate && rulesIncluded}
         <Button tone="primary" size="sm" isBusy={isWorking} busyLabel={t('app.flow.saving')} onclick={save}>{t('app.flow.save')}</Button>
         {/if}
         {#if stored && mayAutomate}
+          {#if rulesIncluded || stored.enabled}
           <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle} disabledReason={!stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined}>
             {stored.enabled ? t('app.flow.disable') : t('app.flow.enable')}
           </Button>
+          {/if}
           <Button size="sm" tone="subtle" icon="trash" onclick={() => (isDeleting = true)}>{t('app.flow.delete')}</Button>
         {/if}
       </div>
       <WorkspaceRefusal permission="AUTOMATION" />
+      {#if resting}
+        <NotInPlan title={t('app.plan.rules_title')} body={t('app.plan.rule_body')} />
+      {/if}
 
       <div class="row">
         <button class="name" class:automatic type="button" onclick={() => select({ kind: 'rule' })} title={t('app.flow.name_own')}>
@@ -914,8 +927,10 @@
             onremovecondition={removeCondition}
             onaddcondition={addCondition}
             inbound={stored?.trigger.kind === 'INBOUND_WEBHOOK' ? { rotatedAt: stored.inbound_rotated_at ?? undefined, onmint: mint, isWorking } : undefined}
-            onstart={stored?.trigger.kind === 'MANUAL' ? start : undefined}
+            onstart={stored?.trigger.kind === 'MANUAL' && rulesIncluded ? start : undefined}
           />
+        {:else if tab === 'probe' && resting}
+          <p class="quiet panel">{t('app.plan.runs_body')}</p>
         {:else if tab === 'probe'}
           <RuleProbe
             {eventTypes}

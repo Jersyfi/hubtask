@@ -99,7 +99,7 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" && name != aiModelsKey {
+		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey && name != platformSubscriptionsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -173,4 +173,92 @@ func malformedModels(source string) error {
 	return shared.ErrValidation.
 		WithDetail("config.instance_file_malformed").
 		WithParams(map[string]string{"source": source})
+}
+
+// plansKey is the list of plans (multi-tenancy.md §4.2). Not an area of the level: plans are rows
+// of their own, each a document in the shape the API takes - `name`, `display_name`, the four
+// areas and `left_out` - so a plan copied out of `GET /admin/plans/{name}` goes into the file as it is.
+const plansKey = "plans"
+
+// Plans reads the file's plans, each as the document the plan use cases read. Present is false where
+// the file says nothing about plans, which is not the same as an empty list: an enforcing file with
+// `"plans": []` removes every plan no workspace is on, while one without the key leaves the plans
+// that stand as they are - and, enforcing, closes the API's plan writes all the same, as it closes
+// every other value of the level.
+func Plans(document map[string]any, source string) (plans []map[string]any, present bool, err error) {
+	raw, present := document[plansKey]
+	if !present {
+		return nil, false, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, true, malformedPlans(source)
+	}
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, true, malformedPlans(source)
+		}
+		if name, _ := fields["name"].(string); name == "" {
+			return nil, true, malformedPlans(source)
+		}
+		plans = append(plans, fields)
+	}
+	return plans, true, nil
+}
+
+func malformedPlans(source string) error {
+	return shared.ErrValidation.
+		WithDetail("config.instance_file_malformed").
+		WithParams(map[string]string{"source": source})
+}
+
+// platformSubscriptionsKey is the installation's subscriptions for a purchase platform
+// (UC-INS-14): rows of their own, like the offered models.
+const platformSubscriptionsKey = "platform_subscriptions"
+
+// PlatformSubscription is one subscription as the file names it. The secret is never in the file -
+// a secret in a configuration file is a secret in clear - but in the file SecretFile names.
+type PlatformSubscription struct {
+	TargetURL string
+	Secret    string
+}
+
+// PlatformSubscriptions reads the file's subscriptions, each secret from the file it names.
+// Present is false where the file says nothing about them, which is not an empty list: an
+// enforcing file with `"platform_subscriptions": []` removes every subscription.
+func PlatformSubscriptions(document map[string]any, readFile func(string) ([]byte, error), source string,
+) (subscriptions []PlatformSubscription, present bool, err error) {
+	raw, present := document[platformSubscriptionsKey]
+	if !present {
+		return nil, false, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, true, malformedPlans(source)
+	}
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, true, malformedPlans(source)
+		}
+		target, _ := fields["target_url"].(string)
+		secretFile, _ := fields["secret_file"].(string)
+		if target == "" || secretFile == "" {
+			return nil, true, malformedPlans(source)
+		}
+		secret, err := readFile(secretFile)
+		if err != nil {
+			return nil, true, shared.ErrUnavailable.
+				WithDetail("config.instance_file_unreadable").
+				WithParams(map[string]string{"source": secretFile}).
+				WithCause(fmt.Errorf("reading the secret of a platform subscription: %w", err))
+		}
+		value := strings.TrimSpace(string(secret))
+		if value == "" {
+			return nil, true, malformedPlans(source)
+		}
+		subscriptions = append(subscriptions, PlatformSubscription{TargetURL: target, Secret: value})
+	}
+	return subscriptions, true, nil
 }

@@ -74,6 +74,14 @@ extraVolumeMounts: []
 # Secrets come from an existing secret, not from values.yaml.
 existingSecret: ""            # expects the keys: db-dsn, secret-key, smtp-password
 
+# The master keyring for envelope encryption (security.md §8.1): the key IDs, current first, each
+# key's material under `encryption-key-<id>` in the Secret named here (existingSecret when empty).
+# Empty: the installation starts and refuses to store anything that would have to be sealed - an AI
+# provider's key, a webhook secret, a backup target's credentials (deployment.md §6).
+encryption:
+  keys: []
+  existingSecret: ""
+
 # The database, when this chart owns it: a CloudNativePG `Cluster` in the release's namespace
 # (deployment.md §3.2, ADR-0046). Off by default - the kind needs the operator's CRDs, and an
 # installation with a database of its own hands the chart a DSN instead. With it on, the
@@ -198,6 +206,10 @@ restoreDrill:
   enabled: false
   # A CronJob beside the release hook, five-field cron. Empty: the hook alone.
   schedule: ""
+  # Whether the drill also runs after every release (the hook). Off where releases are frequent -
+  # integration deploys every push to main, and a drill of up to `timeout` after each would hold
+  # or time out the deploy - so the schedule alone runs it; the chart refuses neither being set.
+  afterRelease: true
   # The application role's DSN, a key in existingSecret: the isolation checks run as that role.
   appDsnSecretKey: db-dsn
   # The ConfigMap the result lands in and the gauge is read from. Empty: <release>-restore-drill.

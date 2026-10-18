@@ -61,6 +61,16 @@ WHERE split_part(key, '.', 1) = ANY(sqlc.arg('areas')::text[])
 -- the four narrow doors are the only way to it.
 SELECT is_operator(sqlc.arg('account_id'));
 
+-- name: IsRegisteredServiceAccount :one
+-- Whether the register holds the account's own row, and holds it as a service account's - not the
+-- empty register's owner, whom `is_operator` admits as well: a purchase platform's service account
+-- requests a deletion without a step-up only when it is registered (UC-INS-08 check 7). Through the
+-- roster's function, the register's narrow door, so no new grant is needed.
+SELECT EXISTS (
+  SELECT 1 FROM operator_roster(sqlc.arg('account_id')) r
+  WHERE r.account_id = sqlc.arg('account_id') AND r.kind = 'SERVICE_ACCOUNT'
+)::boolean AS registered;
+
 -- name: ResolveOperatorAccount :one
 -- The account an address names inside one workspace, through the register's own narrow door
 -- (migration 0109). An operator cannot list accounts across workspaces - `account` is behind row

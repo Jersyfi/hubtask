@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin, PE-auditor, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-04, P-06, P-07, P-08, P-11]
 state: partial
-tasks: [E-07, G-06, G-12, F4-18]
-checked_by: [core/application/service/lifecycle/RetentionRules_test.go, core/application/service/lifecycle/RetentionRuleLifecycle_test.go, test/integration/retention_rule_test.go, test/retention/retention_test.go, cmd/hubctl/Retention_test.go]
+tasks: [E-07, G-06, G-12, F4-18, F-1484]
+checked_by: [core/application/service/lifecycle/RetentionRules_test.go, core/application/service/lifecycle/RetentionRuleLifecycle_test.go, test/integration/retention_rule_test.go, test/retention/retention_test.go, cmd/hubctl/Retention_test.go, test/retention/rule_failure_test.go, core/application/service/lifecycle/RetentionSweepSetAside_test.go, core/application/service/lifecycle/RetentionSweepCursor_test.go, test/retention/read_cursor_test.go, apps/webapp/e2e/retention.test.mjs]
 ---
 
 # Set a retention rule and see what it would do before it acts
@@ -68,4 +68,3 @@ See [data-retention.md](../../architecture/data-retention.md) and
 ## Today
 
 * Check 9: not met in the web app and in part for `hubctl` — the web form writes workspace-wide rules only, without hub or collection scope, grace period, warning, second stage or condition; `hubctl retention add` has no grace or warning flags, and `set` has `--grace` only.
-* Check 10: not met — a failing condition stops the whole pass and is shown nowhere (#1484).

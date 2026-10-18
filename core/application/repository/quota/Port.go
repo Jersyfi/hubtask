@@ -24,10 +24,18 @@ type Overrides struct {
 	WebhookTargets        *int64
 	ExportJobs            *int64
 	AiTokensPerDay        *int64
+	// Accounts is the people the workspace may hold.
+	Accounts *int64
 	// AiOwnTokensPerDay is the workspace's own budget for its own model. Written by the workspace,
 	// never by the operator's quota write, and stored apart from the quotas key so that write cannot
 	// drop it (SetOwnAiBudget).
 	AiOwnTokensPerDay *int64
+}
+
+// PlanLimits is a plan's ceilings and the quotas it locks, by their contract names.
+type PlanLimits struct {
+	Overrides Overrides
+	Locks     map[string]bool
 }
 
 // Store reads and writes the overrides in the tenant's own settings document
@@ -53,6 +61,11 @@ type Store interface {
 	// screen says "set by the installation" there (UC-INS-09 check 5). Beside the overrides rather
 	// than in them, because an override is a ceiling a level may leave unset and a lock is not.
 	InstanceLocks(ctx context.Context) (map[string]bool, error)
+
+	// PlanLimits answers what the workspace's plan decides about its limits (multi-tenancy.md
+	// §4.2), read in the transaction's own scope: the zero value for a workspace on no plan. The
+	// workspace's own AI budget is never a plan's.
+	PlanLimits(ctx context.Context) (PlanLimits, error)
 
 	// SetOverrides replaces the quotas key of the settings document, guarded on the row
 	// version. False means the version moved under the caller. AiOwnTokensPerDay is not written:
@@ -86,6 +99,19 @@ type Usage interface {
 	// on itself.
 	AutomationRunsSince(ctx context.Context, since time.Time) (int64, error)
 
+	// Accounts counts the people the workspace holds: active, restricted and managed accounts and
+	// open invitations, never service accounts.
+	Accounts(ctx context.Context) (int64, error)
+
+	// InvitationOpen answers whether the account is an invitation whose link is still open, which
+	// the people count already holds.
+	InvitationOpen(ctx context.Context, account string) (bool, error)
+
+	// LockPeople holds the creations of people in the transaction's workspace until it ends, so a
+	// count followed by a creation is not raced by another. Only the guard takes it, and only
+	// where a limit is set: a read never does.
+	LockPeople(ctx context.Context) error
+
 	// LiveExports counts the pending and running export jobs.
 	LiveExports(ctx context.Context) (int64, error)
 
@@ -112,4 +138,15 @@ type Meter interface {
 	// Add increases one metric's tally for the calendar day `at` falls on **in the location it
 	// carries** - the caller decides whose day it is - creating the row on first use.
 	Add(ctx context.Context, metric string, at time.Time, amount int64) error
+}
+
+// Reached keeps the marks that make "a limit reached" and "the AI budget spent" told once per
+// crossing (UC-INS-14 check 2): one mark per quota, at one period - the limit's value for a
+// capacity quota, the day for an AI budget.
+type Reached interface {
+	// Mark marks the quota at the period and forgets its other periods, and reports whether this
+	// call set the mark - false when it stood already, also when another transaction set it at once.
+	Mark(ctx context.Context, quota, period string, at time.Time) (bool, error)
+	// Clear removes the quota's mark. It reads first, so a create that finds none writes nothing.
+	Clear(ctx context.Context, quota string) error
 }

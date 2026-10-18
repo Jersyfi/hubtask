@@ -83,3 +83,20 @@ func TestTheHoldsComeBackAsTheDomainsSet(t *testing.T) {
 		t.Error("a tenant-wide hold read back through the port did not block")
 	}
 }
+
+// A candidate's place in its read is its anchor and its identifier; the zero place is the start.
+func TestACandidatesPositionIsItsAnchorAndIdentifier(t *testing.T) {
+	at := time.Date(2025, 3, 1, 9, 0, 0, 0, time.UTC)
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000001")
+
+	position := PositionOf(Candidate{ID: id, AnchoredAt: at, Title: "never part of a place"})
+	if position.ID != id || !position.At.Equal(at) {
+		t.Errorf("the place is %+v, want the anchor and the identifier", position)
+	}
+	if position.IsStart() {
+		t.Error("a candidate's place reads as the start")
+	}
+	if !(Position{}).IsStart() {
+		t.Error("the zero place is not the start")
+	}
+}

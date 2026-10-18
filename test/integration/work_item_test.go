@@ -501,3 +501,40 @@ func TestACalendarUIDIsResolvedPerTenant(t *testing.T) {
 		t.Fatalf("tenant B resolved tenant A's UID: %v", err)
 	}
 }
+
+// The cross-tenant negative test for FindMany: asked for one entry of each workspace, tenant B gets
+// its own and nothing of A's - no error either, since an identifier this tenant does not hold is
+// simply absent from the answer.
+func TestFindManyAnswersOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	collectionA := collectionFor(ctx, t, tenantA, authorA)
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+
+	inA, inB := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0"))
+	}); err != nil {
+		t.Fatalf("writing A's task: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0"))
+	}); err != nil {
+		t.Fatalf("writing B's task: %v", err)
+	}
+
+	var found []work.WorkItem
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		found, err = repo.FindMany(ctx, []shared.ID{inA, inB})
+		return err
+	}); err != nil {
+		t.Fatalf("B reading both: %v", err)
+	}
+	if len(found) != 1 || found[0].ID != inB {
+		t.Fatalf("tenant B read %+v, want only its own %s", found, inB)
+	}
+	if found[0].Title != "B's" || found[0].TenantID != tenantB {
+		t.Errorf("the entry came back as %q of tenant %s", found[0].Title, found[0].TenantID)
+	}
+}

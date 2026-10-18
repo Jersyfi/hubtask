@@ -386,7 +386,7 @@ func (r Rules) assess(ctx context.Context, rule domain.Rule, now time.Time) (Pre
 	// The samples, and the block reasons with them. Drawn from a page rather than from the whole
 	// set: deciding a legal hold against a million rows to draw a preview would cost more than the
 	// run it is previewing, and what a person reads a preview for is "does this look right".
-	candidates, err := r.Marking.Due(ctx, anchor, cutoff, 0, SampleSize)
+	candidates, err := r.Marking.Due(ctx, anchor, cutoff, repository.Position{}, SampleSize)
 	if err != nil {
 		return Preview{}, err
 	}
@@ -749,6 +749,11 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 	}
 	if !rule.ExportTargetID.IsZero() {
 		out["export_target_id"] = rule.ExportTargetID.String()
+	}
+	if !rule.LastFailure.IsZero() {
+		out["last_failure"] = map[string]any{
+			"code": rule.LastFailure.Code, "at": rule.LastFailure.At.UTC().Format(time.RFC3339Nano),
+		}
 	}
 	return out
 }

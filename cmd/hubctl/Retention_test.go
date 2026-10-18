@@ -34,6 +34,21 @@ func TestListingRetentionRulesPassesTheContainerAndTheEffectiveFlag(t *testing.T
 	}
 }
 
+// A rule the last pass set aside says so, with the code of what failed (UC-LIF-04 check 10).
+func TestListingRetentionRulesShowsARuleThatFailed(t *testing.T) {
+	failing := strings.Replace(onePolicy, `"in_force":true}`,
+		`"in_force":true,"last_failure":{"code":"expression.evaluation_failed","at":"2026-10-15T08:00:00Z"}}`, 1)
+	stub := serveJSON(t, http.StatusOK, `[`+failing+`]`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "retention", "ls")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "expression.evaluation_failed since") {
+		t.Errorf("the failure is not shown: %q", out)
+	}
+}
+
 func TestAddingARuleSendsTheScopeTheDaysAndTheAction(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, onePolicy)
 

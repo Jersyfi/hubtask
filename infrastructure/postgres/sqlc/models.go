@@ -603,6 +603,8 @@ type AuthPending struct {
 	ArrivalEmail       *string
 	ArrivalDisplayName *string
 	ArrivalDirectory   *string
+	SessionID          pgtype.UUID
+	UserHandle         []byte
 }
 
 type AutoAssignPolicy struct {
@@ -1028,6 +1030,7 @@ type Job struct {
 	FinishedAt      pgtype.Timestamptz
 	Progress        *float32
 	LastErrorParams []byte
+	Outcome         *string
 }
 
 type JumbleEntry struct {
@@ -1214,6 +1217,65 @@ type OutboxEvent struct {
 	PushID         pgtype.UUID
 }
 
+type Plan struct {
+	ID          pgtype.UUID
+	Name        string
+	DisplayName string
+	Version     int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	UpdatedBy   pgtype.UUID
+	RemovedAt   pgtype.Timestamptz
+}
+
+type PlanSetting struct {
+	PlanID pgtype.UUID
+	Key    string
+	Value  []byte
+	Locked bool
+}
+
+type PlatformDelivery struct {
+	ID             pgtype.UUID
+	SubscriptionID pgtype.UUID
+	EventID        pgtype.UUID
+	EventType      string
+	Attempt        int32
+	Status         string
+	ResponseStatus *int32
+	ErrorCode      *string
+	NextAttemptAt  pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type PlatformEvent struct {
+	Number     int64
+	ID         pgtype.UUID
+	EventType  string
+	TenantID   pgtype.UUID
+	OccurredAt pgtype.Timestamptz
+	ActorType  string
+	ActorID    pgtype.UUID
+	Payload    []byte
+	DedupeKey  *string
+}
+
+type PlatformSubscription struct {
+	ID             pgtype.UUID
+	TargetUrl      string
+	SecretEnc      []byte
+	SecretKeyID    string
+	State          string
+	LastError      *string
+	LastDeliveryAt pgtype.Timestamptz
+	FromFile       bool
+	CreatedAt      pgtype.Timestamptz
+	CreatedBy      pgtype.UUID
+	UpdatedAt      pgtype.Timestamptz
+	Version        int32
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -1237,6 +1299,13 @@ type PrivateHubAccess struct {
 	Reason   string
 	OpenedAt pgtype.Timestamptz
 	EndsAt   pgtype.Timestamptz
+}
+
+type QuotaReached struct {
+	TenantID  pgtype.UUID
+	Quota     string
+	Period    string
+	ReachedAt pgtype.Timestamptz
 }
 
 type RecurrenceRule struct {
@@ -1299,6 +1368,15 @@ type RestoreRun struct {
 	Progress           []byte
 }
 
+type RetentionCursor struct {
+	TenantID pgtype.UUID
+	Reader   string
+	DataKind *string
+	RuleID   pgtype.UUID
+	AfterAt  pgtype.Timestamptz
+	AfterID  pgtype.UUID
+}
+
 type RetentionPolicy struct {
 	TenantID      pgtype.UUID
 	DataKind      string
@@ -1311,25 +1389,27 @@ type RetentionPolicy struct {
 }
 
 type RetentionRule struct {
-	ID             pgtype.UUID
-	TenantID       pgtype.UUID
-	ScopeKind      string
-	ScopeID        pgtype.UUID
-	DataKind       string
-	Condition      *string
-	RetainDays     int32
-	Action         string
-	ThenAfterDays  *int32
-	ThenAction     *string
-	GraceDays      int32
-	Notify         []byte
-	Justification  *string
-	Enabled        bool
-	ExportTargetID pgtype.UUID
-	CreatedBy      pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	Version        int32
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	ScopeKind       string
+	ScopeID         pgtype.UUID
+	DataKind        string
+	Condition       *string
+	RetainDays      int32
+	Action          string
+	ThenAfterDays   *int32
+	ThenAction      *string
+	GraceDays       int32
+	Notify          []byte
+	Justification   *string
+	Enabled         bool
+	ExportTargetID  pgtype.UUID
+	CreatedBy       pgtype.UUID
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+	LastFailureCode *string
+	LastFailureAt   pgtype.Timestamptz
 }
 
 type RetentionRun struct {
@@ -1492,6 +1572,7 @@ type Tenant struct {
 	PasswordOpenedReason    *string
 	StatusBeforeDeletion    *TenantStatus
 	PurgeStartedAt          pgtype.Timestamptz
+	ExternalReference       *string
 }
 
 type TenantHost struct {
@@ -1512,11 +1593,38 @@ type Tombstone struct {
 	PurgeAfter pgtype.Timestamptz
 }
 
+type UsageArchive struct {
+	TenantID pgtype.UUID
+	Period   pgtype.Date
+	Metric   string
+	Value    int64
+	Closing  *int64
+}
+
 type UsageRecord struct {
 	TenantID pgtype.UUID
 	Period   pgtype.Date
 	Metric   string
 	Value    int64
+	Closing  *int64
+}
+
+type WebauthnCredential struct {
+	ID             pgtype.UUID
+	TenantID       pgtype.UUID
+	AccountID      pgtype.UUID
+	CredentialID   []byte
+	PublicKey      []byte
+	Algorithm      int32
+	SignCount      int64
+	UserHandle     []byte
+	BackupEligible bool
+	BackedUp       bool
+	Transports     []string
+	Name           string
+	CreatedAt      pgtype.Timestamptz
+	LastUsedAt     pgtype.Timestamptz
+	RpID           *string
 }
 
 type WebhookDelivery struct {

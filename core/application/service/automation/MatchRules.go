@@ -7,6 +7,7 @@ import (
 	"context"
 
 	"github.com/Jersyfi/hubtask/core/application/condition"
+	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/automation"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -62,6 +63,9 @@ type MatchRules struct {
 	// (ADR-0073 §1): no condition reads it, no action sends it anywhere. Nil only in a build that
 	// has no private hubs to keep - the composition root always wires it.
 	Reach PrivateReach
+	// Entitlements is what the workspace's plan leaves out: where it leaves out the rules, no
+	// event queues a run (multi-tenancy.md §4.2). Nil includes every feature.
+	Entitlements adminrepo.Entitlements
 }
 
 // PrivateReach is the authoriser's question about a private hub, asked for somebody a rule or a
@@ -110,6 +114,10 @@ func (m MatchRules) Deliver(ctx context.Context, envelope event.Envelope) error 
 	}
 	if len(rules) == 0 {
 		return nil
+	}
+	// Asked only of a workspace with a rule that wants the event: most events want none.
+	if resting, err := rulesRest(ctx, m.Entitlements); err != nil || resting {
+		return err
 	}
 
 	// Resolved once for the whole event rather than once per rule: a workspace with twenty rules on
@@ -169,6 +177,12 @@ func (m MatchRules) deliverJumble(ctx context.Context, envelope event.Envelope) 
 
 	rules, err := m.Rules.ByTriggerKind(ctx, domain.TriggerJumbleEntry)
 	if err != nil {
+		return err
+	}
+	if len(rules) == 0 {
+		return nil
+	}
+	if resting, err := rulesRest(ctx, m.Entitlements); err != nil || resting {
 		return err
 	}
 

@@ -85,6 +85,15 @@ type Outcome struct {
 	// Blocked counts what was refused, by reason. The reasons are the closed set above, so this is
 	// a report an operator can read and a metric can be labelled from.
 	Blocked map[string]int
+	// SetAside are the rules the rule sweep set aside for this pass because their condition could
+	// not be evaluated on a candidate, each with why (data-retention.md §2). Judged are the rules it
+	// evaluated against at least one candidate without that: their failure, if they showed one,
+	// is over.
+	SetAside map[shared.ID]domain.RuleFailure
+	Judged   map[shared.ID]bool
+	// Unfinished is true when a read of the rule sweep stopped at its budget: the rows past its place
+	// are still unread in this cycle, so the job comes straight back (RunRetention.Exhausted).
+	Unfinished bool
 }
 
 // blocked records a refusal.

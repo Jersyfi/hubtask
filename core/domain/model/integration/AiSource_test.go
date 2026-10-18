@@ -128,6 +128,82 @@ func TestThePlanCannotUndoTheInstancesLock(t *testing.T) {
 	}
 }
 
+// multi-tenancy.md §4.2: a plan narrows what the installation leaves open and never widens it; a
+// plan's value written before the installation narrowed is ignored, and its lock still holds the
+// value in force.
+func TestAPlanOnlyNarrowsTheInstallationsOpenRule(t *testing.T) {
+	for _, testCase := range []struct {
+		name        string
+		instance    domain.AiLayer
+		plan        domain.AiLayer
+		wantSources domain.AiSources
+		wantMinimum domain.AiMinJurisdiction
+		wantOrigin  identity.PolicySource
+		wantLock    identity.LockOrigin
+		wantMinLock identity.LockOrigin
+	}{
+		{"a plan narrows", domain.AiLayer{Sources: sources(domain.AiSourcesEither)},
+			domain.AiLayer{Sources: sources(domain.AiSourcesOffered)},
+			domain.AiSourcesOffered, domain.AiMinAny, identity.SourcePlan, identity.LockNone, identity.LockNone},
+		{"a plan cannot widen", domain.AiLayer{Sources: sources(domain.AiSourcesOffered)},
+			domain.AiLayer{Sources: sources(domain.AiSourcesEither)},
+			domain.AiSourcesOffered, domain.AiMinAny, identity.SourceInstance, identity.LockNone, identity.LockNone},
+		{"a wide plan value ignored, its lock held", domain.AiLayer{Sources: sources(domain.AiSourcesOffered)},
+			domain.AiLayer{Sources: sources(domain.AiSourcesEither), Locks: locked(domain.AiSwitchSources)},
+			domain.AiSourcesOffered, domain.AiMinAny, identity.SourceInstance, identity.LockPlan, identity.LockNone},
+		{"a plan's looser minimum ignored", domain.AiLayer{MinJurisdiction: minimum(domain.AiMinEEA)},
+			domain.AiLayer{MinJurisdiction: minimum(domain.AiMinAny)},
+			domain.AiSourcesOwn, domain.AiMinEEA, identity.SourceDefault, identity.LockNone, identity.LockNone},
+		{"a plan's stricter minimum, locked", domain.AiLayer{MinJurisdiction: minimum(domain.AiMinAdequacy)},
+			domain.AiLayer{MinJurisdiction: minimum(domain.AiMinSelfHosted), Locks: locked(domain.AiSwitchMinJurisdiction)},
+			domain.AiSourcesOwn, domain.AiMinSelfHosted, identity.SourceDefault, identity.LockNone, identity.LockPlan},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			rule := domain.EffectiveAi(testCase.instance, testCase.plan, domain.AiLayer{}, true)
+			if rule.Sources != testCase.wantSources || rule.MinJurisdiction != testCase.wantMinimum {
+				t.Errorf("sources %s, minimum %s; want %s, %s", rule.Sources, rule.MinJurisdiction,
+					testCase.wantSources, testCase.wantMinimum)
+			}
+			if got := rule.OriginOf(domain.AiSwitchSources); got != testCase.wantOrigin {
+				t.Errorf("sources set by %s, want %s", got, testCase.wantOrigin)
+			}
+			if rule.LockOf(domain.AiSwitchSources) != testCase.wantLock ||
+				rule.LockOf(domain.AiSwitchMinJurisdiction) != testCase.wantMinLock {
+				t.Errorf("locks %v", rule.Locks)
+			}
+		})
+	}
+}
+
+// UC-PRV-05 check 11: a plan locks *each person may keep their content out* and cannot set AI for
+// everybody - only the workspace chooses that, with its basis.
+func TestAPlanLocksThePersonsChoiceAndCannotTakeIt(t *testing.T) {
+	notOffered := domain.AiOptOutNotOffered
+	offered := domain.AiOptOutOffered
+	rule := domain.EffectiveAi(domain.AiLayer{}, domain.AiLayer{PersonOptOut: &notOffered}, domain.AiLayer{}, true)
+	if rule.PersonOptOut != domain.AiOptOutOffered {
+		t.Errorf("a plan's NOT_OFFERED took effect: %s", rule.PersonOptOut)
+	}
+	basis := domain.AiOptOutBasis("CONTRACT")
+	rule = domain.EffectiveAi(domain.AiLayer{},
+		domain.AiLayer{PersonOptOut: &offered, Locks: locked(domain.AiSwitchPersonOptOut)},
+		domain.AiLayer{PersonOptOut: &notOffered, Basis: basis}, true)
+	if rule.PersonOptOut != domain.AiOptOutOffered || rule.LockOf(domain.AiSwitchPersonOptOut) != identity.LockPlan ||
+		rule.OriginOf(domain.AiSwitchPersonOptOut) != identity.SourcePlan {
+		t.Errorf("under the plan's lock the rule reads %s, lock %q, origin %s", rule.PersonOptOut,
+			rule.LockOf(domain.AiSwitchPersonOptOut), rule.OriginOf(domain.AiSwitchPersonOptOut))
+	}
+}
+
+// UC-AI-06 check 4: the minimum a plan set is named as the plan's in the own model's refusal.
+func TestAnOwnModelBelowThePlansMinimumIsRefusedNamingThePlan(t *testing.T) {
+	rule := domain.EffectiveAi(domain.AiLayer{}, domain.AiLayer{MinJurisdiction: minimum(domain.AiMinEEA)}, domain.AiLayer{}, false)
+	err := shared.AsError(rule.AdmitsOwn(domain.AiAdequacy))
+	if err == nil || err.Params["origin"] != "PLAN" {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestANarrowingIsRefusedWhereLockedOrLooser(t *testing.T) {
 	open := domain.EffectiveAi(domain.AiLayer{Sources: sources(domain.AiSourcesOffered)}, domain.AiLayer{}, domain.AiLayer{}, true)
 	closed := domain.EffectiveAi(domain.AiLayer{Sources: sources(domain.AiSourcesEither), Locks: locked(domain.AiSwitchSources)},

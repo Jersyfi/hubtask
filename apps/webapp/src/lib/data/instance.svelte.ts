@@ -44,6 +44,7 @@ import { platform } from '../platform/index.ts';
 import type { Probe, Target, TargetDraft } from './backup.svelte.ts';
 import { engine } from './engine.ts';
 import { identityProviderPresetPath } from './identityprovider.svelte.ts';
+import { platformSubscriptions } from './platformsubscriptions.svelte.ts';
 import { stepUp } from './stepup.svelte.ts';
 
 const ELEVATE = '/auth/sessions:elevate';
@@ -182,6 +183,7 @@ class Instance {
     this.#encryption = { status: 'idle' };
     this.#offeredAi = { status: 'idle' };
     this.#targets = { status: 'idle' };
+    platformSubscriptions.forget();
   }
 
   /**

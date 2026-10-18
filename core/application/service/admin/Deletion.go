@@ -10,8 +10,10 @@ import (
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
 	lifecyclerepo "github.com/Jersyfi/hubtask/core/application/repository/lifecycle"
+	"github.com/Jersyfi/hubtask/core/application/service/platform"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/event"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -44,12 +46,20 @@ type JobQueue interface {
 	Enqueue(ctx context.Context, request queue.Request) (shared.ID, error)
 }
 
+// PlatformRegister answers whether the operator register holds an account's own row as a service
+// account's - not the empty register's owner, whom `Holds` also admits (migration 0106), and not a
+// person.
+type PlatformRegister interface {
+	RegisteredServiceAccount(ctx context.Context, accountID shared.ID) (bool, error)
+}
+
 // RequestTenantDeletionCommand is the input, typed.
 type RequestTenantDeletionCommand struct {
 	TenantID shared.ID
 	// Confirmation is the workspace's display name, typed exactly - the restore precedent.
 	Confirmation string
-	// StepUpToken is the step-up proof (identity.md §16), consumed by this one request.
+	// StepUpToken is the step-up proof (identity.md §16), consumed by this one request. A purchase
+	// platform's service account sends none (waivesStepUp).
 	StepUpToken string
 }
 
@@ -65,17 +75,23 @@ type DeletionScheduled struct {
 // tenants, so
 // there is no sweeper to find pending deletions - the request that creates the debt creates the
 // job). It demands a step-up and the typed workspace name, the restore precedent: the two
-// things a stolen admin token does not have.
+// things a stolen admin token does not have. A purchase platform's service account in the register
+// sends the typed name alone (UC-INS-08 check 7): a step-up is a person's proof, which a machine
+// cannot give.
 type RequestTenantDeletion struct {
 	Tenants     adminrepo.Tenants
 	Journal     adminrepo.Journal
 	Automations adminrepo.Automations
 	// Holds are the workspace's legal holds in force: the request is refused while any stands
 	// (data-protection.md §5).
-	Holds      lifecyclerepo.LegalHolds
-	Jobs       JobQueue
-	StepUp     stepup.Verifier
-	Audit      audit.Sink
+	Holds  lifecyclerepo.LegalHolds
+	Jobs   JobQueue
+	StepUp stepup.Verifier
+	// Register waives the step-up for a service account it names. Nil demands it of everybody.
+	Register PlatformRegister
+	Audit    audit.Sink
+	// Platform tells a purchase platform the deletion was requested (UC-INS-14).
+	Platform   platform.Recorder
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
@@ -87,7 +103,7 @@ type RequestTenantDeletion struct {
 func (h RequestTenantDeletion) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd RequestTenantDeletionCommand,
 ) (DeletionScheduled, error) {
-	if err := actor.RequireScope(adminTenantsScope); err != nil {
+	if err := actor.RequireAnyScope(platformScopes...); err != nil {
 		return DeletionScheduled{}, err
 	}
 	// Before the typed name and the proof, so that the refusal burns neither.
@@ -124,8 +140,14 @@ func (h RequestTenantDeletion) Execute(
 	}
 	// Outside the workspace's transaction: the proof lives in the operator's own workspace, and a
 	// nested scope may not switch tenant (postgres.tenant_switch_in_transaction).
-	if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+	waived, err := h.waivesStepUp(ctx, actor)
+	if err != nil {
 		return DeletionScheduled{}, err
+	}
+	if !waived {
+		if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, cmd.StepUpToken); err != nil {
+			return DeletionScheduled{}, err
+		}
 	}
 
 	var scheduled DeletionScheduled
@@ -200,6 +222,13 @@ func (h RequestTenantDeletion) Execute(
 			return err
 		}
 
+		if err := h.Platform.Record(ctx, event.WorkspaceDeletionRequested,
+			event.Actor{Kind: actor.Kind, ID: actor.AccountID}, now,
+			map[string]any{"purge_after": purgeAfter.Format(time.RFC3339)},
+		); err != nil {
+			return err
+		}
+
 		scheduled = DeletionScheduled{TenantID: cmd.TenantID, PurgeAfter: purgeAfter}
 		return nil
 	})
@@ -207,6 +236,30 @@ func (h RequestTenantDeletion) Execute(
 		return DeletionScheduled{}, err
 	}
 	return scheduled, nil
+}
+
+// waivesStepUp answers whether the actor is a service account whose register row is a service
+// account's.
+//
+// Both, because either alone is looser than it looks: an actor's kind is "service account" for
+// every account kind but a person's, the stricter reading for a permission and the looser one for
+// an exemption, and the register's row is the account's own kind. A person always proves
+// themselves, and so does an agent. The empty register's owner is no registered operator, so an
+// `OWNER` service account of a private installation is not waved through. Outside the workspace's
+// transaction, as the proof is: the register is the installation's. A register that cannot be read
+// refuses rather than demanding a proof the machine cannot give - and never waives on a guess.
+func (h RequestTenantDeletion) waivesStepUp(ctx context.Context, actor appshared.ActorContext) (bool, error) {
+	if actor.Kind != appshared.ActorServiceAccount || h.Register == nil {
+		return false, nil
+	}
+	var registered bool
+	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
+		func(ctx context.Context) error {
+			held, err := h.Register.RegisteredServiceAccount(ctx, actor.AccountID)
+			registered = held
+			return err
+		})
+	return registered, err
 }
 
 // refuseUnderHold refuses while any legal hold of the transaction's workspace is in force. Active
@@ -256,14 +309,17 @@ func (h RequestTenantDeletion) Descriptor() usecase.Descriptor {
 		Name: RequestTenantDeletionName,
 		Summary: "Schedules a workspace's hard deletion: access blocked immediately, automations " +
 			"disabled, the configured backups written one last time, and the hard delete after " +
-			"the 30-day grace. Demands a step-up and the workspace's display name, typed exactly. " +
+			"the 30-day grace. Demands a step-up and the workspace's display name, typed exactly; a " +
+			"purchase platform's service account in the operator register sends the name alone. " +
 			"Refused in single mode, where the one workspace is the installation.",
 		SideEffects: "Moves the tenant to PENDING_DELETION, disables its automation rules, " +
 			"seeds the grace job and the final backup wake, and records the act in the tenant's " +
 			"trail and the instance journal.",
 		TokenScope:  adminTenantsScope,
+		AlsoScope:   provisioningScope,
 		Destructive: true,
-		StepUp:      "always - it is the request that ends a workspace",
+		StepUp: "always from a person - it is the request that ends a workspace; a service " +
+			"account the operator register names sends the typed name alone, having no proof to give",
 		Input: []usecase.Field{
 			{Name: "tenant_id", Kind: usecase.KindID, Required: true},
 			{
@@ -272,7 +328,8 @@ func (h RequestTenantDeletion) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "step_up_token", Kind: usecase.KindString,
-				Description: "The proof POST /auth/step-up answered, consumed by this one request.",
+				Description: "The proof POST /auth/step-up answered, consumed by this one request. " +
+					"A service account in the operator register sends none.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{

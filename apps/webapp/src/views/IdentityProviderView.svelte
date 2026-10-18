@@ -52,7 +52,8 @@
   import { groups } from '../lib/data/groups.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { mayHere } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -287,6 +288,11 @@
 
   /** Whether the reader may configure the workspace's providers (`MANAGE_MEMBERS`). */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
+  /**
+   * Where the plan leaves the workspace's own providers out they rest: they sign nobody in, and
+   * none is added or changed here - removing one stays (multi-tenancy.md §4.2, P-05).
+   */
+  const resting = $derived(includedHere('OWN_SIGN_IN_PROVIDERS') === false);
 </script>
 
 <Stack gap="300">
@@ -365,6 +371,9 @@
 
       <Stack gap="150">
         <h2 class="section">{t('app.identity_provider.own_title')}</h2>
+        {#if resting}
+          <NotInPlan body={t('app.plan.providers_body', { count: own.length, name: own[0]?.display_name ?? '' })} />
+        {/if}
         {#if own.length === 0}
           <Banner tone="info">{t('app.identity_provider.none')}</Banner>
         {:else}
@@ -379,14 +388,18 @@
                     {t(`app.identity_provider.provisioning.${provider.provisioning.toLowerCase()}`)}
                   </span>
                 </div>
-                {#if !provider.enabled}
+                {#if resting}
+                  <Badge tone="neutral">{t('app.plan.resting')}</Badge>
+                {:else if !provider.enabled}
                   <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
                 {/if}
                 {#if mayManage}
                 <div class="row">
+                  {#if !resting}
                   <Button tone="subtle" onclick={() => edit(provider)}>
                     {t('app.identity_provider.edit')}
                   </Button>
+                  {/if}
                   <Button tone="subtle" onclick={() => (confirmingRemoval = provider.id)}>
                     {t('app.identity_provider.remove')}
                   </Button>
@@ -419,7 +432,7 @@
           </ul>
         {/if}
 
-        {#if editing === undefined}
+        {#if editing === undefined && !resting}
           <!-- The reason for every refused control on this screen: the rows' edit and remove are
                absent where the reader may not configure providers. -->
           <WorkspaceGate permission="MANAGE_MEMBERS">

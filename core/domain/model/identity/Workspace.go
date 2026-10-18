@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -28,6 +29,21 @@ type Workspace struct {
 	PasswordOpening PasswordOpening
 	UpdatedAt       time.Time
 	Version         int
+	// Plan is the plan the workspace is on, as far as the sign-in rule and the legal links need it
+	// (multi-tenancy.md §4.2). The zero value is no plan. Read with the row, never written through
+	// it: a workspace is moved by the control plane alone.
+	Plan WorkspacePlan
+}
+
+// WorkspacePlan is what a workspace's plan decides about signing in and the legal links: the level
+// between the installation and the workspace - and what it leaves out, which the ways in read for
+// the workspace's own providers.
+type WorkspacePlan struct {
+	Name        string
+	DisplayName string
+	Policy      PolicyLayer
+	Legal       LegalLayer
+	LeftOut     entitlement.LeftOut
 }
 
 // WorkspaceSettings is the modelled half of the tenant's settings document.

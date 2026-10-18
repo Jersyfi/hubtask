@@ -58,6 +58,13 @@ func (h RegenerateRecoveryCodes) Execute(
 		return RegeneratedCodes{}, shared.ErrNotFound.WithDetail("route.operation_not_available")
 	}
 
+	// What would refuse anyway is asked before the proof, so a refusal does not spend it.
+	if err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return w.requireFactorForCodes(ctx, actor.AccountID)
+	}); err != nil {
+		return RegeneratedCodes{}, err
+	}
+
 	// The step-up, for the reason disabling the factor demands one: a fresh set of codes is a fresh
 	// set of ways in, and a stolen tab must not be able to mint them.
 	if err := w.requireStepUp(ctx, actor, stepUpToken); err != nil {
@@ -86,14 +93,8 @@ func (h RegenerateRecoveryCodes) Execute(
 
 	scope := persistence.Scope{TenantID: actor.TenantID, ActorID: actor.AccountID}
 	err = w.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		enrollment, err := w.Enrollments.Find(ctx, actor.AccountID)
-		if err != nil {
+		if err := w.requireFactorForCodes(ctx, actor.AccountID); err != nil {
 			return err
-		}
-		if enrollment.ConfirmedAt.IsZero() {
-			// An unconfirmed enrolment protects nobody, and its codes are the ones the enrolment
-			// screen is still showing. Replacing them here would leave that screen lying.
-			return shared.ErrConflict.WithDetail("auth.mfa_enrollment_pending")
 		}
 
 		now := w.Clock.Now()
@@ -116,6 +117,24 @@ func (h RegenerateRecoveryCodes) Execute(
 		answer.Codes = append(answer.Codes, secret.New(code))
 	}
 	return answer, nil
+}
+
+// requireFactorForCodes refuses new codes where the account holds no second factor: they back the
+// app or a passkey, whichever stands (identity.md §9, §23.2), and beside neither they back nothing.
+func (w SessionWriter) requireFactorForCodes(ctx context.Context, accountID shared.ID) error {
+	factor, begun, err := secondFactorOf(ctx, w.Enrollments, w.Keys, accountID)
+	switch {
+	case err != nil:
+		return err
+	case factor.Held():
+		return nil
+	case begun:
+		// An unconfirmed enrolment protects nobody, and its codes are the ones the enrolment
+		// screen is still showing. Replacing them here would leave that screen lying.
+		return shared.ErrConflict.WithDetail("auth.mfa_enrollment_pending")
+	default:
+		return shared.ErrConflict.WithDetail("auth.mfa_not_enrolled")
+	}
 }
 
 // requireStepUp is the proof a privileged MFA operation demands. Its own method because two use

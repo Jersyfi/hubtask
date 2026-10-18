@@ -125,6 +125,7 @@
     'webhook_targets',
     'export_jobs',
     'ai_tokens_per_day',
+    'accounts',
   ] as const;
 
   function open(

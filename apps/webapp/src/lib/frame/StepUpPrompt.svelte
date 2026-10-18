@@ -13,16 +13,18 @@
   // recovery code while one is left, and the provider it is connected to. One is asked for at a
   // time — the code first, then the password, then a recovery code — and every other way the
   // account holds is offered beneath it as one press. The provider is the one way that leaves the
-  // page: the person signs in there once more and comes back to where they were.
+  // page: the person signs in there once more and comes back to where they were. A passkey or
+  // security key is a press too: the device answers, and nothing is typed.
 
   import { Banner, Button, CodeField, Dialog, Input, Stack } from '@hubtask/design-system/components';
 
+  import { canCreatePasskeys } from '../data/passkeys.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
   import type { StepUpMethod } from '../data/stepup.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   /** The ways a field can answer, in the order one is asked for first. */
-  type Typed = Exclude<StepUpMethod, 'PROVIDER'>;
+  type Typed = Exclude<StepUpMethod, 'PROVIDER' | 'PASSKEY'>;
   const ORDER: readonly Typed[] = ['TOTP', 'PASSWORD', 'RECOVERY'];
 
   let password = $state('');
@@ -37,6 +39,18 @@
   // dialog's own first focus lands on *Not now* before an effect could draw it.
   const chosen = $derived(switched ?? typed[0]);
   const offersProvider = $derived(pending?.methods.includes('PROVIDER') ?? false);
+  /** A key, where the account holds one and this browser can ask a device. */
+  const offersKey = $derived((pending?.methods.includes('PASSKEY') ?? false) && canCreatePasskeys(globalThis as never));
+  let keyWaiting = $state(false);
+  let keyBox = $state<HTMLElement | undefined>(undefined);
+
+  async function useKey(): Promise<void> {
+    keyWaiting = true;
+    const ended = await stepUp.proveWithKey((options) => navigator.credentials.get(options));
+    keyWaiting = false;
+    // Closed by the person: nothing said, the focus where it was (P-11).
+    if (ended === 'cancelled') keyBox?.querySelector('button')?.focus();
+  }
   /** The provider's name, from the refusal - or a plain word where an older server named none. */
   const provider = $derived(pending?.provider ?? t('app.step_up.your_provider'));
   /**
@@ -44,7 +58,9 @@
    * its workspace. No field is drawn - one would ask for something the account does not have
    * (UC-ID-05 check 5) - and the sentence says who can help.
    */
-  const cannotProve = $derived(pending !== undefined && pending.methods.length === 0);
+  const cannotProve = $derived(
+    pending !== undefined && typed.length === 0 && !offersProvider && !offersKey,
+  );
 
   // Cleared whenever a new prompt opens, so a value typed for the last privileged action is not
   // sitting in the field for the next one; and the first typed way the account holds is the one
@@ -130,17 +146,31 @@
               />
             {/if}
           </form>
-        {:else}
+        {:else if !offersKey}
           <!-- The provider is the account's only way: say where the person is about to go. -->
           <p>{t('app.step_up.provider_leaving', { provider })}</p>
         {/if}
 
-        {#if typed.length > 1 || (offersProvider && chosen)}
+        {#if offersKey}
+          <div class="key" bind:this={keyBox}>
+            <Button
+              tone={chosen ? 'subtle' : 'primary'}
+              isBusy={keyWaiting}
+              busyLabel={t('app.sign_in.key_waiting')}
+              onclick={() => void useKey()}
+            >
+              {t('app.step_up.with_key')}
+            </Button>
+            <p class="quiet" role="status">{keyWaiting ? t('app.sign_in.key_waiting_said') : ''}</p>
+          </div>
+        {/if}
+
+        {#if typed.length > 1 || (offersProvider && (chosen || offersKey))}
           <div class="others">
             {#each typed.filter((method) => method !== chosen) as other (other)}
               <Button tone="subtle" onclick={() => (switched = other)}>{t(switchLabel[other])}</Button>
             {/each}
-            {#if offersProvider && chosen}
+            {#if offersProvider && (chosen || offersKey)}
               <Button tone="subtle" isBusy={stepUp.isWorking} onclick={() => stepUp.confirmAtProvider()}>
                 {t('app.step_up.with_provider', { provider })}
               </Button>
@@ -162,7 +192,7 @@
         >
           {t('app.step_up.submit')}
         </Button>
-      {:else if !cannotProve}
+      {:else if !cannotProve && !offersKey}
         <Button
           tone="primary"
           isBusy={stepUp.isWorking}
@@ -180,6 +210,8 @@
   .quiet { margin: 0; color: var(--text-secondary); }
 
   form { margin: 0; }
+
+  .key { display: grid; gap: var(--sp-050); }
 
   .others {
     display: flex;

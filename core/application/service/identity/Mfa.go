@@ -101,6 +101,11 @@ func (w SessionWriter) resolveMfaCaller(
 			if err := lookup.Account.Verify(); err != nil {
 				return err
 			}
+			// The workspace's standing, as every other step asks it: an enrolment ends in a session,
+			// and a paused workspace opens none.
+			if err := lookup.TenantStatus.Verify(); err != nil {
+				return err
+			}
 			caller = mfaCaller{
 				account:  lookup.Account,
 				tenantID: token.TenantID(),
@@ -360,7 +365,7 @@ func (h DisableTotp) Execute(
 		return err
 	}
 	if err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		return w.refuseWhereDemanded(ctx, actor, verdict)
+		return w.refuseLastAppWhereDemanded(ctx, actor, verdict)
 	}); err != nil {
 		return err
 	}
@@ -374,8 +379,15 @@ func (h DisableTotp) Execute(
 	}
 
 	return w.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		// Asked again inside the write: the rule may have changed while the proof was given.
-		if err := w.refuseWhereDemanded(ctx, actor, verdict); err != nil {
+		// Asked again inside the write, under the account's lock: the rule may have changed while
+		// the proof was given, and a passkey's removal decides under the same lock - so the two
+		// never each count the other as the factor that remains.
+		if w.Keys != nil {
+			if err := w.Keys.LockAccount(ctx, actor.AccountID); err != nil {
+				return err
+			}
+		}
+		if err := w.refuseLastAppWhereDemanded(ctx, actor, verdict); err != nil {
 			return err
 		}
 
@@ -387,22 +399,34 @@ func (h DisableTotp) Execute(
 		if !removed {
 			return shared.ErrConflict.WithDetail("auth.mfa_not_enrolled")
 		}
+		// The codes stay while a passkey remains to back (identity.md §9); with the last factor
+		// they go.
+		if err := w.Recovery.DiscardUnbacked(ctx, actor.AccountID); err != nil {
+			return err
+		}
 		return w.recordMfaAudit(ctx, MfaDisabledAction, audit.SeverityNotice, domain.Account{
 			ID: actor.AccountID, TenantID: actor.TenantID, DisplayName: actor.AccountName,
 		}, now)
 	})
 }
 
-// refuseWhereDemanded is the rule's refusal: a factor the workspace demands of this person is not
-// theirs to remove.
-func (w SessionWriter) refuseWhereDemanded(
+// refuseLastAppWhereDemanded is the rule's refusal: the last factor the workspace demands of this
+// person is not theirs to remove. A passkey of the workspace's address answers the rule as the app
+// does (identity.md §23.2), so while one remains the app may go.
+func (w SessionWriter) refuseLastAppWhereDemanded(
 	ctx context.Context, actor appshared.ActorContext, verdict SignInVerdict,
 ) error {
 	demanded, err := w.factorDemandedOf(ctx, ownAccount(actor), verdict)
-	if err != nil {
+	if err != nil || !demanded {
 		return err
 	}
-	if demanded {
+	keys := 0
+	if w.Keys != nil {
+		if keys, err = w.Keys.CurrentKeys(ctx, actor.AccountID); err != nil {
+			return err
+		}
+	}
+	if !(domain.SecondFactor{App: true, Keys: keys}).AppRemovable(true) {
 		return shared.ErrForbidden.WithDetail("auth.mfa_required_by_tenant")
 	}
 	return nil
@@ -579,12 +603,12 @@ func (h ConfirmTotp) invoke(
 func (h DisableTotp) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: DisableTotpName,
-		Summary: "Removes the second factor and burns the remaining recovery codes. It demands " +
-			"a step-up like every privileged action - a live session is deliberately not " +
-			"enough, because a stolen session removing the factor is the attack the factor exists " +
-			"against. Where the workspace's rule requires the factor of this person it cannot be " +
-			"disabled at all.",
-		SideEffects: "Removes the enrolment and its codes, and writes an audit entry.",
+		Summary: "Removes the authenticator app, and the recovery codes with it unless a passkey " +
+			"remains for them to back. It demands a step-up like every privileged action - a live " +
+			"session is deliberately not enough, because a stolen session removing the factor is " +
+			"the attack the factor exists against. Where the workspace's rule requires a factor of " +
+			"this person and the app is the last one the account holds, it cannot be disabled.",
+		SideEffects: "Removes the enrolment, and the codes where no passkey remains; writes an audit entry.",
 		Destructive: true,
 		Input: []usecase.Field{
 			{

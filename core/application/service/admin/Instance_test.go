@@ -551,11 +551,12 @@ func TestTheProjectionAnswersTheWholeCatalogueAndWhatWasDecided(t *testing.T) {
 		t.Errorf("an undecided switch carries a value: %v", undecided)
 	}
 
-	// The four legal links and the terms' version, for the same reason: a screen drawing only what
-	// somebody filled in never mentions terms or an accessibility statement.
+	// The four legal links, the terms' version and the provider's account link, for the same
+	// reason: a screen drawing only what somebody filled in never mentions terms or an
+	// accessibility statement.
 	legal, _ := out["legal"].(usecase.Output)
-	if len(legal) != len(identity.LegalSettingNames()) {
-		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LegalSettingNames()))
+	if len(legal) != len(identity.LevelLegalSettingNames()) {
+		t.Errorf("the projection answers %d legal settings, want %d", len(legal), len(identity.LevelLegalSettingNames()))
 	}
 	// The version is drawn beside the link it belongs to, not after an unrelated one.
 	positionOf := func(key identity.LegalLink) any {

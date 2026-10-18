@@ -122,6 +122,10 @@ func TestTheOwnAccountSaysWhetherTheWorkspaceRequiresAFactor(t *testing.T) {
 		if own.SecondFactorRequired != c.required {
 			t.Errorf("%s/%s: required reads %v, want %v", c.requirement, c.role, own.SecondFactorRequired, c.required)
 		}
+		// The app alone, and removable exactly where turning it off passes the rule (P-05).
+		if !own.HasAuthenticatorApp || own.AuthenticatorAppRemovable == c.required {
+			t.Errorf("%s/%s: app %v, removable %v", c.requirement, c.role, own.HasAuthenticatorApp, own.AuthenticatorAppRemovable)
+		}
 	}
 }
 

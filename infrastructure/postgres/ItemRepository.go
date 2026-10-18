@@ -73,6 +73,40 @@ func (r ItemRepository) Find(ctx context.Context, id shared.ID) (work.WorkItem, 
 	return itemFrom(row)
 }
 
+var _ repository.ItemBatch = ItemRepository{}
+
+// FindMany returns the entries among ids as Find returns each; an identifier this tenant does not
+// hold is absent from the answer, for the reason Find answers not found for it.
+func (r ItemRepository) FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.FindWorkItems(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the work items: %w", err))
+	}
+	items := make([]work.WorkItem, 0, len(rows))
+	for _, row := range rows {
+		// The two statements select the same columns, so their rows are one shape under two names.
+		item, err := itemFrom(sqlc.FindWorkItemRow(row))
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
 // FindByCalendarUID returns the item a calendar client's UID names.
 //
 // Not found is the whole of what a miss says, exactly as in Find: the partial unique index is

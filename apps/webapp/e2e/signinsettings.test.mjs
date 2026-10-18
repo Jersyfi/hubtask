@@ -160,6 +160,66 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   assert.doesNotMatch(common, /The installation requires this/, common);
 });
 
+// UC-ID-12 check 4 (multi-tenancy.md §4.2): on a plan, the screen names it, and what the plan set
+// or locked says "your plan" - never "the installation", which would send somebody to the wrong
+// person.
+function planPolicy() {
+  const base = policy();
+  return {
+    ...base,
+    plan: 'Family',
+    password: {
+      ...base.password,
+      min_length: rule(18, 16, { source: 'WORKSPACE', above: 'PLAN' }),
+      history_count: rule(5, 5, { lock: 'PLAN', source: 'PLAN', above: 'PLAN' }),
+      common_passwords: rule(true, true, { source: 'PLAN', above: 'PLAN' }),
+    },
+    legal: { ...base.legal, terms_url: rule('https://plan.example/terms', 'https://plan.example/terms', { source: 'PLAN', above: 'PLAN' }) },
+  };
+}
+
+test('chromium: a workspace on a plan names it, and what the plan set says so', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: planPolicy() } }) : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Minimum length', { exact: true }).waitFor();
+
+  assert.equal((await page.getByTestId('sign-in-plan').textContent())?.trim(), 'Plan: Family');
+
+  const own = await originOf(page, 'Minimum length');
+  assert.match(own, /Set here/, own);
+  assert.match(own, /Your plan: 16/, own);
+  assert.doesNotMatch(own, /Installation/, own);
+
+  const locked = await ruleText(page, 'Remember previous passwords');
+  assert.equal(locked.match(/Set by your plan/g)?.length, 1, locked);
+  assert.doesNotMatch(locked, /installation/, locked);
+  assert.equal(await page.getByLabel('Remember previous passwords', { exact: true }).isDisabled(), true);
+
+  const required = await ruleText(page, 'Refuse commonly used passwords');
+  assert.match(required, /Your plan requires this/, required);
+  assert.doesNotMatch(required, /The installation requires this/, required);
+
+  const terms = await ruleText(page, 'Terms');
+  assert.match(terms, /Empty here, so your plan.s applies: https:\/\/plan\.example\/terms/, terms);
+});
+
+test('chromium: a workspace on no plan names none', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, (route, path) =>
+    path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: { ...policy(), plan: null } } }) : undefined);
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Minimum length', { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('sign-in-plan').count(), 0);
+});
+
 test('chromium: a refusal is shown at the rule it is about', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -295,14 +355,19 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const rows = (await list.getByRole('listitem').allTextContents()).map((row) => row.replace(/\s+/g, ' ').trim());
-  assert.equal(rows.length, 3, rows.join(' | '));
+  assert.equal(rows.length, 4, rows.join(' | '));
   assert.match(rows[0], /Password/);
+  // Passkeys, below the password: never a way in on their own, and here not offered above
+  // (identity.md §23.4) - so held, with the reason.
+  assert.match(rows[1], /Passkeys/);
+  assert.equal(await list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input').isDisabled(), true,
+    'passkeys could be switched on where the installation does not offer them');
   assert.equal(await list.getByRole('switch').count() + await list.locator('input[type="checkbox"]').count() > 0, true);
 
   // The password is off and one provider is on: that provider is the last way in.
   const own = list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).locator('input');
   assert.equal(await own.isDisabled(), true, 'the last way in can be switched off');
-  assert.match(rows[1], /only way in/i, rows[1]);
+  assert.match(rows[2], /only way in/i, rows[2]);
 
   // Taking the installation's provider is the one verb, from this list.
   await list.getByRole('listitem').filter({ hasText: 'The platform' }).locator('input').check();
@@ -699,4 +764,68 @@ test('chromium: a locked rule or link says its lock once', async (t) => {
   }
   // An open rule keeps its origin line.
   assert.match(await originOf(page, 'Minimum length'), /Set here/);
+});
+
+test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const locked = { ...policy(), plan: 'Family' };
+  locked.methods = rule(['OIDC'], ['OIDC'], { lock: 'PLAN', source: 'PLAN', above: 'PLAN' });
+  const { page, close } = await open(browser, (route, path) => {
+    if (path === '/tenant') return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: locked } });
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [
+        { ...provider('platform', 'The platform', 'installation', { offered: true }), installation_lock: 'TURNS_ON' },
+      ] });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+
+  const mandated = list.getByRole('listitem').filter({ hasText: 'The platform' });
+  assert.equal(await mandated.locator('input').isDisabled(), true, 'the mandated provider can be switched off');
+  const said = (await mandated.textContent() ?? '').replace(/\s+/g, ' ');
+  assert.match(said, /on in every workspace on your plan while the plan locks the ways to sign in/, said);
+  assert.match(said, /Set by your plan/, said);
+  assert.doesNotMatch(said, /Set by the installation/, said);
+});
+
+// UC-ID-21 check 8: passkeys switched on and off from the list, and switching the password keeps
+// them as they are.
+test('chromium: passkeys switch on and off beside the password, which keeps them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const patches = [];
+  const offered = policy();
+  offered.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC', 'PASSKEY']);
+  const { page, close } = await open(browser, (route, path) => {
+    const request = route.request();
+    if (path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: offered } });
+    }
+    if (path === '/tenant' && request.method() === 'PATCH') {
+      const methods = request.postDataJSON().sign_in_policy?.methods;
+      patches.push(methods);
+      offered.methods = rule(methods, ['PASSWORD', 'OIDC', 'PASSKEY'], { source: 'WORKSPACE' });
+      return route.fulfill({ json: { ...WORKSPACE, version: WORKSPACE.version + patches.length, sign_in_policy: offered } });
+    }
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    }
+    return undefined;
+  });
+  t.after(close);
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  await list.waitFor();
+  const passkeys = list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input');
+  assert.equal(await passkeys.isDisabled(), false);
+  await passkeys.check();
+  await page.waitForFunction(() => true);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  assert.deepEqual(patches[0], ['PASSWORD', 'OIDC', 'PASSKEY']);
 });

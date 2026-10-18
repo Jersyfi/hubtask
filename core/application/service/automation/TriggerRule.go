@@ -10,6 +10,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
+	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -160,7 +161,8 @@ func (h TriggerRuleManually) record(
 // Descriptor is the catalogue entry.
 func (h TriggerRuleManually) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
-		Name: TriggerRuleManuallyName,
+		Name:        TriggerRuleManuallyName,
+		Entitlement: entitlement.AutomationRules,
 		Summary: "Runs a rule now, because somebody asked. Only a rule whose trigger is MANUAL " +
 			"and only an enabled one; the run records who pulled the trigger, and the conditions, " +
 			"the loop bound and the throttle apply exactly as they do to a run an event started.",

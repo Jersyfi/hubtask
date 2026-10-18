@@ -4,12 +4,14 @@
 package rest
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
@@ -40,10 +42,14 @@ func (c *RestController) CompleteSignIn(w http.ResponseWriter, r *http.Request) 
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), completeSignInUseCase, actorOf(r), usecase.Input{
-		"pending_token": body.PendingToken,
-		"code":          optionalStringField(body.Code),
-		"recovery_code": optionalStringField(body.RecoveryCode),
-		"tenant_header": r.Header.Get(TenantHeader),
+		"pending_token":      body.PendingToken,
+		"code":               optionalStringField(body.Code),
+		"recovery_code":      optionalStringField(body.RecoveryCode),
+		"raw_id":             optionalStringField(body.RawId),
+		"client_data_json":   optionalStringField(body.ClientDataJson),
+		"authenticator_data": optionalStringField(body.AuthenticatorData),
+		"signature":          optionalStringField(body.Signature),
+		"tenant_header":      r.Header.Get(TenantHeader),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -76,6 +82,7 @@ func (c *RestController) CompleteLink(w http.ResponseWriter, r *http.Request) {
 		"pending_token": body.PendingToken,
 		"password":      body.Password,
 		"tenant_header": r.Header.Get(TenantHeader),
+		"host":          r.Host,
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -254,6 +261,16 @@ func mfaChallengeResponse(out usecase.Output) openapi.MfaChallenge {
 	if name := out.String("provider_name"); name != "" {
 		challenge.ProviderName = &name
 	}
+	// The key's ceremony, with PASSKEY; whether a key can be set up instead of the app, with ENROLL.
+	if options, held := out["passkey_options"].(usecase.Output); held {
+		var answered openapi.PasskeyAssertionOptions
+		if encoded, err := json.Marshal(options); err == nil && json.Unmarshal(encoded, &answered) == nil {
+			challenge.PasskeyOptions = &answered
+		}
+	}
+	if setup, _ := out["passkey_setup"].(bool); setup {
+		challenge.PasskeySetup = &setup
+	}
 	// The terms to agree to, with TERMS (UC-ID-19).
 	if terms, held := out["terms"].(usecase.Output); held {
 		answered := openapi.TermsInForce{
@@ -290,6 +307,10 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		"recovery_code":      optionalStringField(body.RecoveryCode),
 		"state":              optionalStringField(body.State),
 		"authorization_code": optionalStringField(body.AuthorizationCode),
+		"raw_id":             optionalStringField(body.RawId),
+		"client_data_json":   optionalStringField(body.ClientDataJson),
+		"authenticator_data": optionalStringField(body.AuthenticatorData),
+		"signature":          optionalStringField(body.Signature),
 	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
@@ -301,6 +322,32 @@ func (c *RestController) StepUp(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:   timeValue(out["expires_at"]),
 		Method:      openapi.StepUpGrantMethod(out.String("method")),
 	})
+}
+
+const startPasskeyStepUpUseCase = "StartPasskeyStepUp"
+
+// StartPasskeyStepUp answers POST /auth/step-up:passkey-options.
+func (c *RestController) StartPasskeyStepUp(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), startPasskeyStepUpUseCase, actorOf(r), usecase.Input{"host": r.Host})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	var answer openapi.PasskeyAssertionOptions
+	encoded, err := json.Marshal(out)
+	if err == nil {
+		err = json.Unmarshal(encoded, &answer)
+	}
+	if err != nil {
+		WriteProblem(w, shared.ErrInternal.WithDetail("rest.answer_unshapeable").WithCause(err), requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, answer)
 }
 
 const startProviderStepUpUseCase = "StartProviderStepUp"

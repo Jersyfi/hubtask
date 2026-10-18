@@ -5,6 +5,7 @@ package rest
 
 import (
 	"net/http"
+	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -25,6 +26,8 @@ const (
 	writeInstanceSettingsUseCase = "WriteInstanceSettings"
 	readInstanceOverviewUseCase  = "ReadInstanceOverview"
 	listInstanceJournalUseCase   = "ListInstanceJournal"
+	listPlatformEventsUseCase    = "ListPlatformEvents"
+	readUsageUseCase             = "ReadUsage"
 	listOperatorsUseCase         = "ListOperators"
 	addOperatorUseCase           = "AddOperator"
 	removeOperatorUseCase        = "RemoveOperator"
@@ -85,6 +88,9 @@ func (c *RestController) WriteInstanceSettings(
 	}
 	if body.BlocklistFile != nil {
 		in["blocklist_file"] = *body.BlocklistFile
+	}
+	if body.Metering != nil {
+		in["metering"] = *body.Metering
 	}
 	// The body's `version` is read-only and ignored: the version a save was made on travels in
 	// `If-Match`, as everywhere else in the API.
@@ -223,6 +229,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	if file := out.String("blocklist_file"); file != "" {
 		answer.BlocklistFile = &file
 	}
+	if metering, held := out["metering"].(bool); held {
+		answer.Metering = &metering
+	}
 	if source := out.String("source"); source != "" {
 		answer.Source = &source
 	}
@@ -314,6 +323,63 @@ func (c *RestController) ReadInstanceOverview(w http.ResponseWriter, r *http.Req
 		AccountsTotal:             censusCount(out["accounts_total"]),
 		WorkspacesServiceOnly:     censusCount(out["workspaces_service_only"]),
 	})
+}
+
+// ListPlatformEvents answers GET /admin/events: the installation's events, as the use case renders
+// them, passed through unchanged.
+func (c *RestController) ListPlatformEvents(
+	w http.ResponseWriter, r *http.Request, params openapi.ListPlatformEventsParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	in := usecase.Input{}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+	out, err := c.UseCases.Invoke(r.Context(), listPlatformEventsUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
+}
+
+// ReadUsage answers GET /admin/usage: the use per workspace, metric and day, as the use case lays it
+// out.
+func (c *RestController) ReadUsage(w http.ResponseWriter, r *http.Request, params openapi.ReadUsageParams) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	in := usecase.Input{
+		"from": params.From.Format(time.DateOnly),
+		"to":   params.To.Format(time.DateOnly),
+	}
+	if params.Metric != nil {
+		in["metric"] = *params.Metric
+	}
+	if params.Workspace != nil {
+		in["workspace"] = params.Workspace.String()
+	}
+	if params.Cursor != nil {
+		in["cursor"] = *params.Cursor
+	}
+	if params.Size != nil {
+		in["limit"] = *params.Size
+	}
+	out, err := c.UseCases.Invoke(r.Context(), readUsageUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, out)
 }
 
 // ListInstanceJournal answers GET /admin/journal.

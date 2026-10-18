@@ -51,6 +51,7 @@ import (
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
+	platformservice "github.com/Jersyfi/hubtask/core/application/service/platform"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
@@ -100,6 +101,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	storageadapter "github.com/Jersyfi/hubtask/infrastructure/storage"
 	textadapter "github.com/Jersyfi/hubtask/infrastructure/text"
+	"github.com/Jersyfi/hubtask/infrastructure/webauthn"
 	"github.com/Jersyfi/hubtask/infrastructure/webhook"
 	"github.com/Jersyfi/hubtask/presentation/calendar"
 	"github.com/Jersyfi/hubtask/presentation/intake"
@@ -471,7 +473,15 @@ func run() error {
 	// out of the query and hands them to the API.
 	oidcRedirectURL := strings.TrimSuffix(cfg.BaseURL, "/") + "/auth/callback"
 
+	// Who is told the provider's account link: one decision for the manifest and the sign-in
+	// (multi-tenancy.md §4.2). The resolver is stateless, so this copy reads what the later one does.
+	accountLinks := identity.AccountLinkTeller{Held: authorizer, Links: identity.SignInPolicyResolver{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(),
+		Instance:   postgres.NewInstanceSettingRepository(),
+		UnitOfWork: unitOfWork,
+	}}
 	sessionWriter := identity.SessionWriter{
+		AccountLinks: accountLinks,
 		// The step-up at the provider (ADR-0075 §2). In the literal rather than assigned later:
 		// every verifier below is a copy of this writer, and a copy taken before an assignment
 		// would neither name PROVIDER nor prove it (Wiring_test.go).
@@ -500,6 +510,29 @@ func run() error {
 		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
+		// A passkey is a second factor as the app is (identity.md §23.2), counted where turning the
+		// app off and the codes ask. In the literal: every writer below is a copy of this one.
+		Keys: identity.PasskeyKeys{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+		},
+		// A key is asked for at the factor's step, the step-up and the setup during sign-in, where it
+		// can sign (identity.md §23.2). In the literal, for the same reason.
+		KeyProofs: &identity.KeyProofs{
+			Passkeys: postgres.NewPasskeyRepository(),
+			Party: identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
+			Proofs:   postgres.NewPasskeyProofRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Holders:  postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+			Verifier: webauthn.Verifier{},
+		},
 		StepUps:      postgres.NewStepUpRepository(security.NewStepUpTokenHasher(cfg.SecretKey)),
 		StepUpWindow: cfg.StepUpWindow,
 		Encryptor:    encryptor,
@@ -549,6 +582,7 @@ func run() error {
 	// a ciphertext lifted out of
 	// one subscription and dropped into another no longer opens.
 	webhookWriter := integrationservice.Writer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Authorizer:    authorizer, Encryptor: encryptor, Audit: auditSink,
@@ -970,6 +1004,17 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 	}
 
+	// The installation's events for a purchase platform (UC-INS-14): one value, built before every
+	// service that tells the platform something, so no copy of it misses a field.
+	platformEvents := platformservice.Recorder{
+		Events: postgres.NewPlatformEventRepository(), Workspaces: postgres.NewAdminTenantRepository(),
+		IDs: ids, Tenancy: cfg.Tenancy,
+		Fanout: platformservice.Fanout{
+			Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+			Deliveries:    postgres.NewPlatformDeliveryRepository(), Jobs: jobs, IDs: ids, Clock: clockadapter.System{},
+		},
+	}
+
 	// The copy reaches almost everything an entry has, because that is what it carries: the row,
 	// its three sets, the vocabulary of the collection it lands in, and the counter of every file
 	// it points at. It is a value rather than a literal in the registry because the
@@ -979,6 +1024,10 @@ func run() error {
 	quotaGuard := quotaservice.Guard{
 		Store: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(),
 		Meter: postgres.NewQuotaRepository(), Signals: metrics, Tenancy: cfg.Tenancy,
+		Crossings: platformservice.Crossings{
+			Marks: postgres.NewQuotaReachedRepository(), Recorder: platformEvents,
+			UnitOfWork: unitOfWork, Scopes: unitOfWork, Clock: clockadapter.System{},
+		},
 	}
 
 	duplicate := work.DuplicateWorkItem{
@@ -1067,6 +1116,7 @@ func run() error {
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
+		People:      quotaGuard,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
 		// What a provider names for newcomers is given in the arrival's own transaction.
@@ -1094,7 +1144,7 @@ func run() error {
 	aiRules := integrationservice.AiRules{
 		Instance: postgres.NewInstanceSettingRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Offered: postgres.NewOfferedAiRepository(), Choices: postgres.NewAiChoiceRepository(),
-		Own: postgres.NewAiProviderRepository(), Consents: privacyStore,
+		Own: postgres.NewAiProviderRepository(), Consents: privacyStore, Plans: postgres.NewPlanRepository(),
 	}
 	// The own model's configuration asks the same rule: a source the installation does not allow
 	// is not configured, and an own model below the minimum is refused naming it.
@@ -1308,14 +1358,24 @@ func run() error {
 
 	instanceWriter := adminservice.InstanceWriter{
 		Settings: servingSettings, Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+
+	// Plans, between the installation and its workspaces (multi-tenancy.md §4.2): the instance
+	// writer for the register, the level and the journal, and the mode - plans are multi mode's.
+	planWriter := adminservice.PlanWriter{
+		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
+	}
+	// One workspace, and the query a platform finds its workspaces with (multi-tenancy.md §4.3).
+	tenantReader := adminservice.TenantReader{Writer: planWriter, Finder: postgres.NewTenantQueryRepository(cursors)}
 
 	// The same writer over the *plain* repository, for the one caller allowed to write while a
 	// file enforces: the file itself. Every other door meets `servingSettings` and its refusal.
 	instanceFileWriter := adminservice.InstanceWriter{
 		Settings: postgres.NewInstanceSettingRepository(), Operators: operators,
+		Tenancy:    cfg.Tenancy,
 		Journal:    postgres.NewInstanceJournal(cursors),
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
@@ -1391,6 +1451,23 @@ func run() error {
 	instanceProviderWriter.Configure = identityProviderWriter
 	passwordWriter.StepUp = stepUpVerifier
 	instanceTargetWriter.StepUp = stepUpVerifier
+	// Passkeys (identity.md §23), built here for the verifiers' reason: the writer is a copy of the
+	// session writer, and adding one asks the step-up whose methods the rule decides.
+	passkeyWriter := identity.PasskeyWriter{
+		Session: sessionWriter, Passkeys: postgres.NewPasskeyRepository(), Verifier: webauthn.Verifier{},
+		Challenges: postgres.NewPasskeyChallengeRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+		Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+		StepUp:       stepUpVerifier,
+		WayIn:        wayInNotices,
+	}
+	// Signing in with a passkey alone (identity.md §23.4): the session writer's copy, taken here for
+	// the rule it must know - a passkey's session is bounded by it as every session is.
+	passkeySignInWriter := identity.PasskeySignInWriter{
+		Session:  sessionWriter,
+		SignIns:  postgres.NewPasskeySignInRepository(security.NewPendingTokenHasher(cfg.SecretKey)),
+		Verifier: webauthn.Verifier{}, Party: passkeyWriter.Party(), Resolver: signInPolicyResolver,
+	}
 	// And a writer whose rule cannot say whether the password is open lets the password through at
 	// every door it guards - a shape kept for tests that wire no rule. The server
 	// refuses to start that way rather than run with it.
@@ -1406,6 +1483,8 @@ func run() error {
 		"the identity provider's step-up":   verifierWriter(identityProviderWriter.StepUp),
 		"the installation provider's step":  verifierWriter(instanceProviderWriter.Configure.StepUp),
 		"the installation targets' step-up": verifierWriter(instanceTargetWriter.StepUp),
+		"the passkeys' session writer":      passkeyWriter.Session,
+		"the passkey sign-in's writer":      passkeySignInWriter.Session,
 	}); err != nil {
 		return err
 	}
@@ -1446,7 +1525,8 @@ func run() error {
 	// Provisioning, and the seeding the first start's setup shares with it: one workspace however it
 	// began (UC-INS-01).
 	provisioning := adminservice.ProvisionTenant{
-		Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
+		Tenants: postgres.NewAdminTenantRepository(), Plans: postgres.NewPlanRepository(),
+		Journal:  postgres.NewInstanceJournal(cursors),
 		Accounts: accounts, Redemption: signInStore, Grants: grants,
 		Containers: containers, Buckets: buckets, Labels: labels,
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
@@ -1457,6 +1537,7 @@ func run() error {
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
 		Jobs: jobs, RetentionInterval: cfg.Retention.Interval,
+		Platform: platformEvents,
 		Instance: postgres.NewInstanceSettingRepository(),
 	}
 	// The first start's codes, hashed under their own purpose label (security.md, T-24).
@@ -1472,20 +1553,34 @@ func run() error {
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
 	}
+	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
+	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}
+	// The installation's subscriptions for a purchase platform (UC-INS-14): the instance writer for
+	// the register and the journal, the envelope for the secret, the step-up for a new address -
+	// copied from the session writer once it has been taught the rule.
+	platformWriter := adminservice.PlatformWriter{
+		Instance: instanceWriter, Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Encryptor: encryptor, Entropy: clockadapter.CryptoRandom{},
+		StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Tenancy: cfg.Tenancy,
+		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
+		// one that names none leaves them to the API and the screen.
+		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
+	}
 	useCases, err := usecase.NewRegistry(
-		observer.Registry(),
+		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
-			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.RenewInvitation{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
+			Keys:     sessionWriter.Keys,
 			Factor:   sessionWriter,
 			Password: sessionWriter,
 			// The same reading a private hub of one's own is decided on (ADR-0073 §2).
@@ -1497,11 +1592,11 @@ func run() error {
 			Grant: identity.GrantMembership{
 				Grants: grants, Accounts: accounts, Groups: groups, Hubs: postgres.NewHubLockRepository(),
 				Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-				StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+				StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Text: forms,
+			Text: forms, People: quotaGuard,
 		}.Descriptor(),
 		identity.IssueStartPassword{
 			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
@@ -1540,13 +1635,15 @@ func run() error {
 				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
 				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
 			},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.RevokeMembership{
 			Grants: grants, Authorizer: authorizer, Revocations: revocations, LastMember: lastMember,
 			Owners:     grants,
 			Audit:      auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp:   identity.StepUpVerifier{Writer: sessionWriter},
+			Platform: platformEvents,
 		}.Descriptor(),
 		identity.ListGroups{Groups: groups, UnitOfWork: unitOfWork}.Descriptor(),
 		identity.GetGroup{Groups: groups, Grants: grants, Grantable: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
@@ -1557,12 +1654,12 @@ func run() error {
 		identity.UpdateGroup{
 			Groups: groups, Accounts: accounts, Grants: grants, Authorizer: authorizer, Revocations: revocations,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
-			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Owners: grants, StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.DeleteGroup{
 			Groups: groups, Grants: grants, Authorizer: authorizer, Revocations: revocations, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Owners: grants,
-			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			StepUp: identity.StepUpVerifier{Writer: sessionWriter}, Platform: platformEvents,
 		}.Descriptor(),
 		identity.ChangePassword{Writer: passwordWriter}.Descriptor(),
 		identity.CheckPassword{Writer: passwordWriter}.Descriptor(),
@@ -1589,6 +1686,12 @@ func run() error {
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			// Whether the card asks for a sign-in name too (ADR-0074 §3).
 			Managed: postgres.NewAccountRepository(),
+			// Where a passkey ceremony can finish (identity.md §23.3).
+			Party: &identity.PasskeyParty{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+				Installation: passkeyInstallationOf(cfg.BaseURL, cfg.Tenancy == envport.TenancyMulti),
+				Domains:      domains,
+			},
 			// The moment an offer is read at: a withdrawn provider is not a button (ADR-0076 §2).
 			Clock:      clockadapter.System{},
 			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
@@ -1617,6 +1720,7 @@ func run() error {
 		identity.ConfirmAuthenticatorReplacement{Writer: sessionWriter}.Descriptor(),
 		identity.StepUp{Writer: sessionWriter}.Descriptor(),
 		identity.StartProviderStepUp{Writer: sessionWriter}.Descriptor(),
+		identity.StartPasskeyStepUp{Writer: sessionWriter}.Descriptor(),
 		identity.RegisterOauthClient{Writer: oauthWriter}.Descriptor(),
 		identity.ListOauthClients{Writer: oauthWriter}.Descriptor(),
 		identity.ReadOauthClient{Writer: oauthWriter}.Descriptor(),
@@ -1716,6 +1820,15 @@ func run() error {
 		}.Descriptor(),
 		identity.CompleteProviderConnect{Writer: oidcWriter}.Descriptor(),
 		identity.ListOwnIdentities{Writer: oidcWriter}.Descriptor(),
+		identity.ListOwnPasskeys{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.CompletePasskeyRegistration{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
+		identity.CompletePasskeyEnrollment{Writer: passkeyWriter}.Descriptor(),
+		identity.StartPasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
+		identity.CompletePasskeySignIn{Writer: passkeySignInWriter}.Descriptor(),
+		identity.RenameOwnPasskey{Writer: passkeyWriter}.Descriptor(),
+		identity.RemoveOwnPasskey{Writer: passkeyWriter}.Descriptor(),
 		identity.AgreeToTerms{Writer: sessionWriter, Arrivals: oidcWriter}.Descriptor(),
 		identity.InspectInvitation{Writer: sessionWriter}.Descriptor(),
 		identity.CreateAccessToken{Writer: accessTokenWriter}.Descriptor(),
@@ -2223,9 +2336,43 @@ func run() error {
 			Writer: instanceWriter, Installation: postgres.NewInstallationRepository(),
 		}.Descriptor(),
 		adminservice.ListInstanceJournal{Writer: instanceWriter}.Descriptor(),
+		adminservice.ListPlatformSubscriptions{Writer: platformWriter}.Descriptor(),
+		adminservice.CreatePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.ReadPlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.UpdatePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.DeletePlatformSubscription{Writer: platformWriter}.Descriptor(),
+		adminservice.RotatePlatformSubscriptionSecret{Writer: platformWriter}.Descriptor(),
+		adminservice.ListPlatformDeliveries{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Cursors: cursors,
+		}.Descriptor(),
+		adminservice.RedeliverPlatformSubscription{
+			Writer: platformWriter, Deliveries: postgres.NewPlatformDeliveryRepository(), Jobs: jobs,
+		}.Descriptor(),
+		adminservice.ReadUsage{Writer: instanceWriter, Ledger: postgres.NewUsageRepository(cursors), Tenancy: cfg.Tenancy}.Descriptor(),
+		adminservice.ListPlatformEvents{
+			Writer: instanceWriter, Events: postgres.NewPlatformEventRepository(),
+			Cursors:   security.NewPlatformEventCursorCodec(cfg.SecretKey),
+			Rendering: cloudEventRendering{source: cfg.BaseURL}, Tenancy: cfg.Tenancy,
+		}.Descriptor(),
 		adminservice.AddOperator{Writer: instanceWriter}.Descriptor(),
 		adminservice.RemoveOperator{Writer: instanceWriter}.Descriptor(),
-		// The control plane. Its credential is a PAT carrying admin:tenants - never a
+		adminservice.ListPlans{Writer: planWriter}.Descriptor(),
+		adminservice.ReadPlan{Writer: planWriter}.Descriptor(),
+		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
+		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ReadTenant{Reader: tenantReader}.Descriptor(),
+		adminservice.QueryTenants{Reader: tenantReader}.Descriptor(),
+		adminservice.UpdateTenant{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Finder: postgres.NewTenantQueryRepository(cursors), Audit: auditSink,
+		}.Descriptor(),
+		adminservice.MoveTenantPlan{
+			Writer: planWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Quotas: postgres.NewQuotaRepository(), Usage: postgres.NewQuotaRepository(), Audit: auditSink, Platform: platformEvents,
+		}.Descriptor(),
+		// The control plane. Its credential is a PAT carrying admin:tenants, or for a purchase
+		// platform the subset admin:provisioning on the verbs that declare it - never a
 		// session (api-guidelines.md §7) - and its authorisation is the scope **and** the operator
 		// register (ADR-0070 §1): the scope says what a credential may reach and the register says whose
 		// credential it may be, and either alone is a hole.
@@ -2237,19 +2384,22 @@ func run() error {
 		adminservice.SuspendTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Tenancy: cfg.Tenancy,
+			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}}.Descriptor(),
 		adminservice.ResumeTenant{LifecycleShift: adminservice.LifecycleShift{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Platform: platformEvents,
 		}}.Descriptor(),
 		adminservice.RequestTenantDeletion{
 			Tenants: postgres.NewAdminTenantRepository(), Journal: postgres.NewInstanceJournal(cursors),
 			Automations: postgres.NewAutomationSwitch(), Jobs: jobs,
 			Holds:  postgres.NewLifecycleRepository(),
 			StepUp: identity.StepUpVerifier{Writer: sessionWriter},
-			Audit:  auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Tenancy: cfg.Tenancy,
+			// A purchase platform's service account in the register sends the typed name alone.
+			Register: postgres.NewOperatorRepository(),
+			Audit:    auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Tenancy: cfg.Tenancy, Platform: platformEvents,
 		}.Descriptor(),
 		// The edge back from a pending deletion: the rules the request switched off come back
 		// on through the automation package, which owns how a schedule's next moment is found.
@@ -2259,6 +2409,7 @@ func run() error {
 				Paused: postgres.NewPausedAutomationRules(), Expander: recurrenceadapter.New(), Jobs: jobs,
 			},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Platform: platformEvents,
 		}.Descriptor(),
 		// An operator's opening of the password for one workspace (ADR-0078 §3): the scope
 		// and the register through the instance writer, the step-up through the session's verifier.
@@ -2364,7 +2515,8 @@ func run() error {
 		// that one rule's run - and every question it asks is asked inwards of the controller
 		// (automation.md §1.1).
 		controller.InboundRuns = automationservice.StartInboundRun{
-			Inbound: automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
+			Entitlements: postgres.NewPlanRepository(),
+			Inbound:      automationInbound, Jobs: jobs, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, IDs: ids,
 		}
 		// The jumble's public door: a delivery on the tenant's address becomes an entry.
@@ -2490,6 +2642,10 @@ func run() error {
 			Actions:         catalogue.AutomationActions(),
 			ActionFields:    catalogue.AutomationActionFields(),
 			ActionSummaries: catalogue.AutomationActionSummaries(),
+			// What the caller's plan leaves out, read as the registry's gate reads it.
+			ActionEntitlements: catalogue.ActionEntitlements(),
+			Entitlements:       entitlementGate,
+			AccountLinks:       accountLinks,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is
 		// JSON-RPC over one path, not a REST resource, so it belongs in no OpenAPI document - and
@@ -2760,7 +2916,8 @@ func run() error {
 	// subscriber runs inside the dispatcher's transaction and may not reach the use case registry.
 	automationRuns := postgres.NewAutomationRunRepository(cursors)
 	matchRules := automationservice.MatchRules{
-		Rules: automationRuns, Containers: containers, Jobs: jobs,
+		Entitlements: postgres.NewPlanRepository(),
+		Rules:        automationRuns, Containers: containers, Jobs: jobs,
 		Conditions: celexpression.New(),
 		Jumble:     postgres.NewJumbleRepository(cursors),
 		Clock:      clockadapter.System{},
@@ -2808,6 +2965,7 @@ func run() error {
 	}
 
 	webhookFanOut := integrationservice.FanOut{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Jobs:          jobs, Clock: clockadapter.System{}, IDs: ids,
@@ -3100,10 +3258,12 @@ func run() error {
 			// exactly what a person's purge owes: a journal entry, a tombstone and an event per
 			// row that goes.
 			Rules: postgres.NewRetentionRuleRepository(),
+			// A rule set aside for a pass shows why, written beside the pass (data-retention.md §2).
+			RuleFailures: postgres.NewRetentionRuleRepository(), Independent: unitOfWork,
 			Sweeper: lifecycle.Sweeper{
 				Rules:   postgres.NewRetentionRuleRepository(),
 				Marking: postgres.NewRetentionMarkingRepository(),
-				Holds:   lifecycleStore, Items: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
+				Holds:   lifecycleStore, Items: items, Entries: items, Purger: purger, Conditions: celexpression.New(), Changes: changes,
 				// The advance warning of data-retention.md §6 (R-1), through the notification path:
 				// the preference is honoured, the record is deduplicated, and the send is a job.
 				Warnings: notification.RecordRetentionWarning{
@@ -3117,6 +3277,9 @@ func run() error {
 				},
 				Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
 				Batch: cfg.Retention.BatchSize,
+				// Where each read stopped, so a long read-past continues on the next pass rather
+				// than starting over inside the job's deadline (data-retention.md §5).
+				Cursors: postgres.NewRetentionCursorRepository(),
 			},
 		},
 		Interval:     cfg.Retention.Interval,
@@ -3146,6 +3309,7 @@ func run() error {
 	// backup target is, so a private range or the cloud metadata address is refused unless the
 	// installation has deliberately released private networks (rule 6, T-07).
 	webhookDelivery := webhook.Deliverer{
+		Entitlements:  postgres.NewPlanRepository(),
 		Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 		Deliveries:    postgres.NewWebhookDeliveryRepository(),
 		Events:        postgres.NewOutbox(jobs),
@@ -3174,6 +3338,16 @@ func run() error {
 		}.Delay,
 		Signals: metrics,
 	}
+	// The installation's deliveries to a purchase platform (UC-INS-14): the same signature, client
+	// and ladder, and no switching off.
+	platformDelivery := webhook.PlatformDeliverer{
+		Subscriptions: postgres.NewPlatformSubscriptionRepository(),
+		Deliveries:    postgres.NewPlatformDeliveryRepository(),
+		Events:        postgres.NewPlatformEventRepository(),
+		Encryptor:     encryptor, Signer: security.NewWebhookSigner(), Client: outboundClient,
+		UnitOfWork: backgroundWork, Jobs: jobs, Clock: clockadapter.System{}, Source: cfg.BaseURL,
+		NextAttempt: webhookDelivery.NextAttempt, Signals: metrics,
+	}
 
 	// The outbound call: an HTTP_REQUEST action's HTTP, detached from every transaction and
 	// through the guarded client, with the sealed header secret opened for the length of one call.
@@ -3194,23 +3368,24 @@ func run() error {
 	// transaction, and an action is a use case.
 	automationRun := worker.AutomationRun{
 		Engine: automationservice.RunRule{
-			Reach:      authorizer,
-			Quota:      quotaGuard,
-			Rules:      postgres.NewAutomationRuleRepository(cursors),
-			Runs:       automationRuns,
-			Failures:   automationRuns,
-			Events:     outbox,
-			Source:     outbox,
-			Dispatcher: dispatchActions{catalogue: ruleCatalogue},
-			Scopes:     actionScopes{catalogue: ruleCatalogue},
-			Conditions: celexpression.New(),
-			Entries:    items,
-			Containers: containers,
-			Labels:     itemLabels,
-			Members:    itemMembers,
-			Jumble:     postgres.NewJumbleRepository(cursors),
-			Guard:      runClaims{store: postgres.NewIdempotencyStore()},
-			Signals:    metrics,
+			Entitlements: postgres.NewPlanRepository(),
+			Reach:        authorizer,
+			Quota:        quotaGuard,
+			Rules:        postgres.NewAutomationRuleRepository(cursors),
+			Runs:         automationRuns,
+			Failures:     automationRuns,
+			Events:       outbox,
+			Source:       outbox,
+			Dispatcher:   dispatchActions{catalogue: ruleCatalogue},
+			Scopes:       actionScopes{catalogue: ruleCatalogue},
+			Conditions:   celexpression.New(),
+			Entries:      items,
+			Containers:   containers,
+			Labels:       itemLabels,
+			Members:      itemMembers,
+			Jumble:       postgres.NewJumbleRepository(cursors),
+			Guard:        runClaims{store: postgres.NewIdempotencyStore()},
+			Signals:      metrics,
 			// No run acts as or about a person whose processing is restricted (Art. 18).
 			Restrictions: privacyStore,
 			Owners: notification.RecordRuleDisabled{
@@ -3226,6 +3401,13 @@ func run() error {
 		Rules: postgres.NewAutomationRuleRepository(cursors),
 	}
 
+	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
+	// without a tenant, seeded below when a worker starts.
+	platformSweep := adminservice.SweepPlatformEvents{
+		Events: postgres.NewPlatformEventRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
+		Jobs: jobs, UnitOfWork: backgroundWork,
+		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -3270,6 +3452,8 @@ func run() error {
 		// And under the role's own kind, for the same reason (queue.KindRoleGrantedEmail).
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindPlatformDeliver:  platformDelivery,
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
 		queueport.KindBackupRun:        backupRun,
@@ -3282,9 +3466,10 @@ func run() error {
 		},
 		queueport.KindAutomationSchedule: worker.AutomationScheduling{
 			Pass: automationservice.SchedulePass{
-				Schedules:   postgres.NewAutomationRuleRepository(cursors),
-				Occurrences: postgres.NewAutomationRuleRepository(cursors),
-				Jobs:        jobs, Expander: recurrenceadapter.New(),
+				Entitlements: postgres.NewPlanRepository(),
+				Schedules:    postgres.NewAutomationRuleRepository(cursors),
+				Occurrences:  postgres.NewAutomationRuleRepository(cursors),
+				Jobs:         jobs, Expander: recurrenceadapter.New(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 			},
 			Fallback: cfg.Retention.Interval,
@@ -3320,6 +3505,9 @@ func run() error {
 				Clock:         clockadapter.System{},
 				SchemaVersion: schemaVersion(), ProductVersion: version,
 			},
+			Told: adminservice.TellExportFinished{
+				Platform: platformEvents, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
 		},
 		queueport.KindTenantHardDelete: worker.TenantHardDelete{
 			Deletion: adminservice.HardDeleteTenant{
@@ -3327,6 +3515,7 @@ func run() error {
 				Journal: postgres.NewInstanceJournal(cursors), Store: mediaStore,
 				Holds:      postgres.NewLifecycleRepository(),
 				UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+				Platform: platformEvents,
 			},
 		},
 		// One workspace's re-sealing round (ADR-0045): each service that owns a sealed value
@@ -3445,6 +3634,15 @@ func run() error {
 			SchemaBehind: schemaBehind,
 		}
 		background = append(background, start(ctx, "worker.runner", runner.Run))
+
+		// Seeded by every worker that starts; the dedupe key keeps it one job. A failure costs a
+		// pass, not the start: the next worker to start seeds it again.
+		seeding, cancelSeeding := context.WithTimeout(ctx, 10*time.Second)
+		if err := platformSweep.Seed(seeding); err != nil {
+			slog.WarnContext(ctx, "the platform events' sweep could not be seeded",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		cancelSeeding()
 	}
 
 	if cfg.HasRole(envport.RoleScheduler) {
@@ -3459,11 +3657,16 @@ func run() error {
 				return onBackground
 			}(),
 			Leadership: postgres.NewLeader(backgroundPool, postgres.SchedulerLock),
-			Queue:      jobs,
-			Backlog:    jobs,
+			// Alert A-21's number: the dead letters waiting for a purchase platform (UC-INS-14).
+			PlatformDeliveries: postgres.NewPlatformDeliveryRepository(),
+			Queue:              jobs,
+			Backlog:            jobs,
 			// The data catalogue's seven days for a finished job, installation-wide: the table has
 			// no tenant.
 			FinishedJobs: jobs,
+			// The use counts' 13 months, inside workspaces and in the installation's ledger
+			// (multi-tenancy.md §4.3).
+			Usage: postgres.NewUsageRepository(cursors),
 			// The trail's months past their period, a partition at a time (audit.md §3).
 			AuditTrail:   postgres.NewAuditPartitionRepository(),
 			UnitOfWork:   backgroundWork,
@@ -3509,6 +3712,8 @@ func run() error {
 		settings:   postgres.NewInstanceSettingRepository(),
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
+		plans:      planWriter,
+		platform:   platformWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
 		return err
@@ -3657,6 +3862,18 @@ func teachTheRule(
 // whether the password is a way into a workspace (identity.PasswordDoor). Such a writer lets the
 // password through at every door it guards and offers it as a step-up proof, silently - which is what
 // a test that wires no rule wants, and what a server must never do.
+// passkeyInstallationOf reads the installation's public address for the relying party a workspace's
+// passkeys belong to (identity.md §23.3). An address that does not parse, or none, binds nothing.
+func passkeyInstallationOf(baseURL string, multi bool) identity.PasskeyInstallation {
+	parsed, err := url.Parse(baseURL)
+	if err != nil || parsed.Hostname() == "" {
+		return identity.PasskeyInstallation{Multi: multi}
+	}
+	return identity.PasskeyInstallation{
+		Host: parsed.Hostname(), Scheme: parsed.Scheme, Port: parsed.Port(), Multi: multi,
+	}
+}
+
 func requirePasswordDoors(writers map[string]identity.SessionWriter) error {
 	names := make([]string, 0, len(writers))
 	for name := range writers {
@@ -4180,7 +4397,13 @@ type applyingInstanceFile struct {
 	write    adminservice.WriteInstanceSettings
 	// ai offers the models the file names, through the operator's writer without its
 	// authorisation: the file is the operator's own configuration.
-	ai         adminservice.InstanceAiWriter
+	ai adminservice.InstanceAiWriter
+	// plans writes the plans the file names, as the file: it passes every check the API's writes
+	// pass, and is the one writer of plans while the file enforces.
+	plans adminservice.PlanWriter
+	// platform writes the subscriptions for a purchase platform the file names, their secrets read
+	// from the files it names.
+	platform   adminservice.PlatformWriter
 	unitOfWork persistenceport.UnitOfWork
 }
 
@@ -4219,6 +4442,31 @@ func applyAiModels(ctx context.Context, applying applyingInstanceFile, document 
 	return nil
 }
 
+// applyPlans writes the plans the file names (multi-tenancy.md §4.2). In single mode there are no
+// plans, and the file's are skipped with a line saying so rather than refusing the start.
+func applyPlans(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	plans, present, err := instancefile.Plans(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.plans.ApplyFile(ctx, plans, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names plans, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	for _, kept := range outcome.Kept {
+		slog.Warn("a plan the instance file no longer names was kept: workspaces are on it",
+			"source", applying.path, "plan", kept)
+	}
+	slog.Info("the plans were written from the file",
+		"source", applying.path, "mode", string(applying.mode), "plans", len(plans))
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4241,7 +4489,64 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	if err := applyAiModels(ctx, applying, document); err != nil {
 		return err
 	}
+	if err := applyLevel(ctx, applying, document); err != nil {
+		return err
+	}
+	// The plans after the level: a plan is checked against the installation's values, so the
+	// file's own values have to be in place first.
+	if err := applyPlans(ctx, applying, document); err != nil {
+		return err
+	}
+	return applyPlatformSubscriptions(ctx, applying, document)
+}
 
+// applyPlatformSubscriptions writes the subscriptions for a purchase platform the file names
+// (UC-INS-14 check 7): in `seed` the file adds, in `enforce` its set is the whole set.
+func applyPlatformSubscriptions(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	declared, present, err := instancefile.PlatformSubscriptions(document, os.ReadFile, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	file := make([]adminservice.FileSubscription, 0, len(declared))
+	for _, d := range declared {
+		file = append(file, adminservice.FileSubscription{TargetURL: d.TargetURL, Secret: secretvalue.New(d.Secret)})
+	}
+	outcome, err := applying.platform.ApplyFile(ctx, file, applying.mode == instancefile.ModeEnforce)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names platform subscriptions, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	if !outcome.Seeded {
+		slog.Info("the platform subscriptions stand already: the seeding file leaves them as they are",
+			"source", applying.path)
+		return nil
+	}
+	slog.Info("the platform subscriptions were written from the file", "source", applying.path,
+		"mode", string(applying.mode), "created", outcome.Created, "rotated", outcome.Rotated,
+		"kept", outcome.Kept, "removed", outcome.Removed)
+	return nil
+}
+
+// fileNamesPlatformSubscriptions reports whether the instance file names the subscriptions. An
+// unreadable file answers no here; reading it at the start is what refuses it.
+func fileNamesPlatformSubscriptions(path string) bool {
+	if path == "" {
+		return false
+	}
+	document, found, err := instancefile.Read(path)
+	if err != nil || !found {
+		return false
+	}
+	_, present := document["platform_subscriptions"]
+	return present
+}
+
+// applyLevel writes the file's values of the level, once in `seed` and at every start in `enforce`.
+func applyLevel(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
 	if applying.mode == instancefile.ModeSeed {
 		var already bool
 		if err := applying.unitOfWork.WithinReadOnly(ctx, persistenceport.SystemScope(),

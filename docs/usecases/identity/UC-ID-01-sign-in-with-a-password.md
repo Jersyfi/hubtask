@@ -46,6 +46,8 @@ focused, the address stays.
 ## Where it ends
 
 * No "remember me" switch — the session rules of the workspace decide how long a session lives.
-* The address is not remembered on the device; only the last used *method* is.
+* The address is not remembered on the device; only the last used *method* is, and - once
+  [multi-tenancy.md](../../architecture/multi-tenancy.md) §3.1 is built - the workspaces this device
+  signed in to (host and name, never a token), for switching between them.
 * Choosing a workspace on the sign-in screen is not offered: the host decides the workspace
   ([NG-global-identity](../../vision/non-goals.md)).

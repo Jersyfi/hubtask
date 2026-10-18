@@ -306,7 +306,22 @@
                 <Badge tone={policy.enabled === false ? 'neutral' : 'success'}>
                   {policy.enabled === false ? t('app.retention.off') : t('app.retention.on')}
                 </Badge>
+                {#if policy.last_failure}
+                  <Badge tone="danger">{t('app.retention.failing_badge')}</Badge>
+                {/if}
               </div>
+
+              {#if policy.last_failure}
+                <!-- UC-LIF-04 check 10: the rule's condition failed on an entry, so the rule acts on
+                     nothing until a pass evaluates it again, and the other rules go on. The code's
+                     own sentence says what failed. -->
+                <Banner tone="danger" title={t('app.retention.failing_title')}>
+                  {t('app.retention.failing', { at: when(policy.last_failure.at) ?? policy.last_failure.at })}
+                  {#if messages.has(policy.last_failure.code)}
+                    {t(policy.last_failure.code)}
+                  {/if}
+                </Banner>
+              {/if}
 
               <p class="quiet small">
                 {t('app.retention.after_days', { days: String(policy.retain_days) })}

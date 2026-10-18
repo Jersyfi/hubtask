@@ -1,0 +1,13 @@
+# Plain HTTP to the application answers with a permanent redirect to HTTPS. Attached to the
+# application's route only (values.yaml, ingress.annotations), so cert-manager's HTTP-01 challenge,
+# which has an ingress of its own, keeps answering on port 80. A request that is already HTTPS
+# passes through unchanged.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: hubtask
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

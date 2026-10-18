@@ -20,6 +20,7 @@ import (
 )
 
 type quotaStoreFake struct {
+	plan      quotarepo.PlanLimits
 	instance  quotarepo.Overrides
 	overrides quotarepo.Overrides
 	versions  []int
@@ -34,6 +35,10 @@ func (s *quotaStoreFake) InstanceOverrides(context.Context) (quotarepo.Overrides
 }
 
 func (s *quotaStoreFake) InstanceLocks(context.Context) (map[string]bool, error) { return nil, nil }
+
+func (s *quotaStoreFake) PlanLimits(context.Context) (quotarepo.PlanLimits, error) {
+	return s.plan, nil
+}
 
 func (s *quotaStoreFake) Overrides(context.Context) (quotarepo.Overrides, error) {
 	return s.overrides, nil
@@ -57,10 +62,13 @@ func (s *quotaStoreFake) SetOverrides(
 
 type quotaUsageFake struct{}
 
-func (quotaUsageFake) Items(context.Context) (int64, error)          { return 3, nil }
-func (quotaUsageFake) MediaBytes(context.Context) (int64, error)     { return 0, nil }
-func (quotaUsageFake) WebhookTargets(context.Context) (int64, error) { return 0, nil }
-func (quotaUsageFake) LiveExports(context.Context) (int64, error)    { return 0, nil }
+func (quotaUsageFake) Items(context.Context) (int64, error)                 { return 3, nil }
+func (quotaUsageFake) MediaBytes(context.Context) (int64, error)            { return 0, nil }
+func (quotaUsageFake) WebhookTargets(context.Context) (int64, error)        { return 0, nil }
+func (quotaUsageFake) LiveExports(context.Context) (int64, error)           { return 0, nil }
+func (quotaUsageFake) Accounts(context.Context) (int64, error)              { return 0, nil }
+func (quotaUsageFake) LockPeople(context.Context) error                     { return nil }
+func (quotaUsageFake) InvitationOpen(context.Context, string) (bool, error) { return false, nil }
 func (quotaUsageFake) AutomationRunsSince(context.Context, time.Time) (int64, error) {
 	return 0, nil
 }
@@ -227,7 +235,9 @@ func TestTheQuotaWriteIsGuardedOnTheVersion(t *testing.T) {
 		TenantID: lifecycleTenant,
 		Changes:  []QuotaChange{{Quota: quotaservice.Items, Value: hold(1)}},
 	})
-	if !errors.Is(err, shared.ErrConflict) {
+	// A stale version is `version_conflict` (api-guidelines.md §5), the code a client already
+	// handles by reading again, rather than the generic `conflict`.
+	if !errors.Is(err, shared.ErrVersionConflict) {
 		t.Errorf("answer %v, want the version conflict", err)
 	}
 	if len(f.audit.entries) != 0 {

@@ -55,6 +55,10 @@ func (u *unitOfWork) WithinReadOnly(ctx context.Context, scope persistence.Scope
 }
 
 type tenantsStore struct {
+	// planNames is what a plan's identifier names, for SetPlan.
+	planNames map[shared.ID]string
+	// taken are references another workspace holds, for SetReference.
+	taken     map[string]bool
 	inserted  []adminrepo.TenantRecord
 	record    adminrepo.TenantRecord
 	findErr   error
@@ -80,6 +84,14 @@ func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
 
 func (s *tenantsStore) Insert(_ context.Context, record adminrepo.TenantRecord) error {
 	s.inserted = append(s.inserted, record)
+	// The row a provisioning reads back in its own transaction, as the table would answer it.
+	if s.record.ID.IsZero() {
+		version := s.record.Version
+		s.record = record
+		if s.record.Version == 0 {
+			s.record.Version = max(version, 1)
+		}
+	}
 	return nil
 }
 
@@ -94,6 +106,12 @@ func (s *tenantsStore) RequestDeletion(
 	_ context.Context, purgeAfter, _ time.Time,
 ) (bool, error) {
 	s.deletions = append(s.deletions, purgeAfter)
+	if s.deleteOK {
+		// As the statement does: the row leaves, and its version moves with it.
+		s.record.StatusBeforeDeletion, s.record.Status = s.record.Status, domain.TenantPendingDeletion
+		s.record.PurgeAfter = purgeAfter
+		s.record.Version++
+	}
 	return s.deleteOK, nil
 }
 
@@ -112,6 +130,7 @@ func (s *tenantsStore) CancelDeletion(context.Context, time.Time) (domain.Tenant
 		back = domain.TenantSuspended
 	}
 	s.record.Status, s.record.StatusBeforeDeletion, s.record.PurgeAfter = back, "", time.Time{}
+	s.record.Version++
 	return back, true, nil
 }
 
@@ -146,6 +165,11 @@ func (s *tenantsStore) SetStatus(
 	_ context.Context, from, to domain.TenantStatus, _ time.Time,
 ) (bool, error) {
 	s.moved = append(s.moved, string(from)+"->"+string(to))
+	if s.moveOK {
+		// As the statement does: the row moves and its version with it.
+		s.record.Status = to
+		s.record.Version++
+	}
 	return s.moveOK, nil
 }
 

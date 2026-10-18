@@ -144,6 +144,10 @@ spec:
 {{- $record := $drill.recordConfigMap | default (printf "%s-restore-drill" (include "hubtask.fullname" .)) }}
 {{- $serviceAccount := $drill.serviceAccount.name | default (printf "%s-restore-drill" (include "hubtask.fullname" .)) }}
 {{- $pod := dict "root" . "dbName" $dbName "record" $record "serviceAccount" $serviceAccount }}
+{{- if and (not $drill.afterRelease) (not $drill.schedule) }}
+{{- fail "restoreDrill.afterRelease=false needs restoreDrill.schedule: without either the drill never runs" }}
+{{- end }}
+{{- if $drill.afterRelease }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -161,6 +165,7 @@ spec:
   backoffLimit: 0
   activeDeadlineSeconds: {{ $drill.activeDeadlineSeconds }}
   template: {{- include "hubtask.restoreDrillPod" $pod | nindent 4 }}
+{{- end }}
 {{- if $drill.schedule }}
 ---
 apiVersion: batch/v1

@@ -27,6 +27,8 @@ const (
 	StepUpRecovery StepUpMethod = "RECOVERY"
 	// StepUpProvider is a fresh sign-in at the provider the account is connected to.
 	StepUpProvider StepUpMethod = "PROVIDER"
+	// StepUpPasskey is a passkey or security key's answer (identity.md §23.2).
+	StepUpPasskey StepUpMethod = "PASSKEY"
 )
 
 // ParseStepUpToken and NewStepUpToken are the proof's shape, ParseToken's discipline.

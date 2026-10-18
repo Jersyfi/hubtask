@@ -65,7 +65,7 @@ Compliance** context, not manual support processes.
 | Erasure (Art. 17) | `CreateDataSubjectRequest(ERASURE)` | **`ANONYMIZE`** (authorship remains as "former user", the tenant's content is kept) or **`FULL_DELETE`** (the person's own contributions too), chosen by the controller. **A case that names no mode is carried out as `ANONYMIZE`** — it keeps what others depend on |
 | Restriction (Art. 18) | `RestrictProcessing` | Account status `RESTRICTED`: readable, not processed, excluded from automation and AI |
 | Portability (Art. 20) | `CreateDataSubjectRequest(PORTABILITY)` | JSON Lines + schema, not a PDF |
-| Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, metering, notification channels); the core features stay usable |
+| Objection (Art. 21) | `WithdrawConsent`; a formal case as `CreateDataSubjectRequest(OBJECTION)` | Affects optional processing (AI, notification channels); the core features stay usable. Metering counts a workspace's totals and names nobody, so there is no person's share in it to object to |
 | No automated individual decision-making (Art. 22) | — | AI results are only **suggestions** with provenance; automatic assignment has no legal effect, is overridable at any time and traceable in the audit |
 
 **The case** is the `data_subject_request` table with a state machine
@@ -223,6 +223,7 @@ with its retention and deletion path, verified by PG-2 and PG-7 against overlook
 | `job` (an inbound webhook's payload) | An `INBOUND_WEBHOOK` body travels in the queue row as `payload`, bounded well below the request limit; it reaches no log, metric, trace, audit entry or job resource, and the queue's retention removes it |
 | `rule_occurrence` | Goes with the rule or the entry, whichever goes first; holds no content and no person; not restored from an archive |
 | `retention_rule` | Holds no content; not in a backup archive ([backup-restore.md](./backup-restore.md) §8.4). An entry's announcement (`retention_pending_until`, `retention_rule_id`, `retention_action`) goes with the entry |
+| `retention_cursor` | Where each read of the retention sweep stopped: a phase, a kind or a rule, a moment and an entry's identifier - no content. Goes with the tenant and with its rule; not in a backup archive |
 | `audit_log` | **Not** individually deletable, so it holds no content ([audit.md](./audit.md) §4); an erasure is answered by a pseudonym ([audit.md](./audit.md) §6) |
 | Operational logs | Without content and without clear-text identifiers |
 | AI providers | A zero-retention agreement is a selection criterion; otherwise the provider is not approved ([ai-providers.md](../privacy/ai-providers.md)) |
@@ -328,7 +329,7 @@ tenants, data categories and period within 72 hours
 | A person's objection to AI for their own content | Offered; a workspace may withdraw the offer only on a named legal basis (§4.1) |
 | External search index | Off (PostgreSQL full text is data-local) |
 | Telemetry / usage statistics sent to the project | Does not exist |
-| Metering (usage figures for billing) | Off; when enabled, aggregates only, no content |
+| Metering (usage figures for billing) | Off; when enabled, aggregates only, no content. The daily counts are recorded always — the AI budget's because a limit needs them, entries, storage and people as numbers that name nobody; switching metering on is what offers them for billing ([multi-tenancy.md](./multi-tenancy.md) §4.3) |
 | Public sharing links | Off, expiring, revocable, not indexable |
 | Avatar retrieval from third-party services (Gravatar and similar) | Off (it leaks IP addresses to third parties) |
 | Full IP addresses in logs | No, truncated |

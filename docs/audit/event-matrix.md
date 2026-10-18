@@ -96,6 +96,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.mfa_recovery_regenerated` | RegenerateRecoveryCodes | `account` | NOTICE | Every time |
 | `auth.mfa_replaced` | ConfirmAuthenticatorReplacement | `account` | NOTICE | Every time |
 | `auth.mfa_replacement_started` | StartAuthenticatorReplacement | `account` | INFO | Every time |
+| `auth.own_passkeys_read` | ListOwnPasskeys | `account` | INFO | When refused |
+| `auth.passkey_added` | CompletePasskeyEnrollment | `account` | NOTICE | Every time |
+| `auth.passkey_added` | CompletePasskeyRegistration | `account` | NOTICE | Every time |
+| `auth.passkey_registration_started` | StartPasskeyEnrollment | `account` | INFO | Every time |
+| `auth.passkey_registration_started` | StartPasskeyRegistration | `account` | INFO | Every time |
+| `auth.passkey_removed` | RemoveOwnPasskey | `account` | NOTICE | Every time |
+| `auth.passkey_renamed` | RenameOwnPasskey | `account` | INFO | Every time |
+| `auth.passkey_sign_in_started` | StartPasskeySignIn | `workspace` | INFO | Every time |
+| `auth.passkey_signed_in` | CompletePasskeySignIn | `session` | NOTICE | Every time |
 | `auth.password_reset_requested` | ForgetPassword | `account` | NOTICE | Every time |
 | `auth.session_read` | ListSessions | `session` | INFO | When refused |
 | `auth.session_refreshed` | RefreshSession | `session` | INFO | Every time |
@@ -105,6 +114,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `auth.signed_in` | CompleteSignIn | `session` | NOTICE | Every time |
 | `auth.signed_in` | SignIn | `session` | NOTICE | Every time |
 | `auth.step_up` | StepUp | `session` | NOTICE | Every time |
+| `auth.step_up_passkey_started` | StartPasskeyStepUp | `session` | INFO | Every time |
 | `auth.step_up_provider_started` | StartProviderStepUp | `session` | INFO | Every time |
 | `auth.terms_agreed` | AgreeToTerms | `account` | NOTICE | Every time |
 
@@ -306,6 +316,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
+| `instance.platform_deliveries_read` | ListPlatformDeliveries | `platform_subscription` | INFO | When refused |
+| `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
+| `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |
+| `instance.platform_subscription_created` | CreatePlatformSubscription | `platform_subscription` | WARNING | Every time |
+| `instance.platform_subscription_read` | ListPlatformSubscriptions | `platform_subscription` | INFO | When refused |
+| `instance.platform_subscription_read` | ReadPlatformSubscription | `platform_subscription` | INFO | When refused |
+| `instance.platform_subscription_redelivered` | RedeliverPlatformSubscription | `platform_subscription` | NOTICE | Every time |
+| `instance.platform_subscription_removed` | DeletePlatformSubscription | `platform_subscription` | WARNING | Every time |
+| `instance.platform_subscription_rotated` | RotatePlatformSubscriptionSecret | `platform_subscription` | WARNING | Every time |
 | `instance.provider_configured` | ConfigureInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_read` | ListInstanceIdentityProviders | `identity_provider` | INFO | When refused |
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
@@ -315,6 +334,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.set_up` | SetUpInstallation | `tenant` | NOTICE | Every time |
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
+| `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 
 ## Jumble
 
@@ -368,6 +388,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `membership.granted` | GrantMembership | `membership` | NOTICE | Every time |
 | `membership.read` | ListMemberships | `membership` | INFO | When refused |
 | `membership.revoked` | RevokeMembership | `membership` | NOTICE | Every time |
+
+## Plan
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `plan.changed` | ChangePlan | `plan` | NOTICE | Every time |
+| `plan.created` | CreatePlan | `plan` | NOTICE | Every time |
+| `plan.listed` | ListPlans | `plan` | INFO | When refused |
+| `plan.read` | ReadPlan | `plan` | INFO | When refused |
+| `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
 
 ## Private_hubs
 
@@ -459,8 +489,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
+| `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |
 | `tenant.provisioned` | ProvisionTenant | `tenant` | INFO | Every time |
+| `tenant.queried` | QueryTenants | `tenant` | INFO | When refused |
 | `tenant.quotas_changed` | UpdateTenantQuotas | `quota` | WARNING | Every time |
+| `tenant.read` | ReadTenant | `tenant` | INFO | When refused |
+| `tenant.reference_changed` | UpdateTenant | `tenant` | INFO | Every time |
 | `tenant.resumed` | ResumeTenant | `tenant` | INFO | Every time |
 | `tenant.suspended` | SuspendTenant | `tenant` | WARNING | Every time |
 

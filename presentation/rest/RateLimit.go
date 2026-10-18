@@ -289,7 +289,10 @@ func isAuthRoute(r *http.Request) bool {
 		APIBasePath + "/auth/address:confirm",
 		APIBasePath + "/auth/installation:set-up",
 		APIBasePath + "/auth/oidc:start",
-		APIBasePath + "/auth/oidc:callback":
+		APIBasePath + "/auth/oidc:callback",
+		// A passkey sign-in: an anonymous challenge row, and a guess at a signature.
+		APIBasePath + "/auth/sessions:passkey-options",
+		APIBasePath + "/auth/sessions:passkey":
 		return true
 	}
 	return false
@@ -335,10 +338,10 @@ func ClientAddress(r *http.Request) string {
 }
 
 // OverrideBucket is the per-workspace request-rate ceiling (multi-tenancy.md §4), a
-// level of its own after authentication: it engages only for a workspace that configured one,
-// keyed per credential like the credential level - a workspace's ceiling is "per token", not a
-// shared pool. A workspace without an override answers the empty bucket and the level does not
-// apply; the installation's own default keeps being enforced where it always was.
+// level of its own after authentication: it engages where an operator's exception, the workspace's
+// plan or the installation's default sets one, keyed per credential like the credential level - a
+// workspace's ceiling is "per token", not a shared pool. Where none is set it answers the empty
+// bucket and only the credential level applies.
 func OverrideBucket(burst int) func(*http.Request) Bucket {
 	return func(r *http.Request) Bucket {
 		actor, ok := appshared.ActorFrom(r.Context())

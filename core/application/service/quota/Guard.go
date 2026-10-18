@@ -8,6 +8,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
 
@@ -25,26 +26,41 @@ type Signals interface {
 // the write it guards see the same database. The check is check-then-act and deliberately not
 // serialised - two concurrent creates can both pass at limit-1 and land one row over the wall.
 // A quota is a wall against runaway growth, not an invariant; making it one would cost a lock
-// on every create for a race that self-corrects at the very next request.
+// on every create for a race that self-corrects at the very next request. The one exception is
+// the people limit (Accounts, Renewal): one person too many is not what an operator sold, so it
+// is serialised by a lock per workspace, taken only where a limit is set.
 type Guard struct {
 	Store   repository.Store
 	Usage   repository.Usage
 	Meter   repository.Meter
 	Signals Signals
 	Tenancy env.TenancyMode
+	// Crossings tells a purchase platform a limit was reached, once per crossing (UC-INS-14).
+	// Nil tells nobody.
+	Crossings Crossings
+}
+
+// Crossings is told which creates a capacity quota admitted and which it refused - the platform
+// package's, which marks a crossing once and writes its event.
+type Crossings interface {
+	// Admitted runs in the create's transaction: the workspace is below the limit.
+	Admitted(ctx context.Context, quota string) error
+	// Refused must not write in the refused transaction, which rolls back with the refusal.
+	Refused(ctx context.Context, workspace shared.ID, quota string, limit int64)
+	// Spent is told in the metering's transaction once the day's total of an AI budget has reached
+	// it; what it writes waits for that transaction to end.
+	Spent(ctx context.Context, budget string, day, at time.Time)
+	// On reports whether anybody listens, so the guard reads nothing only to tell nobody.
+	On() bool
 }
 
 // limits resolves the transaction's tenant's table.
 func (g Guard) limits(ctx context.Context) (Limits, error) {
-	overrides, err := g.Store.Overrides(ctx)
+	levels, err := ReadLevels(ctx, g.Store)
 	if err != nil {
 		return Limits{}, err
 	}
-	instance, err := g.Store.InstanceOverrides(ctx)
-	if err != nil {
-		return Limits{}, err
-	}
-	return Resolve(overrides, instance, g.Tenancy), nil
+	return Resolve(levels, g.Tenancy), nil
 }
 
 // check is every capacity quota's shape: resolve, count, report the ratio, refuse at the wall.
@@ -65,7 +81,15 @@ func (g Guard) check(
 		g.Signals.QuotaUsage(ctx, quota, tenant, Ratio(limit, used))
 	}
 	if used+adding > limit {
+		if g.Crossings != nil {
+			g.Crossings.Refused(ctx, shared.ID(tenant), quota, limit)
+		}
 		return Exceeded(quota, limit, used)
+	}
+	// Admitted means the workspace was below the limit: a renewal at the limit adds nobody and
+	// leaves the crossing standing, so the next refusal is not a second one.
+	if g.Crossings != nil && used < limit {
+		return g.Crossings.Admitted(ctx, quota)
 	}
 	return nil
 }
@@ -95,6 +119,49 @@ func (g Guard) WebhookTargets(ctx context.Context, tenant string) error {
 		return err
 	}
 	return g.check(ctx, tenant, WebhookTargets, limits.WebhookTargets, g.Usage.WebhookTargets, 1)
+}
+
+// Accounts refuses when the people the workspace holds would pass their ceiling. Unlike the other
+// capacities it is serialised: where a limit is set the count runs under the workspace's people
+// lock, held until the creating transaction ends, so two creations at the last place admit one.
+func (g Guard) Accounts(ctx context.Context, tenant string, adding int64) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	if limits.Accounts == Unlimited {
+		return nil
+	}
+	if err := g.Usage.LockPeople(ctx); err != nil {
+		return err
+	}
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
+}
+
+// Renewal refuses renewing an invitation past the people limit: one whose link is still open
+// already counts and adds nobody, one whose link ran out takes a place again. Asked before the new
+// link is written, under the same lock as Accounts - in the mail mode the link is written later,
+// by the mail's own job, so a count after the renewal would not see it.
+func (g Guard) Renewal(ctx context.Context, tenant, account string) error {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	if limits.Accounts == Unlimited {
+		return nil
+	}
+	if err := g.Usage.LockPeople(ctx); err != nil {
+		return err
+	}
+	open, err := g.Usage.InvitationOpen(ctx, account)
+	if err != nil {
+		return err
+	}
+	adding := int64(1)
+	if open {
+		adding = 0
+	}
+	return g.check(ctx, tenant, Accounts, limits.Accounts, g.Usage.Accounts, adding)
 }
 
 // ExportJobs refuses when another live export would pass the ceiling.
@@ -158,7 +225,33 @@ func (g Guard) MeterAi(ctx context.Context, own bool, at time.Time, tokens int64
 	if err != nil {
 		return err
 	}
-	return g.Meter.Add(ctx, aiQuota(own), day, tokens)
+	if err := g.Meter.Add(ctx, aiQuota(own), day, tokens); err != nil {
+		return err
+	}
+	return g.spent(ctx, aiQuota(own), day, at)
+}
+
+// spent tells the crossings when the day's total, the call just metered included, has reached the
+// budget. Read after the increment in the same transaction, so the call that crosses it is the one
+// that sees it crossed.
+func (g Guard) spent(ctx context.Context, quota string, day, at time.Time) error {
+	if g.Crossings == nil || !g.Crossings.On() {
+		return nil
+	}
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return err
+	}
+	limit := limits.Of(quota)
+	if limit == Unlimited {
+		return nil
+	}
+	total, err := g.Usage.MeteredSince(ctx, quota, day)
+	if err != nil || total < limit {
+		return err
+	}
+	g.Crossings.Spent(ctx, quota, day, at)
+	return nil
 }
 
 // AiRenewal is the next midnight in the workspace's time zone after `now`: when the day a spent AI

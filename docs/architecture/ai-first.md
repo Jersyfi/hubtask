@@ -82,7 +82,15 @@ check 3); a provider that refuses says so before it is called (`ai.Refusing`), s
 short-cuts on its capabilities passes the same refusal on. An ask answers `202` with the job it
 queued; a refusal the job meets after that - the budget spent since, AI switched off - ends the job
 `FAILED` with the refusal's code and parameters (`error_code`, `error_params`), not in the dead
-letter, and the client that follows the job says it the way it says the refusal on a request.
+letter, and the client that follows the job says it the way it says the refusal on a request. A
+question that runs to its end ends the job `SUCCEEDED` with its outcome as a message code
+(`outcome_code`): `ai.proposed`; `ai.nothing_to_change` (the answer proposed nothing, or could not
+be read); `ai.nothing_to_work_with`, `ai.kept_out` or `ai.processing_restricted` (the same codes the
+ask refuses with up front, met after queueing). The client ends its pending state on every end, says
+after about a minute that the AI takes longer than usual while it keeps following (paused while the
+page is hidden), and does not offer a question `workable` would refuse on facts the asker may know:
+`classify` with no label, no column and no closed field to choose from is refused
+`ai.nothing_to_choose_from`.
 
 **Models the installation offers** ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md);
 UC-AI-05, UC-AI-06). Operators offer models as `ai_provider` rows with no workspace

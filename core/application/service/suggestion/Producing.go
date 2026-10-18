@@ -158,7 +158,24 @@ type Produce struct {
 type Outcome struct {
 	Recorded bool
 	Dropped  int
+	// Code is how the question ended, as the message code a person who follows the job reads: one
+	// of the Outcome* codes, or the refusal the asker's own exclusion gives. Empty only on an error.
+	Code string
 }
+
+// The outcomes of a question that ran to its end, as message codes (rule 8). Two of them are the
+// very codes the asking refuses with up front (`workable`), so a person reads the same sentence
+// whether the fact was met before the question was queued or after.
+const (
+	// OutcomeProposed: a suggestion was recorded.
+	OutcomeProposed = "ai.proposed"
+	// OutcomeNothingToChange: the model answered, and nothing in its answer could be proposed - it
+	// found nothing to change, or answered something unreadable, which a person cannot tell apart
+	// and which asks the same sentence.
+	OutcomeNothingToChange = "ai.nothing_to_change"
+	// OutcomeNothingToWorkWith: nothing was left to describe when the job ran.
+	OutcomeNothingToWorkWith = "ai.nothing_to_work_with"
+)
 
 // The prompts this build can ask with, and what a node of each answer may carry.
 //
@@ -488,15 +505,16 @@ func (h Produce) ask(
 		}); err != nil {
 		return Outcome{}, err
 	}
-	if material.Kept.Has(actor.AccountID) {
+	if refused := material.Kept.Refusal(actor.AccountID); refused != nil {
 		// The asker keeps their own content out of AI, decided between the asking and the running:
-		// no AI action is theirs any more (UC-PRV-05 check 7), and nothing is sent.
-		return Outcome{}, nil
+		// no AI action is theirs any more (UC-PRV-05 check 7), and nothing is sent. The outcome is
+		// the code the asking would now refuse with.
+		return Outcome{Code: shared.AsError(refused).DetailCode}, nil
 	}
 	if strings.TrimSpace(material.Content) == "" {
 		// Nothing to describe. Not an error and not a suggestion: an empty entry produces an
 		// empty proposal, and recording one would be recording noise.
-		return Outcome{}, nil
+		return Outcome{Code: OutcomeNothingToWorkWith}, nil
 	}
 
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
@@ -520,7 +538,7 @@ func (h Produce) ask(
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
 		// rather than retried: the next attempt asks the same question of the same model.
-		return Outcome{Dropped: dropped}, nil
+		return Outcome{Dropped: dropped, Code: OutcomeNothingToChange}, nil
 	}
 
 	proposal, err := domain.New(domain.NewInput{
@@ -544,7 +562,7 @@ func (h Produce) ask(
 	}); err != nil {
 		return Outcome{}, err
 	}
-	outcome := Outcome{Recorded: true, Dropped: dropped}
+	outcome := Outcome{Recorded: true, Dropped: dropped, Code: OutcomeProposed}
 	if !request.Apply {
 		return outcome, nil
 	}
