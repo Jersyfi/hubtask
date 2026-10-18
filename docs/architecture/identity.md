@@ -749,7 +749,8 @@ product bounds (§5.2)  →  the installation's default and lock  →  the plan'
   a workspace to a plan with other terms asks everybody once more, as a changed link does
   ([multi-tenancy.md](./multi-tenancy.md) §4.2). A plan's terms answer `terms_set_by: INSTALLATION`:
   the provider is whom a person who does not agree asks, as for the installation's. The provider's
-  account link resolves from installation and plan only (§4.2 there; not built yet, milestone PL).
+  account link (`account_url`) resolves from installation and plan only (§4.2 there): it is no link
+  a workspace sets, the footer shows or the sign-in rules answer.
 * The terms' **version** (`terms_version`, optional, at most 64 characters on one line) belongs to the
   terms link: it resolves with it, from the same level and under the same lock, and a level sets
   one only beside a terms link of its own (`auth.terms_version_without_link`); a workspace that
