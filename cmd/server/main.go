@@ -1091,6 +1091,7 @@ func run() error {
 		Flows:       postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
 		External:    postgres.NewExternalAccountRepository(),
 		Accounts:    accounts,
+		People:      quotaGuard,
 		Relying:     relyingParty,
 		RedirectURL: oidcRedirectURL,
 		// What a provider names for newcomers is given in the arrival's own transaction.
@@ -1532,12 +1533,12 @@ func run() error {
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
-			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.RenewInvitation{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			Links: invitationLinks(cfg, signInStore, unitOfWork),
+			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.GetOwnAccount{
 			Accounts: accounts, UnitOfWork: unitOfWork, Recovery: mfaStore, Enrollments: mfaStore,
@@ -1557,7 +1558,7 @@ func run() error {
 			},
 			Rule: signInPolicyResolver, Passwords: passwords, Entropy: clockadapter.CryptoRandom{},
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Text: forms,
+			Text: forms, People: quotaGuard,
 		}.Descriptor(),
 		identity.IssueStartPassword{
 			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,

@@ -73,7 +73,9 @@ type OidcWriter struct {
 	Flows    repository.OidcFlows
 	External repository.ExternalAccounts
 	Accounts repository.Accounts
-	Relying  provider.Port
+	// People refuses a newcomer past the workspace's people limit; nil enforces none.
+	People  PeopleLimit
+	Relying provider.Port
 	// Domains brings a provisioned address's domain to its ASCII form.
 	Domains text.DomainEncoder
 	// Text brings a provisioned display name to normal form C (i18n-l10n.md §5).
@@ -658,6 +660,14 @@ func (w OidcWriter) settleAccount(
 		}
 
 		if deferNewcomer {
+			// The people limit is asked before the terms are put, so that nobody agrees to terms
+			// for a place there is not; it is asked again where the account is made.
+			if err := w.roomForANewcomer(ctx, scope); err != nil {
+				if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+					return turnedAway(err)
+				}
+				return err
+			}
 			// Validated now, so that an address or a name the account could not take fails before
 			// the person agrees rather than after.
 			valid, err := domain.ProvisionExternal(
@@ -673,6 +683,9 @@ func (w OidcWriter) settleAccount(
 		}
 		provisioned, err := w.provisionNewcomer(ctx, scope, configured, arriving)
 		account = provisioned
+		if shared.AsError(err) != nil && shared.AsError(err).DetailCode == capacityAccounts {
+			return turnedAway(err)
+		}
 		return err
 	})
 	// A refusal is recorded after the arrival's transaction is over, in one of its own: everything
@@ -700,6 +713,9 @@ func (w OidcWriter) provisionNewcomer(
 	provisioned, err := domain.ProvisionExternal(
 		w.Session.IDs.NewID(), scope.TenantID, arriving.Email, arriving.DisplayName, w.Domains, w.Text)
 	if err != nil {
+		return domain.Account{}, err
+	}
+	if err := w.roomForANewcomer(ctx, scope); err != nil {
 		return domain.Account{}, err
 	}
 	if err := w.Accounts.Insert(ctx, provisioned); err != nil {
@@ -984,6 +1000,17 @@ type turnedAwayError struct{ cause error }
 
 func (e turnedAwayError) Error() string { return e.cause.Error() }
 func (e turnedAwayError) Unwrap() error { return e.cause }
+
+// capacityAccounts is the people limit's refusal (quota's `capacity.<quota>`).
+const capacityAccounts = "capacity.accounts"
+
+// roomForANewcomer asks the people limit for one more person, in the arrival's transaction.
+func (w OidcWriter) roomForANewcomer(ctx context.Context, scope persistence.Scope) error {
+	if w.People == nil {
+		return nil
+	}
+	return w.People.Accounts(ctx, scope.TenantID.String(), 1)
+}
 
 // turnedAway marks a refusal to be recorded.
 func turnedAway(cause error) error { return turnedAwayError{cause: cause} }
