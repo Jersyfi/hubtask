@@ -35,6 +35,8 @@
   /** The pairs a reader checks: text on a surface, and the surface it is read on. */
   const readingPairs = [
     { text: tokens.text.primary, on: tokens.bg.canvas, name: 'text.primary on bg.canvas' },
+    { text: tokens.text.primary, on: tokens.bg.raised, name: 'text.primary on bg.raised' },
+    { text: tokens.text.subtle, on: tokens.bg.raised, name: 'text.subtle on bg.raised' },
     { text: tokens.text.secondary, on: tokens.bg.surface, name: 'text.secondary on bg.surface' },
     { text: tokens.text.subtle, on: tokens.bg.surface, name: 'text.subtle on bg.surface' },
     { text: tokens.text.brand, on: tokens.bg.surface, name: 'text.brand on bg.surface' },
@@ -49,10 +51,12 @@
   <section class="block">
     <h2>The families</h2>
     <p class="note">
-      Two brand colours with different jobs — blue carries structure and interaction, ember is the
-      signature and carries no system meaning — and the three functional ramps, kept apart from
-      both. Every step is painted with its own custom property, so each pane shows what that step
-      resolves to in its mode.
+      Two brand colours with different jobs — indigo carries structure and interaction, raspberry
+      is the signature and carries no system meaning — then danger's own red, mint, amber and sky
+      for the statuses, violet for AI, and the cool neutrals the canvas, surface and raised steps
+      come from. Each ramp is derived in OKLCH through the values the owner chose, so a step reads
+      about as light in every hue. Every step is painted with its own custom property, so each
+      pane shows what that step resolves to in its mode.
     </p>
     {#each families as [family, steps] (family)}
       <div class="ramp">
@@ -267,9 +271,9 @@
     </p>
     <div class="logo">
       <svg class="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--blue-700)" />
-        <rect x="5" y="5" width="14" height="14" rx="4" fill="var(--blue-500)" opacity=".8" />
-        <rect x="8.5" y="8.5" width="7" height="7" rx="2.2" fill="var(--ember-400)" />
+        <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--accent-primary-hover)" />
+        <rect x="5" y="5" width="14" height="14" rx="4" fill="var(--accent-primary)" opacity=".8" />
+        <rect x="8.5" y="8.5" width="7" height="7" rx="2.2" fill="var(--accent-signature)" />
       </svg>
       <span class="logo-word">Hubtask</span>
     </div>
