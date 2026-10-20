@@ -214,7 +214,10 @@ the apply.
 
 **7.4 It never counts, nudges or celebrates.** No "3 suggestions waiting", no "you have not
 looked at this yet", and no celebration when one is accepted: `design-system.md` §7 marks what the
-person did, and a field the model proposed is not the person's work. A proposal that is still being
+person did, and a field the model proposed is not the person's work. A count of the person's own
+work is not a nudge — "4 left for today", "5 items" — and is allowed where the collection says what
+counts (decision #1623); a count of proposals stays excluded, also for proposals prepared on arrival
+(decision #1629). A proposal that is still being
 made says `Suggesting…` in the present participle of 2.4 and nothing more.
 
 ---

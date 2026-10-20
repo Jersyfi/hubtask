@@ -1,0 +1,45 @@
+---
+id: UC-WRK-32
+title: Understand why I cannot do something
+context: work
+actors: [PE-person, PE-member, PE-admin, PE-owner, PE-auditor, PE-operator]
+deployments: [D1, D2, D3, D4, D5, D6, D7]
+serves: [P-05, P-07, P-11, P-13]
+state: specified
+tasks: []
+checked_by: []
+---
+
+# Understand why I cannot do something
+
+## Goal
+
+When something cannot be done right now, the person finds out why at the place they tried, and the page around it stays as it was.
+
+## Story
+
+In the template dialog, *Edit* is unavailable on a workspace template. Hovering or focusing it shows "Only this collection's templates are changed here"; the buttons beside it do not move.
+
+## How to check
+
+1. A control that is unavailable for a reason the person can resolve or wait out stays visible, can be focused, is announced as unavailable, and shows its reason on hover, on focus and on tap; showing the reason changes the size or position of nothing on the page.
+2. A control the person may never use because of their role is not shown (P-05), unless the page needs it for orientation, then it shows a lock and the reason as above.
+3. A form's submit button is never unavailable because a field is empty or nothing changed: pressing it marks the missing fields and moves focus to the first; a form with unsaved changes shows one bar with their count, *Discard* and *Save*.
+4. When a whole area cannot be changed (an archived collection, a read-only role, a feature not in the plan) one notice at the top of the area says why and what to do; no sentence is repeated on its rows or fields.
+5. A value set above the person (installation, plan, workspace) is marked next to its name with where it comes from and whether it is locked; the mark opens the value, its source and who to ask.
+6. While something is being saved, the control shows progress in its own place; afterwards a short message confirms it.
+7. These hold on every page of the web app, for people, administrators and operators, at every width.
+
+## Where it ends
+
+* Which actions are allowed is decided by the use cases and roles; this one is how a refusal is shown.
+
+## Today
+
+* Check 1: not met — not built yet, tracked in milestone UX.
+* Check 2: not met — not built yet, tracked in milestone UX.
+* Check 3: not met — not built yet, tracked in milestone UX.
+* Check 4: not met — not built yet, tracked in milestone UX.
+* Check 5: not met — not built yet, tracked in milestone UX.
+* Check 6: not met — not built yet, tracked in milestone UX.
+* Check 7: not met — not built yet, tracked in milestone UX.

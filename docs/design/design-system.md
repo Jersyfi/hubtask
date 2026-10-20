@@ -112,8 +112,13 @@ web app's bundle. `lint-no-literals` does not apply to its own chrome; colour is
 
 ## 3. Typography
 
-IBM Plex in three cuts, OFL 1.1, self-hosted, with coverage for Arabic, Hebrew, Devanagari, Thai and
-CJK.
+IBM Plex in three cuts, OFL 1.1, self-hosted. The script faces of the family — IBM Plex Sans
+Arabic, Hebrew, Devanagari, Thai and SC (Simplified Chinese) — and, for Bengali, which IBM Plex
+does not cover, Noto Sans Bengali (OFL 1.1) are shipped beside them, split by `unicode-range` so a
+browser loads only what its text needs (decision #1625). Every language in `supported_locales` has
+a shipped face for its script; a test holds the two lists together. Until that task lands, the
+build ships the Latin, Latin Extended, Cyrillic, Greek and Vietnamese subsets of the three cuts
+only, and the condensed cut carries Cyrillic Extended without basic Cyrillic.
 
 | Style | Family | Size / line height | Weight | Used for |
 |---|---|---|---|---|
@@ -329,9 +334,11 @@ below it.
 ## 6. The six rules
 
 1. **Depth carries meaning.** Raised = standalone element, recessed = child element, glass =
-   temporary overlay. No shadow without one of those three reasons. The frame — app bar, navigation
-   column, bottom bar — is a plane of `bg.surface` above the content's `bg.canvas`, separated by
-   hairlines, with no elevation.
+   temporary overlay. No shadow without one of those three reasons. A card or panel that stands on
+   its own is raised with the soft `elevation.raised` and differs from the canvas by at least
+   1.18:1, and the one primary action of a page may carry the accent's glow (decision #1624). The
+   frame — app bar, navigation column, bottom bar — is a plane of `bg.surface` above the content's
+   `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
    always needs an opaque fallback that does not shift layout.
 3. **Colour never stands alone.** Every status also carries text or an icon. A status has a subtle
@@ -387,16 +394,18 @@ the phone shell is the web app's phone layout.
 
 ## 7. Rewarding interactions
 
-Completing work that matters is acknowledged through moments, not gamification. **Levels, points,
-badges, streaks and leaderboards are excluded**, permanently: a task tool that pays out tokens
-trains people to farm them.
+Completing work that matters is acknowledged through moments and through progress a person can
+see — never through points. **Points, experience, levels, badges for activity, streaks that break,
+and leaderboards are excluded**: a task tool that pays out tokens trains people to farm them
+(decision #1623). What is allowed is bounded to outcomes, below under *What stays visible*.
 
 The moments and their slots are called **"celebration"** everywhere — documentation, code, tokens —
 never "reward": a celebration marks a moment and hands over nothing.
 
 ### The guardrails
 
-Modern, plain, micro-animations, light/dark, dark red/dark blue — never playful:
+Modern, vivid and rewarding — indigo, raspberry, mint, amber and sky on clear surfaces
+(decision #1624) — with the calm of a tool people work in all day:
 
 * **Sparing and short.** A celebration is the exception that proves the calm default.
 * **On by default, and each user can switch it off.** One preference for all tiers: the account's
@@ -414,6 +423,23 @@ The WorkItem hierarchy, not a heuristic, says what is special.
 | **1 — always, subtle** | Every completion | A micro-animation, part of the normal motion system. No trigger logic |
 | **2 — structural, medium** | A completion completes the next level up: every sibling under the parent is now complete | Deterministic, read directly off the domain model |
 | **3 — rare, the big moment** | A collection or a hub with nothing open left; the last entry due today completed; the **first-ever completion** — any completion while the account's `onboarding_completed_at` is null (§8) | At most **one tier-3 celebration per day**. A second qualifying event on the same day falls back to tier 2 |
+
+### What stays visible
+
+A celebration passes; what a person achieved stays on the page, bounded by what the collection
+says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
+
+* **Progress** — a ring or bar, only where a collection's entries have an end; a list never shows a
+  percentage.
+* **Rhythm** — the days of this week on which something was completed; it never resets to zero,
+  never names a missed day, and weekends and absences cost nothing.
+* **Milestones** — a collection or hub with nothing open records the moment with its date on it.
+* **Kudos** — one person's acknowledgement of another's completed entry, seen by the one who
+  completed it; never counted per person.
+
+**Figures about one person are that person's.** No administrator, auditor or report sees them, and
+a team's figures count the collection, not people: per-person figures in a company are performance
+monitoring. The `celebrations` preference switches all of it off with the moments.
 
 ### Celebration slots, not fixed animations
 
@@ -436,7 +462,7 @@ A `celebrate` action for the automation rule engine
 
 ### Rejected alternatives
 
-Not triggers: **randomness** (arbitrary, playful, invites toggling tasks to roll the dice);
+Not triggers: **randomness** (arbitrary, invites toggling tasks to roll the dice);
 **overdue thresholds** (negative framing, rewards procrastination, misses undated tasks); and
 **behavioural heuristics or scoring of any kind**, which would be a new decision with its own ADR.
 
@@ -464,8 +490,11 @@ screenshots.
 
 ## 9. Still missing
 
-- **Logo and wordmark** — the workbench's `Foundations/Tokens · The wordmark, unfinished` story
-  shows the idea (three nested planes, the innermost in bordeaux), not a finished mark.
+- **Logo and wordmark** — fixed provisionally (decision #1630): an open outline (the hub) around
+  a plane (the collection) and a core (the task), with a spark at the outline's end (the moment of
+  completion); the wordmark is IBM Plex Sans Condensed 700 in lower case. A trademark search and a
+  graphic refinement precede its final release. The mark is never a symbol of a level: levels are
+  presets a collection changes, and a fixed symbol would claim what the settings may no longer be.
 - **The system conventions of the installed clients** — the back gesture and swipe as history, the
   share sheet, the keyboard's accessory row, the status bar's colour, and the administration row as
   [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
