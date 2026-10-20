@@ -12,6 +12,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // restrictedIn reads whose processing is restricted, under one workspace, as the application role.
@@ -64,6 +65,24 @@ func TestWhoseProcessingIsRestricted(t *testing.T) {
 		t.Error("a former user stays restricted after the last kept part was erased")
 	}
 
+	// A held account that somehow became active again stays restricted: the kept record decides,
+	// not the status.
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE account SET status = 'ACTIVE' WHERE id = $1`,
+		kept.account.String()); err != nil {
+		t.Fatalf("activating: %v", err)
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE erasure_kept SET erased_at = NULL WHERE request_id = $1`, request.ID.String()); err != nil {
+		t.Fatalf("keeping again: %v", err)
+	}
+	if !restrictedIn(ctx, t, kept.tenant).Has(kept.account) || !assignmentRestricted(ctx, t, kept) {
+		t.Error("an active account a hold keeps a part of is not restricted")
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE erasure_kept SET erased_at = now() WHERE request_id = $1`, request.ID.String()); err != nil {
+		t.Fatalf("erasing the rest: %v", err)
+	}
+
 	// Anonymised without a hold: not restricted.
 	gone := seedSubject(ctx, t, "gone-"+freshID(t).String()+"@example.test")
 	plain := erasureRequest(ctx, t, gone, domain.ModeAnonymize)
@@ -89,6 +108,20 @@ func TestTheRestrictedOfAnotherWorkspaceAreInvisible(t *testing.T) {
 	if set := restrictedIn(ctx, t, ours.tenant); !set.Empty() {
 		t.Error("another workspace's restricted account was answered")
 	}
+}
+
+// assignmentRestricted asks the question the assignment policy and the rules' assignments ask.
+func assignmentRestricted(ctx context.Context, t *testing.T, subject person) bool {
+	t.Helper()
+	var restricted map[shared.ID]bool
+	if err := read(ctx, t, subject.tenant, func(ctx context.Context) error {
+		var err error
+		restricted, err = postgres.NewAccountRepository().Restricted(ctx, []shared.ID{subject.account})
+		return err
+	}); err != nil {
+		t.Fatalf("reading the restriction: %v", err)
+	}
+	return restricted[subject.account]
 }
 
 func emailOf(ctx context.Context, t *testing.T, account shared.ID) string {

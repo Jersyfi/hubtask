@@ -203,8 +203,8 @@ type LockedAccount struct {
 // Restrictions answers whose processing is restricted (Art. 18, data-protection.md §4): the one
 // read the rule engine and the AI exclusion share, so that the two cannot disagree about a person.
 type Restrictions interface {
-	// RestrictedPeople answers every account in the RESTRICTED state, and every anonymised account a
-	// legal hold still keeps contributions of. An empty list is not an error.
+	// RestrictedPeople answers every account in the RESTRICTED state, and every account a legal hold
+	// still keeps contributions of, whatever its status. An empty list is not an error.
 	RestrictedPeople(ctx context.Context) ([]domain.RestrictedPerson, error)
 }
 

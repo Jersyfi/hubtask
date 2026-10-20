@@ -1245,16 +1245,22 @@ func (q *Queries) RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberPa
 
 const restrictedAccounts = `-- name: RestrictedAccounts :many
 SELECT id
-FROM account
-WHERE id = ANY($1::uuid[])
-  AND status IN ('RESTRICTED', 'ANONYMIZED')
+FROM account a
+WHERE a.id = ANY($1::uuid[])
+  AND (a.status IN ('RESTRICTED', 'ANONYMIZED')
+    OR EXISTS (
+      SELECT 1 FROM erasure_kept k
+      JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+      WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
+        AND r.subject_account_id = a.id))
 `
 
 // Which of the accounts named may not be processed automatically (Art. 18, data-protection.md §4).
 //
 // Anonymised as well as restricted: an account whose person has been erased is not a candidate for
 // anything either, and the caller asks one question - "may this system decide something about
-// them" - rather than two.
+// them" - rather than two. And every account an erasure still keeps a part of under a hold,
+// whatever its status, as RestrictedPeople answers it (data-protection.md §4.1).
 func (q *Queries) RestrictedAccounts(ctx context.Context, accountIds []pgtype.UUID) ([]pgtype.UUID, error) {
 	rows, err := q.db.Query(ctx, restrictedAccounts, accountIds)
 	if err != nil {

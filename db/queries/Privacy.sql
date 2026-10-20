@@ -408,20 +408,22 @@ WHERE tenant_id = current_tenant_id()
 
 -- name: RestrictedPeople :many
 -- Whose processing is restricted (Art. 18, data-protection.md §4): every account whose status is
--- RESTRICTED, and every anonymised account a legal hold still keeps contributions of - the subject
--- of an erasure case with a part not yet erased (§4.1). Not every anonymised account: what an
--- erasure anonymised without a hold is the workspace's content. The names and the address are what
--- a prompt builder replaces in what remains; an anonymised account has none left.
+-- RESTRICTED, and every account a legal hold still keeps contributions of - the subject of an
+-- erasure case with a part not yet erased (§4.1), whatever its status: an invited or disabled one
+-- keeps its status, which RESTRICTED would turn into one that may act, and an anonymised one has no
+-- other mark. Not every anonymised account: what an erasure anonymised without a hold is the
+-- workspace's content. The names and the address are what a prompt builder replaces in what
+-- remains; an anonymised account has none left.
 SELECT a.id AS account_id, a.display_name, a.email, a.sign_in_name
 FROM account a
 WHERE a.tenant_id = current_tenant_id()
   AND a.deleted_at IS NULL
   AND (a.status = 'RESTRICTED'
-    OR (a.status = 'ANONYMIZED' AND EXISTS (
+    OR EXISTS (
       SELECT 1 FROM erasure_kept k
       JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
       WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
-        AND r.subject_account_id = a.id)))
+        AND r.subject_account_id = a.id))
 ORDER BY a.id;
 
 -- name: ErasureKeepsAccount :one

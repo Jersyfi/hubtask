@@ -404,11 +404,17 @@ ORDER BY membership_id, account_id;
 --
 -- Anonymised as well as restricted: an account whose person has been erased is not a candidate for
 -- anything either, and the caller asks one question - "may this system decide something about
--- them" - rather than two.
+-- them" - rather than two. And every account an erasure still keeps a part of under a hold,
+-- whatever its status, as RestrictedPeople answers it (data-protection.md §4.1).
 SELECT id
-FROM account
-WHERE id = ANY(sqlc.arg('account_ids')::uuid[])
-  AND status IN ('RESTRICTED', 'ANONYMIZED');
+FROM account a
+WHERE a.id = ANY(sqlc.arg('account_ids')::uuid[])
+  AND (a.status IN ('RESTRICTED', 'ANONYMIZED')
+    OR EXISTS (
+      SELECT 1 FROM erasure_kept k
+      JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+      WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
+        AND r.subject_account_id = a.id));
 
 -- ========================== Personal access tokens ==========================
 -- The tenant is never a parameter here either: row level security bounds every statement to the
