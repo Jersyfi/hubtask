@@ -5,12 +5,15 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -355,6 +358,34 @@ func (r PrivacyRepository) SetStatus(
 			WithCause(fmt.Errorf("setting an account status: %w", err))
 	}
 	return rows > 0, nil
+}
+
+// LockStatus answers an account's status with its row locked. Another workspace's account is hidden
+// by row level security and answers as not found.
+func (r PrivacyRepository) LockStatus(
+	ctx context.Context, id shared.ID,
+) (repository.LockedAccount, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.LockedAccount{}, false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return repository.LockedAccount{}, false, err
+	}
+
+	row, err := queries.LockAccountStatus(ctx, key)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return repository.LockedAccount{}, false, nil
+	case err != nil:
+		return repository.LockedAccount{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking an account's status: %w", err))
+	}
+	return repository.LockedAccount{
+		Status: identity.AccountStatus(row.Status), InvitationOpen: row.InvitationOpen,
+	}, true, nil
 }
 
 // Tenants answers the workspaces in which one address is a member.

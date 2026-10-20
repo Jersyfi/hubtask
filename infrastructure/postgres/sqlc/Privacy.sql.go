@@ -908,6 +908,28 @@ func (q *Queries) ListDataSubjectRequests(ctx context.Context, arg ListDataSubje
 	return items, nil
 }
 
+const lockAccountStatus = `-- name: LockAccountStatus :one
+SELECT status, (redemption_token_hash IS NOT NULL)::boolean AS invitation_open FROM account
+WHERE id = $1 AND tenant_id = current_tenant_id() AND deleted_at IS NULL
+FOR UPDATE
+`
+
+type LockAccountStatusRow struct {
+	Status         AccountStatus
+	InvitationOpen bool
+}
+
+// The status a restriction starts from, with the row locked until the transaction ends: an erasure
+// or an accepted invitation that changed it between the decision and the write would otherwise be
+// written over (data-protection.md §4). Redeeming or accepting an invitation clears its token, so
+// a token still there is an invitation nobody accepted.
+func (q *Queries) LockAccountStatus(ctx context.Context, id pgtype.UUID) (LockAccountStatusRow, error) {
+	row := q.db.QueryRow(ctx, lockAccountStatus, id)
+	var i LockAccountStatusRow
+	err := row.Scan(&i.Status, &i.InvitationOpen)
+	return i, err
+}
+
 const lockDataSubjectRequest = `-- name: LockDataSubjectRequest :one
 
 

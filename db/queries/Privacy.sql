@@ -172,6 +172,15 @@ DO UPDATE SET noticed_at = GREATEST(ai_objection_notice.noticed_at, EXCLUDED.not
 UPDATE account SET status = sqlc.arg('status'), updated_at = sqlc.arg('updated_at'), version = version + 1
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND deleted_at IS NULL;
 
+-- name: LockAccountStatus :one
+-- The status a restriction starts from, with the row locked until the transaction ends: an erasure
+-- or an accepted invitation that changed it between the decision and the write would otherwise be
+-- written over (data-protection.md §4). Redeeming or accepting an invitation clears its token, so
+-- a token still there is an invitation nobody accepted.
+SELECT status, (redemption_token_hash IS NOT NULL)::boolean AS invitation_open FROM account
+WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id() AND deleted_at IS NULL
+FOR UPDATE;
+
 -- name: InsertAuditPseudonym :exec
 -- The substitution the audit trail reads at the boundary (audit.md §6). Idempotent on the actor:
 -- an erasure that is retried records the same pseudonym rather than a second one.

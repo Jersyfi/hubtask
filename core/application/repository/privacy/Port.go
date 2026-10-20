@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -180,6 +181,23 @@ type Subjects interface {
 	// rather than a tenant, and it answers identifiers rather than rows: what follows is one
 	// ordinary transaction per tenant, under that tenant's own context.
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
+}
+
+// AccountStatuses is what a restriction and an erasure's kept account read before they write: the
+// status the account starts from.
+type AccountStatuses interface {
+	// LockStatus answers an account's status and locks its row until the transaction ends, so
+	// that what the caller decides on it still holds when it writes; false when there is no such
+	// account here.
+	LockStatus(ctx context.Context, id shared.ID) (LockedAccount, bool, error)
+}
+
+// LockedAccount is what a restriction and an erasure decide on.
+type LockedAccount struct {
+	Status identity.AccountStatus
+	// InvitationOpen is an invitation nobody has accepted yet. An account that holds one and is not
+	// INVITED was never accepted, and lifting its restriction gives the invitation back.
+	InvitationOpen bool
 }
 
 // Restrictions answers whose processing is restricted (Art. 18, data-protection.md §4): the one

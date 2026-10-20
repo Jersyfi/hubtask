@@ -7,12 +7,16 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
@@ -359,5 +363,69 @@ func TestARestrictionIsAStateOfTheAccount(t *testing.T) {
 	}
 	if !restricted[subject.account] {
 		t.Error("a restricted account is not reported as restricted")
+	}
+}
+
+// An invitation nobody accepted reads as one: it still holds its token, which redeeming clears.
+func TestTheLockedReadSaysAnInvitationIsOpen(t *testing.T) {
+	ctx := context.Background()
+	subject := seedSubject(ctx, t, "hanna-"+freshID(t).String()+"@example.org")
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE account SET status = 'RESTRICTED', redemption_token_hash = $2 WHERE id = $1`,
+		subject.account.String(), "invite-"+subject.account.String()); err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+	if err := write(ctx, t, subject.tenant, func(ctx context.Context) error {
+		account, found, err := privacyRepo().LockStatus(ctx, subject.account)
+		if err != nil {
+			return err
+		}
+		if !found || account.Status != identity.AccountRestricted || !account.InvitationOpen {
+			t.Errorf("the account reads %+v, found %v", account, found)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reading the status: %v", err)
+	}
+}
+
+// The status a restriction starts from, read with the row locked - and not across workspaces: the
+// account of another workspace answers as not found under this one's transaction.
+func TestARestrictionReadsTheStatusItStartsFrom(t *testing.T) {
+	ctx := context.Background()
+	here := seedSubject(ctx, t, "greta-"+freshID(t).String()+"@example.org")
+	elsewhere := seedSubject(ctx, t, "greta-"+freshID(t).String()+"@example.org")
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE account SET status = 'ANONYMIZED' WHERE id = $1`, here.account.String()); err != nil {
+		t.Fatalf("anonymising: %v", err)
+	}
+
+	if err := write(ctx, t, here.tenant, func(ctx context.Context) error {
+		account, found, err := privacyRepo().LockStatus(ctx, here.account)
+		if err != nil {
+			return err
+		}
+		if !found || account.Status != identity.AccountAnonymized || account.InvitationOpen {
+			t.Errorf("the account reads %+v, found %v", account, found)
+		}
+		// The row stays locked until this transaction ends: that is what the decision relies on.
+		var locked int
+		err = adminPool(ctx, t).QueryRow(ctx,
+			`SELECT 1 FROM account WHERE id = $1 FOR UPDATE NOWAIT`, here.account.String()).Scan(&locked)
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "55P03" {
+			t.Errorf("a second transaction locked the row too: %v", err)
+		}
+
+		_, found, err = privacyRepo().LockStatus(ctx, elsewhere.account)
+		if err != nil {
+			return err
+		}
+		if found {
+			t.Error("another workspace's account was read")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("reading the status: %v", err)
 	}
 }
