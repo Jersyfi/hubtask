@@ -183,8 +183,10 @@ func (e Eraser) erase(
 		// The last-owner rule, asked of every erasure that ends the account - removed or anonymised.
 		// A kept account is still the person's and still an owner; the remainder that erases it
 		// later asks again. Refused with the code an operator can act on, like a running rule:
-		// somebody else is made Owner, and the case is carried out afterwards.
-		if plan.Account != domain.AccountKept {
+		// somebody else is made Owner, and the case is carried out afterwards. A re-application
+		// after a recovery is not asked: that erasure was carried out already, and refusing it
+		// would let the rewind bring the person back.
+		if plan.Account != domain.AccountKept && action != ErasureReappliedAction {
 			if err := keepsAnOwner(ctx, e.Owners, subject); err != nil {
 				return err
 			}

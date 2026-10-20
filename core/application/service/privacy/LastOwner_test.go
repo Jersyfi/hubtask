@@ -113,3 +113,19 @@ func TestStartingTheErasureOfTheLastOwnerIsRefused(t *testing.T) {
 		t.Errorf("the work was queued anyway: %+v", work)
 	}
 }
+
+// A re-application after a recovery carries out an erasure that was carried out already: it is not
+// held to the last-owner rule, or the rewind would bring the erased person back.
+func TestAReappliedErasureIsNotHeldToTheLastOwnerRule(t *testing.T) {
+	harness := newErasureHarness()
+	eraser := harness.eraser()
+	eraser.Owners = &ownersOf{accounts: []shared.ID{subjectID}}
+
+	if _, err := eraser.erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete),
+		ErasureReappliedAction); err != nil {
+		t.Fatalf("re-applying the erasure of the only owner was refused: %v", err)
+	}
+	if !harness.storage.deleted {
+		t.Error("the re-applied erasure removed nothing")
+	}
+}
