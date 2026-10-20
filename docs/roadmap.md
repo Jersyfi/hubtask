@@ -24,7 +24,7 @@ milestone: it has no `Delivers` line, and each fix closes its own issue.
 **Then, in this order** — each a GitHub milestone today, each cut against its use cases like every
 milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
 
-1. **CP — The open promises**: the findings that leave a use case check unmet and need a task of
+1. **CP — The open promises** ([`archive/backlog/milestone-CP.md`](./archive/backlog/milestone-CP.md), cut 2026-10-15, closed 2026-10-20): the findings that leave a use case check unmet and need a task of
    their own (retention, backup, privacy requests, `hubctl` and people, webhook filters,
    concurrent saves, the multi-mode host) and the decided sign-in tasks SC-36 and SC-37. SC-30
    waits for the first release after one that contains SC-26.

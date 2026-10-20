@@ -15,6 +15,8 @@ Every task names its use cases; a task is done when the named checks hold, with 
 pull request.
 
 **Delivers:** UC-BAK-04 (4, 5, 6), UC-BAK-07 (1), UC-BAK-08 (3, 6), UC-ID-04 (9), UC-ID-05 (6), UC-ID-10 (8), UC-INT-01 (9), UC-PRV-01 (2), UC-PRV-06 (3, 4), UC-PRV-08 (2), UC-AUD-07 (3, 4), UC-INS-09 (8), UC-ID-14 (7), UC-ID-20 (9), UC-PRV-04 (8), UC-ID-07 (7), UC-ID-20 (5), UC-ID-12 (1), UC-PRV-03 (14), UC-INS-14 (8)
+**Released:** 2026-10-15
+**Closed:** 2026-10-20
 
 ## Decisions
 
