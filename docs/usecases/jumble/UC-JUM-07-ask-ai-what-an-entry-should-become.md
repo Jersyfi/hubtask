@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12, P-14]
 state: partial
-tasks: [J-06, F5-03, K-01]
+tasks: [J-06, F5-03, K-01, UX-21]
 checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go]
 ---
 

@@ -6,7 +6,7 @@ actors: [PE-person, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-06, P-07, P-10]
 state: specified
-tasks: []
+tasks: [UX-27]
 checked_by: []
 ---
 
@@ -26,6 +26,7 @@ The freelancer has tuned "Client A": two levels, a field "Hours" with a sum, a b
 2. Creating a hub or collection offers Hubtask's presets, the installation's, the workspace's and the person's own, each marked with where it comes from.
 3. A workspace preset can be renamed, changed and withdrawn by whoever may change the workspace's shape; collections made from it keep their settings.
 4. An administrator can make a preset the workspace's default and lock individual settings for every collection.
+5. The first person of a new workspace is asked once what they use Hubtask for — for myself, our household, my clients, our team — and gets hubs and collections on matching presets; they can skip it, and everything made can be renamed, changed or removed.
 
 ## Where it ends
 
@@ -37,3 +38,4 @@ The freelancer has tuned "Client A": two levels, a field "Hours" with a sum, a b
 * Check 2: not met — not built yet, tracked in milestone UX.
 * Check 3: not met — not built yet, tracked in milestone UX.
 * Check 4: not met — not built yet, tracked in milestone UX.
+* Check 5: not met — not built yet, tracked in milestone UX.
