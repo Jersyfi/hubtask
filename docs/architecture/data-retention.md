@@ -128,7 +128,9 @@ Evaluated in this order; the first that applies wins:
    [data-protection.md §4.1](./data-protection.md#41-three-decisions-of-2026-09-30).
 2. **A restriction of processing** (GDPR Art. 18) → the object is neither deleted nor changed. The
    **account** carries it (status `RESTRICTED`), not an open case
-   ([data-protection.md](./data-protection.md) §4). It reaches what an account hold reaches (item 1):
+   ([data-protection.md](./data-protection.md) §4). Only an active account is restricted: an
+   invited or disabled person's data is kept by an account hold (item 1) instead, and an account an
+   erasure keeps under a hold is restricted through the kept record whatever its status. It reaches what an account hold reaches (item 1):
    the account and what its person contributed. It binds the automatic runs — the rules, their
    preview and the automatic trash purge — which read it once per pass, with the holds, through the
    read automation and the AI exclusion share. A kept entry carries `blocked_by: restriction`, a kept
