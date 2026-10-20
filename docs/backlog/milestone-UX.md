@@ -127,7 +127,7 @@ a plan, in both modes; the inventory rows ticked.
 
 ## UX-06 — The mark
 
-*Depends on: nothing.* · issue #1638
+*Depends on: UX-01.* · issue #1638
 
 **Use cases:** UC-WRK-33 (4)
 
