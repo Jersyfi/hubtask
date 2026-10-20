@@ -52,7 +52,8 @@ const (
 	FloorMaxAgeDays = 1
 )
 
-// MfaRequirement is who the workspace demands a second factor of.
+// MfaRequirement is who the workspace demands a second factor of at a sign-in with a password. A
+// provider sign-in is trusted as a whole and never meets it (identity.md §8).
 type MfaRequirement string
 
 const (

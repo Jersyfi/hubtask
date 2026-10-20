@@ -11870,7 +11870,11 @@ components:
         password: { $ref: "#/components/schemas/PasswordPolicySettings" }
         mfa_required_for:
           $ref: "#/components/schemas/SignInPolicyText"
-          description: "`NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into."
+          description: >
+            `NONE`, `ADMINS` or `EVERYONE`: whose sign-in with a password asks for a second factor,
+            or sets one up first. A sign-in through a provider never does - the provider is trusted
+            as a whole; a factor the account already holds is asked only when a provider is
+            connected to it. What `require_admin_totp` grew into.
         methods: { $ref: "#/components/schemas/SignInPolicyMethods" }
         session: { $ref: "#/components/schemas/SessionPolicySettings" }
         legal: { $ref: "#/components/schemas/LegalPolicySettings" }

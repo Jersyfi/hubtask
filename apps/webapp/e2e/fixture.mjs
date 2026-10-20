@@ -118,11 +118,35 @@ export const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: 
 export const OWNER_GRANTS = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];
 export const ADMIN_GRANTS = OWNER_GRANTS.slice(1);
 
+/** One sign-in rule as the contract answers it: nobody above decided it, nothing locks it. */
+const policyRule = (value) => ({ value, installation: value, lock: null, source: 'DEFAULT', installation_source: 'DEFAULT' });
+
+/**
+ * The workspace's sign-in rules at Hubtask's defaults, so *Administration → Sign-in* can be walked
+ * (UC-ID-12): every choice offered, since the installation requires nothing.
+ */
+export const SIGN_IN_POLICY = {
+  password: {
+    min_length: policyRule(12), min_lowercase: policyRule(0), min_uppercase: policyRule(0), min_digits: policyRule(0),
+    min_symbols: policyRule(0), min_classes: policyRule(0), max_repeat: policyRule(0),
+    common_passwords: policyRule(true), context_words: policyRule(true), breach_check: policyRule(false),
+    max_age_days: policyRule(0), history_count: policyRule(0), min_age_hours: policyRule(0),
+  },
+  mfa_required_for: policyRule('NONE'),
+  methods: policyRule(['PASSWORD']),
+  session: { max_days: policyRule(30), idle_minutes: policyRule(0) },
+  legal: {
+    imprint_url: policyRule(''), privacy_url: policyRule(''), terms_url: policyRule(''), accessibility_url: policyRule(''),
+    terms_version: policyRule(''),
+  },
+  rotation_from: null,
+};
+
 /**
  * The workspace as `GET /tenant` answers it: two people, so a private hub is offered (UC-ID-16
  * check 8). A walk about a workspace of one routes `/tenant` itself.
  */
-export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true, several_people: true };
+export const WORKSPACE = { id: '01a0e2e0-0000-7000-8000-0000000005a1', slug: 'house', display_name: 'House', status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', require_admin_totp: false, created_at: '2026-08-01T08:00:00Z', version: 1, private_hubs_offered: true, several_people: true, sign_in_policy: SIGN_IN_POLICY };
 
 /**
  * The private hubs as an administrator lists them: one in use, owned by the other person, and one

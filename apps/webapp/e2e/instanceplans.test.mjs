@@ -35,7 +35,7 @@ function planDocument(name, displayName, { workspaces = 0, version = 1, leftOut 
     created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z',
     sign_in: {
       min_length: { set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, position: 0, ...tighten },
-      mfa_required_for: { set: false, locked: false, kind: 'CHOICE', options: ['NOBODY', 'ADMINS', 'EVERYONE'], position: 1, ...tighten },
+      mfa_required_for: { set: false, locked: false, kind: 'CHOICE', options: ['NONE', 'ADMINS', 'EVERYONE'], position: 1, ...tighten },
       ...signIn,
     },
     legal: {
@@ -73,7 +73,7 @@ const TENANTS = [
 const LEVEL = {
   sign_in: {
     min_length: { set: true, value: 12, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, position: 0, ...tighten },
-    mfa_required_for: { set: false, locked: false, kind: 'CHOICE', options: ['NOBODY', 'ADMINS', 'EVERYONE'], position: 1, ...tighten },
+    mfa_required_for: { set: false, locked: false, kind: 'CHOICE', options: ['NONE', 'ADMINS', 'EVERYONE'], position: 1, ...tighten },
   },
   legal: {},
   localisation: {},

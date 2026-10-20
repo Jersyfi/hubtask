@@ -9943,7 +9943,7 @@ type SignInPolicy struct {
 	ManagedAccounts *SignInPolicyFlag   `json:"managed_accounts,omitempty"`
 	Methods         SignInPolicyMethods `json:"methods"`
 
-	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`. What `require_admin_totp` grew into.
+	// MfaRequiredFor `NONE`, `ADMINS` or `EVERYONE`: whose sign-in with a password asks for a second factor, or sets one up first. A sign-in through a provider never does - the provider is trusted as a whole; a factor the account already holds is asked only when a provider is connected to it. What `require_admin_totp` grew into.
 	MfaRequiredFor SignInPolicyText `json:"mfa_required_for"`
 
 	// Password The thirteen switches about the password itself, each at its three levels.

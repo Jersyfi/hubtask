@@ -132,8 +132,9 @@
       <div class="site-card">
         <h3>A second factor for those who can change things</h3>
         <p>
-          Require one of owners and administrators, or of everybody. Recovery codes can be copied
-          and replaced, and a reset never walks past a second factor.
+          Require one of owners and administrators, or of everybody signing in with a password; a
+          sign-in provider is trusted as a whole. Recovery codes can be copied and replaced, and a
+          reset never walks past a second factor.
         </p>
       </div>
       <div class="site-card">
