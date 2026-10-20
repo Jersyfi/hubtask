@@ -254,7 +254,8 @@ notices; a passkey's notice never names it.
 | TOTP, written in-house | RFC 6238 on `crypto/hmac`, `crypto/sha1`, `crypto/subtle`: a 20-byte secret, six digits, a 30-second step. |
 | Verification | One step either side of now, never twice for one step; attempts count in the ledger (§4.3). |
 | Enrolment | The secret is sealed under its own purpose ([security.md](./security.md) §8); the provisioning URI and ten recovery codes are shown **once**; the factor is armed only after a valid code. The client draws the QR code. |
-| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a sign-in and at an invitation's redemption (§12) — where the setup offers the app and, at the workspace's own host, a passkey or security key (§23.4). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
+| Who must hold one | `mfa_required_for`: `NONE`, `ADMINS` (`OWNER` and `ADMIN` holders) or `EVERYONE` (people, never service accounts). A covered person without one is routed into `ENROLL` — at a password sign-in and at an invitation's redemption with a password (§12) — where the setup offers the app and, at the workspace's own host, a passkey or security key (§23.4). The workspace's `require_admin_totp` is derived and read-only; a write of it becomes a `mfa_required_for` change under the same checks. |
+| A provider is trusted as a whole | A sign-in or a redemption through a provider (§10) is not covered: the provider enforces its own second factor, and whoever wants one for it sets it up there (decision #1428; UC-ID-02 and UC-ID-08 *Where it ends*). The rule's choices read accordingly — "Everyone signing in with a password". An armed factor is still asked after a provider's return. |
 | Turning it off | A step-up (§16), so a provider-only account can do it; refused, the reason on the profile, where the rule requires a factor of this person and the app is the last one the account holds - no passkey or security key of the workspace's address (§23.2). The recovery codes go with it unless such a key remains, which they then back (§9). Decided under the account's row lock, which removing a passkey takes too, so two removals never each count the other as the factor that remains. The body's `password` is `deprecated` until the next major contract version. |
 | Replacing the authenticator | A step-up with any method held, a new secret confirmed by a code from the new app, one atomic swap answering ten new recovery codes; until then the old factor and codes hold, the replacement waiting ten minutes as an unconfirmed enrolment. Audited as `auth.mfa_replaced`. |
 | No secret travels | The secret and every code appear nowhere after their single showing; MFA state does not travel to devices ([offline-sync.md](./offline-sync.md) §4.2). |
@@ -493,6 +494,14 @@ A **managed account** is one with a sign-in name and no address (`AccountSummary
   for an automation rule's act. Whoever issues it can sign in as the account and reaches whatever
   the account reaches, a private hub it holds a role in included — without the emergency access's
   notice to the hub's members (§22); see I-12.
+* **A new way in is held to the ceiling** (decision #1462). Issuing a start password, requesting an
+  address for somebody else's managed account, renewing an invitation in link mode and issuing a
+  service account's token are refused with `access.role_above_own` (403), recorded, before any
+  step-up, unless every role the account holds — or, for an invitation, the role it gives — is at
+  or below the actor's own on the ladder of [domain-model.md](./domain-model.md) §3.2: an owner
+  issues one for anybody, an administrator for nobody who holds `OWNER`. A managed account that is
+  the workspace's only owner and is locked out is recovered on the server's side (the machine-side
+  reset #1396 proposes), not by an administrator.
 * What needs a mailbox says "not possible without a mailbox".
 * **An address later:** the person, or whoever holds `MANAGE_MEMBERS` at the workspace, names one
   (`POST /accounts/{id}:add-address`). It waits on a pending credential of purpose `ADDRESS` for a
@@ -819,7 +828,7 @@ and every stored hash brought up to the current cost (§5.3), with no label, in
 | I-8 | `identity_provider.offered_workspaces` and `move_provider_offer` are unread; a contract migration drops them one release after the counting function. |
 | I-10 | Whether a lever beyond §17.2 is needed for a workspace whose password is off on purpose — the owner's to decide. |
 | I-11 | Passkeys and security keys: decided (§23, [ADR-0085](../adr/ADR-0085-passkeys-verified-in-house.md)), not built — milestone PK. Plans: decided ([multi-tenancy.md](./multi-tenancy.md) §4.2, [ADR-0086](../adr/ADR-0086-plans-a-level-for-providers.md)), being built — milestone PL; the sign-in rule and the legal links resolve through them. Custom domains follow. |
-| I-12 | Which accounts an administrator may issue a new way in for (§13's start password, an address request, an invitation link, a service account's token): today any managed account, one that holds `OWNER` or a role in a private hub included — the owner's to decide. |
+| I-12 | Decided for `OWNER` (§13, "A new way in is held to the ceiling", decision #1462). Still open: a role in a private hub at or below the issuer's own lets the issuer reach the hub through the account without §22's notice. |
 | I-13 | Whether a second factor armed, removed or replaced, or recovery codes regenerated, is told to the person by mail as a changed way in is (§6, [ADR-0078](../adr/ADR-0078-the-ways-back-in.md) §6 names neither) — the owner's to decide. |
 | I-14 | Decided ([decision #1511](https://github.com/Jersyfi/hubtask/issues/1511), option b) and built: a provider's admission settings bound which identities members may connect as well as who comes in new (§10.4). |
 

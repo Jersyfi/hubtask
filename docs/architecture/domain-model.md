@@ -152,7 +152,10 @@ last such people out of a group that holds it, or deleting the group. An invitat
 and a service account do not count; a workspace that had no such owner loses nothing and is not
 refused. Every such door takes the workspace's owner lock in its write before it counts again, so
 two owners revoking each other at once cannot both pass; the count is asked once before a step-up
-too, so a proof is not spent on a refused change. An erasure is not held to it.
+too, so a proof is not spent on a refused change. An erasure is held to it too (decision #1478):
+starting the erasure of the workspace's only such owner is refused with `memberships.last_owner`
+until somebody else is made `OWNER`, the statutory deadline running on, and the erasure job asks
+again under the owner lock before it ends the account.
 
 `ListMemberships` answers
 `grantable_roles`, the roles the caller may give at that scope by the same rule and along the path
