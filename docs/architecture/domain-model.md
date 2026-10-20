@@ -53,8 +53,25 @@ narrow them, never widen them beyond the system boundary.
 | `HISTORY` | ✔ | ✔ | ✔ | Compact history for activities |
 | `RECURRENCE` | ✔ | ✘ | ✘ | A series applies to the whole subtree |
 | `CUSTOM_FIELDS` | ✔ | ✔ | ✘ | |
-| `CHILDREN` | `WORK_PACKAGE` | `ACTIVITY` | — | The permitted child types |
+| `CHILDREN` | `WORK_PACKAGE`, `ACTIVITY` | `ACTIVITY` | — | The permitted child types; a task may hold both at once (decision #1627) |
 | `MAX_DEPTH` | 3 | 2 | 1 | Relative to the collection |
+
+**Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
+*Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:
+the levels and their names, the fields (capabilities), the views, what counts, what completion
+does, what capture recognises, how success is shown, and what runs by itself. Every setting can be
+changed per hub or collection, and a collection inherits from its hub, its hub from the workspace,
+the workspace from the installation; an administrator may lock a setting (P-06, P-07). A setting
+**narrows** the system profile and never widens it. The effective profile is what the gate below
+applies; `policies.capability_overrides` holds a container's own narrowing. A level may carry a
+name a person chose; it is that person's content (rule 10), and the translated default applies
+without one.
+
+**Narrowing hides, it never deletes** (decision #1620). Values and children a collection's
+settings no longer offer stay stored, are returned by every read marked as hidden, and writing
+them is refused as below; widening again shows them exactly as they were. Flattening — moving every
+leaf to the top level — is a separate, explicit operation with a preview, recorded in each entry's
+history.
 
 **The rule:** setting a field whose capability is not active for the type produces
 `ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. A

@@ -169,7 +169,9 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
   product's shortest timeout). Any failure to get that embedding is a **lexical search, not an
   error**.
 * **A model may pick from a set it was shown, never name a destination.** `collection_id` is
-  filtered from every answer. A closed set (board columns, labels) is read through the ordinary
+  filtered from every answer, except where the collections the asking person may write in were
+  passed as the set — a jumble proposal's destination (decision #1629) — and then it is validated
+  against that set like any other closed set. A closed set (board columns, labels) is read through the ordinary
   listing as the asking person, passed as options — content, never instruction — and validated on
   return; anything else is dropped and the rest stands. Where the set has its own validation (a
   custom field's declaration), the check is that code, not a copy.

@@ -178,6 +178,8 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-20](./identity/UC-ID-20-give-someone-an-account-without-an-address.md) | Give a family member an account without their own mail address | identity | built |
 | [UC-ID-21](./identity/UC-ID-21-sign-in-with-a-passkey.md) | Sign in with a passkey | identity | verified |
 | [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity | verified |
+| [UC-ID-23](./identity/UC-ID-23-see-hubtask-in-my-own-script.md) | See Hubtask in my own script | identity | specified |
+| [UC-ID-24](./identity/UC-ID-24-run-the-workspace-from-one-overview.md) | Run the workspace from one overview | identity | specified |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin | verified |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin | built |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin | verified |
@@ -195,9 +197,10 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-15](./admin/UC-INS-15-give-a-workspace-its-own-domain.md) | Give a workspace its own domain | admin | specified |
 | [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin | verified |
 | [UC-INS-17](./admin/UC-INS-17-run-hubtask-on-my-own-hardware.md) | Run Hubtask on the hardware I have | admin | built |
+| [UC-INS-18](./admin/UC-INS-18-offer-presets-to-every-workspace.md) | Offer presets to every workspace | admin | specified |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work | partial |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work | built |
-| [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work | built |
+| [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work | partial |
 | [UC-WRK-04](./work/UC-WRK-04-tick-work-off-and-take-it-back.md) | Tick work off, and take it back | work | built |
 | [UC-WRK-05](./work/UC-WRK-05-run-a-collection-as-a-board.md) | Run a collection as a board | work | partial |
 | [UC-WRK-06](./work/UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md) | Put work in order and move it where it belongs | work | built |
@@ -217,13 +220,25 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-20](./work/UC-WRK-20-see-what-is-on-me-when-i-arrive.md) | See what is on me when I arrive | work | partial |
 | [UC-WRK-21](./work/UC-WRK-21-share-a-hub-a-collection-or-one-entry.md) | Share a hub, a collection or one entry with somebody | work | partial |
 | [UC-WRK-22](./work/UC-WRK-22-work-within-what-my-role-allows.md) | Work within what my role allows | work | built |
+| [UC-WRK-23](./work/UC-WRK-23-choose-how-much-structure-a-collection-has.md) | Choose how much structure a collection has | work | specified |
+| [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | specified |
+| [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | specified |
+| [UC-WRK-26](./work/UC-WRK-26-capture-something-from-anywhere.md) | Capture something from anywhere in one step | work | specified |
+| [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | specified |
+| [UC-WRK-28](./work/UC-WRK-28-act-on-an-entry-the-same-way-everywhere.md) | Act on an entry the same way everywhere | work | specified |
+| [UC-WRK-29](./work/UC-WRK-29-see-what-counts.md) | See what counts in a hub or collection | work | specified |
+| [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work | specified |
+| [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work | specified |
+| [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work | specified |
+| [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work | specified |
+| [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work | specified |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble | built |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble | built |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble | built |
 | [UC-JUM-04](./jumble/UC-JUM-04-let-another-system-post-into-the-jumble.md) | Let another system post into the jumble | jumble | built |
 | [UC-JUM-05](./jumble/UC-JUM-05-turn-a-jumble-entry-into-work.md) | Turn a jumble entry into work | jumble | built |
 | [UC-JUM-06](./jumble/UC-JUM-06-dismiss-what-does-not-need-doing.md) | Dismiss what does not need doing | jumble | built |
-| [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble | built |
+| [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble | partial |
 | [UC-JUM-08](./jumble/UC-JUM-08-sort-arrivals-automatically-with-a-rule.md) | Sort arrivals automatically with a rule | jumble | built |
 | [UC-AUT-01](./automation/UC-AUT-01-write-a-rule-and-switch-it-on.md) | Write a rule and switch it on | automation | built |
 | [UC-AUT-02](./automation/UC-AUT-02-try-a-rule-before-it-acts.md) | Try a rule before it acts | automation | built |
@@ -234,6 +249,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AUT-07](./automation/UC-AUT-07-keep-rules-from-running-away.md) | Keep rules from running away | automation | built |
 | [UC-AUT-08](./automation/UC-AUT-08-find-rules-that-need-attention-before-they-fail.md) | Find rules that need attention before they fail | automation | built |
 | [UC-AUT-09](./automation/UC-AUT-09-have-a-rule-tell-people.md) | Have a rule tell people something | automation | specified |
+| [UC-AUT-10](./automation/UC-AUT-10-describe-a-rule-and-get-a-draft.md) | Describe a rule and get a draft | automation | specified |
 | [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | built |
 | [UC-INT-02](./integration/UC-INT-02-recover-deliveries-my-server-missed.md) | Recover the deliveries my server missed | integration | built |
 | [UC-INT-03](./integration/UC-INT-03-replace-a-webhook-secret-without-dropping-deliveries.md) | Replace a webhook secret without dropping deliveries | integration | built |
@@ -287,10 +303,12 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-01](./suggestion/UC-AI-01-work-fully-without-ai.md) | Use all of Hubtask with AI switched off | suggestion | built |
 | [UC-AI-02](./suggestion/UC-AI-02-connect-our-own-ai-provider.md) | Connect our workspace's own AI model | suggestion | built |
 | [UC-AI-03](./suggestion/UC-AI-03-consent-to-ai-processing.md) | Decide whether our content may be sent to a model, and take it back | suggestion | built |
-| [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
+| [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | partial |
 | [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | verified |
 | [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | verified |
 | [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | built |
+| [UC-AI-08](./suggestion/UC-AI-08-ask-the-workspace-a-question.md) | Ask the workspace a question | suggestion | specified |
+| [UC-AI-09](./suggestion/UC-AI-09-turn-text-into-entries.md) | Turn a piece of text into entries | suggestion | specified |
 | [UC-SYN-01](./sync/UC-SYN-01-keep-working-when-the-connection-drops.md) | Keep working when the connection drops | sync | partial |
 | [UC-SYN-02](./sync/UC-SYN-02-edit-on-two-devices-without-losing-either-change.md) | Edit on two devices without losing either change | sync | built |
 | [UC-SYN-03](./sync/UC-SYN-03-see-and-forget-my-devices.md) | See and forget my devices | sync | built |

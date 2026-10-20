@@ -5,7 +5,7 @@ context: jumble
 actors: [PE-person, PE-member, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12, P-14]
-state: built
+state: partial
 tasks: [J-06, F5-03, K-01]
 checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go]
 ---
@@ -42,6 +42,11 @@ dismiss the proposal and convert by hand.
 7. Asking needs the right to write in the workspace, and a person who may only read is refused.
 8. Asking twice produces two proposals, not a refusal.
 9. The trail holds `jumble.suggestion_asked`, with no content of the entry.
+10. A workspace that switches *Prepare proposals on arrival* on finds a proposal on each new entry
+    without asking; the switch is off by default, and nothing counts or announces waiting proposals.
+11. A proposal names the collection it fits best, chosen from the collections the person may write
+    in, and accepting uses it unless the person picks another.
+12. Several undecided entries can be asked about at once from the jumble's selection.
 
 ## Where it ends
 
@@ -50,3 +55,9 @@ dismiss the proposal and convert by hand.
 * No labels from the jumble: a label belongs to a collection, and an arrival is in none yet.
 * Configuring a provider and giving consent are the AI context's use cases, not this one's
   ([NG-ai-consent-by-default](../../vision/non-goals.md)).
+
+## Today
+
+* Check 10: not met — not built yet, tracked in milestone UX (decision #1629).
+* Check 11: not met — not built yet, tracked in milestone UX (decision #1629).
+* Check 12: not met — not built yet, tracked in milestone UX (decision #1629).

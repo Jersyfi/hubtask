@@ -50,8 +50,9 @@ member or a child works *inside* the collections they are given.
 
 ## Where it ends
 
-* An icon or a colour per hub or collection is not asked for yet (the create dialog carries name
-  and description only).
+* An icon and a colour per hub or collection, and how much structure each has, are
+  [UC-WRK-33](./UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) and
+  [UC-WRK-23](./UC-WRK-23-choose-how-much-structure-a-collection-has.md).
 * Deleting a hub or a collection — to the trash, restoring it, emptying the trash — belongs to the
   lifecycle use cases, not here.
 * No nesting deeper than hub › collection: a collection holds entries, not collections

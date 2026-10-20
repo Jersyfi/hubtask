@@ -5,7 +5,7 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
-state: built
+state: partial
 tasks: [B-03, B-05, B-08, F2-09, F10-12]
 checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs]
 ---
@@ -28,8 +28,8 @@ small by design: one person responsible, a due date, a reminder, no labels and n
 ## How to check
 
 1. On a task's page, the add button offers the child types the server's capability profile
-   permits under it — by default *Work package* under a task and *Activity* under a work package —
-   and nothing under an activity.
+   permits under it — by default *Work package* and *Activity* under a task, *Activity* under a work
+   package — and nothing under an activity; a task may hold both kinds at once.
 2. Creating a type the profile does not permit under that parent is refused with
    `items.parent_type_invalid`; one deeper than the type's limit with `items.depth_exceeded`.
 3. An entry's page shows only the fields and panels its type carries; for an activity there are no
@@ -46,8 +46,12 @@ small by design: one person responsible, a due date, a reminder, no labels and n
 
 * No new entry types from the web app: a new level is a profile entry, decided by the installation
   ([domain model §2](../../architecture/domain-model.md)).
-* A workspace narrowing the system's profile (for example: no activities) is documented there and
-  has no writer yet; it would be an administration use case, not this one.
+* A collection narrowing what its entries offer — for example no activities — is
+  [UC-WRK-23](./UC-WRK-23-choose-how-much-structure-a-collection-has.md).
 * No dependencies between steps ("B starts when A is done") — not planned.
 * Completing a parent when its children are done is [UC-WRK-04](./UC-WRK-04-tick-work-off-and-take-it-back.md).
 * An AI proposing the steps is the suggestion context's, and optional.
+
+## Today
+
+* Check 1: not met — a task offers only *Work package* under it; an activity directly under a task is milestone UX (decision #1627).
