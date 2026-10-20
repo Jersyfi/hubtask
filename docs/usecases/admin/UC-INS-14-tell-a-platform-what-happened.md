@@ -6,7 +6,7 @@ actors: [PE-platform, PE-operator]
 deployments: [D5, D6, D7]
 serves: [P-08, P-11, P-15]
 state: verified
-tasks: [PL-07, PL-08]
+tasks: [PL-07, PL-08, CP-18]
 checked_by: [test/contract/installation_events_test.go, core/application/service/platform/Recorder_test.go, core/application/service/admin/PlatformEvents_test.go, core/application/service/platform/Crossings_test.go, core/application/service/identity/OwnerChanges_test.go, core/application/service/quota/Crossings_test.go, core/application/service/admin/ExportFinished_test.go, test/integration/platform_event_test.go, core/application/service/admin/PlatformSubscriptions_test.go, infrastructure/webhook/PlatformDeliverer_test.go, test/integration/platform_subscription_test.go, presentation/worker/Scheduler_test.go, cmd/hubctl/AdminSubscription_test.go, cmd/hubctl/AdminEvents_test.go, infrastructure/instancefile/File_test.go, apps/webapp/e2e/instanceplatform.test.mjs, test/integration/usage_test.go, core/application/service/admin/Usage_test.go, cmd/hubctl/AdminUsage_test.go, presentation/worker/SchedulerPurge_test.go, test/integration/admin_test.go, test/integration/instance_values_test.go]
 ---
 
