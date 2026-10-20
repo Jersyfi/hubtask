@@ -91,7 +91,7 @@
   .rule[data-state='unmet'],
   .rule[data-state='server'],
   .rule[data-state='checking'] { color: var(--text-secondary); }
-  .rule[data-state='failed'] { color: var(--text-danger); }
+  .rule[data-state='failed'] { border-radius: var(--r-sm); background: var(--status-danger-surface); color: var(--status-danger-text); }
   .rule[data-state='unchecked'] { color: var(--text-secondary); }
 
   .mark {
@@ -102,8 +102,8 @@
     flex: none;
   }
 
-  .rule[data-state='met'] .mark { color: var(--text-success); }
-  .rule[data-state='failed'] .mark { color: var(--text-danger); }
+  .rule[data-state='met'] .mark { border-radius: var(--r-full); background: var(--status-success-surface); color: var(--status-success-text); }
+  .rule[data-state='failed'] .mark { color: var(--status-danger-text); }
 
   /* The waiting mark: a ring rather than a character, so a line nobody has answered yet does not
      look like a line that failed. */

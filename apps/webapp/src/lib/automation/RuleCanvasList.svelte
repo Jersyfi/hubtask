@@ -558,7 +558,7 @@
 
   .rcond.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 
-  .rcond.flagged { border-color: var(--status-warning-border); }
+  .rcond.flagged { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
 
   .rtool { flex: 0 0 auto; width: var(--sp-300); height: var(--sp-300); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--text-subtle); cursor: pointer; }
 

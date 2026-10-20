@@ -1001,7 +1001,7 @@
   .chip:hover { border-color: var(--border-default); }
 
   .chip b { font-weight: var(--fw-medium); color: var(--text-primary); }
-  .chip.flagged { border-color: var(--status-warning-border); }
+  .chip.flagged { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
   .chip-flag { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-warning); }
 
   .sentence-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
@@ -1023,7 +1023,7 @@
 
   .dragline span { display: inline-block; max-width: 100%; padding: var(--sp-050) var(--sp-200); border-end-start-radius: var(--r-md); border-end-end-radius: var(--r-md); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: var(--accent-primary); box-shadow: var(--shadow-raised); }
 
-  .dragline.refused span { background: var(--status-warning-text); }
+  .dragline.refused span { background: var(--status-warning-accent); }
 
   .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 
