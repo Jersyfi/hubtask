@@ -101,6 +101,9 @@ export function keptPhrase(request: Request): KeptPhrase | undefined {
     return { code: 'app.privacy.kept_rest_erased', params: { at: last } };
   }
   const blocked = pending.find((part) => part.blocked);
+  if (blocked?.blocked?.code === 'memberships.last_owner') {
+    return { code: 'app.privacy.kept_waits_owner', params: { holds: pending.length } };
+  }
   if (blocked?.blocked) {
     return { code: 'app.privacy.kept_waits', params: { holds: pending.length, rules: blocked.blocked.params?.rules ?? '' } };
   }

@@ -203,6 +203,11 @@ test('a case a hold kept part of says so, and says when the rest went', () => {
     keptPhrase(aCase({ kept: [{ ...part, blocked: { code: 'privacy.erasure_blocked_by_rule', params: { rules: '1' } } }] })),
     { code: 'app.privacy.kept_waits', params: { holds: 1, rules: '1' } },
   );
+  // UC-PRV-03 check 14: a rest that waits for another owner says so, not a count of rules.
+  assert.deepEqual(
+    keptPhrase(aCase({ kept: [{ ...part, blocked: { code: 'memberships.last_owner' } }] })),
+    { code: 'app.privacy.kept_waits_owner', params: { holds: 1 } },
+  );
   assert.deepEqual(
     keptPhrase(aCase({ kept: [{ ...part, erased_at: '2026-09-02T10:00:00Z' }, { ...part, hold_id: 'h2', erased_at: '2026-09-03T10:00:00Z' }] })),
     { code: 'app.privacy.kept_rest_erased', params: { at: '2026-09-03T10:00:00Z' } },
