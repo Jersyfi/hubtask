@@ -46,7 +46,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { people, type Path, type Scope } from '../data/people.svelte.ts';
-  import { grantableOf, mayRevoke, ownershipOf, type Holder } from '../data/people.ts';
+  import { grantableOf, mayIssueWayIn, mayRevoke, ownershipOf, type Holder } from '../data/people.ts';
   import RevokeDialog from './RevokeDialog.svelte';
   import { inviteWay } from './invitation.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -133,10 +133,16 @@
    * Whether a row's person waits on an invitation this reader may renew here. The renewal asks
    * `MANAGE_MEMBERS` on the workspace whatever the invitation's place (identity.md §12), so it is
    * offered on every invited row - granted here or inherited - to a reader who manages the
-   * workspace's members, and to nobody else.
+   * workspace's members, and to nobody else. A new link is a way in for whoever renews it, held to
+   * the ceiling on the workspace (identity.md §13): absent for a role above the reader's own there.
    */
   function mayRenew(holder: Holder): boolean {
-    return managesWorkspace && holder.accountId !== undefined && accounts.statusOf(holder.accountId) === 'INVITED';
+    return (
+      managesWorkspace &&
+      holder.accountId !== undefined &&
+      accounts.statusOf(holder.accountId) === 'INVITED' &&
+      (way === 'mail' || mayIssueWayIn([holder.role], people.grantableAt({ scopeType: 'TENANT' })))
+    );
   }
 
   /** A new way to arrive for somebody invited here: the mail again, or a new link shown once. */

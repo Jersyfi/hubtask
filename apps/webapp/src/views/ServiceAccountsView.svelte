@@ -21,6 +21,7 @@
 
   import TokensView from './TokensView.svelte';
   import { people } from '../lib/data/people.svelte.ts';
+  import { mayIssueWayIn } from '../lib/data/people.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -134,7 +135,10 @@
             </div>
 
             {#if opened === account.id}
-              <TokensView accountId={account.id} />
+              <TokensView
+                accountId={account.id}
+                mintable={mayIssueWayIn(rolesOf(account.id).map((holder) => holder.role), people.grantableAt(TENANT))}
+              />
             {/if}
           </Stack>
         </section>

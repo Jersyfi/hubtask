@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -24,7 +24,7 @@ test.after(() => served.close());
 const SERVICE = { id: '01a0e2e0-0000-7000-8000-0000000000f1', kind: 'SERVICE', display_name: 'Shop platform', status: 'ACTIVE' };
 const OWNER = { role: 'OWNER', permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'MANAGE_MEMBERS', 'DELETE_CONTAINER'] };
 
-async function open(browser, { timezoneId, operator = true } = {}) {
+async function open(browser, { timezoneId, operator = true, serviceRole = undefined } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...(timezoneId ? { timezoneId } : {}) });
   const mints = [];
   const proofs = [];
@@ -38,6 +38,13 @@ async function open(browser, { timezoneId, operator = true } = {}) {
     }
     if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, has_password: true, has_second_factor: false } });
     if (path === '/auth/service-accounts' && request.method() === 'GET') return route.fulfill({ json: [SERVICE] });
+    // A walk that names the service account's role reads as an administrator: every role but OWNER.
+    if (serviceRole && path === '/memberships' && new URL(request.url()).searchParams.get('scope_type') === 'TENANT') {
+      return route.fulfill({ json: { ...PAGE, data: [
+        { id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'ADMIN' },
+        { id: 'm-svc', scope_type: 'TENANT', account_id: SERVICE.id, role: serviceRole },
+      ], grantable_roles: OWNER_GRANTS.filter((role) => role !== 'OWNER') } });
+    }
     if (path === '/auth/tokens' && request.method() === 'POST') {
       const proof = request.headers()['x-hubtask-step-up'] ?? null;
       const body = request.postDataJSON();
@@ -212,4 +219,25 @@ test('chromium: the installation choice offers provisioning or full control, pre
   assert.deepEqual(mints.map((each) => each.proof), [null, 'hbt_sup_tok']);
   assert.deepEqual(mints[1].body.scopes, ['admin:provisioning']);
   assert.equal(mints[1].body.account_id, SERVICE.id);
+});
+
+// A service account's token is held to the ceiling (identity.md §13): an administrator is offered no
+// mint for one that holds OWNER, and is told why; for one that holds MEMBER the form is there.
+test('chromium: an administrator is offered no token for a service account that holds OWNER', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const [serviceRole, offered] of [['OWNER', false], ['MEMBER', true]]) {
+    const { page, close } = await open(browser, { serviceRole });
+    t.after(close);
+    await page.goto(`${served.origin}/administration/service-accounts`);
+    const section = page.locator('section', { hasText: SERVICE.display_name });
+    await section.getByText(serviceRole === 'OWNER' ? 'Owner' : 'Member', { exact: true }).waitFor({ timeout: 15_000 });
+    await section.getByRole('button', { name: 'Its tokens' }).click();
+    await section.getByText('This service account has no tokens.').waitFor();
+    assert.equal(await section.getByRole('button', { name: 'Create the token' }).count(), offered ? 1 : 0, serviceRole);
+    assert.equal(await section.getByText('This service account holds a role above yours').count(), offered ? 0 : 1, serviceRole);
+    if (process.env.EVIDENCE) {
+      await section.screenshot({ path: join(process.env.EVIDENCE, `service-account-${serviceRole.toLowerCase()}.png`) });
+    }
+  }
 });

@@ -40,7 +40,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
-  import { endsTheLastOwner, grantableOf, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
+  import { endsTheLastOwner, grantableOf, mayIssueWayIn, mayRevoke, ownershipOf, type Holder } from '../lib/data/people.ts';
   import RevokeDialog from '../lib/people/RevokeDialog.svelte';
   import ManagedAccountForm from '../lib/people/ManagedAccountForm.svelte';
   import AddressDialog from '../lib/people/AddressDialog.svelte';
@@ -132,6 +132,11 @@
 
   function isManaged(holder: Holder): boolean {
     return holder.groupId === undefined && accounts.isManaged(holder.accountId);
+  }
+
+  /** Whether a new way into the row's account is no certain refusal (identity.md §13, P-05). */
+  function mayWayIn(holder: Holder): boolean {
+    return mayIssueWayIn([holder.role], people.grantableAt(TENANT));
   }
 
   // An address is added only where the password is a way in (identity.md §13): elsewhere it would
@@ -440,9 +445,10 @@
             </td>
             <td>
               <div class="actions">
-                {#if statusOf(holder.accountId) === 'INVITED'}
+                {#if statusOf(holder.accountId) === 'INVITED' && (way === 'mail' || mayWayIn(holder))}
                   <!-- An invitation not yet accepted can be given a new way to arrive: a link lost
-                       or run out would otherwise leave the address taken for good. -->
+                       or run out would otherwise leave the address taken for good. A link is a way
+                       in for whoever renews it, so it is absent above the reader's own role. -->
                   <Button
                     size="sm"
                     isBusy={isWriting}
@@ -452,7 +458,7 @@
                     {way === 'link' ? t('app.people.renew_link') : t('app.people.renew_mail')}
                   </Button>
                 {/if}
-                {#if isManaged(holder)}
+                {#if isManaged(holder) && mayWayIn(holder)}
                   <Button size="sm" tone="secondary" onclick={() => (renewing = holder)}>
                     {t('app.people.renew')}
                   </Button>

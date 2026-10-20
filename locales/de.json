@@ -3296,6 +3296,7 @@
   "app.tokens.revoke": "Zurückziehen",
   "app.tokens.working": "Läuft",
   "app.tokens.mint_title": "Neues Token",
+  "app.tokens.mint_above_own": "Dieses Dienstkonto hat eine Rolle über deiner, deshalb kann nur jemand mit dieser Rolle ein Token dafür erstellen.",
   "app.tokens.mint": "Token anlegen",
   "app.tokens.minting": "Wird angelegt",
   "app.tokens.minted_title": "Dein neues Token",
